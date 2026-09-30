@@ -1,0 +1,41 @@
+{
+  "countryCode": "DZ",
+  "rates": [
+    {
+      "id": "dz-standard",
+      "rate": 19,
+      "label": "Taux normal",
+      "category": "STANDARD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La taxe sur la valeur ajoutée est perçue au taux normal de 19 %.",
+        "sourceCheckedAt": "2026-09-30"
+      },
+      "notes": "Code des Taxes sur le Chiffre d'Affaires (CTCA), edition 2026, DGI (updated 2026-04-27), art. 21. Transcribed from the dedicated issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 1 and its own Sources section): the PDF was read directly at https://www.mfdgi.gov.dz/files/803/2026/3725/CodedesTaxessurle-Chiffred-Affaires2026frpdf?preview=1 by that research pass, not re-fetched by this task."
+    },
+    {
+      "id": "dz-reduced",
+      "rate": 9,
+      "label": "Taux réduit",
+      "category": "REDUCED",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Le taux réduit de la taxe sur la valeur ajoutée est fixé à 9 %. Il s'applique aux produits, biens, travaux, opérations et services ci-après [...]",
+        "sourceCheckedAt": "2026-09-30"
+      },
+      "notes": "CTCA 2026, art. 23: same source pass as dz-standard above. Applies to a listed set of essential/agricultural goods and services (art. 23's own enumeration, not reproduced here: this catalog carries the rate, not the eligibility list). Other sectoral rates mentioned by the research (7/14/5 %, CTCA art. 169 and historical provisions) are time-bound and sector-specific, not general rates, and are deliberately left out of this catalog, which, like every other shipped country file here, carries only a seller's own dropdown of general rates, not a tax authority's full rate book."
+    },
+    {
+      "id": "dz-export",
+      "rate": 0,
+      "label": "Export (assimilé au taux zéro)",
+      "category": "ZERO",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "The issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 1) describes CTCA art. 13 as treating an export as zero-rated \"sous conditions formelles\" (excluding antiques, works of art, and precious metals), but that pass's own Sources section does not carry a verbatim quote of art. 13: only a paraphrase. This entry is therefore kept unverified rather than legal: what would settle it is reading CTCA art. 13's own text directly and quoting it verbatim, including its exact formal conditions and exclusions."
+      },
+      "notes": "Included because the research brief for issue #558 names export explicitly alongside the 19 % and 9 % rates: left in the catalog as a genuinely useful dropdown entry for a company invoicing abroad, but honestly unverified rather than invented as a confident 'legal' quote this task does not actually hold."
+    }
+  ],
+  "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from the dedicated research pass RECHERCHE_558_ALGERIE.md (primary texts: CTCA 2026 as published by the DGI, read via direct PDF retrieval: see that file's own 'Sources' section for the exact method, curl + pdftotext, mfdgi.gov.dz's own TLS certificate being invalid for direct browser access). Two of three rates sourced to an exact quote of the DGI's own consolidated 2026 code; the export rate stays unverified for lack of a captured verbatim quote of CTCA art. 13. The IFU (Impot Forfaitaire Unique) flat-tax regime is NOT a VAT rate and is not modeled here: see tax/tax-systems/data/dz.json's own notes for why, and this PR's own report for the schema gap this surfaces."
+}

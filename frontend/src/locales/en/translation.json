@@ -2405,6 +2405,12 @@
           "VAT": "Your German EU VAT number: DE followed by 9 digits, for example DE123456789. Needed to qualify as a business (B2B) for cross-border VAT treatment.",
           "LEGAL_ID": "Your commercial register number: the registering court (Amtsgericht) plus the register number, for example HRB 12345 München."
         },
+        "DZ": {
+          "RC": "Your trade register number (Registre du Commerce). Required for a business; not required for a private, final consumer.",
+          "NIS": "Your statistical identification number (Numéro d'Identification Statistique). Required for a business; not required for a private, final consumer.",
+          "NIF": "Your tax identification number (Numéro d'Identification Fiscale). Shown in practice on Algerian invoices, though not named by decree 05-468's own list of mandatory mentions.",
+          "AI": "Your tax-office article number (Article d'Imposition). Shown in practice on Algerian invoices, though not named by decree 05-468's own list of mandatory mentions."
+        },
         "FR": {
           "LEGAL_ID": "9 digits (SIREN, the legal-unit number required on every invoice) or 14 digits (SIRET, the establishment number, also accepted since its first 9 digits are the SIREN)."
         },
@@ -5294,6 +5300,19 @@
           "COUNTERPARTY_OBJECTION": "For a self-billed invoice, you as the supplier can object to it and have the document lose its effect as an invoice. This takes effect once the buyer who issued the self-billed invoice receives your objection, with no time limit. (Section 14(2) sentence 6 UStG)",
           "LEDGER_ANNOTATION": "Whether a correction can be made by a simple internal register entry alone, with no document at all, has not been confirmed for Germany. In practice, most such cases are already covered by the automatic adjustment route above.",
           "ANNOTATED_DUPLICATE": "Whether an invoice can be resent unchanged, with an added note, as a correction has not been researched for Germany."
+        },
+        "DZ": {
+          "CREDIT_NOTE": "Decree 05-468 does not define a credit note. Discounts and rebates are folded into the original invoice when it is issued, never corrected afterwards by a separate document. Whether a credit note is used in practice has not been confirmed.",
+          "DEBIT_NOTE": "Decree 05-468 does not define an upward-correction document either. Not researched further.",
+          "CORRECTIVE_INVOICE": "No general rectifying document, separate from cancellation, was found in decree 05-468.",
+          "CANCEL_AND_REPLACE": "Decree 05-468 lets you cancel an invoice by writing \"facture annulée\" diagonally across the original, kept in the booklet, but the decree does not describe reissuing it under a new number. (Décret 05-468, art. 10)",
+          "INTERNAL_CREDIT_NOTE": "No credit note mechanism at all was identified for Algeria, so a purely internal variant could not be checked either.",
+          "AUTHORITY_ANNULMENT": "The one cancellation mechanism found (decree 05-468, art. 10) is carried out by the seller itself, not by the tax authority. Algeria has no real-time invoice clearance platform.",
+          "RESUBMIT_SAME_IDENTITY": "This route assumes a rejection by a real-time clearance platform, which Algeria does not have.",
+          "ANNOTATED_DUPLICATE": "The cancellation mention (decree 05-468, art. 10) is written on the original document itself, not on a reissued duplicate, and concerns a full cancellation rather than a no-tax-effect correction.",
+          "LEDGER_ANNOTATION": "No provision governing a correction made only in the accounting register or a VAT return, with nothing sent to the customer, was identified.",
+          "NO_DOCUMENT_BY_LAW": "No scenario was identified where a correction takes effect automatically, with no document and no accounting entry at all.",
+          "COUNTERPARTY_OBJECTION": "No mechanism was identified for the buyer to unilaterally reject an Algerian invoice."
         },
         "FR": {
           "CREDIT_NOTE": "For a cancelled or terminated sale, or a discount or rebate, you may correct the invoice by cancelling and replacing it, or by issuing a credit note. This is not available for a simple unpaid debt. (CGI art. 289, I, 5)",

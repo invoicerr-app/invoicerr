@@ -20,9 +20,9 @@ import { assertValidTaxSystemProvenance, InvalidTaxSystemProvenanceError } from 
 import { ALL_TAX_SYSTEM_FILES } from './all';
 
 describe('tax-systems/data — coverage', () => {
-  it('loads exactly the five kept countries (DE/FR/IT/PL/PT)', () => {
+  it('loads exactly the six kept countries (DE/DZ/FR/IT/PL/PT)', () => {
     const codes = ALL_TAX_SYSTEM_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit)', () => {
@@ -179,9 +179,9 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
       (f) => f.kind === 'VAT' && typeof f.standardRate === 'number' && f.provenance.kind === 'legal',
     );
     // Guards the guard: this only proves something if it actually has files to check (today
-    // DE/IT/PL/PT) — an empty filter passing vacuously would be exactly the kind of assertion this
+    // DE/DZ/IT/PL/PT), an empty filter passing vacuously would be exactly the kind of assertion this
     // task's own brief warns against.
-    expect(filesWithStandardRate.length).toBe(4);
+    expect(filesWithStandardRate.length).toBe(5);
     for (const file of filesWithStandardRate) {
       const sourceText = (file.provenance as { sourceText: string }).sourceText;
       // A TEDB (or any similarly-shaped REST) response body always carries these literal JSON keys

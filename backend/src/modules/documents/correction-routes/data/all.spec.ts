@@ -51,9 +51,9 @@ describe('correction-routes/data/all.ts', () => {
   // correction-routes rules for DE/FR/IT/PL/PT only — every other country the YAML or a later
   // direct-reading lot ever covered (AT/BE/BG/CY/CZ/DK/EE/ES/FI/GR/HR/HU/IE/LT/LU/LV/MT/MX/NL/RO/
   // SE/SI/SK/US) was `git rm`'d along with its data/xx.json.
-  it('ships exactly the five kept-country files (DE/FR/IT/PL/PT)', () => {
+  it('ships exactly the six kept-country files (DE/DZ/FR/IT/PL/PT)', () => {
     const countries = ALL_CORRECTION_ROUTES_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(countries).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every shipped route carries either legal or unverified provenance, never anything else', () => {

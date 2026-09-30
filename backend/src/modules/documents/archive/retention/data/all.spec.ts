@@ -13,8 +13,8 @@ describe('archive/retention/data — the shipped catalog', () => {
   // newly sourced. Italy was investigated and deliberately left OUT — see the retention work's own
   // report for exactly why (normattiva.it would not come down as raw text). Update this list
   // deliberately, alongside the delivered work, never loosen it to "contains" or "at least".
-  it("loads exactly DE, FR, PL and PT today — see this test's own comment for what was investigated and left out", () => {
-    expect(ALL_RETENTION_FILES.map((f) => f.countryCode)).toEqual(['DE', 'FR', 'PL', 'PT']);
+  it("loads exactly DE, DZ, FR, PL and PT today: see this test's own comment for what was investigated and left out", () => {
+    expect(ALL_RETENTION_FILES.map((f) => f.countryCode)).toEqual(['DE', 'DZ', 'FR', 'PL', 'PT']);
   });
 
   it('every rule in every shipped file has already passed assertValidRetentionRule at load time', () => {

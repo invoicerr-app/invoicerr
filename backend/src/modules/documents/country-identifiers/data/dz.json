@@ -1,0 +1,56 @@
+{
+  "countryCode": "DZ",
+  "schemes": [
+    {
+      "scheme": "RC",
+      "appliesTo": "COMPANY",
+      "label": "RC (Registre du Commerce)",
+      "required": true,
+      "helpText": "The trade register number every economic agent carries: always required for the seller, and for the buyer only when the buyer is itself a company (a private, final consumer is never asked for one).",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La facture doit comporter les mentions, ci-après, se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] numéro du registre du commerce ; [...] 2°) Mentions relatives à l'acheteur : [...] numéro du registre du commerce ; numéro d'identification statistique. Si l'acheteur est un consommateur, la facture doit mentionner ses nom, prénom(s) et adresse.",
+        "sourceCheckedAt": "2026-09-30"
+      },
+      "notes": "Decret executif n. 05-468 du 10 decembre 2005, art. 3: full article read and quoted verbatim by the dedicated issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 2, and its own Sources section), JO n. 80 du 11 decembre 2005. The decree names the RC for the seller with NO condition, and for the buyer only among the mentions that apply when the buyer is an 'agent economique': the decree's own closing sentence ('Si l'acheteur est un consommateur, la facture doit mentionner ses nom, prenom(s) et adresse') makes the RC/NIS pair conditional on the buyer being a business, not a private consumer. `appliesTo: 'COMPANY'` models exactly this distinction (required for a company party, not for an individual/consumer party): see this catalog's own schema.ts header and its resolveRequiredIdentifiers consumer for how this field is read at request time."
+    },
+    {
+      "scheme": "NIS",
+      "appliesTo": "COMPANY",
+      "label": "NIS (Numero d'Identification Statistique)",
+      "required": true,
+      "helpText": "The statistical identification number: same sourcing and the same seller/buyer distinction as RC above. The native contributor consulted on issue #558 described this one as only sometimes shown in practice; the decree's own text states it plainly, so this entry follows the decree.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "La facture doit comporter les mentions, ci-après, se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] numéro d'identification statistique ; [...] 2°) Mentions relatives à l'acheteur : [...] numéro du registre du commerce ; numéro d'identification statistique.",
+        "sourceCheckedAt": "2026-09-30"
+      },
+      "notes": "Decret executif n. 05-468, art. 3: same reading as RC above. The native contributor's answer on issue #558 (2026-09-30) said NIS is 'sometimes' shown in practice, which is weaker than the decree's own unconditional wording for the seller; this entry follows the primary legal text (required: true, legal provenance) and records the practice caveat here rather than weakening the sourced fact."
+    },
+    {
+      "scheme": "NIF",
+      "appliesTo": "COMPANY",
+      "label": "NIF (Numero d'Identification Fiscale)",
+      "required": true,
+      "helpText": "The tax identification number. Not found in decree 05-468's own list of mandatory invoice mentions after a full reading of its text: this requirement rests only on the native contributor's description of current practice, not on a legal text this task read.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "Decree 05-468 art. 3 (read in full by the issue #558 research pass, RECHERCHE_558_ALGERIE.md section 2) does not mention the NIF anywhere among the invoice's mandatory mentions: a solid negative finding on a fully-read text, not an oversight. The native contributor for issue #558 (GitHub user athmanemokraoui), asked directly, answered on 2026-09-30: 'Algerian invoices show the NIF, RC (Registre de commerce) and Article d'Imposition (AI), and sometimes NIS (statistique) are required.' Per this PR's own provenance rule, a fact resting only on that practice answer is marked unverified, not legal, even though it is confidently stated. What would settle it: the Code des Impots Directs et Taxes Assimilees (CIDTA) or the Code des Procedures Fiscales, read directly for a provision requiring the NIF on a commercial invoice: neither was read for this specific question by the research pass (see RECHERCHE_558_ALGERIE.md's own 'Ce que je n'ai pas pu verifier' section, first bullet)."
+      },
+      "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text)."
+    },
+    {
+      "scheme": "AI",
+      "appliesTo": "COMPANY",
+      "label": "AI (Article d'Imposition)",
+      "required": true,
+      "helpText": "The tax-office article number a business is registered under. No legal text was found naming this requirement: it rests only on the native contributor's description of current practice.",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "No trace of the 'article d'imposition' (AI) was found anywhere in the texts read by the issue #558 research pass (decree 05-468 in full, the 2026 CTCA and CIDTA): a negative finding, not a full negative proof (the research pass explicitly flags the full list of DGI regulatory texts as unreached, served by a JavaScript-only listing on mfdgi.gov.dz). The native contributor (GitHub user athmanemokraoui), asked directly, answered on 2026-09-30 that Algerian invoices show the AI alongside the NIF and RC. Per this PR's own provenance rule, this stays unverified. What would settle it: the specific DGI regulatory text (not yet located) that would require the AI on a commercial invoice."
+      },
+      "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text)."
+    }
+  ],
+  "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md. Two schemes sourced to a full, direct reading of decree 05-468 art. 3 (RC, NIS): the decree's own text makes both conditional on the buyer being an economic agent rather than a private consumer, modeled here through `appliesTo: 'COMPANY'`. Two further schemes (NIF, AI) rest only on the native contributor's practice answer on issue #558 (2026-09-30) after a full reading of the decree found neither mentioned there; both marked unverified per this PR's own provenance rule for a fact sourced only to contributor practice. No VAT scheme is declared: this product's settings/onboarding screens already offer a VAT identifier field unconditionally for every country (company.settings.tsx's own withVatIdentifier, a format requirement, not a per-country one), and no Algerian text read by this research names a VAT-specific number distinct from the NIF."
+}
