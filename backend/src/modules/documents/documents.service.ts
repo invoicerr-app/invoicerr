@@ -259,6 +259,24 @@ export interface DocumentTaxWarningsView {
   warnings: string[];
 }
 
+/**
+ * The extension `DocumentsService#downloadImportOriginal` (issue #549) puts on the filename it
+ * hands back — presentation only, deliberately separate from `archive/storage.ts#extFor`, which
+ * names the file this same artifact is written to ON DISK. Changing THAT map would silently break
+ * reading back every archive already written under it; this one only ever affects a fresh
+ * `Content-Disposition` header, so it is free to cover every mime `attachments.service.ts#
+ * ALLOWED_ATTACHMENT_MIMES` accepts as an import original, images included, where `extFor` itself
+ * still falls back to `.bin`.
+ */
+function extensionForOriginalMime(mime: string): string {
+  if (mime === 'application/pdf') return 'pdf';
+  if (mime === 'application/xml' || mime === 'text/xml') return 'xml';
+  if (mime === 'image/jpeg') return 'jpg';
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/webp') return 'webp';
+  return 'bin';
+}
+
 @Injectable()
 export class DocumentsService implements OnModuleInit {
   constructor(
@@ -1874,12 +1892,18 @@ export class DocumentsService implements OnModuleInit {
         );
       }
       if (original.mime !== 'application/pdf') {
-        throw new ConflictException(
-          "This document's original file, as imported, is not a PDF (it is a structured " +
+        // Issue #549 - `code` lets the frontend show its own translated message pointing at
+        // "Download original" (document-downloads.ts#downloadDocumentPdf) instead of this raw
+        // English text, the same way `downloadDocumentFormat`'s own `errors` array lets its caller
+        // show something more specific than the generic wrapper message.
+        throw new ConflictException({
+          message:
+            "This document's original file, as imported, is not a PDF (it is a structured " +
             `"${original.mime}" file the previous tool issued). Invoicerr keeps it verbatim as the ` +
             'legal original, but this endpoint only ever serves a PDF, so it cannot be relabeled or ' +
-            'converted here.',
-        );
+            'converted here. Use "Download original" instead to get the file as issued.',
+          code: 'IMPORT_ORIGINAL_NOT_PDF',
+        });
       }
       return original.bytes;
     }
@@ -1911,6 +1935,50 @@ export class DocumentsService implements OnModuleInit {
     // exists). A configured-but-failing signature THROWS here, same as a Puppeteer failure would —
     // never a silently-unsigned document served to a company that turned signing on.
     return signRenderedPdfIfConfigured(this.signingCertificates, companyId, pdf);
+  }
+
+  /**
+   * "GET .../original" (issue #549) — the archived `IMPORT_ORIGINAL` artifact's own bytes, verbatim,
+   * for ANY original type (PDF, structured XML, image), the one route this repo offers for the
+   * non-PDF case `renderInstancePdf` above refuses (409) by design. Authorization is exactly
+   * `renderInstancePdf`'s own: `findOwnedDocument` first (company scoping, 404 for another company's
+   * or a nonexistent document — never a distinguishing message), never a path or filename read from
+   * user input — the bytes come from the archive row this company's OWN document owns, resolved by
+   * `companyId`/`documentId` alone.
+   *
+   * Only an "imported" document ever has an `IMPORT_ORIGINAL` archive at all (`archive/
+   * import-original.ts`'s own header) — every other status refuses with the same 409 shape
+   * `renderInstancePdf` already uses for "no archived original", so a scripted client probing this
+   * route on an ordinary sent invoice gets a clear, named refusal rather than a 404 that could be
+   * mistaken for "wrong id".
+   */
+  async downloadImportOriginal(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<{ bytes: Buffer; mime: string; filename: string }> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    if (instance.status !== 'imported') {
+      throw new ConflictException(
+        'Only an imported document has an archived original to download — this document was never ' +
+          'imported from another tool.',
+      );
+    }
+
+    const original = await findImportOriginalArtifact(companyId, id);
+    if (!original) {
+      throw new ConflictException(
+        'This imported document has no archived original on file, so nothing can be served for it. ' +
+          'Contact support: an imported document must never be missing its legal archive.',
+      );
+    }
+
+    const base = instance.displayNumber ?? id;
+    return {
+      bytes: original.bytes,
+      mime: original.mime,
+      filename: `${base}-original.${extensionForOriginalMime(original.mime)}`,
+    };
   }
 
   /**

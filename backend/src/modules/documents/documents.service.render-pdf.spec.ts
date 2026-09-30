@@ -205,3 +205,74 @@ describe('DocumentsService.renderInstancePdf — serving the archive instead of 
     });
   });
 });
+
+/**
+ * Issue #549 - `DocumentsService.downloadImportOriginal`, the route `renderInstancePdf` above points
+ * users at when an imported document's original is not a PDF: serves the SAME `IMPORT_ORIGINAL`
+ * archive's bytes, but for ANY mime, never refusing on the syntax alone the way `GET .../pdf` does.
+ */
+describe('DocumentsService.downloadImportOriginal — the archived original, for any mime', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  const IMPORTED_INVOICE = {
+    id: 'doc-imported-1',
+    typeId: 'invoice',
+    status: 'imported',
+    displayNumber: 'FV/2024/01',
+    data: { client: 'client-1' },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it('serves the archived original byte-for-byte with its own mime and a filename built from the display number, for a structured XML original', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+    const originalBytes = Buffer.from('<Invoice>fake KSeF FA(3) xml</Invoice>');
+    (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue({
+      bytes: originalBytes,
+      mime: 'application/xml',
+    });
+
+    const service = buildService();
+    const result = await service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1');
+
+    expect(result.bytes).toBe(originalBytes);
+    expect(result.mime).toBe('application/xml');
+    expect(result.filename).toBe('FV/2024/01-original.xml');
+    expect(archivePersistence.findImportOriginalArtifact).toHaveBeenCalledWith('company-1', 'doc-imported-1');
+  });
+
+  it('serves an image original with the right extension', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+    const originalBytes = Buffer.from('fake jpeg bytes');
+    (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue({
+      bytes: originalBytes,
+      mime: 'image/jpeg',
+    });
+
+    const service = buildService();
+    const result = await service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1');
+
+    expect(result.mime).toBe('image/jpeg');
+    expect(result.filename).toBe('FV/2024/01-original.jpg');
+  });
+
+  it('refuses (409) for a document that was never imported', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...IMPORTED_INVOICE, status: 'sent' });
+
+    const service = buildService();
+    await expect(service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1')).rejects.toThrow(
+      /never imported/,
+    );
+    expect(archivePersistence.findImportOriginalArtifact).not.toHaveBeenCalled();
+  });
+
+  it('refuses (409) when the imported document has no archived original on file', async () => {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(IMPORTED_INVOICE);
+    (archivePersistence.findImportOriginalArtifact as Mock).mockResolvedValue(null);
+
+    const service = buildService();
+    await expect(service.downloadImportOriginal('company-1', 'invoice', 'doc-imported-1')).rejects.toThrow(
+      /no archived original/,
+    );
+  });
+});

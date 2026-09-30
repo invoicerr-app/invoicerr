@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Download, FileCode, Link2, Repeat, UserCheck } from "lucide-react"
+import { ArrowLeft, ChevronDown, Download, FileCode, FileDown, Link2, Repeat, UserCheck } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
@@ -25,6 +25,7 @@ import {
 } from "@/components/documents/document-conformity-section"
 import {
   DOCUMENT_XML_SYNTAXES,
+  downloadDocumentOriginal,
   downloadDocumentPdf,
   downloadDocumentXml,
 } from "@/components/documents/document-downloads"
@@ -682,6 +683,22 @@ function DocumentDetailActions({
             <Download aria-hidden="true" />
             {t("documents.list.downloadPdf")}
           </DropdownMenuItem>
+
+          {/* Issue #549 - only an "imported" document ever has an IMPORT_ORIGINAL archive to serve;
+              every other status has nothing this action could download (`documents.service.ts#
+              downloadImportOriginal` refuses 409 for any other status). */}
+          {/* Issue #549 - only an "imported" document ever has an IMPORT_ORIGINAL archive to serve;
+              every other status has nothing this action could download (`documents.service.ts#
+              downloadImportOriginal` refuses 409 for any other status). */}
+          {instance.status === "imported" && (
+            <DropdownMenuItem
+              onSelect={() => void downloadDocumentOriginal(descriptor.id, instance.id, t)}
+              data-cy="document-original-button"
+            >
+              <FileDown aria-hidden="true" />
+              {t("documents.list.downloadOriginal")}
+            </DropdownMenuItem>
+          )}
 
           {gates.downloadXml && (
             <DropdownMenuSub>
