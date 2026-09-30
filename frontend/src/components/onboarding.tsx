@@ -185,6 +185,15 @@ export default function OnBoarding({
     legalIdRequirement?.label ||
     lookupIdentifierLabel ||
     t("settings.company.onboarding.identifierStep.genericLabel", "National company identifier")
+  // Same guard as company.settings.tsx/client-upsert.tsx (issue #563): `legalIdRequirement.helpText`
+  // off the API is the country-identifiers catalog's own raw developer note when this requirement
+  // is catalog-sourced (always true for LEGAL_ID here, `withVatIdentifier` only ever adds a VAT
+  // entry), replaced by a curated, translated key, falling back to nothing rather than that text.
+  const legalIdIsCatalogSourced =
+    legalIdRequirement && requiredIdentifiersResult?.requirements?.includes(legalIdRequirement)
+  const legalIdHelpText = legalIdIsCatalogSourced
+    ? t(`settings.identifiers.help.${countryCodeValue}.LEGAL_ID`, "")
+    : legalIdRequirement?.helpText
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -455,8 +464,10 @@ export default function OnBoarding({
                         data-cy="onboarding-legalid-input"
                       />
                     </FormControl>
-                    {legalIdRequirement?.helpText && (
-                      <p className="text-xs text-muted-foreground">{legalIdRequirement.helpText}</p>
+                    {legalIdHelpText && (
+                      <p className="text-xs text-muted-foreground" data-cy="onboarding-legalid-help">
+                        {legalIdHelpText}
+                      </p>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -620,6 +631,12 @@ export default function OnBoarding({
                         const current = form.watch("identifiers") || []
                         const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                         if (formIndex < 0) return null
+                        // Same guard as this file's own LEGAL_ID field above and
+                        // company.settings.tsx/client-upsert.tsx (issue #563).
+                        const isCatalogSourced = requiredIdentifiersResult?.requirements?.includes(req)
+                        const helpText = isCatalogSourced
+                          ? t(`settings.identifiers.help.${countryCodeValue}.${req.scheme}`, "")
+                          : req.helpText
                         return (
                           <FormField
                             key={req.scheme}
@@ -665,8 +682,13 @@ export default function OnBoarding({
                                     )}
                                   </div>
                                 </FormControl>
-                                {req.helpText && (
-                                  <p className="text-xs text-muted-foreground">{req.helpText}</p>
+                                {helpText && (
+                                  <p
+                                    className="text-xs text-muted-foreground"
+                                    data-cy={`onboarding-identifier-${req.scheme}-help`}
+                                  >
+                                    {helpText}
+                                  </p>
                                 )}
                                 <FormMessage />
                               </FormItem>
