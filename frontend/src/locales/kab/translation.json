@@ -7,7 +7,8 @@
         "stats": {
             "active": "Irmed",
             "inactive": "Insa",
-            "suppliers": "Imefkiyen"
+            "suppliers": "Imefkiyen",
+            "total": "Aɣrud n imsaɣen"
         },
         "list": {
             "status": {
@@ -20,17 +21,27 @@
             "filters": {
                 "all": "Akk"
             },
-            "rowMenu": "Ugar n tigawin"
+            "rowMenu": "Ugar n tigawin",
+            "tooltips": {
+                "edit": "Ẓreg amsaɣ",
+                "delete": "Kkes amsaɣ"
+            }
         },
         "statement": {
             "columns": {
                 "type": "Anaw",
                 "document": "Isemli",
                 "paid": "Yettwaxleṣ",
-                "status": "Addad"
+                "status": "Addad",
+                "amount": "Atig"
             },
             "type": {
                 "invoice": "Tafatuṛt"
+            },
+            "aging": {
+                "days0to30": "0–30 n wussan",
+                "days31to60": "31–60 n wussan",
+                "days60plus": "60+ n wussan"
             }
         },
         "portalAccess": {
@@ -84,6 +95,11 @@
                 },
                 "country": {
                     "label": "Tamurt"
+                },
+                "contacts": {
+                    "remove": "Kkes",
+                    "role": "Tamlilt",
+                    "primaryBadge": "Azwaran"
                 }
             },
             "stepped": {
@@ -113,7 +129,8 @@
             "sections": {
                 "contact": "Anermis",
                 "address": "Tansa",
-                "documents": "Isemliyen"
+                "documents": "Isemliyen",
+                "contacts": "Inermisen"
             },
             "fields": {
                 "companyName": "Isem n teṛmist",
@@ -124,7 +141,8 @@
                 "postalCode": "Tangalt n lbusṭa",
                 "city": "Tiɣremt",
                 "state": "Aɣir/Tamnaḍt",
-                "country": "Tamurt"
+                "country": "Tamurt",
+                "primary": "Azwaran"
             }
         },
         "delete": {
@@ -133,6 +151,19 @@
                 "cancel": "Semmet",
                 "delete": "Kkes amsaɣ"
             }
+        },
+        "import": {
+            "preview": {
+                "name": "Isem",
+                "status": "Addad",
+                "detail": "Talqayt"
+            },
+            "status": {
+                "duplicate": "Sisleg"
+            }
+        },
+        "search": {
+            "placeholder": "Nadi imsaɣen..."
         }
     },
     "quotes": {
@@ -201,7 +232,11 @@
                 "quantity": {
                     "label": "Tasmekta"
                 }
-            }
+            },
+            "itemAmountLabel": "{{amount}} {{currency}}",
+            "amountLabel": "Atig ara d-yekcmen deg tfaturt",
+            "remainingTotalLabel": "{{amount}} {{currency}} i d-yeqqimen",
+            "totalSelectedLabel": "Aɣrud: {{amount}} {{currency}}"
         },
         "upsert": {
             "form": {
@@ -244,7 +279,9 @@
                 "status": "Addad",
                 "createdAt": "Inulfa-d",
                 "client": "Amsaɣ",
-                "signature": "Azmul"
+                "signature": "Azmul",
+                "discountAmount": "Azal n usenqes",
+                "totalVAT": "Atig n TVA"
             }
         },
         "sendConfirmation": {
@@ -265,6 +302,9 @@
         "stats": {
             "draft": "Arewway",
             "signed": "Qqen"
+        },
+        "header": {
+            "found": "ttwafen"
         }
     },
     "invoices": {
@@ -357,7 +397,8 @@
                 "zugferd": "ZUGFeRD",
                 "xrechnung": "XRechnung",
                 "ubl": "UBL",
-                "cii": "CII"
+                "cii": "CII",
+                "facturx": "Factur-X"
             }
         },
         "upsert": {
@@ -416,7 +457,9 @@
                 "updatedAt": "Asnifel",
                 "client": "Amsaɣ",
                 "paymentMethod": "Tarrayt n usellek",
-                "notes": "Tirawin"
+                "notes": "Tirawin",
+                "discountAmount": "Atig n usenqes",
+                "totalVAT": "Atig n TVA"
             },
             "actions": {
                 "cancel": "Semmet",
@@ -447,7 +490,16 @@
             "actions": {
                 "confirm": "Sentem",
                 "cancel": "Semmet"
-            }
+            },
+            "fields": {
+                "amount": {
+                    "placeholder": "Sekcem-d azal yettwarmsen",
+                    "errors": {
+                        "required": "Azal yessefk ad yili yugar 0"
+                    }
+                }
+            },
+            "description": "Sekcem azal yettwarmsen i tfaturt-a."
         },
         "delete": {
             "actions": {
@@ -457,6 +509,15 @@
         "stats": {
             "sent": "Yuzen",
             "paid": "Yettwaxleṣ"
+        },
+        "deposit": {
+            "form": {
+                "amount": {
+                    "errors": {
+                        "required": "Atig yettwasra"
+                    }
+                }
+            }
         }
     },
     "recurringInvoices": {
@@ -537,7 +598,12 @@
         }
     },
     "dashboard": {
-        "title": "Tafelwit"
+        "title": "Tafelwit",
+        "period": {
+            "label": "Tawala",
+            "customFrom": "Sɣur",
+            "customTo": "I"
+        }
     },
     "widgets": {
         "metric": {
@@ -637,7 +703,7 @@
                 "date": "Azemz",
                 "description": "Asnummel",
                 "hours": "Isragen",
-                "amount": "Tallayt",
+                "amount": "Atig",
                 "status": "addad"
             },
             "status": {
@@ -702,7 +768,7 @@
         },
         "lines": {
             "date": "Azemz",
-            "amount": "Tallayt",
+            "amount": "Atig",
             "label": "Tabzimt",
             "status": "addad"
         }
@@ -775,7 +841,8 @@
         },
         "accountingExport": {
             "form": {
-                "from": "Sɣur"
+                "from": "Sɣur",
+                "to": "Ɣer"
             },
             "messages": {
                 "error": "Asifeḍ ur yeddi ara"
@@ -827,6 +894,9 @@
                 "table": {
                     "rate": "Aktum",
                     "source": "Aqbalu"
+                },
+                "attribution": {
+                    "linkLabel": "exchangerate-api.com"
                 }
             },
             "form": {
@@ -915,7 +985,8 @@
                 "expiresAt": "Ad yemmet"
             },
             "form": {
-                "submit": "Beddel imawlan n uzegrir"
+                "submit": "Beddel imawlan n uzegrir",
+                "emailPlaceholder": "bab-is@example.com"
             },
             "otpDialog": {
                 "otpLabel": "Tangalt n usenqed",
@@ -941,7 +1012,8 @@
                 }
             },
             "source": {
-                "shippedDefault": "Lexṣas"
+                "shippedDefault": "Lexṣas",
+                "customised": "Udmawan"
             },
             "editor": {
                 "edit": "Taẓrigt",
@@ -953,7 +1025,8 @@
                 "subject": "Amgay",
                 "reply": "Efk-d tiririt",
                 "forward": "ɣer zdat",
-                "archive": "Tarcivt"
+                "archive": "Tarcivt",
+                "to": "I"
             },
             "resetButton": "Wennez ɣer umezwer"
         },
@@ -972,6 +1045,11 @@
                 "save": "Sekles",
                 "cancel": "Semmet",
                 "edit": "Ẓreg"
+            },
+            "replyTo": {
+                "actions": {
+                    "clear": "Sfeḍ"
+                }
             }
         },
         "webhooks": {
@@ -1071,7 +1149,8 @@
         },
         "atcud": {
             "numberFormat": {
-                "save": "Kles"
+                "save": "Kles",
+                "label": "Amasal"
             },
             "series": {
                 "save": "Kles"
@@ -1149,7 +1228,7 @@
             "kinds": {
                 "text": "Aḍris",
                 "number": "Uṭṭun",
-                "money": "Tallayt",
+                "money": "Atig",
                 "date": "Azemz"
             },
             "list": {
@@ -1481,7 +1560,8 @@
             "clearFilters": "Sfeḍ imsizedgen",
             "clearSearch": "Sfeḍ anadi",
             "retry": "Ɛreḍ tikelt-nniḍen"
-        }
+        },
+        "valueWithCurrency": "{{amount}} {{currency}}"
     },
     "payments": {
         "list": {
@@ -1515,6 +1595,9 @@
                 },
                 "paymentMethod": {
                     "label": "Tarrayt n usellek"
+                },
+                "amount": {
+                    "label": "Atig aɣrudan"
                 }
             },
             "actions": {
@@ -1541,7 +1624,8 @@
                 "number": "Uṭṭun",
                 "invoice": "Tafaturt",
                 "client": "Amsaɣ",
-                "paymentMethod": "Tarrayt n usellek"
+                "paymentMethod": "Tarrayt n usellek",
+                "totalPaid": "Atig yettuxelṣen"
             },
             "filters": {
                 "invoice": "Tafaturt",
@@ -1574,7 +1658,7 @@
         "columns": {
             "date": "Azemz",
             "sender": "Amazan",
-            "amount": "Tallayt",
+            "amount": "Atig",
             "status": "addad",
             "channel": "Abadu",
             "actions": "Tigawin"
@@ -1697,21 +1781,22 @@
             "downloadPdf": "Sader PDF",
             "pay": "Xelleṣ",
             "columns": {
-                "document": "isemli",
-                "amount": "Tallayt",
+                "document": "Isemli",
+                "amount": "Atig",
                 "status": "addad"
-            }
+            },
+            "paidSoFar": "{{amount}} i yettwaxellsen ar tura"
         },
         "quotes": {
-            "accept": "Accept",
+            "accept": "Qbel",
             "refuse": "Agwi",
             "status": {
-                "signed": "Accepted",
+                "signed": "Tettwaqbal",
                 "refused": "yettwagi"
             },
             "columns": {
                 "document": "isemli",
-                "amount": "Tallayt",
+                "amount": "Atig",
                 "status": "addad",
                 "actions": "Tigawtin"
             }
@@ -1744,7 +1829,7 @@
                         "label": "Izirigen",
                         "fields": {
                             "description": {
-                                "label": ""
+                                "label": "Asɣal"
                             },
                             "quantity": {
                                 "label": "Tasmekta"
@@ -1768,7 +1853,7 @@
                     "record-payment": {
                         "params": {
                             "amount": {
-                                "label": "Tallayt"
+                                "label": "Atig"
                             },
                             "currency": {
                                 "label": "Azamul n tedrimt"
@@ -1824,7 +1909,7 @@
                         "label": "Izirigen",
                         "fields": {
                             "description": {
-                                "label": ""
+                                "label": "Asɣal"
                             },
                             "quantity": {
                                 "label": "Tasmekta"
@@ -1889,7 +1974,7 @@
                         "label": "Izirigen",
                         "fields": {
                             "description": {
-                                "label": ""
+                                "label": "Asɣal"
                             },
                             "quantity": {
                                 "label": "Tasmekta"
@@ -1921,7 +2006,7 @@
                         "label": "Asnummel"
                     },
                     "amount": {
-                        "label": "Tallayt"
+                        "label": "Atig"
                     },
                     "currency": {
                         "label": "Azamul n tedrimt"
@@ -1970,7 +2055,7 @@
                         "label": "Izirigen",
                         "fields": {
                             "description": {
-                                "label": ""
+                                "label": "Asɣal"
                             },
                             "quantity": {
                                 "label": "Tasmekta"
@@ -2016,7 +2101,7 @@
                         "label": "Izirigen",
                         "fields": {
                             "description": {
-                                "label": ""
+                                "label": "Asɣal"
                             },
                             "quantity": {
                                 "label": "Tasmekta"
@@ -2118,7 +2203,7 @@
                 "status": "addad",
                 "updatedAt": "Asnifel",
                 "actions": "Tigawin",
-                "amount": "Uɣrid"
+                "amount": "Aɣrud"
             },
             "searchPlaceholder": "Nadi…",
             "tooltips": {
@@ -2184,7 +2269,8 @@
                 "review": "Asenqed",
                 "verify": "Sentem",
                 "signed": "Qqen"
-            }
+            },
+            "chosenOptionLabel": "Tferneḍ: {{name}} ({{amount}})"
         },
         "conformity": {
             "badge": {
@@ -2204,7 +2290,7 @@
         },
         "reconciliation": {
             "verdict": {
-                "accepted": "Accepted"
+                "accepted": "Tettwaqbal"
             },
             "columns": {
                 "description": "Ligne",
@@ -2230,7 +2316,7 @@
             "error": "Tuccḍa"
         },
         "status": {
-            "accepted": "Accepted",
+            "accepted": "Tettwaqbal",
             "rejected": "Yettwagwi",
             "blocked": "Ittwaḥder",
             "failed": "Ur iddi ara"
