@@ -28,6 +28,30 @@ describe("Multi-currency — reference currency, manual rates, and honest consol
 		cy.login();
 	});
 
+	it("shows the Exchange rates card's real behaviour, not the old manual-only claim (issue #548)", () => {
+		// Issue #548: the card used to say "Manually-entered rates... No rate is ever derived
+		// automatically", while a daily job (currency-rate-sweep-runner.ts, backend) refreshes any
+		// pair the company already entered from the European Central Bank, falling back to
+		// exchangerate-api.com only for a currency the ECB doesn't quote, and the same rates also
+		// convert a payment recorded in a different currency than its invoice
+		// (settlement/convert-payment.ts), not only the dashboard consolidation the old copy named.
+		// This test reads the card's own text, not a snapshot of the translation file, so it fails
+		// the moment the rendered copy regresses back to the old claim.
+		cy.visit("/settings/company");
+		cy.get('[data-cy="currency-rates-card"]', { timeout: 15000 }).scrollIntoView().should("be.visible");
+
+		cy.get('[data-cy="currency-rates-card"]')
+			.should("contain.text", "convert a payment recorded in a different currency")
+			.and("contain.text", "A daily job also refreshes any pair you have already added")
+			.and("contain.text", "European Central Bank");
+
+		// The old, false claim must be gone.
+		cy.get('[data-cy="currency-rates-card"]').should(
+			"not.contain.text",
+			"No rate is ever derived automatically",
+		);
+	});
+
 	it("types in the reference currency and a manual USD→EUR rate through real fields", () => {
 		cy.visit("/settings/company");
 		cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
