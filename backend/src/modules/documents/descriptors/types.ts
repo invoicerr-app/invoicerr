@@ -123,6 +123,28 @@ export interface DocumentTypeDescriptor {
     onlyFrom?: string[];
   };
   /**
+   * Whether ISSUING this type moves stock, and which way: an EXPLICIT descriptor fact (issue #579),
+   * never inferred from whether a line CAN reference an article. Before this field existed,
+   * `stock/apply-stock-on-issuance.ts#declaresArticleReference` (a purely STRUCTURAL check: "does one
+   * of this type's 'array' fields declare a `hiddenReference`/`entity: 'article'` row field") was used
+   * to gate the decrement itself, which was wrong: the quote's own `lines` declares that exact field
+   * too, for the catalog-prefill picker (quote.descriptor.ts), with no intention of ever delivering
+   * goods, so sending a quote decremented stock exactly like sending an invoice, and converting it
+   * into an invoice and sending THAT decremented it a second time for the same sale.
+   * `declaresArticleReference` still answers its own, narrower, structural question, kept for
+   * whatever else might need "can a line of this type reference an article" (the catalog-prefill
+   * picker's own wiring); it is simply never again what the stock engine's own call sites
+   * (`documents.service.ts#runAction`, `actions/async-send.ts`, `actions/send-document-email.ts`;
+   * see `stock/apply-stock-on-issuance.ts#decrementsStockOnIssuance`) read to decide whether to run.
+   *
+   * `'decrement'` is the only value today, the invoice's, the one type that actually delivers goods.
+   * Absent means NO stock effect, the safe default: a type this codebase does not yet know about must
+   * never move stock by accident, the same posture `numbering` above already holds for "never
+   * numbered". A later goods-receipt stock INCREASE (issue #579's own "out of scope here") is a
+   * DIFFERENT value this union is expected to grow into, never a reuse of `'decrement'`.
+   */
+  stockEffect?: 'decrement';
+  /**
    * This type's DEFAULT email — subject/body, sent when the document is delivered by mail (the
    * quote's own unconditional "send", the invoice's "email" transport — see actions/generic-actions.ts
    * and transports/email-transport.ts). Plain, sober ENGLISH text, same convention as `label`: a

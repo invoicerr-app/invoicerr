@@ -1,6 +1,17 @@
 import { vi, type Mock } from 'vitest';
 
-import { applyStockOnIssuance, computeStockDecrements } from './apply-stock-on-issuance';
+import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
+import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
+import { buildGoodsReceiptDescriptor } from '../descriptors/goods-receipt.descriptor';
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { buildPurchaseOrderDescriptor } from '../descriptors/purchase-order.descriptor';
+import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
+import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
+import {
+  applyStockOnIssuance,
+  computeStockDecrements,
+  decrementsStockOnIssuance,
+} from './apply-stock-on-issuance';
 
 // Mocked wholesale, same discipline `documents.service.*.spec.ts` already holds for `./persistence`/
 // `./numbering/take-number` — this is a unit test of the WIRING (which articles get read/written),
@@ -96,6 +107,44 @@ describe('computeStockDecrements (pure)', () => {
     expect(computeStockDecrements(null, [{ id: 'article-1' }])).toEqual([]);
     expect(computeStockDecrements([], [{ id: 'article-1' }])).toEqual([]);
     expect(computeStockDecrements('not-an-array', [{ id: 'article-1' }])).toEqual([]);
+  });
+});
+
+/**
+ * Issue #579: `decrementsStockOnIssuance` is the ONE gate every `applyStockOnIssuance` call site
+ * (`documents.service.ts#runAction`, both of `actions/async-send.ts`'s sites,
+ * `actions/send-document-email.ts`) now checks, proven here against EVERY document type actually
+ * REGISTERED in this product (documents-core.module.ts), never a synthetic stand-in, so a future type
+ * that forgets to opt out (or a typo that makes it opt in) is caught by this test changing, not by a
+ * customer's stock quietly drifting. Only the invoice may ever return `true`: it is the one type that
+ * actually delivers goods. The quote is the load-bearing case: its own `lines` declares the exact
+ * same `articleId` field the invoice's does (`declaresArticleReference` is `true` for both), which is
+ * precisely the shape that used to make a quote SEND decrement stock before this fix.
+ */
+describe('decrementsStockOnIssuance - the gate for every registered document type (issue #579)', () => {
+  it('is true for the invoice and false for every other registered type', () => {
+    expect(decrementsStockOnIssuance(buildInvoiceDescriptor())).toBe(true);
+
+    expect(decrementsStockOnIssuance(buildQuoteDescriptor())).toBe(false);
+    expect(decrementsStockOnIssuance(buildCreditNoteDescriptor())).toBe(false);
+    expect(decrementsStockOnIssuance(buildExpenseDescriptor())).toBe(false);
+    expect(decrementsStockOnIssuance(buildPurchaseOrderDescriptor())).toBe(false);
+    expect(decrementsStockOnIssuance(buildGoodsReceiptDescriptor())).toBe(false);
+    expect(decrementsStockOnIssuance(buildReceivedInvoiceDescriptor())).toBe(false);
+  });
+
+  it("never decrements for a type whose lines declare the SAME article-reference field the invoice's do (the quote's own shape), `declaresArticleReference` alone must never be enough", () => {
+    const quote = buildQuoteDescriptor();
+    const invoice = buildInvoiceDescriptor();
+
+    // Both descriptors structurally let a line reference an article (the catalog-prefill picker),
+    // proving the regression this issue fixed is not "the quote's lines look different", it is that
+    // `stockEffect` is the explicit fact that now tells them apart, never field shape alone.
+    expect(quote.fields.some((f) => f.kind === 'array')).toBe(true);
+    expect(invoice.fields.some((f) => f.kind === 'array')).toBe(true);
+
+    expect(decrementsStockOnIssuance(quote)).toBe(false);
+    expect(decrementsStockOnIssuance(invoice)).toBe(true);
   });
 });
 

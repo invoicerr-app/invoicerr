@@ -27,12 +27,12 @@ import { getCompanyInvoiceTransportId } from './transports/company-transport';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
-// PR #473 review point 2: only `applyStockOnIssuance` (the DB-touching half) is mocked - the module's
-// OWN `declaresArticleReference` predicate stays REAL, so `credit-note-actions.ts`'s module-level
-// `CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE` constant (computed from it at import time) reflects the
-// credit note's actual descriptor, exactly like production. A wholesale `vi.mock` would auto-mock
-// that predicate too and pass this suite for the wrong reason (an undefined return value happening to
-// be falsy), never because the descriptor genuinely declares no article-reference field.
+// Issue #579: only `applyStockOnIssuance` (the DB-touching half) is mocked - the module's OWN
+// `decrementsStockOnIssuance` predicate stays REAL, so `credit-note-actions.ts`'s module-level
+// `CREDIT_NOTE_DECREMENTS_STOCK` constant (computed from it at import time) reflects the credit
+// note's actual descriptor, exactly like production. A wholesale `vi.mock` would auto-mock that
+// predicate too and pass this suite for the wrong reason (an undefined return value happening to be
+// falsy), never because the descriptor genuinely never sets `stockEffect: 'decrement'`.
 vi.mock('./stock/apply-stock-on-issuance', async () => {
   const actual = await vi.importActual('./stock/apply-stock-on-issuance');
   return { ...actual, applyStockOnIssuance: vi.fn() };
@@ -893,7 +893,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         'article-1',
       );
       // THE FIX: the stock effect is never even reached - see async-send.ts's own
-      // `declaresArticleReference` gate and credit-note-actions.ts's own `CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE`.
+      // `decrementsStock` gate and credit-note-actions.ts's own `CREDIT_NOTE_DECREMENTS_STOCK`.
       expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
     });
 

@@ -126,7 +126,7 @@ import {
   listDocumentsPage,
   ListDocumentsPageResult,
 } from './persistence';
-import { applyStockOnIssuance, declaresArticleReference } from './stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, decrementsStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -1699,14 +1699,16 @@ export class DocumentsService implements OnModuleInit {
         // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
         // synchronously through `runAction`.
         //
-        // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b): the "reads
-        // data.lines type-agnostically" claim above is about the FORMAT (never a typeId check), not
-        // about running unconditionally - a type whose descriptor declares no article-reference field
-        // on its lines at all (the credit note) must never have this effect applied, whatever its
-        // lines happen to carry (an undeclared key the line validator kept, e.g.). This is the SAME
-        // descriptor already resolved above for `enteringNumberedStatus`/`isNumberingAllowedFrom`,
-        // never a second lookup.
-        if (declaresArticleReference(descriptor)) {
+        // GATED on `decrementsStockOnIssuance(descriptor)` (issue #579: the EXPLICIT
+        // `DocumentTypeDescriptor.stockEffect` fact, never inferred from whether a line CAN reference
+        // an article, a quote's own lines declare that exact field too, for the catalog-prefill
+        // picker, with no intention of ever moving stock). The "reads data.lines type-agnostically"
+        // claim above is about the FORMAT (never a typeId check), not about running unconditionally -
+        // a type whose descriptor does not opt into `stockEffect: 'decrement'` (today: every type but
+        // the invoice) must never have this effect applied, whatever its lines happen to carry (an
+        // undeclared key the line validator kept, e.g.). This is the SAME descriptor already resolved
+        // above for `enteringNumberedStatus`/`isNumberingAllowedFrom`, never a second lookup.
+        if (decrementsStockOnIssuance(descriptor)) {
           await applyStockOnIssuance(companyId, numberedDocument);
         }
       }

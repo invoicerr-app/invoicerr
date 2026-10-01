@@ -19,7 +19,7 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
-import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
+import { decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { TransportFormatSource, TransportRegistry } from '../transports/transport-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
@@ -39,11 +39,12 @@ import {
  *  `checkAndEmitInvoiceSettledFromCreditNote` below). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 /** The credit note's OWN descriptor - never `INVOICE_DESCRIPTOR` above, which describes a different
- *  type's field shape. PR #473 review point 2: neither of this type's two line shapes (`lines`,
- *  `correctedLines`, credit-note.descriptor.ts) declares an article-reference field, so this is
- *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. */
+ *  type's field shape. Issue #579: this descriptor never sets `stockEffect: 'decrement'`, so this is
+ *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. A
+ *  credit note never moves stock, whatever either of its two line shapes (`lines`, `correctedLines`,
+ *  credit-note.descriptor.ts) ends up carrying. */
 const CREDIT_NOTE_DESCRIPTOR = buildCreditNoteDescriptor();
-const CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(CREDIT_NOTE_DESCRIPTOR);
+const CREDIT_NOTE_DECREMENTS_STOCK = decrementsStockOnIssuance(CREDIT_NOTE_DESCRIPTOR);
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
@@ -538,7 +539,7 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // note that reached "sending" from "send_failed" while still unnumbered (issued before this
       // feature existed). See that field's own header (descriptors/types.ts) for the full "why".
       numberingOnlyFrom: ['draft'],
-      declaresArticleReference: CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE,
+      decrementsStock: CREDIT_NOTE_DECREMENTS_STOCK,
       // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
       // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which
