@@ -21,7 +21,7 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
   platform, since French law requires that platform for the invoice to be legally issued at all - see
   [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate). For every other
   invoice, **Send** stays a separate, later step
-- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
+- **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit

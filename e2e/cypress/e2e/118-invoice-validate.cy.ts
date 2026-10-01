@@ -136,7 +136,7 @@ describe("Invoice Validate (issue #581) - numbers and locks without sending, exc
 			cy.intercept("POST", `${api}/api/documents/types/invoice/actions/validate`).as("validateInvoice");
 
 			// "Validate" is declared AFTER "send" (invoice.descriptor.ts's own header), so for a draft
-			// invoice it is a SECONDARY action, reached through the "Actions" menu — exactly what the
+			// invoice it is a SECONDARY action, reached through the "Actions" menu, exactly what the
 			// issue's own screenshot description shows ("Menu Actions avant/apres (ajout de Valider)"),
 			// never a second top-level button next to "Send".
 			cy.openDocumentActionsMenu();
@@ -161,7 +161,7 @@ describe("Invoice Validate (issue #581) - numbers and locks without sending, exc
 				.its("body.status")
 				.should("eq", "draft");
 
-			// Same click again (menu re-opened — Radix closes it on select), Confirm this time.
+			// Same click again (menu re-opened: Radix closes it on select), Confirm this time.
 			cy.openDocumentActionsMenu();
 			cy.get('[data-cy="document-action-validate"]').click();
 			cy.get('[data-cy="document-detail-lock-confirm"]', { timeout: 10000 }).should("be.visible");
@@ -252,7 +252,7 @@ describe("Invoice Validate (issue #581) - numbers and locks without sending, exc
 
 					// The descriptor's own `VALIDATE_TRANSITIONS` only ever starts from "draft" -
 					// "validate" is therefore not even offered any more, by construction, never merely
-					// disabled. Opened first — a Radix dropdown's content is not even mounted while
+					// disabled. Opened first: a Radix dropdown's content is not even mounted while
 					// closed, so checking "not.exist" without opening it first would prove nothing.
 					cy.openDocumentActionsMenu();
 					cy.get('[data-cy="document-action-validate"]').should("not.exist");
