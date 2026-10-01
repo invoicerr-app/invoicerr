@@ -57,7 +57,12 @@ import {
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { listDeclarations, ListDeclarationsResult } from './reporting/list-declarations';
-import { ActionRegistry, ActionResult, DocumentInstanceResult } from './actions/action-registry';
+import {
+  ActionRegistry,
+  ActionResult,
+  ActionTransmissionPreview,
+  DocumentInstanceResult,
+} from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
@@ -1194,6 +1199,36 @@ export class DocumentsService implements OnModuleInit {
       typeId,
       documentId: payload.documentId,
       data: payload.data ?? {},
+      params: {},
+    });
+  }
+
+  /**
+   * Issue #581 - whether running ONE action on ONE EXISTING document would genuinely transmit it
+   * somewhere, and through what channel, BEFORE the user confirms it. Read from the record's own
+   * PERSISTED `data`, the same "known, accepted staleness" `getTaxWarnings` already lives with - a
+   * user who edited the client or the issue date in the form but has not yet saved sees the preview
+   * for what is currently ON FILE, not their unsaved edit; this mirrors every other preview this
+   * module already composes from `instance.data` (tax warnings, correction routes) rather than
+   * threading live form state through a GET. `{ transmits: false }` for an unknown type/action/record,
+   * or for an action with no transmission-preview resolver registered at all (the overwhelming
+   * majority) - never an error: this is a courtesy preview, not a gate anything else depends on.
+   */
+  async getActionTransmissionPreview(
+    companyId: string,
+    typeId: string,
+    id: string,
+    actionId: string,
+  ): Promise<ActionTransmissionPreview> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    const resolver = this.actionRegistry.resolveTransmissionPreview(typeId, actionId);
+    if (typeof resolver !== 'function') return { transmits: false };
+
+    return resolver({
+      companyId,
+      typeId,
+      documentId: id,
+      data: (instance.data ?? {}) as Record<string, unknown>,
       params: {},
     });
   }

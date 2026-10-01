@@ -7,6 +7,8 @@ import { DocumentField } from "@/components/documents/document-field"
 import { DocumentFormReadOnlyProvider } from "@/components/documents/document-form-readonly"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import type { DocumentFormState } from "@/components/documents/use-document-form"
+import { useActionTransmissionPreview } from "@/hooks/queries/use-document-types"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 /**
@@ -175,11 +177,26 @@ export function DocumentActionParamsHost({ state }: { state: DocumentFormState }
 /** The confirmation the action runner opens for an action `actionLocksDocument` says is about to
  *  lock the record (see use-document-action-runner.ts's own header) — mounted once per screen, next
  *  to `DocumentActionParamsHost` above. Never names "send" or any one type: whatever action and
- *  whatever country policy produced this is what the runner already decided; this only renders it. */
+ *  whatever country policy produced this is what the runner already decided; this only renders it.
+ *
+ *  Issue #581 - ALSO fetches `useActionTransmissionPreview` for whichever action is pending, the
+ *  moment the dialog is about to open (never earlier - `enabled` is tied to `!!pending`). An action
+ *  with no transmission-preview resolver registered on the backend answers `{ transmits: false }`
+ *  immediately, so this costs nothing extra for the overwhelming majority of locking actions
+ *  (`send`/`cancel`/every other type's own) - only an action that DOES register one (today: the
+ *  invoice's own "validate") can ever make the extra alert below appear. Progressive, never blocking:
+ *  the dialog renders its ordinary warning immediately, the transmission alert simply joins it once
+ *  (if) the preview resolves, never delaying Cancel/Confirm themselves. */
 export function DocumentActionLockConfirmHost({ state }: { state: DocumentFormState }) {
   const { t } = useTranslation()
-  const { runner, effectiveDescriptor, currentStatus } = state
+  const { runner, effectiveDescriptor, currentStatus, currentDocumentId } = state
   const pending = runner.pendingLockConfirm
+  const { data: transmissionPreview } = useActionTransmissionPreview(
+    effectiveDescriptor.id,
+    currentDocumentId,
+    pending?.id,
+    !!pending,
+  )
   if (!pending) return null
   return (
     <ConfirmationDialog
@@ -194,6 +211,18 @@ export function DocumentActionLockConfirmHost({ state }: { state: DocumentFormSt
           : "documents.form.lockConfirmation.description",
         { label: pending.label },
       )}
+      extraContent={
+        transmissionPreview?.transmits ? (
+          <Alert variant="warning" data-cy="document-action-transmission-alert">
+            <AlertDescription>
+              {t("documents.form.lockConfirmation.transmits", {
+                label: pending.label,
+                channel: transmissionPreview.channelLabel,
+              })}
+            </AlertDescription>
+          </Alert>
+        ) : undefined
+      }
       confirmLabel={t("documents.form.lockConfirmation.confirm")}
       cancelLabel={t("documents.form.lockConfirmation.cancel")}
       onConfirm={runner.confirmPendingLock}

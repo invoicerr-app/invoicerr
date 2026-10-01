@@ -337,19 +337,19 @@ const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_f
  * by construction, not merely by a handler check).
  *
  * TWO honest outcomes, exactly like "send"'s own two-phase shape right above, for the SAME reason: the
- * owner's decision (2026-10-01, issue #581) is that a French DOMESTIC B2B invoice is not validated by
- * numbering and locking alone - CGI art. 289 bis I requires the accredited platform itself, so
- * validating one of those actually PERFORMS the send (`performInvoiceSend`, actions/invoice-actions.ts
- * - the exact same function "send" itself calls), landing on "sending" as a plain "send" would. The
- * CHECK this reads (`resolveActiveInvoiceMandate` - whether a country CHANNEL MANDATE binds this exact
- * operation) is the existing, country-blind mechanism `channel-policy/mandate.ts` already built for
- * "send" itself - it is not hand-written as "country code is FR" here, the same "a country is data,
- * never named in code" discipline this whole module holds elsewhere. Today that also means an Italian
- * domestic B2B invoice (D.Lgs. 127/2015 art. 1 comma 3, SdI) takes the SAME branch - the owner's own
- * decision only discusses France by name (the one legal question this issue's "Legal note" section
- * raised), so the PR shipping this flags the Italian consequence explicitly rather than assuming it was
- * considered. Every invoice with NO active mandate for its own operation is only numbered and locked,
- * landing on "validated"; "send" stays its own, separate action for it.
+ * owner's decision (2026-10-01, issue #581, revised after PR #602's own review) is that validating
+ * PERFORMS the real send (`performInvoiceSend`, actions/invoice-actions.ts - the exact same function
+ * "send" itself calls, landing on "sending" as a plain "send" would) whenever BOTH an EXPLICIT
+ * per-country fact (`country-policy/data/<cc>.json`'s own `invoiceValidation` -
+ * `country-policy/schema.ts`'s header has the full "why this is a declared fact, never inferred from
+ * the channel mandate alone") AND an ACTIVE channel mandate for this exact operation
+ * (`channel-policy/mandate.ts#activeChannelMandateForOperation`, the SAME country-blind mechanism
+ * "send" itself already uses) both hold - see
+ * `country-policy/invoice-validation-transmission.ts#resolveInvoiceValidationTransmission` for the
+ * combined decision. Declared today for France (CGI art. 289 bis I) and Italy (DPR 633/1972 art. 21,
+ * the 2019 SdI mandate); DE/PL/PT/DZ carry no such fact, so an invoice from one of those sellers is
+ * ALWAYS only numbered and locked, landing on "validated", whatever any future channel mandate of
+ * theirs might read - "send" stays its own, separate action for it.
  */
 const VALIDATE_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: ['validated', 'sending'] }];
 
@@ -705,9 +705,10 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         transitions: VALIDATE_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(VALIDATE_TRANSITIONS),
         // No params - a plain, number-and-lock status flip for the ordinary case (the handler decides
-        // on its own, from the invoice's own data, whether a country channel mandate instead routes
-        // this through the real send - see VALIDATE_TRANSITIONS's own header and
-        // actions/invoice-actions.ts's "validate" registration).
+        // on its own, from the invoice's own data, whether this country's own declared
+        // `invoiceValidation` fact AND an active channel mandate together route this through the real
+        // send instead - see VALIDATE_TRANSITIONS's own header and actions/invoice-actions.ts's
+        // "validate" registration).
         //
         // Declared AFTER "send", deliberately: `pickPrimaryAction` (frontend's action-presentation.ts)
         // picks the FIRST non-save action with no policy block as THE primary button, descriptor order

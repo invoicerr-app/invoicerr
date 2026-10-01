@@ -11,6 +11,7 @@ import {
 } from '../b2g-routing/b2g-routing';
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
 import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { resolveInvoiceValidationTransmission } from '../country-policy/invoice-validation-transmission';
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { stripSidecarKeys } from '../descriptors/validate';
@@ -810,15 +811,15 @@ async function performInvoiceSend(ctx: ActionContext, deps: InvoiceActionDeps): 
  *
  * "send" is registered as `performInvoiceSend` directly (see that function's own header just above
  * for the full design) - "validate" (issue #581) is new: it numbers and locks a draft invoice WITHOUT
- * sending it, UNLESS a country channel mandate is active for this exact operation
- * (`resolveActiveInvoiceMandate` - today: a French or Italian domestic B2B invoice, CGI art. 289 bis I
- * / D.Lgs. 127/2015 art. 1 comma 3), in which case `performInvoiceSend` runs, unchanged, so the mandate
- * is never bypassed by taking the "Validate" button instead of "Send". The owner's own decision
- * (2026-10-01) names France by name ("For a French domestic B2B invoice, validating also issues it
- * through the accredited platform") - it reuses the SAME country-blind check "send" itself already
- * runs rather than hand-writing a France-only branch, which also routes a mandated Italian invoice the
- * same way; this PR's own report flags that as a consequence the owner should confirm, not something
- * the Decision explicitly covered. Every other invoice only runs `runInvoiceIssuancePreflight`
+ * sending it, UNLESS `invoice-validation-transmission.ts#resolveInvoiceValidationTransmission` says
+ * this exact operation transmits - an EXPLICIT per-country fact (`country-policy/data/<cc>.json`'s
+ * own `invoiceValidation`) combined with an ACTIVE channel mandate, owner's decision 2026-10-01,
+ * revised after PR #602's own review to stop inferring the first half from the second alone. Declared
+ * today for France (CGI art. 289 bis I) and Italy (DPR 633/1972 art. 21, the 2019 SdI mandate), both
+ * with their own sourced provenance - DE/PL/PT/DZ carry no such fact, so validating there always only
+ * numbers and locks, however any future channel mandate of theirs might read. When it DOES fire,
+ * `performInvoiceSend` runs unchanged, so the mandate is never bypassed by taking "Validate" instead
+ * of "Send". Every other invoice only runs `runInvoiceIssuancePreflight`
  * (ATCUD/domestic-currency/cross-border-tax/VAT-currency - the SAME fiscal facts "send" resolves, minus
  * the transport/mandate check) and writes the number + "validated" status directly, atomically, the
  * same `takeDocumentNumberForTransitionWithStatus` primitive `runAsyncSendAction`'s own phase-1 branch
@@ -860,17 +861,18 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
       const clientId = typeof data.client === 'string' ? data.client : undefined;
 
-      // Owner's decision (issue #581, 2026-10-01): a French domestic B2B invoice is not validated
-      // by numbering and locking alone - CGI art. 289 bis I requires the accredited platform itself.
-      // Validating one of these therefore PERFORMS the real send, the exact same function/preflight/
-      // deliver "send" itself uses, never a second, parallel implementation that could silently drift
-      // from it. This reads the SAME country-blind `resolveActiveInvoiceMandate` "send" itself already
-      // calls (never a hand-written "country === FR" check - see `registerInvoiceActions`'s own header
-      // above), which today also mandates Italy's SdI for a domestic Italian B2B invoice - a
-      // consequence of reusing the generic mechanism the Decision text itself does not name. Every
-      // other invoice (no active mandate for this operation) only numbers and locks.
-      const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
-      if (activeMandate) {
+      // Owner's decision (issue #581, 2026-10-01, revised after PR #602's own review): whether
+      // validating ALSO transmits the invoice is now an EXPLICIT per-country fact
+      // (`country-policy/data/<cc>.json`'s own `invoiceValidation`, schema.ts's header has the full
+      // "why"), never inferred from the active channel mandate alone - see
+      // `invoice-validation-transmission.ts`'s own header for the two conditions this checks. Today
+      // that fact is declared for France (CGI art. 289 bis I) and Italy (DPR 633/1972 art. 21, the
+      // 2019 SdI mandate) - both with their own sourced provenance in `data/fr.json`/`data/it.json` -
+      // and left absent everywhere else, so DE/PL/PT/DZ always only number and lock. When it DOES
+      // fire, validating PERFORMS the real send, the exact same function/preflight/deliver "send"
+      // itself uses, never a second, parallel implementation that could silently drift from it.
+      const transmission = await resolveInvoiceValidationTransmission(companyId, issueDate, clientId);
+      if (transmission.transmits) {
         return performInvoiceSend(
           { companyId, typeId: 'invoice', documentId, data: rawData, params, currentStatus },
           deps,
@@ -901,6 +903,20 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       return { document, changed: true, message: 'Validated.' };
     },
   );
+
+  // Issue #581 - the "will Validate transmit, and through what" preview the frontend's lock-
+  // confirmation dialog reads BEFORE the user confirms (`GET .../transmission-preview`,
+  // documents.controller.ts). Reuses the EXACT SAME `resolveInvoiceValidationTransmission` decision
+  // the handler above calls - single source of truth, never a second, possibly-drifting copy of
+  // "does this operation transmit".
+  registry.registerTransmissionPreview('invoice', 'validate', async ({ companyId, data }) => {
+    const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
+    const clientId = typeof data.client === 'string' ? data.client : undefined;
+    const decision = await resolveInvoiceValidationTransmission(companyId, issueDate, clientId);
+    return decision.transmits
+      ? { transmits: true, channelLabel: decision.channelLabel }
+      : { transmits: false };
+  });
 
   /**
    * "cancel" — the ONE correction route this repo performs LOCALLY, no

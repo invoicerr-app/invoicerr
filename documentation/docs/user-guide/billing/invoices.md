@@ -17,9 +17,12 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
 - **Validate** - assign the invoice's legal number and lock it, without sending anything. A warning
   appears first: this is final, correct a mistake with a credit note afterwards, the same as for a sent
-  invoice. For a French domestic B2B invoice, validating also transmits it through your accredited
-  platform, since French law requires that platform for the invoice to be legally issued at all - see
-  [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate). For every other
+  invoice. For a French or Italian domestic B2B invoice, validating also transmits it through your
+  accredited channel (PDP for France, SdI for Italy), since each country's own law treats the invoice
+  as not genuinely issued until it reaches that channel - the warning dialog says so explicitly in
+  that case, naming the channel and stating it cannot be undone; see
+  [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
+  [Italy](../../developer-guide/countries/italy.md#validate-and-the-sdi-mandate). For every other
   invoice, **Send** stays a separate, later step
 - **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)

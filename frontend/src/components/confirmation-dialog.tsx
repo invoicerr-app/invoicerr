@@ -1,3 +1,5 @@
+import type { ReactNode } from "react"
+
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,14 @@ interface ConfirmationDialogProps {
    *  the caller has nothing to add beyond `description` itself. */
   detailLabel?: string
   detailValue?: string
+  /** Issue #581 - an optional, caller-built extra block shown between the description and the detail
+   *  box above - e.g. a dedicated warning that confirming will ALSO transmit the document somewhere
+   *  (document-form.tsx's `DocumentActionLockConfirmHost`). Deliberately a plain `ReactNode`, never a
+   *  second `string` prop this component would have to style an opinion into: the caller already
+   *  knows whether this deserves a neutral note or a `variant="warning"` Alert, this dialog stays
+   *  agnostic either way, the same posture it already holds for `detailLabel`/`detailValue`. Omitted
+   *  (not rendered at all) for every EXISTING caller, unchanged. */
+  extraContent?: ReactNode
   confirmLabel: string
   cancelLabel: string
   onConfirm: () => void
@@ -46,6 +56,7 @@ export function ConfirmationDialog({
   description,
   detailLabel,
   detailValue,
+  extraContent,
   confirmLabel,
   cancelLabel,
   onConfirm,
@@ -59,6 +70,7 @@ export function ConfirmationDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {extraContent}
         {detailValue ? (
           <div className="rounded-md bg-muted p-3 text-sm">
             <span className="font-medium text-muted-foreground">{detailLabel}</span>{" "}

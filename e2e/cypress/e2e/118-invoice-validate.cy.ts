@@ -28,6 +28,20 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     shape as 31), Validate on a mandated invoice genuinely ATTEMPTS the real transmission: it
  *     numbers the record and reaches "send_failed", the error naming the PDP channel - never a
  *     silent "validated" that pretends the legal platform was never required.
+ *
+ * Owner's addendum (2026-10-01, same issue): the per-country "will this also transmit" fact the
+ * backend now exposes (`country-policy/invoice-validation-transmission.ts`) must also be rendered
+ * BEFORE anyone confirms Validate, as a dedicated alert inside the lock-confirmation dialog itself
+ * (`[data-cy="document-action-transmission-alert"]`) - never only discovered afterward from a toast
+ * or a changed status badge. Two more facts, both added below, after the PDP wave (so the company
+ * is already France/PDP-configured for the first, and switched to Poland - which never declares the
+ * fact at all - for the second, exactly like 31's own later waves switch country and never switch
+ * back):
+ *  5. a French domestic B2B invoice shows that alert, naming the PDP channel, the moment the dialog
+ *     opens - genuinely before Confirm is ever clicked, so Cancel leaves the record untouched.
+ *  6. a Polish invoice never shows it - Poland has no `invoiceValidation` fact declared at all, so
+ *     Validate stays what it is for every other undeclared country: numbering and locking, nothing
+ *     else, proven by actually confirming it through to "validated".
  */
 const api = Cypress.env("apiUrl");
 
@@ -52,6 +66,22 @@ function invoiceData(clientId: string, issueDate: string) {
 		currency: "EUR",
 		lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
 	};
+}
+
+/** Switches the seeded company's country - genuinely, for the rest of the run, never switched back.
+ *  Same helper/shape as 31-national-channels.cy.ts's own `setCompanyCountry` (not shared across spec
+ *  files, so copied narrowly rather than reached for across a file boundary). Only test 6 below uses
+ *  it, and only after every FR-dependent test above has already run. */
+function setCompanyCountry(
+	country: string,
+	countryCode: string,
+	identifiers?: { scheme: string; value: string }[],
+) {
+	return cy.request({
+		method: "POST",
+		url: `${api}/api/company/info`,
+		body: { name: "Acme Corp", country, countryCode, ...(identifiers ? { identifiers } : {}) },
+	});
 }
 
 function createDraftInvoice(issueDate: string): Cypress.Chainable<string> {
@@ -323,5 +353,94 @@ describe("Invoice Validate (issue #581) - numbers and locks without sending, exc
 					expect(doc.transportRef, "aucune référence sans dépôt réel").to.not.be.a("string");
 				});
 		});
+	});
+
+	it("the lock-confirmation dialog warns, before Confirm, that a French domestic B2B invoice will also transmit through the PDP - and Cancel leaves it untouched", () => {
+		createDraftInvoice("2026-09-20").then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.openDocument(invoiceId);
+
+			cy.openDocumentActionsMenu();
+			cy.get('[data-cy="document-action-validate"]', { timeout: 15000 }).should("exist").click();
+
+			cy.get('[data-cy="document-detail-lock-confirm"]', { timeout: 10000 }).should("be.visible");
+			// The dedicated transmission alert - a SEPARATE block from the generic "numbering and
+			// locking are final" warning (already asserted via `contain.text` on the dialog itself in the
+			// "can be Validated" test above), naming the channel and spelling out it cannot be undone,
+			// exactly like the owner asked.
+			cy.get('[data-cy="document-action-transmission-alert"]', { timeout: 10000 })
+				.should("be.visible")
+				.and("contain.text", "PDP")
+				.and("contain.text", "cannot be undone");
+
+			// Cancel - this proof is about the WARNING appearing BEFORE any attempt, not about a second
+			// real transmission attempt (already proven above): the backend is left untouched.
+			cy.get('[data-cy="document-detail-lock-confirm-cancel"]').click();
+			cy.get('[data-cy="document-detail-lock-confirm"]').should("not.exist");
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body.status")
+				.should("eq", "draft");
+		});
+	});
+
+	it("Poland never shows that alert and never attempts a transmission - Validate stays numbering and locking, nothing else", () => {
+		setCompanyCountry("Poland", "PL", [{ scheme: "VAT", value: "PL5260001246" }]);
+
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string }[]) => {
+				expect(clients, "le jeu d'essai contient un client").to.have.length.greaterThan(0);
+				return cy
+					.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/save-draft`,
+						body: {
+							data: {
+								client: clients[0].id,
+								issueDate: "2026-09-20",
+								dueDate: "2026-10-31",
+								currency: "EUR",
+								// Poland's own standard rate ("23", `pl.json`'s `pl-standard`) - the company is
+								// now Polish, and `vatRate` validates against the ISSUING company's own catalog
+								// (see 31-national-channels.cy.ts's own comment on this exact point).
+								lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "23" }],
+							},
+						},
+						failOnStatusCode: false,
+					})
+					.then((saved) => {
+						expect(saved.status, "brouillon de facture polonaise créé").to.be.oneOf([200, 201]);
+						const invoiceId = saved.body?.document?.id as string;
+
+						cy.visit("/documents/invoice");
+						cy.openDocument(invoiceId);
+						cy.openDocumentActionsMenu();
+						cy.get('[data-cy="document-action-validate"]', { timeout: 15000 }).should("exist").click();
+
+						cy.get('[data-cy="document-detail-lock-confirm"]', { timeout: 10000 })
+							.should("be.visible")
+							.and("contain.text", "assign its legal number");
+						// The one guarantee this second fact exists for: no fact declared for Poland, so no
+						// alert, no matter what the mandate machinery alone would have said.
+						cy.get('[data-cy="document-action-transmission-alert"]').should("not.exist");
+
+						cy.intercept("POST", `${api}/api/documents/types/invoice/actions/validate`).as(
+							"validatePoland",
+						);
+						cy.get('[data-cy="document-detail-lock-confirm-confirm"]').click();
+						cy.wait("@validatePoland").its("response.statusCode").should("be.oneOf", [200, 201]);
+
+						cy.get('[data-cy="document-status-badge"]', { timeout: 15000 }).should(
+							"contain.text",
+							"Validated",
+						);
+						cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+							.its("body")
+							.then((doc) => {
+								expect(doc.status, "validée, jamais envoyée").to.eq("validated");
+								expect(doc.number, "numérotée malgré l'absence de transmission").to.be.a("number");
+							});
+					});
+			});
 	});
 });

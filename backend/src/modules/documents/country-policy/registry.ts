@@ -5,6 +5,7 @@ import {
   DocumentActionRuleFact,
   DocumentNumberingFact,
   DomesticInvoiceCurrencyFact,
+  InvoiceValidationFact,
 } from './schema';
 
 function buildIndex(files: CountryDocumentPolicyFile[]): Record<string, CountryDocumentPolicyFile> {
@@ -76,6 +77,14 @@ export class CountryPolicyCatalog {
    *  currency, the same "no permissive fallback" discipline every other reader here holds. */
   domesticInvoiceCurrencyFor(countryCode: string): DomesticInvoiceCurrencyFact | undefined {
     return this.files[(countryCode ?? '').toUpperCase()]?.domesticInvoiceCurrency;
+  }
+
+  /** Whether VALIDATING an invoice transmits it through this country's own mandated channel (issue
+   *  #581) - file-only, like `domesticInvoiceCurrencyFor` above. `undefined` for a country with no
+   *  such fact declared (DE/PL/PT/DZ today): there is no fallback, the same "no permissive fallback"
+   *  discipline every other reader here holds - see schema.ts's own `InvoiceValidationFact` header. */
+  invoiceValidationFor(countryCode: string): InvoiceValidationFact | undefined {
+    return this.files[(countryCode ?? '').toUpperCase()]?.invoiceValidation;
   }
 }
 

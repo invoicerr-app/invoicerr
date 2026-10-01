@@ -8,6 +8,7 @@ import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@
 
 import type {
   ActionResult,
+  ActionTransmissionPreview,
   ArchiveVerificationResult,
   CorrectionRoutesDecision,
   DocumentArchive,
@@ -221,6 +222,29 @@ export function useDocumentTaxWarnings(typeId: string | undefined, id: string | 
     ["documents", typeId, id, "tax-warnings"],
     `/api/documents/${id}/tax-warnings?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
+  )
+}
+
+/**
+ * Issue #581 - whether confirming ONE action on this document would genuinely transmit it somewhere,
+ * and through what channel - read by the lock-confirmation dialog (document-form.tsx's
+ * `DocumentActionLockConfirmHost`) BEFORE the user confirms, never after. `enabled` is the caller's
+ * own: this is only worth fetching once a specific action is actually PENDING confirmation (the
+ * dialog about to open), never on every page load for every locking action - see that component's own
+ * call site for the exact gate. `{ transmits: false }` for an action with no preview registered at
+ * all (the overwhelming majority), never an error - the dialog simply shows its ordinary warning with
+ * no extra alert.
+ */
+export function useActionTransmissionPreview(
+  typeId: string | undefined,
+  id: string | undefined,
+  actionId: string | undefined,
+  enabled: boolean,
+) {
+  return useApiQuery<ActionTransmissionPreview>(
+    ["documents", typeId, id, "actions", actionId, "transmission-preview"],
+    `/api/documents/${id}/actions/${actionId}/transmission-preview?typeId=${typeId}`,
+    { enabled: enabled && !!typeId && !!id && !!actionId },
   )
 }
 

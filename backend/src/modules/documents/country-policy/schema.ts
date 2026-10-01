@@ -135,8 +135,55 @@ export interface CountryDocumentPolicyFile {
    * this seller/buyer-country comparison).
    */
   domesticInvoiceCurrency?: DomesticInvoiceCurrencyFact;
+  /**
+   * Issue #581 (owner's decision, 2026-10-01, after PR #602's own review) - whether VALIDATING an
+   * invoice in this country must itself transmit it through the country's own mandated channel,
+   * rather than only numbering and locking it. Deliberately an EXPLICIT per-country fact, never
+   * inferred from whether `transports/channel-policy/data/<cc>.json` happens to declare an active
+   * mandate: the two questions are related but not the same one - a country could plausibly mandate a
+   * channel for ordinary SENDING while still allowing VALIDATE to stop at numbering-and-locking (the
+   * channel mandate alone says nothing about what "Validate" specifically must do), so inferring one
+   * from the other would have been encoding a legal conclusion nobody actually read a text for. See
+   * `invoice-validation-transmission.ts`'s own header for how this combines with the ACTIVE mandate
+   * check (`channel-policy/mandate.ts`) at runtime: BOTH conditions must hold - this fact says the
+   * country's law treats validation-without-transmission as not genuinely "issued" at all, the active
+   * mandate check says THIS operation (today's date, this buyer) is actually bound by it.
+   *
+   * File-only, like `domesticInvoiceCurrency` above: read at request time from the in-memory catalog
+   * (`registry.ts#invoiceValidationFor`), never mirrored into a table, enforced at "validate" by
+   * `invoice-validation-transmission.ts#resolveInvoiceValidationTransmission`. Optional: a country with
+   * no such fact declared (DE/PL/PT/DZ today) simply omits the field, meaning "Validate" always only
+   * numbers and locks there, however this question might one day be answered for any one operation.
+   */
+  invoiceValidation?: InvoiceValidationFact;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
+  notes?: string;
+}
+
+/**
+ * ONE country's answer to "does Validate itself transmit the invoice" - see
+ * `CountryDocumentPolicyFile.invoiceValidation`'s own header for the full design and why this is
+ * deliberately separate from the channel-mandate catalog.
+ */
+export interface InvoiceValidationFact {
+  /** `true`: once an operation is ALSO covered by this country's own active channel mandate
+   *  (`channel-policy/mandate.ts#activeChannelMandateForOperation`), validating performs the real
+   *  transmission through that channel - see `invoice-validation-transmission.ts`. `false` (the same
+   *  as omitting the whole fact) would be a pointless, always-inert entry; this field only exists to
+   *  be `true` - declaring it `false` is refused at load time, the same "do not encode a fact that
+   *  changes nothing" discipline this catalog already holds for other always-true-or-absent flags. */
+  transmitsThroughMandatedChannel: true;
+  /**
+   * Plain-English name of the channel this transmits through once the condition above fires - e.g.
+   * "the accredited platform (PDP)" for France, "SdI" for Italy. Shown verbatim in the Validate
+   * confirmation dialog's own transmission alert (document-form.tsx) - plain data, not an i18n key,
+   * the same convention `DocumentTypeDescriptor.label`/`DocumentActionDescriptor.label` already hold.
+   * Required whenever `transmitsThroughMandatedChannel` is `true`: a warning that something will be
+   * transmitted "somewhere" unnamed would be worse than not showing one at all.
+   */
+  channelLabel: string;
+  provenance: PolicyProvenance;
   notes?: string;
 }
 
@@ -314,6 +361,35 @@ export function assertValidDomesticInvoiceCurrencyFact(
     fact.provenance,
     `${context}: domestic-invoice-currency fact`,
     'a domestic-invoice-currency fact',
+  );
+}
+
+export class InvalidInvoiceValidationFactError extends Error {}
+
+/**
+ * The `invoiceValidation` (issue #581, owner's decision 2026-10-01) analogue of
+ * `assertValidDomesticInvoiceCurrencyFact` above - same provenance gate, plus the two checks this
+ * fact needs and the others do not: `transmitsThroughMandatedChannel` must be the literal `true` (a
+ * country file declaring it `false` is encoding a no-op as if it were a real fact - omitting the
+ * whole field already means exactly that), and `channelLabel` must be a real, non-blank name (a
+ * warning that something transmits "somewhere" unnamed is worse than no warning).
+ */
+export function assertValidInvoiceValidationFact(fact: InvoiceValidationFact, context: string): void {
+  if ((fact as { transmitsThroughMandatedChannel?: unknown }).transmitsThroughMandatedChannel !== true) {
+    throw new InvalidInvoiceValidationFactError(
+      `${context}: "invoiceValidation.transmitsThroughMandatedChannel" must be the literal ` +
+        `true - omit the whole "invoiceValidation" field instead of declaring it false.`,
+    );
+  }
+  if (!fact.channelLabel?.trim()) {
+    throw new InvalidInvoiceValidationFactError(
+      `${context}: "invoiceValidation.channelLabel" must be a real, non-blank channel name.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: invoice-validation fact`,
+    'an invoice-validation fact',
   );
 }
 

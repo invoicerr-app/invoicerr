@@ -449,6 +449,17 @@ export interface DocumentTaxWarningsResult {
   warnings: string[]
 }
 
+/** Mirrors the backend's `ActionTransmissionPreview` (actions/action-registry.ts) - issue #581's own
+ *  "will confirming this action genuinely transmit the document somewhere, and through what" preview,
+ *  read BEFORE the user confirms a lock-confirmation dialog (document-form.tsx's
+ *  `DocumentActionLockConfirmHost`). `channelLabel` is plain data, not an i18n key, the same
+ *  convention `DocumentActionDescriptor.label` already holds - present only when `transmits` is
+ *  true. */
+export interface ActionTransmissionPreview {
+  transmits: boolean
+  channelLabel?: string
+}
+
 /** One artifact this archive covers, mirrors the backend's
  *  `StoredArtifactMeta` (documents/archive/persistence.ts). Never the bytes themselves. */
 export interface DocumentArchiveArtifact {
