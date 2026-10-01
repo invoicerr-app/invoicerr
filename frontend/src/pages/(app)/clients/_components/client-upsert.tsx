@@ -49,6 +49,7 @@ import {
   type SteppedDialogStep,
   stepForField,
 } from "@/components/ui/stepped-dialog"
+import { ClientPaymentMethodsDialog } from "./client-payment-methods"
 import { ClientPortalAccessDialog } from "./client-portal-access"
 import { buildClientSchema } from "@/lib/client-schema"
 import { normalizeClientContacts } from "@/lib/normalize-client-contacts"
@@ -1108,6 +1109,7 @@ function ContactStep({
   isEditing,
   clientId,
   onOpenPortalAccess,
+  onOpenPaymentMethods,
   languageSuggested,
   onLanguageManuallyChanged,
 }: {
@@ -1116,6 +1118,9 @@ function ContactStep({
   isEditing: boolean
   clientId?: string
   onOpenPortalAccess: () => void
+  /** Issue #416 — editing only, same reason as `onOpenPortalAccess` just above: a not-yet-created
+   *  client has no id to restrict yet. */
+  onOpenPaymentMethods: () => void
   /** True while the value currently in `language` is this wizard's own country-based SUGGESTION
    *  (see the effect that computes it in `ClientUpsert`), never once the user has picked one
    *  themselves — only ever true outside `isEditing`, see that effect's own guard. */
@@ -1182,6 +1187,30 @@ function ContactStep({
             dataCy="client-upsert-portal-access-button"
           >
             {t("clients.list.tooltips.portalAccess")}
+          </Button>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-lg border p-4 sm:flex-row sm:items-center">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">
+              {t("clients.upsert.fields.paymentMethods.label", "Payment methods")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "clients.upsert.fields.paymentMethods.description",
+                "Restrict which of your enabled payment methods are offered to this client.",
+              )}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onOpenPaymentMethods}
+            dataCy="client-upsert-payment-methods-button"
+          >
+            {t("clients.list.tooltips.paymentMethods")}
           </Button>
         </div>
       )}
@@ -1300,6 +1329,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   const isEditing = !!client
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
+  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false)
   // See `SteppedDialog`'s own `onSubmit` prop comment further down — the escape hatch that lets the
   // last line of defense below jump to whichever step actually shows the field it just rejected.
   const dialogRef = useRef<SteppedDialogHandle>(null)
@@ -1709,6 +1739,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           isEditing={isEditing}
           clientId={client?.id}
           onOpenPortalAccess={() => setPortalAccessOpen(true)}
+          onOpenPaymentMethods={() => setPaymentMethodsOpen(true)}
           languageSuggested={languageAutoFilled}
           onLanguageManuallyChanged={() => {
             languageTouchedRef.current = true
@@ -1801,6 +1832,11 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       <ClientPortalAccessDialog
         client={portalAccessOpen ? (client ?? null) : null}
         onOpenChange={(nextOpen) => setPortalAccessOpen(nextOpen)}
+      />
+
+      <ClientPaymentMethodsDialog
+        client={paymentMethodsOpen ? (client ?? null) : null}
+        onOpenChange={(nextOpen) => setPaymentMethodsOpen(nextOpen)}
       />
     </>
   )

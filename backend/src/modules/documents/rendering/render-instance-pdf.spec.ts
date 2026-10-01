@@ -273,10 +273,15 @@ describe('sepaPaymentQrFor', () => {
 });
 
 describe('paymentMethodsFor', () => {
+  // Issue #416 ("payment methods per client") — a real 'client' reference field, the SAME shape
+  // `invoice.descriptor.ts` actually declares, so `clientIdFromData` has something to resolve against
+  // in the tests below that care about it. The pre-existing tests in this block (which pass data with
+  // no 'client' key) are unaffected — `clientIdFromData` simply resolves to `undefined` for them, same
+  // as it always implicitly did before this field existed on the fixture.
   const paymentMethodsDescriptor: DocumentTypeDescriptor = {
     id: 'invoice',
     label: 'Invoice',
-    fields: [],
+    fields: [{ key: 'client', kind: 'reference', label: 'Client', entity: 'client' }],
     actions: [],
     usesPaymentMethods: true,
   };
@@ -321,11 +326,11 @@ describe('paymentMethodsFor', () => {
     );
 
     expect(result).toBe(somePresentations);
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: 12000,
-      currency: 'EUR',
-      reference: 'INV-2026-0001',
-    });
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: 12000, currency: 'EUR', reference: 'INV-2026-0001' },
+      undefined, // no 'client' value on this document's own `data`
+    );
   });
 
   it('omits `amountMinor` for a zero/negative total -- never hands a method a nonsensical amount', async () => {
@@ -337,20 +342,67 @@ describe('paymentMethodsFor', () => {
       null,
     );
 
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: undefined,
-      currency: 'EUR',
-      reference: undefined,
-    });
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: undefined, currency: 'EUR', reference: undefined },
+      undefined,
+    );
   });
 
   it('omits `currency` when the document data carries none', async () => {
     await paymentMethodsFor(paymentMethodsDescriptor, 'company-1', positiveEurTotals, {}, null);
 
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: 12000,
-      currency: undefined,
-      reference: undefined,
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: 12000, currency: undefined, reference: undefined },
+      undefined,
+    );
+  });
+
+  // Issue #416 ("payment methods per client") — the whole point of threading a client id through at
+  // all: a document naming one must have it reach the resolver, so a client-scoped restriction (proven
+  // in persistence.spec.ts) actually gets applied to THIS document's own render.
+  describe('issue #416 — forwards the document’s own client id', () => {
+    it('reads the id straight off the descriptor’s own "client" reference field', async () => {
+      await paymentMethodsFor(
+        paymentMethodsDescriptor,
+        'company-1',
+        positiveEurTotals,
+        { currency: 'EUR', client: 'client-42' },
+        'INV-1',
+      );
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ currency: 'EUR' }),
+        'client-42',
+      );
+    });
+
+    it('a document type with no "client" field at all forwards `undefined`, never throws', async () => {
+      const noClientFieldDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+        usesPaymentMethods: true,
+      };
+
+      await paymentMethodsFor(noClientFieldDescriptor, 'company-1', positiveEurTotals, {}, null);
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', expect.anything(), undefined);
+    });
+
+    it('a present but wrong-typed "client" value forwards `undefined`, never a crash', async () => {
+      await paymentMethodsFor(
+        paymentMethodsDescriptor,
+        'company-1',
+        positiveEurTotals,
+        { currency: 'EUR', client: 12345 },
+        null,
+      );
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', expect.anything(), undefined);
     });
   });
 });

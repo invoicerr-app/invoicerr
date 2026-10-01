@@ -38,7 +38,11 @@ import { generateApiKey, hashApiKey } from '@/utils/api-key';
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { PaymentMethodsController } from './payment-methods.controller';
 
-type Handler = PaymentMethodsController['list'] | PaymentMethodsController['update'];
+type Handler =
+  | PaymentMethodsController['list']
+  | PaymentMethodsController['update']
+  | PaymentMethodsController['listForClient']
+  | PaymentMethodsController['updateForClient'];
 
 describe('PaymentMethodsController — authorization', () => {
   let companyId: string;
@@ -77,6 +81,12 @@ describe('PaymentMethodsController — authorization', () => {
 
   function requestWithKey(rawKey: string) {
     return { headers: { 'x-api-key': rawKey }, params: { methodId: 'bank_transfer' }, query: {}, body: {} };
+  }
+
+  /** Issue #416 — the two NEW client-scoped routes carry their own `:clientId` param, never
+   *  `:methodId` (see payment-methods.controller.ts's own header on why the two can never collide). */
+  function requestWithKeyForClient(rawKey: string) {
+    return { headers: { 'x-api-key': rawKey }, params: { clientId: 'client-1' }, query: {}, body: {} };
   }
 
   beforeAll(async () => {
@@ -194,5 +204,42 @@ describe('PaymentMethodsController — authorization', () => {
     await expect(runGuards(PaymentMethodsController.prototype.list, requestWithKey(readKey))).resolves.toBe(
       true,
     );
+  });
+
+  // Issue #416 — the two client-scoped routes are gated on `clients:*`, not `company:*`: a key minted
+  // for the company-wide screen (payment-methods read/write) has no business on a per-client
+  // restriction, and vice versa — the same separation `clients.controller.ts`'s own routes already
+  // hold from every other resource's.
+  describe('issue #416 — the per-client restriction routes', () => {
+    it('refuses a company:read key on the client-restriction read — the wrong scope entirely', async () => {
+      const rawKey = await createApiKey(memberUserId, ['company:read']);
+      await expect(
+        runGuards(PaymentMethodsController.prototype.listForClient, requestWithKeyForClient(rawKey)),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lets a clients:read key through on the client-restriction read, any role', async () => {
+      const rawKey = await createApiKey(memberUserId, ['clients:read']);
+      await expect(
+        runGuards(PaymentMethodsController.prototype.listForClient, requestWithKeyForClient(rawKey)),
+      ).resolves.toBe(true);
+    });
+
+    it('refuses a company:write key on the client-restriction write — the wrong scope entirely', async () => {
+      const rawKey = await createApiKey(adminUserId, ['company:write']);
+      await expect(
+        runGuards(PaymentMethodsController.prototype.updateForClient, requestWithKeyForClient(rawKey)),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    // Unlike the company-wide write (OWNER/ADMIN only), the per-client write is an ordinary client
+    // edit — `clients:write` alone, no extra `@Roles`, the same posture `PATCH /clients/:id` itself
+    // holds (see payment-methods.controller.ts's own header).
+    it('lets a clients:write key held by a plain MEMBER through on the client-restriction write', async () => {
+      const rawKey = await createApiKey(memberUserId, ['clients:write']);
+      await expect(
+        runGuards(PaymentMethodsController.prototype.updateForClient, requestWithKeyForClient(rawKey)),
+      ).resolves.toBe(true);
+    });
   });
 });

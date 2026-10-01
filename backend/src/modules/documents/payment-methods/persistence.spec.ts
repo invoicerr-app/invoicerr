@@ -17,13 +17,54 @@ vi.mock('@/prisma/prisma.service', () => ({
   default: {
     company: { findUnique: vi.fn(), update: vi.fn() },
     companyPaymentMethodConfig: { findUnique: vi.fn(), upsert: vi.fn() },
+    client: { findFirst: vi.fn() },
+    clientPaymentMethodRestriction: { findMany: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
+    $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
 
 const mockedPrisma = prisma as unknown as {
   company: { findUnique: Mock; update: Mock };
   companyPaymentMethodConfig: { findUnique: Mock; upsert: Mock };
+  client: { findFirst: Mock };
+  clientPaymentMethodRestriction: { findMany: Mock; deleteMany: Mock; createMany: Mock };
 };
+
+/** Issue #416 — a tiny in-memory store for `Client`/`ClientPaymentMethodRestriction`, the same
+ *  discipline `wireFakeStore` above already holds for `Company`/`CompanyPaymentMethodConfig`:
+ *  `setClientPaymentMethodRestrictions` reads (via `assertClientInCompany`) before it writes, and the
+ *  tests below read AGAIN afterward to assert what actually landed. */
+function wireClientStore(clientsByCompany: Map<string, string>, restrictions: Map<string, Set<string>>) {
+  mockedPrisma.client.findFirst.mockImplementation(
+    async ({ where }: { where: { id: string; companyId: string } }) => {
+      return clientsByCompany.get(where.id) === where.companyId ? { id: where.id } : null;
+    },
+  );
+  mockedPrisma.clientPaymentMethodRestriction.findMany.mockImplementation(
+    async ({ where }: { where: { clientId: string; client?: { companyId: string } } }) => {
+      if (where.client && clientsByCompany.get(where.clientId) !== where.client.companyId) return [];
+      const set = restrictions.get(where.clientId) ?? new Set<string>();
+      return [...set].map((methodId) => ({ methodId }));
+    },
+  );
+  mockedPrisma.clientPaymentMethodRestriction.deleteMany.mockImplementation(
+    async ({ where }: { where: { clientId: string } }) => {
+      const count = restrictions.get(where.clientId)?.size ?? 0;
+      restrictions.delete(where.clientId);
+      return { count };
+    },
+  );
+  mockedPrisma.clientPaymentMethodRestriction.createMany.mockImplementation(
+    async ({ data }: { data: { clientId: string; methodId: string }[] }) => {
+      for (const row of data) {
+        const set = restrictions.get(row.clientId) ?? new Set<string>();
+        set.add(row.methodId);
+        restrictions.set(row.clientId, set);
+      }
+      return { count: data.length };
+    },
+  );
+}
 
 interface FakeCompany {
   iban: string | null;
@@ -70,20 +111,31 @@ function wireFakeStore(company: FakeCompany, rows: Map<string, FakeConfigRow>) {
 
 // Imported AFTER vi.mock so the module under test picks up the mocked client.
 import {
+  isMethodAllowedForClient,
+  listClientPaymentMethodRestrictions,
   listCompanyPaymentMethods,
   resolveEnabledPaymentMethodPresentations,
+  setClientPaymentMethodRestrictions,
   updateCompanyPaymentMethodConfig,
 } from './persistence';
+
+const COMPANY_ID = 'company-1';
+const CLIENT_ID = 'client-1';
 
 describe('payment-methods/persistence', () => {
   let company: FakeCompany;
   let rows: Map<string, FakeConfigRow>;
+  let clientsByCompany: Map<string, string>;
+  let restrictions: Map<string, Set<string>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     company = { iban: null, bic: null };
     rows = new Map();
     wireFakeStore(company, rows);
+    clientsByCompany = new Map([[CLIENT_ID, COMPANY_ID]]);
+    restrictions = new Map();
+    wireClientStore(clientsByCompany, restrictions);
   });
 
   describe('listCompanyPaymentMethods', () => {
@@ -285,6 +337,113 @@ describe('payment-methods/persistence', () => {
       const presentations = await resolveEnabledPaymentMethodPresentations('company-1');
       const bankTransfer = presentations.find((p) => p.id === 'bank_transfer');
       expect(bankTransfer?.lines).toEqual(['IBAN: FR1420041010050500013M02606']);
+    });
+
+    describe('issue #416 — a client-scoped restriction', () => {
+      beforeEach(() => {
+        rows.set('bank_transfer', { enabled: true, config: {} });
+        company.iban = 'FR1420041010050500013M02606';
+        rows.set('paypal', { enabled: true, config: { email: 'billing@acme.test' } });
+      });
+
+      it('no restriction on file — every company-enabled method still appears, unchanged', async () => {
+        const presentations = await resolveEnabledPaymentMethodPresentations(COMPANY_ID, {}, CLIENT_ID);
+        expect(presentations.map((p) => p.id).sort()).toEqual(['bank_transfer', 'paypal']);
+      });
+
+      it('a subset restriction narrows the result to exactly that subset', async () => {
+        restrictions.set(CLIENT_ID, new Set(['bank_transfer']));
+
+        const presentations = await resolveEnabledPaymentMethodPresentations(COMPANY_ID, {}, CLIENT_ID);
+        expect(presentations.map((p) => p.id)).toEqual(['bank_transfer']);
+      });
+
+      it('a method the client is restricted to, but the COMPANY has since disabled, never appears', async () => {
+        restrictions.set(CLIENT_ID, new Set(['bank_transfer', 'paypal']));
+        rows.set('paypal', { enabled: false, config: { email: 'billing@acme.test' } });
+
+        const presentations = await resolveEnabledPaymentMethodPresentations(COMPANY_ID, {}, CLIENT_ID);
+        expect(presentations.map((p) => p.id)).toEqual(['bank_transfer']);
+      });
+
+      it('a dangling/cross-tenant clientId degrades to "unrestricted", never a throw', async () => {
+        const presentations = await resolveEnabledPaymentMethodPresentations(
+          COMPANY_ID,
+          {},
+          'no-such-client',
+        );
+        expect(presentations.map((p) => p.id).sort()).toEqual(['bank_transfer', 'paypal']);
+      });
+
+      it('no clientId at all (the settings screen’s own live preview) behaves exactly as before', async () => {
+        const presentations = await resolveEnabledPaymentMethodPresentations(COMPANY_ID);
+        expect(presentations.map((p) => p.id).sort()).toEqual(['bank_transfer', 'paypal']);
+      });
+    });
+  });
+
+  describe('issue #416 — listClientPaymentMethodRestrictions / setClientPaymentMethodRestrictions', () => {
+    it('an unconfigured client reads back as unrestricted — an empty array, not null', async () => {
+      const ids = await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID);
+      expect(ids).toEqual([]);
+    });
+
+    it('throws NotFoundException for a client that does not belong to this company', async () => {
+      await expect(listClientPaymentMethodRestrictions(COMPANY_ID, 'someone-elses-client')).rejects.toThrow(
+        NotFoundException,
+      );
+      await expect(
+        setClientPaymentMethodRestrictions(COMPANY_ID, 'someone-elses-client', ['bank_transfer']),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('replaces the restriction wholesale and reads back exactly what was saved', async () => {
+      await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['bank_transfer', 'paypal']);
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual(
+        expect.arrayContaining(['bank_transfer', 'paypal']),
+      );
+
+      // A second call REPLACES, never merges — "cheque" alone afterwards means bank_transfer/paypal
+      // are no longer restricted-to, not still present alongside it.
+      await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['cheque']);
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual(['cheque']);
+    });
+
+    it('an empty array clears the restriction back to "unrestricted"', async () => {
+      await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['bank_transfer']);
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual(['bank_transfer']);
+
+      await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, []);
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual([]);
+    });
+
+    it('refuses an id no payment method registry entry resolves — 400, never silently stored', async () => {
+      await expect(
+        setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['not-a-real-method']),
+      ).rejects.toThrow(BadRequestException);
+      // Nothing was written — the whole call is refused up front, not partially applied.
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual([]);
+    });
+
+    it('duplicate ids in the input are deduplicated, never stored twice', async () => {
+      await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['bank_transfer', 'bank_transfer']);
+      expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual(['bank_transfer']);
+    });
+  });
+
+  describe('issue #416 — isMethodAllowedForClient', () => {
+    it('no clientId at all — always allowed (a non-client context, e.g. company-only flows)', async () => {
+      expect(await isMethodAllowedForClient(COMPANY_ID, undefined, 'stripe')).toBe(true);
+    });
+
+    it('a client with no restriction on file — every method is allowed', async () => {
+      expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'stripe')).toBe(true);
+    });
+
+    it('a restricted client — only the named method(s) are allowed', async () => {
+      restrictions.set(CLIENT_ID, new Set(['bank_transfer']));
+      expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'bank_transfer')).toBe(true);
+      expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'stripe')).toBe(false);
     });
   });
 });

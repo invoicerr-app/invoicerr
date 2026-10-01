@@ -29,6 +29,7 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'Client',
   'PartyIdentifier',
   'ClientContact',
+  'ClientPaymentMethodRestriction',
   'MailTemplate',
   'Article',
   'Project',

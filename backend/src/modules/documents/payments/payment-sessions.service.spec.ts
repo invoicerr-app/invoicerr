@@ -4,6 +4,7 @@ import { ConflictException, NotFoundException, NotImplementedException } from '@
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { DocumentsService } from '../documents.service';
+import * as paymentMethodsPersistence from '../payment-methods/persistence';
 import { PaymentProviderRegistry } from './payment-provider-registry';
 import * as persistence from './payment-sessions.persistence';
 import { PaymentSessionsService } from './payment-sessions.service';
@@ -16,6 +17,13 @@ import { PaymentWebhookVerificationError } from './provider';
  *  "mock the methods actually called, not the whole class" shape that file's own header documents. */
 vi.mock('./payment-sessions.persistence');
 
+// Issue #416 ("payment methods per client") — `../payment-methods/persistence` reaches Prisma
+// directly too (`isMethodAllowedForClient`), same reason as above. Defaulted to "always allowed" so
+// every PRE-EXISTING test in this file (none of which sets `data.client`) keeps passing unchanged;
+// the restriction's own behaviour is proven in the dedicated describe block below, which overrides
+// this per test.
+vi.mock('../payment-methods/persistence');
+
 const createCheckoutSession = persistence.createCheckoutSession as Mock;
 const findPendingSessionForDocument = persistence.findPendingSessionForDocument as Mock;
 const claimSessionForCompletion = persistence.claimSessionForCompletion as Mock;
@@ -23,6 +31,7 @@ const attachSessionPayment = persistence.attachSessionPayment as Mock;
 const releaseSessionClaim = persistence.releaseSessionClaim as Mock;
 const markSessionFailed = persistence.markSessionFailed as Mock;
 const resolveCompanyPaymentProviderId = persistence.resolveCompanyPaymentProviderId as Mock;
+const isMethodAllowedForClient = paymentMethodsPersistence.isMethodAllowedForClient as Mock;
 
 function buildService() {
   const documentsService = {
@@ -44,6 +53,8 @@ function buildService() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Issue #416's own default — see this file's own header on `vi.mock('../payment-methods/persistence')`.
+  isMethodAllowedForClient.mockResolvedValue(true);
 });
 
 describe('PaymentSessionsService.createInvoiceCheckoutSession', () => {
@@ -268,6 +279,81 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selec
     await expect(service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT)).rejects.toThrow(
       /paypal.*not connected/,
     );
+  });
+});
+
+describe('PaymentSessionsService.createInvoiceCheckoutSession — issue #416, per-client restriction', () => {
+  const INPUT = {
+    successUrl: 'https://app.example.com/portal?payment=success',
+    cancelUrl: 'https://app.example.com/portal?payment=cancelled',
+  };
+
+  it('refuses — a NAMED 409 — a client restricted away from the resolved provider, before any credential lookup', async () => {
+    const { service, documentsService, channelCredentials, provider } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      status: 'sent',
+      data: { currency: 'EUR', client: 'client-restricted-1' },
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 12000 } });
+    // The default provider ("stripe") — explicit here since Vitest's `clearAllMocks` resets call
+    // history but not a previous test's own `mockResolvedValue`, and an earlier describe block in
+    // this file leaves this mock resolving to a different provider.
+    resolveCompanyPaymentProviderId.mockResolvedValue(null);
+    isMethodAllowedForClient.mockResolvedValue(false);
+
+    await expect(service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(isMethodAllowedForClient).toHaveBeenCalledWith('company-1', 'client-restricted-1', 'stripe');
+    // The restriction is checked BEFORE connectivity — a restricted client never even causes a
+    // credentials lookup, let alone a real provider call.
+    expect(channelCredentials.resolveActive).not.toHaveBeenCalled();
+    expect(provider.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('proceeds for a client whose restriction includes the resolved provider', async () => {
+    const { service, documentsService, channelCredentials, provider } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      displayNumber: 'INV-1',
+      status: 'sent',
+      data: { currency: 'EUR', client: 'client-allowed-1' },
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 12000 } });
+    resolveCompanyPaymentProviderId.mockResolvedValue(null);
+    channelCredentials.resolveActive.mockResolvedValue({ config: { secretKey: 'sk' } });
+    findPendingSessionForDocument.mockResolvedValue(null);
+    isMethodAllowedForClient.mockResolvedValue(true);
+    provider.createCheckoutSession.mockResolvedValue({
+      providerSessionId: 'cs_new',
+      checkoutUrl: 'https://checkout.stripe.com/pay/cs_new',
+    });
+    createCheckoutSession.mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_new' });
+
+    const result = await service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT);
+
+    expect(result).toEqual({ checkoutUrl: 'https://checkout.stripe.com/pay/cs_new' });
+    expect(isMethodAllowedForClient).toHaveBeenCalledWith('company-1', 'client-allowed-1', 'stripe');
+  });
+
+  it('a document with no client reference checks with an undefined clientId — never skipped entirely', async () => {
+    const { service, documentsService, channelCredentials, provider } = buildService();
+    documentsService.getDocument.mockResolvedValue({
+      id: 'inv-1',
+      status: 'sent',
+      data: { currency: 'EUR' }, // no "client" key at all
+    });
+    documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 5000 } });
+    resolveCompanyPaymentProviderId.mockResolvedValue(null);
+    channelCredentials.resolveActive.mockResolvedValue({ config: { secretKey: 'sk' } });
+    findPendingSessionForDocument.mockResolvedValue(null);
+    provider.createCheckoutSession.mockResolvedValue({ providerSessionId: 'cs_1', checkoutUrl: 'https://x' });
+    createCheckoutSession.mockResolvedValue({ checkoutUrl: 'https://x' });
+
+    await service.createInvoiceCheckoutSession('company-1', 'inv-1', INPUT);
+
+    expect(isMethodAllowedForClient).toHaveBeenCalledWith('company-1', undefined, 'stripe');
   });
 });
 

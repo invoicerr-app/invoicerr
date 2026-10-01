@@ -83,7 +83,8 @@
         "edit": "Edit client",
         "delete": "Delete client",
         "statement": "Account statement",
-        "portalAccess": "Client portal access"
+        "portalAccess": "Client portal access",
+        "paymentMethods": "Payment methods"
       },
       "filters": {
         "ariaLabel": "Filter clients",
@@ -138,6 +139,20 @@
       "revokeAll": "Revoke all access",
       "revokeError": "The invite could not be revoked.",
       "close": "Close"
+    },
+    "paymentMethods": {
+      "title": "Payment methods",
+      "description": "Restrict which of your enabled payment methods are offered to this client. No restriction means every enabled method, exactly as today.",
+      "restrictLabel": "Restrict payment methods",
+      "restrictDescription": "Only the methods checked below will be offered to this client.",
+      "noCompanyMethods": "No payment method is enabled yet — enable one in Payment methods first.",
+      "emptySelectionHint": "Pick at least one method, or turn the restriction off.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "messages": {
+        "updateSuccess": "Payment methods updated",
+        "updateError": "Failed to update this client's payment methods"
+      }
     },
     "upsert": {
       "title": {
@@ -260,6 +275,10 @@
           "label": "Client portal",
           "description": "Invite this client to sign in and see their own invoices, quotes and balance."
         },
+        "paymentMethods": {
+          "label": "Payment methods",
+          "description": "Restrict which of your enabled payment methods are offered to this client."
+        },
         "contacts": {
           "label": "Contacts",
           "add": "Add contact",
@@ -368,13 +387,15 @@
       "actions": {
         "close": "Close",
         "edit": "Edit",
-        "statement": "View statement"
+        "statement": "View statement",
+        "paymentMethods": "Manage"
       },
       "sections": {
         "contact": "Contact",
         "address": "Address",
         "documents": "Documents",
-        "contacts": "Contacts"
+        "contacts": "Contacts",
+        "paymentMethods": "Payment methods"
       },
       "documents": {
         "empty": "No document yet for this client"
@@ -391,7 +412,9 @@
         "state": "State/Province",
         "country": "Country",
         "primary": "Primary",
-        "noContacts": "No contacts"
+        "noContacts": "No contacts",
+        "paymentMethodsNone": "None enabled",
+        "paymentMethodsRestricted": "restricted"
       }
     },
     "delete": {

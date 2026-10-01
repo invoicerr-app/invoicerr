@@ -35,7 +35,7 @@ Click **Add New** and fill in:
 - **Line items** — Designation, Quantity, Unit, Unit price, VAT rate, and a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)
 - **Notes** (optional)
 
-There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically, and the one actually used is only recorded afterwards, when you mark the invoice as paid.
+There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically — unless the client has its own [restriction](../clients.md#restricting-payment-methods-for-a-client), in which case only the methods you allowed for that client are printed. The one actually used is only recorded afterwards, when you mark the invoice as paid.
 
 ### Creating from a quote
 

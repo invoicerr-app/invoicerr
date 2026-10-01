@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import {
+  listClientPaymentMethodRestrictions,
   listCompanyPaymentMethods,
   PaymentMethodConfigView,
+  setClientPaymentMethodRestrictions,
   UpdatePaymentMethodConfigInput,
   updateCompanyPaymentMethodConfig,
 } from './persistence';
@@ -28,5 +30,17 @@ export class PaymentMethodsService {
     input: UpdatePaymentMethodConfigInput,
   ): Promise<PaymentMethodConfigView> {
     return updateCompanyPaymentMethodConfig(companyId, methodId, input);
+  }
+
+  /** Issue #416 — this client's own restriction, `methodIds: []` meaning unrestricted. See
+   *  `persistence.ts#listClientPaymentMethodRestrictions`'s own header. */
+  listClientRestrictions(companyId: string, clientId: string): Promise<string[]> {
+    return listClientPaymentMethodRestrictions(companyId, clientId);
+  }
+
+  /** Issue #416 — replaces this client's own restriction wholesale. See
+   *  `persistence.ts#setClientPaymentMethodRestrictions`'s own header. */
+  updateClientRestrictions(companyId: string, clientId: string, methodIds: string[]): Promise<string[]> {
+    return setClientPaymentMethodRestrictions(companyId, clientId, methodIds);
   }
 }
