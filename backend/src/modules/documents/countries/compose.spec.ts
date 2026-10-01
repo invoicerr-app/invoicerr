@@ -1,5 +1,5 @@
 /**
- * Proves `compose.ts` only REGROUPS the 14 existing catalogs, never alters or invents a fact — the
+ * Proves `compose.ts` only REGROUPS the 14 existing catalogs, never alters or invents a fact, the
  * one property step 1 of issue #603 exists to establish. Every assertion here reads straight from
  * each catalog's own `data/all.ts` (the "existing loader" the brief asks this to match), never from
  * a second, hand-copied fixture that could quietly drift from the real files.
@@ -7,7 +7,7 @@
  * Two independent angles, deliberately both present:
  * - deep equality, per country and per section, against the matching entry in the existing loader's
  *   own array (catches a wrong value, or a copy-paste index swap between two similarly-shaped
- *   catalogs — e.g. vat-rates vs. vat-currency);
+ *   catalogs, e.g. vat-rates vs. vat-currency);
  * - an explicit coverage matrix, pinned by hand below, so a catalog silently gaining or losing a
  *   country shows up here as a red test instead of an unnoticed diff (the brief's own "a test lists
  *   which countries have which sections, so a missing or extra section is visible").
@@ -29,7 +29,7 @@ import { ALL_B2G_ROUTING_FILES } from '../b2g-routing/data/all';
 import { ALL_COMPOSED_COUNTRIES, ComposedCountryView, COMPOSED_COUNTRY_SECTION_KEYS } from './compose';
 
 /** One row per section: its key in `ComposedCountryView`, and the existing loader's own array that
- *  is the single source of truth for that section — the SAME arrays `compose.ts` itself reads, so
+ *  is the single source of truth for that section: the SAME arrays `compose.ts` itself reads, so
  *  this test exercises the real loaders, never a duplicate. */
 const SECTIONS: {
   key: keyof Omit<ComposedCountryView, 'countryCode'>;
@@ -53,17 +53,17 @@ const SECTIONS: {
 
 function composedFor(countryCode: string): ComposedCountryView {
   const view = ALL_COMPOSED_COUNTRIES.find((v) => v.countryCode === countryCode);
-  if (!view) throw new Error(`No composed view for "${countryCode}" — composeCountry/discovery is broken.`);
+  if (!view) throw new Error(`No composed view for "${countryCode}": composeCountry/discovery is broken.`);
   return view;
 }
 
-describe('countries/compose — every SECTION this file declares is the canonical list (keeps SECTIONS above honest)', () => {
+describe('countries/compose: every SECTION this file declares is the canonical list (keeps SECTIONS above honest)', () => {
   it('covers exactly the same keys as COMPOSED_COUNTRY_SECTION_KEYS, same order', () => {
     expect(SECTIONS.map((s) => s.key)).toEqual(COMPOSED_COUNTRY_SECTION_KEYS);
   });
 });
 
-describe('countries/compose — deep equality against every existing loader, per country and per section', () => {
+describe('countries/compose: deep equality against every existing loader, per country and per section', () => {
   it.each(
     SECTIONS,
   )('$key: every file the existing loader returns is reproduced bit for bit in the composed view', ({
@@ -92,14 +92,14 @@ describe('countries/compose — deep equality against every existing loader, per
   });
 });
 
-// Pinned by hand on purpose (2026-10-01, issue #603 step 1) — this is the test the brief calls "a
+// Pinned by hand on purpose (2026-10-01, issue #603 step 1). This is the test the brief calls "a
 // test lists which countries have which sections, so a missing or extra section is visible". A
 // catalog that ships a new country's file, or drops one, must change this table in the SAME pull
-// request as the data change — a silent diff here is exactly the failure mode this test exists to
+// request as the data change. A silent diff here is exactly the failure mode this test exists to
 // catch. Verified against the real `data/` directories on disk at the time this PR was written, not
 // copied from `AUDIT_DONNEES_PAYS.md` (whose own §2 table had already gone stale on `countryFields`
 // and `retention` by the time this PR branched from dev).
-describe('countries/compose — section coverage per country (pinned on purpose, see comment above)', () => {
+describe('countries/compose: section coverage per country (pinned on purpose, see comment above)', () => {
   it('matches the shipped catalogs file by file, country by country', () => {
     const matrix: Record<string, (keyof Omit<ComposedCountryView, 'countryCode'>)[]> = {};
     for (const view of ALL_COMPOSED_COUNTRIES) {
@@ -194,9 +194,9 @@ describe('countries/compose — section coverage per country (pinned on purpose,
 });
 
 // Drop-in invariant: proves `discoverComposedCountryCodes` really is a union over every section's
-// OWN discovery, not a fixed list — the same invariant each sibling catalog's own
+// OWN discovery, not a fixed list, the same invariant each sibling catalog's own
 // `data/all.spec.ts` already pins for its single directory, extended here across all 14 at once.
-describe('countries/compose — every *.json on disk, across all 14 catalogs, is represented (drop-in invariant)', () => {
+describe('countries/compose: every *.json on disk, across all 14 catalogs, is represented (drop-in invariant)', () => {
   it('ALL_COMPOSED_COUNTRIES covers exactly the countries present in at least one catalog directory, no more, no fewer', () => {
     const { readdirSync } = require('node:fs');
     const { join } = require('node:path');

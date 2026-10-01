@@ -1,9 +1,9 @@
 /**
- * Thin, read-only accessor over the composed per-country view (issue #603, step 1) — the same shape
+ * Thin, read-only accessor over the composed per-country view (issue #603, step 1), the same shape
  * every sibling catalog's own `registry.ts` already has (`has()`, `countries()`, a getter), so a
  * LATER step can move an existing catalog's own registry constructor to read
  * `defaultComposedCountryCatalog.get(cc)?.<section>` instead of its own `data/all.ts`, by changing
- * ONLY that constructor's default — the migration `AUDIT_DONNEES_PAYS.md` §3 describes. This PR does
+ * ONLY that constructor's default, the migration `AUDIT_DONNEES_PAYS.md` §3 describes. This PR does
  * not do that for any catalog: nothing in this module is imported from outside `countries/` yet.
  */
 import { ALL_COMPOSED_COUNTRIES, ComposedCountryView } from './compose';
@@ -25,14 +25,14 @@ export class ComposedCountryCatalog {
     return !!this.views[(countryCode ?? '').toUpperCase()];
   }
 
-  /** Every country code with a composed view — sorted, matching every sibling catalog's own
+  /** Every country code with a composed view, sorted, matching every sibling catalog's own
    *  `countries()`. */
   countries(): string[] {
     return Object.keys(this.views).sort();
   }
 
   /** The composed view for a country, or `undefined` if none of the 14 catalogs has any file for it
-   *  at all — the same "no permissive fallback" discipline every sibling catalog's own getter holds. */
+   *  at all. The same "no permissive fallback" discipline every sibling catalog's own getter holds. */
   get(countryCode: string): ComposedCountryView | undefined {
     return this.views[(countryCode ?? '').toUpperCase()];
   }

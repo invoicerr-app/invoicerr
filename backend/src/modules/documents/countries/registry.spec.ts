@@ -1,12 +1,12 @@
 /**
- * Same small contract test every sibling catalog's own registry.spec-equivalent holds — `has()`,
+ * Same small contract test every sibling catalog's own registry.spec-equivalent holds: `has()`,
  * `countries()`, and the getter agree with each other and with the composed data underneath. Not
  * exercised by anything outside `countries/` yet (see registry.ts's own header).
  */
 import { ALL_COMPOSED_COUNTRIES } from './compose';
 import { ComposedCountryCatalog, defaultComposedCountryCatalog } from './registry';
 
-describe('countries/registry — ComposedCountryCatalog', () => {
+describe('countries/registry: ComposedCountryCatalog', () => {
   it('countries() lists exactly the composed countries, sorted', () => {
     expect(defaultComposedCountryCatalog.countries()).toEqual(
       ALL_COMPOSED_COUNTRIES.map((v) => v.countryCode).sort(),
