@@ -9,9 +9,18 @@ vi.mock('../documents/persistence');
 
 const listAllDocumentsMock = listAllDocuments as Mock;
 
-function fakeDocumentsService(overrides: Partial<{ renderInstancePdf: Mock }> = {}) {
+function fakeDocumentsService(
+  overrides: Partial<{ renderInstancePdf: Mock; downloadImportOriginal: Mock }> = {},
+) {
   return {
     renderInstancePdf: overrides.renderInstancePdf ?? vi.fn().mockResolvedValue(Buffer.from('pdf-bytes')),
+    downloadImportOriginal:
+      overrides.downloadImportOriginal ??
+      vi.fn().mockResolvedValue({
+        bytes: Buffer.from('original-bytes'),
+        mime: 'application/pdf',
+        filename: 'original.pdf',
+      }),
   } as unknown as import('../documents/documents.service').DocumentsService;
 }
 
@@ -55,6 +64,29 @@ describe('BillingExportService.buildCompanyZip', () => {
     const filenames = Object.keys(zip.files).filter((name) => !name.endsWith('/'));
 
     expect(filenames).toEqual(['quote/doc-1.json']);
+  });
+
+  it('reaches for the archived original instead of rendering a PDF for an imported document - issue #549, whatever format the original was issued in', async () => {
+    listAllDocumentsMock.mockResolvedValue([
+      { id: 'doc-1', typeId: 'invoice', number: null, status: 'imported', data: {} },
+    ]);
+    const render = vi.fn();
+    const downloadImportOriginal = vi.fn().mockResolvedValue({
+      bytes: Buffer.from('<Invoice>fake KSeF FA(3) xml</Invoice>'),
+      mime: 'application/xml',
+      filename: 'FV-2024-01-original.xml',
+    });
+    const service = new BillingExportService(
+      fakeDocumentsService({ renderInstancePdf: render, downloadImportOriginal }),
+    );
+
+    const buffer = await service.buildCompanyZip('company-1');
+    const zip = await JSZip.loadAsync(buffer);
+    const filenames = Object.keys(zip.files).filter((name) => !name.endsWith('/'));
+
+    expect(filenames.sort()).toEqual(['invoice/FV-2024-01-original.xml', 'invoice/doc-1.json']);
+    expect(downloadImportOriginal).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1');
+    expect(render).not.toHaveBeenCalled();
   });
 
   it('falls back to the document id in the filename when it has no number yet', async () => {
