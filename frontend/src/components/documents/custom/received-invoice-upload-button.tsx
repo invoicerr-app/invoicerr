@@ -214,7 +214,7 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
         onClick={() => setUploadDialogOpen(true)}
         dataCy="received-invoice-upload-button"
       >
-        <Upload className="h-4 w-4 mr-0 md:mr-2" />
+        <Upload className="h-4 w-4 me-0 md:me-2" />
         <span className="hidden md:inline-flex">{t("documents.custom.receivedInvoiceUpload.button")}</span>
       </Button>
 

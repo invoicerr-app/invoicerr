@@ -40,7 +40,7 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
         <CardHeader className="border-b flex flex-row items-center justify-between">
           <CardTitle>{t("timeTracking.projects.title")}</CardTitle>
           <Button onClick={() => setCreateOpen(true)} dataCy="project-add-button">
-            <Plus className="h-4 w-4 mr-0 md:mr-2" />
+            <Plus className="h-4 w-4 me-0 md:me-2" />
             <span className="hidden md:inline-flex">{t("timeTracking.projects.list.add")}</span>
           </Button>
         </CardHeader>
@@ -70,7 +70,7 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
                   type="button"
                   onClick={() => onSelect(project)}
                   className={cn(
-                    "w-full text-left p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
+                    "w-full text-start p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
                     selectedProjectId === project.id && "bg-muted",
                   )}
                   data-cy={`project-item-${project.id}`}

@@ -68,7 +68,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
         variant={"outline"}
         disabled={field.disabled}
         className={cn(
-          "w-[240px] pl-3 text-left font-normal",
+          "w-[240px] ps-3 text-start font-normal",
           !field.value && "text-muted-foreground",
           field.className,
         )}
@@ -81,7 +81,7 @@ const DatePicker: React.FC<DatePickerProps> = (field: DatePickerProps) => {
         ) : (
           <span>{field.placeholder || "Pick a date"}</span>
         )}
-        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+        <CalendarIcon className="ms-auto h-4 w-4 opacity-50" />
       </Button>
     </PopoverTrigger>
   )

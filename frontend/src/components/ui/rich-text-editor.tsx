@@ -195,7 +195,7 @@ function VariableMenu({ variables, disabled }: { variables: Record<string, strin
           variant="outline"
           size="sm"
           disabled={disabled}
-          className="ml-auto gap-1.5"
+          className="ms-auto gap-1.5"
           data-cy="rich-text-editor-insert-variable"
         >
           <Braces className="size-3.5" />

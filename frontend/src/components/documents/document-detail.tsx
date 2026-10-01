@@ -42,6 +42,7 @@ import {
 } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-warnings"
+import { LtrValue } from "@/components/ui/ltr-value"
 import {
   DocumentTotals,
   formatTotal,
@@ -410,7 +411,7 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
           data-cy="document-detail-back"
         >
-          <ArrowLeft className="size-4" aria-hidden="true" />
+          <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
           {t("documents.detail.backToList", { label: descriptor.label })}
         </Link>
 
@@ -498,7 +499,7 @@ function HeadlineAmount({
   if (!headline) return null
   return (
     <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
-      {formatTotal(headline.grossMinor, headline.currency || "")}
+      <LtrValue>{formatTotal(headline.grossMinor, headline.currency || "")}</LtrValue>
     </span>
   )
 }
@@ -564,14 +565,14 @@ function VatNationalCurrencySection({ info }: { info: VatNationalCurrencyInfo })
         <div className="flex justify-between gap-4 text-xs text-muted-foreground">
           <dt>{t("documents.totals.taxableInNationalCurrency", { currency: info.currency })}</dt>
           <dd className="amount" data-cy="document-vat-national-currency-taxable">
-            {formatTotal(info.taxableMinor, info.currency)}
+            <LtrValue>{formatTotal(info.taxableMinor, info.currency)}</LtrValue>
           </dd>
         </div>
       )}
       <div className="flex justify-between gap-4 font-medium">
         <dt>{t("documents.totals.vatInNationalCurrency", { currency: info.currency })}</dt>
         <dd className="amount" data-cy="document-vat-national-currency-vat">
-          {formatTotal(info.vatMinor, info.currency)}
+          <LtrValue>{formatTotal(info.vatMinor, info.currency)}</LtrValue>
         </dd>
       </div>
       <div className="text-xs text-muted-foreground" data-cy="document-vat-national-currency-rate">
@@ -768,7 +769,7 @@ function DocumentDetailActions({
             state={state}
             variant="default"
             captions
-            className="flex flex-col items-end text-right"
+            className="flex flex-col items-end text-end"
           />
         )
       )}

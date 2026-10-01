@@ -48,6 +48,13 @@ function SheetContent({
         data-slot="sheet-content"
         className={cn(
           "bg-background data-[state=open]:animate-in fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=open]:duration-500",
+          // `side` is the SAME independent "which physical edge" concept as ui/sidebar.tsx's own
+          // `side` prop (issue #559's own reasoning there applies verbatim): a caller that asks for
+          // `side="right"` wants the panel flush against the right edge of the viewport regardless
+          // of the active locale's reading direction, so this stays physical rather than becoming
+          // `end-0`/`border-s`. The mobile Sidebar (ui/sidebar.tsx) is what makes this RTL-aware in
+          // practice, by passing a `side` that already accounts for direction instead of relying on
+          // this component to guess from `dir`.
           side === "right" &&
             "data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
           side === "left" &&
@@ -59,7 +66,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 end-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>

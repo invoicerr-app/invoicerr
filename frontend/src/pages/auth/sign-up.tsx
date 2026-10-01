@@ -361,7 +361,7 @@ export default function SignupPage() {
               </p>
             )}
             <div className="relative">
-              <TicketIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <TicketIcon className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="invitationCode"
                 name="invitationCode"
@@ -369,7 +369,7 @@ export default function SignupPage() {
                 disabled={loading}
                 required={invitationOnly}
                 defaultValue={codeFromUrl ?? undefined}
-                className="pl-9 font-mono uppercase"
+                className="ps-9 font-mono uppercase"
                 data-cy="auth-invitation-code-input"
               />
             </div>

@@ -87,7 +87,7 @@ function ClientRow({
                   the record (the row's own onClick is invisible to both). */}
               <button
                 type="button"
-                className="rounded-sm text-left outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="rounded-sm text-start outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 onClick={(event) => {
                   event.stopPropagation()
                   onView(client)
@@ -313,7 +313,7 @@ export default function Clients() {
               dataCy="clients-search"
               className="flex-1 sm:max-w-xs"
             />
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ms-auto flex items-center gap-2">
               <ClientImportDialog />
               <Button
                 onClick={() => setCreateClientDialog(true)}

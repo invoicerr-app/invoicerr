@@ -26,7 +26,7 @@ export function TimeSeriesWidgetRenderer({ widget }: WidgetRendererProps) {
         <p className="amount text-xl font-semibold text-foreground">
           {total.toLocaleString()}
           {series.unit ? (
-            <span className="ml-1 text-sm font-normal text-muted-foreground">{series.unit}</span>
+            <span className="ms-1 text-sm font-normal text-muted-foreground">{series.unit}</span>
           ) : null}
         </p>
       </CardHeader>

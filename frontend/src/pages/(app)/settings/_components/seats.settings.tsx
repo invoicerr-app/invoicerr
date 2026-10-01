@@ -122,7 +122,7 @@ function SeatsListView({
           <TableHead>{t("settings.seats.list.desk", "Desk")}</TableHead>
           <TableHead>{t("settings.seats.list.status", "Status")}</TableHead>
           {canManage && (
-            <TableHead className="text-right">{t("settings.seats.list.actions", "Move")}</TableHead>
+            <TableHead className="text-end">{t("settings.seats.list.actions", "Move")}</TableHead>
           )}
         </TableRow>
       </TableHeader>
@@ -143,7 +143,7 @@ function SeatsListView({
                 </Badge>
               </TableCell>
               {canManage && (
-                <TableCell className="text-right">
+                <TableCell className="text-end">
                   {seated ? (
                     <Select
                       value={member.seatIndex ? String(member.seatIndex) : undefined}
@@ -151,7 +151,7 @@ function SeatsListView({
                     >
                       <SelectTrigger
                         size="sm"
-                        className="ml-auto w-40"
+                        className="ms-auto w-40"
                         aria-label={t("settings.seats.moveToAria", "Move {{name}} to desk…", {
                           name: memberName(member),
                         })}

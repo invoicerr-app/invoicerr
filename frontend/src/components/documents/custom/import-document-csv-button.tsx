@@ -197,7 +197,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
         onClick={() => setOpen(true)}
         dataCy={`import-document-csv-button-${descriptor.id}`}
       >
-        <FileUp className="h-4 w-4 mr-0 md:mr-2" />
+        <FileUp className="h-4 w-4 me-0 md:me-2" />
         <span className="hidden md:inline-flex">{t("documents.custom.importCsv.button")}</span>
       </Button>
 
@@ -217,7 +217,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
                 onClick={() => downloadTemplate(descriptor.id)}
                 dataCy="import-document-csv-template-link"
               >
-                <Download className="h-4 w-4 mr-1.5" />
+                <Download className="h-4 w-4 me-1.5" />
                 {t("documents.custom.importCsv.downloadTemplate")}
               </Button>
 

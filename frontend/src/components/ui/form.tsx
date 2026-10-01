@@ -98,7 +98,7 @@ function FormLabel({
     >
       {props.children}
       {required && (
-        <span className="text-destructive ml-1 text-sm font-medium absolute -top-1 -right-2">*</span>
+        <span className="text-destructive ms-1 text-sm font-medium absolute -top-1 -end-2">*</span>
       )}
     </Label>
   )
