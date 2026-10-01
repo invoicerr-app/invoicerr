@@ -10,8 +10,9 @@
  * `queue/document-queue.dispatcher.ts`'s own `registerCurrencyRateSweepRepeatable`, on
  * `readCurrencyRateSweepIntervalMs()`, default 24h) periodically fetches ONE global ECB feed and
  * refreshes every company's own currency pairs from it — the runner's own header
- * (currency-rate-sweep-runner.ts) explains why "the company's OWN existing pairs" is the honest
- * scope, not a scan of every document's currency.
+ * (currency-rate-sweep-runner.ts) explains exactly which pairs count as "a company's own" since
+ * issue #574 (every pair already entered, PLUS every pair the company's documents/clients/payments
+ * actually use).
  */
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
@@ -114,4 +115,112 @@ export function computeCrossRate(from: string, to: string, ecbRates: Map<string,
   const toRate = ecbRates.get(to);
   if (fromRate === undefined || toRate === undefined) return null;
   return new Prisma.Decimal(toRate).dividedBy(fromRate).toString();
+}
+
+/**
+ * Issue #574 — "refresh the pairs a company actually uses", not only the ones it already typed by
+ * hand. This is the PURE decision half of that: given the raw, already-grouped facts
+ * `currency-rate-sweep-runner.ts` reads out of Postgres (one query per fact, never one per company —
+ * see that file's own `findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
+ * `findPaymentDocumentCurrencyPairs`), decide which `(from, to)` pairs are actually worth a daily
+ * refresh, so the derivation itself is directly testable with hand-built fixtures, the same
+ * discipline `computeCrossRate` above already holds for the arithmetic.
+ *
+ * Two, and only two, kinds of pair come out of this:
+ *  - `currency -> referenceCurrency`, for every currency a company's own documents, clients or
+ *    recorded payments actually used (`usedCurrencies`) — the exact pair
+ *    `contributions/currency-consolidation.ts#consolidateByCurrency` and
+ *    `revenue-report/cashed-revenue.ts` both resolve against. A company with no `referenceCurrency`
+ *    chosen contributes NONE of these — consolidation itself never runs for it either (see
+ *    `Company.referenceCurrency`'s own schema.prisma comment), so refreshing a pair it could never
+ *    use would be pure waste.
+ *  - `paymentCurrency -> documentCurrency`, for every `(payment, its own document)` pair a company has
+ *    actually recorded (`paymentDocumentPairs`) — the exact pair
+ *    `settlement/convert-payment.ts#resolvePaymentConversion` resolves against, which is NEVER the
+ *    company's reference currency: a payment converts into the INVOICE it settles, regardless of
+ *    whether that invoice's own currency happens to be the company's chosen reference one.
+ *
+ * `quotableCurrencies` is the one filter both kinds go through: a currency NEITHER the ECB feed nor
+ * the open.er-api.com fallback quotes (the runner builds this set from `ecbRates.keys()` and, only
+ * when something actually needs it, the lazily-fetched fallback's own keys — see that file's own
+ * header) can never resolve to a real rate, so a pair naming one is dropped here rather than carried
+ * all the way to `computeCrossRate` just to come back `null` and get silently counted as `skipped`.
+ * EUR itself does not need to be a member — `from === to` is checked first, and every OTHER branch
+ * below only ever adds a pair where at least one leg already passed this same membership check on a
+ * previous call, so `quotableCurrencies` is expected to already include `'EUR'` when the runner
+ * builds it (it always does: `ecbRates` quotes dozens of currencies AGAINST EUR, so EUR is trivially
+ * "quotable").
+ *
+ * De-duplicates across all three sources into one flat list — a currency a company's documents AND
+ * its clients both use produces exactly ONE `(currency, referenceCurrency)` pair, not two; see
+ * `currency-rate-sweep-runner.ts`'s own `pairKey` for the identical collision-free key shape reused
+ * here. The runner is the one that further merges this list with the pairs ALREADY in `CurrencyRate`
+ * (scope (a)) — this function only ever answers "what does usage alone call for", never "what is new".
+ */
+export interface CompanyReferenceCurrency {
+  companyId: string;
+  /** `null` when the company has never opted into consolidation — see `Company.referenceCurrency`'s
+   *  own schema.prisma comment. Such a company contributes no `usedCurrencies` pair below, ever. */
+  referenceCurrency: string | null;
+}
+
+/** One `(company, currency)` fact a company's OWN documents, clients or recorded payments actually
+ *  used — the three sources are deliberately pre-merged into this single shape by the runner before
+ *  calling this function, since all three resolve against the exact same target
+ *  (`referenceCurrency`) and this function would otherwise have to repeat the identical branch three
+ *  times for no benefit. */
+export interface CompanyUsedCurrency {
+  companyId: string;
+  currency: string;
+}
+
+/** One `(company, paymentCurrency, documentCurrency)` fact a RECORDED payment actually used — kept
+ *  separate from `CompanyUsedCurrency` above because its pair target is that SPECIFIC document's own
+ *  currency, never the company-wide `referenceCurrency` (`settlement/convert-payment.ts`'s own
+ *  header explains why those are different questions). */
+export interface CompanyPaymentDocumentCurrencyPair {
+  companyId: string;
+  paymentCurrency: string;
+  documentCurrency: string;
+}
+
+/** One pair this function decided is worth a daily refresh for one company — the exact shape
+ *  `currency-rate-sweep-runner.ts`'s own `ActiveCurrencyRatePair` (scope (a)) already carries, so the
+ *  runner can merge both lists with the same `pairKey`-based de-duplication. */
+export interface NeededCurrencyPair {
+  companyId: string;
+  from: string;
+  to: string;
+}
+
+export function deriveNeededCurrencyPairs(
+  referenceCurrencies: readonly CompanyReferenceCurrency[],
+  usedCurrencies: readonly CompanyUsedCurrency[],
+  paymentDocumentPairs: readonly CompanyPaymentDocumentCurrencyPair[],
+  quotableCurrencies: ReadonlySet<string>,
+): NeededCurrencyPair[] {
+  const referenceByCompany = new Map(referenceCurrencies.map((c) => [c.companyId, c.referenceCurrency]));
+  const seen = new Set<string>();
+  const result: NeededCurrencyPair[] = [];
+
+  const add = (companyId: string, from: string, to: string) => {
+    if (from === to) return; // identity conversion — convert.ts#computeCrossRate never needs a rate for it
+    if (!quotableCurrencies.has(from) || !quotableCurrencies.has(to)) return;
+    const key = `${companyId}\0${from}\0${to}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push({ companyId, from, to });
+  };
+
+  for (const { companyId, currency } of usedCurrencies) {
+    const referenceCurrency = referenceByCompany.get(companyId);
+    if (!referenceCurrency) continue; // no referenceCurrency chosen — nothing to consolidate against
+    add(companyId, currency, referenceCurrency);
+  }
+
+  for (const { companyId, paymentCurrency, documentCurrency } of paymentDocumentPairs) {
+    add(companyId, paymentCurrency, documentCurrency);
+  }
+
+  return result;
 }
