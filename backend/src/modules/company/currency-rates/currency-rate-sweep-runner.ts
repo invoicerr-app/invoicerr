@@ -10,23 +10,23 @@
  * ## Scope (issue #574): every pair already entered by hand, PLUS every pair actually in use
  * For each company, this sweep refreshes the UNION of:
  *  (a) the DISTINCT `(from, to)` pairs already present among that company's own `CurrencyRate` rows
- *      (of ANY source — a pair first entered manually is still a pair worth refreshing daily), the
+ *      (of ANY source - a pair first entered manually is still a pair worth refreshing daily), the
  *      ENTIRE scope this sweep used to have before #574 (`findActiveCurrencyRatePairs` below);
  *  (b) the pairs the company's own data actually NEEDS even if nobody ever typed one in: every
  *      currency its documents, clients or recorded payments used against its `referenceCurrency`
  *      (the exact pair `contributions/currency-consolidation.ts` and `revenue-report/cashed-revenue.ts`
  *      resolve against), plus every `paymentCurrency -> documentCurrency` pair an actual recorded
- *      payment used (the exact pair `settlement/convert-payment.ts` resolves against) — derived by
+ *      payment used (the exact pair `settlement/convert-payment.ts` resolves against) - derived by
  *      `currency-rate-sweep.ts#deriveNeededCurrencyPairs`, the PURE half of this decision, from THREE
  *      grouped Postgres queries below (`findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
- *      `findPaymentDocumentCurrencyPairs`) — one query per fact, over the WHOLE table, never one query
+ *      `findPaymentDocumentCurrencyPairs`) - one query per fact, over the WHOLE table, never one query
  *      per company: with dozens/hundreds of companies this sweep runs against, N+1 company-scoped
  *      queries would turn a once-a-day job into the slowest thing this worker does for no benefit.
  * A company that has never entered a manual rate AND never issued a foreign-currency document/
- * client/payment still gets nothing to refresh — the CORRECT outcome, not a gap. `mergeAndDedupe`
+ * client/payment still gets nothing to refresh - the CORRECT outcome, not a gap. `mergeAndDedupe`
  * below folds (a) and (b) into ONE list before anything is processed, so a pair present in both (a
  * company that both typed USD→EUR by hand AND has a USD invoice) is refreshed exactly once, never
- * twice in the same pass — see that function's own header for why skipping this step would risk TWO
+ * twice in the same pass - see that function's own header for why skipping this step would risk TWO
  * rows for the same `(companyId, from, to, asOf)` in one `createMany` call.
  *
  * ## Idempotency — there is no DB unique constraint on `CurrencyRate`
@@ -80,7 +80,7 @@ export interface RunCurrencyRateSweepResult {
   /** `false` only when the ECB fetch itself failed — every other outcome (including "nothing to
    *  refresh because no company has ever entered a manual rate") is a successful, empty pass. */
   ok: boolean;
-  /** How many DISTINCT companies had at least one `(from, to)` pair this pass looked at — scope (a)
+  /** How many DISTINCT companies had at least one `(from, to)` pair this pass looked at - scope (a)
    *  (already entered by hand) UNION scope (b) (actually used by a document/client/payment, #574). */
   companiesProcessed: number;
   /** How many NEW `CurrencyRate` rows this pass actually wrote. */
@@ -117,7 +117,7 @@ async function findActiveCurrencyRatePairs(): Promise<ActiveCurrencyRatePair[]> 
   });
 }
 
-/** Every company's own `referenceCurrency` (`null` for one that never opted into consolidation) — the
+/** Every company's own `referenceCurrency` (`null` for one that never opted into consolidation) - the
  *  target `deriveNeededCurrencyPairs` (currency-rate-sweep.ts) pairs every used currency against.
  *  ONE query over the whole `Company` table, not per-company: this table is small (one row per
  *  tenant) compared to `DocumentInstance`/`DocumentPayment` below, but the "no N+1" discipline is the
@@ -127,10 +127,10 @@ async function findCompanyReferenceCurrencies(): Promise<CompanyReferenceCurrenc
   return companies.map((c) => ({ companyId: c.id, referenceCurrency: c.referenceCurrency }));
 }
 
-/** One raw `$queryRaw` row this file's two JSON-grouping queries below both produce — `currency`
+/** One raw `$queryRaw` row this file's two JSON-grouping queries below both produce - `currency`
  *  (never `null`/`''`, filtered in SQL) is a bare string, the same "not the `Currency` enum" choice
  *  `CurrencyRate.from`/`to` and `DocumentPayment.currency` already made (see those columns' own
- *  schema.prisma comments) — a document's OWN currency lives inside its JSONB `data`, never a typed
+ *  schema.prisma comments) - a document's OWN currency lives inside its JSONB `data`, never a typed
  *  column, so there is no enum to read it back AS here either. */
 interface RawCompanyCurrencyRow {
   companyId: string;
@@ -139,14 +139,14 @@ interface RawCompanyCurrencyRow {
 
 /**
  * Every DISTINCT `(companyId, currency)` a company's documents, clients or recorded payments
- * actually used — THREE grouped queries, each over its own WHOLE table, never one per company:
+ * actually used - THREE grouped queries, each over its own WHOLE table, never one per company:
  *  - `DocumentInstance.data` is JSONB with no typed `currency` column (`totals/compute-totals.ts`'s
  *    own header: the document's currency lives at `data.currency`, found by field KIND/key, never a
- *    fixed column this Prisma schema could `groupBy` natively) — raw SQL is the only way to group by
+ *    fixed column this Prisma schema could `groupBy` natively) - raw SQL is the only way to group by
  *    it without reading every row into memory first.
  *  - `Client.currency` and `DocumentPayment.currency` ARE typed columns, so Prisma's own `groupBy`
- *    is enough — no raw SQL needed for either.
- * The three results are concatenated, not merged here — `deriveNeededCurrencyPairs` already
+ *    is enough - no raw SQL needed for either.
+ * The three results are concatenated, not merged here - `deriveNeededCurrencyPairs` already
  * de-duplicates across all of them by `(companyId, currency)`, so repeating that here would only be
  * the same work twice.
  */
@@ -172,11 +172,11 @@ async function findUsedCurrenciesByCompany(): Promise<CompanyUsedCurrency[]> {
 }
 
 /**
- * Every DISTINCT `(companyId, paymentCurrency, documentCurrency)` an actually RECORDED payment used —
+ * Every DISTINCT `(companyId, paymentCurrency, documentCurrency)` an actually RECORDED payment used  -
  * ONE grouped raw query, joining `DocumentPayment` to its OWN `DocumentInstance` (for the document's
  * `data.currency`, same JSONB reason `findUsedCurrenciesByCompany` above reads it with raw SQL), over
  * the whole table, never one query per payment or per company. This is the exact pair
- * `settlement/convert-payment.ts#resolvePaymentConversion` resolves against — DIFFERENT from a
+ * `settlement/convert-payment.ts#resolvePaymentConversion` resolves against - DIFFERENT from a
  * payment's currency against the company's `referenceCurrency` (already covered by the payment rows
  * `findUsedCurrenciesByCompany` folds in above), since a payment converts into the INVOICE it
  * settles, not into whatever the company happens to report in.
@@ -192,7 +192,7 @@ async function findPaymentDocumentCurrencyPairs(): Promise<CompanyPaymentDocumen
 }
 
 /** Folds scope (a) (`findActiveCurrencyRatePairs`) and scope (b) (`deriveNeededCurrencyPairs`) into
- *  ONE de-duplicated list — see this file's own header ("mergeAndDedupe below") for why skipping this
+ *  ONE de-duplicated list - see this file's own header ("mergeAndDedupe below") for why skipping this
  *  would risk writing TWO rows for the same `(companyId, from, to, asOf)` in one pass: nothing else
  *  downstream (the idempotency check below) catches a duplicate WITHIN the same candidate list, only
  *  one already committed by a PREVIOUS pass. */
@@ -248,7 +248,7 @@ export class CurrencyRateSweepRunner {
     let referenceDate: string;
     let ecbRates: Map<string, number>;
     try {
-      // `CURRENCY_RATE_FAKE=1` (test env only — see fake-rate-clients.ts's own header) swaps this
+      // `CURRENCY_RATE_FAKE=1` (test env only - see fake-rate-clients.ts's own header) swaps this
       // for a deterministic, network-free fake, the same "never call the real feed from CI" rule
       // `vat-currency/fake-rate-clients.ts` already holds for an unrelated ECB call.
       ({ referenceDate, rates: ecbRates } = currencyRateFakeEnabled()
@@ -309,7 +309,7 @@ export class CurrencyRateSweepRunner {
     // Scope (b) (issue #574): which currencies actually appearing in usage are quotable by EITHER
     // source. EUR is trivially quotable (`ecbRates` is already EUR-based, see currency-rate-sweep.ts's
     // own header on `computeCrossRate`); every OTHER currency must be a key of `ecbRates` or, only
-    // when at least one usage currency falls OUTSIDE it, of the fallback map too — fetched here
+    // when at least one usage currency falls OUTSIDE it, of the fallback map too - fetched here
     // through the SAME lazy `getFallbackRates` the main loop below also reuses (memoized, so this
     // never fetches it twice), keeping the "zero calls to open.er-api.com for the common case" promise
     // this class's own header makes: a company whose documents/clients/payments only ever used

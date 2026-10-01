@@ -14,13 +14,13 @@ describe('fakeFetchEcbDailyRates', () => {
     expect(rates.get('GBP')).toBe(0.8567);
   });
 
-  it('does not quote MAD — the fallback path needs a currency the ECB fake leaves uncovered', () => {
+  it('does not quote MAD - the fallback path needs a currency the ECB fake leaves uncovered', () => {
     expect(fakeFetchEcbDailyRates().rates.has('MAD')).toBe(false);
   });
 });
 
 describe('fakeFetchOpenErApiRates', () => {
-  it('quotes MAD against EUR — the one currency the ECB fake above deliberately omits', () => {
+  it('quotes MAD against EUR - the one currency the ECB fake above deliberately omits', () => {
     expect(fakeFetchOpenErApiRates().rates.get('MAD')).toBe(10.9);
   });
 });

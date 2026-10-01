@@ -10,7 +10,7 @@ import { fetchOpenErApiRates } from './open-er-api-rates-client';
 // conformity/authority-events.persistence.spec.ts already use for a plain-function persistence file
 // — this runner talks to `prisma.currencyRate` directly, never through a service class.
 // `company.findMany`/`client.groupBy`/`documentPayment.groupBy`/`$queryRaw` back the scope (b)
-// queries (#574) — `findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
+// queries (#574) - `findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
 // `findPaymentDocumentCurrencyPairs` in currency-rate-sweep-runner.ts.
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -46,7 +46,7 @@ const fetchOpenErApi = fetchOpenErApiRates as Mock;
 
 describe('CurrencyRateSweepRunner.runSweep', () => {
   // Scope (b) (#574) defaults to "nothing used, no company has a reference currency" for every test
-  // below that doesn't say otherwise — `vi.resetAllMocks()` in `afterEach` wipes these between tests,
+  // below that doesn't say otherwise - `vi.resetAllMocks()` in `afterEach` wipes these between tests,
   // so a fresh `beforeEach` is what keeps the PRE-#574 tests (scope (a) only) passing unmodified: they
   // never cared about usage-derived pairs, and this keeps it that way instead of touching all seven.
   beforeEach(() => {
@@ -228,16 +228,16 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
     );
   });
 
-  // Issue #574 — scope (b): a pair derived from actual usage, never typed by hand, still gets
-  // refreshed. `findMany` (currencyRate) returns NOTHING for scope (a) in every case below — the
-  // company never entered a manual rate — so a row only ever appears because the usage-derived query
+  // Issue #574 - scope (b): a pair derived from actual usage, never typed by hand, still gets
+  // refreshed. `findMany` (currencyRate) returns NOTHING for scope (a) in every case below - the
+  // company never entered a manual rate - so a row only ever appears because the usage-derived query
   // mocks below produced one.
-  describe('scope (b) — pairs derived from actual document/client/payment usage', () => {
+  describe('scope (b) - pairs derived from actual document/client/payment usage', () => {
     it('derives and inserts a pair from a used currency against the reference currency, with no manual rate ever entered', async () => {
       fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });
       findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]); // scope (a): nothing entered by hand
       companyFindMany.mockResolvedValue([{ id: 'company-1', referenceCurrency: 'EUR' }]);
-      // documentRows (first $queryRaw call) then paymentDocumentPairs (second) — findUsedCurrenciesByCompany
+      // documentRows (first $queryRaw call) then paymentDocumentPairs (second) - findUsedCurrenciesByCompany
       // also reads client/payment groupBy, both left at the default `[]` from `beforeEach`.
       queryRaw.mockResolvedValueOnce([{ companyId: 'company-1', currency: 'USD' }]).mockResolvedValueOnce([]);
 
@@ -292,7 +292,7 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
       expect(createMany.mock.calls[0][0].data).toHaveLength(1); // not two rows for the one pair
     });
 
-    it('is still idempotent across a rerun for a scope (b)-derived pair — no second row for the same asOf', async () => {
+    it('is still idempotent across a rerun for a scope (b)-derived pair - no second row for the same asOf', async () => {
       fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });
       findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
         { companyId: 'company-1', from: 'USD', to: 'EUR' }, // already refreshed earlier today
@@ -328,10 +328,10 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
           }),
         ],
       });
-      expect(fetchOpenErApi).toHaveBeenCalledTimes(1); // once, reused — never fetched twice for the same pass
+      expect(fetchOpenErApi).toHaveBeenCalledTimes(1); // once, reused - never fetched twice for the same pass
     });
 
-    it('never calls the fallback when every used currency is already ECB-covered — the common case stays untouched', async () => {
+    it('never calls the fallback when every used currency is already ECB-covered - the common case stays untouched', async () => {
       fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });
       findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       companyFindMany.mockResolvedValue([{ id: 'company-1', referenceCurrency: 'EUR' }]);

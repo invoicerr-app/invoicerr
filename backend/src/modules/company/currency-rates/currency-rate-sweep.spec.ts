@@ -78,8 +78,8 @@ describe('source constants', () => {
   });
 });
 
-// Issue #574 — "refresh the pairs a company actually uses". Every case here is pure, hand-built
-// fixtures: no Prisma, no HTTP — `currency-rate-sweep-runner.spec.ts`'s own "scope (b)" tests prove
+// Issue #574 - "refresh the pairs a company actually uses". Every case here is pure, hand-built
+// fixtures: no Prisma, no HTTP - `currency-rate-sweep-runner.spec.ts`'s own "scope (b)" tests prove
 // the SAME rules through the runner's mocked grouped queries instead.
 describe('deriveNeededCurrencyPairs', () => {
   const QUOTABLE = new Set(['EUR', 'USD', 'GBP']);
@@ -104,7 +104,7 @@ describe('deriveNeededCurrencyPairs', () => {
     expect(pairs).toEqual([{ companyId: 'company-1', from: 'GBP', to: 'EUR' }]);
   });
 
-  it('no duplicate pair — a currency used by both a document and a client collapses to ONE pair', () => {
+  it('no duplicate pair - a currency used by both a document and a client collapses to ONE pair', () => {
     const pairs = deriveNeededCurrencyPairs(
       [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
       [
@@ -117,7 +117,7 @@ describe('deriveNeededCurrencyPairs', () => {
     expect(pairs).toEqual([{ companyId: 'company-1', from: 'USD', to: 'EUR' }]);
   });
 
-  it('no duplicate pair — the SAME pair reachable from usage AND a payment/document pair still collapses to one', () => {
+  it('no duplicate pair - the SAME pair reachable from usage AND a payment/document pair still collapses to one', () => {
     const pairs = deriveNeededCurrencyPairs(
       [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
       [{ companyId: 'company-1', currency: 'USD' }],
@@ -137,7 +137,7 @@ describe('deriveNeededCurrencyPairs', () => {
     expect(pairs).toEqual([]);
   });
 
-  it('no pair for an identity conversion — a currency already equal to the reference currency needs no rate', () => {
+  it('no pair for an identity conversion - a currency already equal to the reference currency needs no rate', () => {
     const pairs = deriveNeededCurrencyPairs(
       [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
       [{ companyId: 'company-1', currency: 'EUR' }],
