@@ -364,6 +364,40 @@ async function triggerPdpReceptionSweep(): Promise<null> {
 }
 
 /**
+ * Issue #574 - enqueues ONE REAL `currency-rate-sweep` job on the SAME BullMQ queue
+ * (`document-action`) the backend's own repeatable uses (`document-queue.dispatcher.ts`'s own
+ * `registerCurrencyRateSweepRepeatable`) - the backend under test's own, already-running
+ * `DocumentActionProcessor` picks it up and runs the REAL `CurrencyRateSweepRunner.runSweep()`,
+ * exactly as `triggerPdpReceptionSweep` above does for its own sweep, and for the same reason
+ * (triggered on demand instead of waiting on an interval).
+ *
+ * There is an EXTRA reason to prefer this over lowering `CURRENCY_RATE_SWEEP_INTERVAL_MS` the way
+ * `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS`/`DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS` are already lowered,
+ * globally, in `backend/.env.test`: this sweep scans EVERY company's data at once
+ * (`findActiveCurrencyRatePairs`/`findUsedCurrenciesByCompany`/`findPaymentDocumentCurrencyPairs`,
+ * currency-rate-sweep-runner.ts), so a short interval applied to the WHOLE numbered suite would risk
+ * inserting a `CurrencyRate` row for some OTHER spec's own company mid-run, silently changing its
+ * behaviour. Triggering it on demand, only from the one spec that needs it, keeps the production
+ * default (24h) in effect everywhere else - nothing else in this suite ever calls this task, so
+ * nothing else is affected. A fixed, timestamp-suffixed jobId avoids colliding with the real
+ * repeatable's own `currency-rate-sweep-singleton` id.
+ */
+async function triggerCurrencyRateSweep(): Promise<null> {
+  const connection = { url: process.env.REDIS_URL || "redis://localhost:6399" };
+  const queue = new Queue("document-action", { connection });
+  try {
+    await queue.add(
+      "currency-rate-sweep",
+      {},
+      { jobId: `e2e-currency-rate-sweep-${Date.now()}`, attempts: 1, removeOnComplete: true, removeOnFail: true },
+    );
+  } finally {
+    await queue.close();
+  }
+  return null;
+}
+
+/**
  * `48-payment-qr.cy.ts`'s own SEPA/EPC069-12 QR content proof. The old version of that spec measured
  * PDF SIZE only — its own header used to claim "a QR inside a binary PDF cannot be decoded from
  * Cypress" — which stayed green whether the QR carried the right IBAN/amount/reference, the wrong
@@ -723,6 +757,10 @@ export default defineConfig({
         },
         triggerPdpReceptionSweep() {
           return triggerPdpReceptionSweep();
+        },
+
+        triggerCurrencyRateSweep() {
+          return triggerCurrencyRateSweep();
         },
 
         // See `startFakeAt`'s own header (issue #501): the Portuguese AT webservice, faked over real

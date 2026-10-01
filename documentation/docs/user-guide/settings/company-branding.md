@@ -87,7 +87,7 @@ The **Multi-currency** card's **Reference currency** field turns on one consolid
 The **Exchange rates** card right below it lists the rates that consolidation, and payment currency conversion, use:
 
 - **Add it yourself**: enter a rate for any currency pair. Correcting one means adding a new rate dated later, since the most recently dated rate for a pair always wins; there is no edit or delete.
-- **Refreshed automatically once a day**: a background job refreshes every pair you have already added, from the European Central Bank first and, only for a currency the ECB does not quote, from exchangerate-api.com as a fallback (credited on the card when used). It never creates a new pair on its own; a currency you have never entered stays unconverted until you add it.
+- **Refreshed automatically once a day**: a background job refreshes every pair you have already added, plus every pair your documents, clients and recorded payments actually use against your reference currency and against each other, from the European Central Bank first and, only for a currency the ECB does not quote, from exchangerate-api.com as a fallback (credited on the card when used). A currency neither source quotes stays unconverted until you add it by hand.
 - **Gaps**: a pair neither source has ever been able to refresh is listed separately on the card, so you know its rate is still only whatever you last typed by hand.
 
 The same rates also convert a payment you record in a currency different from its invoice's own; recording it is refused if no rate exists for that pair on the day the payment arrived.
