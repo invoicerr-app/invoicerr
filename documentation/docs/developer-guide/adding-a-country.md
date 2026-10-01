@@ -167,6 +167,14 @@ import cycle results: `compose.ts` reads the RAW `vat-rates/data/all.ts` loader,
 `vat-rates/data/all.ts` and its own `data/<cc>.json` files are untouched; this step changes only where
 the registry reads from, never the files themselves or any observable behaviour.
 
+**Step 3** repeats the exact same move for `country-fields/registry.ts`: `CountryFieldOverlayCatalog`'s
+no-argument constructor now reads every country's `countryFields` section from
+`defaultComposedCountryCatalog` instead of its own `data/all.ts` directly. Same unchanged constructor
+signature (`CountryFieldOverlayFile[]`), same one-way dependency chain
+(`country-fields/registry.ts` reads `countries/registry.ts`, which reads `countries/compose.ts`, which
+reads `country-fields/data/all.ts`, never the other way), same "nothing moved, only where the default
+reads from changed" scope.
+
 The steps that follow (not yet done, tracked on issue #603) repeat this same registry-constructor
 change for each remaining mechanism WITHOUT a DB mirror, then the three WITH one, then physically
 relocate the per-country JSON files themselves, one country at a time, France first. Writing a new

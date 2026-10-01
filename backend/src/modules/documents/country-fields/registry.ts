@@ -1,4 +1,4 @@
-import { ALL_COUNTRY_FIELD_OVERLAY_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryFieldOverlayFile, FieldOverlayOperation } from './schema';
 
 function buildIndex(files: CountryFieldOverlayFile[]): Record<string, CountryFieldOverlayFile> {
@@ -8,15 +8,41 @@ function buildIndex(files: CountryFieldOverlayFile[]): Record<string, CountryFie
 }
 
 /**
+ * The default catalog content (issue #603 step 3): every country's own `countryFields` section from
+ * the composed per-country view, instead of this catalog's own `data/all.ts` directly. No import
+ * cycle results, because `countries/compose.ts` reads the RAW loader
+ * (`country-fields/data/all.ts`'s own `ALL_COUNTRY_FIELD_OVERLAY_FILES`), never this registry: see
+ * that file's own header. The dependency direction is therefore one-way: this file depends on
+ * `countries/registry.ts`, which depends on `countries/compose.ts`, which depends on
+ * `country-fields/data/all.ts`; nothing depends back on this file from inside that chain. A country
+ * with no `countryFields` section in the composed view is simply left out here, the same "no
+ * permissive fallback" this catalog already held when it read `ALL_COUNTRY_FIELD_OVERLAY_FILES`
+ * directly.
+ */
+function countryFieldOverlaysFromComposedCatalog(): CountryFieldOverlayFile[] {
+  const files: CountryFieldOverlayFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const countryFields = defaultComposedCountryCatalog.get(countryCode)?.countryFields;
+    if (countryFields) files.push(countryFields);
+  }
+  return files;
+}
+
+/**
  * In-memory view of the field overlay files — the same role CountryPolicyCatalog
  * (country-policy/registry.ts) plays for action rules and VatRateCatalog (vat-rates/registry.ts)
  * plays for rates. `descriptors/company-view.ts` reads `operationsFor` to know what to hand
  * apply-overlay.ts's `applyFieldOverlay` for a given (company's country, document type).
+ *
+ * The constructor still takes a plain `CountryFieldOverlayFile[]` (never the composed catalog
+ * itself), so an explicit, smaller list still works exactly as before for every existing caller and
+ * test (e.g. `new CountryFieldOverlayCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where
+ * it reads from.
  */
 export class CountryFieldOverlayCatalog {
   private readonly files: Record<string, CountryFieldOverlayFile>;
 
-  constructor(files: CountryFieldOverlayFile[] = ALL_COUNTRY_FIELD_OVERLAY_FILES) {
+  constructor(files: CountryFieldOverlayFile[] = countryFieldOverlaysFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 
