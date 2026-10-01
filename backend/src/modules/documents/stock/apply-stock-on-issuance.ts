@@ -106,22 +106,34 @@ export function computeStockDecrements(
  * "ALSO the target hint for 'hiddenReference'") anywhere inside one of its top-level 'array' fields -
  * e.g. an invoice/quote line's `articleId` (invoice.descriptor.ts, quote.descriptor.ts).
  *
- * PR #473 review point 2: this is the ONE fact the async-send path (`actions/async-send.ts`'s
- * `RunAsyncSendInput.declaresArticleReference`) gates its own call to `applyStockOnIssuance` below on.
- * A credit note's own descriptor (credit-note.descriptor.ts) declares NO such field on either of its
- * two line shapes (`lines`, `correctedLines`) - but the line VALIDATOR (descriptors/validate.ts) keeps
- * any UNDECLARED key a client still posts, an `articleId` included, so refusing the field there would
- * not, by itself, stop the STOCK EFFECT from reading one straight off `data.lines`. Checked
- * structurally here (kind + entity), never `typeId === 'credit-note'` - the same "a document type is
- * just data" discipline `computeStockDecrements` above already holds - so ANY current or future type
- * that genuinely never lets a line reference an article is protected the same way, with no per-type
- * branch anywhere in this module.
+ * A purely STRUCTURAL question ("CAN a line of this type reference an article") kept for whatever
+ * else needs exactly that (the catalog-prefill picker's own wiring reads the identical shape). It is
+ * NOT what gates the stock effect below any more: issue #579 found that a quote's own `lines` declares
+ * this field too, for that same picker, with no intention of ever delivering goods, so a quote send
+ * decremented stock exactly like an invoice send, and its converted invoice decremented it again. See
+ * `decrementsStockOnIssuance` just below for the actual gate every `applyStockOnIssuance` call site
+ * now checks.
  */
 export function declaresArticleReference(descriptor: DocumentTypeDescriptor): boolean {
   const declaresOnRow = (fields: DocumentFieldDescriptor[] | undefined): boolean =>
     (fields ?? []).some((field) => field.kind === 'hiddenReference' && field.entity === 'article');
 
   return descriptor.fields.some((field) => field.kind === 'array' && declaresOnRow(field.fields));
+}
+
+/**
+ * Whether ISSUING this document TYPE actually moves stock, the EXPLICIT descriptor fact
+ * (`DocumentTypeDescriptor.stockEffect`, descriptors/types.ts's own header has the full "why issue
+ * #579 replaced the old `declaresArticleReference`-based inference with this"). This is the ONE
+ * predicate every `applyStockOnIssuance` call site now gates on:
+ * `documents.service.ts#runAction`'s own post-handler hook, both of `actions/async-send.ts`'s sites
+ * (the primary enqueue-time numbering path and the numberless-"sending"-recovery path), and
+ * `actions/send-document-email.ts`'s own defensive-fallback numbering path. `'decrement'` is the only
+ * value today (the invoice's); absent is `false`, the safe default: a type this codebase does not
+ * yet know about never moves stock by accident.
+ */
+export function decrementsStockOnIssuance(descriptor: DocumentTypeDescriptor): boolean {
+  return descriptor.stockEffect === 'decrement';
 }
 
 /**

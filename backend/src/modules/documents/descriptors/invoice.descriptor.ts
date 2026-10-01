@@ -416,6 +416,12 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     statuses: INVOICE_STATUSES,
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sending' },
+    // Issue #579 - see types.ts's own comment on `DocumentTypeDescriptor.stockEffect` for the full
+    // "why": the invoice is the ONE type that actually delivers goods, so it is the only type that
+    // declares this. The quote's own `lines` declares the same `articleId` field a few sections down
+    // this file's sibling (quote.descriptor.ts) also declares, for the catalog-prefill picker alone.
+    // That must never decrement stock, and does not, because it never sets this field.
+    stockEffect: 'decrement',
     // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
     // same call on the sibling type — sober, plain-English default, overridable per company.
     email: {
