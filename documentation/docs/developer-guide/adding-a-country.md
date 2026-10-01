@@ -149,17 +149,29 @@ optional field per mechanism: `policy`, `identifiers`, `correctionRoutes`, `vatR
 
 :::info[Nothing moved yet]
 Step 1 reads the existing files through the existing loaders and validators. It does not move a
-single `data/<cc>.json`, and no catalog's own `registry.ts` reads the composed view yet. A section is
-present on the composed object if and only if that mechanism already has a file for that country;
-`compose.spec.ts` proves this with a deep-equality test against every existing loader, country by
-country and section by section, plus a pinned coverage matrix so a mechanism silently gaining or
-losing a country is a visible, named test failure rather than a silent diff.
+single `data/<cc>.json`. A section is present on the composed object if and only if that mechanism
+already has a file for that country; `compose.spec.ts` proves this with a deep-equality test against
+every existing loader, country by country and section by section, plus a pinned coverage matrix so a
+mechanism silently gaining or losing a country is a visible, named test failure rather than a silent
+diff.
 :::
 
-The steps that follow (not yet done, tracked on issue #603) move one mechanism's own `registry.ts`
-at a time onto the composed view, then physically relocate the per-country JSON files themselves,
-one country at a time, France first. Writing a new country's file today still means writing it
-exactly where this page already says to, nothing here changes the steps above.
+**Step 2** moves `vat-rates/registry.ts`'s default catalog content onto the composed view:
+`VatRateCatalog`'s no-argument constructor now reads every country's `vatRates` section from
+`defaultComposedCountryCatalog` instead of its own `data/all.ts` directly. The constructor still takes
+a plain `CountryVatRatesFile[]` (unchanged signature, so every existing caller and test that passes an
+explicit array keeps working exactly as before); only what the DEFAULT argument reads changed. No
+import cycle results: `compose.ts` reads the RAW `vat-rates/data/all.ts` loader, never
+`vat-rates/registry.ts`, so the dependency stays one-way (`vat-rates/registry.ts` reads
+`countries/registry.ts`, which reads `countries/compose.ts`, which reads `vat-rates/data/all.ts`).
+`vat-rates/data/all.ts` and its own `data/<cc>.json` files are untouched; this step changes only where
+the registry reads from, never the files themselves or any observable behaviour.
+
+The steps that follow (not yet done, tracked on issue #603) repeat this same registry-constructor
+change for each remaining mechanism WITHOUT a DB mirror, then the three WITH one, then physically
+relocate the per-country JSON files themselves, one country at a time, France first. Writing a new
+country's file today still means writing it exactly where this page already says to, nothing here
+changes the steps above.
 
 ### Maintainer note: `domesticInvoiceCurrency`, a currency-of-account rule, not a new mechanism
 
