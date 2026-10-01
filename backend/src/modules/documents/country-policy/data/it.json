@@ -118,6 +118,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for art. 21 DPR 633/1972 (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). ALLOWED, unconditionally - but the acting mechanism (actions/invoice-actions.ts's \"validate\" handler, issue #581) itself does something load-bearing for THIS country the owner's own decision does not name directly: Italy carries the SAME kind of active domestic channel mandate as France's (SdI, D.Lgs. 127/2015 art. 1 comma 3, transports/channel-policy/data/it.json), and the handler's own \"is a mandate active for this operation\" check is the country-blind `resolveActiveInvoiceMandate` (channel-policy/mandate.ts) \"send\" itself already uses - never a France-only special case. The practical effect: validating a domestic Italian B2B invoice performs the real SdI transmission, exactly as it does for France's PDP, even though the owner's decision (2026-10-01, issue #581) only discusses \"a French domestic B2B invoice\" by name. This was a deliberate engineering choice (reuse the existing, country-blind mandate mechanism rather than hand-write a second, France-only one) flagged explicitly in the pull request that added this rule, NOT a separate legal finding about Italian law - WHAT WOULD SETTLE THIS: the owner confirming whether Validate should perform the real SdI send for Italy the same way it now does for France, the same confirmation issue #581's own \"Legal note\" asked for France."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

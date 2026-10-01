@@ -12,10 +12,16 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter**: toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
+- **Filter**: toggle the status chips: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
 - **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
-- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)
+- **Validate** - assign the invoice's legal number and lock it, without sending anything. A warning
+  appears first: this is final, correct a mistake with a credit note afterwards, the same as for a sent
+  invoice. For a French domestic B2B invoice, validating also transmits it through your accredited
+  platform, since French law requires that platform for the invoice to be legally issued at all - see
+  [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate). For every other
+  invoice, **Send** stays a separate, later step
+- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit

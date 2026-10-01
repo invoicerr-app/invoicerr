@@ -115,6 +115,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate above: no CGI text names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). This rule is therefore ALLOWED for the same reason invoice.send above is: the acting mechanism (actions/invoice-actions.ts's \"validate\" handler, issue #581) decides on its own, per invoice, whether numbering and locking alone is enough or whether the France domestic B2B mandate (invoice.send's own note, CGI art. 289 bis I, quoted verbatim in transports/channel-policy/data/fr.json) requires performing the real accredited-platform transmission as part of validating - owner's decision, 2026-10-01: \"For a French domestic B2B invoice, validating also issues it through the accredited platform, as the law requires.\" That branch is in CODE, not in this country-policy whitelist, which only ever answers \"may a French company run this ACTION at all\" (yes, unconditionally) - never \"what does running it actually do for this one invoice\", the same separation invoice.send's own rule already holds between \"may it send\" (this file) and \"through which channel\" (channel-policy/, mandate.ts). WHAT WOULD SETTLE THIS FURTHER: the lawyer review already pending for the legal corpus - see issue #581's own \"Legal note\" section for the open question this rule's own unverified status reflects."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

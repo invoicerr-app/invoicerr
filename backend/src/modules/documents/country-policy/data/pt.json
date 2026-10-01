@@ -118,6 +118,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: nothing in Decreto-Lei n.º 28/2019 or Portaria n.º 195/2020 (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking, ATCUD). `transports/channel-policy/data/pt.json` carries no `\"mandated\"` channel fact for Portugal at all - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes a Portuguese invoice through a real send here: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime, unlike France's own. The ATCUD itself (Portaria n.º 195/2020) is still attached the moment this action numbers the invoice (`attachAtcudToNumberedDocument`, actions/atcud-issuance.ts) - a VALIDATED-but-unsent Portuguese invoice is numbered with a real ATCUD exactly as a SENT one is, which is the same obligation invoice.send's own note already grounds, not a new one this rule invents."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

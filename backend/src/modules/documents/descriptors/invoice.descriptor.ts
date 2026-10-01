@@ -233,11 +233,15 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * what they are worth for a given country, and that citation lives where the claim actually is: the
  * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
  *
- * Lifecycle: FIVE statuses — "draft", "sending", "sent", "send_failed", and "cancelled"
- * — the first four grown from the original two by the async-send mechanism, on the exact same
+ * Lifecycle: SIX statuses - "draft", "validated", "sending", "sent", "send_failed", and "cancelled"
+ * - the middle four grown from the original two by the async-send mechanism, on the exact same
  * model as the quote's own (see quote.descriptor.ts's lifecycle paragraph for the full design,
  * actions/async-send.ts for the shared mechanism, and the "sent before delivery
- * actually succeeded" limit this replaces).
+ * actually succeeded" limit this replaces). "validated" is the newest (issue #581): a SIBLING
+ * terminus to "sending", reached by a DIFFERENT action ("validate", never "send") that numbers and
+ * locks the document the exact same way "sending" does, but never attempts delivery - see
+ * VALIDATE_TRANSITIONS's own header below for the full design, including why a mandated-channel
+ * invoice (today: French or Italian domestic B2B) reaches "sending" (not "validated") when validated.
  *
  * "cancelled" is TERMINAL — nothing transitions OUT of it, on purpose: nothing in the eleven-route
  * correction-routes vocabulary (`correction-routes/schema.ts`'s own `CORRECTION_ROUTE_IDS`) that grounds this action
@@ -255,8 +259,10 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * BLOCK that can fire before that persist ever happens for a re-edited non-draft record, never the
  * declared transition itself. "send" (invoice-actions.ts) now has the same two transition entries
  * the quote's own
- * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
- * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
+ * does, plus "validated" (issue #581, SEND_TRANSITIONS's own header below) on the first one:
+ * "draft"/"send_failed"/"validated" -> "sending" (the API's synchronous call - a fresh send, a
+ * retry, or sending an invoice already numbered by "Validate"), then "sending" -> "sent" OR
+ * "send_failed" (the worker's replay). `availableWhen` is DERIVED from
  * BOTH (lifecycle.ts's header), so it includes "sending" too — necessary for the worker's own replay
  * to pass `documents.service.ts#runAction`'s status gate at all, since that gate has no notion of
  * "this call came from the queue, not a browser". This is NOT merely "an invitation for a human to
@@ -308,11 +314,44 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * country" discipline every other action here already holds.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+/**
+ * "validated" (issue #581) joined "draft"/"send_failed" as a valid STARTING point for "send" the
+ * moment "Validate" could put a record there: "Send stays available separately, before and after
+ * validation" is the owner's own decision, and a validated-but-unsent invoice is exactly as
+ * send-ready as a draft one - ALREADY numbered (so the async-send engine's own atomic-numbering
+ * branch never re-numbers it, see `actions/async-send.ts`'s own `additionalFromStatuses` header),
+ * never yet delivered. Omitting it here would have made "Validate" a one-way trap: numbered, locked,
+ * and then permanently un-sendable, the exact opposite of what this whole feature is for.
+ */
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
-  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['draft', 'send_failed', 'validated'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
 const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
+/**
+ * "validate" (issue #581) - numbers and locks a draft invoice WITHOUT sending it. `from: ['draft']`
+ * only: there is nothing to validate on a record that already left "draft" (the type's own
+ * `lockedStatuses` on "save-draft" already treats every other status as issued, and this action's own
+ * `invoice-actions.ts` handler is the one place that can STILL number a never-before-numbered record,
+ * so a second validate attempt on an already-"validated" record has nothing left to do - excluded here
+ * by construction, not merely by a handler check).
+ *
+ * TWO honest outcomes, exactly like "send"'s own two-phase shape right above, for the SAME reason: the
+ * owner's decision (2026-10-01, issue #581) is that a French DOMESTIC B2B invoice is not validated by
+ * numbering and locking alone - CGI art. 289 bis I requires the accredited platform itself, so
+ * validating one of those actually PERFORMS the send (`performInvoiceSend`, actions/invoice-actions.ts
+ * - the exact same function "send" itself calls), landing on "sending" as a plain "send" would. The
+ * CHECK this reads (`resolveActiveInvoiceMandate` - whether a country CHANNEL MANDATE binds this exact
+ * operation) is the existing, country-blind mechanism `channel-policy/mandate.ts` already built for
+ * "send" itself - it is not hand-written as "country code is FR" here, the same "a country is data,
+ * never named in code" discipline this whole module holds elsewhere. Today that also means an Italian
+ * domestic B2B invoice (D.Lgs. 127/2015 art. 1 comma 3, SdI) takes the SAME branch - the owner's own
+ * decision only discusses France by name (the one legal question this issue's "Legal note" section
+ * raised), so the PR shipping this flags the Italian consequence explicitly rather than assuming it was
+ * considered. Every invoice with NO active mandate for its own operation is only numbered and locked,
+ * landing on "validated"; "send" stays its own, separate action for it.
+ */
+const VALIDATE_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: ['validated', 'sending'] }];
 
 /** This type's own declared statuses - pulled out to a named constant (rather than inlined once in
  *  `statuses:` below) so `SAVE_DRAFT_LOCKED_STATUSES` can be DERIVED from it instead of hand-typed a
@@ -323,6 +362,10 @@ const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_f
  *  the way a hand-typed list would leave it until someone remembers to update it too. */
 const INVOICE_STATUSES = [
   { id: 'draft', label: 'Draft' },
+  // Issue #581 - "Validate": numbered and locked, like "sent", but never delivered to anyone. NOT
+  // `clientVisible` - see that flag's own header (types.ts): nothing has left this company's hands
+  // yet, the exact same reason "sending"/"send_failed" below aren't flagged either.
+  { id: 'validated', label: 'Validated' },
   { id: 'sending', label: 'Sending' },
   // `clientVisible` - see `DocumentStatusDescriptor`'s own header: this is the ONE status the
   // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
@@ -415,7 +458,11 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     label: 'Invoice',
     statuses: INVOICE_STATUSES,
     initialStatus: 'draft',
-    numbering: { onEnterStatus: 'sending' },
+    // Issue #581 widened this from a bare 'sending' to a SET: "validate" can now also be the first
+    // transition that numbers a record (see VALIDATE_TRANSITIONS's own header above and
+    // `descriptors/types.ts`'s `onEnterStatuses` for why every reader already goes through that helper
+    // rather than comparing to this field directly).
+    numbering: { onEnterStatus: ['sending', 'validated'] },
     // Issue #579 - see types.ts's own comment on `DocumentTypeDescriptor.stockEffect` for the full
     // "why": the invoice is the ONE type that actually delivers goods, so it is the only type that
     // declares this. The quote's own `lines` declares the same `articleId` field a few sections down
@@ -651,6 +698,27 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
         // No params — see this file's header comment: which transport runs, and what it needs to
         // address the delivery, is read from the company's own configuration, not typed here.
+      },
+      {
+        id: 'validate',
+        label: 'Validate',
+        transitions: VALIDATE_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(VALIDATE_TRANSITIONS),
+        // No params - a plain, number-and-lock status flip for the ordinary case (the handler decides
+        // on its own, from the invoice's own data, whether a country channel mandate instead routes
+        // this through the real send - see VALIDATE_TRANSITIONS's own header and
+        // actions/invoice-actions.ts's "validate" registration).
+        //
+        // Declared AFTER "send", deliberately: `pickPrimaryAction` (frontend's action-presentation.ts)
+        // picks the FIRST non-save action with no policy block as THE primary button, descriptor order
+        // being "the type's own statement of what matters most". Putting "validate" first would have
+        // made it silently replace "Send" as a draft invoice's own default/primary action - a real UX
+        // change (which button a user sees first) the issue/spec never asked for and no screenshot in
+        // this PR shows. "Validate" stays reachable from the SAME "Actions" menu "Send" always was
+        // offered alongside (document-detail.tsx) - exactly what issue #581's own "Captures attendues"
+        // section describes ("Menu Actions avant/apres (ajout de 'Valider')"), never a new top-level
+        // button. Existing specs that find "Send" as a draft invoice's own plain, un-menued button
+        // (100-demo-mode.cy.ts) stay correct unchanged.
       },
       {
         id: 'cancel',

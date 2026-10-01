@@ -8,6 +8,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
 // account instead, never to create its own.
 Cypress.env('skipSeed', true);
 
+const api = Cypress.env('apiUrl');
+
 const DEMO_EMAIL = 'demo@invoicerr.app';
 const DEMO_PASSWORD = 'demo';
 
@@ -113,5 +115,93 @@ describe('Demo mode (issue #533)', () => {
         // see: this specific company DOES have one (`invoiceTransportId: 'email'`, seeded by
         // `seed-company.ts`), so the ONLY reason it can fail is demo mode itself.
         cy.contains(/no transport is configured/i).should('not.exist');
+    });
+
+    // Issue #581 - "Validate" never reaches a DEMO_MODE chokepoint (it is a plain Postgres write,
+    // never `TransportRegistry.register`'s own wrap) UNLESS a country channel mandate routes it
+    // through the real send, the same branch "Send" itself always takes - see
+    // `invoice-actions.ts`'s own "validate" registration. This invoice's `issueDate` is picked far
+    // before ANY shipped mandate's own threshold (France's own, the earliest, starts 2026-09-01) so
+    // this test proves the ORDINARY branch, never the mandated one 118-invoice-validate.cy.ts already
+    // covers in full against a real (non-demo) stack.
+    it('Validate succeeds in demo mode while Send is still refused - numbering is a Postgres write, never an outbound chokepoint', () => {
+        signInAsDemo();
+
+        cy.request({ url: `${api}/api/documents/references/client/search` })
+            .its('body')
+            .then((clients: { id: string }[]) => {
+                expect(clients, 'le compte démo a au moins un client').to.have.length.greaterThan(0);
+
+                // The demo account's ACTIVE company is whichever of the six seeded ones
+                // (DE/DZ/FR/IT/PL/PT) `npm run demo:reset` happened to create last - never assumed
+                // here. Its own VAT rate catalog is read from the merged invoice descriptor
+                // (`usesVatRateCatalog`, company-view.ts) rather than a hardcoded "20" (France's own
+                // rate, which a non-French demo company's own catalog refuses).
+                cy.request({ url: `${api}/api/documents/types/invoice` })
+                    .its('body.fields')
+                    .then((fields: { key: string; fields?: { key: string; options?: { value: string }[] }[] }[]) => {
+                        const linesField = fields.find((f) => f.key === 'lines');
+                        const vatRateField = linesField?.fields?.find((f) => f.key === 'vatRate');
+                        const vatRate = vatRateField?.options?.[0]?.value;
+                        expect(vatRate, "le catalogue de TVA de l'entreprise active a au moins un taux").to.be.a(
+                            'string',
+                        );
+
+                        cy.request({
+                            method: 'POST',
+                            url: `${api}/api/documents/types/invoice/actions/save-draft`,
+                            body: {
+                                data: {
+                                    client: clients[0].id,
+                                    issueDate: '2024-01-15',
+                                    dueDate: '2024-02-15',
+                                    currency: 'EUR',
+                                    lines: [
+                                        { description: 'Conseil', quantity: 1, unit: 'unit', unitPrice: 200, vatRate },
+                                    ],
+                                },
+                                failOnStatusCode: false,
+                            },
+                        }).then((saved) => {
+                            expect(saved.status, 'brouillon de facture créé').to.be.oneOf([200, 201]);
+                            const invoiceId = saved.body?.document?.id as string;
+                            expect(invoiceId, 'le brouillon a un identifiant').to.be.a('string');
+
+                            cy.visit('/documents/invoice');
+                            cy.runDocumentRowAction(invoiceId, 'validate');
+
+                            // Succeeds for real - numbered and locked, never blocked by demo mode.
+                            cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 })
+                                .find('[data-cy="document-status-badge"]')
+                                .should('contain.text', 'Validated');
+                            cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+                                .its('body')
+                                .then((doc) => {
+                                    expect(
+                                        doc.status,
+                                        'réellement validated en base, jamais bloqué',
+                                    ).to.eq('validated');
+                                    expect(doc.number, 'un numéro a bien été attribué').to.be.a('number');
+                                });
+
+                            // "Send" on this SAME, now-validated invoice is still refused - the exact
+                            // same chokepoint the test above already proves, now reached from
+                            // "validated" rather than "draft" (SEND_TRANSITIONS's own widened `from`,
+                            // issue #581).
+                            cy.runDocumentRowAction(invoiceId, 'send');
+                            cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 20000 })
+                                .find('[data-cy="document-status-badge"]', { timeout: 20000 })
+                                .should('contain.text', 'Send failed');
+                            cy.get(`[data-cy="document-row-last-error-${invoiceId}"]`)
+                                .should('exist')
+                                .and('contain.text', 'is disabled in this demo');
+
+                            // Never re-numbered by the refused send attempt.
+                            cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+                                .its('body.number')
+                                .should('be.a', 'number');
+                        });
+                    });
+            });
     });
 });

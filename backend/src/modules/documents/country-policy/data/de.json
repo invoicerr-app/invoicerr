@@ -118,6 +118,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for § 14 UStG (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking) - the statute addresses the invoice as the thing issued, never the product action that numbers and locks it a step before sending. Germany carries no active channel mandate today (transports/channel-policy/data/ ships only FR/IT), so this rule, unlike FR's own, is a plain unblock with no further branching for the acting mechanism to decide at runtime (actions/invoice-actions.ts's \"validate\" handler, issue #581) - a German invoice is always just numbered and locked, never routed to a real send, by this action. WHAT WOULD SETTLE THIS: the same research § 14 UStG's own structured-mandate timetable (Wachstumschancengesetz) would need once that mandate activates - see invoice.send's own notes above."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

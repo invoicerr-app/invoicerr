@@ -344,6 +344,23 @@ export interface RunAsyncSendInput {
      *  alone (ATCUD's own need) never required this. */
     data: Record<string, unknown>;
   }) => Promise<void>;
+  /**
+   * Issue #581 - extra statuses, besides the universal "draft"/"send_failed", from which THIS
+   * type's own "send" may genuinely start, on TOP of the two every type's own SEND_TRANSITIONS
+   * already shares. Exists for the invoice's own "validated" (invoice.descriptor.ts,
+   * `VALIDATE_TRANSITIONS`): a validated-but-unsent record is exactly as send-ready as a draft one -
+   * ALREADY numbered (so `eligibleForAtomicNumbering` below is always false for it regardless, see
+   * that constant's own header), never yet delivered - so only the plain status compare-and-swap just
+   * below needs to accept it as a starting point; the ATOMIC-numbering branch's own hardcoded
+   * `['draft', 'send_failed']` is deliberately left untouched, since a record that reaches this
+   * function already numbered can never take that branch in the first place. Absent (every EXISTING
+   * caller/spec of this function predates this field) means exactly the original, two-status gate -
+   * the same "capability absent, no effect" posture `events`/`webhooks`/`onNumbered` above already
+   * hold. Never widens the ATOMIC-numbering compare-and-swap, which stays the universal two statuses:
+   * widening THAT one for a status whose record always already carries a number would be a no-op
+   * dressed up as a real option, nothing more.
+   */
+  additionalFromStatuses?: string[];
 }
 
 export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<ActionResult> {
@@ -361,6 +378,7 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     onNumbered,
     events,
     webhooks,
+    additionalFromStatuses = [],
   } = input;
   // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
   // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
@@ -688,7 +706,11 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     const startNewDelivery = existing.status === 'draft' && existing.deliveryConfirmedAt != null;
     sending = startNewDelivery
       ? await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft'], { startNewDelivery })
-      : await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
+      : await upsertDocument(companyId, typeId, documentId, 'sending', data, [
+          'draft',
+          'send_failed',
+          ...additionalFromStatuses,
+        ]);
   }
 
   // The fact is ACQUIRED right above (Postgres already holds "sending", numbered atomically with it

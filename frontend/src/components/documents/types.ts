@@ -228,8 +228,21 @@ export interface DocumentTypeDescriptor {
    *  `onlyFrom` (issue #471) mirrors the backend field of the same name - see its own doc comment
    *  there for the full "why" (a legacy, pre-feature credit note must never be numbered
    *  retroactively) - and is what `numberingDisplayState` below reads to tell "still a draft, no
-   *  number yet" apart from "issued before this feature existed, never to be numbered". */
-  numbering?: { onEnterStatus: string; onlyFrom?: string[] }
+   *  number yet" apart from "issued before this feature existed, never to be numbered".
+   *  `onEnterStatus` is `string | string[]` (issue #581) - the invoice now numbers at BOTH "sending"
+   *  (the ordinary async "send") and "validated" (the new "Validate" action). Every reader goes
+   *  through `onEnterStatuses` below rather than comparing to this field directly - see that helper's
+   *  own header. */
+  numbering?: { onEnterStatus: string | string[]; onlyFrom?: string[] }
+}
+
+/** `DocumentTypeDescriptor.numbering.onEnterStatus` normalized to an array - mirrors the backend's own
+ *  `onEnterStatuses` (descriptors/types.ts) exactly, for the identical reason: one place that
+ *  reconciles the bare-string and set shapes so every caller (`action-presentation.ts`'s own
+ *  `actionAssignsNumber`) checks membership the same way. Empty for a type with no `numbering` at all. */
+export function onEnterStatuses(numbering: DocumentTypeDescriptor["numbering"]): string[] {
+  if (!numbering) return []
+  return Array.isArray(numbering.onEnterStatus) ? numbering.onEnterStatus : [numbering.onEnterStatus]
 }
 
 /**

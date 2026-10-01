@@ -118,6 +118,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for art. 106m/106na (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). `transports/channel-policy/data/pl.json` carries KSeF as `requirement: \"suggested\"`, never `\"mandated\"` (unlike France's PDP or Italy's SdI) - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes a Polish invoice through a real send here, whatever its own issue date: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime. WHAT WOULD SETTLE THIS FURTHER, should the same question as France's arise: channel-policy/data/pl.json's own note on KSeF's effective-date schedule (large taxpayers 2026-03-31, others 2026-12-31) - promoting that fact to `\"mandated\"` would need its own sourced consultation date before this rule's own behavior could change."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

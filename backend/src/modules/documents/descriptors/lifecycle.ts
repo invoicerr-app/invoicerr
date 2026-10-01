@@ -41,7 +41,12 @@
  * explicit, hand-declared fact, exactly as it was before this file existed.
  */
 import { ActionResult, DocumentInstanceResult } from '../actions/action-registry';
-import { DocumentActionDescriptor, DocumentActionTransition, DocumentTypeDescriptor } from './types';
+import {
+  DocumentActionDescriptor,
+  DocumentActionTransition,
+  DocumentTypeDescriptor,
+  onEnterStatuses,
+} from './types';
 
 /** What `DocumentActionDescriptor.availableWhen` MUST equal for an action declaring `transitions` —
  *  see this file's header. 'always' wins over everything else (an action available from a brand-new
@@ -99,12 +104,15 @@ export function validateLifecycle(descriptor: DocumentTypeDescriptor): void {
     );
   }
 
-  if (descriptor.numbering && !statusSet.has(descriptor.numbering.onEnterStatus)) {
-    throw new Error(
-      `Document type "${descriptor.id}" declares "numbering.onEnterStatus": ` +
-        `${JSON.stringify(descriptor.numbering.onEnterStatus)}, which is not one of its own declared ` +
-        `statuses (${statusIds.join(', ')}).`,
-    );
+  if (descriptor.numbering) {
+    const unknown = onEnterStatuses(descriptor.numbering).filter((status) => !statusSet.has(status));
+    if (unknown.length > 0) {
+      throw new Error(
+        `Document type "${descriptor.id}" declares "numbering.onEnterStatus": ` +
+          `${JSON.stringify(descriptor.numbering.onEnterStatus)}, which is not one of its own declared ` +
+          `statuses (${statusIds.join(', ')}).`,
+      );
+    }
   }
 
   // `numbering.onlyFrom` (issue #471) - same two checks `lockedStatuses` below already runs on every

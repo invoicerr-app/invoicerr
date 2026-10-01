@@ -14,6 +14,7 @@ import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { stripSidecarKeys } from '../descriptors/validate';
+import { takeDocumentNumberForTransitionWithStatus } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
@@ -23,7 +24,7 @@ import { resolvePaymentConversion } from '../settlement/convert-payment';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
 import { crossedIntoSettled, emitDocumentSettled } from '../settlement/document-settled';
 import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
-import { decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { computeDocumentTotals } from '../totals/compute-totals';
@@ -39,7 +40,7 @@ import {
   runVatCurrencyPreflight,
 } from '../vat-currency/vat-currency-issuance';
 import { runAsyncSendAction } from './async-send';
-import { ActionRegistry } from './action-registry';
+import { ActionContext, ActionRegistry, ActionResult } from './action-registry';
 import { attachAtcudToNumberedDocument, runAtcudPreflight } from './atcud-issuance';
 import { performSaveDraft } from './generic-actions';
 
@@ -504,6 +505,50 @@ async function runInvoiceCrossBorderTaxPreflight(
 }
 
 /**
+ * The ISSUANCE preflight "send" and "validate" (issue #581) both run, factored out of "send"'s own
+ * registration so neither handler can silently drift from the other: Portugal's ATCUD, Algeria's
+ * domestic-currency obligation, cross-border tax resolution, and issue #517's VAT-in-national-currency
+ * conversion - every fiscal/legal fact this invoice's NUMBER itself depends on, in this exact order
+ * (ATCUD spends a sequence number this codebase can never hand back, so it has to run LAST among the
+ * "can still refuse everything" gates; cross-border tax resolution has to run before VAT-currency,
+ * which converts the ALREADY cross-border resolved rate, never the draft's own possibly-stale one).
+ *
+ * Deliberately EXCLUDES the transport/mandate check (`runInvoiceSendPreflight`) - that is the ONE
+ * phase of "send"'s own preflight "validate" never runs for an ordinary (non-mandated) invoice: see
+ * invoice.descriptor.ts's own `VALIDATE_TRANSITIONS` header for why. "send" calls
+ * `runInvoiceSendPreflight` itself, BEFORE calling this function, never the reverse.
+ */
+async function runInvoiceIssuancePreflight(
+  companyId: string,
+  clientId: string | undefined,
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  // Portugal's ATCUD - see `runAtcudPreflight`'s own header. A no-op for every other
+  // country; for Portugal, the LOAD-BEARING check (before a number below can ever spend
+  // a sequence number this codebase can never hand back - numbering/sequence.ts's own header).
+  await runAtcudPreflight(companyId, 'invoice');
+  // Issue #558: Algeria's own domestic-invoicing-currency obligation (and any future
+  // country's own `country-policy/schema.ts#DomesticInvoiceCurrencyFact`), see
+  // `runDomesticInvoiceCurrencyPreflight`'s own header for why this blocks outright rather
+  // than converting, unlike issue #517's VAT-currency preflight below. Runs against the RAW
+  // submitted `data.currency`, before cross-border tax resolution: this fact never depends on
+  // the resolved tax treatment, only on the seller's/buyer's own countries and the invoice's
+  // own currency field, so there is nothing to gain from waiting for `resolvedData` below.
+  await runDomesticInvoiceCurrencyPreflight(companyId, clientId, data);
+  // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never discarded): the
+  // caller persists exactly this as the numbered record's own `data`, so the record that just
+  // left "draft" already carries the resolved treatment, not the user's raw entry.
+  const resolvedData = await runInvoiceCrossBorderTaxPreflight(companyId, data);
+  // Issue #517: VAT in the national currency, resolved against the ALREADY cross-border
+  // resolved totals above (never the draft's own, possibly stale, vatRate). See
+  // `runVatCurrencyPreflight`'s own header: the LOAD-BEARING check for a country whose rule
+  // requires this and has no rate available (Poland's own NBP table A, primarily), stashing
+  // the resolved conversion as a `__vatNationalCurrency` sidecar the caller's own numbering
+  // hook reads back rather than resolving the rate a second time.
+  return runVatCurrencyPreflight(companyId, resolvedData);
+}
+
+/**
  * NOTE on Poland's `correctionReason` (country-fields/data/pl.json): unlike ATCUD/cross-border-tax
  * above, this needs NO dedicated preflight function here. `requiredIfPresent: "correctsInvoiceId"`
  * (descriptors/types.ts) is read by `validateAgainstDescriptor` (descriptors/validate.ts), and
@@ -590,11 +635,17 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
 }
 
 /**
- * Registers the invoice type's action IMPLEMENTATIONS. "save-draft" is ALMOST the exact same generic
- * mechanism the quote uses (generic-actions.ts's `performSaveDraft`) — persisting a draft's field
- * values has nothing to do with WHERE the document eventually travels — but not QUITE, since
- * `registerInvoiceSaveDraftAction` below wraps it with one invoice-specific
- * guard the generic mechanism has no business knowing about.
+ * "send" itself - the full two-phase send (see `registerInvoiceActions`'s own header below for the
+ * context, and this function's two call sites: `registerInvoiceActions` registers it directly as the
+ * "send" handler, and "validate"'s own handler calls it DIRECTLY, never through the registry, for the
+ * one case where validating actually performs a real send - an invoice bound by an active country
+ * channel mandate, today France's PDP or Italy's SdI, domestic B2B only (owner's decision 2026-10-01
+ * names France; see the "validate" registration below for why this reads the SAME country-blind
+ * mandate check "send" itself already does, issue #581). The two callers are therefore, by
+ * construction, the SAME code path `runAsyncSendAction`'s own header already describes for the
+ * API/worker pair - a THIRD entry into it
+ * changes nothing about the delivery guarantee that file already provides, it is still the same
+ * `documentId` row, the same "sending" claim, the same at-most-once `deliver()`.
  *
  * "send" is DELIBERATELY NOT the quote's own send-by-email mechanism (quote-actions.ts) — an
  * invoice's transport is a fact about the ISSUING COMPANY, never about the invoice's country or the
@@ -626,6 +677,154 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
  * company's free choice once active, and `channel-policy/mandate.ts`'s header for why "active" is
  * decided by the INVOICE's own `issueDate`, never the server's clock. A country with no mandate (the
  * overwhelming majority — only FR/pdp ships one today) sees no behavior change at all.
+ */
+async function performInvoiceSend(ctx: ActionContext, deps: InvoiceActionDeps): Promise<ActionResult> {
+  const { companyId, documentId, data: rawData, params, currentStatus } = ctx;
+  // A SECOND, worker-only entry into this exact handler happens once the record is already
+  // "sending" (async-send.ts's own header: the API's synchronous call and the worker's replayed
+  // one are the SAME code path) - `rawData` at THAT point is not a caller submission at all, it is
+  // the ALREADY-RESOLVED data this very preflight persisted moments earlier, `__crossBorderCategory`/
+  // `__crossBorderMentions` sidecars included (tax/resolve-invoice-tax.ts's own header). Stripping
+  // unconditionally would throw that resolution away on every worker retry - a legitimate
+  // cross-border rate would then fail field-kinds.ts's own domestic-catalog check the SECOND time
+  // this validates, not the first (see that file's own `usesVatRateCatalog` branch).
+  //
+  // Stripped ONLY when `currentStatus !== 'sending'`: a fresh submission (draft/send_failed, OR
+  // "validate"'s own mandated-France call, which always starts from "draft") can NEVER legitimately
+  // carry either sidecar yet - the tax engine only ever writes them from THIS SAME preflight, a few
+  // lines below, which has not run yet for a call reaching this branch - so any occurrence there was
+  // typed into the request body by the caller, not computed by this server. Left unstripped, a caller
+  // could post `lines[].__crossBorderCategory` directly to (a) fabricate a cross-border legal mention
+  // on a purely domestic invoice (it would survive into the printed PDF and the transmitted XML - see
+  // `resolveInvoiceCrossBorderTax`'s own domestic-STANDARD branch, which returns `data` UNCHANGED) and
+  // (b) skip the domestic VAT-rate catalog check entirely for that line (field-kinds.ts's own bypass
+  // trusts the sidecar's mere PRESENCE). Stripping here, before either preflight or `runAsyncSendAction`
+  // ever see `rawData`, means neither fact can ever reach persistence, rendering, or the transmitted
+  // format from a caller that never legitimately reached the tax engine in the first place.
+  const data = currentStatus === 'sending' ? rawData : stripSidecarKeys(INVOICE_DESCRIPTOR.fields, rawData);
+  return runAsyncSendAction({
+    companyId,
+    typeId: 'invoice',
+    documentId,
+    data,
+    params,
+    queueDispatcher: deps.queueDispatcher,
+    events: deps.events,
+    // Absent (no webhook fires) for a company/deployment that
+    // never wired `deps.webhooks` (every EXISTING spec of this function). Production wiring
+    // (`documents-core.module.ts`) always provides one.
+    // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
+    webhooks: deps.webhooks,
+    numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus includes 'sending'
+    // Issue #581 - "send" also starts from "validated" now (invoice.descriptor.ts's own
+    // SEND_TRANSITIONS header): a validated-but-unsent invoice is already numbered, so this never
+    // re-numbers it (see async-send.ts's own `additionalFromStatuses` header for why only the plain
+    // status compare-and-swap needs widening, never the atomic-numbering branch).
+    additionalFromStatuses: ['validated'],
+    decrementsStock: INVOICE_DECREMENTS_STOCK,
+    // The country-mandate check runs as part of THIS preflight - see
+    // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
+    // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even
+    // run the record already has one (validated at "save-draft"). Everything else (ATCUD,
+    // domestic-currency, cross-border tax, VAT-currency) is `runInvoiceIssuancePreflight` - the SAME
+    // function "validate"'s own non-mandated path below runs, so the two can never silently drift.
+    preflight: async () => {
+      const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
+      const clientId = typeof data.client === 'string' ? data.client : undefined;
+      await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
+      return runInvoiceIssuancePreflight(companyId, clientId, data);
+    },
+    // Portugal's ATCUD, and issue #517's VAT-national-currency conversion, both computed and
+    // frozen onto the invoice the MOMENT it is numbered (before anything is enqueued), reading the
+    // FROZEN `displayNumber` numbering just produced / the sidecar the preflight above already
+    // stashed. See each function's own header for why NEITHER ever throws: the preflight step just
+    // above is what can still refuse the whole issuance, these are defensive re-checks running
+    // after a number has already been irreversibly spent.
+    onNumbered: async ({ companyId: c, documentId, numbered, data: numberedData }) => {
+      await attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered);
+      await attachVatNationalCurrencyToNumberedDocument(documentId, numberedData);
+    },
+    // No pre-built `text` here - the "email" transport (transports/email-transport.ts) composes
+    // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
+    // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
+    // for the shared "compose + attach + send" mechanics. A hypothetical transport that still wants
+    // plain text is free to build its own from `document`.
+    //
+    // `deliver`'s own `data` is the SAME value the enqueue call captured (`async-send.ts`'s own
+    // header: "the retry IS the action itself"), never re-read from the database - the mandate this
+    // re-resolves must judge the SAME issueDate the preflight already judged, not whatever the
+    // document happens to hold by the time a worker gets to it. `data` here
+    // is ALREADY the resolved value the preflight persisted (see `runInvoiceCrossBorderTaxPreflight`'s
+    // own header) - resolving it again below is deliberately safe, not merely harmless: the ONLY
+    // reachable-here-but-not-at-preflight case is a client/transport reconfiguration in the gap
+    // between the two calls, which must still be judged fresh.
+    deliver: async ({ companyId: c, document, data: deliverData }) => {
+      const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
+      const clientId = typeof deliverData.client === 'string' ? deliverData.client : undefined;
+      const { transport, formatOverride } = await resolveInvoiceTransport(
+        deps.transportRegistry,
+        c,
+        issueDate,
+        clientId,
+        deliverData,
+      );
+      // RECOMPUTED here (never a value cached from the preflight call above,
+      // same discipline `resolveInvoiceTransport`'s own re-resolution already holds): every
+      // transport (email/pdp/ksef/sdi) reads `ctx.document.data` generically, so rewriting it HERE,
+      // once, is what makes the PDF attached, the CII/UBL/Factur-X/FA(3)/FatturaPA exports built
+      // from it, and the archived artefact all agree on the RESOLVED cross-border treatment - never
+      // the originally-typed domestic-looking rate. A block reachable only here (never at
+      // preflight - e.g. a client's country changed between the two calls) still fails loud, never
+      // silently reverting to the stored rate. Re-resolving `deliverData` here even though it is
+      // ALREADY resolved is exactly the idempotence `resolve-invoice-tax.ts` guarantees (it decides
+      // the cross-border treatment from `supplyType` + seller/buyer identity, never from a line's
+      // existing `vatRate`) - see `resolve-invoice-tax.spec.ts`'s own idempotence proof.
+      let resolvedData = deliverData;
+      try {
+        resolvedData = (await resolveInvoiceCrossBorderTaxForCompany(c, deliverData)).data;
+      } catch (error) {
+        if (isInvoiceTaxBlockError(error)) throw new BadRequestException(error.message);
+        throw error;
+      }
+      const documentForDelivery =
+        resolvedData === deliverData ? document : { ...document, data: resolvedData };
+      // `formatOverride` - see `ResolvedInvoiceTransport`'s own header and `transport-registry.ts`'s
+      // own header: forwarded VERBATIM, exactly as the B2G rule (if any) named it, never invented or
+      // adjusted here. Every transport registered today ignores it entirely.
+      return transport.send({
+        companyId: c,
+        document: documentForDelivery,
+        label: 'Invoice',
+        formatOverride,
+      });
+    },
+  });
+}
+
+/**
+ * Registers the invoice type's action IMPLEMENTATIONS. "save-draft" is ALMOST the exact same generic
+ * mechanism the quote uses (generic-actions.ts's `performSaveDraft`) - persisting a draft's field
+ * values has nothing to do with WHERE the document eventually travels - but not QUITE, since
+ * `registerInvoiceSaveDraftAction` below wraps it with one invoice-specific
+ * guard the generic mechanism has no business knowing about.
+ *
+ * "send" is registered as `performInvoiceSend` directly (see that function's own header just above
+ * for the full design) - "validate" (issue #581) is new: it numbers and locks a draft invoice WITHOUT
+ * sending it, UNLESS a country channel mandate is active for this exact operation
+ * (`resolveActiveInvoiceMandate` - today: a French or Italian domestic B2B invoice, CGI art. 289 bis I
+ * / D.Lgs. 127/2015 art. 1 comma 3), in which case `performInvoiceSend` runs, unchanged, so the mandate
+ * is never bypassed by taking the "Validate" button instead of "Send". The owner's own decision
+ * (2026-10-01) names France by name ("For a French domestic B2B invoice, validating also issues it
+ * through the accredited platform") - it reuses the SAME country-blind check "send" itself already
+ * runs rather than hand-writing a France-only branch, which also routes a mandated Italian invoice the
+ * same way; this PR's own report flags that as a consequence the owner should confirm, not something
+ * the Decision explicitly covered. Every other invoice only runs `runInvoiceIssuancePreflight`
+ * (ATCUD/domestic-currency/cross-border-tax/VAT-currency - the SAME fiscal facts "send" resolves, minus
+ * the transport/mandate check) and writes the number + "validated" status directly, atomically, the
+ * same `takeDocumentNumberForTransitionWithStatus` primitive `runAsyncSendAction`'s own phase-1 branch
+ * uses for "sending" - never `runAsyncSendAction` itself, since there is no delivery to queue. A
+ * validated-but-not-sent invoice can never be re-validated: `VALIDATE_TRANSITIONS`
+ * (invoice.descriptor.ts) only ever starts from "draft".
  *
  * "record-payment" IS registered below — see its own comment for the currency/amount guards and what
  * it hands back. "export-accounting" stays declared on the descriptor (invoice.descriptor.ts) and
@@ -638,148 +837,68 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
 export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceActionDeps): void {
   registerInvoiceSaveDraftAction(registry, deps.webhooks);
 
+  registry.register('invoice', 'send', (ctx) => performInvoiceSend(ctx, deps));
+
+  /**
+   * "validate" (issue #581) - see `registerInvoiceActions`'s own header above for the full design.
+   * `stripSidecarKeys` here for the SAME reason `performInvoiceSend` strips it on a fresh submission:
+   * this handler only ever runs from "draft" (`VALIDATE_TRANSITIONS`), which can never legitimately
+   * carry a cross-border sidecar the tax engine has not resolved yet.
+   */
   registry.register(
     'invoice',
-    'send',
+    'validate',
     async ({ companyId, documentId, data: rawData, params, currentStatus }) => {
-      // A SECOND, worker-only entry into this exact handler happens once the record is already
-      // "sending" (async-send.ts's own header: the API's synchronous call and the worker's replayed
-      // one are the SAME code path) — `rawData` at THAT point is not a caller submission at all, it is
-      // the ALREADY-RESOLVED data this very preflight persisted moments earlier, `__crossBorderCategory`/
-      // `__crossBorderMentions` sidecars included (tax/resolve-invoice-tax.ts's own header). Stripping
-      // unconditionally would throw that resolution away on every worker retry — a legitimate
-      // cross-border rate would then fail field-kinds.ts's own domestic-catalog check the SECOND time
-      // this validates, not the first (see that file's own `usesVatRateCatalog` branch).
-      //
-      // Stripped ONLY when `currentStatus !== 'sending'`: a fresh submission (draft/send_failed) can
-      // NEVER legitimately carry either sidecar yet — the tax engine only ever writes them from THIS
-      // SAME preflight, a few lines below, which has not run yet for a call reaching this branch — so
-      // any occurrence there was typed into the request body by the caller, not computed by this
-      // server. Left unstripped, a caller could post `lines[].__crossBorderCategory` directly to (a)
-      // fabricate a cross-border legal mention on a purely domestic invoice (it would survive into the
-      // printed PDF and the transmitted XML — see `resolveInvoiceCrossBorderTax`'s own domestic-STANDARD
-      // branch, which returns `data` UNCHANGED) and (b) skip the domestic VAT-rate catalog check
-      // entirely for that line (field-kinds.ts's own bypass trusts the sidecar's mere PRESENCE).
-      // Stripping here, before either preflight or `runAsyncSendAction` ever see `rawData`, means
-      // neither fact can ever reach persistence, rendering, or the transmitted format from a caller
-      // that never legitimately reached the tax engine in the first place.
-      const data =
-        currentStatus === 'sending' ? rawData : stripSidecarKeys(INVOICE_DESCRIPTOR.fields, rawData);
-      return runAsyncSendAction({
+      if (!documentId) {
+        // Unreachable in practice - `VALIDATE_TRANSITIONS` only ever starts from "draft", never
+        // `'always'`, so a never-saved record never satisfies `availableWhen` for "validate" in the
+        // first place - but a handler never trusts that alone, the same defensive posture "send"
+        // (`runAsyncSendAction`'s own header) and "cancel" below already hold.
+        throw new Error('Cannot validate an invoice that has not been saved yet.');
+      }
+      const data = stripSidecarKeys(INVOICE_DESCRIPTOR.fields, rawData);
+      const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
+      const clientId = typeof data.client === 'string' ? data.client : undefined;
+
+      // Owner's decision (issue #581, 2026-10-01): a French domestic B2B invoice is not validated
+      // by numbering and locking alone - CGI art. 289 bis I requires the accredited platform itself.
+      // Validating one of these therefore PERFORMS the real send, the exact same function/preflight/
+      // deliver "send" itself uses, never a second, parallel implementation that could silently drift
+      // from it. This reads the SAME country-blind `resolveActiveInvoiceMandate` "send" itself already
+      // calls (never a hand-written "country === FR" check - see `registerInvoiceActions`'s own header
+      // above), which today also mandates Italy's SdI for a domestic Italian B2B invoice - a
+      // consequence of reusing the generic mechanism the Decision text itself does not name. Every
+      // other invoice (no active mandate for this operation) only numbers and locks.
+      const activeMandate = await resolveActiveInvoiceMandate(companyId, issueDate, clientId);
+      if (activeMandate) {
+        return performInvoiceSend(
+          { companyId, typeId: 'invoice', documentId, data: rawData, params, currentStatus },
+          deps,
+        );
+      }
+
+      const resolvedData = await runInvoiceIssuancePreflight(companyId, clientId, data);
+      const { document, numbered } = await takeDocumentNumberForTransitionWithStatus(
         companyId,
-        typeId: 'invoice',
+        'invoice',
         documentId,
-        data,
-        params,
-        queueDispatcher: deps.queueDispatcher,
-        events: deps.events,
-        // Absent (no webhook fires) for a company/deployment that
-        // never wired `deps.webhooks` (every EXISTING spec of this function). Production wiring
-        // (`documents-core.module.ts`) always provides one.
-        // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
-        webhooks: deps.webhooks,
-        numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
-        decrementsStock: INVOICE_DECREMENTS_STOCK,
-        // The country-mandate check runs as part of THIS preflight — see
-        // `runInvoiceSendPreflight`'s own header. `data.issueDate` is the submitted field value at
-        // ENQUEUE time; `descriptors/invoice.descriptor.ts` requires it, so by the time "send" can even
-        // run the record already has one (validated at "save-draft").
-        preflight: async () => {
-          const issueDate = typeof data.issueDate === 'string' ? data.issueDate : undefined;
-          const clientId = typeof data.client === 'string' ? data.client : undefined;
-          await runInvoiceSendPreflight(deps.transportRegistry, companyId, issueDate, clientId, data);
-          // Portugal's ATCUD - see `runAtcudPreflight`'s own header. A no-op for every other
-          // country; for Portugal, the LOAD-BEARING check (before `numberOnEnqueue` below can ever spend
-          // a sequence number this codebase can never hand back — numbering/sequence.ts's own header).
-          await runAtcudPreflight(companyId, 'invoice');
-          // Issue #558: Algeria's own domestic-invoicing-currency obligation (and any future
-          // country's own `country-policy/schema.ts#DomesticInvoiceCurrencyFact`), see
-          // `runDomesticInvoiceCurrencyPreflight`'s own header for why this blocks outright rather
-          // than converting, unlike issue #517's VAT-currency preflight below. Runs against the RAW
-          // submitted `data.currency`, before cross-border tax resolution: this fact never depends on
-          // the resolved tax treatment, only on the seller's/buyer's own countries and the invoice's
-          // own currency field, so there is nothing to gain from waiting for `resolvedData` below.
-          await runDomesticInvoiceCurrencyPreflight(companyId, clientId, data);
-          // Poland's `correctionReason` — see this file's own NOTE just above `registerInvoiceActions`'s
-          // header: no dedicated preflight needed, the generic descriptor gate already enforces it.
-          // See `runInvoiceCrossBorderTaxPreflight`'s own header. RETURNED (never
-          // discarded): `runAsyncSendAction` persists exactly this as the "sending" document's own
-          // `data`, so the record that just left "draft" already carries the resolved treatment, not
-          // the user's raw entry.
-          const resolvedData = await runInvoiceCrossBorderTaxPreflight(companyId, data);
-          // Issue #517: VAT in the national currency, resolved against the ALREADY cross-border
-          // resolved totals above (never the draft's own, possibly stale, vatRate). See
-          // `runVatCurrencyPreflight`'s own header: the LOAD-BEARING check for a country whose rule
-          // requires this and has no rate available (Poland's own NBP table A, primarily), stashing
-          // the resolved conversion as a `__vatNationalCurrency` sidecar the "onNumbered" hook below
-          // reads back rather than resolving the rate a second time.
-          return runVatCurrencyPreflight(companyId, resolvedData);
-        },
-        // Portugal's ATCUD, and issue #517's VAT-national-currency conversion, both computed and
-        // frozen onto the invoice the MOMENT it is numbered (before anything is enqueued), reading the
-        // FROZEN `displayNumber` numbering just produced / the sidecar the preflight above already
-        // stashed. See each function's own header for why NEITHER ever throws: the preflight step just
-        // above is what can still refuse the whole issuance, these are defensive re-checks running
-        // after a number has already been irreversibly spent.
-        onNumbered: async ({ companyId: c, documentId, numbered, data: numberedData }) => {
-          await attachAtcudToNumberedDocument(c, 'invoice', documentId, numbered);
-          await attachVatNationalCurrencyToNumberedDocument(documentId, numberedData);
-        },
-        // No pre-built `text` here — the "email" transport (transports/email-transport.ts) composes
-        // its own subject/body from invoice.descriptor.ts's `email` template (or a company override)
-        // and attaches the PDF itself; see that file's own header and actions/send-document-email.ts
-        // for the shared "compose + attach + send" mechanics. A hypothetical transport that still wants
-        // plain text is free to build its own from `document`.
-        //
-        // `deliver`'s own `data` is the SAME value the enqueue call captured (`async-send.ts`'s own
-        // header: "the retry IS the action itself"), never re-read from the database — the mandate this
-        // re-resolves must judge the SAME issueDate the preflight already judged, not whatever the
-        // document happens to hold by the time a worker gets to it. `data` here
-        // is ALREADY the resolved value the preflight persisted (see `runInvoiceCrossBorderTaxPreflight`'s
-        // own header) — resolving it again below is deliberately safe, not merely harmless: the ONLY
-        // reachable-here-but-not-at-preflight case is a client/transport reconfiguration in the gap
-        // between the two calls, which must still be judged fresh.
-        deliver: async ({ companyId: c, document, data: deliverData }) => {
-          const issueDate = typeof deliverData.issueDate === 'string' ? deliverData.issueDate : undefined;
-          const clientId = typeof deliverData.client === 'string' ? deliverData.client : undefined;
-          const { transport, formatOverride } = await resolveInvoiceTransport(
-            deps.transportRegistry,
-            c,
-            issueDate,
-            clientId,
-            deliverData,
-          );
-          // RECOMPUTED here (never a value cached from the preflight call above,
-          // same discipline `resolveInvoiceTransport`'s own re-resolution already holds): every
-          // transport (email/pdp/ksef/sdi) reads `ctx.document.data` generically, so rewriting it HERE,
-          // once, is what makes the PDF attached, the CII/UBL/Factur-X/FA(3)/FatturaPA exports built
-          // from it, and the archived artefact all agree on the RESOLVED cross-border treatment — never
-          // the originally-typed domestic-looking rate. A block reachable only here (never at
-          // preflight — e.g. a client's country changed between the two calls) still fails loud, never
-          // silently reverting to the stored rate. Re-resolving `deliverData` here even though it is
-          // ALREADY resolved is exactly the idempotence `resolve-invoice-tax.ts` guarantees (it decides
-          // the cross-border treatment from `supplyType` + seller/buyer identity, never from a line's
-          // existing `vatRate`) — see `resolve-invoice-tax.spec.ts`'s own idempotence proof.
-          let resolvedData = deliverData;
-          try {
-            resolvedData = (await resolveInvoiceCrossBorderTaxForCompany(c, deliverData)).data;
-          } catch (error) {
-            if (isInvoiceTaxBlockError(error)) throw new BadRequestException(error.message);
-            throw error;
-          }
-          const documentForDelivery =
-            resolvedData === deliverData ? document : { ...document, data: resolvedData };
-          // `formatOverride` — see `ResolvedInvoiceTransport`'s own header and `transport-registry.ts`'s
-          // own header: forwarded VERBATIM, exactly as the B2G rule (if any) named it, never invented or
-          // adjusted here. Every transport registered today ignores it entirely.
-          return transport.send({
-            companyId: c,
-            document: documentForDelivery,
-            label: 'Invoice',
-            formatOverride,
-          });
-        },
-      });
+        ['draft'],
+        'validated',
+        resolvedData,
+      );
+      if (numbered) {
+        // Same post-numbering facts "send" freezes onto a numbered record (Portugal's ATCUD, issue
+        // #517's VAT-national-currency conversion) and the same stock-on-issuance effect (issue
+        // #579) - "validate" is a genuine issuance, not a lesser one, so it owes the document the
+        // identical bookkeeping "send" would, right here since there is no later numbering site (no
+        // queue, no worker) for a validated-but-unsent invoice the way there is for "sending".
+        await attachAtcudToNumberedDocument(companyId, 'invoice', documentId, numbered);
+        await attachVatNationalCurrencyToNumberedDocument(documentId, resolvedData);
+        if (INVOICE_DECREMENTS_STOCK) {
+          await applyStockOnIssuance(companyId, document);
+        }
+      }
+      return { document, changed: true, message: 'Validated.' };
     },
   );
 

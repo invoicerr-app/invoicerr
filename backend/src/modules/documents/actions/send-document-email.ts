@@ -2,6 +2,7 @@ import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import { onEnterStatuses } from '../descriptors/types';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
 import { EntityReferenceRegistry } from '../references/reference-registry';
@@ -109,7 +110,7 @@ export async function sendDocumentInstanceEmail(
   let document = input.document;
   const descriptor = deps.typeRegistry.resolve(typeId);
 
-  if (descriptor.numbering?.onEnterStatus === document.status && document.number == null) {
+  if (onEnterStatuses(descriptor.numbering).includes(document.status) && document.number == null) {
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id, document.data);
     if (numbered) {
       document = { ...document, ...numbered };

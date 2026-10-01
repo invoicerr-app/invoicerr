@@ -101,6 +101,7 @@ import {
   DocumentFieldDescriptor,
   DocumentTypeDescriptor,
   isActionAvailable,
+  onEnterStatuses,
   WidgetLocation,
 } from './descriptors/types';
 import { dropEmptyRows, stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
@@ -1664,7 +1665,7 @@ export class DocumentsService implements OnModuleInit {
       descriptor.numbering !== undefined &&
       result.document !== undefined &&
       result.document.typeId === typeId &&
-      result.document.status === descriptor.numbering.onEnterStatus &&
+      onEnterStatuses(descriptor.numbering).includes(result.document.status) &&
       result.document.number == null &&
       isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
