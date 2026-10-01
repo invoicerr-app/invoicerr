@@ -158,6 +158,8 @@ export {
   usePaymentMethods,
   useUpdatePaymentMethod,
   type UpdatePaymentMethodVariables,
+  useClientPaymentMethodRestriction,
+  useUpdateClientPaymentMethodRestriction,
 } from "./use-payment-methods"
 export {
   useUploadAttachment,

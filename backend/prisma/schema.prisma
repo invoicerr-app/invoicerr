@@ -287,12 +287,12 @@ enum CompanyRole {
 
 // PDF Configuration
 model Company {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  currency     Currency @default(EUR)
-  foundedAt    DateTime
-  exemptVat    Boolean  @default(false)
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  currency    Currency @default(EUR)
+  foundedAt   DateTime
+  exemptVat   Boolean  @default(false)
 
   // Where this seller's intra-Community DISTANCE SALES to consumers are taxed — "ORIGIN" (this
   // company's own country) or "DESTINATION" (the buyer's). NULL, the state every company was in
@@ -316,13 +316,13 @@ model Company {
   // that is not exactly one of the two values as "not declared" — the enum would buy a second,
   // migration-bound source of truth for a set that is closed by the Directive, not by us.
   distanceSalesRegime String?
-  address      String
-  addressLine2 String? // Second line for address (apartment, suite, etc.)
-  postalCode   String
-  city         String
-  state        String? // State/Province (for US addresses, etc.)
-  country      String
-  countryCode  String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
+  address             String
+  addressLine2        String? // Second line for address (apartment, suite, etc.)
+  postalCode          String
+  city                String
+  state               String? // State/Province (for US addresses, etc.)
+  country             String
+  countryCode         String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
   // Per-recipient document language ("langue du document par destinataire") — the FALLBACK layer only: a
   // client with no `Client.language` of its own renders in this language rather than jumping straight
   // to English. Free-text, like `country` above, never a Prisma enum — see
@@ -330,9 +330,9 @@ model Company {
   // recognizes; an unrecognized or absent value here just means the resolver falls through to 'en',
   // never a rejected write (the same "permissive storage, type-safe consumption" split `country`
   // already holds).
-  language     String?
-  phone        String
-  email        String
+  language            String?
+  phone               String
+  email               String
 
   // Polar customer email for THIS company's own hosted-billing customer (option A, product decision
   // 2026-09-16: one Polar customer PER COMPANY, `external_id = company.id` — see
@@ -917,6 +917,12 @@ model Client {
   // `CompanyCustomField.archivedAt`) never touches this column at all: the value stays keyed by the
   // definition's immutable `key`, exactly as entered.
   customFields Json?
+
+  // Issue #416 - per-client payment-method restriction. See ClientPaymentMethodRestriction below for
+  // the full "zero rows means unrestricted" contract. A brand-new client, and every EXISTING client at
+  // migration time, has none - unchanged behaviour (every company-enabled method is offered) until a
+  // row is explicitly added.
+  paymentMethodRestrictions ClientPaymentMethodRestriction[]
 
   @@index([companyId])
 }
@@ -1609,7 +1615,7 @@ model DocumentInstance {
   // every document whose seller country either has no such requirement (DE/PT, see the catalog's own
   // `notes`) or whose invoice currency already IS the seller's own national currency (nothing to
   // convert), never partially set.
-  vatNationalCurrency           String?
+  vatNationalCurrency             String?
   // Taxable amount (net) converted, minor units, set only when the country's own rule ALSO requires
   // the base to be shown (Italy: DPR 633/1972 art. 21 c.2 lett. l), null for a country requiring the
   // VAT amount alone (France: BOI-TVA-DECLA-30-20-20-10 §380 names only "le montant de taxe").
@@ -1618,12 +1624,12 @@ model DocumentInstance {
   // Units of `vatNationalCurrency` per one unit of the invoice's own currency, same direction
   // `CurrencyRate.rate`/`DocumentPayment.conversionRate` already use, so `convert.ts#convertMinor` is
   // reused verbatim rather than a second, feature-specific rounding rule.
-  vatNationalCurrencyRate      Decimal?
-  vatNationalCurrencyRateAsOf  DateTime?
+  vatNationalCurrencyRate         Decimal?
+  vatNationalCurrencyRateAsOf     DateTime?
   // 'ecb' (FR/IT, Regulation (EU) via CGI art. 266 1 bis / DPR 633/1972 art. 13 c.4) or 'nbp' (PL,
   // VAT act art. 31a ust. 1, NBP Table A specifically: never a silent ECB/open.er-api.com fallback for
   // Poland, see `../vat-currency/nbp-rates-client.ts`'s own header).
-  vatNationalCurrencyRateSource String?
+  vatNationalCurrencyRateSource   String?
 
   // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
   // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
@@ -2923,9 +2929,9 @@ model ClientPortalToken {
 // country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on the legal
 // question itself.
 model DocumentNumberSequence {
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  typeId    String
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  typeId     String
   // Issue #515: which period this counter belongs to. `0` is the sentinel for the ONE continuous
   // counter every type used before this feature: a `reset: "never"` country format, an unconstrained
   // type (quote, purchase order, goods receipt), or a `reset: "yearly"` document dated before
@@ -2935,8 +2941,8 @@ model DocumentNumberSequence {
   // the server clock, for every later `reset: "yearly"` document: each year opens its own fresh row at
   // `nextNumber = 1`, never touching an earlier year's row, so no already-issued number ever changes
   // and two documents of two different years can never collide on the same counter.
-  year       Int @default(0)
-  nextNumber Int @default(1)
+  year       Int     @default(0)
+  nextNumber Int     @default(1)
 
   @@id([companyId, typeId, year])
 }
@@ -3191,6 +3197,38 @@ model CompanyPaymentMethodConfig {
 
   @@unique([companyId, methodId])
   @@index([companyId])
+}
+
+// Issue #416 - per-client payment-method RESTRICTION. A client with at least one row here is
+// RESTRICTED to exactly the `methodId`s present, intersected (at read time, never stored) with
+// whatever the company itself still has ENABLED in CompanyPaymentMethodConfig above - this table only
+// ever NARROWS, it can never grant a method the company has not itself enabled. A client with NO rows
+// at all is UNRESTRICTED: every company-enabled method is offered, exactly as it was before this
+// feature existed, so an existing client's behaviour never changes on migration (the empty set is the
+// only state every pre-existing client can be in, by construction).
+//
+// `methodId` uses the exact same `payment-methods/payment-method-registry.ts` vocabulary as
+// `CompanyPaymentMethodConfig.methodId` and is, for the same reason that column is, NOT a foreign key
+// into a fixed list - it is resolved against the registry at READ time
+// (`payment-methods/persistence.ts#resolveEnabledPaymentMethodPresentations`), never validated by the
+// database itself. If the company later disables (or a plugin removes) a method a client was
+// restricted to, that row simply stops matching anything enabled - the client is narrowed to nothing
+// extra, never an error, and never a stale grant.
+//
+// Scoped through `client.companyId`, never a `companyId` column of its own: a restriction has no
+// independent existence from the client it narrows, and every write here goes through
+// `payment-methods/persistence.ts#setClientPaymentMethodRestrictions`, which resolves and checks the
+// client against the ACTIVE company first (the same "scope every query by companyId" discipline this
+// whole module holds - see that file's own header).
+model ClientPaymentMethodRestriction {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  methodId  String
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, methodId])
+  @@index([clientId])
 }
 
 // Custom fields ("champs personnalisés") — which kind of record a `CompanyCustomField`

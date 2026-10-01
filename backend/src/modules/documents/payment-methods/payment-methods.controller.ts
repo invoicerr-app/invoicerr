@@ -72,4 +72,62 @@ export class PaymentMethodsController {
   ) {
     return this.paymentMethods.updateConfig(companyId, methodId, body);
   }
+
+  /**
+   * Issue #416 - "payment methods per client". Gated on `clients:*` rather than `company:*` (unlike
+   * every route above): this reads/writes a fact ABOUT ONE CLIENT RECORD, the same scope
+   * `clients.controller.ts`'s own `PATCH :id` and `portal-access.controller.ts` already use for the
+   * identical "a per-client setting, not a company-wide one" reasoning - never restricted to
+   * OWNER/ADMIN, the same posture `PATCH /clients/:id` itself holds for an ordinary client edit.
+   *
+   * `clientId` is a literal path SEGMENT after `payment-methods/`, never collapsed into the existing
+   * `:methodId` route above - Nest matches by segment COUNT, so `GET /payment-methods/clients/:id`
+   * (two segments after the controller's own `payment-methods` prefix) can never be mistaken for
+   * `PATCH /payment-methods/:methodId` (one segment) regardless of declaration order.
+   */
+  @Get('clients/:clientId')
+  @RequiresScope('clients:read')
+  @ApiOperation({
+    summary: "One client's own payment-method restriction",
+    description:
+      '`methodIds: []` means UNRESTRICTED - every company-enabled method is offered to this client, ' +
+      'exactly as for a client with no restriction configured at all. A non-empty array narrows the ' +
+      'client to exactly those ids, intersected at READ time with whatever the company currently has ' +
+      'enabled (see persistence.ts#resolveEnabledPaymentMethodPresentations).',
+  })
+  @ApiParam({ name: 'clientId', type: String })
+  @ApiResponse({ status: 200, description: "Client's payment-method restriction retrieved" })
+  @ApiResponse({ status: 404, description: 'Client not found for this company' })
+  listForClient(@ActiveCompany() companyId: string, @Param('clientId') clientId: string) {
+    return this.paymentMethods
+      .listClientRestrictions(companyId, clientId)
+      .then((methodIds) => ({ methodIds }));
+  }
+
+  @Patch('clients/:clientId')
+  @RequiresScope('clients:write')
+  @ApiOperation({
+    summary: "Replaces one client's own payment-method restriction wholesale",
+    description:
+      '`methodIds` REPLACES the stored set entirely - the same "a submitted form is a full snapshot" ' +
+      "convention this module already holds for a method's own `config` (see persistence.ts#" +
+      'setClientPaymentMethodRestrictions). An empty array explicitly clears the restriction (back to ' +
+      '"every company-enabled method"). Every id must resolve against the registered payment methods ' +
+      '(400 otherwise) - never checked against which ones the COMPANY currently has enabled, so ' +
+      'restricting a client to a method before the company itself turns it on is accepted, not refused.',
+  })
+  @ApiParam({ name: 'clientId', type: String })
+  @ApiResponse({ status: 200, description: "Client's payment-method restriction updated" })
+  @ApiResponse({ status: 400, description: 'An unknown methodId was named' })
+  @ApiResponse({ status: 404, description: 'Client not found for this company' })
+  updateForClient(
+    @ActiveCompany() companyId: string,
+    @Param('clientId') clientId: string,
+    @Body() body: { methodIds?: string[] },
+  ) {
+    const methodIds = Array.isArray(body?.methodIds) ? body.methodIds : [];
+    return this.paymentMethods
+      .updateClientRestrictions(companyId, clientId, methodIds)
+      .then((updated) => ({ methodIds: updated }));
+  }
 }
