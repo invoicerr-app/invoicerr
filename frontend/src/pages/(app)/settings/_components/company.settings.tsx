@@ -693,6 +693,7 @@ export default function CompanySettings() {
                             <FormControl>
                               <div className="flex gap-2">
                                 <Input
+                                  dir="ltr"
                                   {...field}
                                   placeholder={req.label}
                                   data-cy={
@@ -1067,6 +1068,7 @@ export default function CompanySettings() {
                   <FormLabel>{t("settings.company.form.iban.label")}</FormLabel>
                   <FormControl>
                     <Input
+                      dir="ltr"
                       placeholder={t("settings.company.form.iban.placeholder")}
                       {...field}
                       data-cy="company-iban-input"

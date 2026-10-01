@@ -102,7 +102,7 @@ export function FormDialog({
         className={cn("flex max-h-[90vh] flex-col gap-0 p-0", className ?? "sm:max-w-2xl")}
         dataCy={dataCy}
       >
-        <DialogHeader className="border-b px-6 py-4 pr-12">
+        <DialogHeader className="border-b px-6 py-4 pe-12">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>

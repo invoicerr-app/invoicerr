@@ -147,16 +147,23 @@ export function DocumentReconciliationSection({ documentId }: DocumentReconcilia
                   className={line.verdict === "to-review" ? "bg-warning/60" : undefined}
                 >
                   <TableCell className="font-medium">{line.description}</TableCell>
-                  <TableCell className="text-right">{formatNumber(line.quantityOrdered)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(line.quantityReceived)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(line.quantityInvoiced)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell dir="ltr" className="text-right">
+                    {formatNumber(line.quantityOrdered)}
+                  </TableCell>
+                  <TableCell dir="ltr" className="text-right">
+                    {formatNumber(line.quantityReceived)}
+                  </TableCell>
+                  <TableCell dir="ltr" className="text-right">
+                    {formatNumber(line.quantityInvoiced)}
+                  </TableCell>
+                  <TableCell dir="ltr" className="text-right">
                     {line.unitPriceOrdered === null ? "—" : formatNumber(line.unitPriceOrdered)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell dir="ltr" className="text-right">
                     {line.unitPriceInvoiced === null ? "—" : formatNumber(line.unitPriceInvoiced)}
                   </TableCell>
                   <TableCell
+                    dir="ltr"
                     className={cn(
                       "text-right",
                       line.totalVarianceValue > 0 && "text-warning-foreground",

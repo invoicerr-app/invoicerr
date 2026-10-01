@@ -54,9 +54,10 @@ import { usePost } from "@/hooks/use-fetch"
 import { useAvailableDocumentTypes, useCompanies, useCompany, useVersionInfo } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
+import { isRtlLocale } from "@/lib/i18n"
 
 export function Sidebar() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const isMobile = useIsMobile()
   const location = useLocation()
 
@@ -195,8 +196,16 @@ export function Sidebar() {
     navigate("/auth/sign-in")
   }
 
+  // ui/sidebar.tsx's own `side` prop ("left" | "right") is a PHYSICAL dock-side choice, independent
+  // of text direction by design (see that component's own header comment, and sheet.tsx's matching
+  // one). The app is what makes it RTL-aware, by picking the edge that matches reading order
+  // instead of hardcoding "left" the way the shadcn default does. Issue #559's own Cypress
+  // requirement ("the sidebar sits on the right" under the RTL test locale) is satisfied here, not
+  // inside the primitive.
+  const side = isRtlLocale(i18n.resolvedLanguage) ? "right" : "left"
+
   return (
-    <RootSidebar collapsible="icon">
+    <RootSidebar collapsible="icon" side={side} data-cy="app-sidebar">
       {/* The dialog itself no longer mounts here — see useOnboardingDialog's own comment on why: on
           mobile this whole subtree is unmounted (not just hidden) while the Sheet is closed, which
           silently prevented the dialog from ever opening. It is rendered once, at the layout level,
@@ -225,11 +234,11 @@ export function Sidebar() {
                   <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                     <Building2 className="size-4" />
                   </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{company?.name}</span>
                     <span className="truncate text-xs">{t("sidebar.company.plan")}</span>
                   </div>
-                  {companies.length > 1 && <ChevronsUpDown className="ml-auto size-4" />}
+                  {companies.length > 1 && <ChevronsUpDown className="ms-auto size-4" />}
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -326,7 +335,7 @@ export function Sidebar() {
                 {documentsOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 rtl:rotate-180" />
                 )}
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -389,7 +398,7 @@ export function Sidebar() {
                 {dataOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                 ) : (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 rtl:rotate-180" />
                 )}
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -449,12 +458,12 @@ export function Sidebar() {
                     <User className="size-4" />
                   </div>
                   {userLoading ? (
-                    <div className="grid flex-1 text-left text-sm leading-tight">
+                    <div className="grid flex-1 text-start text-sm leading-tight">
                       <Skeleton className="h-3 w-3/4" />
                       <Skeleton className="h-2 w-1/2 mt-1" />
                     </div>
                   ) : (
-                    <div className="grid flex-1 text-left text-sm leading-tight">
+                    <div className="grid flex-1 text-start text-sm leading-tight">
                       <span className="truncate font-medium">
                         {/* @ts-ignore */}
                         {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
@@ -462,7 +471,7 @@ export function Sidebar() {
                       <span className="truncate text-xs">{data?.user?.email}</span>
                     </div>
                   )}
-                  <ChevronsUpDown className="ml-auto size-4" />
+                  <ChevronsUpDown className="ms-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -472,8 +481,8 @@ export function Sidebar() {
                 sideOffset={12}
               >
                 <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+                    <div className="grid flex-1 text-start text-sm leading-tight">
                       <span className="truncate font-medium">
                         {/* @ts-ignore */}
                         {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}

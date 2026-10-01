@@ -147,7 +147,7 @@ export function DocumentFieldValue({ field, value, data }: DocumentFieldValuePro
             // biome-ignore lint/suspicious/noArrayIndexKey: rows are structural, not identified
             <li key={index} className="text-sm">
               {subFields.map((sub, subIndex) => (
-                <span key={sub.key} className="mr-3 inline-flex items-center gap-1">
+                <span key={sub.key} className="me-3 inline-flex items-center gap-1">
                   {subIndex > 0 && <span className="text-muted-foreground">·</span>}
                   <DocumentFieldValue field={sub} value={row[sub.key]} data={row} />
                 </span>

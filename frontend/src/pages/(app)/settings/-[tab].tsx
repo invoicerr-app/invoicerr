@@ -358,7 +358,7 @@ export default function Settings() {
           it is a "you are here", not a button to press. */}
       {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
           scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
-      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-r bg-sidebar/60 lg:block">
+      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-e bg-sidebar/60 lg:block">
         <nav aria-label={t("settings.common.navLabel")} className="px-3 py-5" data-cy="settings-nav">
           {groups.map((group) => (
             <div key={group.id} className="mb-5 last:mb-0">

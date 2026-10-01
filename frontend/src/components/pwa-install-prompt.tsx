@@ -155,7 +155,7 @@ export function PwaInstallPrompt() {
         size="icon"
         onClick={handleDismiss}
         aria-label={t("pwaInstall.dismiss")}
-        className="absolute top-2 right-2"
+        className="absolute top-2 end-2"
         data-cy="pwa-install-dismiss"
       >
         <X />

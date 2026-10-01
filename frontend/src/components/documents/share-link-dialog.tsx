@@ -111,7 +111,7 @@ export function ShareLinkDialog({ typeId, documentId, open, onOpenChange }: Shar
             loading={createLink.isPending}
             dataCy="share-link-create-button"
           >
-            <Link2 className="mr-2 h-4 w-4" />
+            <Link2 className="me-2 h-4 w-4" />
             {t("documents.shareLink.createButton")}
           </Button>
 

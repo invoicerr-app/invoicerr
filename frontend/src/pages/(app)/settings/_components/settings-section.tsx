@@ -225,7 +225,7 @@ export function SettingsFormFooter({
 }) {
   return (
     <div className={cn("flex flex-wrap items-center justify-end gap-3", className)} data-cy={dataCy}>
-      {hint && <p className="mr-auto text-xs text-muted-foreground text-pretty">{hint}</p>}
+      {hint && <p className="me-auto text-xs text-muted-foreground text-pretty">{hint}</p>}
       <SavedIndicator visible={saved} />
       {children}
     </div>

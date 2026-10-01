@@ -325,7 +325,7 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
         disabled={readOnly}
         dataCy={`document-field-${field.key}-add-row`}
       >
-        <Plus className="mr-2 h-4 w-4" />
+        <Plus className="me-2 h-4 w-4" />
         {t("documents.form.array.addRow")}
       </Button>
 

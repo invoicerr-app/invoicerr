@@ -334,7 +334,7 @@ export function DynamicFormModal({
                   <FormItem>
                     <FormLabel>
                       {field.label}
-                      {field.required && <span className="text-destructive ml-1">*</span>}
+                      {field.required && <span className="text-destructive ms-1">*</span>}
                     </FormLabel>
                     <FormControl>{renderField(field, formField)}</FormControl>
                     <FormMessage />

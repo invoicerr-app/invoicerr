@@ -125,7 +125,7 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              <ChevronLeft />
+              <ChevronLeft className="rtl:rotate-180" />
               {t("settings.logs.table.previous")}
             </Button>
             <Button
@@ -136,7 +136,7 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
               disabled={currentPage === totalPages}
             >
               {t("settings.logs.table.next")}
-              <ChevronRight />
+              <ChevronRight className="rtl:rotate-180" />
             </Button>
           </div>
         </div>

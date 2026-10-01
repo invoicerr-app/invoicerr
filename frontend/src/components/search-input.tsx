@@ -116,7 +116,7 @@ export default function SearchSelect({
             variant="outline"
             disabled={disabled}
             className={cn(
-              "w-full justify-between text-left font-normal h-9 min-h-8 p-3",
+              "w-full justify-between text-start font-normal h-9 min-h-8 p-3",
               (!multiple && !value) || (multiple && !(value as string[]).length)
                 ? "text-muted-foreground"
                 : "",
@@ -133,7 +133,7 @@ export default function SearchSelect({
                       <button
                         type="button"
                         onClick={(e) => handleRemoveOption(optionValue, e)}
-                        className="ml-1 hover:bg-muted rounded-full p-0.5"
+                        className="ms-1 hover:bg-muted rounded-full p-0.5"
                       >
                         <X className="h-3 w-3" />
                       </button>

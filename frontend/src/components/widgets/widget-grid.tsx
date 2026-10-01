@@ -20,7 +20,7 @@ interface WidgetGridProps {
  *  real tiles land. */
 function MetricSkeletonTile() {
   return (
-    <Card className="gap-2 border-l-4 border-l-transparent py-4" aria-hidden="true">
+    <Card className="gap-2 border-s-4 border-s-transparent py-4" aria-hidden="true">
       <CardHeader className="gap-0 px-4">
         <Skeleton className="h-3 w-20" />
       </CardHeader>

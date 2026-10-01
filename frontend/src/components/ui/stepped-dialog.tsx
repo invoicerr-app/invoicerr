@@ -336,8 +336,8 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
             // Full-screen below `sm` (owner brief) — every positioning/sizing utility the base
             // DialogContent hardcodes with no breakpoint prefix is overridden here at the SAME
             // specificity (no prefix), then restored at `sm:` and up.
-            "inset-0 top-0 left-0 h-full max-h-full w-full max-w-full translate-x-0 translate-y-0 rounded-none border-0",
-            "sm:inset-auto sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border",
+            "inset-0 top-0 start-0 h-full max-h-full w-full max-w-full translate-x-0 translate-y-0 rounded-none border-0",
+            "sm:inset-auto sm:top-[50%] sm:start-[50%] sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border",
             className,
           )}
         >

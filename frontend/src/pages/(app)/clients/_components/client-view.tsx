@@ -66,7 +66,7 @@ function LinkedDocuments({ clientId }: { clientId?: string }) {
           >
             <div className="min-w-0">
               <span className="font-mono">{row.displayNumber ?? row.id.slice(0, 8)}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{row.issueDate ?? "—"}</span>
+              <span className="ms-2 text-xs text-muted-foreground">{row.issueDate ?? "—"}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="font-mono text-sm tabular-nums">
