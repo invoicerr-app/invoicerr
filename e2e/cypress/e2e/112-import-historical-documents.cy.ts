@@ -153,7 +153,17 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 		cy.screenshot("340-before-declare-last-number", { capture: "viewport" });
 
 		cy.get('[data-cy="declare-last-number-submit"]').click();
-		cy.get('[data-cy="declare-last-number-result"]', { timeout: 15000 }).should("be.visible");
+		// Cypress's own default `scrollBehavior` ("top") scrolls the clicked button to the very top of
+		// the viewport before the click, not just into view, which was harmless while the page was short
+		// enough that the scroll clamped before reaching the top; that clamp is what kept this result box
+		// (rendered just ABOVE the button, inside the same card) inside the viewport by accident. Issue
+		// #548 made the Exchange rates card below this one taller, so the page is no longer short enough
+		// to clamp that scroll: the button now reaches the true top and the result box lands above the
+		// fold. A real click never does this (nothing auto-scrolls a button that's already visible), so
+		// this is a Cypress-only artifact of page height elsewhere on the screen, and the fix belongs
+		// here, not in the product: scroll the result element itself into view before asserting on it,
+		// the same discipline `declare-last-number-section` above already uses at the top of this test.
+		cy.get('[data-cy="declare-last-number-result"]', { timeout: 15000 }).scrollIntoView().should("be.visible");
 		cy.get('[data-cy="declare-last-number-result"]').should("contain.text", "100");
 
 		cy.screenshot("340-after-declare-last-number", { capture: "viewport" });

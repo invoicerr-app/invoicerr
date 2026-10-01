@@ -2094,7 +2094,7 @@
       },
       "currencyRates": {
         "title": "Exchange rates",
-        "description": "Manually-entered rates used to consolidate dashboard totals into your reference currency above. No rate is ever derived automatically — enter both directions if you need them.",
+        "description": "Rates entered here consolidate dashboard totals into your reference currency above and convert a payment recorded in a different currency than its invoice. A daily job also refreshes any pair you have already added, from the European Central Bank or, when it does not quote a currency, from exchangerate-api.com as a fallback; it never creates a new pair on its own. The most recently dated rate for a pair wins, whether it was entered by hand or added automatically.",
         "empty": "No exchange rate entered yet.",
         "form": {
           "from": "From",
