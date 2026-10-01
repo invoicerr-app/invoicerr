@@ -30,20 +30,20 @@ interface ClientPaymentMethodsDialogProps {
 }
 
 /**
- * Issue #416 ("payment methods per client") — "A client can RESTRICT which of the company's enabled
+ * Issue #416 ("payment methods per client") - "A client can RESTRICT which of the company's enabled
  * payment methods are offered to them (a subset, never a method the company has not enabled). No
  * restriction set means every company method, exactly as today." On the exact model of
  * `ClientPortalAccessDialog`: a standalone dialog reached from the client row's own "more" menu AND
  * from the client view/edit screens (`client-view.tsx`/`client-upsert.tsx`), never embedded into the
- * create/edit WIZARD itself — a brand-new, not-yet-saved client has no id to restrict yet, the same
+ * create/edit WIZARD itself - a brand-new, not-yet-saved client has no id to restrict yet, the same
  * reason the portal-access entry point only ever appears once editing an EXISTING client.
  *
- * Only the company's own ENABLED methods are offered as checkboxes — restricting a client to a
+ * Only the company's own ENABLED methods are offered as checkboxes - restricting a client to a
  * method the company has not turned on yet would do nothing (`persistence.ts#
  * resolveEnabledPaymentMethodPresentations` only ever narrows an ENABLED method), so there is nothing
  * useful to pick from the others. The SWITCH is the "restricted at all" bit: off writes `methodIds:
  * []` (back to unrestricted) regardless of what is checked underneath, on writes exactly the checked
- * subset — the same two-state shape the backend's own `methodIds: []` contract expects.
+ * subset - the same two-state shape the backend's own `methodIds: []` contract expects.
  */
 export function ClientPaymentMethodsDialog({ client, onOpenChange }: ClientPaymentMethodsDialogProps) {
   const { t } = useTranslation()
@@ -62,7 +62,7 @@ export function ClientPaymentMethodsDialog({ client, onOpenChange }: ClientPayme
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   // Re-applies the CURRENT server values every time the dialog opens for a (possibly different)
-  // client — the same "reset on reopen" need `payment-method-config-dialog.tsx` already documents:
+  // client - the same "reset on reopen" need `payment-method-config-dialog.tsx` already documents:
   // this dialog instance is reused across rows, never remounted per client.
   useEffect(() => {
     if (!client || !restriction) return
@@ -81,7 +81,7 @@ export function ClientPaymentMethodsDialog({ client, onOpenChange }: ClientPayme
 
   const noCompanyMethods = !methodsLoading && enabledMethods.length === 0
   // Restricted but nothing picked would save an empty array, which the backend reads back as
-  // UNRESTRICTED (see persistence.ts's own header) — silently the opposite of what the switch still
+  // UNRESTRICTED (see persistence.ts's own header) - silently the opposite of what the switch still
   // shows. Blocked here rather than letting that round-trip surprise happen.
   const emptySelection = restricted && selected.size === 0
 
@@ -91,7 +91,7 @@ export function ClientPaymentMethodsDialog({ client, onOpenChange }: ClientPayme
         clientId,
         methodIds: restricted ? [...selected] : [],
       })
-      // The query key is per-CLIENT, only known from these variables — not something a static
+      // The query key is per-CLIENT, only known from these variables - not something a static
       // `invalidateKeys` on the mutation hook could express, see that hook's own header.
       queryClient.invalidateQueries({ queryKey: queryKeys.paymentMethods.clientRestriction(clientId) })
       toast.success(t("clients.paymentMethods.messages.updateSuccess"))

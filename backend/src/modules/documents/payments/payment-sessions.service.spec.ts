@@ -17,7 +17,7 @@ import { PaymentWebhookVerificationError } from './provider';
  *  "mock the methods actually called, not the whole class" shape that file's own header documents. */
 vi.mock('./payment-sessions.persistence');
 
-// Issue #416 ("payment methods per client") — `../payment-methods/persistence` reaches Prisma
+// Issue #416 ("payment methods per client") - `../payment-methods/persistence` reaches Prisma
 // directly too (`isMethodAllowedForClient`), same reason as above. Defaulted to "always allowed" so
 // every PRE-EXISTING test in this file (none of which sets `data.client`) keeps passing unchanged;
 // the restriction's own behaviour is proven in the dedicated describe block below, which overrides
@@ -53,7 +53,7 @@ function buildService() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Issue #416's own default — see this file's own header on `vi.mock('../payment-methods/persistence')`.
+  // Issue #416's own default - see this file's own header on `vi.mock('../payment-methods/persistence')`.
   isMethodAllowedForClient.mockResolvedValue(true);
 });
 
@@ -282,13 +282,13 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — provider selec
   });
 });
 
-describe('PaymentSessionsService.createInvoiceCheckoutSession — issue #416, per-client restriction', () => {
+describe('PaymentSessionsService.createInvoiceCheckoutSession - issue #416, per-client restriction', () => {
   const INPUT = {
     successUrl: 'https://app.example.com/portal?payment=success',
     cancelUrl: 'https://app.example.com/portal?payment=cancelled',
   };
 
-  it('refuses — a NAMED 409 — a client restricted away from the resolved provider, before any credential lookup', async () => {
+  it('refuses - a NAMED 409 - a client restricted away from the resolved provider, before any credential lookup', async () => {
     const { service, documentsService, channelCredentials, provider } = buildService();
     documentsService.getDocument.mockResolvedValue({
       id: 'inv-1',
@@ -296,7 +296,7 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — issue #416, pe
       data: { currency: 'EUR', client: 'client-restricted-1' },
     });
     documentsService.getSettlement.mockResolvedValue({ settlement: { outstandingMinor: 12000 } });
-    // The default provider ("stripe") — explicit here since Vitest's `clearAllMocks` resets call
+    // The default provider ("stripe") - explicit here since Vitest's `clearAllMocks` resets call
     // history but not a previous test's own `mockResolvedValue`, and an earlier describe block in
     // this file leaves this mock resolving to a different provider.
     resolveCompanyPaymentProviderId.mockResolvedValue(null);
@@ -306,7 +306,7 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — issue #416, pe
       ConflictException,
     );
     expect(isMethodAllowedForClient).toHaveBeenCalledWith('company-1', 'client-restricted-1', 'stripe');
-    // The restriction is checked BEFORE connectivity — a restricted client never even causes a
+    // The restriction is checked BEFORE connectivity - a restricted client never even causes a
     // credentials lookup, let alone a real provider call.
     expect(channelCredentials.resolveActive).not.toHaveBeenCalled();
     expect(provider.createCheckoutSession).not.toHaveBeenCalled();
@@ -337,7 +337,7 @@ describe('PaymentSessionsService.createInvoiceCheckoutSession — issue #416, pe
     expect(isMethodAllowedForClient).toHaveBeenCalledWith('company-1', 'client-allowed-1', 'stripe');
   });
 
-  it('a document with no client reference checks with an undefined clientId — never skipped entirely', async () => {
+  it('a document with no client reference checks with an undefined clientId - never skipped entirely', async () => {
     const { service, documentsService, channelCredentials, provider } = buildService();
     documentsService.getDocument.mockResolvedValue({
       id: 'inv-1',

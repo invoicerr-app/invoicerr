@@ -1,27 +1,27 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Issue #416 ("payment methods per client") — a client can be restricted to a SUBSET of the
+ * Issue #416 ("payment methods per client") - a client can be restricted to a SUBSET of the
  * company's own enabled payment methods, never a method the company has not enabled. Proven here at
  * the three places the brief names:
  *
  *  1. The restriction is set THROUGH THE SCREEN (client row menu -> "Payment methods" dialog): a
  *     real click on the "Restrict payment methods" switch, a real click on the "Bank transfer"
- *     checkbox, a real "Save" — never seeded straight into the database. The dialog's own
+ * checkbox, a real "Save" - never seeded straight into the database. The dialog's own
  *     "restricted but nothing picked" validation state (Save disabled, a hint shown) is also
  *     produced on purpose, not skipped, since it is the one state a casual click-through would
  *     never reach on its own.
  *  2. Document rendering: the invoice PDF's own "Payment methods" section, read on its DECODED TEXT
  *     (`cy.task("extractPdfText", ...)`, the same technique 61-payment-methods.cy.ts already
- *     established) — both methods before any restriction, only "Bank transfer" after.
+ * established) - both methods before any restriction, only "Bank transfer" after.
  *  3. The client portal: the SAME invoice's PDF, fetched through the portal's own bearer-token route
  *     (`GET /api/portal/documents/invoice/:id/pdf`, the same route 56-client-portal.cy.ts already
- *     proves is scoped per client) — never a second, portal-only rendering path, so this is really
+ * proves is scoped per client) - never a second, portal-only rendering path, so this is really
  *     proving `renderDocumentInstance` is the ONE place both the staff download and the portal
  *     download go through.
  *
  * This is also the one spec this feature's own PR relies on for its "break it, see red; restore it,
- * see green" proof — see the PR description for the exact command and the real output of each run.
+ * see green" proof - see the PR description for the exact command and the real output of each run.
  */
 const api = Cypress.env("apiUrl");
 
@@ -32,7 +32,7 @@ function setTheme(theme: "light" | "dark") {
   });
 }
 
-/** `send` 501s with no transport configured at all — the same baseline 56-client-portal.cy.ts's own
+/** `send` 501s with no transport configured at all - the same baseline 56-client-portal.cy.ts's own
  *  `configureEmailTransport` sets up for the identical reason. */
 function configureEmailTransport() {
   cy.request({
@@ -116,11 +116,11 @@ function sendInvoice(id: string, clientId: string) {
   cy.waitForDocumentStatus(`${api}/api/documents/${id}?typeId=invoice`, ["sent"]);
 }
 
-/** Decodes the PDF's own real page text, whitespace collapsed — see 61-payment-methods.cy.ts's own
+/** Decodes the PDF's own real page text, whitespace collapsed - see 61-payment-methods.cy.ts's own
  *  header for why this, rather than a byte-count delta, is what actually proves WHAT a PDF renders. */
 function pdfText(url: string, headers?: Record<string, string>): Cypress.Chainable<string> {
   return cy.request({ url, encoding: "binary", headers }).then((res) => {
-    expect(res.status, `PDF rendered — ${url}`).to.eq(200);
+    expect(res.status, `PDF rendered - ${url}`).to.eq(200);
     expect(res.headers["content-type"]).to.include("application/pdf");
     const base64 = Cypress.Buffer.from(res.body as string, "binary").toString("base64");
     return cy.task("extractPdfText", base64).then((rawText) => String(rawText).replace(/\s+/g, " "));
@@ -138,10 +138,10 @@ describe("Client payment-method restriction (issue #416)", () => {
     enableCompanyMethods();
   });
 
-  it("restricts a client to bank transfer through the screen — the PDF and the portal then offer only bank transfer", () => {
+  it("restricts a client to bank transfer through the screen - the PDF and the portal then offer only bank transfer", () => {
     createClient("Bank Transfer Only SARL").then((clientId: string) => {
       // BEFORE any restriction: a fresh invoice to this client already offers BOTH company-enabled
-      // methods — the baseline this whole test exists to change.
+      // methods - the baseline this whole test exists to change.
       createInvoiceDraft(clientId).then((beforeInvoiceId: string) => {
         sendInvoice(beforeInvoiceId, clientId);
         pdfText(`${api}/api/documents/${beforeInvoiceId}/pdf?typeId=invoice`).then((text) => {
@@ -161,7 +161,7 @@ describe("Client payment-method restriction (issue #416)", () => {
         cy.get('[data-cy^="payment-methods-client-button-"]').click();
         cy.get('[data-cy="client-payment-methods-dialog"]', { timeout: 15000 }).should("be.visible");
 
-        // The "unrestricted" default — every company-enabled method is what this client already
+        // The "unrestricted" default - every company-enabled method is what this client already
         // gets, exactly like any other client, before anything here is touched.
         cy.get('[data-cy="client-payment-methods-restrict-switch"]').should(
           "have.attr",
@@ -180,7 +180,7 @@ describe("Client payment-method restriction (issue #416)", () => {
         setTheme("light");
 
         // The hard-to-reach validation state, produced on purpose: restricted, but nothing picked
-        // yet — Save is disabled and a hint explains why, rather than silently saving an empty
+        // yet - Save is disabled and a hint explains why, rather than silently saving an empty
         // array (which the backend would read back as UNRESTRICTED, the opposite of what the
         // switch still shows).
         cy.get('[data-cy="client-payment-methods-restrict-switch"]').click();
@@ -207,7 +207,7 @@ describe("Client payment-method restriction (issue #416)", () => {
         cy.get('[data-cy="client-payment-methods-save"]').click();
         cy.get('[data-cy="client-payment-methods-dialog"]').should("not.exist");
 
-        // The truth is in the database — read back via the API, never trusted from the DOM alone.
+        // The truth is in the database - read back via the API, never trusted from the DOM alone.
         cy.request({ url: `${api}/api/payment-methods/clients/${clientId}` })
           .its("body.methodIds")
           .should("deep.equal", ["bank_transfer"]);
@@ -217,7 +217,7 @@ describe("Client payment-method restriction (issue #416)", () => {
         cy.get('[data-cy="client-view-dialog"]', { timeout: 15000 }).should("be.visible");
         cy.get('[data-cy="client-view-payment-methods-summary"]').should("contain.text", "Bank transfer");
         cy.get('[data-cy="client-view-payment-methods-summary"]').should("not.contain.text", "PayPal");
-        // The section sits below the fold in the dialog's own scroll container — scrolled into view
+        // The section sits below the fold in the dialog's own scroll container - scrolled into view
         // before each screenshot so the subject is actually what the image shows, not a dialog header.
         cy.get('[data-cy="client-view-payment-methods-summary"]').scrollIntoView();
         cy.screenshot("10-client-view-payment-methods-after-light-desktop", { capture: "viewport" });
@@ -243,7 +243,7 @@ describe("Client payment-method restriction (issue #416)", () => {
             expect(text, "PayPal must be gone once restricted").to.not.contain("PayPal");
           });
 
-          // --- The client portal honours it too — the SAME invoice, fetched through the portal's
+          // --- The client portal honours it too - the SAME invoice, fetched through the portal's
           // own bearer-token route, never a second rendering path. ---
           cy.request({
             method: "POST",
@@ -261,11 +261,11 @@ describe("Client payment-method restriction (issue #416)", () => {
             });
 
           // --- A SENT invoice's PDF is the archived legal copy, served verbatim
-          // (`documents.service.ts#renderInstancePdf`'s own `findArchivedPdfArtifact` — "the archive
+          // (`documents.service.ts#renderInstancePdf`'s own `findArchivedPdfArtifact` - "the archive
           // IS the legal copy" for any issued status), never re-rendered on each download. A
           // restriction created AFTER this first invoice was sent must NOT rewrite a legal document
           // already issued: re-downloading it still shows BOTH methods, exactly as it did the moment
-          // it was sent — the restriction only ever changes what a FUTURE document offers, matching
+          // it was sent - the restriction only ever changes what a FUTURE document offers, matching
           // the same immutability this codebase already holds for legal mentions frozen at issue
           // date. ---
           pdfText(`${api}/api/documents/${beforeInvoiceId}/pdf?typeId=invoice`).then((text) => {

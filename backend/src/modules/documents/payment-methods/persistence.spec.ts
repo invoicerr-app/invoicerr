@@ -30,7 +30,7 @@ const mockedPrisma = prisma as unknown as {
   clientPaymentMethodRestriction: { findMany: Mock; deleteMany: Mock; createMany: Mock };
 };
 
-/** Issue #416 — a tiny in-memory store for `Client`/`ClientPaymentMethodRestriction`, the same
+/** Issue #416 - a tiny in-memory store for `Client`/`ClientPaymentMethodRestriction`, the same
  *  discipline `wireFakeStore` above already holds for `Company`/`CompanyPaymentMethodConfig`:
  *  `setClientPaymentMethodRestrictions` reads (via `assertClientInCompany`) before it writes, and the
  *  tests below read AGAIN afterward to assert what actually landed. */
@@ -339,14 +339,14 @@ describe('payment-methods/persistence', () => {
       expect(bankTransfer?.lines).toEqual(['IBAN: FR1420041010050500013M02606']);
     });
 
-    describe('issue #416 — a client-scoped restriction', () => {
+    describe('issue #416 - a client-scoped restriction', () => {
       beforeEach(() => {
         rows.set('bank_transfer', { enabled: true, config: {} });
         company.iban = 'FR1420041010050500013M02606';
         rows.set('paypal', { enabled: true, config: { email: 'billing@acme.test' } });
       });
 
-      it('no restriction on file — every company-enabled method still appears, unchanged', async () => {
+      it('no restriction on file - every company-enabled method still appears, unchanged', async () => {
         const presentations = await resolveEnabledPaymentMethodPresentations(COMPANY_ID, {}, CLIENT_ID);
         expect(presentations.map((p) => p.id).sort()).toEqual(['bank_transfer', 'paypal']);
       });
@@ -382,8 +382,8 @@ describe('payment-methods/persistence', () => {
     });
   });
 
-  describe('issue #416 — listClientPaymentMethodRestrictions / setClientPaymentMethodRestrictions', () => {
-    it('an unconfigured client reads back as unrestricted — an empty array, not null', async () => {
+  describe('issue #416 - listClientPaymentMethodRestrictions / setClientPaymentMethodRestrictions', () => {
+    it('an unconfigured client reads back as unrestricted - an empty array, not null', async () => {
       const ids = await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID);
       expect(ids).toEqual([]);
     });
@@ -403,7 +403,7 @@ describe('payment-methods/persistence', () => {
         expect.arrayContaining(['bank_transfer', 'paypal']),
       );
 
-      // A second call REPLACES, never merges — "cheque" alone afterwards means bank_transfer/paypal
+      // A second call REPLACES, never merges - "cheque" alone afterwards means bank_transfer/paypal
       // are no longer restricted-to, not still present alongside it.
       await setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['cheque']);
       expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual(['cheque']);
@@ -417,11 +417,11 @@ describe('payment-methods/persistence', () => {
       expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual([]);
     });
 
-    it('refuses an id no payment method registry entry resolves — 400, never silently stored', async () => {
+    it('refuses an id no payment method registry entry resolves - 400, never silently stored', async () => {
       await expect(
         setClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID, ['not-a-real-method']),
       ).rejects.toThrow(BadRequestException);
-      // Nothing was written — the whole call is refused up front, not partially applied.
+      // Nothing was written - the whole call is refused up front, not partially applied.
       expect(await listClientPaymentMethodRestrictions(COMPANY_ID, CLIENT_ID)).toEqual([]);
     });
 
@@ -431,16 +431,16 @@ describe('payment-methods/persistence', () => {
     });
   });
 
-  describe('issue #416 — isMethodAllowedForClient', () => {
-    it('no clientId at all — always allowed (a non-client context, e.g. company-only flows)', async () => {
+  describe('issue #416 - isMethodAllowedForClient', () => {
+    it('no clientId at all - always allowed (a non-client context, e.g. company-only flows)', async () => {
       expect(await isMethodAllowedForClient(COMPANY_ID, undefined, 'stripe')).toBe(true);
     });
 
-    it('a client with no restriction on file — every method is allowed', async () => {
+    it('a client with no restriction on file - every method is allowed', async () => {
       expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'stripe')).toBe(true);
     });
 
-    it('a restricted client — only the named method(s) are allowed', async () => {
+    it('a restricted client - only the named method(s) are allowed', async () => {
       restrictions.set(CLIENT_ID, new Set(['bank_transfer']));
       expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'bank_transfer')).toBe(true);
       expect(await isMethodAllowedForClient(COMPANY_ID, CLIENT_ID, 'stripe')).toBe(false);

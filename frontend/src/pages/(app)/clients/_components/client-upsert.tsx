@@ -1118,7 +1118,7 @@ function ContactStep({
   isEditing: boolean
   clientId?: string
   onOpenPortalAccess: () => void
-  /** Issue #416 — editing only, same reason as `onOpenPortalAccess` just above: a not-yet-created
+  /** Issue #416 - editing only, same reason as `onOpenPortalAccess` just above: a not-yet-created
    *  client has no id to restrict yet. */
   onOpenPaymentMethods: () => void
   /** True while the value currently in `language` is this wizard's own country-based SUGGESTION

@@ -83,11 +83,11 @@ function LinkedDocuments({ clientId }: { clientId?: string }) {
 }
 
 /**
- * Issue #416 ("payment methods per client") — a one-line read of this client's own restriction: every
+ * Issue #416 ("payment methods per client") - a one-line read of this client's own restriction: every
  * company-enabled method's own label when unrestricted (exactly what the client is actually offered
  * today, not the bare word "unrestricted"), or the restricted subset's labels when narrowed. Reads
  * the SAME two queries the management dialog itself does (`usePaymentMethods`/
- * `useClientPaymentMethodRestriction`) — both already cached under the same query keys, so opening
+ * `useClientPaymentMethodRestriction`) - both already cached under the same query keys, so opening
  * the dialog right after reading this summary costs no extra round trip.
  */
 function PaymentMethodsSummary({ clientId }: { clientId?: string }) {

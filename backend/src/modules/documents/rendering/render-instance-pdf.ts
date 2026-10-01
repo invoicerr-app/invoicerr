@@ -164,10 +164,10 @@ export async function paymentMethodsFor(
   if (!descriptor.usesPaymentMethods) return [];
 
   const currency = typeof data.currency === 'string' ? data.currency : undefined;
-  // Issue #416 ("payment methods per client") — the SAME client id `recipientLanguageFor` resolves
+  // Issue #416 ("payment methods per client") - the SAME client id `recipientLanguageFor` resolves
   // just above, read off the descriptor's own 'client' reference field (`clientIdFromData`). A
   // dangling/cross-tenant/absent id resolves the restriction to "none on file" (unrestricted), never
-  // a throw — see `resolveEnabledPaymentMethodPresentations`'s own header on why a rendering gap must
+  // a throw - see `resolveEnabledPaymentMethodPresentations`'s own header on why a rendering gap must
   // never block issuing/sending the document itself.
   const clientId = clientIdFromData(descriptor, data);
   return resolveEnabledPaymentMethodPresentations(
@@ -246,11 +246,11 @@ async function recipientLanguageFor(
   return resolveRecipientLanguage(client?.language, companyLanguage);
 }
 
-/** The document's own 'client' reference field value, read straight off `data` — the SAME resolution
+/** The document's own 'client' reference field value, read straight off `data` - the SAME resolution
  *  `recipientLanguageFor` above used to inline, now shared with `paymentMethodsFor` (issue #416):
  *  both need "which client, if any, is this document FOR", neither needs a second spelling of how to
  *  find it. `undefined` for a type with no such field, or a present field with no/a wrong-typed value
- *  — never thrown, the same "a rendering gap must never block issuing/sending the document itself"
+ * - never thrown, the same "a rendering gap must never block issuing/sending the document itself"
  *  discipline every other resolver in this file already holds. */
 function clientIdFromData(
   descriptor: DocumentTypeDescriptor,

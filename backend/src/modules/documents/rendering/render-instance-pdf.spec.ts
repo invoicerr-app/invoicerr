@@ -273,10 +273,10 @@ describe('sepaPaymentQrFor', () => {
 });
 
 describe('paymentMethodsFor', () => {
-  // Issue #416 ("payment methods per client") — a real 'client' reference field, the SAME shape
+  // Issue #416 ("payment methods per client") - a real 'client' reference field, the SAME shape
   // `invoice.descriptor.ts` actually declares, so `clientIdFromData` has something to resolve against
   // in the tests below that care about it. The pre-existing tests in this block (which pass data with
-  // no 'client' key) are unaffected — `clientIdFromData` simply resolves to `undefined` for them, same
+  // no 'client' key) are unaffected - `clientIdFromData` simply resolves to `undefined` for them, same
   // as it always implicitly did before this field existed on the fixture.
   const paymentMethodsDescriptor: DocumentTypeDescriptor = {
     id: 'invoice',
@@ -359,10 +359,10 @@ describe('paymentMethodsFor', () => {
     );
   });
 
-  // Issue #416 ("payment methods per client") — the whole point of threading a client id through at
+  // Issue #416 ("payment methods per client") - the whole point of threading a client id through at
   // all: a document naming one must have it reach the resolver, so a client-scoped restriction (proven
   // in persistence.spec.ts) actually gets applied to THIS document's own render.
-  describe('issue #416 — forwards the document’s own client id', () => {
+  describe('issue #416 - forwards the document’s own client id', () => {
     it('reads the id straight off the descriptor’s own "client" reference field', async () => {
       await paymentMethodsFor(
         paymentMethodsDescriptor,

@@ -146,19 +146,19 @@ export class PaymentSessionsService {
     // never set, see that constant's own header.
     const providerId = (await resolveCompanyPaymentProviderId(companyId)) || DEFAULT_PROVIDER_ID;
 
-    // Issue #416 ("payment methods per client") — the SAME id `payment-methods/built-in.ts`'s own
+    // Issue #416 ("payment methods per client") - the SAME id `payment-methods/built-in.ts`'s own
     // registered descriptor uses for this provider (see `handleWebhookEvent`'s own comment on that
     // one-to-one naming), checked against the invoice's OWN client before anything provider-side is
     // even looked up: a client restricted away from this id must never be handed a "Pay" link for it,
-    // even though the company itself still has the provider connected — the restriction narrows what a
+    // even though the company itself still has the provider connected - the restriction narrows what a
     // specific client is OFFERED, never what the company itself may do. Checked here, not one layer up
-    // in `PortalService` (the only caller today — see this class's own header), because the restriction
+    // in `PortalService` (the only caller today - see this class's own header), because the restriction
     // is a fact about PAYMENT, which belongs with the rest of this method's own business rules (status,
     // balance, currency), not duplicated into every future caller.
     const clientId = typeof data.client === 'string' ? data.client : undefined;
     if (!(await isMethodAllowedForClient(companyId, clientId, providerId))) {
       throw new ConflictException(
-        `Online payment via "${providerId}" is not offered to this client — their payment methods ` +
+        `Online payment via "${providerId}" is not offered to this client - their payment methods ` +
           'are restricted.',
       );
     }

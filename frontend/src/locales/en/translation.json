@@ -145,7 +145,7 @@
       "description": "Restrict which of your enabled payment methods are offered to this client. No restriction means every enabled method, exactly as today.",
       "restrictLabel": "Restrict payment methods",
       "restrictDescription": "Only the methods checked below will be offered to this client.",
-      "noCompanyMethods": "No payment method is enabled yet — enable one in Payment methods first.",
+      "noCompanyMethods": "No payment method is enabled yet. Enable one in Payment methods first.",
       "emptySelectionHint": "Pick at least one method, or turn the restriction off.",
       "cancel": "Cancel",
       "save": "Save",

@@ -23,11 +23,11 @@ export interface PaymentMethodConfig {
 }
 
 /**
- * Issue #416 ("payment methods per client") — mirrors the backend's `GET`/`PATCH
+ * Issue #416 ("payment methods per client") - mirrors the backend's `GET`/`PATCH
  * /api/payment-methods/clients/:clientId` response shape. `methodIds: []` means UNRESTRICTED: this
  * client is offered every method the COMPANY has enabled, exactly as any client was before this
  * feature existed. A non-empty array narrows the client to exactly those ids (intersected, on the
- * backend, with whatever the company currently has enabled — see persistence.ts#
+ * backend, with whatever the company currently has enabled - see persistence.ts#
  * resolveEnabledPaymentMethodPresentations).
  */
 export interface ClientPaymentMethodRestriction {

@@ -1,5 +1,5 @@
 /**
- * Issue #416 ("payment methods per client") — the REAL Postgres integration half, proving the
+ * Issue #416 ("payment methods per client") - the REAL Postgres integration half, proving the
  * migration-created `ClientPaymentMethodRestriction` table and its FK/cascade actually behave, not
  * just the mocked-store logic `persistence.spec.ts` already covers. Same "real Prisma, no mock"
  * discipline `clients.custom-fields.spec.ts` already holds for the identical "a company-scoped
@@ -15,7 +15,7 @@ import {
   updateCompanyPaymentMethodConfig,
 } from './persistence';
 
-describe('payment-methods — ClientPaymentMethodRestriction, real Postgres', () => {
+describe('payment-methods - ClientPaymentMethodRestriction, real Postgres', () => {
   let companyId: string;
   let otherCompanyId: string;
   let clientId: string;
@@ -66,7 +66,7 @@ describe('payment-methods — ClientPaymentMethodRestriction, real Postgres', ()
     });
     clientId = client.id;
 
-    // Company-level: bank_transfer (with an IBAN on file) and paypal both ENABLED — the two methods
+    // Company-level: bank_transfer (with an IBAN on file) and paypal both ENABLED - the two methods
     // every test below narrows between.
     await prisma.company.update({ where: { id: companyId }, data: { iban: 'FR1420041010050500013M02606' } });
     await updateCompanyPaymentMethodConfig(companyId, 'bank_transfer', { enabled: true });
@@ -85,7 +85,7 @@ describe('payment-methods — ClientPaymentMethodRestriction, real Postgres', ()
   });
 
   afterEach(async () => {
-    // Every test below starts from "no restriction on file" — cleared via the real function under
+    // Every test below starts from "no restriction on file" - cleared via the real function under
     // test, not a bare `deleteMany`, so a bug in `setClientPaymentMethodRestrictions` itself would
     // surface here too.
     await setClientPaymentMethodRestrictions(companyId, clientId, []);
@@ -98,11 +98,11 @@ describe('payment-methods — ClientPaymentMethodRestriction, real Postgres', ()
     expect(presentations.map((p) => p.id).sort()).toEqual(['bank_transfer', 'paypal']);
   });
 
-  it('restricting to a subset — the row actually persists and actually narrows the render', async () => {
+  it('restricting to a subset - the row actually persists and actually narrows the render', async () => {
     const saved = await setClientPaymentMethodRestrictions(companyId, clientId, ['bank_transfer']);
     expect(saved).toEqual(['bank_transfer']);
 
-    // Read back through a SEPARATE query — not trusting the write call's own return value as proof.
+    // Read back through a SEPARATE query - not trusting the write call's own return value as proof.
     const rows = await prisma.clientPaymentMethodRestriction.findMany({ where: { clientId } });
     expect(rows.map((r) => r.methodId)).toEqual(['bank_transfer']);
 
@@ -130,14 +130,14 @@ describe('payment-methods — ClientPaymentMethodRestriction, real Postgres', ()
     }
   });
 
-  it('a client belonging to ANOTHER company is refused — 404, never a cross-tenant read/write', async () => {
+  it('a client belonging to ANOTHER company is refused - 404, never a cross-tenant read/write', async () => {
     await expect(listClientPaymentMethodRestrictions(otherCompanyId, clientId)).rejects.toThrow(/not found/i);
     await expect(
       setClientPaymentMethodRestrictions(otherCompanyId, clientId, ['bank_transfer']),
     ).rejects.toThrow(/not found/i);
   });
 
-  it('deleting the client cascades — its restriction rows do not survive as orphans', async () => {
+  it('deleting the client cascades - its restriction rows do not survive as orphans', async () => {
     const throwaway = await prisma.client.create({
       data: {
         companyId,
