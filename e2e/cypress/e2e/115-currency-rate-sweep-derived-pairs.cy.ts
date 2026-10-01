@@ -60,7 +60,7 @@ describe("The currency-rate sweep derives the pairs a company actually uses (#57
 			body: { referenceCurrency: "EUR" },
 			failOnStatusCode: false,
 		}).then((res) => {
-			expect(res.status, "devise de référence configurée").to.be.oneOf([200, 201]);
+			expect(res.status, "reference currency configured").to.be.oneOf([200, 201]);
 		});
 	});
 
@@ -78,7 +78,7 @@ describe("The currency-rate sweep derives the pairs a company actually uses (#57
 		cy.request({ url: `${api}/api/documents/references/client/search` })
 			.its("body")
 			.then((clients: { id: string }[]) => {
-				expect(clients, "le jeu d'essai contient un client").to.have.length.greaterThan(0);
+				expect(clients, "the seed data contains a client").to.have.length.greaterThan(0);
 
 				return cy.request({
 					method: "POST",
@@ -98,17 +98,15 @@ describe("The currency-rate sweep derives the pairs a company actually uses (#57
 				});
 			})
 			.then((res) => {
-				expect(res.status, "brouillon de facture USD créé").to.be.oneOf([200, 201]);
+				expect(res.status, "USD invoice draft created").to.be.oneOf([200, 201]);
 			});
 
 		// Never typed by hand - the whole point of this spec. The sweep (every 5s on this stack,
 		// CURRENCY_RATE_SWEEP_INTERVAL_MS) is what has to derive and insert this pair on its own.
 		waitForAutomaticRate("USD", "EUR").then((rates) => {
 			const usdRow = rates.find((r) => r.from === "USD" && r.to === "EUR");
-			expect(usdRow, "une ligne USD->EUR automatique existe").to.exist;
-			expect(usdRow?.source, "jamais 'manual' - cette ligne n'a jamais été saisie à la main").to.not.eq(
-				"manual",
-			);
+			expect(usdRow, "an automatic USD->EUR row exists").to.exist;
+			expect(usdRow?.source, "never 'manual' - this row was never typed by hand").to.not.eq("manual");
 		});
 
 		// The same fact, on the actual screen a self-hoster reads - not only the API. One row only
