@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #549 e2e fixture -- stands in for a structured original a previous tool could have
+     produced (FatturaPA, KSeF FA(3), Factur-X/CII, XRechnung/UBL). The import handler
+     (document-import.service.ts) never parses or validates this content, only stores it verbatim
+     as the IMPORT_ORIGINAL archive, so a minimal, clearly-marked document is enough to prove the
+     byte-for-byte round trip through "Download original". -->
+<PreviousToolInvoice>
+  <InvoiceNumber>OLD-XML-0001</InvoiceNumber>
+  <Marker>e2e-549-xml-original-marker</Marker>
+</PreviousToolInvoice>

@@ -14,7 +14,7 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Search** — find an invoice by its number or client name
 - **Filter**: toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
-- **Download** — a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**
+- **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
 - **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement

@@ -42,7 +42,7 @@ import {
   AttachmentsService,
   MAX_ATTACHMENT_BYTES,
 } from './attachments/attachments.service';
-import { DocumentsService } from './documents.service';
+import { buildOriginalContentDisposition, DocumentsService } from './documents.service';
 import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import {
@@ -1010,6 +1010,49 @@ export class DocumentsController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${typeId}-${id}.pdf"`);
     res.send(pdfBuffer);
+  }
+
+  @Get(':id/original')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: "Get an imported document's archived original, verbatim",
+    description:
+      "Issue #549 - serves the `IMPORT_ORIGINAL` archive's own bytes byte for byte, with its own " +
+      'content type and file name, for ANY original type (PDF, structured XML, image) - the one ' +
+      'route this repo offers for the non-PDF case `GET .../pdf` refuses (409) by design. Same ' +
+      'authorization as `GET .../pdf` (company scoping, `RequiresDocumentTypeScope("read")`); the ' +
+      'path is never read from user input.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Original file retrieved',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'The document is not "imported" (nothing was ever archived as an original for it), or an ' +
+      '"imported" document somehow missing its archive entirely',
+  })
+  async downloadOriginal(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const original = await this.documentsService.downloadImportOriginal(companyId, typeId, id);
+    res.setHeader('Content-Type', original.mime);
+    res.setHeader('Content-Disposition', buildOriginalContentDisposition(original.filename));
+    // The stored mime came from whatever the original upload declared (attachments.service.ts),
+    // never re-verified against the bytes themselves - `safeOriginalMime` already narrows it to a
+    // known allow-list, and `nosniff` stops a browser from second-guessing it against the bytes on
+    // its own, which is exactly how a stray `text/html` mime on an old row could have become a
+    // reflected-content risk otherwise.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(Buffer.from(original.bytes));
   }
 
   @Get(':id/formats/:syntax')

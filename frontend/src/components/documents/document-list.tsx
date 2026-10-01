@@ -2,6 +2,7 @@ import {
   Download,
   Ellipsis,
   FileCode,
+  FileDown,
   FileStack,
   Link2,
   Plus,
@@ -37,6 +38,7 @@ import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
 import {
   DOCUMENT_XML_SYNTAXES,
+  downloadDocumentOriginal,
   downloadDocumentPdf,
   downloadDocumentXml,
 } from "@/components/documents/document-downloads"
@@ -426,6 +428,18 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
             <Download aria-hidden="true" />
             {t("documents.list.downloadPdf")}
           </DropdownMenuItem>
+
+          {/* Issue #549 - only an "imported" document ever has an IMPORT_ORIGINAL archive to serve;
+              see document-detail.tsx's identical menu entry for the same reasoning. */}
+          {instance.status === "imported" && (
+            <DropdownMenuItem
+              onSelect={() => void downloadDocumentOriginal(descriptor.id, instance.id, t)}
+              data-cy={`document-original-button-${instance.id}`}
+            >
+              <FileDown aria-hidden="true" />
+              {t("documents.list.downloadOriginal")}
+            </DropdownMenuItem>
+          )}
 
           {gates.downloadXml && (
             <DropdownMenuSub>

@@ -71,11 +71,28 @@ describe('Demo mode (issue #533)', () => {
         // analogous "appeared but is outside the current scroll position" case.
         cy.contains('button', /^confirm$/i, { timeout: 10000 }).scrollIntoView().click();
 
+        // The row itself is the real "did this stay blocked" signal: its status badge is never
+        // clipped by `line-clamp`, so it is the guarantee that a send never silently succeeds.
+        // Found by text, like the "Send"/"Confirm" buttons above: this status has no stable
+        // per-test data-cy either.
+        cy.contains('[data-cy="document-status-badge"]', /^send failed$/i, { timeout: 20000 }).should(
+            'be.visible',
+        );
+
         // The unique, load-bearing assertion: this exact refusal text only ever comes from
         // `DemoModeBlockedError` (`modules/demo/demo-blocked.ts`). `/send failed/i` alone is
         // ambiguous (it also names the list's OWN status filter tab), so the specific reason is
-        // what this test actually pins down.
-        cy.contains(/is disabled in this demo/i, { timeout: 20000 }).should('be.visible');
+        // what this test actually pins down. Issue #570: the error paragraph itself is
+        // `line-clamp-2` inside an `overflow: hidden` row, so asserting Cypress VISIBILITY on it
+        // is layout-timing-dependent (a clamped element can read as "not visible" even though its
+        // full text is right there in the DOM). Scroll it into view, then read its TEXT instead of
+        // asking Cypress whether it is visible -- `contain.text` inspects the node's content
+        // regardless of whether the clamp is currently clipping it. The row id in its own data-cy
+        // is a fresh document id every seed (same reason the "Send" button above is found by text),
+        // so the error paragraph is found by a prefix match instead.
+        cy.get('[data-cy^="document-row-last-error-"]', { timeout: 20000 })
+            .scrollIntoView()
+            .should('contain.text', 'is disabled in this demo');
         // Never the ordinary "no transport configured" refusal a company with none chosen would
         // see: this specific company DOES have one (`invoiceTransportId: 'email'`, seeded by
         // `seed-company.ts`), so the ONLY reason it can fail is demo mode itself.
