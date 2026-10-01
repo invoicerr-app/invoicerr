@@ -1,7 +1,12 @@
 import type { TFunction } from "i18next"
 
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
-import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/components/documents/types"
+import {
+  isActionAvailable,
+  onEnterStatuses,
+  resolveTransitionTarget,
+  statusLabel,
+} from "@/components/documents/types"
 
 /** The possible resulting status(es) of `action` from `fromStatus`, always as an array — the single-
  *  status and multi-status shapes of `resolveTransitionTarget`'s own return value collapsed into one
@@ -89,7 +94,8 @@ export function actionAssignsNumber(
   currentStatus: string | undefined,
 ): boolean {
   if (!descriptor.numbering) return false
-  return transitionTargets(action, currentStatus).includes(descriptor.numbering.onEnterStatus)
+  const onEnterStatusSet = onEnterStatuses(descriptor.numbering)
+  return transitionTargets(action, currentStatus).some((status) => onEnterStatusSet.includes(status))
 }
 
 /**

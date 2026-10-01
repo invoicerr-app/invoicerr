@@ -29,6 +29,7 @@ import { join } from 'node:path';
 import { assertValidNumberFormats } from '../number-formats';
 import {
   assertValidDomesticInvoiceCurrencyFact,
+  assertValidInvoiceValidationFact,
   assertValidNumberingProvenance,
   assertValidProvenance,
   CountryDocumentPolicyFile,
@@ -85,6 +86,11 @@ function loadCountryFile(code: string): CountryDocumentPolicyFile {
       parsed.domesticInvoiceCurrency,
       `documents/country-policy/data/${code}.json`,
     );
+  }
+  // `invoiceValidation` (issue #581) - optional, so absent is fine; a present fact gets the same
+  // load-time gate every other fact in this file already holds - see schema.ts's own header.
+  if (parsed.invoiceValidation) {
+    assertValidInvoiceValidationFact(parsed.invoiceValidation, `documents/country-policy/data/${code}.json`);
   }
   return parsed;
 }

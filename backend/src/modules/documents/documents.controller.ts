@@ -946,6 +946,31 @@ export class DocumentsController {
     return this.documentsService.getTaxWarnings(companyId, typeId, id);
   }
 
+  @Get(':id/actions/:actionId/transmission-preview')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: 'Whether running this action would transmit the document, and through what channel',
+    description:
+      'Issue #581 - read BEFORE confirming an action that may genuinely transmit the document ' +
+      'somewhere (today: invoice "validate", once an active channel mandate applies). Computed from ' +
+      "the record's own PERSISTED data (see DocumentsService.getActionTransmissionPreview). " +
+      '{ transmits: false } for an action with no transmission-preview resolver registered - never an ' +
+      'error, since this is a courtesy preview, not a gate.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'actionId', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Transmission preview computed' })
+  @ApiResponse({ status: 404, description: 'Not found for this company/type' })
+  getActionTransmissionPreview(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Param('actionId') actionId: string,
+    @Query('typeId') typeId: string,
+  ) {
+    return this.documentsService.getActionTransmissionPreview(companyId, typeId, id, actionId);
+  }
+
   @Get(':id/correction-routes')
   @RequiresDocumentTypeScope('read')
   @ApiOperation({

@@ -23,8 +23,10 @@ describe('archived-pdf-policy (issue #490)', () => {
     // in these two lists rather than excluded from them: excluding it would say the content CAN still
     // change, which is false, and would be the wrong reason to reach the right serving behavior.
     it('invoice: every status but "draft"', () => {
+      // Issue #581 added "validated" (numbered and locked without sending) to this list: "save-draft"
+      // locks it exactly like every other post-draft status, so its archived PDF is the legal copy too.
       expect([...issuedStatusesOf(buildInvoiceDescriptor())].sort()).toEqual(
-        ['cancelled', 'imported', 'send_failed', 'sending', 'sent'].sort(),
+        ['cancelled', 'imported', 'send_failed', 'sending', 'sent', 'validated'].sort(),
       );
     });
 

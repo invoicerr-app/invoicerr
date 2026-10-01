@@ -253,11 +253,12 @@ describe('DocumentsService.runAction — composed with the country policy', () =
       // The underlying declared shape (label, availableWhen, …) is untouched — this is an ADDITIVE
       // annotation, never a rewrite of the descriptor's own data. `availableWhen` now includes
       // "send_failed"/"sending" too (the async two-phase "send" — see
-      // invoice.descriptor.ts's own SEND_TRANSITIONS), not just "draft".
+      // invoice.descriptor.ts's own SEND_TRANSITIONS), not just "draft" - and, since issue #581,
+      // "validated" too (a validated-but-unsent invoice is exactly as send-ready as a draft one).
       expect(send).toMatchObject({
         id: 'send',
         label: 'Send',
-        availableWhen: ['draft', 'send_failed', 'sending'],
+        availableWhen: ['draft', 'send_failed', 'validated', 'sending'],
       });
     });
   });

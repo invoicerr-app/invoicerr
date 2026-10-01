@@ -18,6 +18,7 @@
  * own seed.ts used, and `InvitationsService.spec` before that.
  */
 import {
+  assertValidInvoiceValidationFact,
   assertValidNumberingProvenance,
   assertValidProvenance,
   DocumentActionRuleFact,
@@ -165,6 +166,14 @@ export async function seedCountryPolicies(
       { countryCode, rules: [], numberFormats: catalog.numberFormatsFor(countryCode) },
       `seedCountryPolicies(${countryCode})`,
     );
+    // `invoiceValidation` (issue #581) - VALIDATE ONLY, never written to any table: file-only, the
+    // same posture as `numbering`/`numberFormats` above - a catalog built by hand must still be
+    // refused here, before any row for ANY country is written, never trusted just because it is the
+    // one data/all.ts happened to load.
+    const invoiceValidation = catalog.invoiceValidationFor(countryCode);
+    if (invoiceValidation) {
+      assertValidInvoiceValidationFact(invoiceValidation, `seedCountryPolicies(${countryCode})`);
+    }
   }
 
   let upserted = 0;

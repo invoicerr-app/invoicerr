@@ -116,6 +116,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: decret executif n. 05-468 (see invoice.send above) names no distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). `transports/channel-policy/data/dz.json` carries no `\"mandated\"` channel fact for Algeria - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes an Algerian invoice through a real send here: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime, unlike France's own. WHAT WOULD SETTLE THIS FURTHER: the same decree 05-468 art. 4/art. 11 reading invoice.send's own note already names as unresolved for the stamp/signature exception - no new research gap specific to this action."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {

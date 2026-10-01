@@ -4975,6 +4975,7 @@
         "title": "{{label}}",
         "description": "{{label}} will lock this document: it can no longer be edited afterwards.",
         "descriptionWithNumbering": "{{label}} will lock this document and assign its legal number: it can no longer be edited afterwards.",
+        "transmits": "{{label}} will also send this document to {{channel}}. This cannot be undone.",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },

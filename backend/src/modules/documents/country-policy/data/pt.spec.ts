@@ -48,7 +48,7 @@ describe('PT — country-policy/data/pt.json', () => {
     }
   });
 
-  it('declares exactly the same 33 typeId::actionId pairs as the FR reference file, no duplicates', () => {
+  it('declares exactly the same 34 typeId::actionId pairs as the FR reference file, no duplicates', () => {
     const declared = pt.rules.map((r) => `${r.typeId}::${r.actionId}`).sort();
     expect(declared).toEqual(
       [
@@ -71,6 +71,9 @@ describe('PT — country-policy/data/pt.json', () => {
         'quote::accept-manually',
         'invoice::save-draft',
         'invoice::send',
+        // Issue #581 - numbers and locks a draft invoice without sending it; see this rule's own
+        // resolutionNote in pt.json for why PT's own ATCUD obligation attaches regardless.
+        'invoice::validate',
         'invoice::duplicate',
         'invoice::record-payment',
         'invoice::download-xml',
@@ -99,10 +102,10 @@ describe('PT — country-policy/data/pt.json', () => {
         'goods-receipt::delete',
       ].sort(),
     );
-    expect(new Set(declared).size).toBe(33);
+    expect(new Set(declared).size).toBe(34);
   });
 
-  it('allows every one of its 33 rules - PT never itself needs an unblock', () => {
+  it('allows every one of its 34 rules - PT never itself needs an unblock', () => {
     expect(pt.rules.filter((r) => !r.allowed)).toEqual([]);
   });
 

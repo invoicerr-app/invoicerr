@@ -115,6 +115,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate above: no CGI text names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). This rule is therefore ALLOWED for the same reason invoice.send above is: it only ever answers \"may a French company run this ACTION at all\" (yes, unconditionally) - never \"what does running it actually do for this one invoice\", the same separation invoice.send's own rule already holds between \"may it send\" (this file) and \"through which channel\" (channel-policy/, mandate.ts). WHETHER validating also transmits is this file's own top-level \"invoiceValidation\" fact (see that fact's own notes, CGI art. 289 bis I), combined at request time with the ACTIVE channel mandate check (country-policy/invoice-validation-transmission.ts) - never decided by this rule, which stays a plain unblock. WHAT WOULD SETTLE THIS FURTHER: the lawyer review already pending for the legal corpus - see issue #581's own \"Legal note\" section for the open question \"invoiceValidation\"'s own provenance reflects."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {
@@ -461,5 +470,15 @@
       "onViolation": "If the running series breaks a rule above (for example Chorus Pro's 20-character limit), the country format applies from the next number. The counter is not reset: the sequence stays chronological and continuous and no number is reused, only the printed prefix changes.",
       "notes": "NOT READ, would settle whether a mid-year change of printed prefix needs anything more: BOI-TVA-DECLA-30-20-20-10 (numbering section), the BOFiP page the e-invoicing rule G1.42 itself points to. BOFiP was not reachable by URL in this pass (see this file's top-level notes on the BOFiP access limit)."
     }
+  },
+  "invoiceValidation": {
+    "transmitsThroughMandatedChannel": true,
+    "channelLabel": "the accredited platform (PDP)",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Pour l'application de l'article 289 et par dérogation au VI du même article 289, l'émission, la transmission et la réception des factures relatives aux opérations mentionnées aux a et d du 1 du I dudit article 289 ainsi qu'aux acomptes s'y rapportant s'opèrent sous une forme électronique, selon des normes de facturation électronique définies par arrêté du ministre chargé du budget, lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France. L'émission, la transmission et la réception des factures électroniques s'effectuent en recourant à une plateforme agréée.",
+      "sourceCheckedAt": "2026-09-24"
+    },
+    "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): CGI art. 289 bis I - the SAME verbatim text already quoted in transports/channel-policy/data/fr.json's own PDP mandate fact, read directly on 2026-09-24, Légifrance article permalink LEGIARTI000053546660 - says the EMISSION itself (not merely a later transmission step) 's'opere' through an accredited platform for a domestic B2B operation. Read together with country-policy/data/fr.json's own invoice.send rule (CGI art. 289 VI, electronic issuance generally) and invoice.validate rule (why this country-policy whitelist stays an unconditional allow, the mandate-aware branching living in code, not in this list), this fact is what tells actions/invoice-actions.ts's 'validate' handler that numbering and locking alone do not make a domestic French B2B invoice lawfully issued - only the accredited platform does, for THIS one operation, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two). HONEST LIMIT, carried over from channel-policy/data/fr.json's own note: whether a locked-but-not-yet-transmitted invoice would have been lawfully 'emise' under art. 289 bis absent this fact is the legal question issue #581's own 'Legal note' section raised and left to the lawyer review already pending for the legal corpus - this fact is the owner's own PRODUCT decision taken in the meantime, not a claim that the legal question itself is now settled."
   }
 }

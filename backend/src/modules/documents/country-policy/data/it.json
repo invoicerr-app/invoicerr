@@ -118,6 +118,15 @@
     },
     {
       "typeId": "invoice",
+      "actionId": "validate",
+      "allowed": true,
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for art. 21 DPR 633/1972 (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). ALLOWED, unconditionally - this rule only ever answers \"may an Italian company run this ACTION at all\", never \"what does running it actually do for this one invoice\". WHETHER validating also transmits is this file's own top-level \"invoiceValidation\" fact (see that fact's own notes, D.Lgs. 127/2015 art. 1 comma 6 - an invoice issued other than through SdI 'si intende non emessa', a STRONGER textual basis than France's own art. 289 bis for exactly this question), combined at request time with the ACTIVE channel mandate check (country-policy/invoice-validation-transmission.ts) - never decided by this rule. Confirmed by the owner, issue #581, 2026-10-01 (revised after PR #602's own first-draft, which had inferred this from the active mandate alone rather than from a declared Italian legal fact)."
+      }
+    },
+    {
+      "typeId": "invoice",
       "actionId": "duplicate",
       "allowed": true,
       "provenance": {
@@ -440,5 +449,15 @@
       },
       "onViolation": "If the running series breaks a FatturaPA rule above (for example a number over 20 characters, such as the old default \"CREDIT-NOTE-2026-0001\"), the country format applies from the next number. The counter is not reset, so the number stays progressive and unique; only the printed prefix changes. Such a series could not have produced a valid FatturaPA file anyway."
     }
+  },
+  "invoiceValidation": {
+    "transmitsThroughMandatedChannel": true,
+    "channelLabel": "SdI",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "In caso di emissione di fattura, tra soggetti residenti o stabiliti nel territorio dello Stato, con modalita diverse da quelle previste dal comma 3, la fattura si intende non emessa e si applicano le sanzioni previste dall'articolo 6 del decreto legislativo 18 dicembre 1997, n. 471.",
+      "sourceCheckedAt": "2026-09-24"
+    },
+    "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): D.Lgs. 127/2015 art. 1 comma 6 - the SAME verbatim penalty clause already quoted in transports/channel-policy/data/it.json's own SdI mandate fact (Normattiva consolidated text, checked 2026-09-24) - is explicit in a way France's own CGI art. 289 bis I is not: a domestic Italian B2B invoice issued by any means OTHER than SdI (comma 3) 'si intende non emessa' - IS DEEMED NOT ISSUED AT ALL, not merely penalized as a late or defective one. Read together with comma 3's own mandate (equally quoted in that same channel-policy fact) and with DPR 633/1972 art. 21 comma 1 (country-policy/data/it.json's own invoice.send rule, checked 2026-09-03 - the general validity of the Italian electronic invoice), this is a STRONGER textual basis than France's own art. 289 bis for exactly the question issue #581 asks: numbering and locking an invoice WITHOUT transmitting it through SdI leaves it, in the terms of comma 6 itself, not issued - so actions/invoice-actions.ts's 'validate' handler must transmit it for real, never stop at a number and a lock, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two, the same way it does for France)."
   }
 }

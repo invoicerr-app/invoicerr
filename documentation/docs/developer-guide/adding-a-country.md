@@ -174,6 +174,66 @@ only (a script reading the JSON body directly) - it is never shown to a user. A 
 this fact needs no frontend change at all: the message is generic over `countryCode`/
 `requiredCurrency`.
 
+### Maintainer note: `invoiceValidation`, whether Validate also transmits
+
+Issue #581's owner decision (2026-10-01, revised after the pull request's own review) added another
+OPTIONAL fact to `country-policy/schema.ts`'s `CountryDocumentPolicyFile`: `invoiceValidation`, for a
+country whose law treats an invoice as not genuinely issued until it has gone through a mandated
+channel - so Invoicerr's **Validate** action (which otherwise only assigns the legal number and
+locks the record, no transmission) must perform the real send as part of validating, rather than
+leaving the invoice numbered-and-locked but not yet lawfully issued.
+
+```json
+"invoiceValidation": {
+  "transmitsThroughMandatedChannel": true,
+  "channelLabel": "the accredited platform (PDP)",
+  "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "2026-09-24" },
+  "notes": "optional free text"
+}
+```
+
+`transmitsThroughMandatedChannel` is always the literal `true` when present - there is no `false`
+shape, the same "presence is the fact, absence is a refusal" discipline `domesticInvoiceCurrency`
+above already follows. `channelLabel` is the plain-English name shown verbatim in the Validate
+confirmation dialog's alert ("the accredited platform (PDP)", "SdI") - never the bare internal
+channel id. `provenance` is mandatory like every other fact here, validated BOTH at load time
+(`data/all.ts`) and at seed time (`seed.ts`) even though this fact is file-only and never mirrored to
+a DB row - the same belt-and-braces validation `numbering`/`numberFormats` already have, deliberately
+stricter than `domesticInvoiceCurrency`'s own load-time-only check above. Declared today for France
+(CGI art. 289 bis I) and Italy (D.Lgs. 127/2015 art. 1 comma 6, SdI); DE/PL/PT/DZ omit it, so
+Validate stays a plain number-and-lock there.
+
+**This fact alone is not enough to transmit.** `country-policy/invoice-validation-transmission.ts#resolveInvoiceValidationTransmission`
+is the single resolver every caller goes through, and it requires BOTH conditions: this fact present
+for the invoice's own seller country, AND the operation currently bound by an active channel mandate
+(`transports/channel-policy/mandate.ts#activeChannelMandateForOperation` - today's issue date, this
+seller, this buyer). A country can plausibly declare one without the other eventually; today's two
+declarations happen to also carry an active mandate, which is what makes them transmit in practice.
+
+Two callers share that one resolver, deliberately never a second copy of the decision:
+
+- `actions/invoice-actions.ts`'s own `"validate"` handler - when it resolves `transmits: true`, it
+  calls the exact same `performInvoiceSend` function `"send"` itself uses, never a parallel
+  implementation that could silently drift from it.
+- The same handler's `registerTransmissionPreview('invoice', 'validate', ...)` registration
+  (`actions/action-registry.ts`'s own `registerTransmissionPreview`/`resolveTransmissionPreview`,
+  mirroring `registerParamsDefaults` exactly) - read by `GET
+  /api/documents/:id/actions/:actionId/transmission-preview` (`documents.controller.ts`,
+  `documents.service.ts#getActionTransmissionPreview`), which the frontend's lock-confirmation dialog
+  (`document-form.tsx`'s `DocumentActionLockConfirmHost`, via
+  `use-document-types.ts#useActionTransmissionPreview`) fetches the moment it opens, BEFORE the user
+  confirms. When it resolves `transmits: true`, the dialog renders a dedicated alert
+  (`frontend/src/locales/en/translation.json`'s `documents.form.lockConfirmation.transmits`) naming
+  the channel and stating the action cannot be undone - a separate block from the generic "numbering
+  and locking are final" warning every locking action already shows. A country or operation that does
+  not transmit shows only that generic warning, never the extra alert.
+
+A new document type wanting the same "does my own locking action transmit, and should the dialog say
+so" behavior registers its own transmission-preview resolver the same way - the mechanism is generic
+over any action an `ActionRegistry` declares `actionLocksDocument` for, not invoice- or
+validate-specific; only the registration body choosing WHEN to answer `transmits: true` differs per
+type.
+
 ### Maintainer note: a mention whose value changes on a schedule
 
 A mention's `noteValues` table is not always a one-time fact. France's late-payment penalty rate
