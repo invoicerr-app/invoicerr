@@ -8,11 +8,21 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * spec proves is closed: a USD invoice, a EUR reference currency, no manual rate anywhere, and the
  * Exchange rates card still ends up showing a USD->EUR rate, tagged with an AUTOMATIC source.
  *
- * The sweep interval is driven by `CURRENCY_RATE_SWEEP_INTERVAL_MS` (default 24h, far too slow for a
- * test) and the real ECB/open.er-api.com calls are swapped for a deterministic, network-free fake
- * (`CURRENCY_RATE_FAKE=1`, fake-rate-clients.ts) - both set ONLY in this worktree's own env file
- * (never `backend/.env.test`, the shared tracked one), the same "lower the interval, never touch the
- * assertion" discipline 29-document-recurrence.cy.ts already holds for its own sweep.
+ * Triggered ON DEMAND through `cy.task("triggerCurrencyRateSweep")` (cypress.config.ts) rather than
+ * waiting on `CURRENCY_RATE_SWEEP_INTERVAL_MS` (default 24h in every environment, production included
+ * - this spec never lowers it): that task enqueues ONE real job on the SAME BullMQ queue the
+ * repeatable uses, and the backend under test's own, already-running worker picks it up and runs the
+ * REAL `CurrencyRateSweepRunner.runSweep()` within moments - the same "fresh one-off job, not a
+ * shortened interval" discipline `triggerPdpReceptionSweep` (cypress.config.ts) already holds for its
+ * own sweep, and for an EXTRA reason here: this sweep scans EVERY company's data at once, so a short
+ * interval applied to the whole numbered suite (the way `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS` is)
+ * would risk mutating some OTHER spec's own company mid-run.
+ *
+ * The real ECB/open.er-api.com calls are swapped for a deterministic, network-free fake
+ * (`CURRENCY_RATE_FAKE=1`, fake-rate-clients.ts) - set in the TRACKED `backend/.env.test`, the same
+ * unconditional-flag shape `VAT_VALIDATION_FAKE`/`GITHUB_RELEASES_FAKE`/`VAT_CURRENCY_RATE_FAKE`
+ * already hold there: a CI job must never depend on the real ECB feed being up, and this flag is
+ * dormant everywhere the sweep is never triggered, which is everywhere except this one spec.
  */
 const api = Cypress.env("apiUrl");
 
@@ -25,9 +35,10 @@ interface CurrencyRateRow {
 
 /**
  * Polls `GET /api/company/currency-rates` until a row matching `from`/`to` with a NON-manual source
- * appears, or ~20s (bounded) elapse - the same "an async worker will eventually do X" bounded-polling
- * shape `waitForDuplicate` (29-document-recurrence.cy.ts) already holds for its own sweep, rather than
- * a fixed `cy.wait` that either wastes time or, under CI contention, is not long enough.
+ * appears, or a few seconds (bounded) elapse - the sweep itself ran as a real, already-triggered
+ * BullMQ job by the time this is called, so this only ever covers the brief gap between enqueuing it
+ * and the worker finishing, the same "an async worker will eventually do X" bounded-polling shape
+ * `waitForDuplicate` (29-document-recurrence.cy.ts) already holds for its own sweep.
  */
 function waitForAutomaticRate(
 	from: string,
@@ -40,7 +51,7 @@ function waitForAutomaticRate(
 		.then((rates: CurrencyRateRow[]) => {
 			const match = rates.find((r) => r.from === from && r.to === to && r.source !== "manual");
 			if (match || attemptsLeft <= 0) return cy.wrap(rates);
-			cy.wait(1000);
+			cy.wait(200);
 			return waitForAutomaticRate(from, to, attemptsLeft - 1);
 		});
 }
@@ -101,8 +112,10 @@ describe("The currency-rate sweep derives the pairs a company actually uses (#57
 				expect(res.status, "USD invoice draft created").to.be.oneOf([200, 201]);
 			});
 
-		// Never typed by hand - the whole point of this spec. The sweep (every 5s on this stack,
-		// CURRENCY_RATE_SWEEP_INTERVAL_MS) is what has to derive and insert this pair on its own.
+		// Never typed by hand - the whole point of this spec. A real, on-demand sweep pass (see this
+		// file's own header) is what has to derive and insert this pair on its own.
+		cy.task("triggerCurrencyRateSweep");
+
 		waitForAutomaticRate("USD", "EUR").then((rates) => {
 			const usdRow = rates.find((r) => r.from === "USD" && r.to === "EUR");
 			expect(usdRow, "an automatic USD->EUR row exists").to.exist;
