@@ -1,4 +1,4 @@
-import { ALL_DOMESTIC_REVERSE_CHARGE_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryDomesticReverseChargeFile, DomesticReverseChargeCategoryFact } from './schema';
 
 function buildIndex(
@@ -7,6 +7,27 @@ function buildIndex(
   const index: Record<string, CountryDomesticReverseChargeFile> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `domesticReverseCharge`
+ * section from the composed per-country view, instead of this catalog's own `data/all.ts` directly.
+ * No import cycle results, because `countries/compose.ts` reads the RAW loader
+ * (`domestic-reverse-charge/data/all.ts`'s own `ALL_DOMESTIC_REVERSE_CHARGE_FILES`), never this
+ * registry: see that file's own header. The dependency direction is therefore one-way: this file
+ * depends on `countries/registry.ts`, which depends on `countries/compose.ts`, which depends on
+ * `domestic-reverse-charge/data/all.ts`; nothing depends back on this file from inside that chain. A
+ * country with no `domesticReverseCharge` section in the composed view is simply left out here, the
+ * same "no permissive fallback" this catalog already held when it read
+ * `ALL_DOMESTIC_REVERSE_CHARGE_FILES` directly.
+ */
+function domesticReverseChargeFromComposedCatalog(): CountryDomesticReverseChargeFile[] {
+  const files: CountryDomesticReverseChargeFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const domesticReverseCharge = defaultComposedCountryCatalog.get(countryCode)?.domesticReverseCharge;
+    if (domesticReverseCharge) files.push(domesticReverseCharge);
+  }
+  return files;
 }
 
 /**
@@ -22,11 +43,16 @@ function buildIndex(
  * A future caller either injects this class as a plain provider once one exists, or imports
  * `defaultCatalog` directly the way a pure function would — this repository's own precedent for a
  * catalog with no reader yet, not a decision unique to this one.
+ *
+ * The constructor still takes a plain `CountryDomesticReverseChargeFile[]` (never the composed
+ * catalog itself), so an explicit, smaller list still works exactly as before for every existing
+ * caller and test (e.g. `new DomesticReverseChargeCatalog([FR_FIXTURE])`): only the NO-ARGUMENT
+ * default changed where it reads from.
  */
 export class DomesticReverseChargeCatalog {
   private readonly files: Record<string, CountryDomesticReverseChargeFile>;
 
-  constructor(files: CountryDomesticReverseChargeFile[] = ALL_DOMESTIC_REVERSE_CHARGE_FILES) {
+  constructor(files: CountryDomesticReverseChargeFile[] = domesticReverseChargeFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 

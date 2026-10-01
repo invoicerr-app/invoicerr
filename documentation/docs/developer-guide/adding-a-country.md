@@ -175,11 +175,29 @@ signature (`CountryFieldOverlayFile[]`), same one-way dependency chain
 reads `country-fields/data/all.ts`, never the other way), same "nothing moved, only where the default
 reads from changed" scope.
 
-The steps that follow (not yet done, tracked on issue #603) repeat this same registry-constructor
-change for each remaining mechanism WITHOUT a DB mirror, then the three WITH one, then physically
-relocate the per-country JSON files themselves, one country at a time, France first. Writing a new
-country's file today still means writing it exactly where this page already says to, nothing here
-changes the steps above.
+**Step 4** repeats the exact same move for every remaining mechanism WITHOUT a DB mirror, batched
+into one pull request (the owner's own call, so the identical change lands in one review instead of
+nine): `correction-routes`, `transports/channel-policy`, `tax/tax-systems`, `vat-currency`,
+`content-requirements`, `mentions`, `archive/retention`, `reporting`, `domestic-reverse-charge`. Each
+catalog's own `registry.ts` gets the same three-line change step 2 and step 3 already proved: a
+`<section>FromComposedCatalog()` helper reads `defaultComposedCountryCatalog.get(cc)?.<section>` for
+every country the composed view knows, and only the no-argument constructor default is repointed at
+it. Same unchanged constructor signature for all nine catalogs (each still takes its own plain
+`CountryXFile[]`), same one-way dependency chain (`<catalog>/registry.ts` reads
+`countries/registry.ts`, which reads `countries/compose.ts`, which reads `<catalog>/data/all.ts`,
+never the other way), same "nothing moved, only where the default reads from changed" scope.
+`tax/tax-systems/registry.ts` is the one catalog here with a second constructor parameter
+(`vatRateCatalog`, already defaulting to `defaultVatRateCatalog` since step 2); that parameter is
+untouched, only the `files` parameter's own default changed. `correction-routes` has no dedicated
+`registry.spec.ts`; its no-argument constructor is exercised instead by `correction-routes.spec.ts`
+(`resolveCorrectionRoutesForCountry`, which reads `defaultCorrectionRoutesCatalog` directly) and by
+`countries/compose.spec.ts`.
+
+The step that follows (not yet done, tracked on issue #603) plugs the three mechanisms WITH a DB
+mirror (`country-policy`, `country-identifiers`, `b2g-routing`) onto the composed view without
+touching their reseed/seed services, then physically relocates the per-country JSON files
+themselves, one country at a time, France first. Writing a new country's file today still means
+writing it exactly where this page already says to, nothing here changes the steps above.
 
 ### Maintainer note: `domesticInvoiceCurrency`, a currency-of-account rule, not a new mechanism
 
