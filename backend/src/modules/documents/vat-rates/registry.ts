@@ -1,4 +1,4 @@
-import { ALL_VAT_RATE_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryVatRatesFile, VatRateFact } from './schema';
 
 function buildIndex(files: CountryVatRatesFile[]): Record<string, CountryVatRatesFile> {
@@ -8,15 +8,40 @@ function buildIndex(files: CountryVatRatesFile[]): Record<string, CountryVatRate
 }
 
 /**
+ * The default catalog content (issue #603 step 2): every country's own `vatRates` section from the
+ * composed per-country view, instead of this catalog's own `data/all.ts` directly. No import cycle
+ * results, because `countries/compose.ts` reads the RAW loader (`vat-rates/data/all.ts`'s own
+ * `ALL_VAT_RATE_FILES`), never this registry: see that file's own header. The dependency direction
+ * is therefore one-way: this file depends on `countries/registry.ts`, which depends on
+ * `countries/compose.ts`, which depends on `vat-rates/data/all.ts`; nothing depends back on this
+ * file from inside that chain. A country with no `vatRates` section in the composed view (none of
+ * the 14 catalogs currently omits it for a shipped country, but the composed view itself makes no
+ * such promise) is simply left out here, the same "no permissive fallback" this catalog already held
+ * when it read `ALL_VAT_RATE_FILES` directly.
+ */
+function vatRatesFromComposedCatalog(): CountryVatRatesFile[] {
+  const files: CountryVatRatesFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const vatRates = defaultComposedCountryCatalog.get(countryCode)?.vatRates;
+    if (vatRates) files.push(vatRates);
+  }
+  return files;
+}
+
+/**
  * In-memory view of the VAT rate catalog files — the same role country-fields/registry.ts's
  * `CountryFieldOverlayCatalog` and country-policy/registry.ts's `CountryPolicyCatalog` play for
  * their own concerns. `descriptors/company-view.ts` is the only consumer: it reads `ratesFor`
  * (through `vatRateFieldOptions` below) to fill a 'select' field's `options` per company.
+ *
+ * The constructor still takes a plain `CountryVatRatesFile[]` (never the composed catalog itself),
+ * so an explicit, smaller list still works exactly as before for every existing caller and test
+ * (e.g. `new VatRateCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where it reads from.
  */
 export class VatRateCatalog {
   private readonly files: Record<string, CountryVatRatesFile>;
 
-  constructor(files: CountryVatRatesFile[] = ALL_VAT_RATE_FILES) {
+  constructor(files: CountryVatRatesFile[] = vatRatesFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 
