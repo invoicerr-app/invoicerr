@@ -132,6 +132,35 @@ You will rarely need all of these for a new country. A country whose only need i
 engine compute a destination rate for it" needs *only* `tax/tax-systems/data/xx.json` — see
 `tax/tax-systems/data/all.ts`'s own header for the EU member states added purely for that reason.
 
+### The composed per-country view — the future single entry point
+
+Issue #603 (owner decision, 2026-10-01) is a multi-step migration toward **one JSON file per
+country** instead of one file per mechanism: today's dozen-plus catalogs above each read their own
+`data/<cc>.json`, so a single country's facts are spread across that many files (France alone across
+all fourteen). The target is a single `countries/<cc>.json` per country, with the mechanisms above
+becoming sections of it.
+
+**Step 1** (this page's current state) adds `backend/src/modules/documents/countries/compose.ts` and
+`registry.ts` — a read-only view that groups every one of the 14 existing catalogs' already-loaded,
+already-validated files by country code into one `ComposedCountryView` object per country, with one
+optional field per mechanism: `policy`, `identifiers`, `correctionRoutes`, `vatRates`, `taxSystem`,
+`vatCurrency`, `channelPolicy`, `retention`, `mentions`, `reporting`, `domesticReverseCharge`,
+`countryFields`, `contentRequirements`, `b2gRouting`.
+
+:::info[Nothing moved yet]
+Step 1 reads the existing files through the existing loaders and validators — it does not move a
+single `data/<cc>.json`, and no catalog's own `registry.ts` reads the composed view yet. A section is
+present on the composed object if and only if that mechanism already has a file for that country;
+`compose.spec.ts` proves this with a deep-equality test against every existing loader, country by
+country and section by section, plus a pinned coverage matrix so a mechanism silently gaining or
+losing a country is a visible, named test failure rather than a silent diff.
+:::
+
+The steps that follow (not yet done, tracked on issue #603) move one mechanism's own `registry.ts`
+at a time onto the composed view, then physically relocate the per-country JSON files themselves,
+one country at a time, France first. Writing a new country's file today still means writing it
+exactly where this page already says to — nothing here changes the steps above.
+
 ### Maintainer note: `domesticInvoiceCurrency`, a currency-of-account rule, not a new mechanism
 
 Issue #558 (Algeria) added one more OPTIONAL fact to `country-policy/schema.ts`'s
