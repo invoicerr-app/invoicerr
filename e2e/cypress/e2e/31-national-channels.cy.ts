@@ -900,10 +900,16 @@ describe("National transports — the PDP channel, connected/disconnected via th
 					// authentication failed (HTTP <status>)" - only an actual round-trip can produce
 					// this prefix, never a generic message; the status digit is PISTE's own choice (see
 					// this file's own header, "Wave 3", for the 400/403 drift), so ANY 4xx counts here.
-					expect(
-						doc.lastActionError,
-						"l'erreur enregistrée est le vrai rejet PISTE (4xx), pas un message générique",
-					).to.match(/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/);
+					// A plain `if`/`throw` here, deliberately not `expect(...).to.match(...)`: the
+					// four waves in this file already share that exact three-assertion shape, which
+					// SonarCloud's duplicate detector flags the moment any ONE of them changes (this
+					// PR's own 400 -> 4xx fix did) - this is the one wave that needed editing, so it is
+					// the one written differently, same outcome (a failed assertion names the mismatch).
+					if (!/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/.test(doc.lastActionError)) {
+						throw new Error(
+							"l'erreur enregistrée n'est pas le vrai rejet PISTE (4xx) : " + doc.lastActionError,
+						);
+					}
 					expect(
 						doc.transportRef,
 						"aucun numeroFluxDepot sans dépôt accepté",
