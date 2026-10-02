@@ -185,7 +185,7 @@ const TAB_GROUPS: TabGroup[] = [
         icon: ShieldCheck,
         adminOnly: true,
       },
-      // Portugal only — see the `requiresAtcud` filter in the component below.
+      // Portugal only - see the `requiresAtcud` filter in the component below.
       { value: "atcud", labelKey: "settings.tabs.atcud", labelDefault: "ATCUD", icon: Hash, adminOnly: true },
       { value: "mail", labelKey: "settings.tabs.mail", labelDefault: "Mail", icon: Server, adminOnly: true },
     ],
@@ -272,7 +272,7 @@ export default function Settings() {
 
   // "atcud" only ever applies to a company whose country declares the "ATCUD" validation-code
   // scheme (issue #603: backend's `country-policy/schema.ts#DocumentValidationCodeFact`, Portugal
-  // only today) — see `atcud.settings.tsx`'s own header. Hidden here rather than merely showing an
+  // only today) - see `atcud.settings.tsx`'s own header. Hidden here rather than merely showing an
   // empty/inapplicable screen: a French or Polish company has no reason to ever see a nav entry for
   // a Portuguese-only legal requirement. The component itself still gates on the SAME check
   // (`requiresAtcud`) if this tab is ever reached directly (e.g. a stale bookmark from before the

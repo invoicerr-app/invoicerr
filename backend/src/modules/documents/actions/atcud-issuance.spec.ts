@@ -121,7 +121,7 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
 // shows the SAME fact-based decision for a country that is not Portugal, and the opposite decision
 // for Portugal itself when the fact's scheme does not say "ATCUD" - something a bare `=== 'PT'`
 // check could never express.
-describe('ensureAtcudIssuable — driven by the documentValidationCode fact, not a country literal', () => {
+describe('ensureAtcudIssuable - driven by the documentValidationCode fact, not a country literal', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

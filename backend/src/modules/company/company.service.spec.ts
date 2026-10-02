@@ -185,7 +185,7 @@ describe('CompanyService — mass-assignment allow-list', () => {
  * enforcement gate, and the frontend's `-[tab].tsx`/`atcud.settings.tsx` for the two readers of this
  * exact field.
  */
-describe('CompanyService#getCompanyInfo — issue #603: documentValidationCode', () => {
+describe('CompanyService#getCompanyInfo - issue #603: documentValidationCode', () => {
   let service: CompanyService;
 
   beforeAll(() => {

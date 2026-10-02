@@ -32,13 +32,13 @@ ATCUD registered for its series (null, blank, or the pre-regulation `"0"` placeh
 manual still names for an unregistered sender) is refused before the declaration is even sent,
 journaled as failed with the reason, rather than declared with a value that is not really its own.
 
-Whether a company sees the ATCUD feature at all — the settings tab, the ATCUD series screen, the
-preflight that blocks sending without a registered code — is itself decided from data, not from a
+Whether a company sees the ATCUD feature at all - the settings tab, the ATCUD series screen, the
+preflight that blocks sending without a registered code - is itself decided from data, not from a
 Portugal-specific branch: `countries/data/pt.json`'s own `policy.documentValidationCode` fact
 (`scheme: "ATCUD"`, sourced to the same Portaria n.º 195/2020 art. 4.º n.º 1 quoted above) is the one
 fact `actions/atcud-issuance.ts`, `company/company.service.ts` and both frontend readers
 (`settings/-[tab].tsx`, `settings/_components/atcud.settings.tsx`) check, through
-`GET /api/company/info`'s own `documentValidationCode` field — see [Adding a
+`GET /api/company/info`'s own `documentValidationCode` field - see [Adding a
 country](../docs/developer-guide/adding-a-country.md)'s own maintainer note on that fact for the
 full design. Another country would turn the feature on for itself by declaring the same fact under
 its own scheme name, never by adding a second country-code branch here.

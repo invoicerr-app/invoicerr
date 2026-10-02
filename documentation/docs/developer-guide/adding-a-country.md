@@ -339,8 +339,8 @@ type.
 ### Maintainer note: `documentValidationCode`, a company-level validation-code scheme
 
 Issue #603 (audit section 1, row 3 / section 5, row B) replaced four independent `=== 'PT'` /
-`!== 'PT'` literals — two in the backend (`actions/atcud-issuance.ts`, `company/company.service.ts`),
-two in the frontend (the settings tab, the ATCUD settings screen) — with one more OPTIONAL fact on
+`!== 'PT'` literals - two in the backend (`actions/atcud-issuance.ts`, `company/company.service.ts`),
+two in the frontend (the settings tab, the ATCUD settings screen) - with one more OPTIONAL fact on
 `country-policy/schema.ts`'s `CountryDocumentPolicyFile`: `documentValidationCode`.
 
 ```json
@@ -353,11 +353,11 @@ two in the frontend (the settings tab, the ATCUD settings screen) — with one m
 
 `scheme` is a plain, generic name, never a boolean "requiresAtcud": Portugal's own scheme is the
 ATCUD (Decreto-Lei n.º 28/2019, art. 7.º n.º 3; Portaria n.º 195/2020), but the fact names the scheme
-rather than assuming it is the only one that will ever exist — another country may one day require
+rather than assuming it is the only one that will ever exist - another country may one day require
 its own code under its own name, and would declare it here with a different `scheme` string, never
 by adding a second boolean flag. `provenance` is mandatory like every other fact in this file,
 validated both at load time (`countries/data/all.ts`) and at seed time (`seed.ts`) even though this
-fact is file-only and never mirrored to a DB row — the same belt-and-braces validation
+fact is file-only and never mirrored to a DB row - the same belt-and-braces validation
 `invoiceValidation` above already has. Absence means "no validation-code scheme for this country",
 the same "no permissive fallback" discipline every fact here holds; every shipped country but
 Portugal omits it.
@@ -365,7 +365,7 @@ Portugal omits it.
 This is deliberately separate from the PER-DOCUMENT-TYPE `numbering` facts the same file already
 declares (`requirement: 'atcud-required'`, on "invoice" and "credit-note" for Portugal): those say
 WHICH document types carry the code once numbered; `documentValidationCode` only answers whether the
-company's country has such a scheme AT ALL — the single, company-level question the four replaced
+company's country has such a scheme AT ALL - the single, company-level question the four replaced
 literals actually asked, read once from `registry.ts#documentValidationCodeFor` instead of four
 independent copies of the same country-code comparison:
 

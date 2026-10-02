@@ -37,7 +37,7 @@ interface AtcudSeriesRow {
   updatedAt: string
 }
 
-/** Whether this company's country requires the "ATCUD" validation-code scheme (issue #603) — reads
+/** Whether this company's country requires the "ATCUD" validation-code scheme (issue #603) - reads
  *  the SAME backend-computed fact `GET /api/company/info` already carries
  *  (`country-policy/schema.ts#DocumentValidationCodeFact`), never a country-code literal decided
  *  here. A UX convenience only, never the enforcement:
@@ -46,7 +46,7 @@ interface AtcudSeriesRow {
  *  company's real, server-resolved country
  *  (`country-policy/country-policy.ts#resolveCompanyCountryCode`). A company reaching this screen
  *  with a country that declares no such scheme simply sees the same "not applicable" message a
- *  French or German company would — never a hard error. */
+ *  French or German company would - never a hard error. */
 function requiresAtcud(company: CompanyInfo | null): boolean {
   return company?.documentValidationCode?.scheme === "ATCUD"
 }
