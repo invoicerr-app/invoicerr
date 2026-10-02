@@ -961,8 +961,12 @@ export default defineConfig({
          */
         async extractPdfText(base64: string): Promise<string> {
           const buffer = Buffer.from(base64, "base64");
-          const parsed = await pdfParse(buffer);
-          return parsed.text;
+          // pdfjs-dist's first parse under Node 24 intermittently throws on good bytes; retry once.
+          try {
+            return (await pdfParse(buffer)).text;
+          } catch {
+            return (await pdfParse(Buffer.from(buffer))).text;
+          }
         },
 
         // See this file's own header just above ("SEPA/EPC069-12 QR content proof") for why this
