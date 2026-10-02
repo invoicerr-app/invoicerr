@@ -4,19 +4,9 @@ FROM --platform=$BUILDPLATFORM node:24-bookworm AS backend-builder
 # no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
 # points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
 #
-# bookworm, not bullseye: the runtime stage below is `ghcr.io/invoicerr-app/server-image`, itself
-# `nginx:bookworm`. Prisma's own engine binary is tagged by Debian release + OpenSSL version
-# (installed here as `schema-engine-debian-openssl-3.0.x`), not by Node version, so matching the
-# runtime's Debian release removes that doubt directly rather than relying on bullseye's older
-# glibc being forward-compatible with bookworm's, which is what the previous
-# bullseye-builder/bookworm-runtime split was quietly counting on.
-# 24, not 22: server-image moved to Node 24 (see invoicerr#622 and server-image's own PR) because
-# Node 22's bundled chromium had unfixed CVEs forcing a base-image rebuild. Some transitive deps
-# (e.g. msgpackr-extract, pulled in by ioredis/bullmq) ship Node-ABI-specific prebuilt binaries
-# alongside an N-API fallback, so a builder/runtime Node mismatch would likely still resolve through
-# the fallback, but there is no reason to rely on that for every current and future native dep: the
-# builder tracks the runtime's Node major version so npm never has to guess which ABI to resolve at
-# require time.
+# bookworm, not bullseye: matches the runtime stage's own Debian release (server-image is
+# nginx:bookworm). 24, not 22: matches the runtime's Node, so native deps never cross a Node-ABI
+# boundary between builder and runtime.
 
 WORKDIR /app
 
@@ -32,8 +22,7 @@ RUN DATABASE_URL=not_required npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM node:24-bookworm AS frontend-builder
-# Kept on the same Node major and Debian release as backend-builder above, purely for consistency
-# (the frontend build produces static assets only, nothing from this stage is Node-ABI sensitive).
+# Matches backend-builder's version for consistency only; this stage has no native deps.
 
 WORKDIR /app
 
