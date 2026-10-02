@@ -51,11 +51,13 @@ import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
-/** Every country code with a `data/xx.json` file next to this loader, sorted for a deterministic
- *  load order - the same discovery discipline every one of the 14 catalogs' own (now-removed)
- *  per-country loader already held for its own directory, one level up. */
-function discoverCountryCodes(): string[] {
-  return readdirSync(__dirname)
+/** Every country code with a `data/xx.json` file in `dir`, sorted for a deterministic load order -
+ *  the same discovery discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ *  already held for its own directory, one level up. Takes `dir` explicitly (never reads `__dirname`
+ *  itself) so a test can point this at an isolated temporary directory instead of the real, shipped
+ *  one - see `loadComposedCountryFilesFrom`'s own header for why that distinction exists at all. */
+function discoverCountryCodes(dir: string): string[] {
+  return readdirSync(dir)
     .filter((name) => COUNTRY_FILE_PATTERN.test(name))
     .map((name) => name.slice(0, -'.json'.length))
     .sort();
@@ -82,8 +84,8 @@ function assertSectionCountryCode(
   }
 }
 
-function loadCountryFile(code: string): ComposedCountryView {
-  const path = join(__dirname, `${code}.json`);
+function loadCountryFile(dir: string, code: string): ComposedCountryView {
+  const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
   const parsed = JSON.parse(raw) as ComposedCountryView;
   const filePath = `documents/countries/data/${code}.json`;
@@ -225,8 +227,21 @@ function loadCountryFile(code: string): ComposedCountryView {
   return parsed;
 }
 
+/** Discovers and validates every `<cc>.json` file in `dir` - the exact logic
+ *  `ALL_COMPOSED_COUNTRY_FILES` below runs against this module's own directory, exported here so a
+ *  test can run the SAME discovery/validation logic against an isolated temporary directory instead
+ *  of writing a fixture into the real, shipped `countries/data/` this module's own default reads
+ *  from. That directory is read CONCURRENTLY by every other spec file that imports this module (or
+ *  anything built on top of it) in a parallel vitest worker; a fixture written there and later
+ *  deleted raced one of those readers' own `readdirSync`/`readFileSync` pair before this function
+ *  existed (`all.spec.ts` used to `vi.resetModules()` and dynamically re-import this whole module
+ *  against the mutated real directory instead of calling a parameterized function like this one). */
+export function loadComposedCountryFilesFrom(dir: string): ComposedCountryView[] {
+  return discoverCountryCodes(dir).map((code) => loadCountryFile(dir, code));
+}
+
 /** One validated composed view per country with a `countries/data/<cc>.json` file - see this
  *  module's own header. This is the single source `compose.ts#ALL_COMPOSED_COUNTRIES` re-exports,
  *  and the single source every one of the 14 catalogs' own (now-derived) `ALL_XXX_FILES` ultimately
  *  comes from, through `defaultComposedCountryCatalog`. */
-export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = discoverCountryCodes().map(loadCountryFile);
+export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = loadComposedCountryFilesFrom(__dirname);

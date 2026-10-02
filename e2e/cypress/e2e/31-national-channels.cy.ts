@@ -42,9 +42,12 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (point 2 above), for the SAME reason: the PISTE OAuth/API hosts are FIXED per environment
  * (`chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`), never a configuration field. The test
  * therefore sends fake PISTE credentials to the REAL public sandbox `sandbox-oauth.piste.gouv.fr`,
- * which really rejects them — verified by hand before writing this test (direct `curl`: `HTTP 400
- * {"error":"invalid_client"}` in well under a second, never a network block — see
- * `choruspro-client.ts`'s own header for the same verification, done the same day). No
+ * which really rejects them - verified by hand before writing this test (direct `curl`: a genuine
+ * 4xx auth failure, `{"error":"invalid_client"}`, in well under a second, never a network block -
+ * see `choruspro-client.ts`'s own header for the same verification, done the same day). The EXACT
+ * status code the sandbox answers with has drifted once already (400 at verification time, 403
+ * seen later in CI) - PISTE's own choice, not this test's, so the assertion below checks for the
+ * real auth-failure message with ANY 4xx code, never one specific number. No
  * `country-policy` rule is needed here (France already has one) — this wave picks "chorus-pro" as
  * the company's FREE transport for an ordinary BUSINESS client, never through B2G routing (see
  * `40-b2g-routing.cy.ts` for the FR B2G path itself, with a GOVERNMENT client).
@@ -87,12 +90,12 @@ const FAKE_SDI = {
 	certificatePassword: "e2e-fake-cert-password",
 };
 
-/** Chorus Pro (FR, B2G) — see this file's own header, "Wave 3": both PISTE OAuth2 fields, garbage on
+/** Chorus Pro (FR, B2G) - see this file's own header, "Wave 3": both PISTE OAuth2 fields, garbage on
  *  purpose, sent to the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`), which rejects them for
- *  real (`HTTP 400 invalid_client`) — never a closed port, since these hosts are fixed by environment,
- *  not user-editable (see `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`). The technical-account
- *  pair's own CONTENT is irrelevant (never reached — PISTE auth fails first); only its PRESENCE
- *  matters, exactly like `FAKE_SDI`'s own certificate fields above. */
+ *  real (a 4xx `invalid_client` auth failure), never a closed port - these hosts are fixed by
+ *  environment, not user-editable (see `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`). The
+ *  technical-account pair's own CONTENT is irrelevant (never reached - PISTE auth fails first); only
+ *  its PRESENCE matters, exactly like `FAKE_SDI`'s own certificate fields above. */
 const FAKE_CHORUS_PRO = {
 	clientId: "e2e-fake-piste-client-id",
 	clientSecret: "e2e-fake-piste-client-secret",
@@ -894,16 +897,19 @@ describe("National transports — the PDP channel, connected/disconnected via th
 						doc.status,
 						'la facture est réellement "send_failed" en base',
 					).to.eq("send_failed");
-					// Same tightening as the KSeF test above — `/Chorus Pro/` alone would also match a
+					// Same tightening as the KSeF test above - `/Chorus Pro/` alone would also match a
 					// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
-					// `choruspro-client.ts` names the PISTE sandbox's own real rejection as an HTTP status
-					// (verified by hand — see this file's own header, "Wave 3": a genuine
-					// `HTTP 400 {"error":"invalid_client"}`), which only an actual round-trip to
-					// sandbox-oauth.piste.gouv.fr can produce.
+					// `choruspro-client.ts#_getToken` names the PISTE sandbox's own real rejection as
+					// "Chorus Pro PISTE authentication failed (HTTP <status>)" - only an actual round-
+					// trip to sandbox-oauth.piste.gouv.fr can produce this literal prefix at all, which
+					// is what this regex checks for, never a generic message. The STATUS CODE itself is
+					// PISTE's own choice, not asserted to one number: verified by hand as 400 when this
+					// test was written, observed as 403 later in CI (see this file's own header, "Wave
+					// 3") - both are a genuine auth failure, so any 4xx here is the real rejection.
 					expect(
 						doc.lastActionError,
-						"l'erreur enregistrée est le vrai rejet PISTE (HTTP 400), pas un message générique",
-					).to.match(/HTTP 400/);
+						"l'erreur enregistrée est le vrai rejet PISTE (4xx), pas un message générique",
+					).to.match(/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/);
 					expect(
 						doc.transportRef,
 						"aucun numeroFluxDepot sans dépôt accepté",
