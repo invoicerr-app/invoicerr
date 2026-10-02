@@ -61,6 +61,10 @@ jobs:
           npx --yes @lhci/cli@0.15.1 collect \
             --url=http://localhost:4173/auth/sign-in \
             --numberOfRuns=1
+          echo "--- debug: cwd and .lighthouseci contents ---"
+          pwd
+          find . -maxdepth 3 -iname "*lighthouseci*" -o -iname "lhr-*"
+          ls -la .lighthouseci || true
 
       - name: Upload the Lighthouse report
         if: always()
