@@ -4,6 +4,7 @@ import {
   CountryNumberFormats,
   DocumentActionRuleFact,
   DocumentNumberingFact,
+  DocumentValidationCodeFact,
   DomesticInvoiceCurrencyFact,
   InvoiceValidationFact,
 } from './schema';
@@ -114,6 +115,16 @@ export class CountryPolicyCatalog {
    *  discipline every other reader here holds - see schema.ts's own `InvoiceValidationFact` header. */
   invoiceValidationFor(countryCode: string): InvoiceValidationFact | undefined {
     return this.files[(countryCode ?? '').toUpperCase()]?.invoiceValidation;
+  }
+
+  /** Whether this country requires a validation-code scheme on its own documents (issue #603) -
+   *  file-only, like `invoiceValidationFor` above. `undefined` for a country with no such scheme
+   *  declared (every shipped country but Portugal today): there is no fallback scheme, the same "no
+   *  permissive fallback" discipline every other reader here holds - see schema.ts's own
+   *  `DocumentValidationCodeFact` header. The single replacement for the four independent `=== 'PT'`
+   *  literals this catalog's own AUDIT_DONNEES_PAYS.md named (section 1, row 3). */
+  documentValidationCodeFor(countryCode: string): DocumentValidationCodeFact | undefined {
+    return this.files[(countryCode ?? '').toUpperCase()]?.documentValidationCode;
   }
 }
 

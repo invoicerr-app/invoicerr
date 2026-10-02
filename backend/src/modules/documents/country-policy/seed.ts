@@ -18,6 +18,7 @@
  * own seed.ts used, and `InvitationsService.spec` before that.
  */
 import {
+  assertValidDocumentValidationCodeFact,
   assertValidInvoiceValidationFact,
   assertValidNumberingProvenance,
   assertValidProvenance,
@@ -173,6 +174,14 @@ export async function seedCountryPolicies(
     const invoiceValidation = catalog.invoiceValidationFor(countryCode);
     if (invoiceValidation) {
       assertValidInvoiceValidationFact(invoiceValidation, `seedCountryPolicies(${countryCode})`);
+    }
+    // `documentValidationCode` (issue #603) - VALIDATE ONLY, same file-only posture as
+    // `invoiceValidation` above: nothing outside the in-memory catalog reads this fact at runtime,
+    // but a catalog built by hand must still be refused here, before any row for ANY country is
+    // written, never trusted just because it is the one data/all.ts happened to load.
+    const documentValidationCode = catalog.documentValidationCodeFor(countryCode);
+    if (documentValidationCode) {
+      assertValidDocumentValidationCodeFact(documentValidationCode, `seedCountryPolicies(${countryCode})`);
     }
   }
 

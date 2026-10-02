@@ -26,6 +26,7 @@ import type { ComposedCountryView } from '../compose';
 
 import { assertValidNumberFormats } from '../../country-policy/number-formats';
 import {
+  assertValidDocumentValidationCodeFact,
   assertValidDomesticInvoiceCurrencyFact,
   assertValidInvoiceValidationFact,
   assertValidNumberingProvenance,
@@ -122,6 +123,9 @@ function loadCountryFile(code: string): ComposedCountryView {
     }
     if (policy.invoiceValidation) {
       assertValidInvoiceValidationFact(policy.invoiceValidation, `${filePath}#policy`);
+    }
+    if (policy.documentValidationCode) {
+      assertValidDocumentValidationCodeFact(policy.documentValidationCode, `${filePath}#policy`);
     }
   }
 

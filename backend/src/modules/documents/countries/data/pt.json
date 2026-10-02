@@ -499,6 +499,15 @@
         "onViolation": "A running series without the \"TYPE SERIES/NUMBER\" shape cannot carry an ATCUD. The country format then applies from the next number, which starts a NEW series (\"FT A\" or \"NC A\"): its AT validation code must be registered before the first document in it (FAQ 4308). The counter is not reset, so the new series starts at the next number rather than at 1; the starting number is declared when the series is communicated to the AT.",
         "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. NOT READ, would confirm the last sentence: the AT's series-communication form or webservice specification, for the field that declares a new series' first sequential number."
       }
+    },
+    "documentValidationCode": {
+      "scheme": "ATCUD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Issue #603 (audit section 1, row 3 / section 5, row B). Decreto-Lei n.º 28/2019, art. 7.º n.º 3, and Portaria n.º 195/2020, art. 4.º n.º 1 - the same citation this file's own `numbering` facts above already quote for \"invoice\"/\"credit-note\" atcud-required. This fact is the COMPANY-LEVEL one, read instead of the four `=== 'PT'` literals the audit named (`actions/atcud-issuance.ts`, `company/company.service.ts`, the settings tab, the ATCUD settings screen): it answers only whether Portugal's companies have a validation-code scheme AT ALL. WHICH document types carry it once numbered stays the `numbering` facts' own concern above, never duplicated here."
     }
   },
   "identifiers": {

@@ -84,6 +84,12 @@ export interface Company {
   revenueBasis?: string | null
   /** "monthly" or "quarterly" - see backend's Company.revenuePeriod schema.prisma comment. */
   revenuePeriod?: string | null
+  /** Issue #603 - whether this company's country requires a validation-code scheme on its own
+   *  documents (e.g. Portugal's ATCUD, Decreto-Lei n.º 28/2019 art. 7.º n.º 3 / Portaria n.º
+   *  195/2020) - computed backend-side from the country's own `documentValidationCode` fact
+   *  (backend's `country-policy/schema.ts`), never decided here from `country`/`countryCode`. Null
+   *  for a country with no such scheme declared (every shipped country but Portugal today). */
+  documentValidationCode?: { scheme: string } | null
 }
 
 /** `GET /api/company/revenue-settings` - the RESOLVED basis/period (explicit choice, or the computed

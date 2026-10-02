@@ -20,8 +20,11 @@
  *    re-predicts one) and persists `DocumentInstance.atcud`. A pure re-check of what
  *    `ensureAtcudIssuable` already approved - see its own header for why it therefore never throws.
  *
- * Both are no-ops for every company whose resolved country is not Portugal - a single
- * `resolveCompanyCountryCode` call, no further reads, no further writes. This is what
+ * Both are no-ops for every company whose resolved country has no "ATCUD" `documentValidationCode`
+ * fact declared (issue #603 - `country-policy/schema.ts`'s own header, `countries/data/pt.json
+ * (section "policy")`) - a `resolveCompanyCountryCode` call plus one in-memory catalog lookup, no
+ * further reads, no further writes. Today only Portugal declares that fact, so this is behaviourally
+ * identical to the `countryCode !== 'PT'` check it replaces. This is what
  * `documents.service.invoice.spec.ts`'s "a non-Portuguese invoice's output is byte-for-byte unchanged"
  * coverage actually rests on: neither function does anything else before that check.
  */
@@ -31,6 +34,7 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { defaultCountryPolicyCatalog } from '../country-policy/registry';
 import { resolveCompanyNumberFormat } from '../numbering/company-number-format';
 import {
   AtcudFormatIncompatibleError,
@@ -73,7 +77,8 @@ export async function ensureAtcudIssuable(
   now: Date = new Date(),
 ): Promise<void> {
   const countryCode = await resolveCompanyCountryCode(companyId);
-  if (countryCode !== 'PT') return;
+  const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode ?? '');
+  if (documentValidationCode?.scheme !== 'ATCUD') return;
 
   const label = ATCUD_TYPE_LABEL[typeId];
   // Issue #496: the format is Portugal's own (`countries/data/pt.json (section "policy")`: "FT A/{number}" for an
@@ -145,7 +150,8 @@ export async function attachAtcudToNumberedDocument(
 ): Promise<void> {
   try {
     const countryCode = await resolveCompanyCountryCode(companyId);
-    if (countryCode !== 'PT') return;
+    const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode ?? '');
+    if (documentValidationCode?.scheme !== 'ATCUD') return;
 
     const { pattern } = await resolveCompanyNumberFormat(companyId, typeId);
     const { seriesId, sequentialNumber } = splitAtcudDisplayNumber(numbered.displayNumber, pattern);

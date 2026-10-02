@@ -336,6 +336,55 @@ over any action an `ActionRegistry` declares `actionLocksDocument` for, not invo
 validate-specific; only the registration body choosing WHEN to answer `transmits: true` differs per
 type.
 
+### Maintainer note: `documentValidationCode`, a company-level validation-code scheme
+
+Issue #603 (audit section 1, row 3 / section 5, row B) replaced four independent `=== 'PT'` /
+`!== 'PT'` literals — two in the backend (`actions/atcud-issuance.ts`, `company/company.service.ts`),
+two in the frontend (the settings tab, the ATCUD settings screen) — with one more OPTIONAL fact on
+`country-policy/schema.ts`'s `CountryDocumentPolicyFile`: `documentValidationCode`.
+
+```json
+"documentValidationCode": {
+  "scheme": "ATCUD",
+  "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "2026-09-28" },
+  "notes": "optional free text"
+}
+```
+
+`scheme` is a plain, generic name, never a boolean "requiresAtcud": Portugal's own scheme is the
+ATCUD (Decreto-Lei n.º 28/2019, art. 7.º n.º 3; Portaria n.º 195/2020), but the fact names the scheme
+rather than assuming it is the only one that will ever exist — another country may one day require
+its own code under its own name, and would declare it here with a different `scheme` string, never
+by adding a second boolean flag. `provenance` is mandatory like every other fact in this file,
+validated both at load time (`countries/data/all.ts`) and at seed time (`seed.ts`) even though this
+fact is file-only and never mirrored to a DB row — the same belt-and-braces validation
+`invoiceValidation` above already has. Absence means "no validation-code scheme for this country",
+the same "no permissive fallback" discipline every fact here holds; every shipped country but
+Portugal omits it.
+
+This is deliberately separate from the PER-DOCUMENT-TYPE `numbering` facts the same file already
+declares (`requirement: 'atcud-required'`, on "invoice" and "credit-note" for Portugal): those say
+WHICH document types carry the code once numbered; `documentValidationCode` only answers whether the
+company's country has such a scheme AT ALL — the single, company-level question the four replaced
+literals actually asked, read once from `registry.ts#documentValidationCodeFor` instead of four
+independent copies of the same country-code comparison:
+
+- `actions/atcud-issuance.ts`'s `ensureAtcudIssuable` (preflight) and `attachAtcudToNumberedDocument`
+  (post-numbering) both no-op unless the company's resolved country's fact has `scheme === 'ATCUD'`.
+- `company/company.service.ts#declareLastNumberIssued` routes to the Portugal-specific
+  `declarePortugalNewSeries` under the same condition, instead of the generic pattern-declaration
+  path every other country uses.
+- `GET /api/company/info` (`CompanyService#getCompanyInfo`) now returns a computed
+  `documentValidationCode` field (`{ scheme: string } | null`) alongside the raw company row, so the
+  frontend never re-derives the fact from `country`/`countryCode` itself. Both frontend readers
+  (`settings/-[tab].tsx`'s tab visibility, `settings/_components/atcud.settings.tsx`'s own screen
+  gate) check `company.documentValidationCode?.scheme === "ATCUD"` against that same field.
+
+A country adding its own validation-code scheme one day needs no frontend change for the PRESENCE
+check above (it is generic over the field), but the ATCUD computation itself
+(`numbering/atcud.ts`, `actions/atcud-issuance.ts`) stays Portugal-specific code: a second scheme
+would still need its own implementation, this fact only lets the gate find it without a new literal.
+
 ### Maintainer note: a mention whose value changes on a schedule
 
 A mention's `noteValues` table is not always a one-time fact. France's late-payment penalty rate
