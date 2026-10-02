@@ -14,7 +14,7 @@ import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { DocumentFormatParty } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
-import { fatturapaFormatProvider } from './fatturapa-provider';
+import { fatturapaFormatProvider, mapNatura } from './fatturapa-provider';
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -399,6 +399,30 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
 
       const xml = flatten(new TextDecoder().decode(result.bytes));
       expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N2</Natura>');
+    });
+  });
+
+  // Issue #603 (owner review round): `mapNatura`'s domestic guard used to compare the buyer against
+  // the literal `'IT'` - this provider only ever builds for an Italian seller in practice, but the
+  // function itself named no country any more once it took `sellerCountry` as its own parameter
+  // instead. These three cases exercise the exported function directly, proving it is genuinely
+  // parameterized (not just IT re-spelled as a variable) - a seller established somewhere other than
+  // Italy would get the exact same domestic/cross-border logic.
+  describe('mapNatura - the domestic guard is parameterized by sellerCountry, never a literal', () => {
+    it('buyer established in the SAME country as the seller - domestic, never N6, regardless of EU membership', () => {
+      expect(mapNatura(0, undefined, 'IT', 'IT12345678901', 'IT')).toBe('N2');
+      expect(mapNatura(0, undefined, 'FR', 'FR12345678901', 'FR')).toBe('N2');
+    });
+
+    it('buyer in a DIFFERENT EU country than the seller, with a VAT id - cross-border reverse charge, N6', () => {
+      expect(mapNatura(0, undefined, 'DE', 'DE123456789', 'IT')).toBe('N6');
+      // Symmetric: an Italian buyer is cross-border for a FRENCH seller too - the guard names no
+      // country, so this works in both directions.
+      expect(mapNatura(0, undefined, 'IT', 'IT12345678901', 'FR')).toBe('N6');
+    });
+
+    it('buyer in a non-EU/GCC country - never N6, regardless of the seller', () => {
+      expect(mapNatura(0, undefined, 'US', 'US123456789', 'IT')).toBe('N2');
     });
   });
 });

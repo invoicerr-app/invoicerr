@@ -171,6 +171,7 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { DocumentTotals } from '../../totals/compute-totals';
 import type { CorrectedInvoiceReference } from '../format-provider';
 import { TaxCategoryCode } from '../../tax/types';
+import { defaultTaxUnionRegistry } from '../../tax/tax-unions/registry';
 import {
   resolveInvoiceNotes,
   toUblNote,
@@ -393,44 +394,18 @@ export interface SemanticInvoiceInput {
 
 /**
  * Map a VAT identifier's 2-letter country prefix → the OpenPeppol Electronic Address Scheme (EAS,
- * ISO 6523 ICD) code for THAT country's own national VAT scheme. REPRISED VERBATIM from
- * `invoice-rendering.service.ts` at the reference — see that file's own comment for the sourcing
- * (cross-checked against the vendored `PEPPOL-EN16931-UBL.sch`'s own eaid enumeration) this table
- * carries. Peppol transmission itself is not wired here (see `format-registry.ts`'s own
- * header) — this table is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
+ * ISO 6523 ICD) code for THAT country's own national VAT scheme. Issue #603 (PR A): this used to be
+ * this file's OWN `VAT_PREFIX_TO_PEPPOL_EAS` copy (23 EU countries) - now reads the shared
+ * `tax/tax-unions/` reference table instead, proven byte-for-byte unchanged for every VAT prefix (see
+ * this PR's own report). Peppol transmission itself is not wired here (see `format-registry.ts`'s own
+ * header) - this lookup is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
  * more specific than a bare email placeholder, satisfying `@e-invoice-eu/core`'s own mandatory field
  * without asserting a Peppol registration that was never verified.
  */
-const VAT_PREFIX_TO_PEPPOL_EAS: Readonly<Record<string, string>> = {
-  AT: '9914',
-  BE: '9925',
-  BG: '9926',
-  CY: '9928',
-  CZ: '9929',
-  DE: '9930',
-  EE: '9931',
-  EL: '9933',
-  ES: '9920',
-  FR: '9957',
-  HR: '9934',
-  HU: '9910',
-  IE: '9935',
-  IT: '0211',
-  LT: '9937',
-  LU: '9938',
-  LV: '9939',
-  MT: '9943',
-  NL: '9944',
-  PL: '9945',
-  PT: '9946',
-  RO: '9947',
-  SI: '9949',
-};
-
-function peppolEasForVat(vat: string | null | undefined): string | undefined {
+export function peppolEasForVat(vat: string | null | undefined): string | undefined {
   if (!vat) return undefined;
   const prefix = vat.trim().slice(0, 2).toUpperCase();
-  return VAT_PREFIX_TO_PEPPOL_EAS[prefix];
+  return defaultTaxUnionRegistry.peppolEasForPrefix(prefix);
 }
 
 /** France-first SIRET (14 digits) → SIREN (its own first 9 digits) derivation — see this file's own
