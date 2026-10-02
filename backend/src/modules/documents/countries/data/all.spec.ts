@@ -69,19 +69,9 @@ describe('countries/data: every *.json on disk is actually loaded (drop-in invar
   });
 });
 
-// The literal "adding a country means creating ONE file" proof: drop a NEW country file into an
-// ISOLATED temporary directory and show `loadComposedCountryFilesFrom` (the exact function
-// `ALL_COMPOSED_COUNTRY_FILES` itself calls, against this module's own real directory) picks it up,
-// with NO change to `all.ts` or this spec's own import.
-//
-// Dev-CI-red fix: this used to write `zz.json` directly into the REAL, shipped `countries/data/`
-// (this spec's own `DATA_DIR`, `vi.resetModules()` + a dynamic `import('./all')` against it, then
-// delete the fixture in `afterEach`) - a race against every OTHER spec file that imports this module
-// (or anything built on it) in a CONCURRENT vitest worker: that worker's own `readdirSync` could list
-// `zz.json` right before this test's `afterEach` deleted it, and its own `readFileSync` then hit
-// ENOENT (seen in CI: `providers-vat-currency.spec.ts` failing with `ENOENT ... countries/data/
-// zz.json` at `all.ts:87`, a file this spec never even imports). A temporary directory this process
-// alone knows about removes the race entirely - no other spec reads from it, ever.
+// The literal "adding a country means creating ONE file" proof: drop a new file into an isolated
+// temporary directory (never the real, shipped one, which other specs read concurrently) and show
+// `loadComposedCountryFilesFrom` picks it up, with no change to `all.ts` or this spec's own import.
 describe('countries/data: a country file dropped in at runtime needs no code change', () => {
   let tmpDir: string;
 

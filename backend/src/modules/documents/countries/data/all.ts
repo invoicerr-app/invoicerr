@@ -53,9 +53,8 @@ const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
 /** Every country code with a `data/xx.json` file in `dir`, sorted for a deterministic load order -
  *  the same discovery discipline every one of the 14 catalogs' own (now-removed) per-country loader
- *  already held for its own directory, one level up. Takes `dir` explicitly (never reads `__dirname`
- *  itself) so a test can point this at an isolated temporary directory instead of the real, shipped
- *  one - see `loadComposedCountryFilesFrom`'s own header for why that distinction exists at all. */
+ *  already held for its own directory, one level up. Takes `dir` explicitly so tests can use an
+ *  isolated directory. */
 function discoverCountryCodes(dir: string): string[] {
   return readdirSync(dir)
     .filter((name) => COUNTRY_FILE_PATTERN.test(name))
@@ -84,11 +83,7 @@ function assertSectionCountryCode(
   }
 }
 
-// Each `validateXSection` below owns exactly one top-level key's own validation - split out of what
-// used to be one 140-line `loadCountryFile` (Cognitive Complexity 47, SonarCloud typescript:S3776,
-// 15 allowed) purely to bring each piece's own complexity under that limit. Same checks, same order,
-// same error messages, same `ctx`/`filePath` shape every one of them already took as a parameter -
-// nothing about what gets validated or how changed, only where each section's own `if` body lives.
+// Each `validateXSection` validates exactly one top-level key, split out to keep each one small.
 
 function validatePolicySection(
   policy: ComposedCountryView['policy'],
@@ -308,15 +303,8 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   return parsed;
 }
 
-/** Discovers and validates every `<cc>.json` file in `dir` - the exact logic
- *  `ALL_COMPOSED_COUNTRY_FILES` below runs against this module's own directory, exported here so a
- *  test can run the SAME discovery/validation logic against an isolated temporary directory instead
- *  of writing a fixture into the real, shipped `countries/data/` this module's own default reads
- *  from. That directory is read CONCURRENTLY by every other spec file that imports this module (or
- *  anything built on top of it) in a parallel vitest worker; a fixture written there and later
- *  deleted raced one of those readers' own `readdirSync`/`readFileSync` pair before this function
- *  existed (`all.spec.ts` used to `vi.resetModules()` and dynamically re-import this whole module
- *  against the mutated real directory instead of calling a parameterized function like this one). */
+/** Discovers and validates every `<cc>.json` file in `dir` - parameterized so a test can point this
+ *  at an isolated directory instead of the real one, which other specs read concurrently. */
 export function loadComposedCountryFilesFrom(dir: string): ComposedCountryView[] {
   return discoverCountryCodes(dir).map((code) => loadCountryFile(dir, code));
 }
