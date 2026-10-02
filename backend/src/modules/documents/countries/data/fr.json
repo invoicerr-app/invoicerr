@@ -1,0 +1,1025 @@
+{
+  "countryCode": "FR",
+  "policy": {
+    "countryCode": "FR",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "credit-note",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): none of the texts governing commercial documents under French law reach the recording of a quote draft. Read: (1) CGI art. 289, I, which only requires a document to be issued for the operations it enumerates — « Tout assujetti est tenu de s'assurer qu'une facture est émise [...] a. Pour les livraisons de biens ou les prestations de services qu'il effectue pour un autre assujetti » — and therefore only knows the INVOICE ; (2) C. com. art. L. 441-9, I, which lays down the obligation to invoice (« Tout achat de produits ou toute prestation de service pour une activité professionnelle fait l'objet d'une facturation ») without mentioning the quote ; (3) code civil art. 1366 and 1367, which govern the evidentiary force of electronic writing and signature, i.e. the effect of a document once established, never the act of recording it ; (4) CGI ann. II art. 242 nonies A, I, which lists the mandatory particulars of the invoice and of the invoice only. CORPUS SEARCH: the word « devis » appears throughout the CGI only in contexts of building work and housing (tax credits, reduced rate, zero-interest eco-loan — art. 199 sexdecies et seq., 279-0 bis, 278-0 bis A), where it serves as proof of expenditure ; never as a commercial document whose drafting, retention, or form would be regulated. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf , CGI annex II edition 2026-08-21 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts%2C%20annexe%20II.pdf , code civil edition 2026-09-12 https://codes.droit.org/PDF/Code%20civil.pdf , code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf . Légifrance again returned 403 to automated requests (rechecked on 2026-09-12). WHAT WOULD SETTLE THIS: a text giving legal effect to the quote itself (a binding firm offer, a retention obligation) ; the research above found none, but an absence can never be demonstrated exhaustively, hence keeping this as unverified rather than promoting it to « aucun texte n'existe »."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "L'écrit électronique a la même force probante que l'écrit sur support papier, sous réserve que puisse être dûment identifiée la personne dont il émane et qu'il soit établi et conservé dans des conditions de nature à en garantir l'intégrité.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "Code civil, art. 1366 (introduced by ordonnance n° 2016-131 of 10 February 2016, art. 4). Read directly on 2026-09-01 on codes.droit.org (Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20civil.pdf — Légifrance itself continued to refuse any automated request. A quote is not an invoice (CGI art. 289 V/VI, see invoice.send below, covers only invoices): it is this general regime of the evidentiary force of electronic writing, and not a text specific to invoicing, that grounds sending a quote by electronic means. The condition laid down by the article (identification of the author, integrity preserved) bears on the EVIDENTIARY FORCE of the document once sent, not on a precondition blocking the act of sending itself — this rule therefore does not claim that the tool guarantees these conditions, only that electronic sending is not, in itself, devoid of legal effect."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): the texts read make the obligation to invoice arise from the OPERATION (the delivery or the service), never from the acceptance of a quote — none recognizes the conversion of a quote into an invoice. (1) C. com. art. L. 441-9, I : « Tout achat de produits ou toute prestation de service pour une activité professionnelle fait l'objet d'une facturation. Le vendeur est tenu de délivrer la facture dès la réalisation de la livraison ou de la prestation de services au sens du 3 du I de l'article 289 du code général des impôts. L'acheteur est tenu de la réclamer. » (2) CGI art. 289, I, 3 : « La facture est, en principe, émise dès la réalisation de la livraison ou de la prestation de services. » (3) CGI art. 289, I, 1, a, which designates the operations concerned. The document-triggering event is therefore performance, not the quote: the conversion remains a product shortcut, and the only legal constraint bears on the invoice that results from it (particulars, CGI ann. II art. 242 nonies A, I; numbering, same article, 7°). The word « devis » is absent from the entire CGI outside contexts of building work and housing (see the note on quote.save-draft above for the detail of this corpus search). Sources: codes.droit.org (Légifrance mirror), code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf , CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: a traceability text linking the order document to the invoice (purchase order, accepted quote) — the only neighboring provision found is the obligation to state « le numéro du bon de commande lorsqu'il a été préalablement établi par l'acheteur » (C. com. art. L. 441-9, I), which bears on a PARTICULAR of the invoice and not on the act of conversion."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Tout assujetti est tenu de s'assurer qu'une facture est émise, par lui-même, ou en son nom et pour son compte, par son client ou par un tiers : [...] c. Pour les acomptes qui lui sont versés avant que l'une des opérations visées aux a et b ne soit effectuée, à l'exception des livraisons de biens exonérées en application du I de l'article 262 ter et du II de l'article 298 sexies ; — et, sur l'exigibilité : « Toutefois, en cas de versement préalable d'un acompte, la taxe devient exigible au moment de son encaissement, à concurrence du montant encaissé. »",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "CGI art. 289, I, 1, c (obligation to invoice deposits) and art. 269, 2, a, second sentence (VAT chargeability on collection of the deposit). Read in raw text on 2026-09-12 on codes.droit.org (Légifrance mirror, edition 2026-09-01), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again returned 403 to automated requests. PROMOTION correcting an overly broad claim in the previous note (« aucun texte n'impose ni n'interdit ce mécanisme »): the deposit invoice is not a convenience, it is a document the law REQUIRES as soon as a deposit is paid, and whose collection makes the tax chargeable. EXACT SCOPE, not to be overstepped: the obligation arises from the deposit PAID, whereas this action only creates a draft upstream of any collection — the text therefore grounds the document this mechanism prepares, it does not require preparing it, and does not condition the act itself. Two requirements bear on the document that will result from it, not on this draft: the date the deposit was paid is a mandatory particular (CGI ann. II art. 242 nonies A, I, 10°, « la date à laquelle est versé l'acompte visé au c du 1 du I de l'article 289 du code précité », edition 2026-08-21, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts%2C%20annexe%20II.pdf), and the applicable VAT RATE remains the question this mechanism deliberately does not settle (see actions/request-deposit.ts)."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): the CGI does know mechanisms for multiple or staggered invoicing, but none corresponds to generating a schedule of drafts from a quote, and the only one that comes close goes in the OPPOSITE direction. (1) CGI art. 289, I, 3, third paragraph — periodic invoicing GROUPS several operations into a single document: « Elle peut être établie de manière périodique pour plusieurs livraisons de biens ou prestations de services distinctes réalisées au profit d'un même acquéreur ou preneur pour lesquelles la taxe devient exigible au cours d'un même mois civil. Cette facture est établie au plus tard à la fin de ce même mois. » (2) CGI art. 269, 1, a bis, which covers « les prestations de services qui donnent lieu à l'établissement de décomptes ou à des encaissements successifs », and sets the taxable event at the expiry of the corresponding periods — a chargeability regime, not a document-production rule. (3) CGI art. 269, 2, a bis, the only text to speak of installments, and only for supplies of buildings under construction: « lors de chaque versement des sommes correspondant aux différentes échéances prévues par le contrat en fonction de l'avancement des travaux ». CORPUS SEARCH: the word « échéancier » appears only once in the entire CGI, in that same context of buildings under construction (art. 1585 I). No text therefore governs the creation of a billing schedule from an accepted quote; the legal constraints will bear only on each invoice issued. Source: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-12). Unlike request-deposit above, this mechanism REFUSES a quote mixing several VAT rates rather than leaving an undetermined rate on each installment (see actions/request-installments.ts) — a product choice meant to guarantee that the sum of the installments equals the quote's gross total, and not the application of a legal requirement: the research above found no text requiring it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): duplicating a quote into a new draft is not reached by any text. CORPUS SEARCH: the word « duplicata » appears only three times in the entire CGI, and never regarding a commercial document — duplicate of a deregistration certificate, subrogation or termination (art. 1723 ter-0 B) and duplicate receipt (art. 880 and 881); the word « devis » is absent from it outside contexts of building work and housing (see quote.save-draft above). The only French notion of a duplicate of a commercial document is doctrinal and concerns only the UNPAID INVOICE: BOFiP, BOI-TVA-DED-40-10-20 § 110 (version in force from 05/04/2017 to date, read on 2026-09-12, https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405), where the correction « consiste obligatoirement dans l'envoi d'un duplicata de la facture initiale » — a correction path for an issued invoice, catalogued in correction-routes/data/fr.json (ANNOTATED_DUPLICATE), unrelated to copying a quote into a draft. Neither the code civil (art. 1366 to 1371, on documentary evidence) nor the code de commerce (art. L. 441-9, on invoicing) deals with copying an unissued commercial document. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, code civil edition 2026-09-12, code de commerce edition 2026-09-01; Légifrance again 403 to automated requests (2026-09-12). To be confirmed by a dedicated review before extending this mechanism to a document type whose duplication would carry a legal stake — for the invoice, see invoice.duplicate below, which carries its own research."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« traitement », toute opération ou tout ensemble d'opérations effectuées ou non à l'aide de procédés automatisés et appliquées à des données ou des ensembles de données à caractère personnel, telles que la collecte, l'enregistrement, l'organisation, la structuration, la conservation, l'adaptation ou la modification, l'extraction, la consultation, l'utilisation, la communication par transmission, la diffusion ou toute autre forme de mise à disposition, le rapprochement ou l'interconnexion, la limitation, l'effacement ou la destruction — et, sur la sécurité : « le responsable du traitement et le sous-traitant mettent en œuvre les mesures techniques et organisationnelles appropriées afin de garantir un niveau de sécurité adapté au risque ».",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "Regulation (EU) 2016/679 (GDPR), art. 4, 2) (definition of processing) and art. 32, 1 (security of processing); see also art. 5, 1, f: personal data must be « traitées de façon à garantir une sécurité appropriée des données à caractère personnel, y compris la protection contre le traitement non autorisé ou illicite ». Read in raw text on 2026-09-12 on EUR-Lex, French version, https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32016R0679 . WHY THIS TEXT AND NOT A TAX TEXT: a quote names and describes natural persons; publishing an unauthenticated link that exposes it is a « communication par transmission, [une] diffusion ou toute autre forme de mise à disposition » within the meaning of art. 4, 2) — hence processing, which art. 32, 1 subjects to security measures appropriate to the risk. EXACT SCOPE: the GDPR CONDITIONS this sharing (token security: entropy, hashing, expiry, revocation — share-links/share-links.service.ts), it does not prohibit it; which is why this rule remains `allowed`. SOURCED ABSENCE ON THE TAX SIDE, the counterpart to the previous sentence: no invoicing text reaches this mechanism. The only making-available that invoicing law knows is that of the invoice to its recipient (CGI art. 289, VI, « Leur transmission et mise à disposition sont soumises à l'acceptation du destinataire ») and a quote is not an invoice; the corpus search found the word « devis » in the CGI only in contexts of building work and housing (see quote.save-draft). Tax source read: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-12)."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Lorsqu'elle est électronique, elle consiste en l'usage d'un procédé fiable d'identification garantissant son lien avec l'acte auquel elle s'attache. La fiabilité de ce procédé est présumée, jusqu'à preuve contraire, lorsque la signature électronique est créée, l'identité du signataire assurée et l'intégrité de l'acte garantie, dans des conditions fixées par décret en Conseil d'Etat. — et, en droit de l'Union : « L'effet juridique et la recevabilité d'une signature électronique comme preuve en justice ne peuvent être refusés au seul motif que cette signature se présente sous une forme électronique ou qu'elle ne satisfait pas aux exigences de la signature électronique qualifiée. »",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "Code civil art. 1367, second paragraph (read in raw text on 2026-09-12 on codes.droit.org, Légifrance mirror, edition 2026-09-12, https://codes.droit.org/PDF/Code%20civil.pdf) and regulation (EU) n° 910/2014 (eIDAS) art. 25, § 1 (read on 2026-09-12 on EUR-Lex, French version, https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32014R0910). Légifrance again returned 403 to automated requests. PROMOTION correcting the previous note: it claimed that « signer un devis n'est pas un acte juridiquement encadré en droit français », which is false — the electronic signature IS governed, by the very text that defines it. What these two texts say exactly, and which suffices to ground this rule: eIDAS art. 25 § 1 prohibits denying any legal effect to an electronic signature on the sole ground that it is not qualified, and art. 1367 para. 1 recalls that the signature « identifie son auteur » and « manifeste son consentement aux obligations qui découlent de cet acte ». Accepting a quote by simple signature is therefore not a gesture without legal effect. EXACT SCOPE, not to be overstepped: art. 1367 para. 2 only creates a PRESUMPTION of reliability under conditions set by decree of the Conseil d'État (decree not read here), and this product's mechanism remains at the lowest eIDAS level — a high-entropy hashed link plus a one-time code, never a certificate (signatures/signatures.service.ts). This rule therefore claims neither the presumption of para. 2, nor the equivalence to a handwritten signature that art. 25 § 2 reserves to the QUALIFIED signature; it merely notes that the legal effect of a simple signature cannot be denied on the sole ground of its electronic form."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Tout document ou message qui modifie la facture initiale, émise en application de cet article, et qui fait référence à la facture initiale de façon spécifique et non équivoque est assimilé à une facture. Il doit comporter l'ensemble des mentions prévues au II.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 289, I.5. Read directly on 2026-09-01 on codes.droit.org (Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse any automated request. This text settles exactly the question left open by the former resolutionNote: an already-issued invoice is not corrected by rewriting it, it is corrected by a SEPARATE DOCUMENT that references it and itself carries all the mandatory particulars (a corrective invoice/a credit note, see settlement/credits.ts) — never by a new draft save on the same document. This rule's `statuses: [\"draft\"]` field faithfully applies this principle by refusing to re-save as a draft (`save-draft` always rewrites to 'draft', see invoice.descriptor.ts) an invoice already 'sent'. BOFiP TVA-DECLA-30-20 (mentioned by the former note) remains administrative doctrine not consulted here — no longer needed now that the statutory text itself settles the question."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Les factures électroniques sont émises et reçues sous une forme électronique quelle qu'elle soit. Elles tiennent lieu de factures d'origine pour l'application de l'article 286 et du présent article. Leur transmission et mise à disposition sont soumises à l'acceptation du destinataire.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 289, VI (and no longer V as the former note suggested: V lays down the requirement of authenticity/integrity/legibility of the invoice from its issuance, but it is VI that explicitly recognizes the validity of ELECTRONIC issuance and receipt themselves; VII, not cited here, details the accepted means — reliable audit trail, qualified electronic signature or seal, structured message). Read directly on 2026-09-01 on codes.droit.org (Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse any automated request in this session, as documented by the former note (403/404) which had had to fall back on an encyclopedia article. This PROMOTION restores what the previous note had deliberately downgraded on 2026-08-30 — this time with the text actually read, not a commentary on the text. NUANCE NOT MODELED HERE, worth knowing: VI subjects the transmission and making-available of an electronic invoice to THE RECIPIENT'S ACCEPTANCE — this rule does not verify that consent (it only authorizes the ACT of sending within the tool); this is not a contradiction with the current behavior (nothing requires blocking the send for lack of documented consent) but a point to keep in mind should an explicit consent requirement ever be grafted onto it. TO BE READ WITH invoice.download-xml below: since LOI n° 2026-103 of 19 February 2026, art. 289 bis derogates from this VI for domestic operations between taxable persons and mandates the accredited platform — the text is quoted word for word in that rule's own note."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate above: no CGI text names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). This rule is therefore ALLOWED for the same reason invoice.send above is: it only ever answers \"may a French company run this ACTION at all\" (yes, unconditionally) - never \"what does running it actually do for this one invoice\", the same separation invoice.send's own rule already holds between \"may it send\" (this file) and \"through which channel\" (channel-policy/, mandate.ts). WHETHER validating also transmits is this file's own top-level \"invoiceValidation\" fact (see that fact's own notes, CGI art. 289 bis I), combined at request time with the ACTIVE channel mandate check (country-policy/invoice-validation-transmission.ts) - never decided by this rule, which stays a plain unblock. WHAT WOULD SETTLE THIS FURTHER: the lawyer review already pending for the legal corpus - see issue #581's own \"Legal note\" section for the open question \"invoiceValidation\"'s own provenance reflects."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): the texts that use the vocabulary of the duplicate or copy all target something other than creating a new invoice draft. (1) CGI art. 289, I, 4: « L'assujetti doit conserver un double de toutes les factures émises. » — the only « double » that invoicing law knows is the RETENTION copy, not a new document; likewise C. com. art. L. 441-9, I, « Le vendeur et l'acheteur conservent chacun un exemplaire de toute facture émise [...] La facture émise sous forme papier est rédigée en double exemplaire. » (2) BOFiP, BOI-TVA-DED-40-10-20 § 110 (version in force from 05/04/2017 to date), where the duplicate is a CORRECTION path for the unpaid invoice, catalogued in correction-routes/data/fr.json (ANNOTATED_DUPLICATE), https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405 . (3) Corpus search: the three occurrences of « duplicata » in the CGI concern certificates and receipts (art. 1723 ter-0 B, 880, 881), never an invoice. No text therefore reaches the act of duplicating an invoice into a draft — the new document is born 'draft' and re-enters the normal issuance circuit, where the requirements will apply to it in its own right: mandatory particulars (CGI ann. II art. 242 nonies A, I) and above all numbering, « Un numéro unique basé sur une séquence chronologique et continue » (same article, 7°), which a duplication does not circumvent. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, CGI annex II edition 2026-08-21, code de commerce edition 2026-09-01; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: a text governing the AUTOMATED and recurring creation of invoices (recurrence is built on this action) — none was found in the CGI, whose art. 289 and 289 bis govern only the form, content, and channel of the issued invoice, never the process that drafted it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "NO legal research was performed for this entry, unlike several neighboring rules above which cite primary texts actually read - this note says so plainly rather than implying a search that did not happen. Allowed on a narrower basis than provenance: this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained. code civil art. 1113 et seq. (offre et acceptation) and art. 1366-1367 (force probante de l'ecrit electronique) would be the place to start reading for this specific question - named here as a starting point ONLY, not as a source: neither has actually been read for this entry."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Pour les prestations de services autres que celles visées au b bis, lors de l'encaissement des acomptes, du prix, de la rémunération ou, sur option du redevable, d'après les débits. — et, sur l'enregistrement comptable : « Toute personne physique ou morale ayant la qualité de commerçant doit procéder à l'enregistrement comptable des mouvements affectant le patrimoine de son entreprise. Ces mouvements sont enregistrés chronologiquement. »",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "CGI art. 269, 2, c (VAT chargeability on collection for services) and C. com. art. L. 123-12, first paragraph (chronological accounting record of movements). Read in raw text on 2026-09-12 on codes.droit.org (Légifrance mirror): CGI edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; code de commerce edition 2026-09-01, https://codes.droit.org/PDF/Code%20de%20commerce.pdf . Légifrance again returned 403 to automated requests. PROMOTION correcting the previous note (« aucun texte spécifique identifié »): the collection DATE is not a neutral product field, it is the trigger for VAT chargeability on services (art. 269, 2, c) and, in the case of a deposit on a delivery, « la taxe devient exigible au moment de son encaissement, à concurrence du montant encaissé » (art. 269, 2, a); it is even a mandatory particular of the deposit invoice (CGI ann. II art. 242 nonies A, I, 10°, edition 2026-08-21). EXACT SCOPE, not to be overstepped: these texts attach consequences to the recorded FACT (the collection), they do not condition the act of recording it in this tool, and they do not make this tool the accounting ledger — the obligation to keep the ledger and retain the supporting documents lies elsewhere (CGI art. 286, I, 3°, « avoir un livre aux pages numérotées sur lequel elle inscrit, jour par jour, sans blanc ni rature, le montant de chacune de ses opérations »). The resulting balance (paid/outstanding) remains a PROJECTION displayed on screen, never a document status — see invoice.descriptor.ts — which none of the texts above contradicts: none requires a payment to change the invoice's state."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Soit sous la forme d'un message structuré selon une norme convenue entre les parties, permettant une lecture par ordinateur et pouvant être traité automatiquement et de manière univoque, dans des conditions précisées par décret ;",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "CGI art. 289, VII, 3° — the text that recognizes under French law the invoice in the form of a STRUCTURED MESSAGE, i.e. exactly the artifact this action produces. Read in raw text on 2026-09-12 on codes.droit.org (Légifrance mirror, edition 2026-09-01), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again returned 403 to automated requests. FINDING THAT SUPERSEDES THE FORMER NOTE: it treated the French B2B e-invoicing mandate as a forthcoming reform. It is now positive law — CGI art. 289 bis, I (as worded following LOI n° 2026-103 of 19 February 2026, art. 123): « Pour l'application de l'article 289 et par dérogation au VI du même article 289, l'émission, la transmission et la réception des factures relatives aux opérations mentionnées aux a et d du 1 du I dudit article 289 ainsi qu'aux acomptes s'y rapportant s'opèrent sous une forme électronique, selon des normes de facturation électronique définies par arrêté du ministre chargé du budget, lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France. L'émission, la transmission et la réception des factures électroniques s'effectuent en recourant à une plateforme agréée. » WHAT THIS RULE DOES NOT SAY, and must not be made to say: EN 16931 remains a TECHNICAL standard (the foundation of the European formats via directive 2014/55/UE), never named by French law, which instead refers to an order (arrêté) of the minister in charge of the budget — order not read here. And above all, art. 289 bis mandates a CHANNEL (the accredited platform): downloading a standardized export locally discharges no issuance obligation and is not an act of transmission. This rule therefore authorizes a voluntary export whose form is legally recognized, without claiming that it is legally required or sufficient. No `statuses` here: the descriptor already restricts the action to the numbered statuses (invoice.descriptor.ts, `availableWhen` on 'download-xml'), an identical `statuses` would be a redundancy and not a real country restriction (see data/all.spec.ts, which guards against this usage)."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): French accounting obligations target the keeping of accounts and retention of supporting documents by the company, never the act of offering an export to a third-party tool. Read: (1) C. com. art. L. 123-12, « Toute personne physique ou morale ayant la qualité de commerçant doit procéder à l'enregistrement comptable des mouvements affectant le patrimoine de son entreprise » ; (2) C. com. art. L. 123-22, « Les documents comptables sont établis en euros et en langue française. Les documents comptables et les pièces justificatives sont conservés pendant dix ans » ; (3) CGI art. 286, I, 3°, which requires the ledger or « la comptabilité en tenant lieu » and the retention of supporting documents « selon les modalités prévues aux I et I bis de l'article L. 102 B du livre des procédures fiscales » ; (4) LPF art. L. 102 B, I, on the six-year period. None of these texts bears on a data transfer to accounting software: they weigh on the accounting of the RECIPIENT of the export, not on this mechanism. Sources: codes.droit.org (Légifrance mirror), code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf , CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf , LPF edition 2026-09-01 https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: an exchange format mandated by the administration — the only neighboring provision found concerns cash-register systems, whose « Les données archivées [...] sont restituées dans un format répondant aux normes établies par l'administration » (CGI art. 286, I, 3° bis), a regime specific to operations without invoicing and therefore unrelated to this action. This action has in any case no registered implementation to date (see invoice-actions.ts) — the actual blocker comes from the 501, not from this rule."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« traitement », toute opération ou tout ensemble d'opérations effectuées ou non à l'aide de procédés automatisés et appliquées à des données ou des ensembles de données à caractère personnel, telles que la collecte, l'enregistrement, l'organisation, la structuration, la conservation, l'adaptation ou la modification, l'extraction, la consultation, l'utilisation, la communication par transmission, la diffusion ou toute autre forme de mise à disposition, le rapprochement ou l'interconnexion, la limitation, l'effacement ou la destruction — et, sur la sécurité : « le responsable du traitement et le sous-traitant mettent en œuvre les mesures techniques et organisationnelles appropriées afin de garantir un niveau de sécurité adapté au risque ».",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "Regulation (EU) 2016/679 (GDPR), art. 4, 2) and art. 32, 1 — same texts as quote.share-link above, read on 2026-09-12 on EUR-Lex, French version, https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32016R0679 . An invoice names and describes natural persons: publishing an unauthenticated link that exposes it is a « mise à disposition » within the meaning of art. 4, 2), hence processing that art. 32, 1 subjects to security measures appropriate to the risk — which the token discipline achieves (high entropy, hashed, never logged in clear, expiring, revocable: share-links/share-links.service.ts), now grounded in its text rather than presented as a mere technical safeguard. EXACT SCOPE: the GDPR conditions this sharing, it does not prohibit it. SOURCED ABSENCE ON THE TAX SIDE, the point to be distinguished from the preceding one: no invoicing text reaches this additional mode of making available. Read in the CGI (edition 2026-09-01, codes.droit.org, Légifrance mirror, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf): art. 289, VI, whose making-available is that of the invoice TO ITS RECIPIENT (« Leur transmission et mise à disposition sont soumises à l'acceptation du destinataire »), and art. 289 bis, I, which mandates a channel — the accredited platform — for issuance, transmission, and receipt, never for sharing a document already communicated. In the LPF (edition 2026-09-01, https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf), art. L. 102 C governs only the storage LOCATION of invoices and the administration's online access, not their communication to a third party. Légifrance again 403 to automated requests (2026-09-12)."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts and doctrine read in raw text): the French credit-note regime is real and abundant, but it bears entirely on the CONTENT and EFFECT of the document, never on saving a draft. Read: (1) CGI art. 289, I, 5, which treats as an invoice « tout document ou message qui modifie la facture initiale [...] et qui fait référence à la facture initiale de façon spécifique et non équivoque » and requires it to carry « l'ensemble des mentions prévues au II » ; (2) CGI ann. II art. 242 nonies A, I, which lists these particulars ; (3) BOFiP, BOI-TVA-DED-40-10-20 § 80 (version in force from 05/04/2017 to date, https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405), according to which « les notes d'avoir doivent porter référence à la facture initiale et indiquer le montant « hors taxe » du rabais consenti ainsi que le montant de la TVA correspondante », and which adds the names and addresses of the parties as well as the totals after the reduction. All these requirements are content rules for the issued document — none reaches the act of saving a draft, and this core does not claim to encode them here (see the header note of credit-note.descriptor.ts, which makes the same choice explicit). Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, CGI annex II edition 2026-08-21; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: a credit-note status to which the law would attach its own effect — the research found none; the effect, for its part, is attached to the correction of the initial invoice, see credit-note.send just below."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "L'imputation ou la restitution est subordonnée à la justification, auprès de l'administration, de la rectification préalable de la facture initiale. — et, sur les deux voies que cette rectification peut prendre : « Dans le cas de ventes résiliées ou annulées, en totalité ou en partie, ou de rabais, remises ou ristournes consentis par la personne qui réalise les opérations taxables, la rectification des factures s'entend généralement soit de l'envoi d'une facture nouvelle annulant et remplaçant la précédente, soit, selon des usages commerciaux établis de longue date, de l'envoi d'une note d'avoir. »",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "CGI art. 272, 1, third paragraph (read in raw text on 2026-09-12 on codes.droit.org, Légifrance mirror, edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf) and BOFiP, BOI-TVA-DED-40-10-20 § 60, version IN FORCE from 05/04/2017 to date (read on 2026-09-12, https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405). Légifrance again returned 403 to automated requests. PROMOTION correcting the previous note: it referred the credit-note regime back to the sole « CONTENT of the document », whereas the text attaches the effect to an ACT — the credit note is worth nothing by itself, it is the correction of the initial invoice, justified to the administration, that opens the way to offsetting or reclaiming the VAT. § 60 adds the consequence for those who forgo it: « Les redevables qui se dispenseraient d'ajuster exactement les énonciations des factures au prix effectivement payé par leurs clients ne pourraient procéder à l'imputation, ni obtenir la restitution de l'impôt afférent au prix (ou à la partie du prix) qu'ils ne reçoivent pas. » EXACT SCOPE, not to be overstepped: what the text conditions is the TAX CONSEQUENCE, not this tool's 'draft' → 'sent' transition, which transmits nothing to anyone (no sending, no email) and only makes the credit note opposable for reconciliation (settlement/credits.ts). This rule therefore authorizes this transition without claiming that it accomplishes the legal correction (art. 1366). TWO BOUNDARIES SOURCED ELSEWHERE, worth knowing before broadening this: the credit note is PROHIBITED for a purely unpaid debt, where the correction « consiste obligatoirement dans l'envoi d'un duplicata de la facture initiale » overlaid with a regulatory mention (§ 110), and an invoice's rejection by a platform calls for a purely accounting credit note not transmitted — both paths are catalogued, with their own sources, in correction-routes/data/fr.json (CREDIT_NOTE_ON_UNPAID, ANNOTATED_DUPLICATE, INTERNAL_CREDIT_NOTE)."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« traitement », toute opération ou tout ensemble d'opérations effectuées ou non à l'aide de procédés automatisés et appliquées à des données ou des ensembles de données à caractère personnel, telles que la collecte, l'enregistrement, l'organisation, la structuration, la conservation, l'adaptation ou la modification, l'extraction, la consultation, l'utilisation, la communication par transmission, la diffusion ou toute autre forme de mise à disposition, le rapprochement ou l'interconnexion, la limitation, l'effacement ou la destruction — et, sur la sécurité : « le responsable du traitement et le sous-traitant mettent en œuvre les mesures techniques et organisationnelles appropriées afin de garantir un niveau de sécurité adapté au risque ».",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "Regulation (EU) 2016/679 (GDPR), art. 4, 2) and art. 32, 1 — same reasoning and same texts as invoice.share-link above, applied to the credit note, which names the same persons as the invoice it corrects. Read on 2026-09-12 on EUR-Lex, French version, https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32016R0679 . SOURCED ABSENCE ON THE TAX SIDE: the research carried out for invoice.share-link applies here without addition — CGI art. 289, VI governs only the making-available of the invoice to its recipient, art. 289 bis, I the issuance and receipt channel, LPF art. L. 102 C the storage location; none reaches the sharing by link of a document already communicated. A credit note is moreover subject to the same correction regime as its invoice (CGI art. 289, I, 5), which bears on the content and effect of the document, not on its distribution. Tax sources read on 2026-09-12: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, LPF edition 2026-09-01; Légifrance again 403 to automated requests."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Tout document ou message qui modifie la facture initiale, émise en application de cet article, et qui fait référence à la facture initiale de façon spécifique et non équivoque est assimilé à une facture. Il doit comporter l'ensemble des mentions prévues au II. »",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "Issue #472. CGI art. 289, I, 5 - the same text, same read and same date as this file's own credit-note `numbering` fact (reused, not re-read by this task). A credit note is an invoice in law, so the structured-message form invoice.download-xml above already rests on (CGI art. 289, VII, 3°) applies to it as much as to the invoice it corrects. The export carries what this text asks of a correcting document: EN 16931 type code 381 and BG-3 (BT-25, the corrected invoice's own number; BT-26, its issue date) - the reference « de façon spécifique et non équivoque ». Same limits as invoice.download-xml: a voluntary export whose form is legally recognized, never an act of transmission through the accredited platform art. 289 bis requires. A FREE credit note (no invoice) is refused an export (documents.service.ts#downloadDocumentFormat, formats/credit-note-source.ts): it has no buyer to put in the file."
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): the French obligations reached by an expense weigh on the company's ACCOUNTING and on the retention of SUPPORTING DOCUMENTS, never on saving a line in this tool. Read: (1) C. com. art. L. 123-12, « Toute personne physique ou morale ayant la qualité de commerçant doit procéder à l'enregistrement comptable des mouvements affectant le patrimoine de son entreprise. Ces mouvements sont enregistrés chronologiquement. » ; (2) C. com. art. L. 123-22, « Les documents comptables et les pièces justificatives sont conservés pendant dix ans. » ; (3) CGI art. 286, I, 3°, which requires, failing accounting records, a ledger in which are recorded « jour par jour, sans blanc ni rature, le montant de chacune de ses opérations », and whose last paragraph adds that this ledger « ou la comptabilité en tenant lieu, ainsi que les pièces justificatives des opérations effectuées par les redevables, notamment les factures d'achat, doivent être conservés selon les modalités prévues aux I et I bis de l'article L. 102 B du livre des procédures fiscales » ; (4) LPF art. L. 102 B, I, six-year period. None of these texts designates this tool: the module does not present itself as the accounting ledger nor as the legal archive of supporting documents, and saving an expense there remains a management entry (migrated from the former `expenses` module, simple CRUD, no status). Sources: codes.droit.org (Légifrance mirror), code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf , CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf , LPF edition 2026-09-01 https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: that this core produce enforceable accounting documents from this data, or present itself as the archive of supporting documents — this rule would then need to be revisited in light of the three texts above, which are themselves perfectly explicit."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "RESEARCH CARRIED OUT, QUESTION UNSETTLED (2026-09-12, primary texts read in raw text) — and this is the point to remember: RETENTION obligations do indeed exist, but none rules on deleting a mis-entered management line. Texts read: (1) LPF art. L. 102 B, I, « Les livres, registres, documents ou pièces sur lesquels peuvent s'exercer les droits de communication, d'enquête et de contrôle de l'administration doivent être conservés pendant un délai de six ans à compter de la date de la dernière opération mentionnée sur les livres ou registres ou de la date à laquelle les documents ou pièces ont été établis », one paragraph of which specifies that « Les pièces justificatives relatives à des opérations ouvrant droit à une déduction en matière de taxes sur le chiffre d'affaires sont conservées pendant le délai prévu au premier alinéa » ; (2) C. com. art. L. 123-22, « Les documents comptables et les pièces justificatives sont conservés pendant dix ans » ; (3) CGI art. 286, I, 3°, which places « les pièces justificatives des opérations effectuées par les redevables, notamment les factures d'achat » under the retention arrangements of art. L. 102 B. WHAT THESE TEXTS SETTLE: the fate of the SUPPORTING DOCUMENT (the purchase invoice, the receipt), which must be kept for six or ten years. WHAT THEY DO NOT SETTLE, and which is precisely the object of this rule: whether the line entered in this tool IS that supporting document, or merely a management entry commenting on it — the obligation bears on the document, and this module does not present itself as the legal archive of supporting documents (see expense.save-draft above). Deleting a mis-entered expense, as the former `expenses` module already did (DELETE /api/expenses/:id), is therefore not reached by any of the texts read, without their silence amounting to authorization. Sources: codes.droit.org (Légifrance mirror), LPF edition 2026-09-01 https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf , code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf , CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS, a question that is not one of law but of architecture: whether the product holds the sole copy of the supporting document. If it does, the texts above apply squarely and this rule must become a prohibition bounded by a « clôturé » state — which this core does not distinguish today."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving (or correcting) the fields of a received invoice is an internal management operation — here this tool merely records an already-occurred fact (the receipt of a third-party document), never issuing anything at all. The `statuses` field above nonetheless restricts the rewriting of fields to the 'received' status only: once approved or rejected, the review decision must no longer be silently undone by a new field save (the same mechanic as `invoice.save-draft` above, restricted to 'draft' for an analogous reason — the fixity of a decision already made). It is THIS TIGHTENING that remains unsourced, and that keeps this rule as unverified: none of the texts read says at what stage the fields of a received invoice cease to be modifiable. A DISTINCT, SOURCED SUBJECT, not to be confused with this action — the RECEIPT obligation itself, now readable in the statute and no longer only on ministerial websites: CGI art. 289 bis, I (wording following LOI n° 2026-103 of 19 February 2026, art. 123), « l'émission, la transmission et la réception des factures [...] s'opèrent sous une forme électronique, selon des normes de facturation électronique définies par arrêté du ministre chargé du budget, lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France. L'émission, la transmission et la réception des factures électroniques s'effectuent en recourant à une plateforme agréée. » (read in raw text on 2026-09-12 on codes.droit.org, Légifrance mirror, edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests). Added to this is storage: LPF art. L. 102 C, « les factures émises par les assujettis ou, en leur nom et pour leur compte, par leur client ou par un tiers, ainsi que toutes les factures qu'ils ont reçues, doivent être stockées sur le territoire français, lorsque ce stockage n'est pas effectué par voie électronique garantissant un accès immédiat, complet et en ligne aux données concernées » (edition 2026-09-01, https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf). The date of entry into force for all companies, regardless of size, had been rechecked on 2026-08-27 on economie.gouv.fr and impots.gouv.fr (page last modified 2026-07-10). WHAT WOULD SETTLE whether THIS screen is sufficient with regard to this obligation: it is a MANUAL deposit (the user imports a file themselves), which connects to NO accredited platform nor automated inbox — art. 289 bis, I requires precisely that channel. As long as that connection does not exist, this screen alone does NOT satisfy the legal receipt obligation; it only helps with the bookkeeping of an invoice received by whatever means."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): French invoicing law knows two « acceptations » and one « réclamation », none of which is an internal approval workflow. (1) CGI art. 289, I, 2 — the acceptance bears on the self-billing MANDATE: « Les factures peuvent être matériellement émises par le client ou par un tiers lorsque l'assujetti leur donne mandat à cet effet. Sous réserve de son acceptation par l'assujetti, chaque facture est alors émise en son nom et pour son compte. » (2) CGI art. 289, VI — the acceptance bears on the electronic CHANNEL: « Leur transmission et mise à disposition sont soumises à l'acceptation du destinataire. » (3) C. com. art. L. 441-9, I — the buyer's duty is to DEMAND the invoice, not to approve it: « L'acheteur est tenu de la réclamer. » A corpus search for « acceptation » in the CGI returns only the two occurrences above regarding invoicing. Marking a received invoice as approved is therefore an internal company review decision, which no text read governs — to be distinguished from the RECEIPT obligation itself, sourced under the 'receive' rule above, which bears on the channel and format. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf , code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS: a text attaching an effect to the buyer's sign-off (starting point of a payment period, enforceability of the debt) — none was found; art. L. 441-9 runs the payment period from a date stated on the invoice, not from an approval."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-12, primary texts read in raw text): the same research as for 'approve' above, with the same result — the CGI knows acceptance only regarding the self-billing mandate (art. 289, I, 2) and the electronic channel (art. 289, VI), and the code de commerce requires the buyer only to demand their invoice (art. L. 441-9, I); no text read governs the internal decision to reject a received invoice for a dispute or supplier error. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01 https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf , code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf ; Légifrance again 403 to automated requests (2026-09-12). NOT TO BE CONFUSED with a neighboring mechanism which is, for its part, sourced elsewhere: the REJECTION of an electronic invoice transmitted by a platform produces regulatory effects (cancellation of the data transmitted to the administration, an internal credit note not transmitted to the portal) — this flow, which belongs to the e-invoicing circuit and not to this internal review, is catalogued with its own sources in correction-routes/data/fr.json (AUTHORITY_ANNULMENT, INTERNAL_CREDIT_NOTE). WHAT WOULD SETTLE whether this action attaches to that flow: the connection of an accredited platform, absent from this screen today (see the 'receive' rule above) — as long as it is missing, this rejection produces no effect beyond the internal record."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE (research of 2026-09-16, primary texts read in raw text, same corpus already read for 'approve'/'reject' above): recording that THIS company paid a SUPPLIER is the mirror of `invoice.record-payment` (money a client sent to this company, sourced there under CGI art. 269, 2, c and C. com. art. L. 123-12) — but the mirror text does not carry over cleanly: art. 269 fixes the SELLER's own VAT chargeability date, which is irrelevant on the buyer side of a purchase (this company's own input-VAT deduction right is governed instead by CGI art. 271, which conditions deductibility on the tax having become 'exigible chez le redevable qui la facture' — the SUPPLIER's own exigibility, not on anything this screen records). No text read makes the ACT of recording a supplier payment in this tool a legal trigger of its own; the underlying facts (the debt, the payment, the VAT deduction timing) exist and produce their legal effects independently of whether this screen tracks them — same 'the record is a bookkeeping convenience, not the accounting ledger itself' posture `expense.save-draft` above already holds. Sources: codes.droit.org (Légifrance mirror), CGI edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; Légifrance again 403 to automated requests (2026-09-16). WHAT WOULD SETTLE THIS: a text conditioning the INPUT-VAT deduction on a fact this tool alone could record — none found; art. 271's own trigger is the SUPPLIER's exigibility, a fact external to this tool."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "RESEARCH CARRIED OUT, QUESTION UNSETTLED (2026-09-12, primary texts read in raw text) — and the tension here is stronger than for `expense.delete`, because one text names RECEIVED invoices specifically. (1) LPF art. L. 102 C: « Pour l'application des dispositions de l'article L. 102 B, les factures émises par les assujettis ou, en leur nom et pour leur compte, par leur client ou par un tiers, ainsi que toutes les factures qu'ils ont reçues, doivent être stockées sur le territoire français, lorsque ce stockage n'est pas effectué par voie électronique garantissant un accès immédiat, complet et en ligne aux données concernées. » (2) LPF art. L. 102 B, I, which sets at six years the retention of « livres, registres, documents ou pièces sur lesquels peuvent s'exercer les droits de communication, d'enquête et de contrôle de l'administration ». (3) C. com. art. L. 123-22: « Les documents comptables et les pièces justificatives sont conservés pendant dix ans. » (4) C. com. art. L. 441-9, I, which requires both the buyer and the seller to keep « chacun un exemplaire de toute facture émise ». WHAT THESE TEXTS SETTLE: the retention and storage of THE received INVOICE. WHAT THEY DO NOT SETTLE: whether the record created by this screen is that copy to be kept, or merely a tracking sheet for a document received by other means — the obligation bears on the invoice, and this module does not present itself as the legal archive. Deleting a record before any review decision (duplicate, wrong file imported) is therefore not reached by any of the texts read, without their silence amounting to authorization. The descriptor already restricts this action to the 'received' status alone (received-invoice.descriptor.ts): once a review decision is recorded, deletion is no longer offered. Sources: codes.droit.org (Légifrance mirror), LPF edition 2026-09-01 https://codes.droit.org/PDF/Livre%20des%20proc%C3%A9dures%20fiscales.pdf , code de commerce edition 2026-09-01 https://codes.droit.org/PDF/Code%20de%20commerce.pdf ; Légifrance again 403 to automated requests (2026-09-12). WHAT WOULD SETTLE THIS, a question of architecture and not of law: whether the imported file is the sole copy kept — if so, art. L. 102 C and art. L. 123-22 apply directly and this deletion must cease to be offered, even before review."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a purchase-order draft is an operation internal to the product, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern saving such a draft. A purchase order moreover commits less than a quote (it does not constitute a sales offer, only a purchasing intent from the issuing company itself), which makes the existence of a text targeting it all the less likely. Research not specifically re-conducted for this type/action (2026-09-15) — to be revisited if a real need arises."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "L'écrit électronique a la même force probante que l'écrit sur support papier, sous réserve que puisse être dûment identifiée la personne dont il émane et qu'il soit établi et conservé dans des conditions de nature à en garantir l'intégrité.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "Code civil, art. 1366 — the SAME text, checked on the same date, as quote.send above (see its own note). A purchase order is neither a quote nor an invoice, but it is this same general regime of the evidentiary force of electronic writing that grounds its being sent by electronic means — no text specific to invoicing or VAT concerns this type (see purchase-order.descriptor.ts's own header)."
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Cancelling a purchase order sent to a supplier is a purely commercial act (the company gives up its own order), never the correction of an already-transmitted tax document — this is NOT a correction path within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module concern only a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation vis-à-vis the supplier fall under general contract law, outside the scope of this rule (which only says whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to be revisited if a real need arises."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern saving such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need arises."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — locking in what the warehouse recorded as received against a purchase order, to feed a 3-way matching check itself internal to the tool, never transmitted to a third party nor declared to any administration. No text identified that would specifically target this act. Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need arises."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a mis-entered draft is the same internal operation, without a recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, likewise unsettled here, over the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt internal document by name). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need arises."
+        }
+      }
+    ],
+    "notes": "This file's `rules` cover only ACTIONS (what a document may do) - never NUMBERING itself, which has no place in a DocumentActionRuleFact (typeId+actionId, not a sequencing mechanism); numbering requirements now live in this file's own top-level `numbering` array instead (issue #471) - see schema.ts's own `CountryDocumentPolicyFile.numbering` header. This file-level `notes` is not itself a `provenance` entry governed by schema.ts, only an honest research trail. UPDATE (2026-09-01, item 21): the text has been read - CGI ann. II art. 242 nonies A, I, 7° (read directly on codes.droit.org, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts%2C%20annexe%20II.pdf) requires, among the mandatory particulars of the invoice: « Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. » This SETTLES the question left open until now: the chronological and GAPLESS character of the sequence is indeed a requirement of French law, not merely an inference drawn from the immutability of the issued invoice (itself now sourced by invoice.save-draft above, CGI art. 289 I.5). What documents/numbering/sequence.ts does (never waste a number already taken, see its header comment) directly serves this requirement - but this policy file still carries no rule dedicated to the SEQUENCE itself (the format does not allow it, see the first sentence of this note), so nothing changes here: this update only documents that the text exists and says precisely what it was thought to say. SOURCING PASS OF 2026-09-12: the twenty-one rules that remained `unverified` were all revisited against the primary texts, read in raw text (curl, then extraction of the PDFs from codes.droit.org - Légifrance mirror; Légifrance itself again returned 403 to automated requests, rechecked this same day). Eight were promoted to `legal` with a citation copied from the text read: quote.request-deposit (CGI art. 289, I, 1, c and art. 269, 2, a), quote.request-signature (code civil art. 1367 and eIDAS art. 25 § 1), quote.share-link, invoice.share-link and credit-note.share-link (RGPD art. 4, 2) and art. 32, 1), invoice.record-payment (CGI art. 269, 2, c and C. com. art. L. 123-12), invoice.download-xml (CGI art. 289, VII, 3°), credit-note.send (CGI art. 272, 1, al. 3 and BOI-TVA-DED-40-10-20 § 60). The other thirteen remain `unverified` BY DESIGN, but their resolutionNote now carries the research performed - named articles, citations, URL and date - rather than an impression: an absence of a text is a result, provided the work establishing it can be seen. TWO FINDINGS REACH BEYOND THEIR OWN RULES and hold for the whole file: (1) the French e-invoicing mandate is no longer a forthcoming reform but positive law - CGI art. 289 bis, wording following LOI n° 2026-103 of 19 February 2026, art. 123, which derogates from VI of art. 289, requires standards defined by order of the minister in charge of the budget and the use of an ACCREDITED PLATFORM (quoted word for word in the notes of invoice.download-xml and received-invoice.receive); earlier notes that treated it as an upcoming timeline are now obsolete. (2) The two deletion rules (expense.delete, received-invoice.delete) run up against a question that is not legal but one of ARCHITECTURE - the retention obligations (LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22) weigh on the supporting document, and whether this product holds the sole copy of it would alone decide their applicability; this is written as such in their notes, without being settled here. ACCESS LIMIT ENCOUNTERED, worth knowing before resuming this work: BOFiP can only be reached document by document, provided both its page identifier and its version suffix are known (https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405 returns 200, in the version in force from 05/04/2017 to date); neither sitemap, nor search, nor any abbreviated URL form returned anything but 404, so the only doctrine cited here is the one whose versioned URL was already known from correction-routes/data/fr.json. The BOI-TVA-DECLA-30-20 series (invoicing, particulars) could NOT be read: wherever they might have been useful, the statutory or regulatory text is cited in their place instead.",
+    "numbering": [
+      {
+        "typeId": "credit-note",
+        "requirement": "sequential-number-required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Tout document ou message qui modifie la facture initiale, émise en application de cet article, et qui fait référence à la facture initiale de façon spécifique et non équivoque est assimilé à une facture. Il doit comporter l'ensemble des mentions prévues au II. » (CGI art. 289, I, 5, the same text this file's invoice.save-draft rule quotes) - among those mentions (CGI ann. II art. 242 nonies A, I, 7°): « Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. »",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "A credit note is, by CGI art. 289, I, 5, assimilated to an invoice and must therefore carry every mandatory particular an invoice carries, including the unique chronological number of ann. II art. 242 nonies A, I, 7°. The dedicated credit-note series (numbering/sequence.ts's own per-(companyId, typeId) counter) is exactly the \"série distincte\" that same text allows: a correcting document is a distinct kind of activity that justifies its own series, used only for credit notes, never mixed with the invoice series."
+      }
+    ],
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "fr-cgi-242-nonies-a",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "French law requires a unique number based on a chronological and continuous sequence. Distinct series are allowed when the business justifies them, and must be used consistently with that justification. It constrains no character and no length.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. » (CGI ann. II art. 242 nonies A, I, 7°)",
+            "sourceCheckedAt": "2026-09-26"
+          },
+          "notes": "Reused, not re-read in this pass: the same text this file's credit-note `numbering` fact quotes (read on codes.droit.org, the Légifrance mirror). CGI art. 289, I, 5 extends it to the credit note (same fact)."
+        },
+        {
+          "id": "fr-einvoicing-g1-05",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "The French e-invoicing platforms limit the invoice number (BT-1) to 35 alphanumeric characters plus space, hyphen, plus sign, underscore and slash, with no leading, trailing or double space.",
+          "maxLength": 35,
+          "allowedCharacters": "A-Za-z0-9 +_/-",
+          "forbidsEdgeOrDoubleSpaces": true,
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "G1.05 « L'identifiant de la facture est limité à 35 caractères alphanumériques. Les caractères spéciaux suivants sont autorisés : - espace (\" \") - tiret (\"-\") - signe \"+\" - tiret bas (underscore : \"_\") - barre oblique (slash : \"/\") L'identifiant ne doit pas comporter uniquement des espaces. L'identifiant ne peut pas débuter ou terminer par un espace et ne peut en outre comporter d'espaces consécutifs. »",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "DGFiP, Spécifications externes de la facturation électronique v3.2 (zip published on impots.gouv.fr/specifications-externes-b2b), « Annexe 7 - Règles de gestion - V1.9 » dated 2026-04-30, sheet « Règles de gestion », rule G1.05, read first-hand from the xlsx on 2026-09-28. The same annex's BT-1 row (« Annexe 1 - Format sémantique FE e-invoicing - Flux 1 - v1.2 ») gives the length as 35 and cites G1.05, G1.45 and G6.08. G1.45 makes (number, year of BT-2, SIREN) unique across platforms: a duplicate is rejected."
+        },
+        {
+          "id": "fr-chorus-pro-b2g-20",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "An invoice or credit note deposited on Chorus Pro for a public-sector buyer (B2G) carries a number of at most 20 characters.",
+          "maxLength": 20,
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« Dans le cadre du B2G, le numéro de facture est limité à 20 caractères (nombre de caractères historique de la solution Chorus Pro). »",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "« Dossier de spécifications externes FE - Chorus Pro » v1.1 (publication v3.2 of 2026-04-30, same zip as fr-einvoicing-g1-05), read first-hand with pdftotext on 2026-09-28. The same document states that in G2B Chorus Pro follows the AFNOR 35-character limit from 2026-09-01; the 20-character limit binds B2G. transports/chorus-pro-transport.ts refuses a longer number before deposit, and this constraint now keeps the shipped format from ever producing one."
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A quote is not an invoice: CGI art. 289 and ann. II art. 242 nonies A govern the invoice and the documents that amend it, and the French e-invoicing rules (G1.05, Chorus Pro) govern BT-1 of an invoice. No French text read in this pass constrains the number of a quote.",
+          "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no French text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "INVOICE-{year}-{number:4}",
+          "constrainedBy": ["fr-cgi-242-nonies-a", "fr-einvoicing-g1-05", "fr-chorus-pro-b2g-20"],
+          "rationale": "Unchanged from the product's previous shared default, so a French company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, within Chorus Pro's B2G limit; letters, digits and hyphens only.",
+          "reset": "yearly",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "qu'elle soit continue ; - et que le dispositif retenu au sein de l'entreprise garantisse que deux factures émises la même année ne puissent pas porter le même numéro.",
+            "sourceCheckedAt": "2026-09-28"
+          }
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "CN-{year}-{number:4}",
+          "constrainedBy": ["fr-cgi-242-nonies-a", "fr-einvoicing-g1-05", "fr-chorus-pro-b2g-20"],
+          "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. The dedicated credit-note series is the « série distincte » ann. II art. 242 nonies A allows.",
+          "reset": "yearly",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "qu'elle soit continue ; - et que le dispositif retenu au sein de l'entreprise garantisse que deux factures émises la même année ne puissent pas porter le même numéro.",
+            "sourceCheckedAt": "2026-09-28"
+          }
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no French text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no French text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no French text read in this pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no French text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started is kept as it is: French law asks for one chronological and continuous sequence, and for distinct series to be used consistently with their original justification, so a compliant running series is never switched to another format.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Un numéro unique basé sur une séquence chronologique et continue ; la numérotation peut être établie dans ces conditions par séries distinctes lorsque les conditions d'exercice de l'activité de l'assujetti le justifient ; l'assujetti doit faire des séries distinctes un usage conforme à leur justification initiale. » (CGI ann. II art. 242 nonies A, I, 7°)",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "onViolation": "If the running series breaks a rule above (for example Chorus Pro's 20-character limit), the country format applies from the next number. The counter is not reset: the sequence stays chronological and continuous and no number is reused, only the printed prefix changes.",
+        "notes": "NOT READ, would settle whether a mid-year change of printed prefix needs anything more: BOI-TVA-DECLA-30-20-20-10 (numbering section), the BOFiP page the e-invoicing rule G1.42 itself points to. BOFiP was not reachable by URL in this pass (see this file's top-level notes on the BOFiP access limit)."
+      }
+    },
+    "invoiceValidation": {
+      "transmitsThroughMandatedChannel": true,
+      "channelLabel": "the accredited platform (PDP)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Pour l'application de l'article 289 et par dérogation au VI du même article 289, l'émission, la transmission et la réception des factures relatives aux opérations mentionnées aux a et d du 1 du I dudit article 289 ainsi qu'aux acomptes s'y rapportant s'opèrent sous une forme électronique, selon des normes de facturation électronique définies par arrêté du ministre chargé du budget, lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France. L'émission, la transmission et la réception des factures électroniques s'effectuent en recourant à une plateforme agréée.",
+        "sourceCheckedAt": "2026-09-24"
+      },
+      "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): CGI art. 289 bis I - the SAME verbatim text already quoted in transports/channel-policy/data/fr.json's own PDP mandate fact, read directly on 2026-09-24, Légifrance article permalink LEGIARTI000053546660 - says the EMISSION itself (not merely a later transmission step) 's'opere' through an accredited platform for a domestic B2B operation. Read together with country-policy/data/fr.json's own invoice.send rule (CGI art. 289 VI, electronic issuance generally) and invoice.validate rule (why this country-policy whitelist stays an unconditional allow, the mandate-aware branching living in code, not in this list), this fact is what tells actions/invoice-actions.ts's 'validate' handler that numbering and locking alone do not make a domestic French B2B invoice lawfully issued - only the accredited platform does, for THIS one operation, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two). HONEST LIMIT, carried over from channel-policy/data/fr.json's own note: whether a locked-but-not-yet-transmitted invoice would have been lawfully 'emise' under art. 289 bis absent this fact is the legal question issue #581's own 'Legal note' section raised and left to the lawyer review already pending for the legal corpus - this fact is the owner's own PRODUCT decision taken in the meantime, not a claim that the legal question itself is now settled."
+    }
+  },
+  "identifiers": {
+    "countryCode": "FR",
+    "schemes": [
+      {
+        "scheme": "LEGAL_ID",
+        "appliesTo": "BOTH",
+        "label": "SIREN / SIRET",
+        "required": true,
+        "pattern": "^\\d{9}(\\d{5})?$",
+        "helpText": "9 digits (SIREN — the legal-unit number the invoice must carry) or 14 digits (SIRET — the establishment number, accepted because its own first 9 digits ARE the SIREN).",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Code de commerce art. R.123-237 : « Toute personne immatriculée indique sur ses factures, notes de commande, tarifs et documents publicitaires ainsi que sur toutes correspondances et tous récépissés concernant son activité et signés par elle ou en son nom : 1° Le numéro unique d'identification de l'entreprise délivré conformément à l'article D. 123-235 ; 2° La mention RCS suivie du nom de la ville où se trouve le greffe où elle est immatriculée ; […]. » Art. D. 123-235, auquel il renvoie : « Le numéro unique d'identification qui seul peut être exigé d'une entreprise […] est le numéro d'identité qui lui est attribué lors de son inscription au répertoire des entreprises et de leurs établissements. » Art. R.123-221 : « Le numéro d'identification attribué à chaque unité légale est un numéro d'ordre composé de neuf chiffres. Le numéro d'identification attribué à chaque établissement est composé des neuf chiffres du numéro d'identification de l'unité légale inscrite qui y exerce son activité, suivis d'un numéro d'identification complémentaire de cinq chiffres propre à cet établissement. » — la première phrase est le SIREN (9 chiffres, unité légale), la seconde le SIRET (14 chiffres, établissement) ; D.123-235 renvoie à la première, donc R.123-237 exige le SIREN. CGI ann. II art. 242 nonies A, I, 1° : « le nom complet, le numéro d'identification mentionné au premier alinéa de l'article R. 123-221 du code de commerce et l'adresse de l'assujetti et de son client » — le premier alinéa de R.123-221 est précisément le numéro à neuf chiffres de l'unité légale, jamais le second alinéa (l'établissement).",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "PRODUCT DECISION (2026-09-01, 'SIRET vs SIREN on the invoice', now RESOLVED): both texts read require the SIREN (9 digits), not the SIRET (14 digits) — see this same entry's own `provenance.sourceText`. The field now accepts BOTH lengths rather than enforcing the SIREN alone: a valid SIRET always CONTAINS the required SIREN in its first 9 digits (R.123-221, second paragraph) — accepting the over-precise value is therefore not a departure from the text, only a tolerance for a longer entry whose SIREN derives mechanically and without loss. `formats/semantic/build-semantic-invoice.ts`'s own `toSiren()` always reduces to these first 9 digits before emitting BT-29/BT-30 for a French seller, whether the entered value is 9 or 14 digits — see this same file's own test coverage (`pitfalls.spec.ts`, `cross-border-formats.spec.ts`) for proof that both entries produce the same XML."
+      },
+      {
+        "scheme": "VAT",
+        "appliesTo": "COMPANY",
+        "label": "N° TVA intracommunautaire",
+        "required": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Le numéro individuel d'identification attribué à l'assujetti en application de l'article 286 ter du code précité et sous lequel il a effectué la livraison de biens ou la prestation de services ; […] II. – Les factures dont le montant est inférieur ou égal à 150 € hors taxe ainsi que celles établies par les assujettis bénéficiant du régime de franchise en base prévu aux articles 293 B et 293 B ter du code général des impôts […] peuvent ne pas comporter les mentions énoncées aux 2° et 12° du I du présent article.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI ann. II art. 242 nonies A, I, 2° and II. Read directly on 2026-09-01 at codes.droit.org (Légifrance mirror), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts%2C%20annexe%20II.pdf — Légifrance itself continued to refuse any automated request. This text settles exactly the question left open on 2026-08-30: the VAT number (2°) is in principle a mandatory mention of the invoice (I), BUT II expressly exempts invoices issued by a taxable person under the small-business exemption scheme (art. 293 B and 293 B ter CGI, itself now sourced — see vat-rates/data/fr.json's own 'fr-exempt-293b' entry) as well as invoices ≤ €150 excl. tax. This is exactly why this field stays `required: false` at COUNTRY level rather than `true`: the obligation depends on the issuing company's own VAT regime, a datum this catalog does not carry per company — see this same reasoning already held, without the text at the time, in the resolutionNote removed by this promotion."
+      }
+    ]
+  },
+  "correctionRoutes": {
+    "countryCode": "FR",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« la rectification des factures s'entend généralement SOIT de l'envoi d'une facture nouvelle annulant et remplaçant la précédente, SOIT [...] de l'envoi d'une note d'avoir » — applicable aux ventes résiliées ou annulées, rabais, remises, ristournes. Source : CGI art. 272, 1 ; CGI art. 289, I, 5 ; BOI-TVA-DED-40-10-20 § 60 et § 80.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Open in general but FORBIDDEN for a pure unpaid debt: the YAML carries a separate CREDIT_NOTE_ON_UNPAID sub-rule (forbidden), BOI-TVA-DED-40-10-20 § 110, « ne saurait conduire [...] à notifier à son client défaillant un nouveau document mentionnant une somme différente de celle qui figure sur la facture initiale » and § 60 « le non-paiement d'une facture n'appelle [...] aucune rectification » — see ANNOTATED_DUPLICATE below, the route imposed in its place for this specific case."
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Pas d'instrument distinct en droit français : tout document qui augmente est une rectificative assimilée à une facture. » Source : CGI art. 289, I, 5 ; BOI-TVA-DECLA-30-20-20-20 § 180.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Caveat from the YAML: open as a mechanism, but whether it is MANDATORY remains unverified for France (open_question fr_debit_note_obligatoire — no provision found that imposes an upward corrective, unlike the Italian comma 1; settled_by proposed: BOI-TVA-DECLA-30-20-10 in its entirety, or CGI art. 283)."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« tout document ou message qui modifie la facture initiale et qui y fait référence de façon spécifique et non équivoque est assimilé à une facture » — applicable à toute modification référencée de la facture initiale. Source : CGI art. 289, I, 5 ; mentions CGI ann. II art. 242 nonies A, I ; BOI-TVA-DECLA-30-20-20-20 § 180 et § 220.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Doit porter « référence exacte à la facture initiale et la mention expresse de l'annulation de celle-ci » — applicable aux ventes annulées ou résiliées, rabais. Source : BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "The YAML flags (R-P3-01, a finding about the OLD, demolished engine, with no effect on this file mechanism) that no profile declared this route even though France allows it."
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Dans les cas des statuts \"Refusée\" ou \"Rejetée\", le fournisseur doit procéder à une annulation comptable (avoir interne). Cette opération ne doit pas générer de flux de données réglementaires (F1) au PPF. » Source : Dossier de spécifications externes DGFiP/AIFE v3.2 du 30/04/2026, § 3.6.4 p. 60.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "TRANSMISSION TO THE PPF FORBIDDEN (a purely accounting credit note) — this is the YAML's own canonical finding for France. RECENT rule: absent from v3.0 (18/12/2024), appeared in v3.1 (30/10/2025). CAVEAT NOT CLOSED, carried as-is: v3.2 proves non-transmission to the PPF, NOT non-transmission to the BUYER — that aspect is explicit only in the Chorus Pro v1.1 annex (B2G, « un avoir interne (à ne pas transmettre à l'acheteur) ») and in archived versions v2.3/v2.4; for pure B2B, the source that would settle it is AFNOR XP Z12-014, paywalled and not read."
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Inexistant : aucun flux « demande d'annulation ». « Le refus [...] est également transmis à l'administration fiscale, qui annule les données réglementaires. » Le statut AFNOR 220 « Annulée » est facultatif, hors socle obligatoire, et Chorus Pro ne le relaie pas : ce n'est PAS une voie de correction. Source : Spécifications externes v2.4 p. 56/59/61 ; annexe Chorus Pro v1.1 p. 46-47.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« peut alors générer à nouveau le fichier [...] portant alors le même numéro de facture » — applicable (a) au rejet portant sur la constitution du F1 à partir d'une facture conforme ; (b) au refus pour erreur de routage seulement. Hors ces cas, NOUVEAU numéro imposé. Source : Spécifications externes v3.2 § 3.6.9 p. 62 ; v2.4 p. 58 (routage) ; v2.4 p. 56 et 59 (nouveau numéro sinon).",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "NARROW scope — only two cases, and only for the NUMBER; the invoice's DATE when resending after a rejection is not addressed by any version of the specifications (unverified, settled_by proposed by the YAML: XP Z12-014, or a DGFiP/AIFE FAQ)."
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La rectification « consiste OBLIGATOIREMENT dans l'envoi d'un duplicata de la facture initiale [...] surchargées de la mention \"Facture demeurée impayée pour la somme de …… euros (prix net) et pour la somme de …… euros (TVA correspondante) qui ne peut faire l'objet d'une déduction (CGI, art. 272)\" ». Variante admise : un état récapitulatif des factures impayées par client — c'est la contrepartie du CREDIT_NOTE interdit ci-dessus pour l'impayé. Le débiteur doit reverser la taxe dès réception. Source : CGI art. 272, 1 et al. 3 ; BOI-TVA-DED-40-10-20 § 110.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "A route that cannot be expressed in this repository today (the document model assumes a correction creates a NEW, distinct document, never the same document reissued with an annotation) — finding carried as-is, not resolved by C1."
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Une correction opérée dans les seuls registres ne produit AUCUN effet en TVA : « L'imputation ou la restitution est subordonnée à la justification, auprès de l'administration, de la rectification préalable de la facture initiale » (CGI art. 272, 1, al. 3). La doctrine l'énonce deux fois : « La récupération de la TVA n'est pas liée à la comptabilisation de l'opération », et « La constatation d'une \"provision pour dépréciation de la créance\" ne peut avoir pour effet de permettre l'imputation de la taxe » — l'écriture comptable, même régulière, ne déclenche rien par elle-même. La variante simplifiée de l'impayé ne fait pas exception : l'état récapitulatif est DÉLIVRÉ au client défaillant et la comptabilité n'en garde qu'un double (« Une copie de l'état récapitulatif doit être conservée à l'appui de la comptabilité »), ce qui en fait un ANNOTATED_DUPLICATE allégé, jamais une correction sans document. Sources lues en texte brut le 2026-09-12 : CGI art. 272, 1, al. 3, codes.droit.org (miroir Légifrance, édition 2026-09-01), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; BOI-TVA-DED-40-10-20 § 40 et § 110 (version en vigueur du 05/04/2017 à aujourd'hui), https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405.",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "PROMOTION (2026-09-12): the YAML said \"Not researched for France\" (countries.FR.routes.LEDGER_ANNOTATION.settled_by) — the research has now been done, directly against the primary texts themselves. SCOPE of this \"forbidden\": it covers correcting the VAT on an ISSUED invoice, exactly what this catalog is about — cancelled or terminated sales, unpaid debts, rebates, discounts, retroactive rebates (CGI art. 272, 1); it says nothing about a plain entry adjustment that never touched an invoice, a question outside this format's scope. Unlike the rest of the file (see the file-level caveat, written for the 2026-08-29 wave, which only reached the CGI through its reproduction in the BOFiP), article 272 is read here DIRECTLY in the consolidated code; Légifrance again returned a 403 to automated requests (2026-09-12)."
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "L'inverse exact du mécanisme allemand (§ 17 Abs. 1 UStG, voir data/de.json) : en France, la taxe ne suit PAS de plein droit le changement de base imposable. « L'imputation ou la restitution est subordonnée à la justification, auprès de l'administration, de la rectification préalable de la facture initiale » (CGI art. 272, 1, al. 3), et la doctrine en tire la conséquence : « Les redevables qui se dispenseraient d'ajuster exactement les énonciations des factures au prix effectivement payé par leurs clients ne pourraient procéder à l'imputation, ni obtenir la restitution de l'impôt afférent au prix (ou à la partie du prix) qu'ils ne reçoivent pas. » Le document n'est donc pas une formalité accessoire : il est la CONDITION de l'ajustement. Sources lues en texte brut le 2026-09-12 : CGI art. 272, 1, al. 3, codes.droit.org (miroir Légifrance, édition 2026-09-01), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf ; BOI-TVA-DED-40-10-20 § 60 (version en vigueur du 05/04/2017 à aujourd'hui), https://bofip.impots.gouv.fr/bofip/1100-PGP.html/identifiant=BOI-TVA-DED-40-10-20-20170405.",
+          "sourceCheckedAt": "2026-09-12"
+        },
+        "notes": "Route discovered by the German research (discovered_by: DE research, 2026-08-29), absent from the YAML's countries.FR.routes; it is examined here for France, against the primary texts. TWO EXEMPTIONS EXIST, carried as-is because they BOUND this \"forbidden\" without reversing it — the doctrine exempts the document in two named situations, without ever making the tax move by operation of law: (a) an unpaid debt whose debtor cannot be found, « Lorsque le débiteur a disparu, le commerçant est dispensé de toute formalité de rectification de la facture initiale » (BOI-TVA-DED-40-10-20 § 40, citing RM Hamelin n° 74851, JO AN of 13 December 2005, p. 11540) — recovery remains subject to the conditions of article 272's own 1, only the formality falls away; (b) a conditional discount ANNOUNCED on the original invoice, « Il est admis, dans ce cas, que le vendeur soit dispensé d'adresser ultérieurement une note d'avoir à ses clients, sous réserve qu'une mention apposée sur la facture, précise que [...] seule la taxe correspondant au prix effectivement payé par eux ouvre droit à déduction » (§ 100) — the mention is carried on the original document, so this is not a correction without a document. Product consequence: never offer \"no document\" as a correction route for France, where it is the DEFAULT route in Germany."
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Research conducted on 2026-09-12, in raw text, against the three texts where this route should appear if it existed; none of them provides it, but the absence could not be established exhaustively — hence keeping it unverified rather than forbidden. (1) CGI art. 289, I, 2 (codes.droit.org, edition 2026-09-01, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf) only recognizes an UPSTREAM acceptance: « Les factures peuvent être matériellement émises par le client ou par un tiers lorsque l'assujetti leur donne mandat à cet effet. Sous réserve de son acceptation par l'assujetti, chaque facture est alors émise en son nom et pour son compte. » (2) Its implementing decree, CGI ann. II art. 242 nonies (codes.droit.org, edition 2026-08-21, https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts%2C%20annexe%20II.pdf), adds only three conditions — « Un mandat écrit et préalable doit être établi », notifying the administration, and a ban on periodic invoices — never a power of objection. (3) The self-billing doctrine, BOI-TVA-DECLA-30-20-10-30 § 140 to § 160 (version in force from 29/06/2022 to today, https://bofip.impots.gouv.fr/bofip/13244-PGP.html/identifiant=BOI-TVA-DECLA-30-20-10-30-20220629), does provide for a challenge, but a CONTRACTUAL one with no destructive effect: « Le contenu du mandat de facturation relevant de la liberté contractuelle », the prior agreement « peut, par exemple, comporter une clause accordant au mandant un délai pour contester le contenu des factures émises en son nom et pour son compte, et lui reconnaître, le cas échéant, la possibilité d'émettre une facture rectificative dans les conditions prévues au 5 du I de l'article 289 du CGI » — the challenge therefore leads to CORRECTIVE_INVOICE, already allowed above, and not to an invoice that « perdrait l'effet d'une facture » as in Germany (§ 14 Abs. 2 Satz 6 UStG, see data/de.json); § 150 even states the opposite of a right of objection: « Toute facture émise au nom et pour le compte du fournisseur doit faire l'objet d'une acceptation par ce dernier. » WHAT WOULD SETTLE IT: the buyer's REJECTION flow on the public e-invoicing portal, the only French candidate for a destruction by the counterparty — this file already cites it second-hand (AUTHORITY_ANNULMENT, « Le refus [...] est également transmis à l'administration fiscale, qui annule les données réglementaires », and INTERNAL_CREDIT_NOTE for the internal credit note that follows from it), but attaching this rejection to THIS route rather than to those other two is a modeling decision, not a fact of law actually read: it would require the DGFiP/AIFE external specification file itself, not consulted here. Légifrance, as for the rest of the file, returned a 403 to automated requests (2026-09-12)."
+        },
+        "notes": "Route discovered by the German research (discovered_by: DE research, 2026-08-29), absent from the YAML's countries.FR.routes; the French research took place on 2026-09-12 and did NOT suffice to settle it — see resolutionNote, which names the three texts read and the one document that would resolve the question. Deliberately kept unverified: France does recognize a challenge to self-billing, but a contractual one leading to a corrective invoice, which is not the unilateral destruction by the counterparty that this route describes."
+      }
+    ],
+    "notes": "France — CAVEAT carried by the YAML itself: Légifrance returns a 403 to automated requests; the CGI cited by the 2026-08-29 wave is cited via its reproduction in the BOFiP (doctrine binding on the DGFiP), never from memory — the two 2026-09-12 promotions (LEDGER_ANNOTATION, NO_DOCUMENT_BY_LAW) ADDITIONALLY read article 272 directly in the consolidated code (codes.droit.org, a Légifrance mirror), see their own notes. HEADLINE: the French internal credit note (INTERNAL_CREDIT_NOTE, required) is proven word for word by the DGFiP/AIFE external specification file v3.2 of 30/04/2026 § 3.6.4 p. 60 — a RECENT rule, absent from v3.0 (18/12/2024), appeared in v3.1 (30/10/2025). This file carries NO temporality at all (the 2026-09-01/2027-09-01 Chorus Pro reception/issuance mandate does not change the substantive law of the correction — see the YAML's own `temporal` block): out of scope for C1."
+  },
+  "vatRates": {
+    "countryCode": "FR",
+    "rates": [
+      {
+        "id": "fr-standard",
+        "rate": 20,
+        "label": "Taux normal",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Le taux normal de la taxe sur la valeur ajoutée est fixé à 20 %.",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 278. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. The two converging secondary sources already cited on 2026-08-31 (entreprendre.service-public.gouv.fr F23567, and the avant-refonte-documents git tag) are confirmed by the text itself. Former rate: 19.6% until 2014-01-01 (Finance Act for 2014 — loi de finances pour 2014, art. 68) — not carried over here, since this catalog does not model temporality (see this file's own header comment). SCHEDULED REPEAL (noted on 2026-09-13): art. 278 is repealed as of 2027-01-01, along with the entire CGI art. 278-0 bis to 279 bis block, by Ordonnance n°2025-1247 of 17 December 2025, art. 9 — VAT leaves the CGI for a new Code des impositions sur les biens et services (tax code on goods and services, CIBS). Confirmed directly on the article's own Légifrance record (LEGIARTI000026950057): « Abrogé par Ordonnance n°2025-1247 du 17 décembre 2025 - art. 9 ». What is NOT established: the CIBS article number that will carry this rate forward — the full text of art. 9 of the ordonnance (JORFTEXT000053091516) could not be retrieved (the reading stopped before the substantive body), so no successor number is put forward or cited here. What would settle the question: retrieving that full text, or the ordonnance's CGI→CIBS concordance table. Same caveat as for the Italian 2027-01-01 repeal already noted in vat-rates/data/it.json: this catalog has no temporal field (no validFrom/validTo in schema.ts), nothing will flag this change automatically — whoever next touches this file after 2027-01-01 is responsible for re-pointing the citation."
+      },
+      {
+        "id": "fr-intermediate",
+        "rate": 10,
+        "label": "Taux intermédiaire",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La taxe sur la valeur ajoutée est perçue au taux réduit de 10 % en ce qui concerne les livraisons portant sur les produits suivants : […] 3° bis Produits suivants : a) bois de chauffage ; […] (art. 278 bis) — La taxe sur la valeur ajoutée est perçue au taux réduit de 10 % en ce qui concerne : a. Les prestations relatives à la fourniture d'un hébergement dans le cadre du secteur hôtelier […] b quater. les transports de voyageurs (art. 279).",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 278 bis AND art. 279 — the DIVERGENCE flagged on 2026-08-31 is now RESOLVED, not ignored: both read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf, these are not two competing candidates for the SAME fact but two PARALLEL provisions each setting the same 10% rate for different categories: art. 278 bis covers deliveries of goods (firewood, horticultural products, agricultural fertilizers/soil amendments, etc.), art. 279 covers supplies of services (hotel accommodation, classified campsites, passenger transport, company canteens, spa/thermal treatment, etc.). The two secondary sources from 2026-08-31 were therefore each right, without knowing it precisely. Légifrance itself continued to refuse every automated request. SCHEDULED REPEAL (noted on 2026-09-13): art. 278 bis AND 279 are repealed as of 2027-01-01, along with the entire CGI art. 278-0 bis to 279 bis block, by Ordonnance n°2025-1247 of 17 December 2025, art. 9 — VAT leaves the CGI for a new Code des impositions sur les biens et services (tax code on goods and services, CIBS). Confirmed directly on art. 279's own Légifrance record (LEGIARTI000053562872): « Abrogé par Ordonnance n°2025-1247 du 17 décembre 2025 - art. 9 ». What is NOT established: the CIBS article number(s) that will carry this rate forward — the full text of art. 9 of the ordonnance (JORFTEXT000053091516) could not be retrieved (the reading stopped before the substantive body), so no successor number is put forward or cited here. What would settle the question: retrieving that full text, or the ordonnance's CGI→CIBS concordance table. Same caveat as for the Italian 2027-01-01 repeal already noted in vat-rates/data/it.json: this catalog has no temporal field (no validFrom/validTo in schema.ts), nothing will flag this change automatically — whoever next touches this file after 2027-01-01 is responsible for re-pointing the citation."
+      },
+      {
+        "id": "fr-reduced",
+        "rate": 5.5,
+        "label": "Taux réduit",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La taxe sur la valeur ajoutée est perçue au taux réduit de 5,5 % en ce qui concerne :",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 278-0 bis. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. The three converging sources already cited on 2026-08-31 (entreprendre.service-public.gouv.fr F23567, FR-France.md, and the avant-refonte-documents git tag) are confirmed by the text itself."
+      },
+      {
+        "id": "fr-particular",
+        "rate": 2.1,
+        "label": "Taux particulier",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La taxe sur la valeur ajoutée est perçue au taux de 2,10 % en ce qui concerne les recettes réalisées aux entrées des premières représentations théâtrales d'oeuvres dramatiques, lyriques, musicales ou chorégraphiques nouvellement créées […] (art. 281 quater) — La taxe sur la valeur ajoutée est perçue au taux de 2,10 % pour les livraisons portant sur les préparations magistrales, médicaments officinaux, médicaments ou produits pharmaceutiques […] (art. 281 octies) — […] sont soumis à la taxe sur la valeur ajoutée au taux de 2,1 % dans les départements de la France métropolitaine […] (art. 298 septies).",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 281 quater, 281 octies AND 298 septies — the DIVERGENCE flagged on 2026-08-31 between three candidate article numbers is now RESOLVED, not ignored: all three were read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf, and each sets the same 2.10% rate for a DIFFERENT category, without contradicting one another: art. 281 quater covers admission to live performances (theatre, circus); art. 281 octies covers reimbursable medicines/preparations made to prescription; art. 298 septies covers press publications (2.1% in mainland France, 1.05% in the overseas départements cited). The hypothesis put forward on 2026-08-31 ('the three might each target a different category at the same rate, without being contradictory') is confirmed by the text. Légifrance itself continued to refuse every automated request."
+      },
+      {
+        "id": "fr-exempt-293b",
+        "rate": 0,
+        "label": "Non applicable — franchise en base (art. 293 B du CGI)",
+        "category": "EXEMPT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Pour leurs livraisons de biens et leurs prestations de services, les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée lorsqu'ils n'ont pas réalisé en France un chiffre d'affaires, évalué dans les conditions prévues à l'article 293 D, excédant les plafonds suivants […].",
+          "sourceCheckedAt": "2026-09-01"
+        },
+        "notes": "CGI art. 293 B, I. Read directly on 2026-09-01 on codes.droit.org (a Légifrance mirror, current consolidation), https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf — Légifrance itself continued to refuse every automated request. Confirms the franchise-en-base (VAT exemption) scheme already cited (as a secondary source) on 2026-08-31 via documentation/compliance/FR-France.md §4.C. This is still not a VAT rate in the strict sense but an exemption scheme below turnover thresholds, included in this list because it is a common choice when issuing an invoice. The exact mandatory MENTION to be carried on the invoice ('TVA non applicable, art. 293 B du CGI', cited by FR-France.md) remains an administrative-doctrine wording — its literal wording was not found in the text of the article itself, only the SCHEME (the exemption) was; this file in any case does not carry a mention wording, only the rate (0)."
+      }
+    ],
+    "notes": "UPDATE (2026-09-01, item 21): all five entries are now 'legal', not 'unverified' — each rate was re-checked against its exact text on codes.droit.org (a Légifrance mirror; Légifrance itself continued to refuse every automated request this session as in the previous one), and cites the CGI article that sets it verbatim (see each entry). Two divergences flagged on 2026-08-31 between secondary sources (10%: 278 bis vs 279; 2.1%: 281 quater vs 281 octies vs 298 septies) turned out to be PARALLEL provisions targeting different categories at the same rate, never a contradiction — see each entry for the detail. This file still does not model the temporality of rates (no validFrom/validTo, unlike the old catalog): only the rates CURRENTLY in force are listed, because nothing in this document (a simple choice in a form) yet consumes an effective date — see descriptors/company-view.ts. 2027-01-01 REPEAL (noted on 2026-09-13): see the notes on the fr-standard and fr-intermediate entries — Ordonnance n°2025-1247 of 17 December 2025, art. 9, repeals the whole CGI art. 278-0 bis to 279 bis block (including the art. 278 and 279 cited here) in favor of a new Code des impositions sur les biens et services (tax code on goods and services, CIBS); the successor CIBS article number is NOT identified to date, for want of being able to retrieve the full text of art. 9 of the ordonnance."
+  },
+  "taxSystem": {
+    "countryCode": "FR",
+    "kind": "VAT",
+    "hasDomesticZeroRate": false,
+    "schemes": ["STANDARD", "FRANCHISE_BASE"],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Pour leurs livraisons de biens et leurs prestations de services, les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée lorsqu'ils n'ont pas réalisé en France un chiffre d'affaires, évalué dans les conditions prévues à l'article 293 D, excédant les plafonds suivants […].",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "PROMOTION (2026-09-01): this envelope moves from `unverified` to `legal`, with the citation above — CGI art. 293 B, I, read directly on 2026-09-01 at codes.droit.org (https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf) — the SAME reading already cited as `legal` by vat-rates/data/fr.json's own 'fr-exempt-293b' entry and by country-identifiers/data/fr.json's own VAT scheme. This citation confirms verbatim the FRANCHISE_BASE regime (« les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée » under a turnover threshold) — that is all that is promoted here, nothing beyond what this reading actually established. `hasDomesticZeroRate: false`, by contrast, remains a FINDING OF ABSENCE, not a citation: the CGI's consolidated text (codes.droit.org, checked 2026-09-01) contains no article numbered « 278 ter » (consistent with its repeal on 2023-01-01), and a full-text search of that same consolidated CGI for any VAT provision stating a 0% rate (« taux de 0 % »/« taux nul ») found none — but no text positively asserts that no 0% VAT rate exists in France, so there is nothing to cite verbatim for THIS specific fact. Since the schema carries only one provenance per file (never per field), the promotion established above for `schemes` applies to the WHOLE envelope — a deliberate product decision, not an oversight: what would settle `hasDomesticZeroRate` itself remains an authoritative negative confirmation (e.g. a BOFiP page exhaustively listing « les taux de TVA ») that was not blocked from automated access."
+  },
+  "vatCurrency": {
+    "countryCode": "FR",
+    "rule": {
+      "nationalCurrency": "EUR",
+      "requiredOnInvoice": true,
+      "taxableAmountRequiredOnInvoice": false,
+      "rateSource": "ecb",
+      "rateDateRule": "The last ECB reference rate published on or before the day VAT becomes chargeable (CGI art. 266, 1 bis, referring to art. 269). This codebase has no per-operation chargeability date on an invoice, so this is approximated by the document's own issue date, the same approximation `mentions/schema.ts` and `channel-policy/mandate.ts` already make for every other country-law fact this catalog family resolves against 'a date on the document', never the server clock.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "CGI, art. 289, IV: \"Les montants figurant sur la facture peuvent être exprimés dans toute monnaie, pour autant que le montant de taxe à payer ou à régulariser soit déterminé en euros en utilisant le mécanisme de conversion prévu à l'article 266.\" CGI, art. 266, 1 bis: \"Lorsque les éléments servant à déterminer la base d'imposition sont exprimés dans une monnaie autre que l'euro, le taux de change à appliquer est celui du dernier taux publié par la Banque centrale européenne, au jour de l'exigibilité de la taxe prévue au 2 de l'article 269.\"",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "BOFiP BOI-TVA-DECLA-30-20-20-10 §380 confirms the same rule in plain language and adds the one thing the statute itself does not spell out: only the TAX AMOUNT itself must be in euros, not the taxable base (`taxableAmountRequiredOnInvoice: false`). §400 of the same BOFiP page says printing the EXCHANGE RATE used is a faculty (\"peut\"), never an obligation; this codebase prints it anyway, as a courtesy, wherever the converted VAT itself is shown. Citations reused verbatim from `~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md` (2026-09-28), itself sourced from Légifrance's own consolidated CGI text and BOFiP; Légifrance returns 403 to automated requests (see `../../mentions/data/fr.json`'s own note on the same access limitation), so this citation was cross-checked against that research file rather than fetched a second time directly for this task."
+    }
+  },
+  "channelPolicy": {
+    "countryCode": "FR",
+    "facts": [
+      {
+        "providerId": "pdp",
+        "requirement": "mandated",
+        "mandatedFrom": "2026-09-01",
+        "equivalentProviderIds": ["billit", "iopole", "invopop"],
+        "scope": {
+          "parties": "domestic"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Pour l'application de l'article 289 et par dérogation au VI du même article 289, l'émission, la transmission et la réception des factures relatives aux opérations mentionnées aux a et d du 1 du I dudit article 289 ainsi qu'aux acomptes s'y rapportant s'opèrent sous une forme électronique, selon des normes de facturation électronique définies par arrêté du ministre chargé du budget, lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France. L'émission, la transmission et la réception des factures électroniques s'effectuent en recourant à une plateforme agréée.",
+          "sourceCheckedAt": "2026-09-24"
+        },
+        "notes": "CITATION REFRESHED 2026-09-24, and it is now the STATUTE itself rather than a ministerial website. `sourceText` above is CGI art. 289 bis, I, quoted verbatim from the consolidated text (Légifrance, article permalink LEGIARTI000053546660, page header « Version en vigueur depuis le 21 février 2026 », « Modifié par LOI n°2026-103 du 19 février 2026 - art. 123 (V) »). The same wording is already carried, word for word, by `country-policy/data/fr.json`'s own 'invoice.download-xml' note, read independently on 2026-09-12 from the Légifrance mirror codes.droit.org (Légifrance itself answers 403 to automated requests from this environment, so the two readings were obtained by different routes and agree). WHAT THE PREVIOUS CITATION GOT WRONG, and why this matters more than a tidier source: it quoted « Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues » (impots.gouv.fr, consulted 2026-08-27), a sentence about WHICH platform is accredited - carrying nothing at all about WHO the obligation binds. The statute does: « lorsque l'émetteur de la facture et son destinataire sont des assujettis qui sont établis ou ont leur domicile ou leur résidence habituelle en France ». Note the criterion is wider than «établis en France» alone (domicile or habitual residence count too), which this catalog cannot express: `scope.parties: 'domestic'` compares the two parties' COUNTRY, the only establishment fact this product stores. - SCOPE: the `scope.parties: 'domestic'` above is that statutory restriction, and nothing more. Art. 289 bis V excludes two further sets of operations this file does NOT model - « Le présent article ne s'applique pas aux opérations mentionnées au 2° du II de l'article 289-0 ou au 1° du I de l'article 262 ter. » (intra-Community supplies exempt under 262 ter I 1°, and classified operations) - both of which are, by construction, already outside the domestic narrowing, so nothing is lost by not expressing them separately today. - WHAT THIS PRODUCT DOES NOT DO, and must not be read as doing: once the invoicing mandate falls away because the buyer is established elsewhere, the French seller still owes E-REPORTING on that transaction - CGI art. 290, I, 1°, same consolidated edition: « Les assujettis établis ou ayant domicile en France communiquent à l'administration sous forme électronique [...] les données relatives aux opérations suivantes [...] : 1° Les opérations réalisées au profit d'une personne assujettie suivantes : a) Les livraisons exonérées en application du I des articles 262 et 262 ter ; b) Les livraisons de biens dont le lieu d'imposition est en France selon l'article 258, lorsque le destinataire est assujetti non établi en France ; c) Les prestations de services non situées en France selon les articles 259 et 259 A ; d) Les prestations de services au profit de preneurs assujettis non établis en France et situées en France selon les articles 259 et 259 A ». That is a DECLARATION of data, never a routing of the invoice, and this repository performs none of it: `reporting/data/fr.json`'s two e-reporting facts (art. 290, 290 A) deliberately name an UNREGISTERED providerId placeholder so the obligation stays visible without pretending to run. A CAUTION for whoever revisits this: a page on impots.gouv.fr states that intra-Community supplies are excluded from e-reporting - that page addresses companies NOT established in France and does not govern a French seller; art. 290 I 1° a), quoted above, explicitly puts the 262 ter exemptions IN scope. - PENALTIES, carried over from the previous note and not re-verified on 2026-09-24: CGI art. 1737 III, 50 EUR per invoice capped at 15 000 EUR a year, and IV bis, 500 EUR then 1 000 EUR per quarter for persisting in not using an accredited platform. Treat these figures as the older reading they are. - COMING CHANGE, dated: this article is ABROGATED with effect 2027-01-01. Légifrance's own note under it reads « Conformément au 27° de l'article 9, à l'article 15 et à l'article 49 de l'ordonnance n° 2025-1247 du 17 décembre 2025, ces dispositions, à l'exception de celles mentionnées à la première colonne du tableau de l'article 15, sont abrogées à compter du 1er janvier 2027. », the obligation being recodified into the code des impositions sur les biens et services - the same note names « l'article L. 215-39 et [le] premier alinéa de l'article L. 216-44 » as the successor provisions for art. 289 bis, and « l'article L. 215-39, [le] second alinéa de l'article L. 216-56 et [le] dernier alinéa de l'article L. 216-55 » for art. 290. HONEST LIMIT: CIBS art. L. 216-55 and L. 216-56 were read directly (LEGIARTI000053106721 and LEGIARTI000053106723, both « Création Ordonnance n°2025-1247 du 17 décembre 2025 »); art. L. 216-44 was NOT - every permalink tried for it returned 404, so its number here rests on the cross-reference note under art. 289 bis, not on the article's own text. Do not restate L. 216-44's content on the strength of this file. Note also that the CIBS provisions enter into force on 2026-09-01 while the CGI articles are abrogated on 2027-01-01, so the two corpora overlap for four months; nothing in this catalog depends on which one is cited, since both carry the same domestic restriction and the same 2026-09-01 start. EQUIVALENT PROVIDERS ADDED 2026-09-28 (issue #527, settings screen): \"pdp\" as a transport-registry.ts id is literally only SuperPDP - since PR #528's operator catalogue (documents/operators/) this repository ALSO wires Billit, Iopole and Invopop as their OWN dedicated transport ids implementing this exact SAME legal channel (see each operator's own data/<id>.json offering, legalChannel \"pdp\"), each with LEGAL (not merely researched) provenance that it is itself DGFiP-registered: billit.json (\"also registered by the DGFiP as a French plateforme agreee\"), iopole.json (\"a French, DGFiP-registered transmission platform\"), invopop.json (\"registered by the DGFiP and self-serve in sandbox\"). Before this addition, connecting one of these three and choosing it as Company.invoiceTransportId was silently REFUSED by invoice-actions.ts's own mandate preflight the moment this mandate became active (a strict transportId === \"pdp\" match, this field previously absent) - a real defect surfaced by issue #527's own \"blocked by send\" verdict (channels.service.ts#computeBlockedBySend) showing Iopole as refused immediately after a fresh, successful connection. The OTHER PDP-catalogued operators (b2brouter, weinvoice, sovos-saphety, oneup, vosfactures) are deliberately NOT added here: each carries \"unverified\" provenance on its own pdp offering (no independent DGFiP-registration check, see each operator's own data file) - listing an unconfirmed accredited-platform candidate as satisfying a legal mandate would be exactly the kind of guess this catalog's own provenance discipline forbids."
+      }
+    ]
+  },
+  "retention": {
+    "countryCode": "FR",
+    "rules": [
+      {
+        "label": "fiscale",
+        "years": 6,
+        "origin": "issueDate",
+        "legalRef": "LPF art. L102 B",
+        "notes": "Retention period for the documents/records on which the tax authority may exercise its audit and reassessment rights — 6 years. Carried over from the pre-refactor git tag (compliance/profiles/fr.ts), where this duration had been conflated with the 10-year commercial one — this file fixes the confusion by declaring BOTH, never by picking just one. Origin (2026-09-13, revision of the origin axis): article L102 B itself could not be retrieved as raw text (legifrance.gouv.fr returns 403/Cloudflare from this environment, including via web.archive.org, whose snapshot contains only the empty JS shell); the official administrative doctrine BOI-CF-COM-10-10-30 (version in force as of 03/09/2025, bofip.impots.gouv.fr), which quotes and comments on this same article, states verbatim: « Le délai de six ans court à compter de la date de la dernière opération mentionnée sur les livres ou registres ou de la date à laquelle les documents ou pièces ont été établis. » — i.e. the document's own ESTABLISHMENT date (issuance), day for day, never a calendar year-end nor the moment of archiving. The same BOI doctrine adds: « Le délai de six ans s'applique également aux factures sous format papier ou électronique qui tiennent lieu de pièces justificatives... » — so it does cover the invoice."
+      },
+      {
+        "label": "commerciale",
+        "years": 10,
+        "origin": "fiscalYearEndUnknownSafe",
+        "legalRef": "C. com. art. L123-22",
+        "notes": "Retention period for accounting records (books, registers) and supporting documents — 10 years. This is the duration the pre-refactor tag's FR profile already applied (10 years), but under the mistaken name \"fiscale\" — see FR-D9: \"the tax duration is 6 years (LPF L102 B); the 10 years fall under commercial law (C. com. L123-22).\" Origin (2026-09-13): the current text of L123-22, retrieved via web.archive.org (2019-09-09 snapshot of legifrance.gouv.fr's old HTML template, the only one reachable from this environment — the modern template is blocked by Cloudflare), states only « Les documents comptables et les pièces justificatives sont conservés pendant dix ans. » — WITHOUT itself specifying a starting point. The implementing decree (C. com. art. R123-177, LEGIARTI000030927443) is the one generally understood to run this period from the financial year's closing, but its text could not be retrieved (no archive.org snapshot under either the old or new template; the new template returns the Incapsula challenge page even in the archived snapshot). For lack of a literal confirmation of R123-177 AND for lack of a product field carrying a company's own financial-year-end date (nothing on `Company` stores it), this file applies the SAFE reading this module imposes as a matter of principle (never shorten): origin `fiscalYearEndUnknownSafe`, i.e. issue date + one full calendar year — always ≥ the true financial-year close regardless of its alignment (see compute-retention.ts). Data that would make this point exact: the raw text of R123-177, and/or each company's own real financial-year-end date."
+      }
+    ],
+    "notes": "The two obligations above bind the same company SIMULTANEOUSLY — they are not two competing estimates of the same duration, nor a choice to make. An invoice a company could no longer produce after 6 years would put it in breach of the commercial obligation (10 years) if it had destroyed it; the EFFECTIVE retention floor is therefore their MAXIMUM — see compute-retention.ts. This is not settling FR-D9 by inventing a duration: it is applying both cited texts at once, exactly what the arbitration on this point called for: the product carries both rather than choosing one. Sources: carried over from the pre-refactor git tag; LPF art. L102 B (via BOI-CF-COM-10-10-30, bofip.impots.gouv.fr, version in force as of 03/09/2025) and C. com. art. L123-22 (via web.archive.org, 2019-09-09 snapshot of legifrance.gouv.fr); re-checked directly again on 2026-09-13 for the origin axis (each rule now carries its own starting point — see the per-rule notes above for the detail and the limits of what could be verified as raw text in that session)."
+  },
+  "mentions": {
+    "countryCode": "FR",
+    "invoiceNotes": [
+      {
+        "validFrom": "1900-01-01",
+        "value": {
+          "subjectCode": "PMT",
+          "text": "En cas de retard de paiement, une indemnité forfaitaire pour frais de recouvrement de {recoveryIndemnity} est due (art. L441-10 et D441-5 du code de commerce).",
+          "legalRef": "C. com. art. L441-9 I al. 5, L441-10 II, D441-5",
+          "statutory": true,
+          "notes": "PMT is not backed by any DGFiP rule found in the external specifications v3.2 (numbered G1.xx/G2.xx/G6.xx/P1.xx) -- used because superpdp expects it in BG-1 (real rejection fr:213, see ../../transports/pdp/pdp.live.spec.ts), not because a French text names it specifically. The code itself remains within the UNTDID 4451 list accepted by BR-CL-08."
+        }
+      },
+      {
+        "validFrom": "1900-01-01",
+        "value": {
+          "subjectCode": "PMD",
+          "text": "Tout retard de paiement entraîne des pénalités au taux de {lateFeeRate} l'an, exigibles le jour suivant la date de règlement figurant sur la facture, sans qu'un rappel soit nécessaire (art. L441-10 du code de commerce).",
+          "fallbackText": "Tout retard de paiement entraîne des pénalités calculées au taux d'intérêt appliqué par la Banque centrale européenne à son opération de refinancement la plus récente, majoré de 10 points de pourcentage, exigibles le jour suivant la date de règlement figurant sur la facture, sans qu'un rappel soit nécessaire (art. L441-10 du code de commerce).",
+          "legalRef": "C. com. art. L441-9 I al. 5, L441-10 II",
+          "statutory": true,
+          "notes": "Same nuance as PMT: expected by the platform, not named by any DGFiP text found. Issue #519: fallbackText is used instead of `text` only when noteValues.lateFeeRate's last dated window has already ended and nobody has added the next one yet -- it quotes L441-10 II's own rate-setting rule verbatim (the statute itself never fixes a number, only 'the ECB's most recent refinancing rate plus 10 percentage points') rather than a pre-computed figure. No official source (Légifrance, the DGCCRF's own 'Délais de paiement' fiche pratique) requires a numeric-only mention; a stale number would be strictly worse than restating the rule the statute itself uses."
+        }
+      },
+      {
+        "validFrom": "1900-01-01",
+        "value": {
+          "subjectCode": "AAB",
+          "text": "Escompte pour paiement anticipé : néant",
+          "legalRef": "C. com. art. L441-9 I al. 5 ; formulation : service-public F31808",
+          "statutory": true,
+          "notes": "Only AAB is backed by a DGFiP rule found (G1.52). No specific wording is imposed by law for the two mentions above (PMT/PMD): only the CONTENT is (an amount, a rate). The « néant » of the discount is the wording prescribed by administrative doctrine (entreprendre.service-public.gouv.fr, sheet F31808), not by a statute."
+        }
+      }
+    ],
+    "noteValues": {
+      "recoveryIndemnity": [
+        {
+          "validFrom": "2012-01-01",
+          "value": "40 €"
+        }
+      ],
+      "lateFeeRate": [
+        {
+          "validFrom": "2026-01-01",
+          "validTo": "2026-07-01",
+          "value": "12,15 %",
+          "notes": "ECB MRO 2,15 % as of 1 January 2026 → 12,15 %"
+        },
+        {
+          "validFrom": "2026-07-01",
+          "validTo": "2027-01-01",
+          "value": "12,40 %",
+          "notes": "ECB MRO 2,40 % since 17 June 2026, hence in force as of 1 July → 12,40 %. validTo caps this at the NEXT scheduled semi-annual check (L441-10 II reads the rate again on 1 January) rather than left open-ended. Issue #519: the 1 January 2027 rate is NOT YET officially published as of this fix (2026-09-28) -- the ECB Governing Council decision covering that date is expected 17 December 2026, the last scheduled meeting before it, and a mid-September 2026 rise to 2.65 % has already happened but only takes effect for THIS table on the next 1 January reading, never retroactively into the current half-year (L441-10 II reads the rate on 1 January/1 July only). Add the real 2027-01-01 entry as soon as the December decision is published -- until then, an invoice issued on or after 2027-01-01 prints PMD's own `fallbackText` (schema.ts) instead of a stale or invented figure. The 90-day canary in `data/all.spec.ts` exists so this cannot be forgotten."
+        }
+      ]
+    },
+    "notes": "The three mentions from article L441-9 I al. 5 of the Code de commerce, in a single sentence: « Elle précise les conditions d'escompte applicables en cas de paiement à une date antérieure […], le taux des pénalités exigibles le jour suivant la date de règlement inscrite sur la facture ainsi que le montant de l'indemnité forfaitaire pour frais de recouvrement due au créancier en cas de retard de paiement. » All three are statutory: true -- the law supplies the value, the user has nothing to enter; a stipulated rate different from the supplementary one would itself be a commercial choice, hence absent here. Sources checked on 2026-08-29 (carried over from the pre-refactor git tag, compliance/profiles/data/fr.ts): C. com. art. L441-9, L441-10 II, D441-5 (via codes.droit.org, consolidation as of 21/08/2026 -- legifrance returns 403 to automated requests); entreprendre.service-public.gouv.fr F31808 and F23211; ECB, key interest rates. NUANCE WORTH KNOWING (carried over from the tag): superpdp rejects invoices by invoking a rule « BR-FR-05 » that cannot be found in the DGFiP's external specifications v3.2 (French rules there are numbered G1.xx/G2.xx/G6.xx/P1.xx), and BG-1 is 0..n there, hence optional -- carrying them in BG-1 nonetheless remains compliant (all three codes are in the UNTDID 4451 list accepted by BR-CL-08) and this is what satisfies both the legal obligation and the platform's own check. The supplementary rate (lateFeeRate) is the ECB refinancing rate plus 10 points, read on 1 January for the first half-year and on 1 July for the second (L441-10 II) -- FROZEN AT ISSUANCE: a July invoice keeps the July rate forever, never recomputed as of the reading date. Legal floor: a stipulated rate may not be lower than 3 times the statutory interest rate (8,25 % in the second half of 2026 per service-public); the supplementary rate is well above it, so applying it satisfies the floor with no calculation needed. TO BE MAINTAINED TWICE A YEAR -- when the ECB moves, ADD a dated entry to noteValues.lateFeeRate rather than MODIFYING the last one: every invoice is still judged on the rate actually in force on its own issue date."
+  },
+  "reporting": {
+    "countryCode": "FR",
+    "facts": [
+      {
+        "providerId": "pdp",
+        "appliesTo": "invoice",
+        "dischargedBy": "transport",
+        "scope": [
+          {
+            "transactions": "b2b-domestic"
+          }
+        ],
+        "periodicity": "None — discharged continuously, as a legal side effect of the PDP transport's own delivery of each invoice; never a separate periodic act, and never triggered by this catalog's own send-time hook (report-on-send.ts excludes every 'transport'-discharged fact — see registry.ts#obligationFor's own header).",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Code général des impôts, art. 289 E : « Les données des factures électroniques émises en application du I de l'article 289 bis sont transmises à l'administration par la plateforme agréée choisie par l'assujetti. » — texte consolidé en vigueur, issu de la LOI n° 2026-103 du 19 février 2026, art. 123, lu directement à la source primaire (codes.droit.org, PDF officiel du Code général des impôts, 15 Mo, HTTP 200, extrait via pdftotext -layout). Légifrance and the JORF were retried the same day and, from this environment, returned either a Cloudflare wall (\"Just a moment...\") or an empty JavaScript shell — never the text itself.",
+          "sourceCheckedAt": "2026-09-16"
+        },
+        "notes": "Art. 289 bis I mandates e-invoicing through an accredited platform (PDP) between two VAT-liable persons established in France ('B2B domestic') — the scope this fact covers. Art. 289 E (quoted above) then puts the duty to TRANSMIT that invoice's data to the tax administration on the PDP itself, never on the issuing company — exactly what `dischargedBy: \"transport\"` expresses: this catalog has nothing to enqueue for a B2B-domestic French invoice, because the transport that already carries it (transports/pdp-transport.ts, proven live end to end on 2026-08-29) is itself the party the law makes responsible on the administration side. `providerId` names a `transports/transport-registry.ts` id here (\"pdp\"), never a `DeclarationProviderRegistry` one — see schema.ts's own header on this deliberate field reuse. `applicableFrom` is deliberately omitted: art. 289 bis's own size-tiered rollout (large/mid companies first, small/micro a year later) is fixed by décret n° 2022-1299 as later modified, and by LOI n° 2026-103's own art. 123 transitional provisions — neither was readable in brut text from this environment on 2026-09-16 (a Légifrance JORFTEXT/LODA id for the décret, and a guessed codes.droit.org codified-article path, were both tried; the former returned only Légifrance's own navigation shell, the latter 404'd) — so no date is asserted, honestly, rather than guessed from secondary commentary."
+      },
+      {
+        "providerId": "fr-ereporting",
+        "appliesTo": "invoice",
+        "dischargedBy": "provider",
+        "scope": [
+          {
+            "transactions": "b2c"
+          },
+          {
+            "transactions": "international"
+          }
+        ],
+        "periodicity": "Periodic, aggregated declaration (CGI art. 290 II/III) — never a real-time, per-invoice call; this catalog's own send-time trigger (report-on-send.ts) excludes every SCOPED fact for exactly this reason (no per-invoice B2B/B2C/domestic/export classifier exists yet in this codebase — see registry.ts#obligationFor's own header). The exact frequency (daily/10-day/monthly) is not sourced in brut text from this environment.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "CGI art. 290 I/II/III, read in brut (codes.droit.org, official CGI PDF, pdftotext -layout, 2026-09-16), confirms a periodic obligation — separate from 289 bis/289 E above — owed by the assujetti itself, to communicate to the administration the data of B2C-domestic, export, and intra-EU operations: « Les assujettis [...] communiquent à l'administration [...] les données relatives aux opérations suivantes » (the [...] are the researcher's own, marking genuinely elided text within the same brut extraction, never an invented quote). What is NOT yet settled, and blocks this fact from being `legal`: (1) the applicability calendar by company size (décret n° 2022-1299 as modified, and LOI n° 2026-103 art. 123's own transitional provisions) — Légifrance/JORF (Cloudflare wall), BOFiP (empty JS shell), and economie.gouv.fr (403) were all retried on 2026-09-16 with no brut text obtained; (2) the exact I/II/III sub-paragraph text beyond the fragment quoted above. To settle: find a working brut route into Légifrance's LODA/JORF for this décret and its later modifying texts, or a mirror serving the JORF publication as plain text/PDF the way codes.droit.org does for the codified CGI. `providerId: \"fr-ereporting\"` is a deliberately UNREGISTERED placeholder — no `DeclarationProvider` implements it (`documents-core.module.ts` only ever registers `pt-at`) — named here only so the obligation stays visible as DATA (company/channels settings screen, a future declarations UI) rather than absent from the catalog entirely, the same 'named before it's wired' convention `b2g-routing/data/pt.json`'s `fe-ap` and France's own pre-wiring `chorus-pro` already used."
+        }
+      },
+      {
+        "providerId": "fr-ereporting",
+        "appliesTo": "invoice",
+        "dischargedBy": "provider",
+        "scope": [
+          {
+            "transactions": "payments"
+          }
+        ],
+        "periodicity": "Periodic, aggregated declaration (CGI art. 290 A) — same 'never per invoice' posture as the B2C/international fact above; frequency not sourced in brut text from this environment.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "CGI art. 290 A, per today's reading of the consolidated CGI text (codes.droit.org PDF, 2026-09-16), establishes a THIRD, separate obligation — payment-data ('TVA à l'encaissement') reporting, owed by the assujetti already covered by art. 289 bis or art. 290 above — distinct from both the invoice-data transmission (289 E, discharged by the PDP) and the operation-data communication (290, the fact above). What is NOT settled: this research pass captured only that characterization, never art. 290 A's own verbatim wording (unlike 289 E/290 above), nor its applicability calendar — the same Légifrance/BOFiP/economie.gouv.fr blockers logged on the other two facts applied here too, retried on 2026-09-16. To settle: read art. 290 A's own text in brut (the same codes.droit.org CGI PDF already has it — a targeted re-read was not done this pass) and confirm the calendar the same way the other two facts need. `providerId` is the SAME unregistered 'fr-ereporting' placeholder as the fact above — one conceptual French e-reporting obligation, several CGI articles, no implemented provider for either slice yet."
+        }
+      }
+    ]
+  },
+  "domesticReverseCharge": {
+    "countryCode": "FR",
+    "categories": [
+      {
+        "key": "construction-subcontracting",
+        "label": "Construction, repair, cleaning, maintenance, transformation or demolition works on real property, performed by a subcontractor",
+        "legalRef": "CGI art. 283, 2 nonies",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2 nonies. Pour les travaux de construction, y compris ceux de réparation, de nettoyage, d'entretien, de transformation et de démolition effectués en relation avec un bien immobilier par une entreprise sous-traitante, au sens de l'article 1er de la loi n° 75-1334 du 31 décembre 1975 relative à la sous-traitance, pour le compte d'un preneur assujetti, la taxe est acquittée par le preneur.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Retrieved curl -A \"Mozilla/5.0\" https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf (HTTP 200, 15 302 264 bytes), pdftotext -layout — codes.droit.org is already this codebase's own established Légifrance mirror for FR provenance (built from the official Légifrance API, per the PDF's own front matter; already cited this way in `correction-routes/data/fr.json`, `country-policy/data/fr.json`, `tax/tax-systems/data/fr.json`, `mentions/data/fr.json`, `vat-rates/data/fr.json` and others), edition '2026-09-01' per the PDF's own header. This wave's own task brief said Légifrance itself is Cloudflare-walled (confirmed again here: legifrance.gouv.fr returns HTTP 403 with a 'Just a moment...' Cloudflare challenge page for every article URL tried) and that an earlier attempt at codes.droit.org used an INVENTED path and 404'd — the real path, found from the site's own index page (https://codes.droit.org/, listing every code's real PDF filename), is the one used here. Condition NOT modeled: the buyer ('preneur') must itself be an 'assujetti' (taxable person) — a buyer-status test this catalog does not evaluate. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), DE (§ 13b Abs. 2 Nr. 4) and PT (CIVA art. 2.º n.º 1 alínea j))."
+      },
+      {
+        "key": "investment-gold",
+        "label": "Gold and semi-finished gold products of at least 325‰ purity",
+        "legalRef": "CGI art. 283, 2 quater",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2 quater. Pour les livraisons à un autre assujetti d'or sous forme de matière première ou de produits semi-ouvrés d'une pureté égale ou supérieure à 325 millièmes, la taxe est acquittée par le destinataire. Toutefois, le vendeur est solidairement tenu au paiement de la taxe.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `construction-subcontracting` above. Shares the `investment-gold` key with IT (DPR 633/1972 art. 17 comma 5) and DE (§ 13b Abs. 2 Nr. 9)."
+      },
+      {
+        "key": "waste-and-scrap-materials",
+        "label": "Processing supplies and services on new industrial waste and recovered materials",
+        "legalRef": "CGI art. 283, 2 sexies",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2 sexies. Pour les livraisons et les prestations de façon portant sur des déchets neufs d'industrie et des matières de récupération, la taxe est acquittée par le destinataire ou le preneur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `construction-subcontracting` above. Condition NOT modeled: the buyer must hold a French VAT identification number — a buyer-status test this catalog does not evaluate. Shares the `waste-and-scrap-materials` key with DE (§ 13b Abs. 2 Nr. 7) and PT (CIVA art. 2.º n.º 1 alínea i)) — Italy has no equivalent under DPR 633/1972 art. 17 (see `data/it.json`'s own file-level notes)."
+      },
+      {
+        "key": "greenhouse-gas-and-energy-certificates",
+        "label": "Transfer of greenhouse-gas emission quotas and gas/electricity guarantee-of-origin or production certificates",
+        "legalRef": "CGI art. 283, 2 septies",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2 septies. Pour les transferts de quotas autorisant les exploitants à émettre des gaz à effet de serre, au sens de l'article 3 de la directive 2003/87/ CE du Parlement européen et du Conseil du 13 octobre 2003 établissant un système d'échange de quotas d'émission de gaz à effet de serre dans la Communauté et modifiant la directive 96/61/ CE du Conseil, et d'autres unités pouvant être utilisées par les opérateurs en vue de se conformer à cette directive, la taxe est acquittée par l'assujetti bénéficiaire du transfert. Pour les transferts de certificats de garanties d'origine mentionnées aux articles L. 311-20, L. 311-22, L. 445-3, L. 445-15, L. 446-18, L. 446-22-1, L. 821-3, L. 824-1 et L. 824-2 du code de l'énergie et de certificats de production mentionnés à l'article L. 446-31 dudit code, la taxe est acquittée par l'assujetti bénéficiaire du transfert.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `construction-subcontracting` above. Shares the `greenhouse-gas-and-energy-certificates` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter), DE (§ 13b Abs. 2 Nr. 6) and PT (CIVA art. 2.º n.º 1 alínea l) — PT's own scope is narrower, GHG allowances only; see PT's own fact)."
+      },
+      {
+        "key": "gas-and-electricity-to-reseller",
+        "label": "Supply of natural gas or electricity to a buyer holding a French VAT number, including from a French-established supplier",
+        "legalRef": "CGI art. 283, 2 quinquies, second sentence",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Pour les livraisons de gaz naturel ou d'électricité mentionnées au b du même III, ainsi que pour les services définis au 13° de l'article 259 B qui leur sont directement liés, la taxe est acquittée par l'acquéreur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France, y compris lorsque son fournisseur est établi en France.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `construction-subcontracting` above. This is the SECOND sentence of 2 quinquies; the FIRST sentence ('Pour les livraisons mentionnées au III de l'article 258, la taxe est acquittée par l'acquéreur ... lorsque son fournisseur est établi hors de France') is a genuinely cross-border case (an explicit 'établi hors de France' condition on the supplier) and is NOT modeled here for the same reason DE's own § 13b Abs. 2 Nr. 1/Nr. 5 Buchst. a) and PL are excluded — see `data/de.json`'s own file-level notes. This second sentence is the one that explicitly says 'y compris lorsque son fournisseur est établi en France' (including when the supplier is established in France), which is what makes it a genuinely DOMESTIC case. Condition NOT modeled: the buyer must hold a French VAT identification number. Shares the `gas-and-electricity-to-reseller` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-quater) and DE (§ 13b Abs. 2 Nr. 5 Buchst. b)."
+      },
+      {
+        "key": "telecommunications-services",
+        "label": "Electronic communications services",
+        "legalRef": "CGI art. 283, 2 octies",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2 octies. Pour les services de communications électroniques, à l'exclusion de ceux soumis à la taxe mentionnée à l'article L. 453-1 du code des impositions sur les biens et services, la taxe est acquittée par l'acquéreur qui dispose d'un numéro d'identification à la taxe sur la valeur ajoutée en France.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `construction-subcontracting` above. Excludes services subject to the tax mentioned at Code des impositions sur les biens et services art. L. 453-1 — that carve-out is NOT itself retrieved or modeled here. Condition NOT modeled: the buyer must hold a French VAT identification number. Shares the `telecommunications-services` key with DE (§ 13b Abs. 2 Nr. 12)."
+      }
+    ],
+    "notes": "Retrieved curl -A \"Mozilla/5.0\" https://codes.droit.org/PDF/Code%20g%C3%A9n%C3%A9ral%20des%20imp%C3%B4ts.pdf (HTTP 200, 15 302 264 bytes, edition 2026-09-01), pdftotext -layout, 2026-09-13. This wave's own task brief said France was 'not established' as of the brief's own writing and listed three failed FR retrieval routes (a Cloudflare-walled Légifrance permalink, an INVENTED codes.droit.org path that 404'd, and a BOFiP page that returned HTTP 200 with a page shell but no article text) — none of those routes was repeated: the real codes.droit.org path was found from that site's own index page rather than guessed, and the retrieved body was checked to actually carry CGI art. 283's full numbered-paragraph text (not a shell) before anything was quoted from it. DELIBERATELY EXCLUDED: CGI art. 283, 1 and 2 (the general reverse-charge rule for a supply made by a trader established OUTSIDE France — genuinely cross-border, already the CROSS-BORDER branch's own territory), 2 bis (intra-Community acquisitions — cross-border by definition), 2 ter (art. 258 D I 2° deliveries — not itself retrieved, so its domestic/cross-border character was not established either way and it is left out rather than guessed), 2 decies (a ministerial emergency-decree POWER to add further categories, not itself a category), and 3/4/4 bis/4 ter/5 (liability for VAT WRONGLY invoiced or for a fraudulent chain — a different legal concept, 'who owes tax because of a billing error or a fraud they knew about', not 'the buyer is liable by the nature of the transaction'). DELIBERATELY NOT MODELED, for every category above: buyer-status conditions ('assujetti', holding a French VAT number) named in each category's own text, and the CGI art. 1er of the 1975 sous-traitance law's own definition of 'entreprise sous-traitante' behind `construction-subcontracting`."
+  },
+  "countryFields": {
+    "countryCode": "FR",
+    "overlays": [
+      {
+        "typeId": "invoice",
+        "operations": [
+          {
+            "op": "add",
+            "path": "lines",
+            "field": {
+              "key": "supplyType",
+              "kind": "select",
+              "label": "Supply type",
+              "required": false,
+              "options": [
+                {
+                  "value": "GOODS",
+                  "label": "Goods"
+                },
+                {
+                  "value": "SERVICES",
+                  "label": "Services"
+                }
+              ],
+              "helpText": "Whether this line is a delivery of goods or a supply of services — used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure."
+            }
+          }
+        ]
+      }
+    ],
+    "notes": "France's FIRST real field-overlay file — see this directory's own `data/all.ts` header for why it shipped empty until now. Adds `supplyType` as an OPTIONAL 'select' subfield of `invoice.lines`, consumed by `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` (via `formats/shared-build.ts#extractLines`) to derive BT-23's own goods/services/mixed category (CGI ann. II art. 242 nonies A, I, 8° bis — see `content-requirements/data/fr.json` for the sourced, dated citation and the date this becomes binding). A LINE subfield, not a document-level field: BT-23's own category genuinely depends on what each line actually contains (a mixed invoice derives 'mixte' automatically the moment both values appear across its lines), which a single document-wide toggle could not express without asking the user to pre-summarize their own invoice. Deliberately OPTIONAL — a French invoice with no line declaring this still builds (M1, the value that asserts nothing false about the content, per `business-process.ts`'s own documented default); this field only lets a seller be MORE precise (B1/S1) when they choose to say so, never forces a new required field onto an existing workflow. Labels are plain data (see `descriptors/types.ts`'s own comment on `DocumentTypeDescriptor.label`: the frontend renders `field.label`/`option.label` directly, never through `t()`), so this needed no i18n locale entry — consistent with every other field label already in `invoice.descriptor.ts`."
+  },
+  "contentRequirements": {
+    "countryCode": "FR",
+    "facts": [
+      {
+        "field": "BT-23",
+        "mandatedFrom": "2026-09-01",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "8° bis L'information selon laquelle les opérations donnant lieu à facture sont constituées exclusivement de livraisons de biens ou exclusivement de prestations de services ou sont constituées de ces deux catégories d'opérations ; (CGI, annexe II, art. 242 nonies A, I, 8° bis)",
+          "sourceCheckedAt": "2026-08-31"
+        },
+        "notes": "The exact text was found in the consolidated PDF « Code général des impôts, annexe II » (codes.droit.org, the Légifrance mirror already used for ../../mentions/data/fr.json — Légifrance itself returns 403 to automated requests, see that file), the version shown as last updated 2026-07-29, checked on 2026-08-31. The pre-refactor git tag `avant-refonte-documents` (compliance/providers/format/providers.ts, P2-T08) carried only a PARAPHRASE of this 8° bis (« the machine translation of the statutory mention 8° bis... ») with no verbatim citation and no check date; the text above is the exact citation, verified for this task, that was missing. The effective DATE (2026-09-01) is not carried by article 242 nonies A itself (an implementing decree, with no calendar clause of its own in the consolidated text) but by the mandatory e-invoicing regime it equips — CGI art. 289 bis/290, already sourced and dated (checked 2026-08-28) in ../../transports/channel-policy/data/fr.json for the same milestone. BT-23 (EN 16931, UBL cbc:ProfileID / CII BusinessProcessSpecifiedDocumentContextParameter/ID) is the machine translation of this 8° bis — the closed value list French law imposes exists nowhere in a text cited here word for word (B1/S1/M1/...): it comes from the DGFiP's own external specifications v3.2, not from the CGI — see formats/semantic/business-process.ts's own header, which already carries it and is not duplicated here."
+      }
+    ],
+    "notes": "Only France is wired today — the only country for which a real PDP rejection (informational poll, ../../transports/pdp/pdp.live.spec.ts) cited BT-23. A future country/field adds an entry here, never a branch in the generic code (formats/semantic/business-process.ts)."
+  },
+  "b2gRouting": {
+    "countryCode": "FR",
+    "transportId": "chorus-pro",
+    "formatSyntax": "facturx",
+    "requiredClientIdentifiers": [
+      {
+        "scheme": "LEGAL_ID",
+        "label": "SIRET",
+        "why": "Chorus Pro identifies every public-sector recipient by its SIRET (the 14-digit establishment number) — the SAME \"LEGAL_ID\" scheme this catalog already uses for a French client's own identifier (see country-identifiers/data/fr.json, which already accepts both the 9-digit SIREN and the 14-digit SIRET). A government client with no SIRET on file cannot be routed to Chorus Pro at all."
+      }
+    ],
+    "requiredDocumentFields": [
+      {
+        "field": "buyerReference",
+        "label": "Code service (destinataire)",
+        "why": "Chorus Pro routes an invoice inside a public entity by a \"code service\" identifying which department/service ordered it — not every public entity requires one (it depends on how that entity organized its own Chorus Pro account), so this stays optional rather than a hard block. Reuses the SAME generic `buyerReference` field the DE/XRechnung rule below also reads (`formats/shared-build.ts#extractBuyerReference`, `country-fields/data/de.json`'s own header) — a deliberate modeling choice, not a coincidence: both are \"which unit inside the recipient should receive this\" facts, even though French doctrine calls it \"code service\" and German law calls it \"Leitweg-ID\".",
+        "required": false
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Code de la commande publique, art. L. 2192-1 (LOI n°2022-1157 du 16 août 2022, art. 26) : « Les titulaires de marchés conclus avec les personnes morales de droit public, ainsi que leurs sous-traitants admis au paiement direct, transmettent leurs factures sous forme électronique. » Art. L. 2192-2 (même loi) : « Les personnes morales de droit public acceptent les factures transmises sous forme électronique par les titulaires de marchés mentionnés à l'article L. 2192-1 et leurs sous-traitants admis au paiement direct. » Art. L. 2192-5 (LOI n°2026-103 du 19 février 2026, art. 123) : « Une solution mutualisée, mise à disposition par l'Etat et dénommée \" portail public de facturation \", permet le dépôt, la réception et la transmission des factures sous forme électronique [...]. Pour la mise en œuvre des obligations fixées à la sous-section 1 de la présente section, utilisent le portail public de facturation : 1° L'Etat, les collectivités territoriales et les établissements publics ; 2° Les titulaires de marchés conclus avec un acheteur mentionné au 1° ainsi que leurs sous-traitants admis au paiement direct. »",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "READ DIRECTLY on 2026-09-01 at codes.droit.org (official PDF of the Code de la commande publique, https://codes.droit.org/PDF/Code%20de%20la%20commande%20publique.pdf, articles L. 2192-1/L. 2192-2/L. 2192-5 — see sourceText above, a verbatim citation extracted from the PDF itself, not paraphrased). Légifrance kept refusing every automated request (the same wall country-policy/data/fr.json and country-identifiers/data/fr.json already document for this specific site). EUROPEAN BASELINE common to the three countries in this wave: directive 2014/55/EU, art. 7 (EUR-Lex, https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32014L0055, checked 2026-09-01): « Member States shall ensure that contracting authorities and contracting entities receive and process electronic invoices which comply with the European standard on electronic invoicing [...] » — this directive imposes RECEIPT by the contracting authority, never issuance by the supplier; it is art. L. 2192-1 et seq. above that, under French law, impose electronic issuance by the contract holder IN RETURN. `transportId: \"chorus-pro\"` DELIBERATELY references a channel that does NOT EXIST in `transports/transport-registry.ts` (email/pdp/ksef/sdi only) — that is this model's own thesis (see actions/invoice-actions.ts's own header): the legal text above names \"le portail public de facturation\" (operated under the \"Chorus Pro\" brand by the AIFE — a well-known fact, documented elsewhere in this repository at `documentation/compliance/FR-France.md`, but NOT re-confirmed at its primary source by THIS task, for lack of access: chorus-pro.gouv.fr/portail.chorus-pro.gouv.fr are JavaScript applications that render no text to a plain request), never one of the four channels already implemented here — sending must therefore REFUSE, by naming it, rather than silently routing to a channel (email, pdp) the text does not designate. `formatSyntax: \"facturx\"` is a DELIBERATE choice but NOT re-verified against Chorus Pro's own documentation (the Chorus Pro community site, communaute.chorus-pro.gouv.fr, rendered no usable text to this task either): Factur-X is the hybrid PDF/XML EN 16931 format this repository already builds (`formats/facturx-provider.ts`) and the format already used for the existing French PDP channel (`transports/pdp-transport.ts`) — a choice consistent with what already exists rather than an independently sourced fact about exactly what Chorus Pro accepts (UBL is also probably accepted; not settled here)."
+  }
+}
