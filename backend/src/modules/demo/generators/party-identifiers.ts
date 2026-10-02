@@ -10,7 +10,7 @@
  *    only ever appears on the derived VAT-number FORM, which this catalog does not separately declare
  *    for Poland).
  *  - PT: `LEGAL_ID` (NIF/NIPC, required) + `VAT` ("PT" + the same NIF digits).
- *  - DZ: `RC`, `NIS`, `NIF`, `AI` (all four, `country-identifiers/data/dz.json`'s own four schemes,
+ *  - DZ: `RC`, `NIS`, `NIF`, `AI` (all four, `countries/data/dz.json (section "identifiers")`'s own four schemes,
  *    every one `required: true`). RC and AI declare no `pattern` (free text per PR #566's review,
  *    native contributor, 2026-09-30); NIF and NIS each now declare one (digits only, 15 or 20 for
  *    NIF, 15 or 18 for NIS, same source), enforced by `validate-identifier-value.ts`. No check-digit
@@ -38,7 +38,7 @@ export interface PartyIdentifierEntry {
 /** Same general shape as the fixtures `e2e/cypress/e2e/113-algeria-onboarding-and-currency.cy.ts`
  *  already types by hand for its own Algerian company/client, randomized per-digit so two demo
  *  parties never collide. No checksum (see this file's own header on RC/NIS/NIF/AI). NIS and NIF are
- *  each built to exactly 15 digits, the shorter of the two lengths `country-identifiers/data/dz.json`
+ *  each built to exactly 15 digits, the shorter of the two lengths `countries/data/dz.json (section "identifiers")`
  *  now declares a `pattern` for (NIF `^\d{15}(\d{5})?$`, NIS `^\d{15}(\d{3})?$`, both from PR #566's
  *  review, native contributor, 2026-09-30). A demo party is always a primary establishment, never a
  *  secondary one, so the longer (20/18-digit) branch is never exercised here. */

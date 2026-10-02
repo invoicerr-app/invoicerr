@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `cy.resetAndSeed()`'s own baseline company (France) and client (France, COMPANY - see
  * support/commands.ts) are ALREADY a domestic B2B pair; what switches a given invoice between the
  * two branches below is only its own `issueDate`, against the PDP mandate's 2026-09-01 threshold
- * (`transports/channel-policy/data/fr.json`) - same convention 31/81 already use.
+ * (`countries/data/fr.json (section "channelPolicy")`) - same convention 31/81 already use.
  *
  * Four facts, in the order the shared seed/company state below actually allows proving them:
  *  1. with NO transport configured at all, Validate on a mandated (on/after 2026-09-01) invoice is

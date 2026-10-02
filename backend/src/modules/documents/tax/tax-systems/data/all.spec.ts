@@ -80,7 +80,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
     const fr = byCode('FR');
     expect(fr?.provenance.kind).toBe('legal');
     if (fr?.provenance.kind === 'legal') {
-      // The exact CGI art. 293 B, I sentence, already cited as `legal` on vat-rates/data/fr.json's
+      // The exact CGI art. 293 B, I sentence, already cited as `legal` on countries/data/fr.json (section "vatRates")'s
       // own 'fr-exempt-293b' entry — reused here verbatim, not a new, unverified citation.
       expect(fr.provenance.sourceText).toContain(
         'franchise qui les dispense du paiement de la taxe sur la valeur ajoutée',
@@ -137,7 +137,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
     }
   });
 
-  it("PL is PROMOTED off the TEDB HTTP body onto the statute itself — the same art. 41 / art. 146ef quote already `legal` on vat-rates/data/pl.json's own 'pl-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+  it("PL is PROMOTED off the TEDB HTTP body onto the statute itself — the same art. 41 / art. 146ef quote already `legal` on countries/data/pl.json (section 'vatRates')'s own 'pl-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
     const pl = byCode('PL');
     const plVatStandard = require('../../../countries/data/pl.json').vatRates.rates.find(
       (r: { id: string }) => r.id === 'pl-standard',
@@ -148,7 +148,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
       expect(pl.provenance.sourceText).toBe(plVatStandard.provenance.sourceText);
       expect(pl.provenance.sourceCheckedAt).toBe(plVatStandard.provenance.sourceCheckedAt);
       expect(pl.provenance.sourceCheckedAt).toBe('2026-09-13');
-      // Poland's statutory basis is split (see vat-rates/data/pl.json's own notes): art. 41 alone
+      // Poland's statutory basis is split (see countries/data/pl.json (section "vatRates")'s own notes): art. 41 alone
       // sets a 22% BASE rate, and it is art. 146ef that raises it to the 23% actually in force. The
       // quotation must carry BOTH provisions — citing art. 41 alone would misleadingly read as if
       // 22% were today's rate.

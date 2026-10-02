@@ -195,7 +195,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					// `refetchInterval` is re-evaluated — and its 60s window restarted — right after
 					// the click, via the invalidation `useRunDocumentAction` already triggers).
 					// This company is FR (resetAndSeed's own default, never overridden above), and FR
-					// restricts "invoice.save-draft" to the "draft" status (country-policy/data/fr.json)
+					// restricts "invoice.save-draft" to the "draft" status (countries/data/fr.json (section "policy"))
 					// — so this very first send opens the row's own lock-confirmation dialog first
 					// (document-list.tsx's DocumentRowActions, `actionLocksDocument` in
 					// action-presentation.ts). `sendClickedAt` is captured on the CONFIRM click, not the

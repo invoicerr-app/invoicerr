@@ -263,7 +263,7 @@ describe('issue #472 - a credit note in every EN 16931 syntax, judged by the sam
 describe('issue #472 - FatturaPA TD04 (nota di credito), judged by the real Agenzia delle Entrate XSD', () => {
   it("TD04 + DatiFattureCollegate naming the corrected invoice, no payment instruction, XSD-valid, with the number Italy's DEFAULT format produces (issue #496)", async () => {
     // Issue #496: the credit-note number is rendered through the format numbering itself resolves for
-    // an Italian company with no running series (country-policy/data/it.json), at a six-digit counter -
+    // an Italian company with no running series (countries/data/it.json (section "policy")), at a six-digit counter -
     // never a hand-picked short literal, so this test breaks the day that format stops fitting.
     const resolved = resolveNumberFormatFor('IT', 'credit-note', null);
     expect(resolved.source).toBe('country-policy');

@@ -3,7 +3,7 @@
  * lookup, no country resolution: see `actions/atcud-issuance.ts` for the DB-touching orchestration
  * that calls into this file from the invoice "send" preflight and from the numbering step itself.
  *
- * ## The legal shape (Portaria n.º 195/2020) — quoted verbatim in country-policy/data/pt.json
+ * ## The legal shape (Portaria n.º 195/2020) — quoted verbatim in countries/data/pt.json (section "policy")
  *
  * art. 4.º n.º 1: `ATCUD:CodigodeValidação-NumeroSequencial` — the two parts joined by exactly ONE
  * literal hyphen, no quotes. art. 3.º n.º 1: the "código de validação" (issued by the AT) is a string
@@ -36,7 +36,7 @@
  * anywhere in this file, on purpose.
  *
  * Since issue #496 no company chooses its pattern any more: Portugal's own formats
- * (`country-policy/data/pt.json`'s `numberFormats`, "FT A/{number}" and "NC A/{number}") are
+ * (`countries/data/pt.json (section "policy")`'s `numberFormats`, "FT A/{number}" and "NC A/{number}") are
  * ATCUD-compatible by construction, checked at load time against pt.json's own "TYPE SERIES/NUMBER"
  * constraint, and a running series that is not compatible gives way to them
  * (`numbering/company-number-format.ts`). The refusal described above stays as the defensive check.
@@ -49,7 +49,7 @@ export const ATCUD_MIN_VALIDATION_CODE_LENGTH = 8;
 /**
  * Every document type this product issues that must carry an ATCUD, mapped to its SAF-T (PT)
  * document type (issue #497). The keys ARE the ATCUD-eligible set: `actions/atcud-issuance.ts` refuses
- * any other typeId, and `country-policy/data/pt.json` carries one `atcud-required` numbering fact per
+ * any other typeId, and `countries/data/pt.json (section "policy")` carries one `atcud-required` numbering fact per
  * key, with its provenance (`country-policy/data/numbering.spec.ts` fails if the two drift apart).
  *
  * Why a credit note is here: Decreto-Lei n.º 28/2019, art. 2.º alínea c) ii) defines a « fatura » as

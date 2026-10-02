@@ -198,7 +198,7 @@ export interface MentionWindowAlert {
  * scheduled maintenance already done). When every entry IS bounded, the field's own "coverage
  * horizon" is the LATEST `validTo` among them — this deliberately does not attempt to detect an
  * INTERNAL gap between two non-contiguous bounded windows (every catalog shipped today keeps its own
- * windows contiguous by convention — see e.g. `mentions/data/fr.json`'s own "TO BE MAINTAINED TWICE A
+ * windows contiguous by convention — see e.g. `countries/data/fr.json (section "mentions")`'s own "TO BE MAINTAINED TWICE A
  * YEAR" note — so the one gap that actually matters in practice is always the trailing one).
  *
  * Returns one alert per (country, field) whose horizon is within `MENTION_WINDOW_ALERT_THRESHOLD_DAYS`
@@ -212,7 +212,7 @@ export interface MentionWindowAlert {
  * `files` defaults to the real shipped catalog (`ALL_MENTIONS_FILES`) — overridable so a spec can feed
  * a synthetic fixture and assert this function's own edge cases (an exactly-at-threshold horizon, an
  * already-past one, an open-ended table) without depending on whatever dates happen to be in
- * `mentions/data/fr.json` on the day the spec runs, the same `files = ALL_*_FILES` default-parameter
+ * `countries/data/fr.json (section "mentions")` on the day the spec runs, the same `files = ALL_*_FILES` default-parameter
  * testability pattern `vat-rates/registry.ts#VatRateCatalog`'s own constructor already holds.
  */
 export function computeMentionWindowAlerts(

@@ -949,14 +949,14 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     });
 
     /**
-     * correction-routes/data/pl.json's own CREDIT_NOTE fact ('forbidden', already pinned by
+     * countries/data/pl.json (section "correctionRoutes")'s own CREDIT_NOTE fact ('forbidden', already pinned by
      * correction-routes/data/all.spec.ts) is what this guard reads — Poland has no separate
      * "nota kredytowa" instrument, only the referenced faktura korygująca (art. 106j ust. 1 ustawy o
      * VAT). FR keeps CREDIT_NOTE 'allowed', so nothing blocks it there.
      *
      * PR #473 review point 2 (owner decision): this used to only guard the FREE shape - a LINKED
      * credit note was wrongly let through, and could take a number from the credit-note series even
-     * though `country-policy/data/pl.json`'s own `numbering` fact already said the type is refused
+     * though `countries/data/pl.json (section "policy")`'s own `numbering` fact already said the type is refused
      * outright. Fixed: `assertCreditNoteAllowedForCountry` (renamed from
      * `assertCreditNoteAllowedForCountry`) now refuses BOTH shapes for a Polish seller.
      */
@@ -1044,7 +1044,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     // whether the record already existed - there is no special-case letting a pre-existing draft
     // through. (The "still readable" half is the ABSENCE of a check: this guard is wired only on
     // "save-draft"/"send", never on a GET/PDF-render/"share-link" - see credit-note.descriptor.ts's
-    // own "share-link" comment and country-policy/data/pl.json's own `share-link` rule, unchanged,
+    // own "share-link" comment and countries/data/pl.json (section "policy")'s own `share-link` rule, unchanged,
     // `allowed: true`.)
     describe('an EXISTING Polish credit note (drafted or issued before PR #473) stays readable, never editable/sendable', () => {
       it('a re-save of an ALREADY-EXISTING draft credit note is refused for a Polish seller - pre-existing records get no exemption', async () => {
@@ -1100,7 +1100,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         expect(persistence.upsertDocument).not.toHaveBeenCalled();
       });
 
-      // "share-link" is UNCHANGED (country-policy/data/pl.json keeps it `allowed: true`, and no code
+      // "share-link" is UNCHANGED (countries/data/pl.json (section "policy") keeps it `allowed: true`, and no code
       // guard in credit-note-actions.ts runs on it at all - see credit-note.descriptor.ts's own
       // comment: it is declared for the frontend/policy layer only, never routed through
       // `registerCreditNoteActions`) - this is the "still readable" half, proven by the ABSENCE of

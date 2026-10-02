@@ -120,7 +120,7 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  * SERVICES, which decides whether a cross-border B2B line reaches category K (intra-Community supply)
  * versus category AE (reverse charge), and whether a cross-border B2C line reaches OSS destination VAT
  * at all (`tax-engine.ts#determineLineTax` §2: "B2C across the union → OSS" is gated on
- * `GOODS`/`DIGITAL` specifically). The ONLY screen input for it is `country-fields/data/fr.json`'s
+ * `GOODS`/`DIGITAL` specifically). The ONLY screen input for it is `countries/data/fr.json (section "countryFields")`'s
  * `lines[].supplyType` overlay, resolved on the SELLER's own country (`documents.service.ts`) — so a
  * DE, IT, PT or PL seller (`de-fr`, `it-pt`/`it-it`, `pt-de`, `pl-de` below) has no way at all, through
  * the real app, to tell the engine a line is a delivery of goods rather than a supply of services. This
@@ -136,7 +136,7 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  *
  *  - `de-fr` (GOODS, B2C, cross-border, same union): falls to `tax-engine.ts`'s "other B2C services"
  *    branch (§2, line 311-312) → `domesticVat(supplier)` → the SELLER's OWN rate, Germany's 19%
- *    (`tax-systems/data/de.json`), category S — never France's 20% OSS destination rate.
+ *    (`countries/data/de.json (section "taxSystem")`), category S — never France's 20% OSS destination rate.
  *  - `it-pt` (GOODS, B2B confirmed, cross-border, same union): falls to the SERVICES branch of §2
  *    (line 292-305) → reverse charge, category AE, 0%, jurisdiction Portugal — never category K
  *    (intra-Community supply). The Italian-seller mention becomes "inversione contabile"
@@ -146,11 +146,11 @@ import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
  *    BT-80 ("Deliver to" country) is gone too: `build-semantic-invoice.ts` only builds it for category
  *    K, per BR-IC-12.
  *  - `pl-de` (GOODS, B2C individual, cross-border, same union): same branch as `de-fr` →
- *    `domesticVat(supplier)` → Poland's own 23% (`tax-systems/data/pl.json`), category S — never
+ *    `domesticVat(supplier)` → Poland's own 23% (`countries/data/pl.json (section "taxSystem")`), category S — never
  *    Germany's 19% OSS destination rate, the one outcome the old fixture comment (see the top-of-file
  *    NOTE) already got right for the WRONG reason.
  *
- * Fixing this for real means exposing `supplyType` to DE/IT/PT/PL the way `country-fields/data/fr.json`
+ * Fixing this for real means exposing `supplyType` to DE/IT/PT/PL the way `countries/data/fr.json (section "countryFields")`
  * already does for FR, and creating the draft through the actual multi-step wizard instead of
  * `cy.request` so a future screen change cannot silently re-diverge from what this file asserts —
  * both out of this file's own scope (a country-fields data file and the create-dialog's screen-driven
@@ -208,7 +208,7 @@ const EURO_SLUG = "euro-(€)";
  * catalog rather than the fixture's own `company.identifierScheme` (see this file's header — that
  * field is directional guidance the fixture author wrote for a different engine, not always literal).
  *
- *  - FR (`country-identifiers/data/fr.json`): LEGAL_ID (SIREN/SIRET) required, VAT offered/optional.
+ *  - FR (`countries/data/fr.json (section "identifiers")`): LEGAL_ID (SIREN/SIRET) required, VAT offered/optional.
  *  - DE (`data/de.json`): neither scheme required — `company.legalId` ("DE136695976") is VAT-shaped
  *    (the fixture's own `identifierScheme: 'VAT'` is right here), so it belongs in the VAT slot, not
  *    a fabricated Handelsregisternummer.
@@ -256,7 +256,7 @@ const SELLER_IDENTIFIERS: Record<string, { legalId?: string; vat?: string }> = {
  *  - DE (`pt-de`): VAT offered, not required; "DE812000006" is checksum-VALID (verified by hand
  *    against `validateDeVat`'s ISO 7064 Mod 11,10 in this file's own header).
  *  - PT (`it-pt`): LEGAL_ID (NIF) required; "501442600" is `client.vat`'s own "PT501442600" with the
- *    prefix stripped (`country-identifiers/data/pt.json`'s own notes: the two are conventionally the
+ *    prefix stripped (`countries/data/pt.json (section "identifiers")`'s own notes: the two are conventionally the
  *    same number) — VAT slot filled with "PT501442600" itself.
  *  - DE (`pl-de`, INDIVIDUAL/B2C): no VAT at all, on purpose — an unregistered consumer is exactly the
  *    shape the OSS destination-VAT branch needs (`resolveBuyerRole`: no VAT value at all → B2C before
@@ -283,12 +283,12 @@ interface BuyerIdentifiers {
 }
 
 const BUYER_IDENTIFIERS: Record<string, BuyerIdentifiers> = {
-	// Poland ships LEGAL_ID and NOT VAT (`country-identifiers/data/pl.json`), so this buyer's VAT
+	// Poland ships LEGAL_ID and NOT VAT (`countries/data/pl.json (section "identifiers")`), so this buyer's VAT
 	// number still cannot go through the form — the API fallback below is still exercised, but for a
 	// narrower and more accurate reason than "this country has no file".
 	"fr-pl": { vat: "PL5260001246", formOffers: ["LEGAL_ID"], expectedVatStatus: "VALID" },
 	"de-fr": { legalId: "552100554", vat: "FR12345678901", formOffers: ["LEGAL_ID", "VAT"], expectedVatStatus: "INVALID" },
-	// Italy ships VAT + LEGAL_ID (`country-identifiers/data/it.json`, 2026-09-13). Both inputs render;
+	// Italy ships VAT + LEGAL_ID (`countries/data/it.json (section "identifiers")`, 2026-09-13). Both inputs render;
 	// neither is typed here, which is correct — both schemes are `required: false`.
 	"it-it": { formOffers: ["VAT", "LEGAL_ID"] },
 	"pt-de": { vat: "DE812000006", formOffers: ["VAT", "LEGAL_ID"], expectedVatStatus: "VALID" },
@@ -308,7 +308,7 @@ const UNIT = s.item.type === "PRODUCT" ? "unit" : s.item.type === "DAY" ? "day" 
 
 /** Countries whose `country-fields/data/<cc>.json` catalog actually overlays a `supplyType` input onto
  *  the invoice line — resolved on the SELLER's own country (`documents.service.ts`). Today only France
- *  does (`country-fields/data/fr.json`); every other seller's screen has no control that could ever
+ *  does (`countries/data/fr.json (section "countryFields")`); every other seller's screen has no control that could ever
  *  produce this key, so `createInvoiceDraft` below must not fabricate it for them — see this file's own
  *  header, "a fourth defect", for what asserting the injected value instead of the real gap would hide. */
 const COUNTRIES_WITH_SUPPLY_TYPE_FIELD = new Set(["France"]);
@@ -420,7 +420,7 @@ function sendInvoiceViaScreen(invoiceId: string) {
 }
 
 /**
- * `channel-policy/data/it.json`'s "sdi" fact was armed `mandated`/`mandatedFrom: '2019-01-01'` on
+ * `countries/data/it.json (section "channelPolicy")`'s "sdi" fact was armed `mandated`/`mandatedFrom: '2019-01-01'` on
  * 2026-09-13 (D.Lgs. 127/2015 art. 1 comma 3 — see that file's own `provenance`). Every leg's own
  * main invoice below is issued 2026-08-20 — chosen (see the top-of-file NOTE) to sit BEFORE France's
  * own PDP mandate (2026-09-01) so the shared "sends via email, reaches Sent" shape holds for every
@@ -492,7 +492,7 @@ function connectFakeSdiAndMakeItTheTransport() {
  * no company has ever registered a validation code.
  *
  * Since issue #496 the invoice number FORMAT is not the company's to set: Portugal's own format,
- * "FT A/{number}" (`country-policy/data/pt.json`'s `numberFormats`), is ATCUD-compatible out of the
+ * "FT A/{number}" (`countries/data/pt.json (section "policy")`'s `numberFormats`), is ATCUD-compatible out of the
  * box, one series across years. What a real Portuguese company still has to do before its first
  * invoice is register the AT-issued code for series "FT A" - and this mirrors that setup through the
  * actual settings screen (`settings/_components/atcud.settings.tsx`), the same "action through a real
@@ -847,7 +847,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					);
 					expect(doc.displayNumber.length, "the number is not an empty string").to.be.greaterThan(0);
 					if (scenarioId === "pt-de") {
-						// Portugal's own format (issue #496, `country-policy/data/pt.json`: "FT A/{number}") -
+						// Portugal's own format (issue #496, `countries/data/pt.json (section "policy")`: "FT A/{number}") -
 						// a bare non-empty-string check would stay green even if numbering silently fell back
 						// to another country's pattern ("INVOICE-{year}-{number:4}"), which has no "/" at all
 						// and would itself have failed the ATCUD preflight this leg exists to get past. Assert
@@ -939,7 +939,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// VAT-scheme identifier for a seller with no `country-identifiers` file — see this
 					// file's header) — but this leg's REAL tax treatment is NOT category K. This item is a
 					// PRODUCT (GOODS), and the Italian seller's own screen has no `supplyType` control at
-					// all (`country-fields/data/fr.json` is the only overlay for it — see this file's
+					// all (`countries/data/fr.json (section "countryFields")` is the only overlay for it — see this file's
 					// header, "a fourth defect"): `resolve-invoice-tax.ts` therefore treats this line as
 					// SERVICES, which for a confirmed-B2B cross-border pair in the same union reaches
 					// `tax-engine.ts`'s reverse-charge branch (category AE, 0%, jurisdiction Portugal) —
@@ -985,7 +985,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// `supplyType` control (see this file's header, "a fourth defect"): the line resolves as
 					// SERVICES, and `tax-engine.ts`'s B2C branch only routes to OSS for `GOODS`/`DIGITAL` —
 					// a B2C "service" across the union instead falls to `domesticVat(supplier)`, the SELLER's
-					// own rate. Poland's own standard rate is 23% (`tax-systems/data/pl.json`), not
+					// own rate. Poland's own standard rate is 23% (`countries/data/pl.json (section "taxSystem")`), not
 					// Germany's 19% — the exact undercharge risk this file's header quotes verbatim from the
 					// review that found it: a Polish seller selling actual goods to a German consumer is
 					// taxed at the SELLER's rate instead of the (higher, in this case) destination rate,
@@ -1038,7 +1038,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 					// seller's own screen has no `supplyType` control at all (see this file's header, "a
 					// fourth defect"), so the line resolves as SERVICES, and a B2C "service" across the union
 					// falls to `domesticVat(supplier)` instead: the SELLER's OWN rate, Germany's 19%
-					// (`tax-systems/data/de.json`), category S. The decisive proof this is the SERVICES
+					// (`countries/data/de.json (section "taxSystem")`), category S. The decisive proof this is the SERVICES
 					// fallback and not a coincidence is the buyer's stored `validationStatus` asserted in the
 					// previous test (INVALID, never left null) together with the RATE below — 19%, which
 					// cannot be confused with either the seller's typed 19% (same number, different reason:
@@ -1102,7 +1102,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				) => {
 					if (scenarioId === "fr-pl") {
 						// France — the ONLY seller country with a real, enforced MANDATE
-						// (`channel-policy/data/fr.json`: pdp, mandatedFrom 2026-09-01, provenance 'legal').
+						// (`countries/data/fr.json (section "channelPolicy")`: pdp, mandatedFrom 2026-09-01, provenance 'legal').
 						// `effectiveNow` is computed against the REAL clock (`channels.service.ts#suggestedChannels`),
 						// so this is true today (2026-09-01 is already in the past by construction of this
 						// branch's own timeline).
@@ -1112,7 +1112,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						expect(pdp!.mandatedFrom).to.eq("2026-09-01");
 						expect(pdp!.effectiveNow, "the mandate has already come into force").to.eq(true);
 					} else if (scenarioId === "it-it" || scenarioId === "it-pt") {
-						// Italy - `channel-policy/data/it.json` declares SdI `mandated` from 2019-01-01,
+						// Italy - `countries/data/it.json (section "channelPolicy")` declares SdI `mandated` from 2019-01-01,
 						// `provenance.kind: 'legal'`, sourced to D.Lgs. 127/2015 art. 1 comma 3 (armed
 						// 2026-09-13 - see that file's own `provenance`/`notes`).
 						//
@@ -1134,7 +1134,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 						// endpoint) settles it on "send_failed", never a silent "email" success. `it-pt`'s
 						// buyer is Portuguese, and comma 3 binds only supplies "tra soggetti residenti o
 						// stabiliti nel territorio dello Stato" - the mandate does not reach that operation
-						// (`channel-policy/data/it.json`'s own `scope.parties`), so it sends via "email" and
+						// (`countries/data/it.json (section "channelPolicy")`'s own `scope.parties`), so it sends via "email" and
 						// genuinely reaches "sent". A declared mandate and a bound invoice are two different
 						// facts, and this pair is what keeps them from being confused again.
 						const expectedInvoiceStatus = scenarioId === "it-it" ? "send_failed" : "sent";
@@ -1142,7 +1142,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 							.its("body.status")
 							.should("eq", expectedInvoiceStatus);
 					} else if (scenarioId === "pl-de") {
-						// Poland — `channel-policy/data/pl.json` now carries a real `legal` citation (art.
+						// Poland — `countries/data/pl.json (section "channelPolicy")` now carries a real `legal` citation (art.
 						// 106ga ust. 1) but DELIBERATELY stays `requirement: 'suggested'` — see that file's own
 						// `notes`: the statute's own transitional articles (145l/145m) make a single
 						// `mandatedFrom` date wrong for most taxpayers today, so arming it would refuse
@@ -1183,7 +1183,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// What France still owes for this operation is e-reporting (CGI art. 290 I 1°, which
 			// explicitly covers supplies exempt under art. 262 ter I - precisely the ones art. 289 bis
 			// V excludes from e-invoicing). That is a declaration, not a channel, and this product does
-			// not perform it: `reporting/data/fr.json`'s two e-reporting facts name an UNREGISTERED
+			// not perform it: `countries/data/fr.json (section "reporting")`'s two e-reporting facts name an UNREGISTERED
 			// provider on purpose. Nothing in this test should be read as proving otherwise.
 			const today = new Date().toISOString().slice(0, 10);
 			createInvoiceDraft(buyerClientId, today, "2026-12-31", "0").then((mandateTestId) => {
@@ -1228,7 +1228,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		cy.get('[data-cy="document-correction-routes-list"]', { timeout: 10000 }).should("exist");
 
 		if (scenarioId === "fr-pl") {
-			// France — `correction-routes/data/fr.json`: CANCEL_AND_REPLACE "allowed", and
+			// France — `countries/data/fr.json (section "correctionRoutes")`: CANCEL_AND_REPLACE "allowed", and
 			// `cancel-policy.ts`'s own whitelist marks it FULLY implementable for France, unrestricted by
 			// status. The one leg where this dialogue's "cancel" actually SUCCEEDS end to end.
 			cy.get('[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]').should(
@@ -1241,7 +1241,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			cy.get('[data-cy="document-correction-dialog"]', { timeout: 10000 }).should("not.exist");
 			cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`).its("body.status").should("eq", "cancelled");
 		} else if (scenarioId === "de-fr") {
-			// Germany — `correction-routes/data/de.json`: INTERNAL_CREDIT_NOTE is "forbidden" (its own
+			// Germany — `countries/data/de.json (section "correctionRoutes")`: INTERNAL_CREDIT_NOTE is "forbidden" (its own
 			// NO_DOCUMENT_BY_LAW entry, "allowed", is Germany's real default correction route instead) —
 			// the one universally-implemented route (`correction-routes.ts`'s own `IMPLEMENTED_ROUTE_IDS`)
 			// that this seller's own law still refuses outright. Issue #552: a `forbidden` route no longer
@@ -1298,12 +1298,12 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// "sent", not "send_failed" - this seller is Italian, but this leg's BUYER is Portuguese,
 			// and Italy's SdI mandate binds only operations between subjects established in Italy
 			// (D.Lgs. 127/2015 art. 1 comma 3, now carried as `scope.parties: "domestic"` in
-			// `channel-policy/data/it.json`). Unlike it-it, this leg is therefore never forced onto
+			// `countries/data/it.json (section "channelPolicy")`). Unlike it-it, this leg is therefore never forced onto
 			// SdI, sends via plain email and genuinely reaches "sent". The "not implemented" panel
 			// never touches the record either way, so whatever status test 2 left it in is what survives.
 			cy.request(`${api}/api/documents/${invoiceId}?typeId=invoice`).its("body.status").should("eq", "sent");
 		} else if (scenarioId === "pt-de") {
-			// Portugal — CANCEL_AND_REPLACE stays "unverified" (`correction-routes/data/pt.json`: no
+			// Portugal — CANCEL_AND_REPLACE stays "unverified" (`countries/data/pt.json (section "correctionRoutes")`: no
 			// clearance/refusal-then-reissue mechanism was FOUND in the primary Decreto-Lei text read for
 			// this catalog — an honest "nobody has settled this", not a permission). `isChoosable` treats
 			// unverified as NOT choosable — disabled, with its own resolution note shown as the reason, the
@@ -1312,7 +1312,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 			// real gap this leg did not exercise — IS now exercised, earlier in this same file: see
 			// `configurePortugueseAtcud`'s own header and its call site, right before this leg's own main
 			// invoice is sent. The fiscal QR code stays genuinely out of scope (required only for AT-
-			// certified software — see `country-policy/data/pt.json`'s own `invoice.send` notes).
+			// certified software — see `countries/data/pt.json (section "policy")`'s own `invoice.send` notes).
 			cy.get('[data-cy="document-correction-route-CANCEL_AND_REPLACE-status"]').should(
 				"contain.text",
 				"Not established",

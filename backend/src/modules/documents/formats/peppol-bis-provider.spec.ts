@@ -113,7 +113,7 @@ describe('peppol-bis-provider — the master proof (fixture computed by hand)', 
   }, 30_000);
 
   // THE FIX for the gap this spec USED TO demonstrate here — see peppol-bis-provider.ts's own header,
-  // "PEPPOL-EN16931-R002". A French seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`)
+  // "PEPPOL-EN16931-R002". A French seller's THREE mandatory C. com. mentions (`countries/data/fr.json (section "mentions")`)
   // used to emit three separate `cbc:Note` elements even on the Peppol BIS path, tripping R002 against
   // any non-German buyer. `semantic/peppol-post-process.ts#mergePeppolNotesInObject` now collapses them
   // into one multi-line note BEFORE the Schematron ever sees the document — judged here by the REAL
@@ -144,7 +144,7 @@ describe('peppol-bis-provider — the master proof (fixture computed by hand)', 
     const noteMatches = [...xml.matchAll(/<cbc:Note>/g)];
     expect(noteMatches).toHaveLength(1);
 
-    // The three mandatory C. com. mentions — verbatim, from `mentions/data/fr.json`, none truncated
+    // The three mandatory C. com. mentions — verbatim, from `countries/data/fr.json (section "mentions")`, none truncated
     // or summarized. Interpolated placeholders resolved for this document's own issue date
     // (2026-08-30): the recovery indemnity is frozen at 40 € since 2012, and the late-payment rate in
     // force for the second half of 2026 is 12,40 % (see fr.json's own `noteValues.lateFeeRate`).

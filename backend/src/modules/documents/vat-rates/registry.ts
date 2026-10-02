@@ -91,7 +91,7 @@ export interface VatRateOptionsResolution {
  * plain `String(rate.rate)` cannot tell apart two rates that happen to share the SAME percentage but
  * mean two entirely different legal regimes (Italy's `it-esente`/"esente", no input-VAT deduction
  * right, vs. `it-non-imponibile`/"non imponibile", deduction right preserved — both 0%, see
- * `vat-rates/data/it.json`'s own notes). A dropdown keyed by the bare number would offer the SAME
+ * `countries/data/it.json (section "vatRates")`'s own notes). A dropdown keyed by the bare number would offer the SAME
  * "0" for both, and whichever a caller picked would be indistinguishable from the other once stored —
  * exactly the ambiguity a catalog `id` exists to prevent. `label` still carries the human-readable
  * percentage + the country's own official term (e.g. "20% — Taux normal"), unaffected by this change.

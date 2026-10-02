@@ -39,7 +39,7 @@
  *
  * ## FPA12 vs FPR12 — the two named gaps `3cb39f91` left open, closed here
  *
- * `b2g-routing/data/it.json` already reads, verbatim, the Specifiche tecniche del formato
+ * `countries/data/it.json (section "b2gRouting")` already reads, verbatim, the Specifiche tecniche del formato
  * FatturaPA v1.3.2 par. 1.4 (Allegato B): `FormatoTrasmissione` is `FPA12` ("fattura verso PA") when
  * `CodiceDestinatario` is the recipient's 6-character "Codice Ufficio" from IndicePA, `FPR12`
  * ("fattura verso privati") when it is the 7-character B2B code — see par. 1.1's own text, quoted
@@ -66,7 +66,7 @@
  * consequence of not having a code to put in `CodiceDestinatario` at all, not a mislabel.
  *
  * **The XSD: verified, not assumed, to already judge FPA12 correctly — nothing new to vendor.** The
- * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `b2g-routing/data/it.json`'s own "TROU
+ * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `countries/data/it.json (section "b2gRouting")`'s own "TROU
  * CONNU" note) of being a B2B-only schema that would wrongly reject an `FPA12` document. It is not:
  * its OWN root `xs:documentation` reads "XML schema fatture destinate a PA e privati in forma
  * ordinaria" ("… for PA AND privates …"), its `FormatoTrasmissioneType` enumerates BOTH `FPA12` and

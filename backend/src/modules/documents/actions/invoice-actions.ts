@@ -125,7 +125,7 @@ function describeMandateSource(mandate: ActiveChannelMandate): string {
  * below entirely, so `activeChannelMandateFor` (item 11) is never even called for a government client,
  * regardless of what the ISSUING company's own country would otherwise mandate. This is deliberate,
  * not an oversight: a B2G obligation is a regime of the DESTINATION (directive 2014/55/UE itself binds
- * the RECEIVING contracting authority, never the seller's own country — see `b2g-routing/data/fr.json`'s
+ * the RECEIVING contracting authority, never the seller's own country — see `countries/data/fr.json (section "b2gRouting")`'s
  * own EU-baseline note), so a French seller invoicing a German public body follows GERMANY's B2G rule,
  * never France's own seller-country PDP mandate, even though that seller would otherwise be bound by
  * it for every OTHER invoice it sends. Precedence, in order: (1) a B2G rule for the CLIENT's country,
@@ -276,7 +276,7 @@ function resolveB2gInvoiceTransport(
     // names: every transport registered today is fixed-format (chorus-pro/facturx, sdi/fatturapa) and
     // never reads it at all, so setting it is inert for those — see `transport-registry.ts`'s own
     // header. The one transport that used to honor it, "peppol" (for Germany's own rule,
-    // `b2g-routing/data/de.json`, `formatSyntax: "xrechnung"`), was removed from the product on
+    // `countries/data/de.json (section "b2gRouting")`, `formatSyntax: "xrechnung"`), was removed from the product on
     // 2026-09-15 — see that JSON file's own `notes` for the full history. DE's rule still names
     // "xrechnung" here (the content requirement is real, unaffected by which transport can carry it),
     // but its `transportId` now names a channel this registry does not implement either, so this call
@@ -550,7 +550,7 @@ async function runInvoiceIssuancePreflight(
 }
 
 /**
- * NOTE on Poland's `correctionReason` (country-fields/data/pl.json): unlike ATCUD/cross-border-tax
+ * NOTE on Poland's `correctionReason` (countries/data/pl.json (section "countryFields")): unlike ATCUD/cross-border-tax
  * above, this needs NO dedicated preflight function here. `requiredIfPresent: "correctsInvoiceId"`
  * (descriptors/types.ts) is read by `validateAgainstDescriptor` (descriptors/validate.ts), and
  * `documents.service.ts#runAction` runs that validation against the MERGED (country-overlaid)

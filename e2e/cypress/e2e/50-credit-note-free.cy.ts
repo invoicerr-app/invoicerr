@@ -12,9 +12,9 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * mock), then ONE screen-level test proving the real wizard a user would actually click through.
  *
  * The default company (`cy.resetAndSeed()`) is a FRENCH company — France keeps its own CREDIT_NOTE
- * route "allowed" (`correction-routes/data/fr.json`), so a free credit note is unblocked for it. The
+ * route "allowed" (`countries/data/fr.json (section "correctionRoutes")`), so a free credit note is unblocked for it. The
  * "country gate" describe below switches the seller country to POLAND — the one seller country this
- * catalog already pins as CREDIT_NOTE "forbidden" (`correction-routes/data/pl.json`,
+ * catalog already pins as CREDIT_NOTE "forbidden" (`countries/data/pl.json (section "correctionRoutes")`,
  * `correction-routes/data/all.spec.ts`'s own pinned test): Poland has no separate "nota kredytowa"
  * instrument, only the referenced faktura korygująca (art. 106j ust. 1 ustawy o VAT).
  */
@@ -190,7 +190,7 @@ describe("Free credit note (API) — the country gate: Poland has no separate cr
 			body: { data: freeCreditNoteData() },
 			failOnStatusCode: false,
 		}).then((res) => {
-			// 403 - country-policy/data/pl.json's own `allowed: false` rule
+			// 403 - countries/data/pl.json (section "policy")'s own `allowed: false` rule
 			// (documents.service.ts#resolveActionPolicy) refuses this BEFORE any handler runs.
 			expect(res.status, "la Pologne n'a pas d'instrument avoir séparé").to.eq(
 				403,
@@ -312,7 +312,7 @@ describe("Free credit note — the screen, browser level", () => {
 		cy.get('input[name="lines.0.unitPrice"]')
 			.clear({ force: true })
 			.type("42", { force: true });
-		// The VAT rate is a real SearchSelect (vat-rates/data/fr.json's own catalog) — the exact rate
+		// The VAT rate is a real SearchSelect (countries/data/fr.json (section "vatRates")'s own catalog) — the exact rate
 		// picked is irrelevant here (only the totals engine's own arithmetic is covered by jest), so
 		// the first offered option is enough to move on.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy$="-input"] button')

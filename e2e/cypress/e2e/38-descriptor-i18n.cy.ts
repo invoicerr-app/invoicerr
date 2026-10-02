@@ -16,7 +16,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  2. the FALLBACK is seen for real on a concrete case this app already exposes in production: the
  *     VAT rate catalog (vat-rates/, backend/src/modules/documents/descriptors/company-view.ts) fills
  *     the `vatRate` select's OPTIONS PER COMPANY, AT RUNTIME, in whatever language the country's
- *     catalog is written in (French for FR — see vat-rates/data/fr.json); no
+ *     catalog is written in (French for FR — see countries/data/fr.json (section "vatRates")); no
  *     `documents.descriptors.invoice.fields.lines.fields.vatRate.options.<rate>` key exists (and
  *     CANNOT exist, the content depends on the active company) — the value therefore stays the
  *     backend's RAW label, as is, in French, on a screen whose active language is English.
@@ -191,7 +191,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 })
 			.should("be.visible")
 			// vat-rates/registry.ts composes this label ({{rate}}% — {{label}}) from
-			// vat-rates/data/fr.json ("Taux normal") — never from this translation file, and
+			// countries/data/fr.json (section "vatRates") ("Taux normal") — never from this translation file, and
 			// no "…fields.vatRate.options.20" key was added (the content depends on the
 			// active company, not a static language catalog). The mechanism still tries
 			// the derived key, does not find it, and renders this text as-is.

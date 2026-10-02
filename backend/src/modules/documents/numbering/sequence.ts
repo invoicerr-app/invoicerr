@@ -30,7 +30,7 @@
  * previously-unnumbered document.
  *
  * This does NOT promise a legally "gapless" sequence — see `DocumentNumberSequence`'s own schema
- * comment and country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on
+ * comment and countries/data/fr.json (section "policy")'s top-level `notes` for the honest, unverified flag on
  * that separate, legal question.
  */
 import { ConflictException } from '@nestjs/common';

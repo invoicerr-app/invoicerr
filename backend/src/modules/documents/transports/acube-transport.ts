@@ -16,7 +16,7 @@
  * ## ITALY IS OUT OF SCOPE FOR THIS TRANSPORT - by decision, not by omission
  *
  * An Italian company that selects "acube" is REFUSED AT SEND TIME, by
- * `transports/channel-policy/data/it.json`: that country's `sdi` mandate lists `equivalentProviderIds:
+ * `countries/data/it.json (section "channelPolicy")`: that country's `sdi` mandate lists `equivalentProviderIds:
  * ["sdi-pec"]`, and `actions/invoice-actions.ts` blocks any send whose `invoiceTransportId` is neither
  * the mandate's own `providerId` nor in that list. **That refusal is intended and must stay.** Italian
  * sending stays on "sdi-pec" (`transports/sdi-pec-transport.ts`), which is sourced and where this

@@ -40,7 +40,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    `transportId: "peppol"` — a transport this app had wired and connected the federal portal's own
  *    acceptance of Peppol as an input channel to, carrying `formatSyntax: "xrechnung"` via that
  *    transport's own format override — but that transport was removed from the product on 2026-09-15
- *    (no real Access Point account ever backed it; see `b2g-routing/data/de.json`'s own `notes` for
+ *    (no real Access Point account ever backed it; see `countries/data/de.json (section "b2gRouting")`'s own `notes` for
  *    the full, dated history), so the rule reverted to `"zre-ozgre"` and this suite's assertions revert
  *    with it. GENUINE STRUCTURAL LIMIT, UNCHANGED throughout: `download-xml` is only
  *    `availableWhen: ['sending', 'sent', 'send_failed']` (`invoice.descriptor.ts`'s own numbering
@@ -668,7 +668,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		);
 
 		// The Codice Univoco Ufficio (IPA) — a NEW field, offered ONLY because this client is
-		// GOVERNMENT (never for an ordinary Italian client — see b2g-routing/data/it.json).
+		// GOVERNMENT (never for an ordinary Italian client — see countries/data/it.json (section "b2gRouting")).
 		cy.get('[data-cy="client-identifier-IT_PA_CODE"]', { timeout: 10000 })
 			.should("exist")
 			.clear()

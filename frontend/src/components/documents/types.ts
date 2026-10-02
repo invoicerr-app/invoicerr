@@ -17,7 +17,7 @@ export interface DocumentFieldDescriptor {
   /** Mirrors the backend's `DocumentFieldDescriptor.requiredIfPresent` (descriptors/types.ts) — this
    *  field is required only once a named SIBLING field elsewhere in the same document is itself set
    *  (e.g. a Polish correction invoice's own `correctionReason`, required only once `correctsInvoiceId`
-   *  resolves — country-fields/data/pl.json). A SCREEN convenience only (the visible "required"
+   *  resolves — countries/data/pl.json (section "countryFields")). A SCREEN convenience only (the visible "required"
    *  marker, field-renderers/primitive-fields.tsx's `useConditionallyRequired`) — the backend's own
    *  `validateAgainstDescriptor` is what actually enforces it, never trusted from here alone. */
   requiredIfPresent?: string

@@ -50,7 +50,7 @@ const ATCUD_TYPE_LABEL: Record<AtcudTypeId, string> = {
 };
 
 /** Thrown by `ensureAtcudIssuable` when the predicted series has no AT validation code registered yet
- *  (company settings) - AT FAQ 4308/4312, quoted verbatim in country-policy/data/pt.json: a code must
+ *  (company settings) - AT FAQ 4308/4312, quoted verbatim in countries/data/pt.json (section "policy"): a code must
  *  be associated with a series BEFORE any document in it is issued. */
 export class AtcudValidationCodeMissingError extends Error {}
 
@@ -76,7 +76,7 @@ export async function ensureAtcudIssuable(
   if (countryCode !== 'PT') return;
 
   const label = ATCUD_TYPE_LABEL[typeId];
-  // Issue #496: the format is Portugal's own (`country-policy/data/pt.json`: "FT A/{number}" for an
+  // Issue #496: the format is Portugal's own (`countries/data/pt.json (section "policy")`: "FT A/{number}" for an
   // invoice, "NC A/{number}" for a credit note), or a series the company already started, which
   // `company-number-format.ts` keeps only while it satisfies pt.json's own "TYPE SERIES/NUMBER"
   // constraint - so the shape check below can only fail on a catalog error, never on a user choice.
@@ -89,7 +89,7 @@ export async function ensureAtcudIssuable(
         'lawful ATCUD sequential number - Portaria n.º 195/2020, art. 3.º n.º 3 requires the document ' +
         'number to end in a literal "/" immediately followed by the sequential digits (a "{number}" or ' +
         '"{number:N}" token), with nothing after them. Number formats are defined per country ' +
-        '(country-policy/data/pt.json), not by the company: this is a catalog error to report.',
+        '(countries/data/pt.json (section "policy")), not by the company: this is a catalog error to report.',
     );
   }
 

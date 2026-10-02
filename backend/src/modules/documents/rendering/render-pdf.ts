@@ -301,7 +301,7 @@ export interface RenderPdfOptions {
   /**
    * Plain text (never HTML) to repeat in a small footer on EVERY printed page — the mechanism this
    * product uses to satisfy Portugal's "o ATCUD deve constar em todas as páginas" (Portaria n.º
-   * 195/2020, art. 4.º n.º 3, quoted in country-policy/data/pt.json) requirement. `render-html.ts`'s
+   * 195/2020, art. 4.º n.º 3, quoted in countries/data/pt.json (section "policy")) requirement. `render-html.ts`'s
    * own CSS declares no `@page` rule and no page-break control at all — a repeating footer is not
    * something the MAIN document HTML can produce on its own, however it happens to paginate. Chromium
    * itself CAN, natively, via `page.pdf()`'s own `displayHeaderFooter`/`footerTemplate`: those render a

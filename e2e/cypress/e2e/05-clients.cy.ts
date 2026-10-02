@@ -650,7 +650,7 @@ describe("Clients E2E", () => {
 			cy.get('[name="city"]').clear().type("Paris");
 			cy.continueSteppedDialog("client-dialog");
 
-			// SIREN is nine digits and nothing else (country-identifiers/data/fr.json, sourced to INSEE),
+			// SIREN is nine digits and nothing else (countries/data/fr.json (section "identifiers"), sourced to INSEE),
 			// and that shape is now enforced on save. The VAT field keeps its FR-prefixed value: VAT is
 			// deliberately exempt from the generic pattern check and validated by tax/vat-syntax.ts.
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
@@ -669,7 +669,7 @@ describe("Clients E2E", () => {
 		});
 
 		// USER DECISION (2026-09-01, "SIRET vs SIREN sur la facture", now RESOLVED) —
-		// `country-identifiers/data/fr.json`'s LEGAL_ID field accepts EITHER a 9-digit SIREN or a
+		// `countries/data/fr.json (section "identifiers")`'s LEGAL_ID field accepts EITHER a 9-digit SIREN or a
 		// 14-digit SIRET (see that file's own `notes`). Every OTHER FR fixture in this spec types a
 		// 14-digit-shaped value (unaffected by the decision — both lengths pass); this is the one
 		// that proves the 9-digit SIREN saves too, at the screen.
@@ -1159,7 +1159,7 @@ describe("Supplier role", () => {
 });
 
 /**
- * Italian recipient identifiers (IT_SDI / PEC) — country-identifiers/data/it.json declared only
+ * Italian recipient identifiers (IT_SDI / PEC) — countries/data/it.json (section "identifiers") declared only
  * VAT/LEGAL_ID until 2026-09-13 (afc986f9): `fatturapa-provider.ts` already read `IT_SDI`/`PEC` off
  * the client to route CodiceDestinatario/FormatoTrasmissione, but this data-driven form (one
  * `<Input>` per catalog scheme, `client-identifier-${req.scheme}`) had no scheme to render, so a
@@ -1205,7 +1205,7 @@ describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
 		cy.get('[name="city"]').clear().type("Roma");
 		cy.continueSteppedDialog("client-dialog");
 
-		// The field only exists on screen because country-identifiers/data/it.json declares IT_SDI —
+		// The field only exists on screen because countries/data/it.json (section "identifiers") declares IT_SDI —
 		// this is the exact screen that catalog change unlocks (see it.json's own top-level notes).
 		// PEC (the other fallback the same specification allows) is asserted present too, for free,
 		// off the same generic mechanism — no extra field-specific code anywhere in client-upsert.tsx.

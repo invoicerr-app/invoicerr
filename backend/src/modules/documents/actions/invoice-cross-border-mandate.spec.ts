@@ -52,7 +52,7 @@ vi.mock('@/prisma/prisma.service', () => ({
 
 const documentData = {
   client: 'client-1',
-  // AFTER the FR/PDP mandate's own `mandatedFrom` (2026-09-01, `channel-policy/data/fr.json`) — the
+  // AFTER the FR/PDP mandate's own `mandatedFrom` (2026-09-01, `countries/data/fr.json (section "channelPolicy")`) — the
   // whole point: the mandate IS in force for this date, and still must not bind this operation.
   issueDate: '2026-09-15',
   dueDate: '2026-10-15',
@@ -194,7 +194,7 @@ describe('invoice "send" — a national channel mandate governs DOMESTIC operati
 
   // The rule is GENERAL, not a French special case — Italy's own mandate carries the same statutory
   // "residenti o stabiliti nel territorio dello Stato" restriction and is narrowed by the same
-  // `scope.parties` fact in `channel-policy/data/it.json`.
+  // `scope.parties` fact in `countries/data/it.json (section "channelPolicy")`.
   it('IT seller -> IT client: STILL BLOCKED (the SdI mandate applies), IT seller -> FR client: NOT BLOCKED', async () => {
     (prisma.company.findUnique as Mock).mockResolvedValue({ country: 'Italy', countryCode: 'IT' });
     clientEstablishedIn('IT', 'Italy');

@@ -1,5 +1,5 @@
 /**
- * The "chorus-pro" transport — this makes the channel the B2G FR rule (`b2g-routing/data/fr.json`)
+ * The "chorus-pro" transport — this makes the channel the B2G FR rule (`countries/data/fr.json (section "b2gRouting")`)
  * has named since 3cb39f91 actually EXIST. Until now `transportId: "chorus-pro"` resolved against
  * `transport-registry.ts` to nothing on purpose (that commit's own thesis: "a rule may legitimately
  * name a channel not implemented yet" — see that file's own header), and every French GOVERNMENT
@@ -33,7 +33,7 @@
  * THE RECIPIENT GATE — the same shape every sibling transport's own receiver check holds (e.g.
  * `pdp-transport.ts`'s own missing-identifier refusal): Chorus Pro identifies every public-sector
  * recipient by its SIRET, the SAME `LEGAL_ID` scheme the B2G FR rule's own `requiredClientIdentifiers`
- * names (see `b2g-routing/data/fr.json`) — a B2G send already has this checked upstream
+ * names (see `countries/data/fr.json (section "b2gRouting")`) — a B2G send already has this checked upstream
  * (`resolveClientB2gRouting` in `invoice-actions.ts`, re-checked on every `deliver()` replay too), but
  * a company that chose "chorus-pro" as its OWN free transport for a client that never went through the
  * B2G gate at all (the registry is open by design — see this file's own header above) gets NO such

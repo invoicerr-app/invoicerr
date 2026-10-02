@@ -20,7 +20,7 @@
  * Decreto-Lei n.º 198/2012 applies « às faturas e documentos retificativos de fatura » (art. 1.º
  * n.º 2), and the data model of the communication must carry the « Identificação do documento
  * retificado » and the « Código único de documento » (art. 3.º n.º 4 n) and p)). Both are quoted, with
- * their source and reading date, in `reporting/data/pt.json`. So:
+ * their source and reading date, in `countries/data/pt.json (section "reporting")`. So:
  *  - every declared document carries its real ATCUD (field 1.6.2), never the literal "0" this bridge
  *    used to send (see `ptAtAtcudFor` below), and a document without one is refused;
  *  - a credit note is declared as `InvoiceType` "NC", its `LineSummary` lines carry
@@ -28,7 +28,7 @@
  *    1.6.4, 1.6.14.3 and 1.6.14.4, see `buildPtAtLineSummaries`).
  *
  * ## The `authorityId` caveat — SYNTHESIZED, not authority-minted (see `synthesizePtAtAuthorityId`
- * below and `reporting/data/pt.json`'s own `notes`)
+ * below and `countries/data/pt.json (section "reporting")`'s own `notes`)
  *
  * Unlike NAV's `transactionId` or myDATA's `invoiceMark`, AT's `RegisterInvoiceResponse` carries NO
  * per-invoice reference of its own — only a numeric `CodigoResposta`, a `Mensagem`, and a bare
@@ -335,7 +335,7 @@ export function buildPtAtInvoiceRequestFields(invoice: DeclaredInvoice): Record<
  * ⚠ THIS ID IS NOT AUTHORITY-MINTED. It is a value THIS BRIDGE constructs after the fact, purely so
  * `DeclarationResult.authorityId`'s own non-empty hard contract can be satisfied — AT itself has no
  * record of, and would not recognize, this exact string if asked. Never surface it to a user as an
- * "AT confirmation number"; `reporting/data/pt.json`'s own `notes` repeats this same caveat at the
+ * "AT confirmation number"; `countries/data/pt.json (section "reporting")`'s own `notes` repeats this same caveat at the
  * obligation-fact level, and this file's own header repeats it a third time — deliberately redundant,
  * given how easy a synthesized id is to mistake for a real one once it is sitting in a UI next to
  * NAV's very real `transactionId`/myDATA's very real `invoiceMark`.

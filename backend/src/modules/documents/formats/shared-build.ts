@@ -167,7 +167,7 @@ export function extractCrossBorderMentions(data: Record<string, unknown>): { cod
 /**
  * BT-10 — read straight off `data.buyerReference` for ANY document, regardless of which (if any)
  * country-fields overlay put the input control on screen. Today only the DE overlay
- * (`country-fields/data/de.json`) adds a Leitweg-ID field for it, but this extraction deliberately
+ * (`countries/data/de.json (section "countryFields")`) adds a Leitweg-ID field for it, but this extraction deliberately
  * does not know that: see `build-semantic-invoice.ts`'s own header on `SemanticInvoiceInput.
  * buyerReference` for why this stays country-neutral (a French seller invoicing a German public
  * body needs the exact same fact, and a value saved via any other route — the API directly, a future

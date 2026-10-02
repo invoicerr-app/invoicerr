@@ -99,7 +99,7 @@ function numberFormatCopy(typeId: AtcudTypeId, t: ReturnType<typeof useTranslati
 
 /**
  * Issue #496 - one ATCUD type's number format, READ-ONLY. It is Portugal's own ("FT A/{number}" for an
- * invoice, "NC A/{number}" for a credit note, `country-policy/data/pt.json`), or a series this company
+ * invoice, "NC A/{number}" for a credit note, `countries/data/pt.json (section "policy")`), or a series this company
  * already started and keeps; either way it is no longer the company's to change (`PUT
  * /api/company/number-format` answers 405). What this card still gives is the one fact the
  * registration form below needs: the series the next document of this type belongs to, whose AT

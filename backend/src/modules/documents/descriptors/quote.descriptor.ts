@@ -194,7 +194,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
       // Deliberately NOT `notes` (free text already exists and nobody types a PO number into it in
       // practice — the whole point is a field a buyer's accounts-payable system can find at a FIXED
       // key) and deliberately NOT the same key as the DE country-fields overlay's own `buyerReference`
-      // (country-fields/data/de.json): that field is wired into a REAL compliance mechanism this descriptor
+      // (countries/data/de.json (section "countryFields")): that field is wired into a REAL compliance mechanism this descriptor
       // must not touch — EN 16931's BT-10 on the CII/UBL export (`formats/shared-build.ts`), XRechnung's
       // BR-DE-15, Peppol's PEPPOL-EN16931-R003, and Germany's/France's own B2G required-field rules
       // (`b2g-routing/data/*.json`) all read `data.buyerReference` specifically. Reusing that key here

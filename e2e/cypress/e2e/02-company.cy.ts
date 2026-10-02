@@ -503,7 +503,7 @@ describe("Company Settings E2E", () => {
 		// placeholder row for a no-longer-required one — it must never touch a row that actually
 		// carries a value, no matter whose scheme it is. Before this guard existed, switching country
 		// silently deleted such a row on the very next save, with no warning. Italy's own
-		// "IT_PA_CODE" (Codice Univoco Ufficio, `country-identifiers/data/it.json`) is used here
+		// "IT_PA_CODE" (Codice Univoco Ufficio, `countries/data/it.json (section "identifiers")`) is used here
 		// because it is the one scheme among FR/DE/IT/PL/PT no OTHER supported country offers — moving
 		// away from Italy is guaranteed to orphan it, unlike LEGAL_ID/VAT, which every one of the five
 		// countries offers under some form.

@@ -45,7 +45,7 @@
  * `reporting/data/*.json` file at all (every country except FR and PT today) — this function
  * returns immediately, having enqueued nothing, exactly the pre-existing "send" behaviour for every
  * type and every seller without an obligation. It ALSO returns `undefined` for France specifically,
- * despite `reporting/data/fr.json` existing: every FR fact is either `dischargedBy: 'transport'`
+ * despite `countries/data/fr.json (section "reporting")` existing: every FR fact is either `dischargedBy: 'transport'`
  * (nothing for this trigger to do — the PDP already carries the data) or `scope`-restricted (no
  * per-invoice B2B/B2C classifier exists yet to safely auto-fire on) — see `obligationFor`'s own
  * header in `registry.ts` for the full reasoning. Portugal remains the one country this function
