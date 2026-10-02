@@ -60,33 +60,6 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl");
 
-/**
- * The read-the-API assertion shared by all four waves below: a failed send is really "send_failed"
- * in the database, `lastActionError` carries the channel's own real rejection (never a generic
- * message - `errorMatch`/`errorMatchLabel` are each wave's own proof of that), and no transport
- * reference was recorded for a deposit that never happened. Extracted once the four waves'
- * near-identical copies of this same three-assertion shape started showing up as duplicated code
- * every time one of them needed its own wording changed (e.g. Chorus Pro's PISTE status code) -
- * same assertions, same order, as each wave already ran inline.
- */
-function assertSendFailedWithLastActionError(
-	invoiceId: string,
-	errorMatch: RegExp,
-	errorMatchLabel: string,
-	transportRefLabel: string,
-) {
-	return cy
-		.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
-		.its("body")
-		.then((doc) => {
-			expect(doc.status, 'la facture est réellement "send_failed" en base').to.eq(
-				"send_failed",
-			);
-			expect(doc.lastActionError, errorMatchLabel).to.match(errorMatch);
-			expect(doc.transportRef, transportRefLabel).to.not.be.a("string");
-		});
-}
-
 /** Port 1 (tcpmux): never open on a normal dev/CI machine — immediate ECONNREFUSED, no waiting on
  *  a network timeout. No real platform listens behind these credentials. */
 const FAKE_PDP = {
@@ -337,15 +310,25 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				"PDP",
 			);
 
-			// The assertion that matters reads the API, never the screen as proof of what is in the
-			// database. Never a success with an empty reference either: since the fake server never
-			// responded, no deposit identifier could have been recorded - see mutation #1 of the topic.
-			assertSendFailedWithLastActionError(
-				invoiceId,
-				/PDP/,
-				"l'erreur enregistrée nomme le canal PDP",
-				"aucune référence de dépôt sans dépôt réel",
-			);
+			// The assertion that matters reads the API, never the screen as proof of what is in the database.
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée nomme le canal PDP",
+					).to.match(/PDP/);
+					// Never a success with an empty reference: since the fake server never responded,
+					// no deposit identifier could have been recorded — see mutation #1 of the topic.
+					expect(
+						doc.transportRef,
+						"aucune référence de dépôt sans dépôt réel",
+					).to.not.be.a("string");
+				});
 		});
 	});
 
@@ -511,19 +494,29 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				"KSeF",
 			);
 
-			// `ksef-transport.ts` wraps EVERY failure (DNS, timeout, a blocked sandbox egress) in a
-			// message that names the channel - matching only `/KSeF/` would pass identically for a
-			// broken `BASE_URLS` entry or a runner with no outbound network at all, silently
-			// blind to its own reachability. The real sandbox's own rejection code for an invalid
-			// token - verified against a real run: `ksef-transport.ts`'s own auth-step wrapper
-			// produces "KSeF authentication rejected (code 450: ...)", the Polish description
-			// untranslated - only an actual round-trip to ksef-test.mf.gov.pl can produce this.
-			assertSendFailedWithLastActionError(
-				invoiceId,
-				/code 450/,
-				"l'erreur enregistrée est le vrai rejet KSeF (code 450), pas un message générique",
-				"aucune référence de session/facture sans soumission acceptée",
-			);
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					// `ksef-transport.ts` wraps EVERY failure (DNS, timeout, a blocked sandbox egress) in a
+					// message that names the channel — matching only `/KSeF/` would pass identically for a
+					// broken `BASE_URLS` entry or a runner with no outbound network at all, silently
+					// blind to its own reachability. The real sandbox's own rejection code for an invalid
+					// token — verified against a real run: `ksef-transport.ts`'s own auth-step wrapper
+					// produces "KSeF authentication rejected (code 450: ...)", the Polish description
+					// untranslated — only an actual round-trip to ksef-test.mf.gov.pl can produce this.
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée est le vrai rejet KSeF (code 450), pas un message générique",
+					).to.match(/code 450/);
+					expect(
+						doc.transportRef,
+						"aucune référence de session/facture sans soumission acceptée",
+					).to.not.be.a("string");
+				});
 		});
 	});
 
@@ -689,12 +682,22 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				"SdI",
 			);
 
-			assertSendFailedWithLastActionError(
-				invoiceId,
-				/SdI/,
-				"l'erreur enregistrée nomme le canal SdI",
-				"aucune référence idSdI sans soumission acceptée",
-			);
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée nomme le canal SdI",
+					).to.match(/SdI/);
+					expect(
+						doc.transportRef,
+						"aucune référence idSdI sans soumission acceptée",
+					).to.not.be.a("string");
+				});
 		});
 	});
 
@@ -884,18 +887,28 @@ describe("National transports — the PDP channel, connected/disconnected via th
 				"Chorus Pro",
 			);
 
-			// Same tightening as the KSeF test above - `/Chorus Pro/` alone would also match a
-			// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
-			// `choruspro-client.ts#_getToken` names the real rejection as "Chorus Pro PISTE
-			// authentication failed (HTTP <status>)" - only an actual round-trip can produce
-			// this prefix, never a generic message; the status digit is PISTE's own choice (see
-			// this file's own header, "Wave 3", for the 400/403 drift), so ANY 4xx counts here.
-			assertSendFailedWithLastActionError(
-				invoiceId,
-				/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/,
-				"l'erreur enregistrée est le vrai rejet PISTE (4xx), pas un message générique",
-				"aucun numeroFluxDepot sans dépôt accepté",
-			);
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body")
+				.then((doc) => {
+					expect(
+						doc.status,
+						'la facture est réellement "send_failed" en base',
+					).to.eq("send_failed");
+					// Same tightening as the KSeF test above - `/Chorus Pro/` alone would also match a
+					// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
+					// `choruspro-client.ts#_getToken` names the real rejection as "Chorus Pro PISTE
+					// authentication failed (HTTP <status>)" - only an actual round-trip can produce
+					// this prefix, never a generic message; the status digit is PISTE's own choice (see
+					// this file's own header, "Wave 3", for the 400/403 drift), so ANY 4xx counts here.
+					expect(
+						doc.lastActionError,
+						"l'erreur enregistrée est le vrai rejet PISTE (4xx), pas un message générique",
+					).to.match(/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/);
+					expect(
+						doc.transportRef,
+						"aucun numeroFluxDepot sans dépôt accepté",
+					).to.not.be.a("string");
+				});
 		});
 	});
 
