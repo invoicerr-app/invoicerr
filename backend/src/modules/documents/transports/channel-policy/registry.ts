@@ -1,10 +1,31 @@
-import { ALL_CHANNEL_POLICY_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../../countries/registry';
 import { ChannelPolicyFact, CountryChannelPolicyFile } from './schema';
 
 function buildIndex(files: CountryChannelPolicyFile[]): Record<string, CountryChannelPolicyFile> {
   const index: Record<string, CountryChannelPolicyFile> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `channelPolicy` section from
+ * the composed per-country view, instead of this catalog's own `data/all.ts` directly. No import
+ * cycle results, because `countries/compose.ts` reads the RAW loader
+ * (`transports/channel-policy/data/all.ts`'s own `ALL_CHANNEL_POLICY_FILES`), never this registry:
+ * see that file's own header. The dependency direction is therefore one-way: this file depends on
+ * `countries/registry.ts`, which depends on `countries/compose.ts`, which depends on
+ * `transports/channel-policy/data/all.ts`; nothing depends back on this file from inside that chain.
+ * A country with no `channelPolicy` section in the composed view is simply left out here, the same
+ * "no permissive fallback" this catalog already held when it read `ALL_CHANNEL_POLICY_FILES`
+ * directly.
+ */
+function channelPolicyFromComposedCatalog(): CountryChannelPolicyFile[] {
+  const files: CountryChannelPolicyFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const channelPolicy = defaultComposedCountryCatalog.get(countryCode)?.channelPolicy;
+    if (channelPolicy) files.push(channelPolicy);
+  }
+  return files;
 }
 
 /**
@@ -17,11 +38,16 @@ function buildIndex(files: CountryChannelPolicyFile[]): Record<string, CountryCh
  * per-(country,type,action) rule table, and no `resetAndSeed`-style staleness gap to worry about
  * either (see `country-policy/`'s own reseed gap for the precedent
  * this deliberately avoids repeating).
+ *
+ * The constructor still takes a plain `CountryChannelPolicyFile[]` (never the composed catalog
+ * itself), so an explicit, smaller list still works exactly as before for every existing caller and
+ * test (e.g. `new ChannelPolicyCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where it
+ * reads from.
  */
 export class ChannelPolicyCatalog {
   private readonly files: Record<string, CountryChannelPolicyFile>;
 
-  constructor(files: CountryChannelPolicyFile[] = ALL_CHANNEL_POLICY_FILES) {
+  constructor(files: CountryChannelPolicyFile[] = channelPolicyFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 

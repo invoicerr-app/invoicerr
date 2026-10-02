@@ -1,10 +1,30 @@
-import { ALL_MENTIONS_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryMentionsFile } from './schema';
 
 function buildIndex(files: CountryMentionsFile[]): Record<string, CountryMentionsFile> {
   const index: Record<string, CountryMentionsFile> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `mentions` section from the
+ * composed per-country view, instead of this catalog's own `data/all.ts` directly. No import cycle
+ * results, because `countries/compose.ts` reads the RAW loader (`mentions/data/all.ts`'s own
+ * `ALL_MENTIONS_FILES`), never this registry: see that file's own header. The dependency direction is
+ * therefore one-way: this file depends on `countries/registry.ts`, which depends on
+ * `countries/compose.ts`, which depends on `mentions/data/all.ts`; nothing depends back on this file
+ * from inside that chain. A country with no `mentions` section in the composed view is simply left
+ * out here, the same "no permissive fallback" this catalog already held when it read
+ * `ALL_MENTIONS_FILES` directly.
+ */
+function mentionsFromComposedCatalog(): CountryMentionsFile[] {
+  const files: CountryMentionsFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const mentions = defaultComposedCountryCatalog.get(countryCode)?.mentions;
+    if (mentions) files.push(mentions);
+  }
+  return files;
 }
 
 /**
@@ -18,11 +38,15 @@ function buildIndex(files: CountryMentionsFile[]): Record<string, CountryMention
  * Read by `formats/semantic/build-semantic-invoice.ts` (BG-1 in the CII/UBL export) and
  * `rendering/render-instance-pdf.ts` (the printed legal-mentions block) — never by anything that
  * writes to Prisma.
+ *
+ * The constructor still takes a plain `CountryMentionsFile[]` (never the composed catalog itself),
+ * so an explicit, smaller list still works exactly as before for every existing caller and test (e.g.
+ * `new MentionsCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where it reads from.
  */
 export class MentionsCatalog {
   private readonly files: Record<string, CountryMentionsFile>;
 
-  constructor(files: CountryMentionsFile[] = ALL_MENTIONS_FILES) {
+  constructor(files: CountryMentionsFile[] = mentionsFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 
