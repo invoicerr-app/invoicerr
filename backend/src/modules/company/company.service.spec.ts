@@ -179,6 +179,45 @@ describe('CompanyService — mass-assignment allow-list', () => {
 });
 
 /**
+ * Issue #603: `getCompanyInfo` exposes the country's own `documentValidationCode` fact
+ * (`country-policy/schema.ts`) instead of letting the frontend decide Portugal-only behaviour from
+ * `country`/`countryCode` itself - see `actions/atcud-issuance.spec.ts` for the analogous backend
+ * enforcement gate, and the frontend's `-[tab].tsx`/`atcud.settings.tsx` for the two readers of this
+ * exact field.
+ */
+describe('CompanyService#getCompanyInfo - issue #603: documentValidationCode', () => {
+  let service: CompanyService;
+
+  beforeAll(() => {
+    service = new CompanyService(fakeWebhookDispatcher);
+  });
+
+  it('a Portuguese company gets { scheme: "ATCUD" }', async () => {
+    const company = await createTestCompany();
+    try {
+      await prisma.company.update({
+        where: { id: company.id },
+        data: { country: 'Portugal', countryCode: 'PT' },
+      });
+      const info = await service.getCompanyInfo(company.id);
+      expect(info?.documentValidationCode).toMatchObject({ scheme: 'ATCUD' });
+    } finally {
+      await prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+    }
+  });
+
+  it('a French company gets null - no validation-code scheme declared', async () => {
+    const company = await createTestCompany();
+    try {
+      const info = await service.getCompanyInfo(company.id);
+      expect(info?.documentValidationCode).toBeNull();
+    } finally {
+      await prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+    }
+  });
+});
+
+/**
  * Issue #535: one of the two things a fix has to guarantee ("a new company's owner always has a
  * seat"). `createCompany` reserves the OWNER's own seat through `billing/seat-sync.ts#withSeatReservation`
  * (see that call site's own comment, "A brand-new company's own OWNER is its first seat") - this is

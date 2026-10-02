@@ -156,6 +156,24 @@ export interface CountryDocumentPolicyFile {
    * numbers and locks there, however this question might one day be answered for any one operation.
    */
   invoiceValidation?: InvoiceValidationFact;
+  /**
+   * Issue #603 (audit section 5, group B) - whether this country requires every issued, fiscally
+   * relevant document to carry a validation code from its own tax authority. A GENERIC name, never
+   * a boolean "requiresAtcud": Portugal's own scheme is the ATCUD (Decreto-Lei n.º 28/2019, art. 7.º
+   * n.º 3; Portaria n.º 195/2020), but the fact names the scheme rather than assuming it is the only
+   * one that will ever exist - another country may one day require its own code under its own name.
+   * This is the single, COMPANY-LEVEL fact `actions/atcud-issuance.ts`, `company.service.ts`'s own
+   * number-declaration flow and the settings screen now read instead of four independent `=== 'PT'`
+   * literals (`AUDIT_DONNEES_PAYS.md`, section 1, row 3 / section 5, row B). Deliberately separate
+   * from the PER-DOCUMENT-TYPE `numbering` facts above (`requirement: 'atcud-required'`): those say
+   * WHICH document types carry the code once numbered (today: "invoice", "credit-note"), this one
+   * only says whether the company's country has such a scheme AT ALL - the question the four
+   * replaced literals actually asked. File-only, like `invoiceValidation` above: read at request
+   * time from the in-memory catalog (`registry.ts#documentValidationCodeFor`), never mirrored into a
+   * table. Optional: a country with no such scheme (every shipped country but Portugal today) simply
+   * omits the field - the same "no permissive fallback" discipline every other reader here holds.
+   */
+  documentValidationCode?: DocumentValidationCodeFact;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
   notes?: string;
@@ -183,6 +201,21 @@ export interface InvoiceValidationFact {
    * transmitted "somewhere" unnamed would be worse than not showing one at all.
    */
   channelLabel: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
+/**
+ * ONE country's own validation-code scheme - see `CountryDocumentPolicyFile.documentValidationCode`'s
+ * own header for the full design (issue #603) and why this is deliberately separate from the
+ * per-document-type `numbering` facts above.
+ */
+export interface DocumentValidationCodeFact {
+  /** The scheme's own name, shown verbatim wherever the product names the requirement (settings
+   *  screen, error messages) - e.g. "ATCUD" for Portugal. Plain data, not an i18n key, the same
+   *  convention `InvoiceValidationFact.channelLabel` already holds for the identical reason: a
+   *  legal scheme has one real name, never a translated one. */
+  scheme: string;
   provenance: PolicyProvenance;
   notes?: string;
 }
@@ -390,6 +423,29 @@ export function assertValidInvoiceValidationFact(fact: InvoiceValidationFact, co
     fact.provenance,
     `${context}: invoice-validation fact`,
     'an invoice-validation fact',
+  );
+}
+
+export class InvalidDocumentValidationCodeError extends Error {}
+
+/**
+ * The `documentValidationCode` (issue #603) analogue of `assertValidDomesticInvoiceCurrencyFact`
+ * above - same provenance gate, plus the one extra check this fact needs: a real, non-blank scheme
+ * name, never a blank or placeholder string a downstream message would print verbatim.
+ */
+export function assertValidDocumentValidationCodeFact(
+  fact: DocumentValidationCodeFact,
+  context: string,
+): void {
+  if (!fact.scheme?.trim()) {
+    throw new InvalidDocumentValidationCodeError(
+      `${context}: "documentValidationCode.scheme" must be a real, non-blank scheme name.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: document-validation-code fact`,
+    'a document-validation-code fact',
   );
 }
 

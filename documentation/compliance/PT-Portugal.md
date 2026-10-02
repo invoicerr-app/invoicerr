@@ -32,6 +32,17 @@ ATCUD registered for its series (null, blank, or the pre-regulation `"0"` placeh
 manual still names for an unregistered sender) is refused before the declaration is even sent,
 journaled as failed with the reason, rather than declared with a value that is not really its own.
 
+Whether a company sees the ATCUD feature at all - the settings tab, the ATCUD series screen, the
+preflight that blocks sending without a registered code - is itself decided from data, not from a
+Portugal-specific branch: `countries/data/pt.json`'s own `policy.documentValidationCode` fact
+(`scheme: "ATCUD"`, sourced to the same Portaria n.º 195/2020 art. 4.º n.º 1 quoted above) is the one
+fact `actions/atcud-issuance.ts`, `company/company.service.ts` and both frontend readers
+(`settings/-[tab].tsx`, `settings/_components/atcud.settings.tsx`) check, through
+`GET /api/company/info`'s own `documentValidationCode` field - see [Adding a
+country](../docs/developer-guide/adding-a-country.md)'s own maintainer note on that fact for the
+full design. Another country would turn the feature on for itself by declaring the same fact under
+its own scheme name, never by adding a second country-code branch here.
+
 **Still not implemented**: the **fiscal QR code** printed on the document itself (a separate
 requirement from the ATCUD declaration above), the **certified-software** status required once
 turnover exceeds €50,000 and organized accounting applies (Decreto-Lei n.º 28/2019 art. 4.º; this
@@ -135,7 +146,9 @@ locally is not implementable in this app for Portugal today**; an attempt is ref
 ## Sources
 
 `backend/src/modules/documents/countries/data/pt.json` (one file, all of this country's own
-sections: action policy; identifiers; correction routes; the tax system; the VAT rate ladder;
+sections: action policy, including the `documentValidationCode` fact (`scheme: "ATCUD"`) that gates
+the whole feature, and the per-type `numbering` facts (`requirement: "atcud-required"`) that say
+which document types carry it; identifiers; correction routes; the tax system; the VAT rate ladder;
 reporting, the credit-note communication duty, `appliesTo: "credit-note"`; archive retention, the
 ten-year retention, CIVA art. 52.º n.º 1; channel policy, which exists but declares no fact, for
 the sourced reason given above; and B2G routing, which exists and names `fe-ap`/UBL 2.1, for the
