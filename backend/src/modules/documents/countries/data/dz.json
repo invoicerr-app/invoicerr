@@ -1,0 +1,661 @@
+{
+  "countryCode": "DZ",
+  "policy": {
+    "countryCode": "DZ",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "credit-note",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act: same reasoning as every other shipped country file's own quote.save-draft: no Algerian text identified that would specifically govern this act (decree 05-468 and the CTCA only speak of the 'facture', never of a quote/devis)."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Algeria is not an EU member state, so the eIDAS regulation (Regulation (EU) No 910/2014) other shipped country files cite for this exact rule does not apply here. The issue #558 research pass's scope was invoicing law (VAT, numbering, identifiers, corrections, retention, currency): it did not cover Algerian electronic-signature or electronic-writing law, so this stays unverified rather than guessed. What would settle it: an Algerian text on the legal admissibility of an electronic signature or an electronically sent commercial document."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no Algerian text identified imposes or forbids this precise mechanism. The only legal constraint bears on the resulting invoice itself (see invoice.save-draft/invoice.send below), never on this prior act of conversion from a quote."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no Algerian text identified governs this precise mechanism. Decree 05-468 art. 3 lists 'mode de paiement et date de reglement de la facture' among an invoice's mandatory mentions, but that bears on the resulting deposit invoice once issued, never on this prior act of requesting it from a quote still in draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no Algerian text identified governs this precise mechanism. The only legal constraint bears on the invoices that will result once issued (see invoice.save-draft/invoice.send below), never on this prior act of generation from a quote still in draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no Algerian text identified governs it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to a quote's PDF is a product convenience: a quote is not even a 'facture' within the meaning of decree 05-468. No Algerian text identified that would specifically govern the sharing of a link to a document already communicated to its recipient."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Asking a client to electronically sign a quote (link + OTP code by email: signatures/signatures.service.ts) is a product convenience: a quote is not a 'facture' within the meaning of decree 05-468, and signing a quote is not, on the evidence gathered so far, a legally regulated act in Algeria. The issue #558 research pass did not cover Algerian electronic-signature law (see quote.send above): this stays unverified for the same reason."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No legal research was performed for this entry: this action records an issuer-side fact only (who marked a sent quote accepted, when, and by what means) and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. What would settle it: an Algerian text conditioning the evidentiary value of a quote's acceptance on the channel through which it was obtained: not researched here."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La facture doit etre lisible et ne comprendre aucune tache, rature ou surcharge. La facture est reputee reguliere lorsqu'elle est extraite d'un carnet a souches denomme facturier quelle que soit sa forme ou etablie sous la forme dematerialisee a travers le recours a un procede informatique. Le facturier est un carnet a souches comprenant une serie ininterrompue et chronologique de factures sur lesquelles devront figurer, lors de la realisation de la transaction, les mentions definies au niveau des articles 3 et 4 ci-dessus. Un facturier ne peut etre entame sans que le precedent ne soit totalement epuise. La facture regulierement annulee doit faire l'objet d'une mention << facture annulee >> inscrite clairement en diagonale.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "Decret executif n. 05-468 du 10 decembre 2005, art. 10: full article, read and quoted verbatim by the issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 3 and section 4). The text forbids any erasure, correction mark, or overwrite ('aucune tache, rature ou surcharge') on an issued invoice, and provides exactly one way to undo one: cancelling it outright with a diagonal 'facture annulee' mention, never silently rewriting it. This settles the same fact `statuses: [\"draft\"]` applies for every other shipped country file: an already-issued invoice is never rewritten through a fresh draft save, only ever explicitly cancelled."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La facture est reputee reguliere lorsqu'elle est extraite d'un carnet a souches denomme facturier quelle que soit sa forme ou etablie sous la forme dematerialisee a travers le recours a un procede informatique.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "Decret executif n. 05-468, art. 10 (same article as invoice.save-draft above, different clause): the decree explicitly recognizes a dematerialized invoice ('etablie sous la forme dematerialisee a travers le recours a un procede informatique') as a regular invoice, alongside a paper carnet a souches. This authorizes issuing and sending an Algerian invoice electronically. NUANCE NOT MODELED HERE: the wet stamp and signature requirement of the decree's own art. 4 admits an exception for 'transmission telematique' per the research pass's own summary (RECHERCHE_558_ALGERIE.md section 2), but that pass's own Sources section does not carry a verbatim quote of art. 4 or art. 11, only a paraphrase, so this rule does not cite either article directly and does not model the stamp/signature exception itself; what would settle it is reading decree 05-468 art. 4 and art. 11 directly and quoting them verbatim."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: decret executif n. 05-468 (see invoice.send above) names no distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). `transports/channel-policy/data/dz.json` carries no `\"mandated\"` channel fact for Algeria - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes an Algerian invoice through a real send here: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime, unlike France's own. WHAT WOULD SETTLE THIS FURTHER: the same decree 05-468 art. 4/art. 11 reading invoice.send's own note already names as unresolved for the stamp/signature exception - no new research gap specific to this action."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating an invoice into a new DRAFT (never a resend of the original issued document) is a product convenience; no Algerian text identified governs it."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that an invoice was paid is an internal bookkeeping record, not itself a legal act under decree 05-468 or the CTCA as read by the issue #558 research pass. Decree 05-468 art. 3 requires the invoice to STATE 'mode de paiement et date de reglement' at issuance, but that bears on the invoice's own content, not on this separate, later record."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No structured electronic invoice format (e.g. an EN 16931 syntax) is mandated for Algeria: see transports/channel-policy/data/dz.json's own notes: no e-invoicing obligation was found in any primary source reached by the issue #558 research pass. Whether offering a structured export at all is meaningful for Algeria is therefore itself unverified, kept allowed (a product convenience, never a legal claim) rather than removed."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not implemented by this branch for any country (see actions/invoice-actions.ts's own header: this action is declared on the descriptor and deliberately not registered): this entry documents the same 'no Algerian text identified' posture every other shipped country file already holds for it, kept consistent rather than special-cased."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to an issued invoice's PDF is a product convenience; no Algerian text identified that would specifically govern the sharing of a link to a document already delivered to its recipient."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468 defines no 'facture d'avoir'/credit-note instrument at all (see correction-routes/data/dz.json's own CREDIT_NOTE route): whether Algerian law has anything to say about drafting one is therefore itself unresolved, not merely this specific act."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as credit-note.save-draft above: no Algerian legal basis for a credit note as a distinct instrument was identified by the issue #558 research pass, so sending one is kept allowed as a product convenience without a legal claim behind it."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as credit-note.save-draft above."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No structured electronic format is mandated for Algeria (see invoice.download-xml above); kept allowed as a product convenience."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "An expense record is this company's own internal bookkeeping of what it spent, never a document issued to or received from anyone else; no Algerian text identified governs it."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as expense.save-draft above."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that this company received a supplier's own invoice is this company's own internal record of a document a SUPPLIER issued under whatever rules govern the supplier's own country; no Algerian text identified specifically governs the act of recording receipt itself."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as received-invoice.receive above."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as received-invoice.receive above."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as invoice.record-payment above, applied to a received (supplier) invoice instead."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as received-invoice.receive above."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "A purchase order is a document this company sends to its own supplier; it is not a 'facture' within the meaning of decree 05-468, and no Algerian text identified governs it."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as quote.send above: the issue #558 research pass did not cover Algerian electronic-signature or electronic-writing law, so this stays unverified rather than guessed."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "A purchase order is not a 'facture'; no Algerian text identified governs cancelling one."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Algerian text identified governs it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as goods-receipt.save-draft above."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as goods-receipt.save-draft above."
+        }
+      }
+    ],
+    "domesticInvoiceCurrency": {
+      "currency": "DZD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Toute facturation ou vente de biens et services sur le territoire douanier national s'effectue en dinars algeriens sauf cas prevus par la reglementation en vigueur.",
+        "sourceCheckedAt": "2026-09-30"
+      },
+      "notes": "Reglement de la Banque d'Algerie n. 07-01 du 3 fevrier 2007 relatif aux regles applicables aux transactions courantes avec l'etranger et aux comptes devises, art. 5: read directly and quoted verbatim by the issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 7), verified not amended by any later Banque d'Algerie regulation up to and including reglement n. 26-02 du 23 juillet 2026. Binds a DOMESTIC Algerian sale ('sur le territoire douanier national'); export invoicing in a foreign currency is consistent with this same regulation's own repatriation-of-proceeds mechanism (art. 61) but no sentence explicitly authorizes it in so many words: a deduction, not a quoted rule, so this fact only ever fires for a seller and buyer BOTH established in Algeria (see the domestic-currency preflight's own header for how 'domestic' is decided, mirroring transports/channel-policy/mandate.ts's own isDomestic)."
+    },
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "dz-decree-05-468-art-10",
+          "appliesTo": ["invoice"],
+          "summary": "Algerian law requires an uninterrupted, chronological series of invoices (a carnet a souches, or its dematerialized equivalent): a new booklet cannot be opened before the previous one is fully used. It constrains continuity, not a specific character set or length.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "Le facturier est un carnet a souches comprenant une serie ininterrompue et chronologique de factures sur lesquelles devront figurer, lors de la realisation de la transaction, les mentions definies au niveau des articles 3 et 4 ci-dessus. Un facturier ne peut etre entame sans que le precedent ne soit totalement epuise.",
+            "sourceCheckedAt": "2026-09-30"
+          },
+          "notes": "Decret executif n. 05-468, art. 10: same article as invoice.save-draft/invoice.send above, read and quoted verbatim by the issue #558 research pass. No length or character-set limit is stated anywhere in the decree; the constraint is continuity alone."
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A quote is not a 'facture' within the meaning of decree 05-468 or loi n. 04-02; no Algerian text read by the issue #558 research pass constrains the number of a quote.",
+          "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Algerian text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above): there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "INVOICE-{year}-{number:4}",
+          "constrainedBy": ["dz-decree-05-468-art-10"],
+          "rationale": "Unchanged from the product's previous shared default, so a company already running it keeps it as it is. Decree 05-468 limits no character and no length, only continuity.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "Le facturier est un carnet a souches comprenant une serie ininterrompue et chronologique de factures [...] Un facturier ne peut etre entame sans que le precedent ne soit totalement epuise.",
+            "sourceCheckedAt": "2026-09-30"
+          },
+          "notes": "Decret executif n. 05-468, art. 10 (same quote as the constraint above). This is stronger than mere silence: the text requires an UNINTERRUPTED series and explicitly forbids starting a new booklet before the previous one is exhausted: a yearly restart to 1 would break that continuity outright, so `reset: \"never\"` is sourced to an affirmative reading of the text, not only to the absence of a permission (contrast this format's own siblings below, each `unverified` for lack of any text at all)."
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "CN-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "No Algerian text establishes a credit note as a distinct legal instrument at all (see correction-routes/data/dz.json's own CREDIT_NOTE route, unverified): there is nothing to read a numbering rule FROM.",
+          "rationale": "The same short form as the other countries, so a company working across them reads one convention, in a series of its own, distinct from the invoice series.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no credit-note instrument is established in Algerian law at all (see this format's own \"unconstrained\" statement above), so there is nothing to read a yearly-restart permission from either. Stays the safe default."
+          }
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not a 'facture', and no Algerian text read by the issue #558 research pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Algerian text governs the numbering of a purchase order at all. Stays the safe default."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Algerian text read by the issue #558 research pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Algerian text governs the numbering of a goods receipt at all. Stays the safe default."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started is kept as it is: Algerian law asks for an uninterrupted, chronological series, and switching a running series to another format is never required by it.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Le facturier est un carnet a souches comprenant une serie ininterrompue et chronologique de factures [...] Un facturier ne peut etre entame sans que le precedent ne soit totalement epuise.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "onViolation": "No Algerian constraint limits the characters or the length of the number, so a running series can only fall back when its own pattern cannot be rendered at all. The country format then applies from the next number; the counter is not reset and no number is reused: reusing one, or leaving a gap, would itself break the required uninterrupted series."
+      }
+    },
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md. Document-action rules: two of thirty-three sourced 'legal' (invoice.save-draft, invoice.send, both from decree 05-468 art. 10, read and quoted in full), the other thirty-one honestly 'unverified': this action-policy question was explicitly out of scope for the issue #558 research pass itself ('country-policy/data/dz.json (actions autorisees): Pas recherche du tout dans cette passe: a faire', RECHERCHE_558_ALGERIE.md's own effort estimate), and this file does not pretend otherwise. `domesticInvoiceCurrency` (a new, cross-country schema field added by this same PR at the owner's explicit request) sources Algeria's DZD-only domestic invoicing obligation to the Banque d'Algerie's own currency regulation. `numberFormats` sources the invoice's own continuity requirement to decree 05-468 art. 10; every other document type is honestly unconstrained, matching this product's own convention for a type no Algerian text was found to govern."
+  },
+  "identifiers": {
+    "countryCode": "DZ",
+    "schemes": [
+      {
+        "scheme": "RC",
+        "appliesTo": "COMPANY",
+        "label": "RC (Registre du Commerce)",
+        "required": true,
+        "helpText": "The trade register number every economic agent carries: always required for the seller, and for the buyer only when the buyer is itself a company (a private, final consumer is never asked for one).",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La facture doit comporter les mentions, ci-après, se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] numéro du registre du commerce ; [...] 2°) Mentions relatives à l'acheteur : [...] numéro du registre du commerce ; numéro d'identification statistique. Si l'acheteur est un consommateur, la facture doit mentionner ses nom, prénom(s) et adresse.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "Decret executif n. 05-468 du 10 decembre 2005, art. 3: full article read and quoted verbatim by the dedicated issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 2, and its own Sources section), JO n. 80 du 11 decembre 2005. The decree names the RC for the seller with NO condition, and for the buyer only among the mentions that apply when the buyer is an 'agent economique': the decree's own closing sentence ('Si l'acheteur est un consommateur, la facture doit mentionner ses nom, prenom(s) et adresse') makes the RC/NIS pair conditional on the buyer being a business, not a private consumer. `appliesTo: 'COMPANY'` models exactly this distinction (required for a company party, not for an individual/consumer party): see this catalog's own schema.ts header and its resolveRequiredIdentifiers consumer for how this field is read at request time."
+      },
+      {
+        "scheme": "NIS",
+        "appliesTo": "COMPANY",
+        "label": "NIS (Numero d'Identification Statistique)",
+        "required": true,
+        "pattern": "^\\d{15}(\\d{3})?$",
+        "helpText": "The statistical identification number: same sourcing and the same seller/buyer distinction as RC above. The native contributor consulted on issue #558 described this one as only sometimes shown in practice; the decree's own text states it plainly, so this entry follows the decree.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La facture doit comporter les mentions, ci-après, se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] numéro d'identification statistique ; [...] 2°) Mentions relatives à l'acheteur : [...] numéro du registre du commerce ; numéro d'identification statistique.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "Decret executif n. 05-468, art. 3: same reading as RC above. The native contributor's answer on issue #558 (2026-09-30) said NIS is 'sometimes' shown in practice, which is weaker than the decree's own unconditional wording for the seller; this entry follows the primary legal text (required: true, legal provenance) and records the practice caveat here rather than weakening the sourced fact. Format: digits only, 15 digits, or 18 for a secondary establishment. Source: PR #566 review, native contributor, 2026-09-30 (the decree itself states no format for this scheme)."
+      },
+      {
+        "scheme": "NIF",
+        "appliesTo": "COMPANY",
+        "label": "NIF (Numero d'Identification Fiscale)",
+        "required": true,
+        "pattern": "^\\d{15}(\\d{5})?$",
+        "helpText": "The tax identification number. Not found in decree 05-468's own list of mandatory invoice mentions after a full reading of its text: this requirement rests only on the native contributor's description of current practice, not on a legal text this task read.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468 art. 3 (read in full by the issue #558 research pass, RECHERCHE_558_ALGERIE.md section 2) does not mention the NIF anywhere among the invoice's mandatory mentions: a solid negative finding on a fully-read text, not an oversight. The native contributor for issue #558 (GitHub user athmanemokraoui), asked directly, answered on 2026-09-30: 'Algerian invoices show the NIF, RC (Registre de commerce) and Article d'Imposition (AI), and sometimes NIS (statistique) are required.' Per this PR's own provenance rule, a fact resting only on that practice answer is marked unverified, not legal, even though it is confidently stated. What would settle it: the Code des Impots Directs et Taxes Assimilees (CIDTA) or the Code des Procedures Fiscales, read directly for a provision requiring the NIF on a commercial invoice: neither was read for this specific question by the research pass (see RECHERCHE_558_ALGERIE.md's own 'Ce que je n'ai pas pu verifier' section, first bullet)."
+        },
+        "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text). Format: digits only, 15 digits, or 20 for a secondary establishment. Source: PR #566 review, native contributor, 2026-09-30."
+      },
+      {
+        "scheme": "AI",
+        "appliesTo": "COMPANY",
+        "label": "AI (Article d'Imposition)",
+        "required": true,
+        "helpText": "The tax-office article number a business is registered under. No legal text was found naming this requirement: it rests only on the native contributor's description of current practice.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No trace of the 'article d'imposition' (AI) was found anywhere in the texts read by the issue #558 research pass (decree 05-468 in full, the 2026 CTCA and CIDTA): a negative finding, not a full negative proof (the research pass explicitly flags the full list of DGI regulatory texts as unreached, served by a JavaScript-only listing on mfdgi.gov.dz). The native contributor (GitHub user athmanemokraoui), asked directly, answered on 2026-09-30 that Algerian invoices show the AI alongside the NIF and RC. Per this PR's own provenance rule, this stays unverified. What would settle it: the specific DGI regulatory text (not yet located) that would require the AI on a commercial invoice."
+        },
+        "notes": "Source: issue #558, native contributor, 2026-09-30 (practice only, not a primary legal text)."
+      }
+    ],
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md. Two schemes sourced to a full, direct reading of decree 05-468 art. 3 (RC, NIS): the decree's own text makes both conditional on the buyer being an economic agent rather than a private consumer, modeled here through `appliesTo: 'COMPANY'`. Two further schemes (NIF, AI) rest only on the native contributor's practice answer on issue #558 (2026-09-30) after a full reading of the decree found neither mentioned there; both marked unverified per this PR's own provenance rule for a fact sourced only to contributor practice. No VAT scheme is declared: this product's settings/onboarding screens already offer a VAT identifier field unconditionally for every country (company.settings.tsx's own withVatIdentifier, a format requirement, not a per-country one), and no Algerian text read by this research names a VAT-specific number distinct from the NIF."
+  },
+  "correctionRoutes": {
+    "countryCode": "DZ",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468, read in full while specifically searching for 'avoir'/'rectif'/'correct' by the issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 4), nowhere defines a 'facture d'avoir' (credit note): discounts and rebates are folded into the original invoice at the moment it is created (art. 5-6), never corrected afterwards through a separate document. The native contributor for issue #558, asked directly whether a credit note or equivalent exists in practice, answered on 2026-09-30: \"I'm not sure but in practice yes, there should be a credit note\": itself an uncertain answer, not a confident practice claim. What would settle it: the Systeme Comptable Financier or the CTCA's own VAT-regularization rules (art. 78 equivalent), neither reached by this research pass."
+        },
+        "notes": "Source: issue #558, native contributor, 2026-09-30 (uncertain practice answer) plus a full, negative reading of decree 05-468."
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same full reading of decree 05-468 as CREDIT_NOTE above: no upward-correction document is defined either. The native contributor was not asked specifically about a debit note (only about a credit note / 'facture d'avoir' generally). What would settle it: the same Systeme Comptable Financier / CTCA regularization provisions named for CREDIT_NOTE above."
+        },
+        "notes": "Decree 05-468, read in full, silent on this route: not researched further."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468 defines no general rectifying-document mechanism distinct from the cancellation mechanism read for CANCEL_AND_REPLACE below (art. 10's own 'facture annulee' mention). No provision naming a document that amends an already-issued invoice BY REFERENCE, without being a credit or debit note, was identified. What would settle it: the same Systeme Comptable Financier / CTCA texts named for CREDIT_NOTE above, read specifically for this mechanism."
+        },
+        "notes": "Not identified by a full reading of decree 05-468 (issue #558 research pass, RECHERCHE_558_ALGERIE.md section 4)."
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468 art. 10, last sentence, read in full and quoted verbatim by the issue #558 research pass: \"La facture regulierement annulee doit faire l'objet d'une mention << facture annulee >> inscrite clairement en diagonale.\" This describes a real cancellation mechanism, but it does NOT match this route's own definition: the mention is written ON THE ORIGINAL document itself, which is kept in the carnet a souches (the invoice booklet): there is no reissuance under a NEW number described anywhere in the text, which is what CANCEL_AND_REPLACE presupposes. The research pass explicitly flagged this mismatch rather than forcing a fit. For a simple material error, the text is silent and even forbids erasure (art. 10's own 'ne comprendre aucune tache, rature ou surcharge'): by deduction (not a sentence of the text) a faulty invoice is probably cancelled this way and then reissued at the NEXT number, which is closer to this route's shape than to any exact match, but that reissuance-at-the-next-number step is inferred, not read. What would settle it: DGI doctrine or a provision explicitly describing reissuance under a new number after a cancellation."
+        },
+        "notes": "Decree 05-468 art. 10 (verbatim quote above) describes a real, but imperfectly matching, cancellation mechanism."
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No credit-note mechanism at all was identified for Algeria (see CREDIT_NOTE above), so a purely internal variant of one could not be checked either. What would settle it: the same texts named for CREDIT_NOTE above, once a credit-note mechanism itself is identified."
+        },
+        "notes": "Not reachable before CREDIT_NOTE itself is settled."
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Decree 05-468's own cancellation mechanism (art. 10, see CANCEL_AND_REPLACE above) is an act of the ISSUER itself (the seller writes 'facture annulee' on the original): nothing in the text describes a cancellation DECIDED or carried out by the tax authority, at the issuer's request or of its own motion. Algeria has no real-time invoice clearance platform (RECHERCHE_558_ALGERIE.md section 5: no e-invoicing or telereporting obligation found in any of the seven finance laws, three consolidated tax codes, or the DGI's own site, read or searched), which is the usual context an authority-side annulment mechanism exists in elsewhere in this catalog. What would settle it: DGI doctrine confirming the absence (or existence) of an authority-initiated cancellation power over an already-issued invoice."
+        },
+        "notes": "No authority-side mechanism identified; the one cancellation mechanism found (decree 05-468 art. 10) is issuer-initiated."
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route presupposes a rejection scenario by a clearance platform: a scenario that does not exist for Algeria (see AUTHORITY_ANNULMENT above: no e-invoicing or clearance platform found by the issue #558 research pass). No mechanism for reissuing an invoice under the SAME date and number after any kind of rejection was identified. What would settle it: the same DGI doctrine named for AUTHORITY_ANNULMENT above."
+        },
+        "notes": "Not applicable absent a clearance platform, on the evidence gathered so far; not positively excluded."
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No mechanism for reissuing an invoice under the SAME number with an added note, for a correction with no tax effect, was identified in decree 05-468. The closest finding, art. 10's own cancellation mention (see CANCEL_AND_REPLACE above), annotates the ORIGINAL document itself rather than producing a duplicate, and concerns a full cancellation, not a no-tax-effect correction. What would settle it: DGI doctrine or a provision describing a same-number reissuance mechanism for a correction that does not affect the tax computation."
+        },
+        "notes": "Decree 05-468 art. 10's cancellation mention is the closest finding but does not match this route's own definition."
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No provision governing a correction made only in the accounting register or a VAT return, without any document at all reaching the customer, was identified: the issue #558 research pass did not reach the CTCA's own VAT-regularization articles (the equivalent of Portugal's CIVA art. 78, for instance) or the Systeme Comptable Financier. What would settle it: those two texts, read directly for this specific mechanism."
+        },
+        "notes": "Not reached by the issue #558 research pass (RECHERCHE_558_ALGERIE.md's own 'Ce que je n'ai pas pu verifier' section)."
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No scenario was identified where a correction would take effect automatically, by operation of law alone, with no document and no accounting entry required at all. Nothing read by the issue #558 research pass (decree 05-468 in full) describes such a mechanism. What would settle it: the same CTCA/Systeme Comptable Financier texts named for LEDGER_ANNOTATION above."
+        },
+        "notes": "Not identified; not reached in enough depth to positively exclude either."
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No mechanism allowing the RECIPIENT of an Algerian invoice to unilaterally reject it, with the effect of making it lose its status as an invoice, was identified in decree 05-468 (read in full by the issue #558 research pass). What would settle it: the CTCA's own VAT-deduction provisions and general commercial-law texts on the recipient's own obligations, neither reached by this research pass for this specific question."
+        },
+        "notes": "Not identified by a full reading of decree 05-468."
+      }
+    ],
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md (section 4) plus the native contributor's own answers on issue #558 (2026-09-30). Decree executif n. 05-468 du 10 decembre 2005 (JO n. 80 du 11 decembre 2005) was read IN FULL while specifically searching for a correction/cancellation mechanism: it defines exactly one, an issuer-written 'facture annulee' mention in diagonal on the original document (art. 10, quoted verbatim in the CANCEL_AND_REPLACE route above), and is otherwise silent on every one of the eleven canonical routes this catalog covers. All eleven routes are therefore honestly 'unverified' rather than forced onto a route the text does not cleanly describe: the research pass itself explicitly declined to stretch the one mechanism it found (CANCEL_AND_REPLACE's own definition presupposes a reissuance under a new number, which the text does not describe) into a false 'legal' match. No e-invoicing or clearance platform was found for Algeria (section 5 of the same research pass), which rules out several routes' usual context (AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY) without ruling out the routes themselves. Comparable, per that research pass's own estimate, to where Portugal's own correction-routes file stood after its first pass (four of eleven sourced 'legal'): Algeria's own first pass sources zero of eleven as 'legal', a materially thinner result the PR report names plainly rather than smoothing over."
+  },
+  "vatRates": {
+    "countryCode": "DZ",
+    "rates": [
+      {
+        "id": "dz-standard",
+        "rate": 19,
+        "label": "Taux normal",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "La taxe sur la valeur ajoutée est perçue au taux normal de 19 %.",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "Code des Taxes sur le Chiffre d'Affaires (CTCA), edition 2026, DGI (updated 2026-04-27), art. 21. Transcribed from the dedicated issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 1 and its own Sources section): the PDF was read directly at https://www.mfdgi.gov.dz/files/803/2026/3725/CodedesTaxessurle-Chiffred-Affaires2026frpdf?preview=1 by that research pass, not re-fetched by this task."
+      },
+      {
+        "id": "dz-reduced",
+        "rate": 9,
+        "label": "Taux réduit",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Le taux réduit de la taxe sur la valeur ajoutée est fixé à 9 %. Il s'applique aux produits, biens, travaux, opérations et services ci-après [...]",
+          "sourceCheckedAt": "2026-09-30"
+        },
+        "notes": "CTCA 2026, art. 23: same source pass as dz-standard above. Applies to a listed set of essential/agricultural goods and services (art. 23's own enumeration, not reproduced here: this catalog carries the rate, not the eligibility list). Other sectoral rates mentioned by the research (7/14/5 %, CTCA art. 169 and historical provisions) are time-bound and sector-specific, not general rates, and are deliberately left out of this catalog, which, like every other shipped country file here, carries only a seller's own dropdown of general rates, not a tax authority's full rate book."
+      },
+      {
+        "id": "dz-export",
+        "rate": 0,
+        "label": "Export (assimilé au taux zéro)",
+        "category": "ZERO",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "The issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 1) describes CTCA art. 13 as treating an export as zero-rated \"sous conditions formelles\" (excluding antiques, works of art, and precious metals), but that pass's own Sources section does not carry a verbatim quote of art. 13: only a paraphrase. This entry is therefore kept unverified rather than legal: what would settle it is reading CTCA art. 13's own text directly and quoting it verbatim, including its exact formal conditions and exclusions."
+        },
+        "notes": "Included because the research brief for issue #558 names export explicitly alongside the 19 % and 9 % rates: left in the catalog as a genuinely useful dropdown entry for a company invoicing abroad, but honestly unverified rather than invented as a confident 'legal' quote this task does not actually hold."
+      }
+    ],
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from the dedicated research pass RECHERCHE_558_ALGERIE.md (primary texts: CTCA 2026 as published by the DGI, read via direct PDF retrieval: see that file's own 'Sources' section for the exact method, curl + pdftotext, mfdgi.gov.dz's own TLS certificate being invalid for direct browser access). Two of three rates sourced to an exact quote of the DGI's own consolidated 2026 code; the export rate stays unverified for lack of a captured verbatim quote of CTCA art. 13. The IFU (Impot Forfaitaire Unique) flat-tax regime is NOT a VAT rate and is not modeled here: see tax/tax-systems/data/dz.json's own notes for why, and this PR's own report for the schema gap this surfaces."
+  },
+  "taxSystem": {
+    "countryCode": "DZ",
+    "kind": "VAT",
+    "standardRate": 19,
+    "reducedRates": [9],
+    "schemes": ["STANDARD"],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "La taxe sur la valeur ajoutée est perçue au taux normal de 19 %.",
+      "sourceCheckedAt": "2026-09-30"
+    },
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md. Code des Taxes sur le Chiffre d'Affaires (CTCA) 2026, art. 21 (standard 19 %) and art. 23 (reduced 9 %, quoted verbatim in vat-rates/data/dz.json, reused here rather than re-typed: see this catalog schema's own header on deliberate non-duplication). `standardRate`/`reducedRates` are set explicitly rather than left to be derived from vat-rates/, matching the convention this catalog's own header documents for a country whose rate ladder the tax engine needs directly.\n\nSCHEMA GAP, NOT FIXED BY THIS TASK (see the stop rule in this PR's own report): Algeria's IFU (Impot Forfaitaire Unique: CIDTA art. 282bis, 'Il est etabli un impot forfaitaire unique qui couvre l'IRG, la TVA et la TLS', and art. 282ter, threshold 8,000,000 DA annual turnover) is a single flat levy that REPLACES VAT, personal income tax (IRG) and a local tax (TLS) all at once for a qualifying small business: CTCA art. 64 additionally forbids an IFU taxpayer from ever stating VAT on an invoice ('Les redevables places sous le regime de l'impot forfaitaire unique ne peuvent pas mentionner la taxe sur la valeur ajoutee sur leurs factures'). This catalog's own `schemes` field is a closed union of exactly 'STANDARD' | 'FRANCHISE_BASE' | 'EXEMPT': three VAT-holding-status variants WITHIN a VAT system, none of which represents a regime that replaces VAT with an entirely different combined tax rather than merely exempting or reducing it. `schemes` is therefore left at `['STANDARD']` here, the ordinary VAT regime this country file otherwise describes, and IFU is deliberately NOT declared as 'EXEMPT': doing so would misstate the law (an IFU taxpayer is not VAT-exempt, it is subject to a different tax altogether) for a cosmetic fit. A company actually operating under Algeria's IFU regime can still be represented in this product's EXISTING company-level 'VAT exempt' setting (`Company.exemptVat`, mapped to `taxScheme: 'FRANCHISE_BASE'` by tax/load-and-resolve.ts) to get the correct INVOICE OUTPUT (no VAT line charged, which is what CTCA art. 64 actually requires): this is a practical approximation of the OUTPUT, not a claim that IFU legally is a French-style franchise-en-base; the two are different tax mechanisms that happen to produce the same 'no VAT on the invoice' result. A faithful representation of IFU (its own combined rate, 5 % goods, 12 % other activities, 0.5 % auto-entrepreneur per CIDTA art. 282sexies, its own minimum forfaitaire, and its replacement of TWO other taxes besides VAT) has no slot in this schema today; that is the gap this PR's report names for the owner to decide on separately, per this issue's own stop rule."
+  },
+  "channelPolicy": {
+    "countryCode": "DZ",
+    "facts": [],
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md (section 5). No mandated or suggested transmission channel is declared here because none was found: the issue #558 research pass searched the full text of seven finance laws (2022-2026), three consolidated 2026 tax codes (CPF, CIDTA, CTCA), the DGI's own official communique on the 2026 finance law, and the DGI's own internal search engine for 'facturation electronique', 'e-facture', 'clearance', 'signature electronique' and 'caisse enregistreuse' tied to any obligation, and found no occurrence of any of them describing something in force or formally announced with a date.\n\nThis directly contradicts a claim that existed in this product's own documentation before this research (documentation/docs/developer-guide/countries/algeria.md, a 'DGI e-Invoice System' with a clearance model and a mandatory electronic signature): that claim is a legacy note, never verified before this research pass, and is NOT confirmed by any primary source this pass reached. It is corrected, not repeated, by this PR's own documentation changes: see that file's own history.\n\nNot a proof of absence: mfdgi.gov.dz serves its own list of regulatory texts through client-side JavaScript, which this research pass's automated tooling could not read (confirmed independently), so a text existing only there could have been missed; the site's TLS certificate is also invalid for a direct browser visit, forcing curl-based access for everything this pass did reach. No 2026-2027 mandatory e-invoicing rumor was found either, in the sources reached; the native contributor for issue #558, asked directly, answered on 2026-09-30 that there is 'nothing in reality about e-invoicing for now', naming only Jibayatic (the DGI's own tax-payment portal, SAP-based) as a digital platform already in use: for paying taxes, not for issuing e-invoices, and no one is forced to produce e-invoices through it today per that same answer. b2g-routing/ and reporting/ are left without a dz.json file for the identical reason: nothing found justifies either yet, the same posture this file's own PT sibling already documents for a different, but structurally similar, absence of evidence."
+  },
+  "retention": {
+    "countryCode": "DZ",
+    "rules": [
+      {
+        "label": "Fiscale",
+        "years": 10,
+        "origin": "issueDate",
+        "legalRef": "Code des Procedures Fiscales (CPF), art. 64 (modifie par la loi de finances 2025, art. 99) ; Code de commerce, art. 12",
+        "notes": "CPF art. 64 (as last amended by loi n. 24-08 du 24 novembre 2024 portant loi de finances pour 2025, art. 99, JO n. 84 du 26 decembre 2024), read directly and quoted verbatim by the issue #558 research pass (RECHERCHE_558_ALGERIE.md, section 6): \"[...] les documents comptables ainsi que les pieces justificatives, notamment les factures d'achats [...] doivent etre conserves pendant le delai de dix (10) ans prevu par l'article 12 du code du commerce, a compter [...] pour les pieces justificatives, de la date a laquelle elles ont ete etablies.\" 'La date a laquelle elles ont ete etablies' (the date they were drawn up) is exactly this schema's own `origin: \"issueDate\"`: the document's own exact issue date, unrounded, never the end of a calendar year (unlike Portugal's own CIVA art. 52 wording, which this same schema reads as `issueDateYearEnd`). Code de commerce art. 12 (texte d'origine, ordonnance n. 75-59 du 26 septembre 1975, JO n. 101 du 19 decembre 1975, re-read to confirm it is still the operative cross-reference in 2024): \"Les livres et documents [...] doivent etre conserves pendant dix ans.\" CPF art. 39 sets a SEPARATE four-year tax-assessment reopening window (a different question: how long the administration can audit, not how long a document must be kept) and does not reduce this ten-year floor. No '13 bis' article exists in this part of the Code de commerce (a lead the research pass specifically checked and ruled out): a '13 bis' does exist, but in the CIDTA, on an unrelated IRG exemption."
+      }
+    ],
+    "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md (section 6). A single, well-sourced obligation: ten years from the document's own issue date. One of the most solidly settled points of this research pass: the schema's closed `origin` vocabulary expresses the Algerian text's own wording exactly, with no interpretive gap."
+  }
+}
