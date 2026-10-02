@@ -38,13 +38,33 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # `--ignore-scripts` so no dependency's install-time lifecycle script runs (SonarCloud
+      # S6505). Checked, not assumed: ran this exact command plus `npm run build` locally first --
+      # the only package in this tree with an install script is esbuild, and that script only
+      # swaps its CLI binary wrapper for a native symlink (a startup-time optimization for the
+      # `esbuild` command-line entry point); vite calls esbuild as a library, through its own
+      # runtime platform lookup, so the build is unaffected. `npm run build` below still succeeds.
       - name: Install
         working-directory: frontend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      # SonarCloud (S6505, S8543) flags `npx <pkg>` here because it can silently install an
+      # unpinned package on demand and run its lifecycle scripts. None of the three tools below
+      # go through npx any more:
+      # - vite is already an exact, locked dependency of frontend/ (installed by `npm ci` above),
+      #   so its own node_modules/.bin binary is called directly, no on-demand install at all.
+      # - wait-on and @lhci/cli are not frontend dependencies (they are CI-only tools, not
+      #   something the app ships), so they are installed once, pinned to an exact version, with
+      #   `--ignore-scripts`, into a throwaway prefix outside frontend/'s own dependency tree, and
+      #   their binaries are then called directly from there.
+      - name: Install CI-only tooling (wait-on, lhci), pinned and without lifecycle scripts
+        run: |
+          mkdir -p /tmp/ci-tools
+          npm install --prefix /tmp/ci-tools --no-save --ignore-scripts wait-on@9.5.1 @lhci/cli@0.15.1
 
       # Backgrounding the preview server and waiting on it in the SAME step, the same pattern
       # cypress.yml's own "Run backend, frontend & tests" step uses for its dev servers -- a
@@ -56,9 +76,9 @@ jobs:
         working-directory: frontend
         run: |
           mkdir -p /tmp/logs
-          npx vite preview --port 4173 --strictPort > /tmp/logs/vite-preview.log 2>&1 &
-          npx wait-on http://localhost:4173/auth/sign-in --timeout 60000
-          npx --yes @lhci/cli@0.15.1 collect \
+          ./node_modules/.bin/vite preview --port 4173 --strictPort > /tmp/logs/vite-preview.log 2>&1 &
+          /tmp/ci-tools/node_modules/.bin/wait-on http://localhost:4173/auth/sign-in --timeout 60000
+          /tmp/ci-tools/node_modules/.bin/lhci collect \
             --url=http://localhost:4173/auth/sign-in \
             --numberOfRuns=1
           # `collect` alone only saves the raw per-run LHR json/html under .lighthouseci/ -- the
@@ -66,7 +86,7 @@ jobs:
           # `upload`, not `collect`. `--target=filesystem` keeps this fully local, no lhci server
           # or account needed, and `--outputDir=.lighthouseci` keeps the manifest next to the
           # reports it describes rather than at the frontend/ root.
-          npx --yes @lhci/cli@0.15.1 upload \
+          /tmp/ci-tools/node_modules/.bin/lhci upload \
             --target=filesystem \
             --outputDir=.lighthouseci
 
