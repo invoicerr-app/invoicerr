@@ -1,0 +1,135 @@
+name: Lighthouse CI
+
+# Builds the frontend, serves the static build, and runs Lighthouse CI (`@lhci/cli`) against it.
+# Informative only: nothing here fails the build. Budgets come once a baseline exists, per
+# issue #610.
+#
+# Only the sign-in page (`/auth/sign-in`) is audited. The dashboard and the document/invoice
+# screens live behind the app's auth layout (`frontend/src/pages/(app)/_layout.tsx`), which
+# redirects to sign-in without an authenticated session -- and this job serves a plain
+# `vite build` output with no backend behind it, so there is no session to reach them with.
+# Auditing those for real needs the full stack (Postgres, Redis, the NestJS backend) plus a
+# seeded, authenticated session, the same shape of setup `cypress.yml` already pays for its e2e
+# suites -- a bigger lift than this first, informative pass, left for the sprint-planning
+# follow-up issue #610 itself asks for.
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/lighthouse.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-24.04
+    # `contents: read` for the checkout. `pull-requests: write` for the PR comment at the end --
+    # `actions/github-script` posts/updates it through its own default GITHUB_TOKEN.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      # Backgrounding the preview server and waiting on it in the SAME step, the same pattern
+      # cypress.yml's own "Run backend, frontend & tests" step uses for its dev servers -- a
+      # background process started with `&` in one step is not guaranteed to still be reachable
+      # from a later one, so the wait (and the thing that needs the server up) stays alongside it.
+      # `vite preview` defaults to SPA mode (no `appType: 'mpa'` override in vite.config.ts), so it
+      # serves index.html for a client-side route like `/auth/sign-in` instead of 404ing on it.
+      - name: Serve the build and run Lighthouse CI on the sign-in page
+        working-directory: frontend
+        run: |
+          mkdir -p /tmp/logs
+          npx vite preview --port 4173 --strictPort > /tmp/logs/vite-preview.log 2>&1 &
+          npx wait-on http://localhost:4173/auth/sign-in --timeout 60000
+          npx --yes @lhci/cli@0.15.1 collect \
+            --url=http://localhost:4173/auth/sign-in \
+            --numberOfRuns=1
+
+      - name: Upload the Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lighthouse-report
+          path: frontend/.lighthouseci
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Comment the scores on the pull request
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const fs = require('fs')
+            const manifestPath = 'frontend/.lighthouseci/manifest.json'
+            const marker = '<!-- lighthouse-ci-comment -->'
+
+            let body
+            if (!fs.existsSync(manifestPath)) {
+              body = [
+                marker,
+                '### Lighthouse CI',
+                '',
+                'No report was produced (the collect step likely failed). Check the workflow run.',
+              ].join('\n')
+            } else {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+              const pct = (v) => (v == null ? 'n/a' : String(Math.round(v * 100)))
+              const rows = manifest.map((entry) => {
+                const s = entry.summary || {}
+                return `| ${entry.url} | ${pct(s.performance)} | ${pct(s.accessibility)} | ${pct(s['best-practices'])} | ${pct(s.seo)} |`
+              })
+              body = [
+                marker,
+                '### Lighthouse CI',
+                '',
+                'Informative only, nothing here fails the build yet. Only the sign-in page is audited:',
+                'the dashboard and document screens sit behind auth and this job serves a static build',
+                'with no backend behind it, so there is no session to reach them with.',
+                '',
+                '| URL | Performance | Accessibility | Best Practices | SEO |',
+                '| --- | --- | --- | --- | --- |',
+                ...rows,
+                '',
+                'Full report: the `lighthouse-report` artifact on this run.',
+              ].join('\n')
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const existing = comments.find((c) => c.body && c.body.includes(marker))
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }
