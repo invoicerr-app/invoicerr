@@ -68,7 +68,7 @@
     "imapflow": "^2.0.2",
     "ioredis": "^5.11.1",
     "jszip": "^3.10.2",
-    "markdown-it": "^14.3.0",
+    "markdown-it": "^14.3.1",
     "multer": "^2.4.0",
     "node-forge": "^1.4.0",
     "node-schematron": "^2.1.0",
