@@ -124,7 +124,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Correction routes | `correctionRoutes` | For each of the 11 canonical correction routes (credit note, corrective invoice, cancel-and-replace, …), is it `required`/`allowed`/`forbidden`/`unverified` for this country. | No - read live from the file. |
 | Local cancel (derived) | `correction-routes/cancel-policy.ts` (code, not a section) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country (a whitelist cross-checked against the `correctionRoutes` section above). | No - pure function over the section above. |
 | Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
-| Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). | No - read live from the file. |
+| Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
 | Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `countryFields` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No - read live from the file. |
 | Mandatory mentions | `mentions` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No - read live from the file. |
@@ -384,6 +384,53 @@ A country adding its own validation-code scheme one day needs no frontend change
 check above (it is generic over the field), but the ATCUD computation itself
 (`numbering/atcud.ts`, `actions/atcud-issuance.ts`) stays Portugal-specific code: a second scheme
 would still need its own implementation, this fact only lets the gate find it without a new literal.
+
+### Maintainer note: EU/GCC membership and Peppol EAS live in a reference table, not a country file
+
+Issue #603 (audit section 1, row 1 / section 5, row A) replaced FOUR independent copies of the EU
+member state list (`tax/classification.ts`'s `EU_MEMBERS`/`GCC_VAT`, `formats/semantic/build-
+semantic-invoice.ts`'s `VAT_PREFIX_TO_PEPPOL_EAS`, `formats/national/fatturapa-provider.ts`'s
+`EU_CC`, `ocr-service/local-client.ts`'s `EU_VAT_PREFIXES`) with ONE shared reference table,
+`backend/src/modules/documents/tax/tax-unions/data/tax-unions.json`.
+
+:::info[Why this is not a 15th section on the country file]
+Every other mechanism in this guide answers a question about one of the countries this product
+ships a seller file for (FR/DE/IT/PL/PT/DZ today). EU and GCC membership is different: a French
+seller's invoice can name a BUYER established in any of the 27 EU member states, and this product
+does not ship a `countries/data/<cc>.json` for the other 26. A per-seller-country section could
+never cover that - the fact has to exist for every possible buyer country, independently of which
+countries this product ships a seller file for, so it lives in its own standalone, country-blind
+table instead.
+:::
+
+`tax/tax-unions/schema.ts` and `registry.ts` follow the same discipline as every section above:
+load-time validation (`assertValidTaxUnionsFile`), mandatory `provenance` on each of the table's
+four aspects (EU membership, GCC membership, Peppol EAS, the OCR upload-screen's own recognition
+heuristic), and "no permissive fallback" (a country absent from the table is simply not a union
+member and has no Peppol EAS code, never a guessed one). Unlike the per-country mechanisms, there
+is one row per country in a SINGLE file, not one file per country - the table is read-only
+reference data, not something a country PR adds to.
+
+Three consumers now read `defaultTaxUnionRegistry` instead of keeping their own copy:
+
+- `tax/classification.ts#taxUnionOf` - the cross-border tax engine's own EU/GCC classification.
+- `formats/semantic/build-semantic-invoice.ts#peppolEasForVat` - the EN 16931 bridge's Peppol EAS
+  lookup for a party's `cbc:EndpointID@schemeID`, keyed by VAT PREFIX (Greece resolves under `EL`,
+  never the ISO code `GR` - see the table's own `vatPrefix` field).
+- `formats/national/fatturapa-provider.ts#mapNatura` - whether a non-Italian EU buyer gets the
+  reverse-charge `Natura` code N6.
+
+`ocr-service/local-client.ts` (outside the `documents/` module entirely) reads
+`defaultTaxUnionRegistry.ocrRecognizedPrefixes()` directly for its own VAT-id-shape heuristic - a
+product decision, not a legal fact, which is why the table also carries three non-EU/GCC
+neighbours (`CH`/`NO`/`GB`) and one non-ISO entry (`XI`, Northern Ireland's own post-Brexit VAT
+prefix) purely for that one consumer; each carries a `notes` field explaining why it is there.
+
+A new country being added to the SIX shipped sellers never needs to touch this table: its own
+membership and VAT-prefix facts are either already present (every EU/GCC state is) or genuinely
+absent (no union membership at all), exactly like every other reference-data fact in this product.
+This table only changes when the EU or the GCC itself gains or loses a member, or Peppol publishes
+a new EAS code - a rare, well-sourced event, never a per-country-PR concern.
 
 ### Maintainer note: a mention whose value changes on a schedule
 

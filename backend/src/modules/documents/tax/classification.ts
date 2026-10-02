@@ -1,52 +1,24 @@
 /**
  * CARRIED OVER almost verbatim from `compliance/engine/classification.ts` (git tag
  * `avant-refonte-documents`) — only the import paths change (types come from `./types`, specific to
- * this module). The content (country lists, composition cascade) is carried over AS-IS: see
- * `tax-engine.ts`'s own header for what changed around it.
+ * this module). The composition cascade is carried over AS-IS: see `tax-engine.ts`'s own header for
+ * what changed around it.
+ *
+ * Issue #603 (PR A): `EU_MEMBERS`/`GCC_VAT` used to be this file's OWN copy of a list that also lived,
+ * independently, in `formats/semantic/build-semantic-invoice.ts` (`VAT_PREFIX_TO_PEPPOL_EAS`),
+ * `formats/national/fatturapa-provider.ts` (`EU_CC`) and `ocr-service/local-client.ts`
+ * (`EU_VAT_PREFIXES`) - four copies that could, and in one documented case did, disagree (see this
+ * PR's own report). `taxUnionOf` now reads the shared `tax/tax-unions/` reference table instead -
+ * same exported signature, same return values, proven byte-for-byte unchanged over every ISO country
+ * code.
  */
 import { ISO3166Alpha2, PartyRole, PartyTaxProfile, SupplyType } from './types';
+import { defaultTaxUnionRegistry, TaxUnion } from './tax-unions/registry';
 
-/** EU VAT territory (member states). Used so cross-border tax composes from a table, not N² pairs. */
-export const EU_MEMBERS = new Set<string>([
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'IT',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-]);
-
-/** GCC VAT-implementing states. */
-export const GCC_VAT = new Set<string>(['SA', 'AE', 'BH', 'OM', 'KW', 'QA']);
-
-export type TaxUnion = 'EU' | 'GCC';
+export type { TaxUnion };
 
 export function taxUnionOf(country: ISO3166Alpha2): TaxUnion | null {
-  const c = (country ?? '').toUpperCase();
-  if (EU_MEMBERS.has(c)) return 'EU';
-  if (GCC_VAT.has(c)) return 'GCC';
-  return null;
+  return defaultTaxUnionRegistry.taxUnionOf(country);
 }
 
 /** Pluggable VAT-number validation (VIES, registry lookups, …). */
