@@ -24,7 +24,7 @@ checked for "facturation électronique", "e-facture", "clearance", "signature é
 enregistreuse" tied to an obligation: none was found, in force or announced with a date. This
 directly contradicts a "DGI e-Invoice System" claim this repository's own `documentation/docs/
 developer-guide/countries/algeria.md` used to carry, itself inherited from an earlier, never-checked
-research pass; that claim has been removed. `transports/channel-policy/data/dz.json` declares no
+research pass; that claim has been removed. `countries/data/dz.json` declares no
 fact, the same "empty and documented" shape as Portugal's own file. Not a proof of absence:
 mfdgi.gov.dz serves part of its own regulatory-text listing through client-side JavaScript this
 research pass's tooling could not read.
@@ -53,7 +53,7 @@ published by the DGI, read directly 2026-09-30:
 | 9% | Reduced | art. 23 |
 
 An export rate (treated as zero-rated, "sous conditions formelles") is named by CTCA art. 13, but this
-pass captured only a paraphrase, not a verbatim quote: kept `unverified` in `vat-rates/data/dz.json`
+pass captured only a paraphrase, not a verbatim quote: kept `unverified` in `countries/data/dz.json`
 rather than invented as a sourced fact.
 
 ### The IFU regime: sourced as a fact, unmodeled as a mechanism
@@ -63,7 +63,7 @@ one flat levy for a business under 8,000,000 DA annual turnover (CIDTA art. 282b
 stating VAT on an invoice at all, on pain of the penalties at CTCA art. 114 (CTCA art. 64). The native
 contributor described it as "the most used for freelancers and small businesses". This catalog's
 `tax-systems` schema has no slot for a regime that *replaces* VAT with a different combined tax rather
-than merely exempting it: `tax/tax-systems/data/dz.json` stays at the ordinary VAT regime
+than merely exempting it: `countries/data/dz.json` stays at the ordinary VAT regime
 (`schemes: ["STANDARD"]`) and documents the gap in its own notes rather than forcing a misleading
 `EXEMPT` label onto a mechanism that isn't one.
 
@@ -133,11 +133,11 @@ doivent être conservés pendant dix ans."*
 
 ## Sources
 
-`backend/src/modules/documents/country-policy/data/dz.json` (action policy, numbering, and the new
-`domesticInvoiceCurrency` fact), `country-identifiers/data/dz.json`, `correction-routes/data/dz.json`,
-`tax/tax-systems/data/dz.json`, `vat-rates/data/dz.json`, `archive/retention/data/dz.json`, and
-`transports/channel-policy/data/dz.json` (exists, declares no fact, for the sourced reason given
-above). No `b2g-routing/data/dz.json` and no `reporting/data/dz.json` exist: nothing found by this
+`backend/src/modules/documents/countries/data/dz.json` (one file, all of this country's own
+sections: action policy, numbering, and the new `domesticInvoiceCurrency` fact; identifiers;
+correction routes; the tax system; the VAT rate ladder; archive retention; and the channel policy,
+which exists, declares no fact, for the sourced reason given above). No `b2gRouting` and no
+`reporting` section exist: nothing found by this
 pass justifies either yet. See issue #558 and its own research file for the full citation list,
 including what was checked and not found, and the native contributor's six practice answers
 (2026-09-30). The NIF/NIS formats above come from the native contributor's review of PR #566

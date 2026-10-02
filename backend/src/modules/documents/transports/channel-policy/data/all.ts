@@ -1,49 +1,24 @@
 /**
- * The only aggregator — adding a country's channel policy means adding `data/xx.json` and NOTHING
- * else, mirroring `country-policy/data/all.ts`'s own header verbatim on why this reads the file with
- * `fs.readFileSync` rather than `import`ing it as a TS module: editing a fact is then a plain data
- * change, never a TypeScript one.
- *
- * The country list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this directory
- * with `readdirSync` and keeps only names matching `/^[a-z]{2}\.json$/` — a lowercase two-letter code
- * plus `.json`, which is a country file and nothing else (it excludes this `all.ts`, neither `.ts`
- * file in this directory being `.json`). `readdirSync` makes no ordering promise, so the codes are
- * sorted before loading — deterministic, reproducible, independent of the OS or filesystem.
+ * Issue #603 step 6: the data physically moved to `countries/data/<cc>.json` (one file per country,
+ * `channelPolicy` section) - `countries/data/all.ts` is now the only place that reads or validates
+ * it, and `registry.ts`'s own default constructor already reads `defaultComposedCountryCatalog`
+ * directly, not this array. `ALL_CHANNEL_POLICY_FILES` below still exists, and still exports the
+ * exact same content, purely for the handful of callers that import it directly instead of going
+ * through `registry.ts` (`country-readiness.service.ts`, `countries/compose.spec.ts`) - it now
+ * DERIVES from the composed catalog rather than reading a file itself, so there is nothing left here
+ * to validate: that already happened once, centrally, in `countries/data/all.ts`.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { defaultComposedCountryCatalog } from '../../../countries/registry';
+import { CountryChannelPolicyFile } from '../schema';
 
-import { assertValidChannelPolicyFact, CountryChannelPolicyFile } from '../schema';
-
-const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
-
-/** Every country code with a `data/xx.json` file next to this loader, sorted for a deterministic
- *  load order — see the module docstring for why this reads the directory instead of a fixed list. */
-function discoverCountryCodes(): string[] {
-  return readdirSync(__dirname)
-    .filter((name) => COUNTRY_FILE_PATTERN.test(name))
-    .map((name) => name.slice(0, -'.json'.length))
-    .sort();
+function channelPolicyFromComposedCatalog(): CountryChannelPolicyFile[] {
+  const files: CountryChannelPolicyFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const channelPolicy = defaultComposedCountryCatalog.get(countryCode)?.channelPolicy;
+    if (channelPolicy) files.push(channelPolicy);
+  }
+  return files;
 }
 
-function loadCountryFile(code: string): CountryChannelPolicyFile {
-  const path = join(__dirname, `${code}.json`);
-  const raw = readFileSync(path, 'utf-8');
-  const parsed = JSON.parse(raw) as CountryChannelPolicyFile;
-  if (parsed.countryCode !== code.toUpperCase()) {
-    throw new Error(
-      `documents/transports/channel-policy/data/${code}.json declares countryCode ` +
-        `"${parsed.countryCode}", expected "${code.toUpperCase()}"`,
-    );
-  }
-  for (const fact of parsed.facts) {
-    assertValidChannelPolicyFact(fact, `documents/transports/channel-policy/data/${code}.json`);
-  }
-  return parsed;
-}
-
-/** Every wired jurisdiction's channel policy, one file per country — see the module docstring. A
- *  country with no entry here has no fact at all — the settings screen shows no "connect X" prompt
- *  and no invoice from that country is ever channel-mandated, never a guess in either direction. */
-export const ALL_CHANNEL_POLICY_FILES: CountryChannelPolicyFile[] =
-  discoverCountryCodes().map(loadCountryFile);
+/** Every wired jurisdiction's channel policy, one file per country - see this module's own header. */
+export const ALL_CHANNEL_POLICY_FILES: CountryChannelPolicyFile[] = channelPolicyFromComposedCatalog();

@@ -37,23 +37,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Kenya.
+the contract each section has to satisfy; this is only the shopping list of sections Kenya would need in
+`countries/data/ke.json`.
 
-- `country-policy/data/ke.json` — which document actions Kenya allows. Start here: without this file
-  every action is refused with a 403, naming the country.
-- `country-identifiers/data/ke.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/ke.json` and `vat-rates/data/ke.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Kenya allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/ke.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/ke.json` — the channel and format a Kenyan public buyer requires.
-- `transports/channel-policy/data/ke.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Kenyan public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Kenya, and from what date.
-- `archive/retention/data/ke.json` — how long an archived document is kept, and what the duration is
+- `retention` - how long an archived document is kept, and what the duration is
   counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Data alone will not finish the job here: the KRA iTax / e-Tax System is a transmission channel this
 repository does not implement, and the eTIMS format has no format provider. Both are code, not a

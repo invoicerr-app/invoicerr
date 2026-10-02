@@ -45,16 +45,8 @@ describe('vat-currency/data: the shipped catalog', () => {
   });
 });
 
-// Drop-in invariant: proves `all.ts`'s own `discoverCountryCodes()` really does pick up every
-// `<cc>.json` sitting in this directory, the same independent re-check
-// `content-requirements/data/all.spec.ts`'s own drop-in test already holds for its sibling catalog.
-describe('vat-currency/data: every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_VAT_CURRENCY_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_VAT_CURRENCY_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_VAT_CURRENCY_FILES`) tested a mechanism that moved: `data/all.ts` no longer reads this
+// directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`, which
+// itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

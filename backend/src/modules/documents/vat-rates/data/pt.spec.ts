@@ -1,8 +1,7 @@
 /**
- * PT — direct-load content spec: reads `pt.json`
- * straight off disk rather than through `data/all.ts` (wiring "pt" in is a separate decision, made
- * in `data/all.ts`), and re-runs the exact load-time gate (`assertValidVatRateProvenance`)
- * independently.
+ * PT - direct-load content spec for the `vatRates` section. Issue #603 step 6 moved the data: this
+ * now reads it out of `countries/data/pt.json` (the single merged per-country file), and re-runs the
+ * exact load-time gate (`assertValidVatRateProvenance`) independently.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,8 +9,8 @@ import { join } from 'node:path';
 import { assertValidVatRateProvenance, CountryVatRatesFile } from '../schema';
 
 function loadPt(): CountryVatRatesFile {
-  const raw = readFileSync(join(__dirname, 'pt.json'), 'utf-8');
-  return JSON.parse(raw) as CountryVatRatesFile;
+  const raw = readFileSync(join(__dirname, '../../countries/data/pt.json'), 'utf-8');
+  return (JSON.parse(raw) as { vatRates: CountryVatRatesFile }).vatRates;
 }
 
 describe('PT — vat-rates/data/pt.json', () => {

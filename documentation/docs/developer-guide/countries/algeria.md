@@ -22,7 +22,7 @@ DGI's own internal search engine, specifically for "facturation électronique" /
 "clearance" / "signature électronique" / "caisse enregistreuse": and found **no occurrence of any of
 them tied to an obligation, in force or announced with a date.** That earlier claim is not confirmed by
 any primary source this pass reached, and this page no longer repeats it. See
-[`transports/channel-policy/data/dz.json`](https://github.com/invoicerr-app/invoicerr/blob/dev/backend/src/modules/documents/transports/channel-policy/data/dz.json)'s
+[Algeria's own `channelPolicy` section](https://github.com/invoicerr-app/invoicerr/blob/dev/backend/src/modules/documents/countries/data/dz.json)'s
 own notes for the full method, and what would still be needed to call this a proof of absence rather
 than a strong negative finding.
 :::
@@ -64,7 +64,7 @@ Decree 05-468 states no format for any of the four identifiers: every format bel
 native contributor's review of PR #566 (2026-09-30), not from the decree.
 
 - **NIF**: digits only, 15 digits, or 20 for a secondary establishment. Invoicerr enforces this at
-  save time (`country-identifiers/data/dz.json`'s own `pattern`).
+  save time (Algeria's own `identifiers` section's own `pattern`, `countries/data/dz.json`).
 - **NIS**: digits only, 15 digits, or 18 for a secondary establishment. Enforced the same way.
 - **RC**: several styles are in use, older `NN/NN-NNNNNNN B NN` and newer `NNBNNNNNNN`; a secondary
   registration uses the same number as the primary one. Kept free text, no enforced format.

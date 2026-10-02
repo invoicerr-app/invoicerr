@@ -422,19 +422,8 @@ describe('country-identifiers/data: the shipped DZ file (issue #567: NIF/NIS for
 // every other country outside FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with,
 // so nothing here re-anchors it.
 
-// Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
-// really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
-// with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
-// silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
-// red here — the whole point of "adding a country = dropping a file" is only true if this holds.
-describe('country-identifiers/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_COUNTRY_IDENTIFIER_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const { readdirSync } = require('node:fs');
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_COUNTRY_IDENTIFIER_FILES`) tested a mechanism that moved: `data/all.ts` no longer
+// reads this directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`,
+// which itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

@@ -29,7 +29,7 @@ the real PDP transmission as part of validating, rather than leaving the invoice
 numbered-but-not-yet-issued limbo someone has to remember to complete.
 
 This is now an EXPLICIT per-country fact, not an inferred side-effect of reusing the mandate check:
-`country-policy/data/fr.json` declares its own `invoiceValidation` field, carrying CGI art. 289 bis
+France's own `policy` section (`countries/data/fr.json`) declares its own `invoiceValidation` field, carrying CGI art. 289 bis
 I's own text as `provenance`, validated at both load and seed time like every other fact here (see
 [Adding a country](../adding-a-country.md#maintainer-note-invoicevalidation-whether-validate-also-transmits)
 for the full mechanism). "Validate" only performs the real send when BOTH this fact is declared for
