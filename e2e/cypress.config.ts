@@ -961,12 +961,22 @@ export default defineConfig({
          */
         async extractPdfText(base64: string): Promise<string> {
           const buffer = Buffer.from(base64, "base64");
-          // pdfjs-dist's first parse under Node 24 intermittently throws on good bytes; retry once.
-          try {
-            return (await pdfParse(buffer)).text;
-          } catch {
-            return (await pdfParse(Buffer.from(buffer))).text;
-          }
+          // pdfjs-dist's parse under Node 24 is sometimes bad on good bytes: either it throws, or
+          // it silently returns truncated text with no error. Parse up to 3 times (sequentially,
+          // each on its own buffer copy) and keep the longest result; throw only if every attempt
+          // fails outright.
+          const attempt = async (): Promise<string | null> => {
+            try {
+              return (await pdfParse(Buffer.from(buffer))).text;
+            } catch {
+              return null;
+            }
+          };
+          const results = [await attempt(), await attempt(), await attempt()].filter(
+            (t): t is string => t !== null,
+          );
+          if (results.length === 0) throw new Error("extractPdfText: pdf-parse failed on every attempt");
+          return results.reduce((a, b) => (b.length > a.length ? b : a));
         },
 
         // See this file's own header just above ("SEPA/EPC069-12 QR content proof") for why this
