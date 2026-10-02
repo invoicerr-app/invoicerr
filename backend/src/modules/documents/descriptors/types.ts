@@ -339,7 +339,7 @@ export interface DocumentFieldDescriptor {
   required?: boolean;
   /**
    * Makes this field required ONLY once a named SIBLING field (elsewhere in the SAME document) is
-   * itself present — e.g. a correction invoice's own `correctionReason` (`country-fields/data/pl.json`),
+   * itself present — e.g. a correction invoice's own `correctionReason` (`countries/data/pl.json (section "countryFields")`),
    * required on THIS SCREEN once `correctsInvoiceId` actually names an original invoice (a product
    * choice, not a legal one — see that file's own header for why art. 106j ustawy o VAT leaves the
    * reason OPTIONAL); an ordinary, non-correcting Polish invoice needs no reason at all, so

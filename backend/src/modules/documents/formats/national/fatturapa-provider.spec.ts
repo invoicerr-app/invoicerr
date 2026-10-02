@@ -212,7 +212,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
   // `peppol-bis-provider.ts` (see that file's own header). This provider never calls
   // `build-semantic-invoice.ts`/`shared-build.ts` at all — it has no `cbc:Note`/mentions concept
   // whatsoever (`@digitalia/fatturapa`'s own FatturaPA XML has no equivalent field this codebase
-  // fills) — so a French seller carrying the three C. com. mentions (`mentions/data/fr.json`) that
+  // fills) — so a French seller carrying the three C. com. mentions (`countries/data/fr.json (section "mentions")`) that
   // the Peppol fix exists for builds here EXACTLY as before: unaffected, because there was never
   // anything for the fix to touch on this path.
   it('a French seller (the same one Peppol BIS now merges notes for) still builds a valid FatturaPA document — untouched, this provider has no note mechanism at all', async () => {
@@ -288,7 +288,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
   // ── The routing is only as good as the data it is given ────────────────────────────────────────
   // The routing below has always been correct: the tests above prove `IT_SDI`/`PEC`/`IT_PA_CODE` are
   // read and routed properly once present on a `DocumentFormatParty`. What was missing sat one layer
-  // up. `client-upsert.tsx` renders ONE `<Input>` per scheme `country-identifiers/data/it.json`
+  // up. `client-upsert.tsx` renders ONE `<Input>` per scheme `countries/data/it.json (section "identifiers")`
   // declares for the party's country, and that file long declared only `VAT`/`LEGAL_ID` — so no
   // screen could ever put an `IT_SDI` (or `IT_PA_CODE`, or `PEC`) on a real client record, and a
   // genuinely domestic Italian B2B client fell through EVERY branch to the last one:
@@ -299,7 +299,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
   // Both halves are pinned here, because either alone would let it regress: the catalog declares the
   // schemes (without which the form cannot collect them), and a collected value still routes.
   describe('Italian recipient codes are declared by the catalog, and route once collected', () => {
-    it('country-identifiers/data/it.json declares IT_SDI, IT_PA_CODE and PEC — without which client-upsert.tsx renders no field for them at all', () => {
+    it('countries/data/it.json (section "identifiers") declares IT_SDI, IT_PA_CODE and PEC — without which client-upsert.tsx renders no field for them at all', () => {
       const itFile = ALL_COUNTRY_IDENTIFIER_FILES.find((f) => f.countryCode === 'IT');
       expect(itFile).toBeDefined();
       const schemes = (itFile?.schemes ?? []).map((s) => s.scheme);

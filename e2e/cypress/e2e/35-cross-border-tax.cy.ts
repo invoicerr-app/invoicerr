@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `issueDate` fixed BEFORE the FR/PDP mandate (2026-09-01) on BOTH invoices in this file — like
  * 30/32 — so the "email" transport (never "pdp") stays the path under test; the mandate itself
  * would not apply to an FR→DE sale anyway (the bilateral attachment requires BOTH parties to be in
- * France — see `channel-policy/data/fr.json`), but fixing the date removes any doubt and keeps this
+ * France — see `countries/data/fr.json (section "channelPolicy")`), but fixing the date removes any doubt and keeps this
  * file readable without re-reading that rule.
  *
  * VIES: the test backend runs with `VAT_VALIDATION_FAKE=1` (backend/.env.test) — a FAKE,
@@ -377,7 +377,7 @@ describe("The cross-border case, through the screen", () => {
 
 	// The OSS gate's own real-world gap ("OSS hors FR"), closed 2026-09-01:
 	// Germany's real standard VAT rate (19%) is sourced from the European Commission's TEDB
-	// (`documents/tax/tax-systems/data/de.json`'s own `provenance`), so a B2C sale of GOODS to a
+	// (`countries/data/de.json (section "taxSystem")`'s own `provenance`), so a B2C sale of GOODS to a
 	// German consumer with NO VAT number no longer hits `UnsupportedOssDestinationError` — it now
 	// resolves to DE's own destination rate. Same discipline as the first test in this file: the
 	// client is created BY THE SCREEN, the invoice is sent BY A REAL CLICK, and the assertion that
@@ -402,7 +402,7 @@ describe("The cross-border case, through the screen", () => {
 		cy.get('[name="city"]').clear().type("Berlin");
 		cy.continueSteppedDialog("client-dialog");
 
-		// The VAT field is OFFERED (same country-identifiers/data/de.json as the first test) but
+		// The VAT field is OFFERED (same countries/data/de.json (section "identifiers") as the first test) but
 		// deliberately left EMPTY — this is what makes `resolveBuyerRole` treat this buyer as B2C
 		// (`resolve-invoice-tax.ts`'s own contract: no VAT value at all → B2C, before VIES is even
 		// consulted), which is exactly the shape the OSS branch (not reverse charge) needs.

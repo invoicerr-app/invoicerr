@@ -73,7 +73,7 @@ try {
    * (u:checkCodiceIPA/u:checkCF/u:checkCF16/u:checkPIVAseIT/u:checkPIVA/u:addPIVA — all Italian
    * Codice Fiscale/Partita IVA/Codice IPA checks on PARTY fields, never on the Peppol electronic
    * address itself) were deliberately left out of THIS wave's scope (Italy already has its own
-   * dedicated, real SdI/FatturaPA B2G channel in this repo, `b2g-routing/data/it.json`, not Peppol
+   * dedicated, real SdI/FatturaPA B2G channel in this repo, `countries/data/it.json (section "b2gRouting")`, not Peppol
    * BIS) — named honestly as a known, separate remaining gap at the time. That
    * gap is closed by the next comment block below (2026-09-04): all twelve of the .sch's declared
    * functions are now registered.

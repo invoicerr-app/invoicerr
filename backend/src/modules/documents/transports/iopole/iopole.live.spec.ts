@@ -160,7 +160,7 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
     });
 
     // BT-23 through the REAL temporal gate - no bypass here, unlike `pdp.live.spec.ts`, which needed
-    // one only because it ran a day before `content-requirements/data/fr.json`'s own `mandatedFrom`
+    // one only because it ran a day before `countries/data/fr.json (section "contentRequirements")`'s own `mandatedFrom`
     // (2026-09-01). This spec's `issueDate` is today, well past it, so whatever the gate resolves is
     // what goes out: the production behaviour, unmodified.
     const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];

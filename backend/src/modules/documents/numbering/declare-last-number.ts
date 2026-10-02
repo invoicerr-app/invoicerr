@@ -127,7 +127,7 @@ export function extractTrailingNumber(value: string): number | undefined {
 }
 
 /**
- * Portugal's own mandated number shape (AT FAQ 4310, `country-policy/data/pt.json`'s own
+ * Portugal's own mandated number shape (AT FAQ 4310, `countries/data/pt.json (section "policy")`'s own
  * `mustMatch`): `TYPE SERIES/NUMBER` - e.g. "FT A/234" is type "FT", series "A", number "234". Reads
  * the SERIES back off one real, previously-issued number, so
  * `company.service.ts#declarePortugalNewSeries` can tell whether the previous tool already used

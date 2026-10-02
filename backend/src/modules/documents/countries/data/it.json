@@ -1,0 +1,939 @@
+{
+  "countryCode": "IT",
+  "policy": {
+    "countryCode": "IT",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "credit-note",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under Italian law. To be revisited if the product were one day to give legal effect to the mere fact of saving a draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), Art. 25 § 1 — the SAME citation, read live on 2026-09-03 on eur-lex.europa.eu, as de.json/pl.json/es.json's own quote.send: a European regulation applies directly, with no national transposition, so it is identical for Italy. A quote is not an invoice (see invoice.send below, specific to Italian tax law): it is this general regime of non-discrimination against the electronic written form that grounds the sending of a quote."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified imposes or prohibits this precise mechanism under Italian law (the only legal constraint would bear on the resulting invoice). To be confirmed by a dedicated review should a specific traceability rule ever come to attach to it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under Italian law. To be confirmed by a dedicated review should a specific rule come to attach to the deposit request itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under Italian law (the only legal constraint would bear on the resulting invoices once issued, not on the creation of these drafts). To be confirmed by a dedicated review should a specific rule come to attach to the generation of a schedule itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under Italian law. To be confirmed by a dedicated review before extending this mechanism to a document type whose duplication would carry a legal stake."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a public, unauthenticated link to a quote's PDF is a product convenience — a quote is not even a tax document. No text identified that would specifically govern the sharing of a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To be confirmed by a dedicated review if applicable."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Asking a customer to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience — signing a quote is not a legally governed act, it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no Italian text on advanced/qualified electronic signatures applies here. To be confirmed by a dedicated review if applicable."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "NO legal research was performed for this entry - unlike this rule's neighbors above, this note does not claim any text was read. Allowed because this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained - to be confirmed by a dedicated review before this record is relied on as a substitute for a legally regulated acceptance mechanism."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Inexistant : aucun instrument d'amendement par référence — le provvedimento ne cadre les variations que comme note di credito ou di debito ex art. 26.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "REUSES the citation already read by correction-routes/data/it.json (route CORRECTIVE_INVOICE, forbidden) — Provv. AdE 89757/2018, punto 6.1, checked on 2026-08-29 (date preserved as-is: reused, not re-verified by this task). This is the CLEAREST citation among the five new countries on this precise fact: Italy EXPLICITLY prohibits any correction-by-reference mechanism on a document already transmitted to the Sistema di Interscambio (SdI) — an Italian invoice accepted by the SdI can ONLY be corrected by a nota di credito or di debito (separate documents, art. 26 DPR 633/72), never by re-saving a draft on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as draft an invoice already 'sent' — same mechanics as fr.json/de.json above, each sourced to its own national text for the SAME fact: the immutability of the ISSUED invoice (in the Italian sense: accepted by the SdI)."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Per fattura elettronica si intende la fattura che è stata emessa e ricevuta in un qualunque formato elettronico. [...] il ricorso alla fattura elettronica è subordinato all'accettazione da parte del destinatario.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Art. 21, comma 1, DPR 633/1972. Read live on 2026-09-03 on normattiva.it (the official portal of the Italian Republic for consolidated texts in force — the Italian equivalent of Légifrance/gesetze-im-internet.de/BOE). This text explicitly recognizes the validity of the Italian ELECTRONIC invoice, the equivalent of VI of art. 289 CGI (French) or § 14 Abs. 1 UStG (German). NUANCE NOT MODELED HERE (same limitation as fr.json/de.json's own invoice.send): the text conditions recourse to the electronic invoice on THE RECIPIENT'S ACCEPTANCE — except that, unlike France or Germany, Italy has made transmission via the Sistema di Interscambio (SdI) MANDATORY for nearly all domestic invoicing since 2019 (fact already flagged, but left 'unverified'/'suggested' for lack of a citation of its own, dated to its own consultation date, in transports/channel-policy/data/it.json — a DISTINCT subject, the channel/mandate, outside the scope of this rule which only covers the admissibility of the electronic SENDING itself)."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for art. 21 DPR 633/1972 (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). ALLOWED, unconditionally - this rule only ever answers \"may an Italian company run this ACTION at all\", never \"what does running it actually do for this one invoice\". WHETHER validating also transmits is this file's own top-level \"invoiceValidation\" fact (see that fact's own notes, D.Lgs. 127/2015 art. 1 comma 6 - an invoice issued other than through SdI 'si intende non emessa', a STRONGER textual basis than France's own art. 289 bis for exactly this question), combined at request time with the ACTIVE channel mandate check (country-policy/invoice-validation-transmission.ts) - never decided by this rule. Confirmed by the owner, issue #581, 2026-10-01 (revised after PR #602's own first-draft, which had inferred this from the active mandate alone rather than from a declared Italian legal fact)."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating an invoice into a new draft is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under Italian law. The tax question (DPR 633/72) bears on the ISSUED INVOICE that will result from it, not on this initial draft. To be confirmed by a dedicated review should a specific rule ever come to attach to the automated creation of invoice drafts."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the mere fact of declaring it in this tool. The resulting balance is a PROJECTION displayed on screen, never a status of the document — see invoice.descriptor.ts."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (directive 2014/55/EU) — it is not in itself an Italian legal obligation for THIS company to produce it. The national format actually mandated in Italy is FatturaPA, transmitted via the SdI (a DISTINCT subject, the imposed channel/format — see transports/channel-policy/data/it.json, left 'suggested'/unverified for lack of a citation of its own, dated to its own consultation date), outside the scope of this rule which only builds the voluntary standardized EN 16931 FORMAT, the same distinction as fr.json/de.json/us.json for the same action. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export without asserting that it is legally required IN THIS PRECISE FORM."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the mere fact of offering this export. This action has in any case no registered implementation to date (see invoice-actions.ts) — the actual block comes from the 501, not from this rule."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a public, unauthenticated link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified specifically imposes or prohibits the sharing of a link to an invoice already communicated to its legitimate recipient. The link's security is a technical guarantee documented in share-links/share-links.service.ts, not a distinct legal requirement to source here."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a credit note draft is an internal product operation. The legal regime of the Italian nota di credito (see credit-note.send below) concerns the CONTENT and the tax status of the document, not the act of saving a draft — same distinction as fr.json/de.json for this same action."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "ha diritto di portare in detrazione [...] ; commas 9 et 10 qualifient cette voie de « facoltà » — nature : faculté, jamais obligation.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "REUSES the citation already read by correction-routes/data/it.json (route CREDIT_NOTE, allowed) — Art. 26 DPR 633/72, comma 2, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). The precise fact this SEND needs — is issuing a document that reduces the amount of an Italian invoice (the nota di credito, document type TD04 in the SdI nomenclature) legally open — is exactly what this citation settles: it is a FACULTY (option) opened by art. 26 comma 2 DPR 633/72, never an obligation (unlike the increase case — DEBIT_NOTE, comma 1, 'DEVONO ESSERE OSSERVATE' — the canonical Italian asymmetry, not relevant for this decrease SEND). Distinct from fr.json/de.json's own choice to leave credit-note.send unverified: here a clear citation, specific to the DECREASE direction, already exists in this repo (correction-routes) and settles exactly this fact, so it is promoted."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Issue #472. The FORMAT fact is read first-hand, not the statute: the Agenzia delle Entrate FatturaPA schema this repository vendors and validates every FatturaPA file against (formats/vendored/it/Schema_VFPR12.xsd, version 1.2) enumerates `TipoDocumento` value TD04 with the documentation « Nota di credito », and declares `DatiFattureCollegate` (type DatiDocumentiCorrelatiType: IdDocumento, Data) as the slot for the invoices a document relates to - read 2026-09-27. The provider builds TD04 with that block naming the corrected invoice, and the file passes the XSD (formats/credit-note-formats.spec.ts). The statutory basis of the nota di credito is art. 26, comma 2, DPR 633/72, already cited by this file's own credit-note.send rule (reused, not re-read here). What would make this `legal`: the Provvedimento del Direttore dell'Agenzia delle Entrate n. 89757 del 30 aprile 2018, Allegato A (Specifiche tecniche), read first-hand for TD04 and for whether DatiFattureCollegate is mandatory on a TD04 - not read in this session."
+        },
+        "notes": "FatturaPA's `Numero` is at most 20 characters (String20Type). The old shared credit-note default \"CREDIT-NOTE-2026-0001\" was 21, so a TD04 could not be produced with default settings. Since issue #496 the Italian credit-note format comes from this file's own `numberFormats` (\"CN-{year}-{number:4}\", checked against it-fatturapa-numero-string20 at load time), and the XSD gate still refuses a longer number rather than truncate it (formats/credit-note-formats.spec.ts)."
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording an expense is an internal management entry within the tool. Italian accounting obligations bear on the company's own bookkeeping, not on this recording mechanism within the tool. To be confirmed by a dedicated review should this core ever come to produce enforceable accounting documents from this data."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting an incorrectly entered expense; no text identified specifically governs the deletion of such an entry before any accounting closing. To be confirmed by a dedicated review should this core ever come to distinguish a \"closed\" state for an expense."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records a fact that has already occurred, never issues anything. The `statuses` field restricts the rewriting of fields to the 'received' status alone: once approved or rejected, the review decision must no longer be silently undone (same mechanics as `invoice.save-draft` above). Not researched here: Italy receives its domestic invoices via the SdI, an accredited channel (a distinct subject, outside the scope of this internal approval workflow)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched for Italy beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, of the same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a purchase order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order also commits less than a quote (it does not constitute a sales offer, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it all the less likely. Research not specifically conducted for this type/action (2026-09-15) — to be revisited should a real need require it."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), Art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: a European REGULATION applies directly, with no national variant, in every Member State). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination against the electronic written form that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Canceling a purchase order sent to a supplier is a purely commercial act (the company renounces its own order), never the correction of a tax document already transmitted — it is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module only concern a tax document ALREADY ISSUED to a third party whose correction is governed by law, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation toward the supplier fall under ordinary contract law, outside the scope of this rule (which only states whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to be revisited should a real need require it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse has recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse has recorded as received against a purchase order, to feed a 3-way matching check that is itself internal to the tool, never transmitted to a third party nor declared to an administration. No text identified that would specifically target this act. Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting an incorrectly entered draft is the same internal operation, with no recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, on the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt by name). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited should a real need require it."
+        }
+      }
+    ],
+    "notes": "Italy - research from 2026-09-03. The acts internal to the product follow the same reasoning already held by fr.json/us.json for the same actions. The legal weight rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on normattiva.it (the official Italian portal for consolidated texts) for art. 21 comma 1 DPR 633/1972 (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/it.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE forbidden - the clearest citation among the five new countries on this fact) and for the credit note (credit-note.send, CREDIT_NOTE allowed) - each one only holds for the exact fact it settles here, never stretched beyond that.",
+    "numbering": [
+      {
+        "typeId": "credit-note",
+        "requirement": "sequential-number-required",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » (read verbatim as quoted by Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020, PDF on agenziaentrate.gov.it, 2026-09-26). No sentence was read that extends art. 21 to the nota di credito of art. 26, comma 2 (art. 26, comma 1 applies art. 21 only to the upward variation - see correction-routes/data/it.json's own DEBIT_NOTE fact). The SdI data model gives every document type, TD04 nota di credito included, a field 2.1.1.4 <Numero>. What would settle it: Circolare 20/E del 29/12/2021 (on art. 26) or the SdI technical specifications, read first-hand, for TD04."
+        },
+        "notes": "Product numbers Italian credit notes anyway - the SdI data model's own mandatory <Numero> field for TD04 is a strong practical signal even without a statutory sentence extending art. 21 to it, pending the first-hand read that would turn this into a `legal` entry."
+      }
+    ],
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "it-dpr-633-art-21",
+          "appliesTo": ["invoice"],
+          "summary": "Italian law requires a progressive number that identifies the invoice uniquely. It constrains no character and no length.",
+          "provenance": {
+            "kind": "unverified",
+            "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » - quoted as this file's credit-note `numbering` fact read it on 2026-09-26 (via Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020), NOT re-read first-hand in this pass. Found on 2026-09-28: normattiva.it now marks art. 21 as abrogated by D.Lgs. 19 gennaio 2026, n. 10 (Testo unico IVA), whose provisions apply from 1 January 2027 according to secondary sources (FiscoeTasse, FiscoOggi); its invoicing chapter (Capo V, arts. 72-96) could not be read (normattiva served only the table of contents). What would settle it: the Testo unico IVA's invoice-content article read first-hand, to confirm the « numero progressivo » requirement carries over unchanged from 2027."
+          }
+        },
+        {
+          "id": "it-fatturapa-numero-string20",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "FatturaPA's <Numero> (2.1.1.4) holds at most 20 Basic Latin characters, for an invoice (TD01) and a credit note (TD04) alike. A longer number makes the file invalid, and the SdI rejects it.",
+          "maxLength": 20,
+          "allowedCharacters": " -~",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "<xs:element name=\"Numero\" type=\"String20Type\" /> ... <xs:simpleType name=\"String20Type\"> <xs:restriction base=\"xs:normalizedString\"> <xs:pattern value=\"(\\p{IsBasicLatin}{1,20})\" />",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "The Agenzia delle Entrate schema this repository vendors and validates every FatturaPA file against (formats/vendored/it/Schema_VFPR12.xsd, version 1.2), read on 2026-09-28. `allowedCharacters` is printable Basic Latin (space to tilde): a normalizedString admits no tab or line break, and Basic Latin's control characters have no place in a number."
+        },
+        {
+          "id": "it-sdi-00425",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "The SdI rejects a FatturaPA whose <Numero> contains no digit (error 00425).",
+          "requiresDigit": true,
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "Codice 00425   2.1.1.4 <Numero> non contenente caratteri numerici [...] IF ( Numero non contiene ValoreNum ) E R R O R E (00425)",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "« Elenco dei controlli effettuati sul file fattura del Sistema di Interscambio », versione 1.9, https://www.fatturapa.gov.it/export/documenti/Elenco-Controlli-versione-1.9.pdf, read first-hand with pdftotext on 2026-09-28. Every shipped format carries a {number} token, so it always holds; stated so a running series is judged against it too."
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A quote (preventivo) is not an invoice: art. 21 DPR 633/1972 and the FatturaPA schema govern the fattura. No Italian text read in this pass constrains the number of a quote.",
+          "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Italian text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "INVOICE-{year}-{number:4}",
+          "constrainedBy": ["it-dpr-633-art-21", "it-fatturapa-numero-string20", "it-sdi-00425"],
+          "rationale": "Unchanged from the product's previous shared default, so an Italian company already running it keeps it as it is. 19 characters at number 999999 and 20 at 1000000, the most FatturaPA's <Numero> accepts.",
+          "reset": "yearly",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "Conseguentemente, a decorrere dal 1° gennaio 2013, può essere adottata una numerazione progressiva che, partendo dal numero 1, prosegua ininterrottamente per tutti gli anni solari di attività del contribuente, fino alla cessazione dell'attività stessa. [...] Peraltro, qualora risulti più agevole, il contribuente può continuare ad adottare il sistema di numerazione progressiva per anno solare, in quanto l'identificazione univoca della fattura è, anche in tal caso, comunque garantita dalla contestuale presenza nel documento della data che, in base alla lettera a) del citato articolo 21, costituisce un elemento obbligatorio della fattura. Ad esempio, [...] si ritengono ammissibili le seguenti modalità di numerazione progressiva all'interno di ciascun anno solare: [...] Fatt. n. 1/2013 (oppure n. 2013/1) [...]",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "Agenzia delle Entrate, Risoluzione n. 1/E del 10 gennaio 2013, \"Chiarimenti in materia di numerazione delle fatture\" (art. 21, comma 2, lett. b, DPR 633/1972) - official PDF https://www.agenziaentrate.gov.it/portale/documents/20143/304338/Risoluzione+1++10012013a_risoluzione+1e.pdf, downloaded and read first-hand with pdftotext on 2026-09-28. Explicit, on-point administrative confirmation that a calendar-year progressive series (e.g. \"1/2013\", exactly this product's {number}/{year} or {year}-{number} shape) remains lawful after the 2013 reform, since the invoice's own mandatory date (art. 21 comma 2 lett. a) already disambiguates a number that repeats across years - the same \"the pair (date, number) is enough\" principle this file's own fr-cgi-242-nonies-a analogue rests on in fr.json. STILL GOOD PAST THE 2027 CUTOVER: the successor Testo unico IVA (D.Lgs. 19 gennaio 2026, n. 10), read first-hand from the official Gazzetta Ufficiale PDF (Suppl. ord. n. 4/L alla G.U. n. 24 del 30-1-2026) on 2026-09-28, carries the identical requirement verbatim at art. 72, comma 2, lett. b) (\"numero progressivo che la identifichi in modo univoco\", the article heading itself printing \"(articolo 21 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633)\" as its source) and art. 171 (\"Decorrenza\": \"Le disposizioni del presente testo unico si applicano a decorrere dal 1° gennaio 2027\") carries no transitional clause narrowing or reopening the numbering question. A straight recodification of the identical wording Risoluzione 1/E interpreted, so its conclusion is read as continuing to govern unchanged."
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "CN-{year}-{number:4}",
+          "constrainedBy": ["it-fatturapa-numero-string20", "it-sdi-00425"],
+          "rationale": "The product's previous shared default, \"CREDIT-NOTE-{year}-{number:4}\", renders 21 characters (\"CREDIT-NOTE-2026-0001\"), over the 20 that Chorus Pro (B2G) and FatturaPA accept. \"CN-\" keeps the credit note at 14 characters at number 999999, in a series of its own, distinct from the invoice series. With it, an Italian credit note produces a valid TD04 with default settings (issue #496).",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Risoluzione n. 1/E/2013 (this file's own invoice `resetProvenance`, read first-hand 2026-09-28) addresses only the fattura under art. 21/art. 72 - never the nota di credito. This file's own credit-note `numbering` fact already leaves UNVERIFIED whether a credit note needs a progressive number under Italian law at all (no sentence read extends art. 21/art. 26, now art. 72/art. 92, to it), and it-dpr-633-art-21 is deliberately NOT bound to the credit-note format for the same reason (constrainedBy above lists only the FatturaPA/SdI technical constraints, never it-dpr-633-art-21). Extending the invoice's yearly-reset permission to a document whose own numbering requirement is itself unsettled would overclaim; stays the safe default until a source addresses the credit note directly."
+          }
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Italian text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Italian text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Italian text read in this pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Italian text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started is kept as long as it satisfies FatturaPA: Italian law asks only for a progressive number identifying the invoice uniquely, which a continuing series keeps doing.",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "art. 21, comma 2, lett. b) DPR 633/1972 requires the invoice to carry « un numero progressivo che la identifichi in modo univoco » - quoted as this file's credit-note `numbering` fact read it on 2026-09-26 (via Agenzia delle Entrate, Risposta n. 505 del 29 ottobre 2020), NOT re-read first-hand in this pass. Found on 2026-09-28: normattiva.it now marks art. 21 as abrogated by D.Lgs. 19 gennaio 2026, n. 10 (Testo unico IVA), whose provisions apply from 1 January 2027 according to secondary sources (FiscoeTasse, FiscoOggi); its invoicing chapter (Capo V, arts. 72-96) could not be read (normattiva served only the table of contents). What would settle it: the Testo unico IVA's invoice-content article read first-hand, to confirm the « numero progressivo » requirement carries over unchanged from 2027."
+        },
+        "onViolation": "If the running series breaks a FatturaPA rule above (for example a number over 20 characters, such as the old default \"CREDIT-NOTE-2026-0001\"), the country format applies from the next number. The counter is not reset, so the number stays progressive and unique; only the printed prefix changes. Such a series could not have produced a valid FatturaPA file anyway."
+      }
+    },
+    "invoiceValidation": {
+      "transmitsThroughMandatedChannel": true,
+      "channelLabel": "SdI",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "In caso di emissione di fattura, tra soggetti residenti o stabiliti nel territorio dello Stato, con modalita diverse da quelle previste dal comma 3, la fattura si intende non emessa e si applicano le sanzioni previste dall'articolo 6 del decreto legislativo 18 dicembre 1997, n. 471.",
+        "sourceCheckedAt": "2026-09-24"
+      },
+      "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): D.Lgs. 127/2015 art. 1 comma 6 - the SAME verbatim penalty clause already quoted in transports/channel-policy/data/it.json's own SdI mandate fact (Normattiva consolidated text, checked 2026-09-24) - is explicit in a way France's own CGI art. 289 bis I is not: a domestic Italian B2B invoice issued by any means OTHER than SdI (comma 3) 'si intende non emessa' - IS DEEMED NOT ISSUED AT ALL, not merely penalized as a late or defective one. Read together with comma 3's own mandate (equally quoted in that same channel-policy fact) and with DPR 633/1972 art. 21 comma 1 (country-policy/data/it.json's own invoice.send rule, checked 2026-09-03 - the general validity of the Italian electronic invoice), this is a STRONGER textual basis than France's own art. 289 bis for exactly the question issue #581 asks: numbering and locking an invoice WITHOUT transmitting it through SdI leaves it, in the terms of comma 6 itself, not issued - so actions/invoice-actions.ts's 'validate' handler must transmit it for real, never stop at a number and a lock, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two, the same way it does for France)."
+    }
+  },
+  "identifiers": {
+    "countryCode": "IT",
+    "schemes": [
+      {
+        "scheme": "VAT",
+        "appliesTo": "COMPANY",
+        "label": "Partita IVA",
+        "required": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "«2. La fattura contiene le seguenti indicazioni: [...] d) numero di partita IVA del soggetto cedente o prestatore».",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2, lettera d). Read directly at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=, plain HTTP response headed \"vigente al 13/09/2026\", curl with a browser User-Agent, no JS rendering needed), 2026-09-13. This binds the SELLER only (\"cedente o prestatore\") and carries no carve-out anywhere in comma 2 — a flat-rate/forfettario trader still holds and must state a Partita IVA. Cross-checked against the simplified-invoice regime at art. 21-bis, comma 1, lettera d) (same method/date, https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21bis!vig=): the seller's Partita IVA is NOT among the elements a simplified invoice (<=EUR100, raised to <=EUR400) may omit. Also cross-checked against the FatturaPA technical specification's own introduction, which restates the DPR 633/1972 list including \"numero di partita IVA del cedente/prestatore\" with no qualifier. For the SELLER this is genuinely unconditional — no VAT-regime carve-out exists. `required` is nonetheless set to `false` here, and this is the one deliberate departure from simply transcribing the seller's own unconditional rule: this catalog's ONLY axis is `appliesTo` (COMPANY/INDIVIDUAL/BOTH — the PARTY's own record type), and `resolveRequiredIdentifiers` takes no notion of transactional role at all. The exact same per-country array is read by `onboarding.tsx`/`company.settings.tsx` (always `partyType: \"COMPANY\"`, for the ACTIVE company about to issue invoices — i.e. always the SELLER in this product's outbound flow) AND by `client-upsert.tsx` (partyType taken from the CLIENT's own record type — i.e. the BUYER of that company's invoices). Setting `required: true` here would therefore ALSO become a hard block on saving an Italian, company-type CLIENT record — confirmed by reading client-upsert.tsx's `onSubmit` (a `required` scheme with an empty value calls `form.setError(...)` and `return`s, refusing to save) — but the BUYER-side rule is genuinely CONDITIONAL (DPR 633/1972 art. 21, comma 2, lettera f) — see this file's own LEGAL_ID entry below for the quote and the reasoning), not unconditional like the seller's. There is no per-role `required` in this schema, and the DB itself only allows one row per (countryCode, scheme) — `CountryIdentifierRequirement`'s unique key is `countryCode_scheme` — so a second \"VAT\" fact scoped to the buyer could not even coexist with this one; the seed would just overwrite it. `required: false` at country level is the same discipline this catalog already applies in fr.json/pt.json when a rule that IS mandatory for most sellers depends on a variable the catalog does not carry per party (there, the seller's own VAT regime; here, the party's ROLE in the transaction) — never a UI default, an explicit and documented choice. `appliesTo: 'COMPANY'` is similarly a simplification: an individual professional/sole trader acting as a business (an INDIVIDUAL record in this app) also holds and must state a Partita IVA when acting as a taxable person under this same lettera d) — but this choice is moot for the seller path specifically, because `onboarding.tsx`/`company.settings.tsx` always query `partyType: \"COMPANY\"` regardless of the active company's real legal form, so this fact is shown there unconditionally either way; it only affects whether an INDIVIDUAL-typed CLIENT also sees this field (optionally, since `required` is false here). FORMAT: the commonly-cited 11-digit numeric format for Partita IVA was NOT found in either DPR 633/1972 art. 21 or the FatturaPA Specifiche tecniche v1.4 (whose own `IdCodice` field states only a generic 28-character ceiling shared with foreign identifiers) — no `pattern` is declared here for that reason, the same discipline pt.json already applies to its own undeclared NIF/NIPC pattern."
+      },
+      {
+        "scheme": "LEGAL_ID",
+        "appliesTo": "BOTH",
+        "label": "Codice Fiscale",
+        "required": false,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Italian law does not always ask a buyer for the same document. A business buyer gives their VAT number (their Italian Partita IVA, or — if they are a business established elsewhere in the EU — their own country's VAT number instead). A buyer who is NOT acting as a business — typically a private individual — gives their Italian tax code (Codice Fiscale) instead of a VAT number. Right now this app has no way to tell those two situations apart for a given client: it only records whether a client is filed as a \"Company\" or an \"Individual\", and that is not the same thing as whether the client is acting as a VAT-registered business — an individual can run a business (and would then need to give a VAT number, not a tax code), and some companies are not VAT-registered (and would then need to give a tax code instead). Until a client record can say which of the two applies, this app cannot safely make either the VAT number or the Codice Fiscale mandatory here: doing so would sometimes ask a private individual for a business VAT number they will never have, or let a business through with neither number recorded. What would settle this: letting a client record say whether it is acting as a VAT-registered business, separately from whether it is filed as a Company or an Individual — once that exists, the correct one of the two identifiers can be safely required."
+        },
+        "notes": "DPR 633/1972, art. 21, comma 2, lettera f) (same page/method/date as the VAT entry above, 2026-09-13): the lettering repeats in the retrieved text — an \"e)\" covers the buyer's name/domicile and a first \"f)\" restates it, then a further \"f)\" (quoted here, semicolon-separated within the same point) states the actual number rule — quoted exactly as normattiva.it renders it, not tidied: «f) ditta, denominazione o ragione sociale, nome e cognome, residenza o domicilio del soggetto cessionario o committente, del rappresentante fiscale nonché ubicazione della stabile organizzazione per i soggetti non residenti; f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;» Precisely: an Italian-established taxable-person buyer gives Partita IVA; a taxable person established in another EU Member State gives THEIR OWN state's VAT id, not an Italian Partita IVA; a buyer resident/domiciled in Italy who does NOT act in the exercise of a business, art or profession gives Codice Fiscale instead. Cross-validated by a second, independent primary source, the FatturaPA technical specification's own `CessionarioCommittente` block, which states the same alternative structurally: «IdFiscaleIVA (la valorizzazione di questi elementi è in alternativa non esclusiva a quella dell'elemento CodiceFiscale; in altri termini, possono non essere valorizzati se è valorizzato l'elemento CodiceFiscale; [...]) [...] CodiceFiscale: la valorizzazione di questo elemento è in alternativa non esclusiva a quella dell'elemento IdFiscaleIVA (può non essere valorizzato se è valorizzato l'elemento IdFiscaleIVA); consente l'inserimento del numero di codice fiscale del cessionario/committente.» (same PDF/URL as this file's VAT entry's own IT-3-equivalent citation — see this file's top-level `notes`). Also cross-validated by the simplified-invoice regime, art. 21-bis comma 1 lettera e): a simplified invoice can reduce the buyer's identification to \"il solo codice fiscale o il numero di partita IVA\" for an Italy-established buyer, the same CF/VAT alternative. `appliesTo: 'BOTH'` and `required: false` are both deliberate: BOTH because either a COMPANY-record or an INDIVIDUAL-record buyer can legally need either identifier depending on taxable-person status, not on record type (an INDIVIDUAL freelancer needs Partita IVA exactly like a COMPANY; a COMPANY-record entity that is not a taxable person would need Codice Fiscale exactly like a private INDIVIDUAL) — `appliesTo` cannot express that finer axis, so BOTH is the least wrong choice, not a claim that record type decides anything here. `required: false` because the rule is a genuine either/or conditioned on taxable-person status, which this catalog does not track per party (see this fact's own `resolutionNote`) — setting it `true` under either scheme name would demand a document some lawful buyers do not have. `provenance.kind` is `unverified` here NOT because the underlying law is in doubt (it is fully quoted above, read directly at normattiva.it) but because a fact this well-established in law, yet not safely enforceable by this product (the deciding variable, taxable-person status, exists nowhere in this app's data model) is recorded as `unverified` with a `resolutionNote` naming what the product would need, rather than graded `legal` with a `required` value that cannot honestly reflect a role-dependent rule. FORMAT: Codice Fiscale length IS established as 11-16 alphanumeric characters (Specifiche tecniche v1.4, §3.3.1, `DatiAnagraficiCedenteType`: «CodiceFiscale (Rif. par. 3.2): formato alfanumerico; lunghezza compresa tra 11 e 16 caratteri.», repeated identically for `RappresentanteFiscale` and `CessionarioCommittente`) — no `pattern` is declared on this fact regardless, by the same all-or-nothing discipline de.json's own VAT entry already uses (an unsourced claim elsewhere in the same fact keeps the whole fact from being promoted); if this fact is ever promoted, `^.{11,16}$` is the primary-sourced pattern to use."
+      },
+      {
+        "scheme": "IT_PA_CODE",
+        "appliesTo": "COMPANY",
+        "label": "Codice Univoco Ufficio (IPA)",
+        "required": false,
+        "pattern": "^[A-Za-z0-9]{6}$",
+        "helpText": "6-character 'Codice Ufficio' looked up on indicepa.gov.it — only a Pubblica Amministrazione has one. Needed so a domestic invoice to a government client routes as FPA12, not FPR12/XXXXXXX.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "«CodiceDestinatario: identifica il soggetto al quale è destinata la fattura; - nei casi di fattura destinata ad una Pubblica Amministrazione il suo valore, di 6 caratteri, deve corrispondere a quello presente nel campo Codice Ufficio riportato nella rubrica \"Indice PA\" (WWW.INDICEPA.GOV.IT).»",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Specifiche tecniche operative del formato della fattura del Sistema di Interscambio v1.3.2 (Allegato A del DM 55/2013), Agenzia delle Entrate, par. 1.1. Primary text: https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_del_formato_FatturaPA_V1.3.2.pdf fetched 2026-09-13 (curl with a browser User-Agent, HTTP 200, application/pdf, 1 190 498 bytes) and read with `pdftotext -layout`, never a fetch-summary. Line wraps closed and typographic quotes normalised in the quotation above; wording unchanged. appliesTo COMPANY: only a Pubblica Amministrazione holds a Codice Ufficio in IndicePA, and this product records a government client as `Client.kind === 'GOVERNMENT'` on a COMPANY-shaped record -- there is no INDIVIDUAL-shaped government body. required false: the scheme is effectively mandatory, but only for the GOVERNMENT subset, an axis `appliesTo` cannot express (it distinguishes party TYPE, not `kind`). `b2g-routing/data/it.json` already enforces the real requirement for that subset at send time. Requiring it here would block saving an ordinary Italian business client that will never be a PA. pattern: 6 alphanumeric characters, from \"il suo valore, di 6 caratteri\" above, cross-checked against the same document's length table at par. 3.2 (\"lunghezza che va da 6 a 7 caratteri\" -- 6 is the PA branch, 7 the non-PA one). Case-insensitive because `fatturapa-provider.ts` uppercases before emitting CodiceDestinatario."
+      },
+      {
+        "scheme": "IT_SDI",
+        "appliesTo": "BOTH",
+        "label": "Codice Destinatario (SdI)",
+        "required": false,
+        "pattern": "^[A-Za-z0-9]{7}$",
+        "helpText": "7-character code the Sistema di Interscambio assigns on request ('Richiesta codici destinatario B2B' on fatturapa.gov.it) to a non-PA recipient with an accredited receiving channel. Needed so a domestic B2B/private invoice routes to the right mailbox instead of falling back to a placeholder.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "«CodiceDestinatario: identifica il soggetto al quale è destinata la fattura; [...] - nei casi di fattura destinata ad un soggetto diverso da Pubblica Amministrazione il suo valore, di 7 caratteri, deve corrispondere a: uno dei codici che il Sistema di Interscambio attribuisce ai soggetti, con canale accreditato in ricezione, che ne abbiano fatto richiesta attraverso la funzione \"Richiesta codici destinatario B2B\" presente sul sito WWW.FATTURAPA.GOV.IT; [...]»",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Specifiche tecniche operative del formato della fattura del Sistema di Interscambio v1.3.2 (Allegato A del DM 55/2013), Agenzia delle Entrate, par. 1.1. Same document, fetch and date as the IT_PA_CODE fact above. Primary text: https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_del_formato_FatturaPA_V1.3.2.pdf fetched 2026-09-13 (curl with a browser User-Agent, HTTP 200, application/pdf, 1 190 498 bytes) and read with `pdftotext -layout`, never a fetch-summary. Line wraps closed and typographic quotes normalised in the quotation above; wording unchanged. appliesTo BOTH, not COMPANY: the quoted text gates this branch on \"un soggetto diverso da Pubblica Amministrazione\" with no further qualifier, so an individual holding an accredited receiving channel is as eligible as a company; COMPANY-only would silently under-declare for an INDIVIDUAL-typed client. required false: no seller can compel a buyer to hold or disclose an SdI code it may never have requested, and the specification itself provides two further fallbacks (PEC, then '0000000'/'XXXXXXX') for exactly that case -- which would be senseless were it mandatory. pattern: 7 alphanumeric characters, from \"il suo valore, di 7 caratteri\" above, cross-checked against the par. 3.2 length table. Case-insensitive, matching the provider's own uppercasing."
+      },
+      {
+        "scheme": "PEC",
+        "appliesTo": "BOTH",
+        "label": "PEC (Posta Elettronica Certificata)",
+        "required": false,
+        "helpText": "Certified email address used as the SdI delivery channel when the recipient has no Codice Destinatario (SdI) on file. Only used for a non-PA recipient.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "«PECDestinatario: indirizzo di Posta Elettronica Certificata al quale viene recapitata la fattura; viene valorizzato nei soli casi di destinatario diverso da Pubblica Amministrazione, qualora il destinatario utilizzi il canale PEC per ricevere le fatture. Può essere valorizzato solo se il valore di CodiceDestinatario è uguale a '0000000'.» Same par. 1.1, on the CodiceDestinatario branch itself: «'0000000', nei casi di fattura destinata ad un soggetto che riceve tramite PEC e questa sia indicata nel campo PECDestinatario;»",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Specifiche tecniche operative del formato della fattura del Sistema di Interscambio v1.3.2 (Allegato A del DM 55/2013), Agenzia delle Entrate, par. 1.1. Same document, fetch and date as the IT_PA_CODE fact above. Primary text: https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_del_formato_FatturaPA_V1.3.2.pdf fetched 2026-09-13 (curl with a browser User-Agent, HTTP 200, application/pdf, 1 190 498 bytes) and read with `pdftotext -layout`, never a fetch-summary. Line wraps closed and typographic quotes normalised in the quotation above; wording unchanged. appliesTo BOTH and required false for the same reasons as IT_SDI: the text gates on a non-PA recipient without restricting to businesses, and this is the SECOND fallback, reached only when no SdI code exists. NO pattern on purpose: the specification's length table at par. 3.2 states only \"formato alfanumerico; lunghezza che va da 7 a 256 caratteri\" -- a length range, not an email grammar. Declaring a generic address regex would be a formal claim no primary source here supports, which this catalog's provenance discipline forbids."
+      }
+    ],
+    "notes": "Italy, five schemes. VAT and LEGAL_ID are both `required: false` because this catalog's `appliesTo` axis is party TYPE, while Italy's buyer-side rule (DPR 633/1972 art. 21 comma 2 lettera f) turns on whether the buyer is a taxable person -- a distinction the schema does not carry, and which the DB's one-row-per-(country, scheme) shape cannot express as two role-scoped facts. Requiring either would hard-block a lawful client record. Each fact's own notes state the asymmetry in full.\n\nIT_PA_CODE, IT_SDI and PEC are declared here because `formats/national/fatturapa-provider.ts` reads all three off the client to route FormatoTrasmissione and CodiceDestinatario, and this catalog is the only thing that makes a field for them exist: `client-upsert.tsx` renders one input per scheme declared for the party's country, keying its data-cy off `req.scheme` with no allowlist. While they were undeclared, a domestic Italian B2B client could not have its SdI code entered anywhere and fell through to CodiceDestinatario 'XXXXXXX' -- the value this same specification reserves for a recipient \"non residente, non stabilito, non identificato in Italia\". A domestic invoice announced to SdI as a foreign one.\n\n`b2g-routing/data/it.json` separately declares IT_PA_CODE as mandatory for GOVERNMENT clients. The two are not duplicates: this catalog makes the field EXIST on any Italian record, that one makes it REQUIRED for that subset at send time."
+  },
+  "correctionRoutes": {
+    "countryCode": "IT",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« ha diritto di portare in detrazione » (comma 2) ; commas 9 et 10 qualifient cette voie de « facoltà » — nature : faculté, jamais obligation. Applicable à la nullité, annulation, révocation, résolution, rescission « e simili » ; abbuoni et sconti contractuels ; impayé en procédure collective ou exécution infructueuse (comma 3-bis). Source : Art. 26 DPR 633/72, comma 2.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Deadlines (comma 3): one year from the transaction if the event results from a « sopravvenuto accordo fra le parti » or from correcting inaccuracies (art. 21 comma 7); no limit for nullity/annulment/revocation/termination/rescission that are NOT contractual, nor for comma 3-bis."
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Le disposizioni degli articoli 21 e seguenti DEVONO ESSERE OSSERVATE, in relazione al maggiore ammontare » — applicable à TOUTE hausse de la base ou de la taxe, « per qualsiasi motivo », y compris rectification d'inexactitudes. Source : Art. 26 DPR 633/72, comma 1.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "THIS IS THE CANONICAL ITALIAN ASYMMETRY: the upward correction is an OBLIGATION (comma 1) whereas the downward one (CREDIT_NOTE above) is only a faculty."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Inexistant : aucun instrument d'amendement par référence — le provvedimento ne cadre les variations que comme note di credito ou di debito ex art. 26. Source : Provv. 89757/2018, punto 6.1.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Après scarto UNIQUEMENT (inexistant après livraison au destinataire) : si la réémission sous identité d'origine est impossible, soit nouvelle facture avec nouveaux numéro et date liée à la facture scartata « stornata con variazione contabile interna », soit numérotation sectionnelle « 1/R », « 50/R ». Source : Circolare 13/E du 02/07/2018, § 1.6 p. 12.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« viene effettuata – se necessario – una variazione contabile valida ai soli fini interni SENZA LA TRASMISSIONE DI ALCUNA NOTA DI VARIAZIONE AL SdI » — applicable après scarto SdI, si la facture avait déjà été comptabilisée. Source : Provv. 89757/2018, punto 6.3 ; repris circolare 13/E § 1.6 p. 11.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Italy ALSO has its own internal credit note, after scarto — the trap was not a purely French one."
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Aucune procédure d'annulation dans le provvedimento — zéro occurrence de « annull- ». Punto 6.2 : « Le richieste del cessionario/committente [...] di variazioni [...] non sono gestite dal SdI ». Source : Provv. 89757/2018, punti 6.1 et 6.2.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Caveat from the YAML: conclusion drawn from the text's EXHAUSTIVENESS, not from an explicit prohibition sentence — an AdE risoluzione would confirm it."
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Nature RECOMMANDÉE, PAS requise : « la fattura [...] vada PREFERIBILMENTE emessa (ossia nuovamente inviata tramite SdI entro cinque giorni dalla notifica di scarto) con la data ed il numero del documento originario ». Applicable après scarto, dans les 5 jours de la notifica di scarto, sous les date et numéro d'origine. Source : Circolare 13/E § 1.6 ; specifiche tecniche allegato A v1.6.3 p. 150.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "« La fattura elettronica [...] di cui al file scartato dal SdI SI CONSIDERA NON EMESSA » (Provv. 89757/2018, punti 2.4 and 4.1) — made possible by the uniqueness check (the 00404/00409 duplicate is only triggered if no ricevuta di scarto was issued). Open question from the YAML: is the \"five days\" a forfeiture deadline or merely a recommendation — unresolved, no attached penalty was found."
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« deve essere fatta mediante annotazione delle variazioni » (comma 7) ; « possono essere effettuate [...] anche mediante apposite annotazioni in rettifica [...] sui registri » (comma 8) — une correction SANS AUCUN DOCUMENT émis ni transmis, applicable aux erreurs matérielles ou de calcul dans les registres et liquidations, et aux variations des commas 2, 3, 3-bis et 5. Source : Art. 26 DPR 633/72, commas 7 et 8.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Found outside the plan's initial list (discovered_by: IT research, 2026-08-29) — distinct from INTERNAL_CREDIT_NOTE, which presupposes at least an internal document; here there is no document at all."
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not researched for Italy: nobody has yet verified, against a primary Italian legal text, whether an invoice already issued can be resent as-is, simply annotated with a note, rather than through a credit note or a corrective invoice. This remains to be established before an answer can be given."
+        }
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.IT.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Italy, never promoted for lack of a declared status."
+        }
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.IT.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Italy, never promoted for lack of a declared status."
+        }
+      }
+    ],
+    "notes": "Italy — HEADLINE: the upward/downward ASYMMETRY (DEBIT_NOTE required, CREDIT_NOTE allowed/faculty) is confirmed by art. 26 DPR 633/72 itself, commas 1 and 2. TEMPORAL, out of scope for C1 (no temporal versioning in this file mechanism v1): as of 2027-01-01, D.Lgs. 19/01/2026 n. 10 repeals art. 26 DPR 633/72, replaced by art. 92 of the Testo unico IVA with IDENTICAL TEXT — same asymmetry, new reference."
+  },
+  "vatRates": {
+    "countryCode": "IT",
+    "rates": [
+      {
+        "id": "it-standard",
+        "rate": 22,
+        "label": "Aliquota ordinaria",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 16 Aliquote dell'imposta ((L'aliquota dell'imposta è stabilita nella misura del ventidue per cento della base imponibile dell'operazione)). ((171))",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "DPR 26 ottobre 1972, n. 633, art. 16, comma 1 (the version currently in force until 2026-12-31, art.versione=11 on normattiva.it). Read directly on 2026-09-13 on https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633 — the body of the article is loaded by the site's internal endpoint (/atto/caricaArticolo?...), itself a same-origin, server-generated HTML response (no JavaScript executed), reached with curl carrying a session cookie and the art.versione/idGruppo/idArticolo parameters read off the summary page's own markup. The double parentheses ((...)) in the citation are normattiva.it's convention for flagging text amended by a later law — footnote (171), also read directly, concerns a 2016 drafting tweak (L. n. 208/2015, art. 1, comma 963) and not the value of the rate, which dates from 2013 (raised from 21% to 22%). SCHEDULED REPEAL: the entirety of art. 16 and of Tabella A of DPR 633/1972 is repealed as of 2027-01-01 by D.Lgs. 19 gennaio 2026, n. 10 (the new Testo Unico IVA, TUIVA — official title read directly on normattiva.it, meta-description: « Testo unico delle disposizioni legislative in materia di imposta sul valore aggiunto. (26G00022) »). The act's own changelog (the vediAggiornamentiAllAtto endpoint, read directly on 2026-09-13) confirms: « ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione dell'art. 16. [...] ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione della tabella A. » (the « [...] » elides an intermediate line, also a repeal, targeting art. 13 — unrelated to the rates). The new art. 34 of the TUIVA (read directly, same method as art. 16 above) CARRIES OVER THE SAME FIGURES identically: « ART. 34 Aliquote dell'imposta ( articolo 16 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633 ; articolo 43, comma 5, decreto-legge 30 agosto 1993, n. 331 [...] ) 1. L'aliquota dell'imposta è stabilita nella misura del 22 per cento della base imponibile dell'operazione. 2. L'aliquota è ridotta al 4, al 5 e al 10 per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte III e nella parte IV della tabella A allegata al presente testo unico, salvo il disposto dell'articolo 133. » — only the CITATION changes (art. 16 → TUIVA art. 34; Tabella A parte II/II-bis/III → parte II/III/IV), not the percentage. This catalog does not model temporality (no validFrom/validTo in schema.ts): the citation above therefore stays DPR 633/1972 for as long as the latter remains in force (until 2026-12-31), and it is up to whoever next touches this file after 2027-01-01 to re-point the citation to the TUIVA — nothing in the schema will flag this automatically."
+      },
+      {
+        "id": "it-reduced-10",
+        "rate": 10,
+        "label": "Aliquota ridotta",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "((L'aliquota è ridotta al quattro, al cinque e al dieci per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte II-bis e nella parte III dell'allegata tabella A, salvo il disposto dell'articolo 34)). ((171)) — PARTE III (194) BENI E SERVIZI SOGGETTI ALL'ALIQUOTA DEL 9% (78) — Il D.L. 23 febbraio 1995, n. 41 , convertito con modificazioni dalla L. 22 marzo 1995, n. 85 , ha disposto (con l'art. 10, comma 1) che \"Le aliquote dell'imposta sul valore aggiunto stabilite nella misura del 9 e del 13 per cento sono elevate, rispettivamente, al 10 e al 16 per cento.\"",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "DPR 633/1972, art. 16, comma 2, referring to Tabella A, parte III. Same direct reading, same URL/method as it-standard (Tabella A itself loaded via art.idGruppo=12&art.flagTipoArticolo=1&art.idArticolo=1, art.versione=81, the version currently in force). The HEADING of parte III, read directly, still displays the HISTORICAL rate of 9% (« PARTE III (194) BENI E SERVIZI SOGGETTI ALL'ALIQUOTA DEL 9% (78) ») — it is footnote (78), also quoted verbatim above, that actually raises the rate to 10% since 1995. Do not rely on the parte's heading for the figure: the percentage actually applicable today is that of art. 16, comma 2 (« ridotta al quattro, al cinque e al dieci per cento ») combined with this footnote. Covers in particular: most meats/fish/dairy products outside parte II, water supply, passenger transport in general, many building renovation works, electricity for non-domestic use, certain pharmaceutical devices (non-exhaustive list). SCHEDULED REPEAL: the entirety of art. 16 and of Tabella A of DPR 633/1972 is repealed as of 2027-01-01 by D.Lgs. 19 gennaio 2026, n. 10 (the new Testo Unico IVA, TUIVA — official title read directly on normattiva.it, meta-description: « Testo unico delle disposizioni legislative in materia di imposta sul valore aggiunto. (26G00022) »). The act's own changelog (the vediAggiornamentiAllAtto endpoint, read directly on 2026-09-13) confirms: « ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione dell'art. 16. [...] ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione della tabella A. » (the « [...] » elides an intermediate line, also a repeal, targeting art. 13 — unrelated to the rates). The new art. 34 of the TUIVA (read directly, same method as art. 16 above) CARRIES OVER THE SAME FIGURES identically: « ART. 34 Aliquote dell'imposta ( articolo 16 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633 ; articolo 43, comma 5, decreto-legge 30 agosto 1993, n. 331 [...] ) 1. L'aliquota dell'imposta è stabilita nella misura del 22 per cento della base imponibile dell'operazione. 2. L'aliquota è ridotta al 4, al 5 e al 10 per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte III e nella parte IV della tabella A allegata al presente testo unico, salvo il disposto dell'articolo 133. » — only the CITATION changes (art. 16 → TUIVA art. 34; Tabella A parte II/II-bis/III → parte II/III/IV), not the percentage. This catalog does not model temporality (no validFrom/validTo in schema.ts): the citation above therefore stays DPR 633/1972 for as long as the latter remains in force (until 2026-12-31), and it is up to whoever next touches this file after 2027-01-01 to re-point the citation to the TUIVA — nothing in the schema will flag this automatically."
+      },
+      {
+        "id": "it-super-reduced-5",
+        "rate": 5,
+        "label": "Aliquota ridotta (5%)",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "((L'aliquota è ridotta al quattro, al cinque e al dieci per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte II-bis e nella parte III dell'allegata tabella A, salvo il disposto dell'articolo 34)). ((171)) — Parte II-bis BENI E SERVIZI SOGGETTI ALL'ALIQUOTA DEL 5 PER CENTO",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "DPR 633/1972, art. 16, comma 2, referring to Tabella A, parte II-bis — same direct reading, same URL/method as it-reduced-10. Unlike parte II and III, the heading of parte II-bis, read directly, ALREADY matches the actual rate (5%), with no historical lag or correcting footnote to cite. Covers in particular: certain social-assistance services of cooperatives, fresh herbs (basil/rosemary/sage), urban maritime/lagoon public transport, certain COVID-era medical equipment, art/antiques under the dealers' special regime (non-exhaustive list). SCHEDULED REPEAL: the entirety of art. 16 and of Tabella A of DPR 633/1972 is repealed as of 2027-01-01 by D.Lgs. 19 gennaio 2026, n. 10 (the new Testo Unico IVA, TUIVA — official title read directly on normattiva.it, meta-description: « Testo unico delle disposizioni legislative in materia di imposta sul valore aggiunto. (26G00022) »). The act's own changelog (the vediAggiornamentiAllAtto endpoint, read directly on 2026-09-13) confirms: « ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione dell'art. 16. [...] ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione della tabella A. » (the « [...] » elides an intermediate line, also a repeal, targeting art. 13 — unrelated to the rates). The new art. 34 of the TUIVA (read directly, same method as art. 16 above) CARRIES OVER THE SAME FIGURES identically: « ART. 34 Aliquote dell'imposta ( articolo 16 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633 ; articolo 43, comma 5, decreto-legge 30 agosto 1993, n. 331 [...] ) 1. L'aliquota dell'imposta è stabilita nella misura del 22 per cento della base imponibile dell'operazione. 2. L'aliquota è ridotta al 4, al 5 e al 10 per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte III e nella parte IV della tabella A allegata al presente testo unico, salvo il disposto dell'articolo 133. » — only the CITATION changes (art. 16 → TUIVA art. 34; Tabella A parte II/II-bis/III → parte II/III/IV), not the percentage. This catalog does not model temporality (no validFrom/validTo in schema.ts): the citation above therefore stays DPR 633/1972 for as long as the latter remains in force (until 2026-12-31), and it is up to whoever next touches this file after 2027-01-01 to re-point the citation to the TUIVA — nothing in the schema will flag this automatically."
+      },
+      {
+        "id": "it-esente",
+        "rate": 0,
+        "label": "Esente",
+        "category": "EXEMPT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 10 Operazioni esenti dall'imposta Sono esenti dall'imposta: 1) le prestazioni di servizi concernenti la concessione e la negoziazione di crediti, la gestione degli stessi da parte dei concedenti e le operazioni di finanziamento; l'assunzione di impegni di natura finanziaria, l'assunzione di fideiussioni e di altre garanzie e la gestione di garanzie di crediti da parte dei concedenti; le dilazioni di pagamento, le operazioni, compresa la negoziazione, relative a depositi di fondi, conti correnti, pagamenti, giroconti, crediti e ad assegni o altri effetti commerciali, ad eccezione del recupero di crediti; la gestione di fondi comuni di investimento e di fondi pensione [...] e il servizio bancoposta;(98)(113)(118a) 2) le operazioni di assicurazione, di riassicurazione e di vitalizio; [...] 18) le prestazioni sanitarie di diagnosi, cura e riabilitazione della persona rese nell'esercizio delle professioni e arti sanitarie soggette a vigilanza, ai sensi dell'articolo 99 del testo unico delle leggi sanitarie [...]",
+          "sourceCheckedAt": "2026-09-17"
+        },
+        "notes": "DPR 26 ottobre 1972, n. 633, art. 10 — CURRENT text (version/agg. 64/63 on normattiva.it, 'Testo in vigore dal: 13-12-2025 al: 31-12-2026'), read the same way as it-standard above: normattiva.it's own caricaArticolo endpoint, curl with a session cookie (a bare GET without one returns HTTP 500, not the article), art.idArticolo=10, versions enumerated from the act's own landing page down to the highest one whose own 'Testo in vigore dal' has no 'al' (still open-ended) OR precedes the known 2027-01-01 repeal — version 65 for this article is ALREADY the post-repeal 'ARTICOLO ABROGATO DAL D.LGS. 19 GENNAIO 2026, N. 10' text (in force FROM 2027-01-01), confirming the SCHEDULED REPEAL (D.Lgs. 19 gennaio 2026, n. 10, the new Testo Unico IVA — TUIVA) this file's other entries already document; version 64 (quoted above) is the one actually in force today. 27 numbered categories in total — only items 1 (financial/credit services) and 18 (medical care) are quoted verbatim above as representative DOMESTIC examples (the mission this entry exists for: a seller invoicing e.g. a loan-related fee or a medical service domestically, with no cross-border element at all). Distinct from 'non imponibile' below: this is the 'esente' regime — NO input-VAT deduction right (art. 19, comma 2) — the EN 16931/FatturaPA 'Natura' code for this regime is N4 (esente). This is the two-distinct-EXEMPT-entries resolution this file's OWN 2026-09-13 note already named as the way forward, now built."
+      },
+      {
+        "id": "it-non-imponibile",
+        "rate": 0,
+        "label": "Non imponibile (esportazione)",
+        "category": "ZERO",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 8 Cessioni all'esportazione. Costituiscono cessioni all'esportazione non imponibili: a) le cessioni, anche tramite commissionari, eseguite mediante trasporto o spedizione di beni fuori del territorio della Comunità economica europea, a cura o a nome dei cedenti o dei commissionari, anche per incarico dei propri cessionari o commissionari di questi. I beni possono essere sottoposti per conto del cessionario, ad opera del cedente stesso o di terzi, a lavorazione, trasformazione, montaggio, assiemaggio o adattamento ad altri beni. [...]",
+          "sourceCheckedAt": "2026-09-17"
+        },
+        "notes": "DPR 633/1972, art. 8, comma 1 — CURRENT text (version/agg. 15/14 on normattiva.it, 'Testo in vigore dal: 12-12-2017 al: 31-12-2026'; version 16 is already the post-2027-01-01 repealed text, 'ARTICOLO ABROGATO DAL D.LGS. 19 GENNAIO 2026, N. 10' — same D.Lgs. 19 gennaio 2026, n. 10 (TUIVA) repeal this file already documents for art. 16/Tabella A). Same retrieval method as it-esente above. Placed under category ZERO, not EXEMPT: the input-VAT deduction right is PRESERVED for this regime (art. 19, comma 3, lettera b — not itself quoted here, out of this entry's own scope) — the EN 16931/FatturaPA 'Natura' code is N3 (non imponibile), distinct from esente/N4 above precisely on this point, matching this catalog's own two-category modeling (schema.ts's VatRateCategory) rather than forcing both into the same EXEMPT bucket. Genuinely a CROSS-BORDER fact (export outside the EU) rather than a purely domestic one — kept in this catalog nonetheless because a seller still SELECTS it on an ordinary domestic-catalog dropdown for that specific line (this catalog has no separate 'export' bucket), the same practical reasoning that already applies to fr.json's own 0% entry."
+      },
+      {
+        "id": "it-super-reduced-4",
+        "rate": 4,
+        "label": "Aliquota minima",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "((L'aliquota è ridotta al quattro, al cinque e al dieci per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte II-bis e nella parte III dell'allegata tabella A, salvo il disposto dell'articolo 34)). ((171)) — PARTE II BENI E SERVIZI SOGGETTI ALL'ALIQUOTA DEL 2%(53) — Il D.L. 2 marzo 1989, n. 69 , convertito con modificazioni dalla L. 27 aprile 1989, n. 154 , ha disposto: - (con l'art. 34, comma 1) che \"L'aliquota dell'imposta sul valore aggiunto stabilita nella misura del due per cento è sostituita, in ogni caso, dall'aliquota del quattro per cento con effetto dal 1° gennaio 1989\"[.]",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "DPR 633/1972, art. 16, comma 2, referring to Tabella A, parte II — same direct reading, same URL/method as it-reduced-10 above. Same pattern as parte III: the HEADING of parte II, read directly, still displays the HISTORICAL rate of 2% (« PARTE II BENI E SERVIZI SOGGETTI ALL'ALIQUOTA DEL 2%(53) ») — it is footnote (53), quoted verbatim above, that actually raises the rate to 4% as of 1 January 1989 (D.L. 2 marzo 1989, n. 69, convertito dalla L. 27 aprile 1989, n. 154). Covers in particular: fresh milk, butter/cheese, fresh vegetables/fruit, cereals, olive oil, pasta/bread, daily newspapers and books, fertilizers (non-exhaustive list). « Aliquota minima » is a common administrative/commercial term of usage for this tier, not a term literally used by DPR 633/1972 itself (which only gives the percentage) — the same caveat as for the German labels in vat-rates/data/de.json. SCHEDULED REPEAL: the entirety of art. 16 and of Tabella A of DPR 633/1972 is repealed as of 2027-01-01 by D.Lgs. 19 gennaio 2026, n. 10 (the new Testo Unico IVA, TUIVA — official title read directly on normattiva.it, meta-description: « Testo unico delle disposizioni legislative in materia di imposta sul valore aggiunto. (26G00022) »). The act's own changelog (the vediAggiornamentiAllAtto endpoint, read directly on 2026-09-13) confirms: « ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione dell'art. 16. [...] ha disposto (con l'art. 170, comma 1, lettera a)) l'abrogazione della tabella A. » (the « [...] » elides an intermediate line, also a repeal, targeting art. 13 — unrelated to the rates). The new art. 34 of the TUIVA (read directly, same method as art. 16 above) CARRIES OVER THE SAME FIGURES identically: « ART. 34 Aliquote dell'imposta ( articolo 16 decreto del Presidente della Repubblica 26 ottobre 1972, n. 633 ; articolo 43, comma 5, decreto-legge 30 agosto 1993, n. 331 [...] ) 1. L'aliquota dell'imposta è stabilita nella misura del 22 per cento della base imponibile dell'operazione. 2. L'aliquota è ridotta al 4, al 5 e al 10 per cento per le operazioni che hanno per oggetto i beni e i servizi elencati, rispettivamente, nella parte II, nella parte III e nella parte IV della tabella A allegata al presente testo unico, salvo il disposto dell'articolo 133. » — only the CITATION changes (art. 16 → TUIVA art. 34; Tabella A parte II/II-bis/III → parte II/III/IV), not the percentage. This catalog does not model temporality (no validFrom/validTo in schema.ts): the citation above therefore stays DPR 633/1972 for as long as the latter remains in force (until 2026-12-31), and it is up to whoever next touches this file after 2027-01-01 to re-point the citation to the TUIVA — nothing in the schema will flag this automatically."
+      }
+    ],
+    "notes": "Italy (2026-09-13, zero-rate entries added 2026-09-17). Six rates, all 'legal', SOURCED FROM THE PRIMARY TEXT via normattiva.it (the official portal of the Italian State's consolidated law): DPR 26 ottobre 1972, n. 633, art. 16 + Tabella A — 22% (ordinary, comma 1), 10% (parte III), 5% (parte II-bis), 4% (parte II, comma 2). NO LITERAL '0%' RATE EXISTS: the research searched the entire consolidated text of DPR 633/1972 for the literal phrase « aliquota … zero » / « aliquota del 0 » and found NONE. Two DISTINCT non-taxation regimes exist instead, not interchangeable, and are now BOTH modeled (it-esente, it-non-imponibile — see each entry's own note): 'esenti' transactions (art. 10 — exempt, no deduction right, category EXEMPT, FatturaPA Natura N4) and 'non imponibili' transactions (art. 8, export supplies — non-taxable, deduction right preserved, category ZERO, FatturaPA Natura N3). This schema's separate ZERO and EXEMPT categories are exactly what makes distinguishing the two possible without conflating them — the 2026-09-13 research's own conclusion ('no entry until the schema can tell them apart, or two distinct EXEMPT entries') undersold what schema.ts already offered: it never needed a schema change, only READING art. 8's and art. 10's own category correctly. Without either entry, a purely domestic exempt/non-taxable invoice line (an art. 10 medical service, an art. 8 export) had NO way to leave this catalog's dropdown other than a foreign-looking custom value the 'select' field kind would reject outright — this is what actually blocked a normal, entirely domestic Italian invoice from ever being issued. TABELLA A, PARTE I (« PRODOTTI AGRICOLI E ITTICI ») IS NOT MODELED EITHER: art. 16, comma 2 expressly excludes it (« salvo il disposto dell'articolo 34 ») — it is not a percentage a seller freely chooses but a flat-rate compensation mechanism for agricultural/fishing producers, set by a separate ministerial decree, not read by this research. 2027-01-01 REPEAL: see each entry's own note above (D.Lgs. 19 gennaio 2026, n. 10, new TUIVA — arts. 8/10/16/34 all repealed and re-enacted with the same substance, only the citation changes; confirmed directly against normattiva.it's own post-repeal text for arts. 8 and 10 too, not merely inferred from art. 16's own note). This catalog does not model temporality (no validFrom/validTo field in schema.ts)."
+  },
+  "taxSystem": {
+    "countryCode": "IT",
+    "kind": "VAT",
+    "standardRate": 22,
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Art. 16 Aliquote dell'imposta ((L'aliquota dell'imposta è stabilita nella misura del ventidue per cento della base imponibile dell'operazione)). ((171))",
+      "sourceCheckedAt": "2026-09-13"
+    },
+    "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (22%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/it.json's own 'it-standard' entry: DPR 26 ottobre 1972, n. 633, art. 16, comma 1, read live on 2026-09-13 at https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633 (see that file's entry and its own notes for the full retrieval method — curl against normattiva.it's internal article-loading endpoint, the double-parenthesis `((...))` annotation convention it uses, and the art. 16 repeal scheduled for 2027-01-01 under the incoming TUIVA — none of that re-typed here). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry, never retyped or translated. Both citations agree on the same figure (22%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here. PRESERVED FROM THE PRIOR NOTE (unrelated to this provenance swap, still true): this file previously carried `reducedRates: [10, 5, 4]` and `schemes: [\"STANDARD\"]` under `unverified` provenance (reprised verbatim from the removed compliance engine's own bespoke Italy profile, no citation at all). Promoting the WHOLE fact to `legal` on 2026-09-01 while silently keeping those two unsourced fields would have misrepresented them as TEDB-verified too — they were dropped instead, honestly, rather than carried forward under a provenance that doesn't cover them: `schemes` is unaffected in practice (`tax-systems/registry.ts#toTaxSystemSpec` already defaults an absent `schemes` to `['STANDARD']`, the exact value that was here); `reducedRates` defaults to `[]` (unused by any consumer today, per the consumer note above) rather than the old, never-verified `[10, 5, 4]` — nothing in this codebase's own test suite (`registry.spec.ts`, `tax-matrix.spec.ts`) asserted on IT's `reducedRates`, and the full jest suite stays green after removing it."
+  },
+  "vatCurrency": {
+    "countryCode": "IT",
+    "rule": {
+      "nationalCurrency": "EUR",
+      "requiredOnInvoice": true,
+      "taxableAmountRequiredOnInvoice": true,
+      "rateSource": "ecb",
+      "rateDateRule": "The exchange rate of the day the operation was carried out, or, absent that, the day the invoice was issued (DPR 633/1972 art. 13 c.4). This codebase has no separate 'day the operation was carried out' distinct from the invoice's own issue date, so the rate is resolved for the document's own issue date, the second (fallback) branch the statute itself names. ECB is used as the rate source: the statute itself does not name a provider, but the EU VAT directive's own art. 91§2 backstop (the last ECB-published rate) is the reference every member state must accept absent its own rule, and Italy's own statute states no different provider, see `notes`.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "DPR 633/1972, art. 13, comma 4: \"Ai fini della determinazione della base imponibile i corrispettivi dovuti e le spese e gli oneri sostenuti in valuta estera sono computati secondo il cambio del giorno di effettuazione dell'operazione o, in mancanza di tale indicazione nella fattura, del giorno di emissione della fattura.\" Art. 21, comma 2, lettera l): the invoice must carry \"aliquota, ammontare dell'imposta e dell'imponibile con arrotondamento al centesimo di euro\": i.e. both the taxable amount and the VAT amount, in euros, regardless of the invoice's own currency.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "**DPR 633/1972 is repealed 2027-01-01**, replaced by a new consolidated VAT text (\"Testo Unico dell'IVA\", D.Lgs. 10/2026, decree dated 19/01/2026, published 30/01/2026 in Gazzetta Ufficiale Serie Generale n. 24, Supplemento ordinario n. 4; entry into force confirmed by the new text's own art. 171). Research carried out for this issue (2026-09-28, WebSearch/WebFetch against gazzettaufficiale.it, normattiva.it, and professional tax-law commentary; Gazzetta Ufficiale and Normattiva both only rendered the table of contents/preamble through automated fetch, never the substantive article bodies) found NO source suggesting either rule (euro-denominated taxable amount + VAT on the invoice; exchange rate = day of operation, else day of invoice) is being dropped or weakened: every source describes the recodification as 'un riordino organico' / 'senza introdurre generalmente una riforma sostanziale del tributo', a reorganisation, not a substantive reform. **The rule is judged to SURVIVE the recodification.** The new article numbers are reported by secondary commentary only, NOT verified against the primary Normattiva text directly, so they are named here as a caveat rather than a second legal citation: a professional concordance table (Nord Ovest Consulting, nord-ovest.it, a client briefing PDF) maps old art. 21+21-bis (invoice content, including the comma 2 lett. l) euro-rounding rule) to new art. 72+73 of the Testo Unico; a secondary summary of commercialistatelematico.com (itself not directly fetchable, HTTP 403) reports old art. 13 (taxable base, including the comma 4 exchange-rate rule) becoming new art. 27, paraphrasing the same day-of-operation/day-of-invoice/ECB-option rule as carried over unchanged. Brocardi.it's own 'testo-unico-iva' pages are a trap confirmed during this research: despite the URL, they still mirror the OLD DPR 633/1972 text under the OLD numbering, not the 2027 recodification. Do not cite them as the new TU. This catalog entry keeps citing DPR 633/1972 by its current, verbatim, in-force numbering (art. 13 c.4 / art. 21 c.2 lett. l) since that is what governs every invoice issued before 2027-01-01; whoever revisits this file after that date must re-verify the new art. 27/72 numbering against Normattiva's actual rendered article text (not yet obtainable through automated fetch as of this check) before citing it as 'legal' provenance in its own right."
+    }
+  },
+  "channelPolicy": {
+    "countryCode": "IT",
+    "facts": [
+      {
+        "providerId": "sdi",
+        "requirement": "mandated",
+        "mandatedFrom": "2019-01-01",
+        "equivalentProviderIds": ["sdi-pec"],
+        "scope": {
+          "parties": "domestic"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Al fine di razionalizzare il procedimento di fatturazione e registrazione, per le cessioni di beni e le prestazioni di servizi effettuate tra soggetti residenti o stabiliti nel territorio dello Stato, e per le relative variazioni, sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio e secondo il formato di cui al comma 2.",
+          "sourceCheckedAt": "2026-09-24"
+        },
+        "notes": "Penalty (art. 1, comma 6, D.Lgs. 127/2015, Normattiva consolidated text, same page as sourceText above, checked 2026-09-13): an invoice issued, between subjects resident or established in Italy, by a means other than the one in comma 3, is deemed NOT ISSUED - « In caso di emissione di fattura, tra soggetti residenti o stabiliti nel territorio dello Stato, con modalità diverse da quelle previste dal comma 3, la fattura si intende non emessa e si applicano le sanzioni previste dall'articolo 6 del decreto legislativo 18 dicembre 1997, n. 471. » The effective date of the general mandate (2019-01-01, above) comes from the official Normattiva annotation attached to the same article (« AGGIORNAMENTO (3) »: L. 27 December 2017, n. 205, art. 1 comma 916 - applicable to invoices issued from 1 January 2019), not from the text of comma 3 itself. The forfetario regime is NO LONGER exempt today, contrary to what a maintainer might assume: the exemption was removed in two stages by D.L. 30 April 2022, n. 36 (official Normattiva annotation « AGGIORNAMENTO (19) », same page, checked 2026-09-13) - « Il D.L. 30 aprile 2022, n. 36 ha disposto (con l'art. 18, comma 3) che la modifica di cui al comma 3 del presente articolo \"si applica a partire dal 1° luglio 2022 per i soggetti che nell'anno precedente abbiano conseguito ricavi ovvero percepito compensi, ragguagliati ad anno, superiori a euro 25.000, e a partire dal 1° gennaio 2024 per i restanti soggetti. [...]\" » - 1 July 2022 for forfettari who had exceeded €25,000 of turnover (ragguagliato ad anno) the previous year, 1 January 2024 for everyone else. The ONLY exemptions that remain today (Agenzia delle Entrate, official guidance page, banner « dichiarazione precompilata 2026 », checked 2026-09-13) are two categories already exempt from invoicing ALTOGETHER (not a regime specific to electronic invoicing), plus a separate PROHIBITION for reasons of sensitive data: « Sono obbligati ad emettere la fattura elettronica tutti i soggetti, residenti o stabiliti in Italia, titolari di partita Iva che effettuano operazioni nei confronti di soggetti residenti o stabiliti in Italia. Sono esonerati dall'obbligo di fatturazione elettronica i soggetti già in precedenza dispensati per legge dall'emissione della fattura (anche cartacea) quali, ad esempio, i \"piccoli produttori agricoli\" (di cui all'art. 34, comma 6, del Dpr n. 633/1972) e i soggetti che hanno richiesto la dispensa dagli adempimenti di fatturazione ai sensi dell'art. 36-bis del Dpr n. 633/72 relativamente alle operazioni esenti. Vige il divieto di emissione di fattura elettronica via SdI per le prestazioni sanitarie verso consumatori finali, effettuate dagli operatori sanitari, in virtù dei dati particolarmente sensibili contenuti in tali fatture. » None of these three situations (the two exemptions, the healthcare prohibition) is modeled by this fact today. UPDATED 2026-09-24: `scope` is no longer the inert extension point this note used to describe - `mandate.ts#activeChannelMandateForOperation` now reads it, and `schema.ts` closed the field so an unrecognized key or value throws at load instead of being ignored. But it understands exactly ONE narrowing, `parties: 'domestic'`, and these three Italian situations are not it: they turn on a taxpayer's STATUS or on a document's subject matter, neither of which this catalog carries. A correct implementation would require `mandate.ts` to accept an exemption predicate (e.g. a « piccolo produttore agricolo » status, art. 34 comma 6 DPR 633/1972, a « dispensa » art. 36-bis DPR 633/72, or a document type \"healthcare services to a final consumer\") carried by the company or the document, and consults it BEFORE blocking - no mechanism in this repository does so today, so this fact continues to block UNCONDITIONALLY, including for these populations genuinely exempted or prohibited by Italian law. - `equivalentProviderIds` (added 2026-09-13): the Sistema di Interscambio itself is reachable through more than one lawful sub-channel - the accredited SDICoop web service (`transportId: \"sdi\"`) or, requiring no accreditation, a PEC mailbox (`transportId: \"sdi-pec\"`) - see \"Inviare la FatturaPA\" (https://www.fatturapa.gov.it/it/comefare/operatori-economici/inviare-la-fatturapa/, read 2026-09-13): «L'utilizzo del canale PEC non presuppone alcun tipo di accreditamento preventivo presso il Sistema di Interscambio.» Both discharge the SAME D.Lgs. 127/2015 obligation quoted above, so both satisfy this one mandate. - SCOPE (added 2026-09-24): `scope.parties: 'domestic'` above is the restriction `sourceText` already quotes verbatim, « tra soggetti residenti o stabiliti nel territorio dello Stato ». A supplier established in Italy invoicing a buyer established elsewhere is outside comma 3 by construction, and cannot be compelled onto SdI for that operation; before this field was read, this fact refused such an invoice outright. WHAT REPLACES IT, and what this product does NOT do: comma 3-bis of the same article puts a DATA TRANSMISSION on the Italian party for operations with non-established subjects - « I soggetti passivi di cui al comma 3 trasmettono telematicamente all'Agenzia delle entrate i dati relativi alle operazioni di cessione di beni e di prestazione di servizi effettuate e ricevute verso e da soggetti non stabiliti nel territorio dello Stato, salvo quelle per le quali è stata emessa una bolletta doganale, quelle per le quali siano state emesse o ricevute fatture elettroniche secondo le modalità indicate nel comma 3, nonché quelle, purché di importo non superiore ad euro 5.000 per ogni singola operazione, relative ad acquisti di beni e servizi non rilevanti territorialmente ai fini IVA in Italia ai sensi degli articoli da 7 a 7-octies del decreto del Presidente della Repubblica 26 ottobre 1972, n. 633. [...] Con riferimento alle operazioni effettuate a partire dal 1° luglio 2022, i dati di cui al primo periodo sono trasmessi telematicamente utilizzando il Sistema di interscambio secondo il formato di cui al comma 2. » (Normattiva, same consolidated page, checked 2026-09-24). Two things to keep straight about that: it binds the ITALIAN party to each operation, so an Italian BUYER reports its own inbound purchase from a foreign supplier - a foreign supplier is never bound by it; and the document-type codes commonly cited for it (TD17, TD18, TD19) appear NOWHERE in the statute, they come from the Agenzia delle Entrate's own specifiche tecniche, which were not read here. This repository implements no Italian declaration at all: `reporting/data/` has files for PT and FR only. Nothing in this catalog should be read as discharging comma 3-bis. - CITATION STATE, 2026-09-24: the Normattiva consolidated page for art. 1 shows « Testo in vigore dal: 12-8-2026 al 31-12-2026 », i.e. this wording is current AND has a known end date. That end date is the recodification: D.Lgs. 19 gennaio 2026, n. 10, « Testo unico delle disposizioni legislative in materia di imposta sul valore aggiunto » (Gazzetta Ufficiale of 30/01/2026, ELI id 26G00022, in force 31/01/2026) replaces this corpus with effect 2027-01-01. HONEST LIMIT, same discipline as this file's other claims: the Testo unico's own abrogation article (art. 170), its commencement article (art. 171) and the new article carrying the SdI obligation were NOT read - gazzettaufficiale.it returned an article page with no text and Normattiva answered HTTP 500 on the article route, repeatedly. What IS established by primary reading is the decree's existence, its GU publication date, and the 31-12-2026 end of the current wording shown by Normattiva itself. The contents table places « Fatturazione e registrazione delle operazioni » at artt. 72-96, so the successor article is very probably in that range, but no number is asserted here because none was read. Re-check before 2027-01-01."
+      }
+    ]
+  },
+  "domesticReverseCharge": {
+    "countryCode": "IT",
+    "categories": [
+      {
+        "key": "investment-gold",
+        "label": "Gold and semi-finished gold products of at least 325‰ purity",
+        "legalRef": "DPR 633/1972 art. 17 comma 5, primo periodo",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "In deroga al primo comma, per le cessioni imponibili di oro da investimento di cui all'articolo 10, numero 11), nonché per le cessioni di materiale d'oro e per quelle di prodotti semilavorati, come definiti nell' articolo 1, comma 1, lettera c), numero 3, del decreto del Presidente della Repubblica 30 maggio 2002, n. 150 , di purezza pari o superiore a 325 millesimi, al pagamento dell'imposta è tenuto il cessionario, se soggetto passivo d'imposta nel territorio dello Stato.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Retrieved curl -sL -A \"Mozilla/5.0 ...\" \"https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633!vig=~art17\" (HTTP 200; this article renders as raw text, no JS wall). Condition NOT modeled: the buyer must itself be 'soggetto passivo d'imposta nel territorio dello Stato' (a taxable person established in Italy) — a buyer-status test this catalog does not evaluate. Shares the `investment-gold` key with DE (§ 13b Abs. 2 Nr. 9) and FR (CGI art. 283, 2 quater) — all three rest on the same ≥325‰ gold/semi-finished-gold threshold, itself derived from Directive 2006/112/EC art. 198(2)."
+      },
+      {
+        "key": "construction-subcontracting",
+        "label": "Construction/renovation labour supplied by a subcontractor in the building sector",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "a) alle prestazioni di servizi diversi da quelli di cui alla lettera a-ter), compresa la prestazione di manodopera, rese nel settore edile da soggetti subappaltatori nei confronti delle imprese che svolgono l'attività di costruzione o ristrutturazione di immobili ovvero nei confronti dell'appaltatore principale o di un altro subappaltatore. La disposizione non si applica alle prestazioni di servizi rese nei confronti di un contraente generale a cui venga affidata dal committente la totalità dei lavori;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `investment-gold` above. A trailing inline footnote-reference number, '(126)', immediately follows the quoted semicolon in Normattiva's own rendering — confirmed against the raw HTML as bare text with no surrounding markup, Normattiva's own amendment-history apparatus, not part of the enacted wording, and stripped here (see this catalog's own commit for the exact retrieval). The 'contraente generale' carve-out in the quote's own second sentence is the exact carve-out this repository's task brief called out by name: a general contractor entrusted with the WHOLE of the works is excluded — a buyer-role distinction this catalog does not evaluate (see `schema.ts`'s own header on what a bare category list can and cannot express). Shares the `construction-subcontracting` key with DE (§ 13b Abs. 2 Nr. 4), FR (CGI art. 283, 2 nonies) and PT (CIVA art. 2.º n.º 1 alínea j)) — all four rest on the same underlying category (construction work performed by a subcontractor), itself derived from Directive 2006/112/EC art. 199(1)(a); exact scope (labour only vs. materials, which trades count as 'construction') differs by country and is NOT normalized by this shared key."
+      },
+      {
+        "key": "it-building-transfer-under-option",
+        "label": "Sale of a building under the seller's own option for VAT taxation",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-bis)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "a-bis) alle cessioni di fabbricati o di porzioni di fabbricato di cui ai numeri 8-bis) e 8-ter) del primo comma dell'articolo 10 per le quali nel relativo atto il cedente abbia espressamente manifestato l'opzione per l'imposizione;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `investment-gold` above. Condition NOT modeled: the deed itself must record the seller's express option for taxation (an exempt sale under art. 10 n. 8-bis/8-ter otherwise, per that article — not itself retrieved here). No equivalent found in FR/DE/PT's own retrieved text; kept as an Italy-only key rather than forced under a shared one."
+      },
+      {
+        "key": "it-building-services",
+        "label": "Cleaning, demolition, plant installation and completion services on buildings",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-ter)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "a-ter) alle prestazioni di servizi di pulizia, di demolizione, di installazione di impianti e di completamento relative ad edifici;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `investment-gold` above. Deliberately NOT given the same key as DE's own § 13b Abs. 2 Nr. 8 ('Reinigen von Gebäuden') even though both are building-related and both are already cited under `reverseCharge`/`franchise` sourcing conventions elsewhere in this codebase: this Italian lettera covers FOUR distinct kinds of work (cleaning, demolition, plant installation, completion), while the German Nummer covers only cleaning — sharing a key would assert an equivalence the retrieved texts do not support (see `schema.ts`'s own header on this exact risk)."
+      },
+      {
+        "key": "it-consortium-public-works",
+        "label": "Services by a consortium member to its own consortium for a public-works contract",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-quater)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "a-quater) alle prestazioni di servizi rese dalle imprese consorziate nei confronti del consorzio di appartenenza che, ai sensi delle lettere b), c) ed e) del comma 1 dell'articolo 34 del codice di cui al decreto legislativo 12 aprile 2006, n. 163 , e successive modificazioni, si è reso aggiudicatario di una commessa nei confronti di un ente pubblico al quale il predetto consorzio è tenuto ad emettere fattura ai sensi del comma 1 dell'articolo 17-ter del presente decreto. L'efficacia della disposizione di cui al periodo precedente è subordinata al rilascio, da parte del Consiglio dell'Unione europea, dell'autorizzazione di una misura di deroga ai sensi dell' articolo 395 della direttiva 2006/112/CE del Consiglio, del 28 novembre 2006 , e successive modificazioni;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `investment-gold` above. The quoted text's OWN second sentence conditions this category's effectiveness on an EU Council derogation authorisation under Directive 2006/112/EC art. 395 — this catalog records the category as enacted in the statute; whether that Council authorisation is currently in force is NOT checked here (resolution would need the Council's own implementing decision, not this article). Narrow and Italy-specific; no shared key."
+      },
+      {
+        "key": "it-logistics-subcontracting",
+        "label": "Subcontracted services to freight-transport and logistics companies",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. a-quinquies)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "a-quinquies) alle prestazioni di servizi, diverse da quelle di cui alle lettere da a) ad a-quater), effettuate tramite contratti di appalto, subappalto, affidamento a soggetti consorziati o rapporti negoziali comunque denominati, rese nei confronti di imprese che svolgono attività di trasporto e movimentazione di merci e prestazione di servizi di logistica. La disposizione del periodo precedente non si applica alle operazioni effettuate nei confronti di amministrazioni pubbliche e di altri enti e società di cui all'articolo 17-ter del presente decreto;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `investment-gold` above; trailing inline footnote-reference apparatus ('((...))', '(244)', '((247))' in Normattiva's own rendering, confirmed against the raw HTML's own <div class=\"ins-akn\"> insertion markers) stripped for the same reason as `construction-subcontracting`'s own note. Carve-out NOT modeled: the second sentence excludes supplies to public administrations/entities under art. 17-ter — a buyer-type test this catalog does not evaluate."
+      },
+      {
+        "key": "it-mobile-network-terminal-equipment",
+        "label": "Mobile telecom terminal equipment subject to the government concession tax",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. b)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "b) alle cessioni di apparecchiature terminali per il servizio pubblico radiomobile terrestre di comunicazioni soggette alla tassa sulle concessioni governative di cui all'articolo 21 della tariffa annessa al decreto del Presidente della Repubblica 26 ottobre 1972, n. 641 , come sostituita, da ultimo, dal decreto del Ministro delle finanze 28 dicembre 1995, pubblicato nella Gazzetta Ufficiale n. 303 del 30 dicembre 1995;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "validUntil": "2026-12-31",
+        "notes": "Same retrieval as `investment-gold` above. SUNSET, now structured as `validUntil` above (2026-09-16 re-retrieval, same normattiva.it URL, HTTP 200): DPR 633/1972 art. 17 comma 8 itself — 'Le disposizioni di cui al sesto comma, lettere b), c), d-bis), d-ter) e d-quater), del presente articolo si applicano alle operazioni effettuate fino al 31 dicembre 2026.' — counted from the article's own comma sequence (1: imposta dovuta dai soggetti…; …5: In deroga al primo comma, per le cessioni imponibili di oro…; 6: Le disposizioni di cui al quinto comma si applicano anche: a)…d-quinquies); 7: Le disposizioni del quinto comma si applicano alle ulteriori operazioni…; 8: the sunset sentence quoted above). `validUntil` is INCLUSIVE (see `schema.ts`'s own doc comment) — 'fino al 31 dicembre 2026' reads the same way in Italian. The EU-law basis for this date (Article 199a of Directive 2006/112/EC, most likely as last extended by Directive (EU) 2022/890 to 31 December 2026) was NOT independently re-verified this wave: EUR-Lex serves every CELEX URL tried behind an AWS WAF JavaScript challenge curl cannot pass (HTTP 202, empty body, `awswaf.com` challenge script) — recorded here rather than guessed at; a future check needs either a browser-capable fetch or a mirror. Kept distinct from `it-consumer-electronics-preretail` (lett. c) below): this lettera covers mobile-network TERMINAL equipment under an old telecoms-concession tax cross-reference, a narrower and textually separate object from lett. c)'s consumer electronics."
+      },
+      {
+        "key": "it-consumer-electronics-preretail",
+        "label": "Game consoles, tablets, laptops and integrated circuits, before retail installation",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. c)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "c) alle cessioni di console da gioco, tablet PC e laptop, nonché alle cessioni di dispositivi a circuito integrato, quali microprocessori e unità centrali di elaborazione, effettuate prima della loro installazione in prodotti destinati al consumatore finale;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "validUntil": "2026-12-31",
+        "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence, the comma count that identifies it as comma 8, and why the underlying EU-law basis (Directive 2006/112/EC art. 199a) was not independently re-verified this wave (EUR-Lex WAF-blocked to curl). Does NOT include mobile phones — those sit under `it-mobile-network-terminal-equipment` (lett. b), a separate, older provision — unlike Germany's own § 13b Abs. 2 Nr. 10, which lists 'Mobilfunkgeräte' (mobile phones) together with tablets/consoles/integrated circuits in ONE Nummer. Given that scope difference, this fact does NOT share a key with DE's Nr.10-derived category; each country's own file keeps its own boundary."
+      },
+      {
+        "key": "greenhouse-gas-and-energy-certificates",
+        "label": "Transfer of greenhouse-gas emission units and gas/electricity certificates",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. d-bis) e d-ter)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "d-bis) ai trasferimenti di quote di emissioni di gas a effetto serra definite all' articolo 3 della direttiva 2003/87/CE del Parlamento europeo e del Consiglio, del 13 ottobre 2003 , e successive modificazioni, trasferibili ai sensi dell'articolo 12 della medesima direttiva 2003/87/CE , e successive modificazioni; d-ter) ai trasferimenti di altre unità che possono essere utilizzate dai gestori per conformarsi alla citata direttiva 2003/87/CE e di certificati relativi al gas e all'energia elettrica;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "validUntil": "2026-12-31",
+        "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence and citation trail. Two distinct lettere combined into one fact because they were both amendments extending the SAME original mechanism (d-bis added the base GHG-quota case, d-ter its own extension to other compliance units and gas/electricity certificates) and are read together on the statute's own page — contrast `tax/tax-engine.ts`'s own `LOCALIZED_MENTION.exportGoods`/`intraComm` for Italy, which are correctly kept SEPARATE because those rest on two different STATUTES, not two adjacent lettere of the same comma. `it-` prefix omitted deliberately: this key is shared with DE (§ 13b Abs. 2 Nr. 6), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l), GHG allowances only — PT's own retrieved text does not extend to gas/electricity certificates the way IT/DE/FR's do; see PT's own fact for that narrower scope)."
+      },
+      {
+        "key": "gas-and-electricity-to-reseller",
+        "label": "Supply of gas or electricity to a taxable reseller",
+        "legalRef": "DPR 633/1972 art. 17 comma 6 lett. d-quater)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "d-quater) alle cessioni di gas e di energia elettrica a un soggetto passivo-rivenditore ai sensi dell'articolo 7-bis, comma 3, lettera a);",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "validUntil": "2026-12-31",
+        "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence and citation trail. The referenced 'soggetto passivo-rivenditore' qualification (art. 7-bis comma 3 lett. a) — a reseller-status test) is NOT itself retrieved or modeled here. Shares the `gas-and-electricity-to-reseller` key with DE (§ 13b Abs. 2 Nr. 5 Buchst. b) and FR (CGI art. 283, 2 quinquies, second sentence) — all three condition the reverse charge on the BUYER being a reseller, a buyer-status test this catalog's category list does not itself evaluate."
+      }
+    ],
+    "notes": "Retrieved curl -sL -A \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\" \"https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633!vig=~art17\" — HTTP 200, this article DOES come down as raw text (no JavaScript wall for it, unlike some others on normattiva.it). DPR 633/1972 is repealed 2027-01-01 (renumbered into a new Testo Unico) — every citation in this file carries that end date implicitly; a re-check after that date must find the renumbered article, not assume this one still exists. SUNSET quoted verbatim: 'Le disposizioni di cui al sesto comma, lettere b), c), d-bis), d-ter) e d-quater), del presente articolo si applicano alle operazioni effettuate fino al 31 dicembre 2026.' — this sentence is itself comma 8 (counted from the article's own comma sequence: 1 imposta dovuta…; …5 In deroga al primo comma, per le cessioni imponibili di oro…; 6 Le disposizioni di cui al quinto comma si applicano anche: a)…d-quinquies); 7 Le disposizioni del quinto comma si applicano alle ulteriori operazioni…; 8 this sunset sentence), re-confirmed by normattiva.it's own header on the same page: 'Testo in vigore dal: 2-8-2025 al: 31-12-2026'. Since 2026-09-16 this is a STRUCTURED field, `validUntil: '2026-12-31'` (INCLUSIVE — see `schema.ts`'s own doc comment) on each of the four affected category facts below, not merely prose. The EU-law basis for the date itself (Directive 2006/112/EC art. 199a, most likely as last extended to 31 December 2026 by Directive (EU) 2022/890) was NOT independently re-verified this wave: every EUR-Lex CELEX URL tried (32022L0890, 02006L0112 consolidated) returns HTTP 202 with an empty body behind an AWS WAF JavaScript challenge (`awswaf.com`) that curl cannot pass — recorded here rather than guessed at from training-data recall; a future check needs a browser-capable fetch. This affects `it-mobile-network-terminal-equipment`, `it-consumer-electronics-preretail`, `greenhouse-gas-and-energy-certificates` and `gas-and-electricity-to-reseller` above; comma 5's gold case and comma 6 lett. a/a-bis/a-ter/a-quater/a-quinquies carry no `validUntil` — no such sunset in the retrieved text. Comma 6 lett. d) was 'ABROGATA DAL D.LGS. 11 FEBBRAIO 2016, N. 24' (repealed) and lett. d-quinquies) likewise repealed by the same decree — neither is modeled here, correctly: a repealed lettera is not a live category. DELIBERATELY NOT MODELED: Italy's own domestic reverse charge for scrap metal and waste ('rottami', 'cascami', recovered materials) lives in DPR 633/1972 art. 74 commi 7-8, a DIFFERENT article from the one every category in this file is drawn from — art. 74 was not retrieved for this wave, so no `waste-and-scrap-materials` fact is declared for Italy even though FR/DE/PT each have one; adding it means reading art. 74 on its own primary source first, not inferring it from the shared key's existence elsewhere in this catalog. Also deliberately not modeled: buyer-status conditions (the buyer being a taxable person, having a VAT registration, not being a public body under art. 17-ter) and the exact category thresholds/derogation windows named in each category's own `notes` above — see this catalog's own `schema.ts` header and DESIGN.md (in this catalog's own directory) for why."
+  },
+  "countryFields": {
+    "countryCode": "IT",
+    "overlays": [
+      {
+        "typeId": "invoice",
+        "operations": [
+          {
+            "op": "add",
+            "path": "lines",
+            "field": {
+              "key": "supplyType",
+              "kind": "select",
+              "label": "Supply type",
+              "required": false,
+              "options": [
+                {
+                  "value": "GOODS",
+                  "label": "Goods"
+                },
+                {
+                  "value": "SERVICES",
+                  "label": "Services"
+                }
+              ],
+              "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+            }
+          }
+        ]
+      }
+    ],
+    "notes": "Italy's FIRST field overlay — the SAME `supplyType` line subfield France's own `fr.json` already adds, in the same shape: kind 'select', values GOODS/SERVICES, OPTIONAL, added to `invoice.lines` rather than to the trunk `descriptors/invoice.descriptor.ts`, which stays country-blind. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Italy's transposition defines the two in the directive's own terms — « Costituiscono cessioni di beni gli atti a titolo oneroso che importano trasferimento della proprietà ovvero costituzione o trasferimento di diritti reali di godimento su beni di ogni genere » (DPR 26 ottobre 1972, n. 633, art. 2, primo comma) against « Costituiscono prestazioni di servizi le prestazioni verso corrispettivo dipendenti da contratti d'opera, appalto, trasporto, mandato, spedizione, agenzia, mediazione, deposito e in genere da obbligazioni di fare, di non fare e di permettere quale ne sia la fonte » (same decree, art. 3, primo comma). Read in raw text on 2026-09-21 at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:presidente.repubblica:decreto:1972-10-26;633 , act updated to 11/08/2026); the article bodies load from a session-bound endpoint, so a bare fetch of the act URL returns the navigation shell only — carry the session cookie from that first request. WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so an Italian seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this file's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this file existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+  },
+  "b2gRouting": {
+    "countryCode": "IT",
+    "transportId": "sdi",
+    "formatSyntax": "fatturapa",
+    "requiredClientIdentifiers": [
+      {
+        "scheme": "IT_PA_CODE",
+        "label": "Codice Univoco Ufficio (IPA)",
+        "why": "Specifiche tecniche operative del formato della fattura del Sistema di Interscambio, v1.3.2 (Agenzia delle Entrate / SdI, fatturapa.gov.it): \"CodiceDestinatario: [...] nei casi di fattura destinata ad una Pubblica Amministrazione il suo valore, di 6 caratteri, deve corrispondere a quello presente nel campo Codice Ufficio riportato nella rubrica 'Indice PA' (WWW.INDICEPA.GOV.IT).\" A GOVERNMENT recipient's own SdI routing code is 6 characters, looked up from IndicePA — a DIFFERENT scheme from this catalog's existing \"IT_SDI\" (the 7-character B2B/private CodiceDestinatario `formats/national/fatturapa-provider.ts#isValidSdiCode` already validates with `/^[A-Za-z0-9]{7}$/`) — deliberately kept as its OWN scheme rather than overloading \"IT_SDI\" with two different lengths, so neither the existing 7-character regex nor its own tests need to change for this rule to exist."
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Specifiche tecniche operative del formato della fattura del Sistema di Interscambio, versione 1.3.2 (« di cui all'Allegato A del DM 55/2013 »), Agenzia delle Entrate / Sistema di Interscambio, par. 1.1: « CodiceDestinatario: identifica il soggetto al quale è destinata la fattura; - nei casi di fattura destinata ad una Pubblica Amministrazione il suo valore, di 6 caratteri, deve corrispondere a quello presente nel campo Codice Ufficio riportato nella rubrica \"Indice PA\" (WWW.INDICEPA.GOV.IT). - nei casi di fattura destinata ad un soggetto diverso da Pubblica Amministrazione il suo valore, di 7 caratteri, deve corrispondere a: [...] ». Par. 1.4 (Allegato B): « FormatoTrasmissione [...] i valori ammessi sono i seguenti: FPA12 — Formato di Trasmissione fattura verso PA - ver. 1.2 ; FPR12 — Formato di Trasmissione fattura verso privati - ver. 1.2. »",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "DOWNLOADED AND READ DIRECTLY on 2026-09-01 from fatturapa.gov.it itself (https://www.fatturapa.gov.it/export/documenti/Specifiche_tecniche_del_formato_FatturaPA_V1.3.2.pdf, official PDF from the Sistema di Interscambio/Agenzia delle Entrate, 78 pages — verbatim citations above, extracted from the Italian text itself via pdftotext, never paraphrased) — UNLIKE `channel-policy/data/it.json`'s own entry (which stayed 'unverified', for lack of having found this specific document at the time) and `country-identifiers/`, which has no it.json file yet: this entry IS this repository's first IT citation directly sourced to an official page actually reached, not to an internal audit. EUROPEAN BASELINE: directive 2014/55/EU, art. 7 (see fr.json's own note for the full citation). The OBLIGATION itself (mandatory e-invoicing toward the PA) rests on DM 55/2013 (« di cui all'Allegato A del DM 55/2013 », cited BY this official document itself, in its own page header) and its enabling act, L. 244/2007 art. 1 commi 209-214 — neither text could be reached DIRECTLY by this task (gazzettaufficiale.it and normattiva.it rendered only navigation shells to a plain request); the citation above therefore rests on the OFFICIAL technical document that referenced them, not on the decrees themselves. `transportId: \"sdi\"` and `formatSyntax: \"fatturapa\"` are BOTH channels/formats ALREADY IMPLEMENTED in this repository (`transports/sdi-transport.ts`, `formats/national/fatturapa-provider.ts`) — unlike FR/DE above, an Italian invoice to a government client can therefore actually go out, once the company has connected the SdI channel. KNOWN GAP, NOT FIXED BY THIS TASK (declared scope: the B2G routing RULE, not the format builder itself): `fatturapa-provider.ts` hard-codes `versione: 'FPR12'` (« fattura verso privati ») for EVERY invoice, including one to a `GOVERNMENT` client — the document above reveals that a PA invoice should carry `FPA12` (« fattura verso PA »), not `FPR12`. This task does NOT modify `fatturapa-provider.ts` (outside its declared scope: the routing table, not the XML builder) — the rule above only guarantees the Codice Univoco (IPA) is actually REQUIRED on the client before sending, never that it is correctly injected into an XML that would otherwise carry the wrong `FormatoTrasmissione`. A named future item, not a silent one."
+  }
+}

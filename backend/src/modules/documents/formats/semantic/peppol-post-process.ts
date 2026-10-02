@@ -2,7 +2,7 @@
  * PEPPOL-EN16931-R002 ("no more than one note is allowed on document level, unless both the buyer
  * and seller are German organizations" — `vendored/peppol/PEPPOL-EN16931-UBL.sch`, read verbatim) —
  * see `peppol-bis-provider.ts`'s own header for the full story of why this matters at all: a French
- * seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`, wired generically through
+ * seller's THREE mandatory C. com. mentions (`countries/data/fr.json (section "mentions")`, wired generically through
  * `build-semantic-invoice.ts`'s own `legalMentionNotes` array) already emit three separate
  * `cbc:Note` elements for every OTHER syntax this codebase builds — CII, plain UBL, Factur-X,
  * FatturaPA, FA(3), Facturae — and that SHARED mechanism is not touched here (see

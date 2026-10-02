@@ -78,10 +78,10 @@ import { cn } from "@/lib/utils"
  * `correction-routes.ts#isImplemented`, country-aware exactly like CANCEL_AND_REPLACE). Choosing it
  * navigates one-click, same as INTERNAL_CREDIT_NOTE, but to the INVOICE creation screen (not the
  * credit-note one — Poland's own law has no separate credit-note instrument, see
- * `correction-routes/data/pl.json`'s own CREDIT_NOTE citation): pre-filled with `correctsInvoiceId:
+ * `countries/data/pl.json (section "correctionRoutes")`'s own CREDIT_NOTE citation): pre-filled with `correctsInvoiceId:
  * instance.id` (`descriptors/invoice.descriptor.ts`'s own trunk field), which is what makes
  * `formats/national/fa3-provider.ts` build `RodzajFaktury = KOR` once this invoice is sent. Poland's
- * own `country-fields/data/pl.json` overlay is what puts the "Correction reason" field on that screen,
+ * own `countries/data/pl.json (section "countryFields")` overlay is what puts the "Correction reason" field on that screen,
  * conditionally required the moment `correctsInvoiceId` resolves — no bespoke wiring needed here for
  * that part either, the generic field-overlay + `requiredIfPresent` mechanism already does it.
  */

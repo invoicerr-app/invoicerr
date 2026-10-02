@@ -1,9 +1,9 @@
 /**
- * Content-pinning + schema-gate spec for `data/pt.json`. Deliberately does NOT go through
- * `all.ts`/`all.spec.ts` (`pt` is not registered in `all.ts`'s own `COUNTRY_FILES` list yet) — this
- * spec reads `pt.json` directly with `readFileSync` and re-runs the SAME `assertValidProvenance` gate
- * `all.ts` would run, so the file is proven valid on its own before it is ever wired into the
- * aggregator.
+ * Content-pinning + schema-gate spec for Portugal's `policy` section. Issue #603 step 6 moved the
+ * data: this now reads it out of `countries/data/pt.json` (the single merged per-country file)
+ * instead of this directory's own `pt.json` (moved there), and re-runs the SAME `assertValidProvenance`
+ * gate `countries/data/all.ts` already ran at load time, so the section is proven valid on its own
+ * terms too.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,8 +11,8 @@ import { join } from 'node:path';
 import { assertValidProvenance, CountryDocumentPolicyFile, DocumentActionRuleFact } from '../schema';
 
 function loadPt(): CountryDocumentPolicyFile {
-  const raw = readFileSync(join(__dirname, 'pt.json'), 'utf-8');
-  return JSON.parse(raw) as CountryDocumentPolicyFile;
+  const raw = readFileSync(join(__dirname, '../../countries/data/pt.json'), 'utf-8');
+  return (JSON.parse(raw) as { policy: CountryDocumentPolicyFile }).policy;
 }
 
 function ruleFor(file: CountryDocumentPolicyFile, typeId: string, actionId: string): DocumentActionRuleFact {

@@ -207,10 +207,10 @@ export interface DomesticInvoiceCurrencyFact {
  * ONE country's numbering requirement for ONE document type - issue #471. Two possible
  * `requirement`s, deliberately not a boolean: `'sequential-number-required'` says the type itself
  * must carry a continuous, sequential number once issued (what CGI ann. II art. 242 nonies A, I, 7°
- * asks of a French credit note, `country-policy/data/fr.json`'s own fact); `'type-not-issuable'`
+ * asks of a French credit note, `countries/data/fr.json (section "policy")`'s own fact); `'type-not-issuable'`
  * says the question does not even arise for this type in this country because the type itself has
  * no legal existence here (Poland's own credit-note fact: a Polish credit note IS an invoice, a KOR,
- * numbered by the invoice's own numbering - see `correction-routes/data/pl.json`'s CREDIT_NOTE
+ * numbered by the invoice's own numbering - see `countries/data/pl.json (section "correctionRoutes")`'s CREDIT_NOTE
  * `'forbidden'` route, which this fact deliberately does not duplicate, only cross-references).
  */
 export interface DocumentNumberingFact {

@@ -80,7 +80,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
     const fr = byCode('FR');
     expect(fr?.provenance.kind).toBe('legal');
     if (fr?.provenance.kind === 'legal') {
-      // The exact CGI art. 293 B, I sentence, already cited as `legal` on vat-rates/data/fr.json's
+      // The exact CGI art. 293 B, I sentence, already cited as `legal` on countries/data/fr.json (section "vatRates")'s
       // own 'fr-exempt-293b' entry — reused here verbatim, not a new, unverified citation.
       expect(fr.provenance.sourceText).toContain(
         'franchise qui les dispense du paiement de la taxe sur la valeur ajoutée',
@@ -103,7 +103,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
 
   it("DE is PROMOTED off the TEDB HTTP body onto the statute itself — the same UStG § 12 Abs. 1 quote already `legal` on vat-rates/data/de.json's own 'de-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
     const de = byCode('DE');
-    const deVatStandard = require('../../../vat-rates/data/de.json').rates.find(
+    const deVatStandard = require('../../../countries/data/de.json').vatRates.rates.find(
       (r: { id: string }) => r.id === 'de-standard',
     );
     expect(de?.provenance.kind).toBe('legal');
@@ -125,7 +125,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
 
   it("IT is PROMOTED off the TEDB HTTP body onto the statute itself — the same DPR 633/1972 art. 16 quote already `legal` on vat-rates/data/it.json's own 'it-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
     const it_ = byCode('IT');
-    const itVatStandard = require('../../../vat-rates/data/it.json').rates.find(
+    const itVatStandard = require('../../../countries/data/it.json').vatRates.rates.find(
       (r: { id: string }) => r.id === 'it-standard',
     );
     expect(it_?.provenance.kind).toBe('legal');
@@ -137,9 +137,9 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
     }
   });
 
-  it("PL is PROMOTED off the TEDB HTTP body onto the statute itself — the same art. 41 / art. 146ef quote already `legal` on vat-rates/data/pl.json's own 'pl-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
+  it("PL is PROMOTED off the TEDB HTTP body onto the statute itself — the same art. 41 / art. 146ef quote already `legal` on countries/data/pl.json (section 'vatRates')'s own 'pl-standard' entry, copied byte-for-byte (2026-09-13): a citation a reader can check in the law beats a reproduced JSON payload", () => {
     const pl = byCode('PL');
-    const plVatStandard = require('../../../vat-rates/data/pl.json').rates.find(
+    const plVatStandard = require('../../../countries/data/pl.json').vatRates.rates.find(
       (r: { id: string }) => r.id === 'pl-standard',
     );
     expect(pl?.provenance.kind).toBe('legal');
@@ -148,7 +148,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
       expect(pl.provenance.sourceText).toBe(plVatStandard.provenance.sourceText);
       expect(pl.provenance.sourceCheckedAt).toBe(plVatStandard.provenance.sourceCheckedAt);
       expect(pl.provenance.sourceCheckedAt).toBe('2026-09-13');
-      // Poland's statutory basis is split (see vat-rates/data/pl.json's own notes): art. 41 alone
+      // Poland's statutory basis is split (see countries/data/pl.json (section "vatRates")'s own notes): art. 41 alone
       // sets a 22% BASE rate, and it is art. 146ef that raises it to the 23% actually in force. The
       // quotation must carry BOTH provisions — citing art. 41 alone would misleadingly read as if
       // 22% were today's rate.
@@ -160,7 +160,7 @@ describe('tax-systems/data — the kept standard rates, content-pinned', () => {
 
   it("PT is PROMOTED off the TEDB HTTP body onto the statute itself — the same CIVA art. 18.º quote already `legal` on vat-rates/data/pt.json's own 'pt-standard' entry, copied byte-for-byte (that entry's own check date, 2026-09-04): a citation a reader can check in the law beats a reproduced JSON payload", () => {
     const pt = byCode('PT');
-    const ptVatStandard = require('../../../vat-rates/data/pt.json').rates.find(
+    const ptVatStandard = require('../../../countries/data/pt.json').vatRates.rates.find(
       (r: { id: string }) => r.id === 'pt-standard',
     );
     expect(pt?.provenance.kind).toBe('legal');
@@ -218,19 +218,8 @@ describe('tax-systems/data — mutation target #2: a file with no provenance mus
   });
 });
 
-// Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
-// really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
-// with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
-// silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
-// red here — the whole point of "adding a country = dropping a file" is only true if this holds.
-describe('tax-systems/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_TAX_SYSTEM_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const { readdirSync } = require('node:fs');
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_TAX_SYSTEM_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_TAX_SYSTEM_FILES`) tested a mechanism that moved: `data/all.ts` no longer reads this
+// directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`, which
+// itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

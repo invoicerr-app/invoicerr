@@ -9,7 +9,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * The default company (`cy.resetAndSeed()`) is already a FRENCH company (SIRET/VAT on file) —
  * exactly the canonical country whose internal credit note is `required` in
- * `correction-routes/data/fr.json` (see that file's own legal provenance). The first two describes
+ * `countries/data/fr.json (section "correctionRoutes")` (see that file's own legal provenance). The first two describes
  * below therefore NEVER switch the company's country: the country-by-country pinned content
  * (the FR/PL contrast, the per-country sample) is already proven in jest
  * (`correction-routes/data/all.spec.ts`, `correction-routes/cancel-policy.spec.ts`) against the
@@ -20,7 +20,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * The "Cancellation" describe, at the very bottom, IS the exception: it switches the
  * seller country to PL once — see its own header for why (at the time it was written, no
  * country-policy/ file existed for PL, which made it impossible to issue an invoice UNDER PL
- * directly; `country-policy/data/pl.json` has since been added, PROVEN by
+ * directly; `countries/data/pl.json (section "policy")` has since been added, PROVEN by
  * `44-country-policy.cy.ts`'s own "THE UNBLOCKING" — keeping the after-the-fact switch here stays a
  * choice, not a necessity: it isolates the CANCEL gate, unrelated to country-policy/, without having
  * to duplicate the full PL issuance that 44 already covers). Last describe of the last
@@ -531,7 +531,7 @@ describe("Correct — the screen, browser level", () => {
 	 * Issue #552: a `forbidden` route must never render in the dialog (the API still returns it,
 	 * `correction-routes.spec.ts`'s own pinned FR test above proves that side; this is purely a
 	 * screen concern), and the dialog itself must never scroll horizontally, on desktop or on a
-	 * phone viewport. France's own file (`correction-routes/data/fr.json`) declares
+	 * phone viewport. France's own file (`countries/data/fr.json (section "correctionRoutes")`) declares
 	 * AUTHORITY_ANNULMENT, LEDGER_ANNOTATION and NO_DOCUMENT_BY_LAW `forbidden`: the default
 	 * company already exercises all three without any country switch.
 	 */
@@ -864,7 +864,7 @@ describe("Cancellation — a country that grounds it, a country that doesn't", (
  * in `backend/src/modules/documents/formats/national/fa3-provider.spec.ts` and `fa3-kor.spec.ts`.
  * This spec proves what the SCREEN can prove without KSeF: the route is offered and genuinely
  * implemented, choosing it opens the REAL invoice-creation screen pre-linked (never a stub), and
- * Poland's own conditionally-required "Correction reason" field (country-fields/data/pl.json) shows
+ * Poland's own conditionally-required "Correction reason" field (countries/data/pl.json (section "countryFields")) shows
  * up and is actually required once `correctsInvoiceId` resolves.
  */
 describe("Correction routes — Poland's faktura korygująca (the KOR route)", () => {
@@ -980,7 +980,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					.click();
 
 				// THE REAL mechanism, pre-linked — never a stub: navigation to the INVOICE screen (never
-				// credit-note: Poland has no separate credit-note instrument, correction-routes/data/pl.json's
+				// credit-note: Poland has no separate credit-note instrument, countries/data/pl.json (section "correctionRoutes")'s
 				// own CREDIT_NOTE citation), a fresh create dialog opens.
 				cy.location("pathname", { timeout: 10000 }).should(
 					"eq",
@@ -1050,7 +1050,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.get('input[name="lines.0.unitPrice"]')
 					.clear({ force: true })
 					.type("1000", { force: true });
-				// The VAT rate is a real SearchSelect for Poland (vat-rates/data/pl.json ships a
+				// The VAT rate is a real SearchSelect for Poland (countries/data/pl.json (section "vatRates") ships a
 				// catalog) — "23% — Stawka podstawowa" is that catalog's own label for the standard rate.
 				//
 				// Targeted by its OWN data-cy, not `[data-cy$="-input"] button` + `.last()`: a Polish

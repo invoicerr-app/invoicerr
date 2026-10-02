@@ -22,7 +22,7 @@
  *  - BR-DE-15 (fatal): `cbc:BuyerReference` (BT-10) non-empty. Filled by the GENERIC mechanism
  *    (`build-semantic-invoice.ts`'s `buyerReference`, fed by `data.buyerReference`) — the ONLY
  *    screen input known today is the Leitweg-ID field added by the DE country overlay
- *    (`country-fields/data/de.json`, add, path `''`, optional — never a generic field imposed on
+ *    (`countries/data/de.json (section "countryFields")`, add, path `''`, optional — never a generic field imposed on
  *    every country on the trunk descriptor). Absent → named refusal BR-DE-15, exactly the gate's
  *    expected behaviour.
  *  - BR-DE-2/5/6/7 (fatal): SELLER CONTACT (name/phone/email) — filled by `sellerContact`

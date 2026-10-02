@@ -11,9 +11,9 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
- * discovered from disk. Fifteen catalogs exist under `documents/` (one `data/all.ts` aggregator
+ * discovered from disk. Sixteen catalogs exist under `documents/` (one `data/all.ts` aggregator
  * each — see `ALL_DOCUMENT_CATALOG_DIRS` below, which this comment's own count is checked against);
- * the other nine are deliberately left out, and, unlike the historical version of this comment,
+ * the other ten are deliberately left out, and, unlike the historical version of this comment,
  * each one for its OWN stated reason, because the reasons genuinely differ:
  *
  *  - `mentions/` and `content-requirements/` are FR-specific extras: no other in-scope jurisdiction's
@@ -74,6 +74,16 @@ import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions
  * (superpdp, acube, billit…), each carrying a `countries` ARRAY rather than one `countryCode` -
  *    see `operators/schema.ts`'s own header for why. The "which countries are covered" question this
  *    service exists to answer does not apply to it, core or not.
+ *  - `countries/` (issue #603 step 6) is excluded for the SAME structural reason as `operators/`
+ *    just above, from the opposite direction: it is not a tenth mechanism, it is the single place
+ * the other six (and the four FR-only/conditional ones) now physically keep their data - one
+ *    merged `data/<cc>.json` per country, one key per mechanism, instead of one directory per
+ *    mechanism. Every `CORE_MECHANISMS` entry above still reads its own `ALL_*_FILES` export
+ *    unchanged (each one now derives from `defaultComposedCountryCatalog`, which `countries/`
+ * composes from these very files), so nothing here needed a code change beyond this exclusion -
+ *    `countries/data/all.ts` exists and is a real `data/all.ts` aggregator, so the auto-discovery
+ *    below finds it like any other, and it earns its own named exclusion rather than silently
+ *    inflating the "missing" count.
  *
  * What IS fully data-driven is which countries satisfy each of the six mechanisms below: every entry's
  * `countryCodes` is read straight from that mechanism's own `ALL_*_FILES` catalog (the same
@@ -132,6 +142,7 @@ const EXCLUDED_CATALOG_DIRS: readonly string[] = [
   'domestic-reverse-charge',
   'vat-currency',
   'operators',
+  'countries',
 ];
 
 /**
@@ -187,7 +198,7 @@ export interface MentionWindowAlert {
  * scheduled maintenance already done). When every entry IS bounded, the field's own "coverage
  * horizon" is the LATEST `validTo` among them — this deliberately does not attempt to detect an
  * INTERNAL gap between two non-contiguous bounded windows (every catalog shipped today keeps its own
- * windows contiguous by convention — see e.g. `mentions/data/fr.json`'s own "TO BE MAINTAINED TWICE A
+ * windows contiguous by convention — see e.g. `countries/data/fr.json (section "mentions")`'s own "TO BE MAINTAINED TWICE A
  * YEAR" note — so the one gap that actually matters in practice is always the trailing one).
  *
  * Returns one alert per (country, field) whose horizon is within `MENTION_WINDOW_ALERT_THRESHOLD_DAYS`
@@ -201,7 +212,7 @@ export interface MentionWindowAlert {
  * `files` defaults to the real shipped catalog (`ALL_MENTIONS_FILES`) — overridable so a spec can feed
  * a synthetic fixture and assert this function's own edge cases (an exactly-at-threshold horizon, an
  * already-past one, an open-ended table) without depending on whatever dates happen to be in
- * `mentions/data/fr.json` on the day the spec runs, the same `files = ALL_*_FILES` default-parameter
+ * `countries/data/fr.json (section "mentions")` on the day the spec runs, the same `files = ALL_*_FILES` default-parameter
  * testability pattern `vat-rates/registry.ts#VatRateCatalog`'s own constructor already holds.
  */
 export function computeMentionWindowAlerts(

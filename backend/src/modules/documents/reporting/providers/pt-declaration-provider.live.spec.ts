@@ -71,7 +71,7 @@ describeLive('AT comunicação de faturas — live round-trip (test environment)
       // Checksum-valid but FICTITIOUS NIF, per the STANDARD published PT NIF algorithm (weights 9..2
       // over the first 8 digits, sum mod 11, check digit = 11 - remainder, mapped to 0 when that is
       // 10 or 11) — check digit 0, not the 2 an earlier draft of this fixture carried. CAVEAT: that
-      // algorithm is NOT sourced anywhere in this repo — `country-identifiers/data/pt.json` itself
+      // algorithm is NOT sourced anywhere in this repo — `countries/data/pt.json (section "identifiers")` itself
       // states the PT NIF format was never confirmed against a primary AT text, so this is an
       // external convention applied for fixture hygiene, not a verified fact of this codebase. A real
       // NIF would need a real Portuguese subutilizador account, per this file's own header.

@@ -27,7 +27,7 @@ the existing, country-blind channel-mandate check `send` already runs
 on Validate, without that being a deliberate legal finding about Italian law.
 
 The owner's revised decision, after reviewing that flag, makes it deliberate: Italy now declares its
-own `invoiceValidation` fact in `country-policy/data/it.json`, carrying D.Lgs. 127/2015 art. 1 comma
+own `invoiceValidation` fact in its own `policy` section (`countries/data/it.json`), carrying D.Lgs. 127/2015 art. 1 comma
 6's own text as `provenance` - without the accredited channel, "la fattura si intende non emessa"
 ("the invoice is deemed not issued"), the same constitutive-of-issuance reasoning CGI art. 289 bis I
 gives France (see [France](./france.md#validate-and-the-pdp-mandate) for the parallel), stronger

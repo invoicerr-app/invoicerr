@@ -1,6 +1,6 @@
 /**
  * The "chorus-pro" transport in isolation — makes the B2G FR routing rule's own `transportId:
- * "chorus-pro"` (`b2g-routing/data/fr.json`) actually resolve to something real. `ChorusProClient` and
+ * "chorus-pro"` (`countries/data/fr.json (section "b2gRouting")`) actually resolve to something real. `ChorusProClient` and
  * `@/prisma/prisma.service` are mocked wholesale (the real PISTE round-trip is `chorus-pro/
  * choruspro.live.spec.ts`'s job — proven live in qualification 2026-09-14, see that file's own
  * header); this proves the ORCHESTRATION, mirroring `pdp-transport.spec.ts`'s own

@@ -149,7 +149,7 @@ function createTimeActions(
  * first create-time action with no `policyBlockedReason`). When none exists, opening the dialog
  * would only walk someone through every field before refusing to save at the last step (PR #473
  * review, round 2: a Polish credit note stays LISTED, so issued ones remain reachable, while its
- * "save-draft"/"send" are both policy-blocked - see country-policy/data/pl.json's own notes).
+ * "save-draft"/"send" are both policy-blocked - see countries/data/pl.json (section "policy")'s own notes).
  *
  * Generic on purpose, like every predicate in this file: it reads the descriptor's own actions and
  * their `policyBlockedReason`, never a type id or country code.

@@ -42,7 +42,7 @@ const fixtureFiles: CountryReportingObligationFile[] = [
   },
 ];
 
-// France's real shape (`reporting/data/fr.json`): a "transport"-discharged fact whose own
+// France's real shape (`countries/data/fr.json (section "reporting")`): a "transport"-discharged fact whose own
 // `providerId` ("pdp") is ALSO a `transports/transport-registry.ts` id, already used by PDP's own
 // conformity-poll events (`conformity/pollers/`) under that SAME string. `declarationProviderIds`'s
 // own filter (`dischargedBy === 'provider'`) is what keeps that collision from leaking a PDP

@@ -235,7 +235,7 @@ describe('assertIdentifierValueMatchesPattern', () => {
     });
   });
 
-  // Issue #567: NIF and NIS each gained a `pattern` in `country-identifiers/data/dz.json`, sourced
+  // Issue #567: NIF and NIS each gained a `pattern` in `countries/data/dz.json (section "identifiers")`, sourced
   // to PR #566's review (native contributor, 2026-09-30), digits only, a primary establishment's
   // length or a secondary one's. These fixtures mirror that file's two declared patterns exactly.
   describe('DZ NIF and NIS patterns (issue #567)', () => {

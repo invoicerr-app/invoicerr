@@ -185,7 +185,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * delivery is even attempted, deliberately still at ISSUANCE rather than at creation, exactly like
  * the old, removed engine. What this does NOT claim: sequential, GAPLESS, per-country invoice
  * numbering is a LEGAL property some jurisdictions attach to an issued invoice (see this file's own
- * `invoice.save-draft` note in country-policy/data/fr.json, and that file's top-level `notes`) —
+ * `invoice.save-draft` note in countries/data/fr.json (section "policy"), and that file's top-level `notes`) —
  * numbering/sequence.ts's own mechanism never wastes a number, which reduces gap risk without
  * asserting the legal claim itself.
  *
@@ -231,7 +231,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * STRUCTURAL fact (there is a unit; there is a VAT-rate choice) is not itself a legal rule and needs
  * none — the modeling is free. What DOES need a citation is any claim about WHICH rates exist and
  * what they are worth for a given country, and that citation lives where the claim actually is: the
- * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
+ * VAT rate catalog (countries/data/fr.json (section "vatRates")), never repeated here.
  *
  * Lifecycle: SIX statuses - "draft", "validated", "sending", "sent", "send_failed", and "cancelled"
  * - the middle four grown from the original two by the async-send mechanism, on the exact same
@@ -527,7 +527,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       // covers TWO different cases ("a corrective re-issue, a follow-up on a partial one") without
       // judging which one applies — exactly the ambiguity a LEGAL correction cannot afford. This field
       // means one thing only: this invoice IS a correction of the one it names, in the sense
-      // `correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
+      // `countries/data/pl.json (section "correctionRoutes")`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
       // clearance `faktura korygująca`, art. 106j ustawy o VAT — today the ONLY country whose format
       // provider reads it, `formats/national/fa3-provider.ts`'s KOR mode; the field itself is trunk-
       // level, structural, and country-blind, the same "an invoice can point at another invoice" fact
@@ -809,7 +809,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // professional-secrecy posture on "give an unauthenticated third party a link to this
         // document" is a real, distinct question from "may this action run on this type at all" —
         // even though every shipped policy file today answers it the same permissive, `unverified`
-        // way "download-xml" already does — see country-policy/data/fr.json's own new entry). This
+        // way "download-xml" already does — see countries/data/fr.json (section "policy")'s own new entry). This
         // is NOT registered as an `ActionRegistry` handler (documents-core.module.ts) — unlike
         // "download-xml" it does not need the bypass for a BINARY-payload reason (creating a share
         // link returns plain JSON, which fits `ActionResult` fine) but for a ROUTE-SHAPE reason

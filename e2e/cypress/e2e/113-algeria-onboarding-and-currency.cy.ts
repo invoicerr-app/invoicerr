@@ -5,13 +5,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * Two journeys, both against a brand-new Algerian company created through the real onboarding
  * wizard (never seeded through the API): the company is named, its country set to Algeria, and its
- * four country-specific identifiers (AI, NIF, NIS, RC - country-identifiers/data/dz.json) are filled
+ * four country-specific identifiers (AI, NIF, NIS, RC - countries/data/dz.json (section "identifiers")) are filled
  * by hand, exactly as a self-hoster would.
  *
  *  a) a normal-regime invoice (19 % VAT, CTCA art. 21) and an IFU invoice (VAT suppressed via the
- *     company's own "VAT exempt" toggle - see tax/tax-systems/data/dz.json's own notes on why this
+ *     company's own "VAT exempt" toggle - see countries/data/dz.json (section "taxSystem")'s own notes on why this
  *     approximation, not a real IFU regime, is what this product can express today) are each sent by
- *     a real click, numbered "INVOICE-<year>-<seq>" (country-policy/data/dz.json's own number
+ *     a real click, numbered "INVOICE-<year>-<seq>" (countries/data/dz.json (section "policy")'s own number
  *     format), and their resolved totals/PDF text are checked;
  *  b) issue #558's own schema addition, `country-policy/schema.ts#DomesticInvoiceCurrencyFact`:
  *     Algeria requires a domestic invoice (seller AND buyer both established there) to be issued in
@@ -22,7 +22,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     converted.
  *
  * A third describe block, added for issue #567 (the PR #566 review's own NIF/NIS format follow-up),
- * proves the two identifier patterns now declared in country-identifiers/data/dz.json end to end: a
+ * proves the two identifier patterns now declared in countries/data/dz.json (section "identifiers") end to end: a
  * malformed NIF is rejected with a clear, translated message on Settings > Company, and the four DZ
  * help texts (settings.identifiers.help.DZ.*, the #563/#564 i18n mechanism) actually render.
  */
@@ -38,7 +38,7 @@ const YEAR = new Date().getFullYear();
  * The four identifier inputs (AI, NIF, NIS, RC) carry no dedicated `data-cy` beyond VAT/LEGAL_ID
  * (see country-identifiers/schema.ts's own IdentifierSchemeFact and onboarding.tsx's generic
  * `requiredIdentifiers.map` loop) - they are found by their own `placeholder`, which is the exact
- * `label` each carries in country-identifiers/data/dz.json.
+ * `label` each carries in countries/data/dz.json (section "identifiers").
  */
 function onboardAlgerianCompany() {
 	cy.visit("/dashboard");
@@ -50,7 +50,7 @@ function onboardAlgerianCompany() {
 	cy.get('[data-cy="onboarding-country-next-btn"]').click();
 
 	// No register API for Algeria (company-lookup/registry.ts) - the generic "no automatic search"
-	// note (transports/channel-policy/data/dz.json's own sibling finding) confirms the same negative
+	// note (countries/data/dz.json (section "channelPolicy")'s own sibling finding) confirms the same negative
 	// result this issue's own research pass reached for e-invoicing.
 	cy.get('[data-cy="onboarding-identifier-no-lookup-note"]', { timeout: 10000 }).should("exist");
 	cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
@@ -69,7 +69,7 @@ function onboardAlgerianCompany() {
 	// the native contributor's own practice answer on issue #558 (2026-09-30) for AI/NIF (unverified).
 	cy.get('input[placeholder="AI (Article d\'Imposition)"]', { timeout: 10000 }).type("16/2026", { force: true });
 	cy.get('input[placeholder="NIF (Numero d\'Identification Fiscale)"]').type("000116000123456", { force: true });
-	// 15 digits (issue #567: `country-identifiers/data/dz.json` now declares a `^\d{15}(\d{3})?$`
+	// 15 digits (issue #567: `countries/data/dz.json (section "identifiers")` now declares a `^\d{15}(\d{3})?$`
 	// pattern for NIS, sourced to PR #566's review: the 14-digit value this spec used to type here
 	// would now be refused at save time by `validate-identifier-value.ts`).
 	cy.get('input[placeholder="NIS (Numero d\'Identification Statistique)"]').type("160001234567890", {
@@ -78,7 +78,7 @@ function onboardAlgerianCompany() {
 	cy.get('input[placeholder="RC (Registre du Commerce)"]').type("16/00-1234567B25", { force: true });
 
 	cy.get('[data-cy="onboarding-submit-btn"]').click();
-	// Algeria has no channel mandate (transports/channel-policy/data/dz.json's own empty `facts`) -
+	// Algeria has no channel mandate (countries/data/dz.json (section "channelPolicy")'s own empty `facts`) -
 	// the wizard's "Channels" step offers nothing to connect and "Finish" closes it regardless, the
 	// same as every other country with no mandate.
 	cy.get('[data-cy="onboarding-finish-btn"]', { timeout: 10000 }).click();
@@ -91,7 +91,7 @@ function onboardAlgerianCompany() {
 			expect(company.countryCode, "onboarding switched the active company to the new one").to.eq("DZ");
 			// LEGAL_ID also lands here: the wizard's identifier step (onboarding-legalid-input) always
 			// stores its own value under that scheme, even for a country like Algeria that declares no
-			// LEGAL_ID scheme of its own (country-identifiers/data/dz.json has none - RC plays that
+			// LEGAL_ID scheme of its own (countries/data/dz.json (section "identifiers") has none - RC plays that
 			// role) - a generic onboarding mechanic, not an Algeria-specific fact this spec is about.
 			expect(
 				company.partyIdentifiers.map((i: { scheme: string }) => i.scheme).sort(),
@@ -213,7 +213,7 @@ describe("Issue #558 - Algeria (DZ): onboarding, identifiers, normal + IFU invoi
 				// -- IFU: VAT suppressed by the company-level "VAT exempt" toggle (tax/load-and-resolve.ts
 				// maps Company.exemptVat -> taxScheme: 'FRANCHISE_BASE', overriding the line's own raw
 				// vatRate at resolve time - see this file's own header for why this is an approximation,
-				// not a real IFU regime, and tax/tax-systems/data/dz.json's own notes for the schema gap. --
+				// not a real IFU regime, and countries/data/dz.json (section "taxSystem")'s own notes for the schema gap. --
 				cy.request({ method: "POST", url: `${api}/api/company/info`, body: { exemptVat: true } })
 					.its("status")
 					.should("be.oneOf", [200, 201]);
@@ -342,7 +342,7 @@ describe("Issue #567 - Algeria (DZ): NIF/NIS formats and help texts", () => {
 		cy.get('[data-cy="company-identifier-RC-help"]').should("contain.text", "trade register number");
 		cy.get('[data-cy="company-identifier-AI-help"]').should("contain.text", "tax-office article number");
 
-		// 14 digits - one short of NIF's shortest valid length (country-identifiers/data/dz.json's own
+		// 14 digits - one short of NIF's shortest valid length (countries/data/dz.json (section "identifiers")'s own
 		// `^\d{15}(\d{5})?$`, sourced to PR #566's review, native contributor, 2026-09-30).
 		cy.get('input[placeholder="NIF (Numero d\'Identification Fiscale)"]')
 			.scrollIntoView()

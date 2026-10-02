@@ -32,7 +32,7 @@ const fixtureCatalog = new ReportingObligationCatalog([
   },
 ]);
 
-// The real shape France's own `reporting/data/fr.json` ships — a transport-discharged fact AND a
+// The real shape France's own `countries/data/fr.json (section "reporting")` ships — a transport-discharged fact AND a
 // scope-restricted one, both for "invoice" — used by the two dedicated tests below to prove the
 // TRIGGER itself never fires for either, independently of `registry.spec.ts`'s own unit coverage of
 // `obligationFor`'s filter.

@@ -1589,7 +1589,7 @@ model DocumentInstance {
   displayNumber String?
 
   // Portugal's ATCUD ("Código Único de Documento") — `ATCUD:CodigodeValidação-NumeroSequencial`
-  // (Portaria n.º 195/2020, art. 4.º n.º 1 — see country-policy/data/pt.json's own `invoice.send`
+  // (Portaria n.º 195/2020, art. 4.º n.º 1 — see countries/data/pt.json (section "policy")'s own `invoice.send`
   // notes for the verbatim citation), computed and frozen the SAME moment `displayNumber` above is
   // (numbering/atcud.ts's `computeAtcud`, wired from `actions/atcud-issuance.ts`) — never
   // recomputed on a later read, for the exact same reason `displayNumber` itself is frozen: a
@@ -2923,10 +2923,10 @@ model ClientPortalToken {
 //
 // ⚖ On "no-gap" sequences: some jurisdictions treat a document numbering sequence's CONTINUITY (no
 // gaps) as a legal property of the numbering itself (France's own invoice.save-draft rule, see
-// country-policy/data/fr.json, is already grounded in the neighboring idea that an ISSUED invoice is
+// countries/data/fr.json (section "policy"), is already grounded in the neighboring idea that an ISSUED invoice is
 // intangible) — this table does not assert that claim, sourced or not: see numbering/sequence.ts's
 // own header for exactly what this mechanism does and does not guarantee about gaps, and
-// country-policy/data/fr.json's top-level `notes` for the honest, unverified flag on the legal
+// countries/data/fr.json (section "policy")'s top-level `notes` for the honest, unverified flag on the legal
 // question itself.
 model DocumentNumberSequence {
   companyId  String
@@ -3496,7 +3496,7 @@ model CompanySigningCertificate {
 
 // Portugal's ATCUD — the AT (Autoridade Tributária) "código de validação" a company obtains from the
 // Portal das Finanças for one (série documentaire × tipo de documento) pair, BEFORE issuing any
-// document in that series (AT FAQ 4308/4312, quoted verbatim in country-policy/data/pt.json's own
+// document in that series (AT FAQ 4308/4312, quoted verbatim in countries/data/pt.json (section "policy")'s own
 // `invoice.send` notes). Shaped after `CompanySigningCertificate` above (per-company, scoped store,
 // settings-screen upsert/list/delete) with ONE deliberate difference: `validationCode` is stored IN
 // THE CLEAR, never through `secret-crypto.ts` — unlike a signing certificate's PFX/password, this

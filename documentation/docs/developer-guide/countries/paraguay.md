@@ -38,23 +38,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Paraguay.
+the contract each section has to satisfy; this is only the shopping list of sections Paraguay would need in
+`countries/data/py.json`.
 
-- `country-policy/data/py.json` — which document actions Paraguay allows. Start here: without this
-  file every action is refused with a 403, naming the country.
-- `country-identifiers/data/py.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/py.json` and `vat-rates/data/py.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Paraguay allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/py.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/py.json` — the channel and format a Paraguayan public buyer requires.
-- `transports/channel-policy/data/py.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Paraguayan public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Paraguay, and from what date.
-- `archive/retention/data/py.json` — how long an archived document is kept, and what the duration is
+- `retention` - how long an archived document is kept, and what the duration is
   counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Data alone will not finish the job here: the SET/SIFEN platform is a transmission channel this
 repository does not implement, and its XML schema has no format provider. Both are code, not a JSON

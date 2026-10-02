@@ -250,7 +250,7 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
 
 /**
  * USER DECISION —
- * `country-identifiers/data/fr.json`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
+ * `countries/data/fr.json (section "identifiers")`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
  * 14-digit SIRET (see that file's own `notes`). This is the proof the DECISION actually holds where
  * it matters — the exported BT-29/BT-30 (`cac:PartyLegalEntity/cbc:CompanyID`, ISO 6523 scheme
  * '0002') — not just that the catalog's own `pattern` string was edited: a 9-digit SIREN typed

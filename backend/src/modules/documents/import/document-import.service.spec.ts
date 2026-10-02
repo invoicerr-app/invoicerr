@@ -140,7 +140,7 @@ describe('DocumentImportService (issue #340, real Postgres)', () => {
     expect(archives).toHaveLength(1);
     expect(archives[0].kind).toBe('IMPORT_ORIGINAL');
     expect(archives[0].retentionUntil).not.toBeNull();
-    // FR's own retention rule counts from issueDate (fiscal, 6y - archive/retention/data/fr.json) -
+    // FR's own retention rule counts from issueDate (fiscal, 6y - countries/data/fr.json (section "retention")) -
     // 2024-03-15 + 6y is at least 2030, proving the clock ran off the DOCUMENT's real historical date,
     // never off "today" (archivedAt), which is exactly the owner's own decision in #340.
     expect(archives[0].retentionUntil!.getFullYear()).toBeGreaterThanOrEqual(2030);

@@ -1,7 +1,7 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
- * Issue #519 -- "French invoices dated 2027 or later cannot be sent". `mentions/data/fr.json`'s own
+ * Issue #519 -- "French invoices dated 2027 or later cannot be sent". `countries/data/fr.json (section "mentions")`'s own
  * `noteValues.lateFeeRate` table ends 2027-01-01 (the next scheduled semi-annual ECB check, C. com.
  * art. L441-10 II); before the fix, EVERY French invoice issued on or after that date refused to
  * send at all -- `UnresolvedInvoiceNotePlaceholderError` out of `legalMentionsFor`, surfaced as a 400
@@ -24,7 +24,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * nothing about what actually got PRINTED.
  *
  * The 2027 cases use a GERMAN client, not the seeded (French) baseline one -- France now mandates
- * the "pdp" channel for a DOMESTIC operation only (`channel-policy/data/fr.json`, both parties
+ * the "pdp" channel for a DOMESTIC operation only (`countries/data/fr.json (section "channelPolicy")`, both parties
  * established in France -- see `32-channel-mandate.cy.ts`'s own header), which the seeded baseline
  * client would trip on any issue date from 2026-09-01 onward, entirely unrelated to this issue. A
  * mandatory mention is a fact about the SELLER's own jurisdiction, never the buyer's

@@ -175,14 +175,14 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  * PR #473 review point 2 (owner decision): a credit note has no legal basis AT ALL for a Polish
  * seller - LINKED or FREE, never mind which. This used to only guard the FREE shape (a "no invoice
  * to reference" gap), on the theory that a LINKED credit note was still a legitimate, if oddly named,
- * way to reduce what an invoice owes. That theory was wrong, and country-policy/data/pl.json's own
+ * way to reduce what an invoice owes. That theory was wrong, and countries/data/pl.json (section "policy")'s own
  * `numbering` fact for this type already said so before the code caught up (`requirement:
  * 'type-not-issuable'`, citing art. 106j ust. 2 pkt 2, "numer kolejny oraz datę jej wystawienia" -
  * a faktura korygująca must carry a sequential number of its own): this document type is not, and
  * cannot become, that KOR invoice - it has no numbering series of its own for a Polish seller at all
  * (credit-note.descriptor.ts's own numbering header). The credit note is refused OUTRIGHT for a
  * Polish seller - the faktura korygująca is already implemented as a `KOR` INVOICE
- * (`correctsInvoiceId`, invoice.descriptor.ts; correction-routes/data/pl.json's own
+ * (`correctsInvoiceId`, invoice.descriptor.ts; countries/data/pl.json (section "correctionRoutes")'s own
  * CORRECTIVE_INVOICE route, 'required'/'implemented'), numbered in the INVOICE's own series, never
  * this type's.
  *
@@ -192,7 +192,7 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  * reads it), never whether it fires - see this function's own name change, from
  * `assertFreeCreditNoteAllowedForCountry` to this.
  *
- * ALSO the belt-and-braces enforcement behind country-policy/data/pl.json's own `save-draft`/`send`
+ * ALSO the belt-and-braces enforcement behind countries/data/pl.json (section "policy")'s own `save-draft`/`send`
  * rules (`allowed: false`, PR #473) - `documents.service.ts#runAction`'s own `evaluateCountryPolicy`
  * gate already refuses both actions with a 403 before this handler is ever reached in the ordinary
  * HTTP path, but this guard is what a scripted/internal caller that bypassed that gate would still
@@ -207,7 +207,7 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  *
  * Existing Polish credit notes (issued before this decision took effect) are UNAFFECTED going
  * forward: this guard only runs on "save-draft"/"send" (creating or re-editing one), never on a read,
- * a PDF render, or "share-link" - see credit-note.descriptor.ts's own `country-policy/data/pl.json`
+ * a PDF render, or "share-link" - see credit-note.descriptor.ts's own `countries/data/pl.json (section "policy")`
  * rule for `share-link` staying `allowed: true` for exactly that reason.
  */
 async function assertCreditNoteAllowedForCountry(

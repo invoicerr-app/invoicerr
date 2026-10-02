@@ -1,61 +1,30 @@
 /**
- * The only aggregator — adding a country's correction-routes rule means adding `data/xx.json` and
- * NOTHING else, mirroring `b2g-routing/data/all.ts`'s own header verbatim on why this reads the file
- * with `fs.readFileSync` rather than `import`ing it as a TS module: editing a rule is then a plain
- * data change, never a TypeScript one.
+ * Issue #603 step 6: the data physically moved to `countries/data/<cc>.json` (one file per country,
+ * `correctionRoutes` section) - `countries/data/all.ts` is now the only place that reads or validates
+ * it, and `registry.ts`'s own default constructor already reads `defaultComposedCountryCatalog`
+ * directly, not this array. `ALL_CORRECTION_ROUTES_FILES` below still exists, and still exports the
+ * exact same content, purely for the handful of callers that import it directly instead of going
+ * through `registry.ts` (`country-readiness.service.ts`, `countries/compose.spec.ts`) - it now
+ * DERIVES from the composed catalog rather than reading a file itself, so there is nothing left here
+ * to validate: that already happened once, centrally, in `countries/data/all.ts`.
  *
- * Originally shipped exactly the seven pivot countries the dedicated correction-routes research pass
- * (2026-08-29) covered (FR/IT/PL/DE/ES/MX/US) — plus every later
- * addition, each a plain `data/xx.json` drop. A country with no entry here has NO correction-routes
- * rule at all: `correction-routes.ts`'s own read side surfaces that as an HONEST, NAMED refusal ("no
- * correction-routes rule declared for XX"), never a silent "assume CREDIT_NOTE like everyone else"
- * fallback — the exact temptation that research pass warned against from the start ("seven profiles
- * out of eight carried the same CREDIT_NOTE value, and the legal research already contradicted several
- * of them").
- *
- * The country list is DISCOVERED, not hand-maintained: `discoverCountryCodes()` reads this directory
- * with `readdirSync` and keeps only names matching `/^[a-z]{2}\.json$/` — a lowercase two-letter code
- * plus `.json`, which is a country file and nothing else (it excludes this `all.ts`, `all.spec.ts`,
- * and every per-country `xx.spec.ts` sitting in the same directory, none of which are `.json`).
- * `readdirSync` makes no ordering promise, so the codes are sorted before loading — deterministic,
- * reproducible, independent of the OS or filesystem.
+ * The load-time-gate proof this file used to carry directly (`loadCountryFile`, mocked at the
+ * `node:fs` boundary, proving an invented eighth country with no provenance refuses to load) moved
+ * with the mechanism it was proving: see `countries/data/all.spec.ts`.
  */
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { defaultComposedCountryCatalog } from '../../countries/registry';
+import { CountryCorrectionRoutesFile } from '../schema';
 
-import { assertValidCorrectionRouteFact, CountryCorrectionRoutesFile } from '../schema';
-
-const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
-
-/** Every country code with a `data/xx.json` file next to this loader, sorted for a deterministic
- *  load order — see the module docstring for why this reads the directory instead of a fixed list. */
-function discoverCountryCodes(): string[] {
-  return readdirSync(__dirname)
-    .filter((name) => COUNTRY_FILE_PATTERN.test(name))
-    .map((name) => name.slice(0, -'.json'.length))
-    .sort();
+function correctionRoutesFromComposedCatalog(): CountryCorrectionRoutesFile[] {
+  const files: CountryCorrectionRoutesFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const correctionRoutes = defaultComposedCountryCatalog.get(countryCode)?.correctionRoutes;
+    if (correctionRoutes) files.push(correctionRoutes);
+  }
+  return files;
 }
 
-/** Exported ONLY so `all.spec.ts` can prove the gate against an INVENTED eighth country (a JSON blob
- *  that never ships, mocked at the `node:fs` boundary) without needing a real, checked-in file that
- *  deliberately breaks the rule it exists to enforce. Every REAL caller uses `ALL_CORRECTION_ROUTES_FILES`
- *  below, never this directly. */
-export function loadCountryFile(code: string): CountryCorrectionRoutesFile {
-  const path = join(__dirname, `${code}.json`);
-  const raw = readFileSync(path, 'utf-8');
-  const parsed = JSON.parse(raw) as CountryCorrectionRoutesFile;
-  if (parsed.countryCode !== code.toUpperCase()) {
-    throw new Error(
-      `documents/correction-routes/data/${code}.json declares countryCode "${parsed.countryCode}", ` +
-        `expected "${code.toUpperCase()}"`,
-    );
-  }
-  for (const route of parsed.routes) {
-    assertValidCorrectionRouteFact(route, `documents/correction-routes/data/${code}.json`);
-  }
-  return parsed;
-}
-
-/** Every wired jurisdiction's correction-routes file, one file per country — see the module docstring. */
+/** Every wired jurisdiction's correction-routes file, one file per country - see this module's own
+ *  header. */
 export const ALL_CORRECTION_ROUTES_FILES: CountryCorrectionRoutesFile[] =
-  discoverCountryCodes().map(loadCountryFile);
+  correctionRoutesFromComposedCatalog();

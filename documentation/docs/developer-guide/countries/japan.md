@@ -42,23 +42,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Japan.
+the contract each section has to satisfy; this is only the shopping list of sections Japan would need in
+`countries/data/jp.json`.
 
-- `country-policy/data/jp.json` — which document actions Japan allows. Start here: without this file
-  every action is refused with a 403, naming the country.
-- `country-identifiers/data/jp.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/jp.json` and `vat-rates/data/jp.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Japan allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/jp.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/jp.json` — the channel and format a Japanese public buyer requires.
-- `transports/channel-policy/data/jp.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Japanese public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Japan, and from what date.
-- `archive/retention/data/jp.json` — how long an archived document is kept, and what the duration is
+- `retention` - how long an archived document is kept, and what the duration is
   counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Beyond those files, the work here is mostly research: this page names no national platform a
 transport would have to be built for.

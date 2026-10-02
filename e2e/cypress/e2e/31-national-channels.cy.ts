@@ -182,7 +182,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	it('connects the PDP channel via the screen with fake credentials - status "Connected" (issue #527 screen: legal channel nav, then operator, connect in a side sheet)', () => {
 		cy.visit("/settings/channels");
 
-		// Level 1 - France's own legal channel (channel-policy/data/fr.json) is PDP, mandated: the
+		// Level 1 - France's own legal channel (countries/data/fr.json (section "channelPolicy")) is PDP, mandated: the
 		// nav badge says so directly (never a separate "suggested" badge once mandated - the mandate
 		// IS this country's own stance, see channels.service.ts#legalChannels's own header).
 		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();

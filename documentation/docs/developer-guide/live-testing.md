@@ -710,7 +710,8 @@ Two facts, both from Billit's own documentation, both worth knowing before anyon
 
 The Billit sandbox company is **French**, and the live spec dates its invoice the day it runs, so
 every deposit above is a **mandated French invoice** (the French BT-23 obligation runs from
-2026-09-01, `content-requirements/data/fr.json`, CGI ann. II art. 242 nonies A I 8 bis).
+2026-09-01, the `contentRequirements` section of `countries/data/fr.json`, CGI ann. II art. 242
+nonies A I 8 bis).
 
 That is the exact case GH-448 was about. `formats/semantic/business-process.ts` derives a French CGI
 category for such an invoice, and `cbc:ProfileID` is where UBL carries BT-23 - but Peppol reserves

@@ -732,7 +732,7 @@ export class DocumentsService implements OnModuleInit {
    * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
    * country, never the company's: a French company invoicing a German government body has no
    * field-overlay file of its OWN country to thank for a Leitweg-ID input
-   * (`country-fields/data/de.json`'s own overlay only ever applies for a DE-country COMPANY — see
+   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY — see
    * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
    * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
    * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
@@ -762,7 +762,7 @@ export class DocumentsService implements OnModuleInit {
    */
   /**
    * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
-   * `save-draft` or `send`) only ever quotes the LAW (country-policy/data/pl.json's own art. 106j
+   * `save-draft` or `send`) only ever quotes the LAW (countries/data/pl.json (section "policy")'s own art. 106j
    * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
    * whenever the refusal is genuinely the "no credit note instrument at all" one: the seller's own
    * `correction-routes` CREDIT_NOTE route is itself `'forbidden'` - the SAME fact

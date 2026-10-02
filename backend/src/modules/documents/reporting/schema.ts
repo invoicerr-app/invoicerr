@@ -62,7 +62,7 @@ export type ReportableDocumentType = 'invoice' | 'credit-note';
  *
  * A `'transport'`-discharged fact is still recorded here (never omitted) because this catalog's own
  * purpose is to make a country's declarative posture DATA-visible even when this app has nothing to
- * automate for it — the same reasoning `b2g-routing/data/pt.json` already applies to a transport id
+ * automate for it — the same reasoning `countries/data/pt.json (section "b2gRouting")` already applies to a transport id
  * (`"fe-ap"`) this app does not wire either.
  */
 export type ReportingDischargeMethod = 'transport' | 'provider';

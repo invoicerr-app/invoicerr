@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * The FUNCTIONAL restart journey (actually issuing documents across the cutover) uses GERMANY
  * instead, deliberately: France is the one country in this catalog with its own free-text legal
- * MENTIONS mechanism (`mentions/data/fr.json`), and its `lateFeeRate` table's newest entry is only
+ * MENTIONS mechanism (`countries/data/fr.json (section "mentions")`), and its `lateFeeRate` table's newest entry is only
  * valid THROUGH 2027-01-01 (`validTo`) - a real, pre-existing, unrelated data-maintenance gap (the
  * next ECB semi-annual rate was never going to be published before this feature's own 2027 cutover),
  * confirmed against a real send: a French invoice dated exactly on the cutover fails with

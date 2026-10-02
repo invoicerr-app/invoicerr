@@ -15,7 +15,7 @@ import { toCsvLine } from '@/utils/csv';
  *  Codice Destinatario, …) - an unrecognised scheme is not an error, it is simply an identifier the
  *  target country's catalog has nothing to say about (the same "no pattern declared" case
  *  `validate-identifier-value.ts` already treats as passing). `LEGAL_ID`, not `SIRET`: France's own
- *  catalog (`country-identifiers/data/fr.json`) names its SIREN/SIRET scheme `LEGAL_ID` - an earlier
+ *  catalog (`countries/data/fr.json (section "identifiers")`) names its SIREN/SIRET scheme `LEGAL_ID` - an earlier
  *  version of this template used the human label instead of the actual scheme key, which meant the
  *  example row below carried an identifier no lookup would ever match its own required LEGAL_ID
  *  against, so the shipped example FAILED its own import (caught by the Cypress round-trip spec that

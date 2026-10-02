@@ -1,8 +1,10 @@
 /**
- * Drop-in invariant for the readdir-discovery mechanism - same shape as
- * `transports/channel-policy/data/all.spec.ts` and `b2g-routing/data/all.spec.ts`: re-reads the
+ * Drop-in invariant for the readdir-discovery mechanism - same shape as `countries/data/all.spec.ts`'s
+ * own "every *.json on disk is actually loaded" block: re-reads the
  * directory with the IDENTICAL pattern `all.ts`'s own `discoverOperatorIds()` uses, independently of
  * that implementation, so a regression that silently drops a file from discovery goes red here.
+ * `operators/` stays its own catalog, never merged into `countries/data/`: it is keyed by operator id
+ * (superpdp, acube, billit...), not by country - see `operators/schema.ts`'s own header.
  */
 import { readdirSync } from 'node:fs';
 

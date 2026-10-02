@@ -42,7 +42,7 @@
  *    (`cbc:ID` BT-25, `cbc:IssueDate` BT-26) - the corrected invoice's own number and issue date, set
  *    only for a credit note (`input.creditNote.correctedInvoice`). CGI art. 289, I, 5 is why it is not
  *    optional in practice for a French seller: a correcting document must refer to the initial
- *    invoice "de façon spécifique et non équivoque" (see `country-policy/data/fr.json`).
+ *    invoice "de façon spécifique et non équivoque" (see `countries/data/fr.json (section "policy")`).
  *  - BT-5  Invoice currency code       → `cbc:DocumentCurrencyCode`        (`totals.currency`)
  *  - BT-9  Payment due date            → `cbc:PaymentDueDate` — OMITTED. No `dueDate` is threaded
  *    into this bridge's input today: adding it is a one-line change once a caller has a reason to

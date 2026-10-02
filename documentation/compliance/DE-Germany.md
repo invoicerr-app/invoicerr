@@ -21,7 +21,7 @@ results, and what changed on 2026-09-15.
 
 ## No channel mandate — because German law imposes a FORMAT, never a channel
 
-`transports/channel-policy/data/de.json` **exists and deliberately declares no fact** (2026-09-13).
+`countries/data/de.json` **exists and deliberately declares no fact** (2026-09-13).
 That is a sourced conclusion, not a gap.
 
 UStG § 14 Abs. 1 defines an *elektronische Rechnung* by its **format** — one issued, transmitted and
@@ -96,11 +96,9 @@ and Germany's own default correction route, which states no correction is requir
 
 ## Sources
 
-`backend/src/modules/documents/country-policy/data/de.json`, `country-identifiers/data/de.json`,
-`correction-routes/data/de.json`, `correction-routes/cancel-policy.ts`, `b2g-routing/data/de.json`
-(whose own `notes` field carries the full, dated history of the Peppol wiring and removal above),
-`tax/tax-systems/data/de.json`, `country-fields/data/de.json`, `vat-rates/data/de.json` for the rate
-ladder, and
-`archive/retention/data/de.json` for the two simultaneous eight-year retention obligations (UStG
-§ 14b and AO § 147). `transports/channel-policy/data/de.json` exists but declares no fact, for the
-sourced reason given above.
+`backend/src/modules/documents/countries/data/de.json` (one file, all of this country's own
+sections: action policy and numbering; identifiers; correction routes; B2G routing - whose own
+`notes` field carries the full, dated history of the Peppol wiring and removal above; the tax
+system; the VAT rate ladder; the two simultaneous eight-year retention obligations, UStG § 14b and
+AO § 147; and the channel policy, which exists but declares no fact, for the sourced reason given
+above), plus `correction-routes/cancel-policy.ts`.

@@ -50,7 +50,7 @@ export interface RequiredClientIdentifierFact {
 /**
  * One field the INVOICE ITSELF (`DocumentInstance.data`, top-level key) must carry before it may be
  * sent to a government client of this country — e.g. Germany's Leitweg-ID, carried generically as
- * `data.buyerReference` (see `country-fields/data/de.json`'s own header: this exact field, already
+ * `data.buyerReference` (see `countries/data/de.json (section "countryFields")`'s own header: this exact field, already
  * read by `formats/shared-build.ts#extractBuyerReference` regardless of which screen — if any — put
  * an input for it). `required: false` is INFORMATIONAL only (surfaced as a help hint, never a block)
  * — France's own "code service" entry is the shipped example: some public entities need it, some
