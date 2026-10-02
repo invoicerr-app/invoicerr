@@ -61,10 +61,14 @@ jobs:
           npx --yes @lhci/cli@0.15.1 collect \
             --url=http://localhost:4173/auth/sign-in \
             --numberOfRuns=1
-          echo "--- debug: cwd and .lighthouseci contents ---"
-          pwd
-          find . -maxdepth 3 -iname "*lighthouseci*" -o -iname "lhr-*"
-          ls -la .lighthouseci || true
+          # `collect` alone only saves the raw per-run LHR json/html under .lighthouseci/ -- the
+          # manifest.json the comment step below reads (url + category scores) is written by
+          # `upload`, not `collect`. `--target=filesystem` keeps this fully local, no lhci server
+          # or account needed, and `--outputDir=.lighthouseci` keeps the manifest next to the
+          # reports it describes rather than at the frontend/ root.
+          npx --yes @lhci/cli@0.15.1 upload \
+            --target=filesystem \
+            --outputDir=.lighthouseci
 
       - name: Upload the Lighthouse report
         if: always()
@@ -72,6 +76,9 @@ jobs:
         with:
           name: lighthouse-report
           path: frontend/.lighthouseci
+          # actions/upload-artifact excludes dotfiles/dot-directories by default, and
+          # .lighthouseci is one -- without this the upload silently finds nothing to upload.
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
 
