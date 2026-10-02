@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
+  "baseBranches": ["dev"],
+  "timezone": "Europe/Paris",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 6,
+  "prHourlyLimit": 2,
+  "automerge": false,
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "labels": ["dependencies", "security"]
+  },
+  "packageRules": [
+    {
+      "description": "One weekly pull request per project for minor and patch updates",
+      "matchFileNames": ["backend/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "backend dependencies (minor and patch)"
+    },
+    {
+      "matchFileNames": ["frontend/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "frontend dependencies (minor and patch)"
+    },
+    {
+      "matchFileNames": ["e2e/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "e2e dependencies (minor and patch)"
+    },
+    {
+      "matchFileNames": ["documentation/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "documentation dependencies (minor and patch)"
+    },
+    {
+      "description": "GitHub Actions: one weekly group, actions stay pinned to a commit SHA",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "pinDigests": true
+    },
+    {
+      "description": "Major versions: one pull request each, never grouped",
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "labels": ["dependencies", "major"]
+    }
+  ]
+}
