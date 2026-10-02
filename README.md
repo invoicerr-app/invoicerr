@@ -188,7 +188,7 @@ built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
          # layer and are destroyed by the next image pull.
          - documents_data:/data
        environment:
-         - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
+         - DATABASE_URL=postgresql://invoicerr:${POSTGRES_PASSWORD:?set it in a .env file next to this one}@invoicerr_db:5432/invoicerr_db
          - APP_URL=https://invoicerr.example.com
          - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
          - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
@@ -212,7 +212,8 @@ built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
        image: postgres:15
        environment:
          POSTGRES_USER: invoicerr
-         POSTGRES_PASSWORD: invoicerr
+         # Postgres applies this only on first init of an empty volume.
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in a .env file next to this one}
          POSTGRES_DB: invoicerr_db
        volumes:
          - db_data:/var/lib/postgresql/data
@@ -231,7 +232,8 @@ built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
      redis_data:
    ```
 
-2. Put the two secrets in a `.env` file next to it, then start:
+2. Put the three secrets (`POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET`, `SMTP_PASSWORD`) in a `.env`
+   file next to it, then start:
 
    ```bash
    docker compose up -d

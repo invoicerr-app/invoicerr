@@ -10,7 +10,7 @@ services:
       # `docker compose down -v`.
       - documents_data:/data
     environment:
-      - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
+      - DATABASE_URL=postgresql://invoicerr:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to docker-compose.yml, see .env.example}@invoicerr_db:5432/invoicerr_db
 
       - APP_URL=https://invoicerr.example.com # Required for email templates (redirects to the app) and is also better-auth's own base URL
       - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com # Comma-separated list of allowed origins for CORS
@@ -77,7 +77,7 @@ services:
       # BETTER_AUTH_SECRET signs every session cookie/JWT — on a known value anyone can forge a
       # session for any userId. The backend already refuses to boot in production without it; the
       # `:?` just moves that refusal earlier, with a message that says what to do.
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml — see .env.example}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to docker-compose.yml, see .env.example}
       # Legacy alias, for deployments that already set it. ONE of the two suffices: the guard checks
       # the effective value (BETTER_AUTH_SECRET || JWT_SECRET), not each variable.
       # - JWT_SECRET=${JWT_SECRET:-}
@@ -132,7 +132,9 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: invoicerr
-      POSTGRES_PASSWORD: invoicerr
+      # Postgres applies this only on first init of an empty volume; changing it later does not
+      # change the password inside an already-running database.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to docker-compose.yml, see .env.example}
       POSTGRES_DB: invoicerr_db
     volumes:
       - db_data:/var/lib/postgresql/data
