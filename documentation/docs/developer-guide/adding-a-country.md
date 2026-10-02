@@ -193,11 +193,24 @@ untouched, only the `files` parameter's own default changed. `correction-routes`
 (`resolveCorrectionRoutesForCountry`, which reads `defaultCorrectionRoutesCatalog` directly) and by
 `countries/compose.spec.ts`.
 
-The step that follows (not yet done, tracked on issue #603) plugs the three mechanisms WITH a DB
-mirror (`country-policy`, `country-identifiers`, `b2g-routing`) onto the composed view without
-touching their reseed/seed services, then physically relocates the per-country JSON files
-themselves, one country at a time, France first. Writing a new country's file today still means
-writing it exactly where this page already says to, nothing here changes the steps above.
+**Step 5** repeats the exact same move for the three remaining mechanisms, the ones WITH a DB
+mirror: `country-policy`, `country-identifiers`, `b2g-routing`. Every catalog in this module now
+reads through the composed view. Each one gets a `<section>FromComposedCatalog()` helper identical
+in shape to steps 2-4's, and only the no-argument constructor default is repointed at it, same
+unchanged constructor signature, same one-way dependency chain, same "nothing moved, only where the
+default reads from changed" scope. The reseed/seed services were deliberately left untouched:
+`country-policy/seed.ts`, `country-policy/boot-reseed.ts`, `country-identifiers/boot-reseed.ts`,
+`b2g-routing/boot-upsert.ts` and `backend/scripts/release-catalogs.ts` all already read each
+catalog's own `defaultXxxCatalog` export (never `data/all.ts` directly), so none of them needed a
+change for this step to take effect. A dry run of `catalogs:release` against a fresh local database,
+before and after this step, upserts the exact same row counts (204 document-action rules, 16
+identifier requirements, 5 B2G routing rules) and an excluded-id, excluded-timestamp dump of all
+three mirrored tables diffs empty.
+
+The step that follows (not yet done, tracked on issue #603) physically relocates the per-country
+JSON files themselves into `countries/<cc>.json`, one country at a time, France first. Writing a new
+country's file today still means writing it exactly where this page already says to, nothing here
+changes the steps above.
 
 ### Maintainer note: `domesticInvoiceCurrency`, a currency-of-account rule, not a new mechanism
 
