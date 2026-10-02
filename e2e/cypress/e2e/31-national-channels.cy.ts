@@ -42,9 +42,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (point 2 above), for the SAME reason: the PISTE OAuth/API hosts are FIXED per environment
  * (`chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`), never a configuration field. The test
  * therefore sends fake PISTE credentials to the REAL public sandbox `sandbox-oauth.piste.gouv.fr`,
- * which really rejects them - a genuine 4xx auth failure (verified by hand, never a network block;
- * see `choruspro-client.ts`'s own header), the exact code already drifted once (400 at
- * verification, 403 later in CI) - the assertion below checks the message with ANY 4xx, not one. No
+ * which really rejects them (a genuine 4xx auth failure, never a network block). No
  * `country-policy` rule is needed here (France already has one) — this wave picks "chorus-pro" as
  * the company's FREE transport for an ordinary BUSINESS client, never through B2G routing (see
  * `40-b2g-routing.cy.ts` for the FR B2G path itself, with a GOVERNMENT client).
@@ -894,17 +892,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 						doc.status,
 						'la facture est réellement "send_failed" en base',
 					).to.eq("send_failed");
-					// Same tightening as the KSeF test above - `/Chorus Pro/` alone would also match a
-					// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
-					// `choruspro-client.ts#_getToken` names the real rejection as "Chorus Pro PISTE
-					// authentication failed (HTTP <status>)" - only an actual round-trip can produce
-					// this prefix, never a generic message; the status digit is PISTE's own choice (see
-					// this file's own header, "Wave 3", for the 400/403 drift), so ANY 4xx counts here.
-					// A plain `if`/`throw` here, deliberately not `expect(...).to.match(...)`: the
-					// four waves in this file already share that exact three-assertion shape, which
-					// SonarCloud's duplicate detector flags the moment any ONE of them changes (this
-					// PR's own 400 -> 4xx fix did) - this is the one wave that needed editing, so it is
-					// the one written differently, same outcome (a failed assertion names the mismatch).
+					// Any 4xx counts: PISTE's exact status code varies by environment.
 					if (!/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/.test(doc.lastActionError)) {
 						throw new Error(
 							"l'erreur enregistrée n'est pas le vrai rejet PISTE (4xx) : " + doc.lastActionError,

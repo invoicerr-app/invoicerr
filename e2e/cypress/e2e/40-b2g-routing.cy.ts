@@ -106,8 +106,7 @@ const FAKE_SDI = {
 /** Chorus Pro (FR) - same discipline as `31-national-channels.cy.ts`'s own "Vague 3": PISTE's OAuth
  *  hosts are fixed by environment, never a user-editable field, so these fictitious credentials reach
  *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real, never a closed
- *  port. That file's own header has the manual verification and the status code PISTE actually
- *  answered with (not repeated here on purpose - see it there rather than a second, driftable copy). */
+ *  port. See that file's own header for the manual verification. */
 const FAKE_CHORUS_PRO = {
 	clientId: "e2e-fake-piste-client-id",
 	clientSecret: "e2e-fake-piste-client-secret",
