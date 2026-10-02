@@ -1,0 +1,31 @@
+# Drives GitHub's automatically-generated release notes (the "Generate release notes" button, and
+# the `generate_release_notes: true` option the release-creation flow already uses) by grouping
+# pull requests under these categories according to their labels. A category with no matching pull
+# request is simply left out of the generated notes -- see GitHub's own docs on this file.
+#
+# The label-to-category mapping below only works once pull requests actually carry these labels.
+# As of 2026-10-02 none of the last 30 merged pull requests in this repository had any label at
+# all, so until that changes, everything falls into "Other Changes" below. `feature` did not exist
+# as a label before this change; it was created alongside this file so the "Features" category has
+# something to match against. `bug`, `compliance`, `documentation` and `dependencies` already
+# existed and are reused as-is rather than adding near-duplicate labels.
+changelog:
+  categories:
+    - title: Features
+      labels:
+        - feature
+    - title: Fixes
+      labels:
+        - bug
+    - title: Per-country compliance
+      labels:
+        - compliance
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other Changes
+      labels:
+        - "*"
