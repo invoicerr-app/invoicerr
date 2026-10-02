@@ -536,4 +536,152 @@ describe("The cross-border case, through the screen", () => {
 				});
 			});
 	});
+
+	// Issue #603 (PR A, EU/GCC reference table): the export case, the other half of the cross-border
+	// pair this PR's own report proves unchanged. A US buyer is neither EU nor GCC
+	// (`tax/tax-unions/data/tax-unions.json` carries no row for "US" at all) - the engine falls
+	// through to the export branch, never reverse charge or OSS. Same discipline as the two tests
+	// above: the client is created BY THE SCREEN, the invoice is sent BY A REAL CLICK, the assertion
+	// that counts is the downloaded XML.
+	it("a United States client - FR->US invoice via email, export goods, 0%, category G, art. 146 mention", () => {
+		setInvoiceTransport("email");
+
+		cy.visit("/clients");
+		cy.contains("button", /add|new|créer|ajouter/i, { timeout: 10000 }).click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+
+		cy.get('[name="name"]').clear().type("American Exports Inc");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.selectCountry("client-country-select", "United States");
+		cy.get('[name="address"]').clear().type("350 Fifth Avenue");
+		cy.get('[name="postalCode"]').clear().type("10118");
+		cy.get('[name="city"]').clear().type("New York");
+		cy.continueSteppedDialog("client-dialog");
+
+		// The US has no country file under countries/data/ at all - no identifier scheme is known
+		// for it, which is a SEPARATE fact from this PR's own reference table (see "EU/GCC
+		// membership and Peppol EAS live in a reference table, not a country file" in
+		// adding-a-country.md): a country can be absent from both, absent from one, or present in
+		// both, independently. No VAT field is offered - never one left blank on purpose.
+		cy.get('[data-cy="client-identifiers-unknown-country"]', { timeout: 10000 }).should(
+			"be.visible",
+		);
+		cy.get('[data-cy="client-identifier-VAT"]').should("not.exist");
+
+		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
+		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
+		cy.get('[data-cy="client-currency-select"] input').type("Euro");
+		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[name="contacts.0.email"]').clear().type("ap@american-exports.example");
+		cy.continueSteppedDialog("client-dialog");
+
+		cy.get('[data-cy="client-submit"]').click();
+		cy.get('[data-cy="client-dialog"]').should("not.exist");
+		cy.contains("American Exports Inc", { timeout: 10000 });
+
+		// The invoice - a GOODS line, so the engine resolves EXPORT (category G, art. 146), not the
+		// SERVICES out-of-scope branch (category O) this same table also keeps unchanged (see
+		// `resolve-invoice-tax.spec.ts`'s own "FR->US export: G/O, art. 146" block - not re-proven
+		// through the screen here; this spec exercises exactly one of the two, the way tests 1/2
+		// above each exercise exactly one branch of their own pair).
+		cy.request({
+			url: `${api}/api/documents/references/client/search?q=American`,
+		})
+			.its("body")
+			.then((clients: { id: string; label: string }[]) => {
+				const client = clients.find((c) => c.label.includes("American Exports Inc"));
+				expect(client, "le client américain créé ci-dessus se retrouve par la recherche").to
+					.exist;
+
+				const data = {
+					client: client!.id,
+					issueDate: "2026-08-30",
+					dueDate: "2026-09-30",
+					currency: "EUR",
+					lines: [
+						{
+							description: "Matériel informatique",
+							quantity: 1,
+							unit: "unit",
+							unitPrice: 2000,
+							vatRate: "20",
+							supplyType: "GOODS",
+						},
+					],
+				};
+
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: { data },
+				}).then((saved) => {
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId).to.be.a("string");
+
+					cy.visit("/documents/invoice");
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
+						timeout: 15000,
+					})
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Draft");
+
+					// THE ACTION: a real click on "Send" - never a direct call to the action.
+					cy.runDocumentRowAction(invoiceId, "send");
+
+					cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
+						timeout: 20000,
+					})
+						.find('[data-cy="document-status-badge"]')
+						.should("contain.text", "Sent");
+
+					// The downloaded XML - the proof: 0%, category G, export mention, never the 20%
+					// typed at draft time and never AE/K (this buyer is not an EU/GCC member at all).
+					cy.window().then((win) => cy.stub(win, "open").as("windowOpen"));
+					cy.intercept({
+						method: "GET",
+						pathname: `/api/documents/${invoiceId}/formats/cii`,
+					}).as("xmlCiiExport");
+					cy.openDocumentRowMenu(invoiceId);
+					cy.get(`[data-cy="document-xml-button-${invoiceId}"]`, {
+						timeout: 10000,
+					}).click();
+					cy.get(`[data-cy="document-xml-cii-${invoiceId}"]`, {
+						timeout: 10000,
+					})
+						.should("be.visible")
+						.click();
+					cy.wait("@xmlCiiExport", { timeout: 20000 }).then((x) => {
+						expect(x.response?.statusCode, "le téléchargement CII réussit").to.eq(200);
+						const body = String(x.response?.body);
+						// BT-152/BT-151 - 0%, category G (export), never the 20% originally typed.
+						expect(body).to.match(/<ram:RateApplicablePercent>0<\/ram:RateApplicablePercent>/);
+						expect(body).to.contain("<ram:CategoryCode>G</ram:CategoryCode>");
+						// BG-1 (BT-22) - the engine's own export mention, the benchmark text, AS IS.
+						// This string is the mention tax-engine.ts's own LOCALIZED_MENTION table emits
+						// verbatim, including its own em dash - never rewrite this literal to match a
+						// style rule, it must match production byte for byte.
+						expect(body).to.contain("Export — zero-rated, Art. 146 Directive 2006/112/EC");
+						// Totals reflect the RESOLVED treatment (0%): 2000.00 net, 0.00 VAT, 2000.00 gross.
+						expect(body).to.match(
+							/<ram:TaxTotalAmount currencyID="EUR">0\.00<\/ram:TaxTotalAmount>/,
+						);
+						expect(body).to.match(/<ram:GrandTotalAmount>2000\.00<\/ram:GrandTotalAmount>/);
+					});
+
+					cy.request({
+						url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice`,
+					})
+						.its("body")
+						.then((body) => {
+							expect(
+								body.totals.grossMinor,
+								"total résolu : 2000,00 € (0% export G)",
+							).to.eq(200000);
+						});
+				});
+			});
+	});
 });

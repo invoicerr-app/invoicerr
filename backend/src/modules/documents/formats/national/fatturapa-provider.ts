@@ -89,6 +89,7 @@ import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
+import { taxUnionOf } from '../../tax/classification';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
@@ -116,35 +117,15 @@ function fmtRate(n: number): string {
   return n.toFixed(2);
 }
 
-/** Map NaturaType — codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference. */
-const EU_CC = [
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-]; // prettier-ignore
+/**
+ * Map NaturaType - codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference,
+ * except the EU-membership check below: issue #603 (PR A) replaced this file's OWN `EU_CC` copy (a
+ * 26-country array this file also used for the check) with the shared `tax/classification.ts#taxUnionOf`,
+ * read from the `tax/tax-unions/` reference table. The old `EU_CC` had silently DROPPED Italy
+ * (compared to the canonical 27-member list every other copy carried) - harmless here only because
+ * the `cc !== 'IT'` guard below already excludes Italy before the membership check is ever reached
+ * (see this PR's own report for the before/after proof this made no observable difference).
+ */
 
 /**
  * `rawVatRate` — the RAW, as-stored `vatRate` field value (`national-lines.ts#NationalLine
@@ -156,7 +137,7 @@ const EU_CC = [
  * check is needed before trying it: a non-Italian seller's own rate ids (e.g. "fr-standard") simply
  * never match `it-esente`/`it-non-imponibile` and fall through unchanged.
  */
-function mapNatura(
+export function mapNatura(
   vatRate: number,
   rawVatRate: string | undefined,
   clientCountry: string,
@@ -169,7 +150,7 @@ function mapNatura(
   if (catalogRate?.id === 'it-esente') return 'N4';
 
   const cc = (clientCountry || '').slice(0, 2).toUpperCase();
-  if (cc !== 'IT' && EU_CC.includes(cc) && clientVatId) return 'N6';
+  if (cc !== 'IT' && taxUnionOf(cc) === 'EU' && clientVatId) return 'N6';
   return 'N2';
 }
 
