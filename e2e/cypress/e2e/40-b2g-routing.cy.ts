@@ -105,9 +105,9 @@ const FAKE_SDI = {
 
 /** Chorus Pro (FR) - same discipline as `31-national-channels.cy.ts`'s own "Vague 3": PISTE's OAuth
  *  hosts are fixed by environment, never a user-editable field, so these fictitious credentials reach
- *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real (a 4xx
- *  `invalid_client` auth failure - 400 at verification time, 403 seen later in CI, see that file's
- *  own header), never a closed port. See that file's own header for the manual verification. */
+ *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real, never a closed
+ *  port. That file's own header has the manual verification and the status code PISTE actually
+ *  answered with (not repeated here on purpose - see it there rather than a second, driftable copy). */
 const FAKE_CHORUS_PRO = {
 	clientId: "e2e-fake-piste-client-id",
 	clientSecret: "e2e-fake-piste-client-secret",
@@ -357,9 +357,8 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// REINFORCEMENT (see this file's own header): the preflight now PASSES (chorus-pro is
 				// registered AND connected) — B2G precedence still forces chorus-pro rather than
 				// "email" (the company's free choice), exactly like the IT/SdI case further down. The
-				// queue then GENUINELY fails, against the real PISTE sandbox (fake credentials, a
-				// 4xx invalid_client auth failure) - never a silent success, never a send through
-				// email. Same
+				// queue then GENUINELY fails, against the real PISTE sandbox with fake credentials -
+				// never a silent success, never a send through email. Same
 				// budget as 31's own chorus-pro/PDP/KSeF/SdI tests — see that file's own
 				// comment on why it is 90000ms, not 40000ms: PISTE itself answers fast, but the
 				// preamble before each of the 3 attempts even reaches PISTE measured ~11-12s on CI
