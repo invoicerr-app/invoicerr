@@ -82,7 +82,7 @@ export class LocalOcrTimeoutError extends LocalOcrError {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Allow-list of two-letter prefixes real European VAT ids use — see this file's own header on why
+ * Allow-list of two-letter prefixes real European VAT ids use - see this file's own header on why
  * this is deliberately NOT sourced from `country-identifiers/`. Issue #603 (PR A): this used to be a
  * HARD-CODED `Set` kept in this file (`EU_VAT_PREFIXES`); it now reads the shared `tax/tax-unions/`
  * reference table's own `recognizedByOcr` flag instead, proven byte-for-byte unchanged (see this PR's

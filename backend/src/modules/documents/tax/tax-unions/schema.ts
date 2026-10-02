@@ -122,7 +122,11 @@ function assertValidProvenanceEntry(provenance: TaxUnionProvenance, aspect: stri
  *  (the same "validated once, centrally" discipline every sibling catalog's own loader holds). */
 export function assertValidTaxUnionCountryFact(fact: TaxUnionCountryFact, context: string): void {
   const row = `${context}: country "${fact.code}"`;
-  if (!fact.code || fact.code !== fact.code.toUpperCase()) {
+  // Not `!fact.code || fact.code !== fact.code.toUpperCase()`: a naive optional-chain rewrite of
+  // that shape (`fact.code?.toUpperCase() !== fact.code`) silently stops catching an empty string
+  // (`?.` only guards null/undefined, never other falsy values) and would crash instead of throwing
+  // this error for a non-string `code` (malformed JSON) rather than refusing cleanly.
+  if (typeof fact.code !== 'string' || fact.code.length === 0 || fact.code !== fact.code.toUpperCase()) {
     throw new InvalidTaxUnionsFileError(`${row}: "code" must be a non-empty, uppercase string.`);
   }
   if (typeof fact.iso3166 !== 'boolean') {
@@ -172,7 +176,7 @@ export function assertValidTaxUnionsFile(file: TaxUnionsFile, context: string): 
     seen.add(fact.code);
   }
   const codes = file.countries.map((f) => f.code);
-  const sorted = [...codes].sort();
+  const sorted = [...codes].sort((a, b) => a.localeCompare(b));
   if (JSON.stringify(codes) !== JSON.stringify(sorted)) {
     throw new InvalidTaxUnionsFileError(`${context}: "countries" must be sorted by "code".`);
   }
