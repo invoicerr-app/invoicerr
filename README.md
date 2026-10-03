@@ -173,7 +173,10 @@ The full per-country picture is generated from those data files on every documen
 ## Quick start
 
 A prebuilt image is published at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr),
-built for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
+built for `linux/amd64` and `linux/arm64`. `linux/arm/v7` (32-bit ARM) is no longer built: Node.js
+stopped publishing `linux-armv7l` binaries starting with Node 24. See the
+[Docker installation guide](https://docs.invoicerr.app/docs/user-guide/docker-installation) for the
+64-bit alternative on the same hardware.
 
 1. Create a `docker-compose.yml`:
 

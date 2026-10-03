@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * test Mailpit, PDF archived at send time), edited through the same "save-draft" action the document
  * form's own Save button calls, and downloaded from the same endpoint the screen's "Download PDF"
  * entry fetches (`frontend/src/components/documents/document-downloads.ts`). The PDF text is read
- * with `pdf-parse` in the Node process (`extractPdfText`), never by counting bytes.
+ * with `pdfjs-dist` in the Node process (`extractPdfText`), never by counting bytes.
  */
 const api = Cypress.env("apiUrl");
 
@@ -38,7 +38,7 @@ function waitForStatus(quoteId: string, status: string, attempts = 40) {
 	});
 }
 
-/** The downloaded PDF's text, as `pdf-parse` reads it. */
+/** The downloaded PDF's text, as `pdfjs-dist` reads it. */
 function downloadPdfText(quoteId: string): Cypress.Chainable<string> {
 	return cy
 		.request({ url: `${api}/api/documents/${quoteId}/pdf?typeId=quote`, encoding: "binary" })

@@ -12,7 +12,7 @@ name: Verify Docker Build (PR)
 # (the Scaleway nodes a branch image gets tested on are ARM, the dev instance is x86; emulating an
 # ARM Node build through QEMU on an x86 runner multiplies its time several times over), each pushing
 # its image by digest, then `merge` assembles one manifest list under the tag. One tag, one digest,
-# pulled by either architecture. arm/v7 is left to the release workflow: no test host needs it.
+# pulled by either architecture. arm/v7 is not built anywhere any more (Node 24 ships no build for it).
 on:
   workflow_dispatch:
     inputs:
