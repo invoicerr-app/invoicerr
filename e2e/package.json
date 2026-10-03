@@ -2,7 +2,6 @@
   "devDependencies": {
     "@signpdf/utils": "^3.3.0",
     "@types/node": "^24.6.2",
-    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.15.0",
     "@types/wait-on": "^5.3.4",
     "asn1js": "^3.0.10",
@@ -10,7 +9,6 @@
     "cypress": "^15.18.0",
     "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
-    "pdf-parse": "^1.1.4",
     "pg": "^8.16.3",
     "pkijs": "^3.4.0"
   },
@@ -22,6 +20,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
+    "pdfjs-dist": "^6.3.289",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "wait-on": "^9.0.1"
