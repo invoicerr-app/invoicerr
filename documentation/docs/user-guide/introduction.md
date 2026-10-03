@@ -43,3 +43,8 @@ Invoicerr is open source under the
 [GNU Affero General Public License v3.0](https://github.com/invoicerr-app/invoicerr/blob/main/LICENSE),
 free for any use, commercial included. Running a modified version as a network service means offering
 its source to the people who use it (AGPL-3.0, section 13).
+
+## Support the project
+
+Invoicerr is maintained in spare time. If it saves you time or money, consider supporting its
+development through [GitHub Sponsors](https://github.com/sponsors/invoicerr-app).
