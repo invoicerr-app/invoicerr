@@ -1,0 +1,113 @@
+name: Post release to Discord
+
+# Posts a short summary of every PUBLISHED PRE-release to the Discord announcements channel
+# through an incoming webhook, read from the `DISCORD_RELEASES_WEBHOOK` secret. Never fires for a
+# full release (`github.event.release.prerelease == false`): a full release is what the project
+# README already tells self-hosters to watch, and a second channel announcing both would just be
+# noise next to it.
+#
+# This workflow does not decide which release ships to `:latest` -- that stays entirely
+# docker-publish.yml's call, driven by the GitHub API's own notion of the latest release, read
+# there via `gh release view`. Nothing here changes that.
+#
+# The secret is optional on purpose: the owner adds it when Discord is ready, and until then this
+# workflow must skip cleanly rather than fail every pre-release.
+on:
+  release:
+    types: [ "published" ]
+  # Lets this workflow be proven on a pull request: `release` only fires on a real publish, which
+  # a pull request cannot trigger. Dispatched manually with `prerelease: true` and no secret
+  # configured, this exercises the exact "skip cleanly with a notice" path issue #613 asks for,
+  # against a simulated release rather than a real one.
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Simulate a pre-release publish'
+        required: false
+        default: true
+        type: boolean
+      release_name:
+        description: 'Release name to simulate'
+        required: false
+        default: 'v2.0.0-alpha.2'
+        type: string
+      release_tag:
+        description: 'Release tag to simulate'
+        required: false
+        default: 'v2.0.0-alpha.2'
+        type: string
+      release_url:
+        description: 'Release URL to simulate'
+        required: false
+        default: 'https://github.com/invoicerr-app/invoicerr/releases/tag/v2.0.0-alpha.2'
+        type: string
+      release_body:
+        description: 'Release body to simulate'
+        required: false
+        default: 'Manual workflow_dispatch test run, no real release was created.'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check for the Discord webhook secret
+        id: check
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::notice::DISCORD_RELEASES_WEBHOOK is not set -- skipping the Discord notification for this pre-release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post the pre-release summary to Discord
+        if: steps.check.outputs.skip == 'false'
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          RELEASE_NAME: ${{ github.event.release.name || inputs.release_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          RELEASE_URL: ${{ github.event.release.html_url || inputs.release_url }}
+          RELEASE_BODY: ${{ github.event.release.body || inputs.release_body }}
+        run: |
+          # The release body is the full generated changelog and can be several KB; Discord caps
+          # an embed description at 4096 characters and rejects the whole request past that, so
+          # this is a SHORT summary on purpose, cut well under the limit, with the link carrying
+          # the rest.
+          SUMMARY=$(printf '%s' "$RELEASE_BODY" | head -c 1500)
+          if [ "${#RELEASE_BODY}" -gt 1500 ]; then
+            SUMMARY="${SUMMARY}..."
+          fi
+
+          TITLE="${RELEASE_NAME:-$RELEASE_TAG}"
+
+          PAYLOAD=$(jq -n \
+            --arg content "New pre-release: $TITLE" \
+            --arg title "$TITLE" \
+            --arg url "$RELEASE_URL" \
+            --arg description "$SUMMARY" \
+            '{
+              content: $content,
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $description,
+                  color: 15844367
+                }
+              ]
+            }')
+
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$WEBHOOK"

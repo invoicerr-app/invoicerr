@@ -89,6 +89,7 @@ import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
+import { taxUnionOf } from '../../tax/classification';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
@@ -116,35 +117,23 @@ function fmtRate(n: number): string {
   return n.toFixed(2);
 }
 
-/** Map NaturaType — codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference. */
-const EU_CC = [
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-]; // prettier-ignore
+/**
+ * Map NaturaType - codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference,
+ * except two things issue #603 changed:
+ *  - PR A replaced this file's OWN `EU_CC` copy (a 26-country array this file also used for the
+ *    membership check) with the shared `tax/classification.ts#taxUnionOf`, read from the
+ *    `tax/tax-unions/` reference table. The old `EU_CC` had silently DROPPED Italy (compared to the
+ *    canonical 27-member list every other copy carried) - harmless here only because the domestic
+ *    guard below already excludes a domestic sale before the membership check is ever reached (see
+ *    this PR's own report for the before/after proof this made no observable difference).
+ *  - The domestic guard itself took an explicit `sellerCountry` parameter instead of the literal
+ *    `'IT'` this file used to compare the buyer against directly: this provider only ever builds for
+ *    an Italian seller in practice (`country-policy` routes fatturapa to Italy alone), but the
+ *    function itself no longer names a country to express "buyer established in the SELLER's own
+ *    country never gets reverse charge" - every real caller still passes the seller's own resolved
+ *    country (`vatCountry`, `'IT'` by construction here), so behaviour is unchanged (see the before/
+ *    after proof again).
+ */
 
 /**
  * `rawVatRate` — the RAW, as-stored `vatRate` field value (`national-lines.ts#NationalLine
@@ -156,11 +145,12 @@ const EU_CC = [
  * check is needed before trying it: a non-Italian seller's own rate ids (e.g. "fr-standard") simply
  * never match `it-esente`/`it-non-imponibile` and fall through unchanged.
  */
-function mapNatura(
+export function mapNatura(
   vatRate: number,
   rawVatRate: string | undefined,
   clientCountry: string,
   clientVatId: string,
+  sellerCountry: string,
 ): string | undefined {
   if (vatRate > 0) return undefined;
 
@@ -169,7 +159,11 @@ function mapNatura(
   if (catalogRate?.id === 'it-esente') return 'N4';
 
   const cc = (clientCountry || '').slice(0, 2).toUpperCase();
-  if (cc !== 'IT' && EU_CC.includes(cc) && clientVatId) return 'N6';
+  const sellerCc = (sellerCountry || '').slice(0, 2).toUpperCase();
+  // Domestic (buyer established in this SAME seller's own country, never a named literal - this
+  // provider only ever builds for an Italian seller in practice, but the check itself names no
+  // country) never gets N6: reverse charge requires a cross-border EU supply.
+  if (cc !== sellerCc && taxUnionOf(cc) === 'EU' && clientVatId) return 'N6';
   return 'N2';
 }
 
@@ -193,9 +187,10 @@ function buildDettaglioLinea(
   currency: string,
   clienteVatCountry: string,
   clienteVatId: string,
+  sellerCountry: string,
 ) {
   const rate = line.vatRatePercent ?? 0;
-  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId);
+  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId, sellerCountry);
   return {
     NumeroLinea: line.index + 1,
     Descrizione: line.description,
@@ -301,6 +296,7 @@ async function build(
       representativeLine?.rawVatRate,
       clienteVatCountry,
       clienteVatId,
+      vatCountry,
     );
     return {
       AliquotaIVA: fmtRate(entry.ratePercent),
@@ -403,7 +399,7 @@ async function build(
         },
         DatiBeniServizi: {
           DettaglioLinee: lines.map((line) =>
-            buildDettaglioLinea(line, currency, clienteVatCountry, clienteVatId),
+            buildDettaglioLinea(line, currency, clienteVatCountry, clienteVatId, vatCountry),
           ),
           DatiRiepilogo: riepilogoList,
         },

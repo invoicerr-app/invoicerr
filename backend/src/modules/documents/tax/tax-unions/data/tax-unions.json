@@ -1,0 +1,338 @@
+{
+  "provenance": {
+    "euMembership": {
+      "kind": "legal",
+      "sourceText": "27 EU Member States: Austria, Belgium, Bulgaria, Croatia, Cyprus, Czechia, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Ireland, Italy, Latvia, Lithuania, Luxembourg, Malta, Netherlands, Poland, Portugal, Romania, Slovakia, Slovenia, Spain, Sweden.",
+      "sourceCheckedAt": "2026-10-02",
+      "source": "https://european-union.europa.eu/principles-countries-history/eu-countries_en"
+    },
+    "gccMembership": {
+      "kind": "unverified",
+      "resolutionNote": "Carried over UNCHANGED from the pre-existing tax/classification.ts GCC_VAT set (all 6 Unified VAT Agreement signatories: SA, AE, BH, OM, KW, QA), itself never cited to a primary source in this codebase's history. What would settle this: confirm against each GCC member's own VAT law whether it has actually brought the Unified VAT Agreement into force (Saudi Arabia and the UAE since 2018, Bahrain since 2019, Oman since 2021), rather than carrying every signatory forward as if implemented - Qatar and Kuwait in particular had not enacted a domestic VAT law as of the last time this set was written. Not re-researched by this PR, which only moves the existing fact into one shared table - see this PR's own report."
+    },
+    "peppolEas": {
+      "kind": "legal",
+      "sourceText": "Electronic Address Scheme (EAS) code list, Peppol BIS Billing 3.0: 0211 'PARTITA IVA' (IT), 9910 Hungary VAT number (HU), 9914 Business Registers Network (AT), 9920 Spanish VAT number (ES), 9925 Belgian VAT number (BE), 9926 Bulgarian VAT number (BG), 9928 Cyprus VAT number (CY), 9929 Czech Republic VAT number (CZ), 9930 Germany VAT number (DE), 9931 Estonian VAT number (EE), 9933 Greece VAT number (EL), 9934 Croatia VAT number (HR), 9935 Ireland VAT number (IE), 9937 Lithuania VAT number (LT), 9938 Luxembourg VAT number (LU), 9939 Latvia VAT number (LV), 9943 Malta VAT number (MT), 9944 Netherlands VAT number (NL), 9945 Poland VAT number (PL), 9946 Portugal VAT number (PT), 9947 Romania VAT number (RO), 9949 Slovenia VAT number (SI), 9957 France VAT number (FR).",
+      "sourceCheckedAt": "2026-10-02",
+      "source": "https://docs.peppol.eu/poacc/billing/3.0/codelist/eas/"
+    },
+    "ocrRecognition": {
+      "kind": "unverified",
+      "resolutionNote": "Not a legal fact - a product decision about which 2-letter prefixes the OCR upload-screen heuristic should treat as VAT-id-shaped, carried over UNCHANGED from ocr-service/local-client.ts's own prior EU_VAT_PREFIXES comment (every EU member, plus Greece's dual GR/EL prefixes, plus CH/NO/GB/XI). Revisit only if the OCR heuristic's own target audience changes."
+    }
+  },
+  "countries": [
+    {
+      "code": "AE",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "AT",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "AT",
+      "recognizedByOcr": true,
+      "peppolEas": "9914"
+    },
+    {
+      "code": "BE",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "BE",
+      "recognizedByOcr": true,
+      "peppolEas": "9925"
+    },
+    {
+      "code": "BG",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "BG",
+      "recognizedByOcr": true,
+      "peppolEas": "9926"
+    },
+    {
+      "code": "BH",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "CH",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": false,
+      "vatPrefix": "CH",
+      "recognizedByOcr": true,
+      "notes": "Not an EU/GCC member. Carried over from ocr-service/local-client.ts's own prior EU_VAT_PREFIXES comment: a close non-EU neighbour whose invoices are common enough in this app's European-first user base to be worth the extra entry for the OCR VAT-id heuristic. No Peppol EAS entry: the pre-existing VAT_PREFIX_TO_PEPPOL_EAS table never carried one for this country."
+    },
+    {
+      "code": "CY",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "CY",
+      "recognizedByOcr": true,
+      "peppolEas": "9928"
+    },
+    {
+      "code": "CZ",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "CZ",
+      "recognizedByOcr": true,
+      "peppolEas": "9929"
+    },
+    {
+      "code": "DE",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "DE",
+      "recognizedByOcr": true,
+      "peppolEas": "9930"
+    },
+    {
+      "code": "DK",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "DK",
+      "recognizedByOcr": true
+    },
+    {
+      "code": "EE",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "EE",
+      "recognizedByOcr": true,
+      "peppolEas": "9931"
+    },
+    {
+      "code": "ES",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "ES",
+      "recognizedByOcr": true,
+      "peppolEas": "9920"
+    },
+    {
+      "code": "FI",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "FI",
+      "recognizedByOcr": true
+    },
+    {
+      "code": "FR",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "FR",
+      "recognizedByOcr": true,
+      "peppolEas": "9957"
+    },
+    {
+      "code": "GB",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": false,
+      "vatPrefix": "GB",
+      "recognizedByOcr": true,
+      "notes": "Not an EU/GCC member. Carried over from ocr-service/local-client.ts's own prior EU_VAT_PREFIXES comment: a close non-EU neighbour whose invoices are common enough in this app's European-first user base to be worth the extra entry for the OCR VAT-id heuristic. No Peppol EAS entry: the pre-existing VAT_PREFIX_TO_PEPPOL_EAS table never carried one for this country."
+    },
+    {
+      "code": "GR",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "EL",
+      "recognizedByOcr": true,
+      "peppolEas": "9933",
+      "notes": "ISO 3166-1 code is GR; Greek VAT numbers use the EL prefix, never GR (carried over from build-semantic-invoice.ts's own VAT_PREFIX_TO_PEPPOL_EAS, keyed 'EL', and from ocr-service/local-client.ts's own EU_VAT_PREFIXES, which listed both 'EL' and 'GR'). ocrRecognizedPrefixes therefore carries both this row's own ISO code (GR) and its vatPrefix (EL)."
+    },
+    {
+      "code": "HR",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "HR",
+      "recognizedByOcr": true,
+      "peppolEas": "9934"
+    },
+    {
+      "code": "HU",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "HU",
+      "recognizedByOcr": true,
+      "peppolEas": "9910"
+    },
+    {
+      "code": "IE",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "IE",
+      "recognizedByOcr": true,
+      "peppolEas": "9935"
+    },
+    {
+      "code": "IT",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "IT",
+      "recognizedByOcr": true,
+      "peppolEas": "0211"
+    },
+    {
+      "code": "KW",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "LT",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "LT",
+      "recognizedByOcr": true,
+      "peppolEas": "9937"
+    },
+    {
+      "code": "LU",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "LU",
+      "recognizedByOcr": true,
+      "peppolEas": "9938"
+    },
+    {
+      "code": "LV",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "LV",
+      "recognizedByOcr": true,
+      "peppolEas": "9939"
+    },
+    {
+      "code": "MT",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "MT",
+      "recognizedByOcr": true,
+      "peppolEas": "9943"
+    },
+    {
+      "code": "NL",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "NL",
+      "recognizedByOcr": true,
+      "peppolEas": "9944"
+    },
+    {
+      "code": "NO",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": false,
+      "vatPrefix": "NO",
+      "recognizedByOcr": true,
+      "notes": "Not an EU/GCC member. Carried over from ocr-service/local-client.ts's own prior EU_VAT_PREFIXES comment: a close non-EU neighbour whose invoices are common enough in this app's European-first user base to be worth the extra entry for the OCR VAT-id heuristic. No Peppol EAS entry: the pre-existing VAT_PREFIX_TO_PEPPOL_EAS table never carried one for this country."
+    },
+    {
+      "code": "OM",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "PL",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "PL",
+      "recognizedByOcr": true,
+      "peppolEas": "9945"
+    },
+    {
+      "code": "PT",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "PT",
+      "recognizedByOcr": true,
+      "peppolEas": "9946"
+    },
+    {
+      "code": "QA",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "RO",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "RO",
+      "recognizedByOcr": true,
+      "peppolEas": "9947"
+    },
+    {
+      "code": "SA",
+      "iso3166": true,
+      "euMember": false,
+      "gccMember": true
+    },
+    {
+      "code": "SE",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "SE",
+      "recognizedByOcr": true
+    },
+    {
+      "code": "SI",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "SI",
+      "recognizedByOcr": true,
+      "peppolEas": "9949"
+    },
+    {
+      "code": "SK",
+      "iso3166": true,
+      "euMember": true,
+      "gccMember": false,
+      "vatPrefix": "SK",
+      "recognizedByOcr": true
+    },
+    {
+      "code": "XI",
+      "iso3166": false,
+      "euMember": false,
+      "gccMember": false,
+      "vatPrefix": "XI",
+      "recognizedByOcr": true,
+      "notes": "Northern Ireland's own post-Brexit VAT prefix under the Windsor Framework. Not an ISO 3166-1 alpha-2 code at all (ISO assigns no code to Northern Ireland separately from 'GB') - carried over from ocr-service/local-client.ts's own prior EU_VAT_PREFIXES comment, which already listed 'XI' for exactly this reason. No Peppol EAS entry."
+    }
+  ]
+}
