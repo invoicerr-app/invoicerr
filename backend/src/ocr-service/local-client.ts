@@ -35,13 +35,14 @@
  *    deal: it costs nothing and sends nothing offsite. The safety net is that OCR is always a
  *    PROPOSAL — `extractor.ts`'s own header — and the upload screen never auto-commits it.
  *  - **VAT id detection**: a GENERIC EU-shaped regex (`[A-Z]{2}` + 6-12 alphanumerics), filtered by
- *    a short, HARD-CODED allow-list of country prefixes kept in THIS file — deliberately NOT
- *    imported from `country-identifiers/data/*.json` (that data is this app's own authoritative,
- *    per-country identifier registry; wiring the OCR container's throwaway text-scrape to it would
- *    be a real coupling for a heuristic that is explicitly allowed to be wrong). An IBAN shares the
- *    same "two letters then digits" shape as a VAT id — lines containing "IBAN" are excluded, and a
- *    line naming a VAT-ish keyword (TVA/VAT/IVA/USt/MwSt/NIP/BTW) is preferred over a bare
- *    pattern match anywhere in the text, but a document with no such keyword at all can still
+ *    an allow-list of recognized country prefixes read from the shared `tax/tax-unions/` reference
+ *    table (issue #603, PR A: this file used to keep its own hard-coded copy, `EU_VAT_PREFIXES`) -
+ *    deliberately NOT read from `country-identifiers/data/*.json` (that data is this app's own
+ *    authoritative, per-country identifier registry; wiring the OCR container's throwaway text-scrape
+ *    to it would be a real coupling for a heuristic that is explicitly allowed to be wrong). An IBAN
+ *    shares the same "two letters then digits" shape as a VAT id - lines containing "IBAN" are
+ *    excluded, and a line naming a VAT-ish keyword (TVA/VAT/IVA/USt/MwSt/NIP/BTW) is preferred over a
+ *    bare pattern match anywhere in the text, but a document with no such keyword at all can still
  *    misfire on any other two-letters-then-digits token it contains.
  *  - **Supplier name**: "the first non-blank line that isn't a generic invoice-title word" — no
  *    layout awareness at all — the sidecar's plain-text output loses position and font size
@@ -49,6 +50,7 @@
  *    very first line, defeats this outright — it will pick whatever text line happens to come first.
  */
 import { ExtractedInvoiceProposal } from '@/modules/documents/received-invoices/ocr/extractor';
+import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -79,46 +81,17 @@ export class LocalOcrTimeoutError extends LocalOcrError {
 // documented with what it does and does NOT handle.
 // ---------------------------------------------------------------------------------------------
 
-/** A short, HARD-CODED allow-list of two-letter prefixes real European VAT ids use — see this
- *  file's own header on why this is deliberately NOT sourced from `country-identifiers/`. Covers
- *  every EU member (+ `EL` — Greece's own VAT prefix, distinct from its ISO code `GR`, + `XI` —
- *  Northern Ireland's post-Brexit prefix) plus three close non-EU neighbours (`CH`, `NO`, `GB`)
- *  whose invoices are common enough in this app's own European-first user base to be worth the
- *  extra three entries. */
-const EU_VAT_PREFIXES = new Set([
-  'AT',
-  'BE',
-  'BG',
-  'CY',
-  'CZ',
-  'DE',
-  'DK',
-  'EE',
-  'EL',
-  'GR',
-  'ES',
-  'FI',
-  'FR',
-  'HR',
-  'HU',
-  'IE',
-  'IT',
-  'LT',
-  'LU',
-  'LV',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SE',
-  'SI',
-  'SK',
-  'XI',
-  'CH',
-  'NO',
-  'GB',
-]);
+/**
+ * Allow-list of two-letter prefixes real European VAT ids use - see this file's own header on why
+ * this is deliberately NOT sourced from `country-identifiers/`. Issue #603 (PR A): this used to be a
+ * HARD-CODED `Set` kept in this file (`EU_VAT_PREFIXES`); it now reads the shared `tax/tax-unions/`
+ * reference table's own `recognizedByOcr` flag instead, proven byte-for-byte unchanged (see this PR's
+ * own report) - still every EU member (+ `EL`, Greece's own VAT prefix, distinct from its ISO code
+ * `GR`, + `XI`, Northern Ireland's post-Brexit prefix) plus three close non-EU neighbours (`CH`,
+ * `NO`, `GB`) whose invoices are common enough in this app's own European-first user base to be worth
+ * the extra three entries - that reasoning now lives in the reference table's own `notes`, not here.
+ */
+const EU_VAT_PREFIXES = defaultTaxUnionRegistry.ocrRecognizedPrefixes();
 
 /** Two letters + 6 to 12 alphanumerics — the shape essentially every European VAT id shares (e.g.
  *  `FR12345678901`, `DE123456789`, `BE0999999999`). Loose on purpose: this only decides WHERE a

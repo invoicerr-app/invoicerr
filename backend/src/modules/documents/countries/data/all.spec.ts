@@ -18,13 +18,12 @@
  *   boundary) - proving this loader still refuses to load a section with no legal provenance, and
  *   that a mismatched `countryCode` (file-level or section-level) is refused too.
  */
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { vi } from 'vitest';
-
 import { ComposedCountryView, COMPOSED_COUNTRY_SECTION_KEYS } from '../compose';
-import { ALL_COMPOSED_COUNTRY_FILES } from './all';
+import { ALL_COMPOSED_COUNTRY_FILES, loadComposedCountryFilesFrom } from './all';
 
 const DATA_DIR = __dirname;
 
@@ -70,25 +69,23 @@ describe('countries/data: every *.json on disk is actually loaded (drop-in invar
   });
 });
 
-// The literal "adding a country means creating ONE file" proof: drop a NEW country file into this
-// real directory, at test time, with NO change to `all.ts` or this spec's own import, and show the
-// loader picks it up. `vi.resetModules()` + a fresh, dynamic `import('./all')` is required because
-// `ALL_COMPOSED_COUNTRY_FILES` is computed once, at first import - the same pattern
-// `domestic-reverse-charge/data/all.spec.ts` used to hold for its own (now-removed) per-catalog
-// directory, moved here because THIS is the directory that is live now.
+// The literal "adding a country means creating ONE file" proof: drop a new file into an isolated
+// temporary directory (never the real, shipped one, which other specs read concurrently) and show
+// `loadComposedCountryFilesFrom` picks it up, with no change to `all.ts` or this spec's own import.
 describe('countries/data: a country file dropped in at runtime needs no code change', () => {
-  const fixturePath = join(DATA_DIR, 'zz.json');
+  let tmpDir: string;
 
-  afterEach(() => {
-    if (existsSync(fixturePath)) unlinkSync(fixturePath);
-    vi.resetModules();
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'countries-data-all-spec-'));
   });
 
-  it('discovers a brand-new zz.json with zero changes to all.ts or this test file', async () => {
-    expect(existsSync(fixturePath)).toBe(false); // sanity: not already shipped
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
 
+  it('discovers a brand-new zz.json with zero changes to all.ts or this test file', () => {
     writeFileSync(
-      fixturePath,
+      join(tmpDir, 'zz.json'),
       JSON.stringify({
         countryCode: 'ZZ',
         taxSystem: {
@@ -100,18 +97,17 @@ describe('countries/data: a country file dropped in at runtime needs no code cha
       'utf-8',
     );
 
-    vi.resetModules();
-    const fresh = await import('./all.js');
+    const files = loadComposedCountryFilesFrom(tmpDir);
 
-    expect(fresh.ALL_COMPOSED_COUNTRY_FILES.map((f: ComposedCountryView) => f.countryCode)).toContain('ZZ');
-    const zz = fresh.ALL_COMPOSED_COUNTRY_FILES.find((f: ComposedCountryView) => f.countryCode === 'ZZ')!;
+    expect(files.map((f) => f.countryCode)).toEqual(['ZZ']);
+    const zz = files.find((f) => f.countryCode === 'ZZ')!;
     expect(zz.taxSystem.kind).toBe('VAT');
     expect(zz.policy).toBeUndefined(); // no other section present - never defaulted
   });
 
-  it('a dropped-in file whose taxSystem section has no provenance is refused at load time, same as a shipped one would be', async () => {
+  it('a dropped-in file whose taxSystem section has no provenance is refused at load time, same as a shipped one would be', () => {
     writeFileSync(
-      fixturePath,
+      join(tmpDir, 'zz.json'),
       JSON.stringify({
         countryCode: 'ZZ',
         taxSystem: { countryCode: 'ZZ', kind: 'VAT' },
@@ -119,20 +115,18 @@ describe('countries/data: a country file dropped in at runtime needs no code cha
       'utf-8',
     );
 
-    vi.resetModules();
-    await expect(import('./all.js')).rejects.toThrow(/no valid provenance/);
+    expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(/no valid provenance/);
   });
 
-  it('a dropped-in file whose top-level countryCode does not match its own filename is refused at load time', async () => {
-    writeFileSync(fixturePath, JSON.stringify({ countryCode: 'YY' }), 'utf-8');
+  it('a dropped-in file whose top-level countryCode does not match its own filename is refused at load time', () => {
+    writeFileSync(join(tmpDir, 'zz.json'), JSON.stringify({ countryCode: 'YY' }), 'utf-8');
 
-    vi.resetModules();
-    await expect(import('./all.js')).rejects.toThrow(/declares countryCode "YY", expected "ZZ"/);
+    expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(/declares countryCode "YY", expected "ZZ"/);
   });
 
-  it('a dropped-in file whose section countryCode disagrees with its own file-level countryCode is refused at load time', async () => {
+  it('a dropped-in file whose section countryCode disagrees with its own file-level countryCode is refused at load time', () => {
     writeFileSync(
-      fixturePath,
+      join(tmpDir, 'zz.json'),
       JSON.stringify({
         countryCode: 'ZZ',
         taxSystem: {
@@ -144,7 +138,6 @@ describe('countries/data: a country file dropped in at runtime needs no code cha
       'utf-8',
     );
 
-    vi.resetModules();
-    await expect(import('./all.js')).rejects.toThrow(/"taxSystem.countryCode" \("YY"\) must match/);
+    expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(/"taxSystem.countryCode" \("YY"\) must match/);
   });
 });
