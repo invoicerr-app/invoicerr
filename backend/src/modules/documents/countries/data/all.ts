@@ -51,11 +51,12 @@ import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
-/** Every country code with a `data/xx.json` file next to this loader, sorted for a deterministic
- *  load order - the same discovery discipline every one of the 14 catalogs' own (now-removed)
- *  per-country loader already held for its own directory, one level up. */
-function discoverCountryCodes(): string[] {
-  return readdirSync(__dirname)
+/** Every country code with a `data/xx.json` file in `dir`, sorted for a deterministic load order -
+ *  the same discovery discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ *  already held for its own directory, one level up. Takes `dir` explicitly so tests can use an
+ *  isolated directory. */
+function discoverCountryCodes(dir: string): string[] {
+  return readdirSync(dir)
     .filter((name) => COUNTRY_FILE_PATTERN.test(name))
     .map((name) => name.slice(0, -'.json'.length))
     .sort();
@@ -82,8 +83,198 @@ function assertSectionCountryCode(
   }
 }
 
-function loadCountryFile(code: string): ComposedCountryView {
-  const path = join(__dirname, `${code}.json`);
+// Each `validateXSection` validates exactly one top-level key, split out to keep each one small.
+
+function validatePolicySection(
+  policy: ComposedCountryView['policy'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!policy) return;
+  assertSectionCountryCode(policy, 'policy', ctx);
+  if (!Array.isArray(policy.documentTypes) || policy.documentTypes.length === 0) {
+    throw new Error(
+      `${filePath} must declare a non-empty "policy.documentTypes" array - see schema.ts's own comment on that field.`,
+    );
+  }
+  for (const rule of policy.rules) {
+    assertValidPolicyProvenance(rule, `${filePath}#policy`);
+  }
+  // `numbering` (issue #471) - optional, present entries get the same load-time provenance gate
+  // `rules` above already holds.
+  for (const fact of policy.numbering ?? []) {
+    assertValidNumberingProvenance(fact, `${filePath}#policy`);
+  }
+  // `numberFormats` (issue #496) - REQUIRED for every shipped file: numbering reads its format
+  // from here and nowhere else, so a country without one could not number anything at all.
+  if (!policy.numberFormats) {
+    throw new Error(
+      `${filePath} must declare "policy.numberFormats" - see schema.ts's own comment on that field.`,
+    );
+  }
+  assertValidNumberFormats(policy, `${filePath}#policy`);
+  if (policy.domesticInvoiceCurrency) {
+    assertValidDomesticInvoiceCurrencyFact(policy.domesticInvoiceCurrency, `${filePath}#policy`);
+  }
+  if (policy.invoiceValidation) {
+    assertValidInvoiceValidationFact(policy.invoiceValidation, `${filePath}#policy`);
+  }
+  if (policy.documentValidationCode) {
+    assertValidDocumentValidationCodeFact(policy.documentValidationCode, `${filePath}#policy`);
+  }
+}
+
+function validateIdentifiersSection(
+  identifiers: ComposedCountryView['identifiers'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!identifiers) return;
+  assertSectionCountryCode(identifiers, 'identifiers', ctx);
+  for (const fact of identifiers.schemes) {
+    assertValidIdentifierProvenance(fact, `${filePath}#identifiers`);
+    assertPatternIsExplainable(fact, `${filePath}#identifiers`);
+  }
+}
+
+function validateCorrectionRoutesSection(
+  correctionRoutes: ComposedCountryView['correctionRoutes'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!correctionRoutes) return;
+  assertSectionCountryCode(correctionRoutes, 'correctionRoutes', ctx);
+  for (const route of correctionRoutes.routes) {
+    assertValidCorrectionRouteFact(route, `${filePath}#correctionRoutes`);
+  }
+}
+
+function validateVatRatesSection(
+  vatRates: ComposedCountryView['vatRates'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!vatRates) return;
+  assertSectionCountryCode(vatRates, 'vatRates', ctx);
+  for (const rate of vatRates.rates) {
+    assertValidVatRateProvenance(rate, `${filePath}#vatRates`);
+  }
+}
+
+function validateTaxSystemSection(
+  taxSystem: ComposedCountryView['taxSystem'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!taxSystem) return;
+  assertSectionCountryCode(taxSystem, 'taxSystem', ctx);
+  assertValidTaxSystemProvenance(taxSystem, `${filePath}#taxSystem`);
+}
+
+function validateVatCurrencySection(
+  vatCurrency: ComposedCountryView['vatCurrency'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!vatCurrency) return;
+  assertSectionCountryCode(vatCurrency, 'vatCurrency', ctx);
+  assertValidVatCurrencyRule(vatCurrency, `${filePath}#vatCurrency`);
+}
+
+function validateChannelPolicySection(
+  channelPolicy: ComposedCountryView['channelPolicy'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!channelPolicy) return;
+  assertSectionCountryCode(channelPolicy, 'channelPolicy', ctx);
+  for (const fact of channelPolicy.facts) {
+    assertValidChannelPolicyFact(fact, `${filePath}#channelPolicy`);
+  }
+}
+
+function validateRetentionSection(
+  retention: ComposedCountryView['retention'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!retention) return;
+  assertSectionCountryCode(retention, 'retention', ctx);
+  for (const rule of retention.rules ?? []) {
+    assertValidRetentionRule(rule, `${filePath}#retention`);
+  }
+}
+
+function validateMentionsSection(
+  mentions: ComposedCountryView['mentions'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!mentions) return;
+  assertSectionCountryCode(mentions, 'mentions', ctx);
+  for (const entry of mentions.invoiceNotes ?? []) {
+    assertValidMentionRule(entry, `${filePath}#mentions`);
+  }
+}
+
+function validateReportingSection(
+  reporting: ComposedCountryView['reporting'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!reporting) return;
+  assertSectionCountryCode(reporting, 'reporting', ctx);
+  for (const fact of reporting.facts) {
+    assertValidReportingObligationFact(fact, `${filePath}#reporting`);
+  }
+}
+
+function validateDomesticReverseChargeSection(
+  domesticReverseCharge: ComposedCountryView['domesticReverseCharge'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!domesticReverseCharge) return;
+  assertSectionCountryCode(domesticReverseCharge, 'domesticReverseCharge', ctx);
+  for (const category of domesticReverseCharge.categories ?? []) {
+    assertValidDomesticReverseChargeCategory(category, `${filePath}#domesticReverseCharge`);
+  }
+}
+
+function validateCountryFieldsSection(
+  countryFields: ComposedCountryView['countryFields'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!countryFields) return;
+  assertSectionCountryCode(countryFields, 'countryFields', ctx);
+  assertValidCountryFields(countryFields, `${filePath}#countryFields`);
+}
+
+function validateContentRequirementsSection(
+  contentRequirements: ComposedCountryView['contentRequirements'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!contentRequirements) return;
+  assertSectionCountryCode(contentRequirements, 'contentRequirements', ctx);
+  for (const fact of contentRequirements.facts ?? []) {
+    assertValidContentRequirementFact(fact, `${filePath}#contentRequirements`);
+  }
+}
+
+function validateB2gRoutingSection(
+  b2gRouting: ComposedCountryView['b2gRouting'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!b2gRouting) return;
+  assertSectionCountryCode(b2gRouting, 'b2gRouting', ctx);
+  assertValidB2gRoutingFact(b2gRouting, `${filePath}#b2gRouting`);
+}
+
+function loadCountryFile(dir: string, code: string): ComposedCountryView {
+  const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
   const parsed = JSON.parse(raw) as ComposedCountryView;
   const filePath = `documents/countries/data/${code}.json`;
@@ -94,139 +285,32 @@ function loadCountryFile(code: string): ComposedCountryView {
   }
   const ctx = { path: filePath, countryCode: parsed.countryCode };
 
-  if (parsed.policy) {
-    const policy = parsed.policy;
-    assertSectionCountryCode(policy, 'policy', ctx);
-    if (!Array.isArray(policy.documentTypes) || policy.documentTypes.length === 0) {
-      throw new Error(
-        `${filePath} must declare a non-empty "policy.documentTypes" array - see schema.ts's own comment on that field.`,
-      );
-    }
-    for (const rule of policy.rules) {
-      assertValidPolicyProvenance(rule, `${filePath}#policy`);
-    }
-    // `numbering` (issue #471) - optional, present entries get the same load-time provenance gate
-    // `rules` above already holds.
-    for (const fact of policy.numbering ?? []) {
-      assertValidNumberingProvenance(fact, `${filePath}#policy`);
-    }
-    // `numberFormats` (issue #496) - REQUIRED for every shipped file: numbering reads its format
-    // from here and nowhere else, so a country without one could not number anything at all.
-    if (!policy.numberFormats) {
-      throw new Error(
-        `${filePath} must declare "policy.numberFormats" - see schema.ts's own comment on that field.`,
-      );
-    }
-    assertValidNumberFormats(policy, `${filePath}#policy`);
-    if (policy.domesticInvoiceCurrency) {
-      assertValidDomesticInvoiceCurrencyFact(policy.domesticInvoiceCurrency, `${filePath}#policy`);
-    }
-    if (policy.invoiceValidation) {
-      assertValidInvoiceValidationFact(policy.invoiceValidation, `${filePath}#policy`);
-    }
-    if (policy.documentValidationCode) {
-      assertValidDocumentValidationCodeFact(policy.documentValidationCode, `${filePath}#policy`);
-    }
-  }
-
-  if (parsed.identifiers) {
-    const identifiers = parsed.identifiers;
-    assertSectionCountryCode(identifiers, 'identifiers', ctx);
-    for (const fact of identifiers.schemes) {
-      assertValidIdentifierProvenance(fact, `${filePath}#identifiers`);
-      assertPatternIsExplainable(fact, `${filePath}#identifiers`);
-    }
-  }
-
-  if (parsed.correctionRoutes) {
-    const correctionRoutes = parsed.correctionRoutes;
-    assertSectionCountryCode(correctionRoutes, 'correctionRoutes', ctx);
-    for (const route of correctionRoutes.routes) {
-      assertValidCorrectionRouteFact(route, `${filePath}#correctionRoutes`);
-    }
-  }
-
-  if (parsed.vatRates) {
-    const vatRates = parsed.vatRates;
-    assertSectionCountryCode(vatRates, 'vatRates', ctx);
-    for (const rate of vatRates.rates) {
-      assertValidVatRateProvenance(rate, `${filePath}#vatRates`);
-    }
-  }
-
-  if (parsed.taxSystem) {
-    assertSectionCountryCode(parsed.taxSystem, 'taxSystem', ctx);
-    assertValidTaxSystemProvenance(parsed.taxSystem, `${filePath}#taxSystem`);
-  }
-
-  if (parsed.vatCurrency) {
-    assertSectionCountryCode(parsed.vatCurrency, 'vatCurrency', ctx);
-    assertValidVatCurrencyRule(parsed.vatCurrency, `${filePath}#vatCurrency`);
-  }
-
-  if (parsed.channelPolicy) {
-    const channelPolicy = parsed.channelPolicy;
-    assertSectionCountryCode(channelPolicy, 'channelPolicy', ctx);
-    for (const fact of channelPolicy.facts) {
-      assertValidChannelPolicyFact(fact, `${filePath}#channelPolicy`);
-    }
-  }
-
-  if (parsed.retention) {
-    const retention = parsed.retention;
-    assertSectionCountryCode(retention, 'retention', ctx);
-    for (const rule of retention.rules ?? []) {
-      assertValidRetentionRule(rule, `${filePath}#retention`);
-    }
-  }
-
-  if (parsed.mentions) {
-    const mentions = parsed.mentions;
-    assertSectionCountryCode(mentions, 'mentions', ctx);
-    for (const entry of mentions.invoiceNotes ?? []) {
-      assertValidMentionRule(entry, `${filePath}#mentions`);
-    }
-  }
-
-  if (parsed.reporting) {
-    const reporting = parsed.reporting;
-    assertSectionCountryCode(reporting, 'reporting', ctx);
-    for (const fact of reporting.facts) {
-      assertValidReportingObligationFact(fact, `${filePath}#reporting`);
-    }
-  }
-
-  if (parsed.domesticReverseCharge) {
-    const domesticReverseCharge = parsed.domesticReverseCharge;
-    assertSectionCountryCode(domesticReverseCharge, 'domesticReverseCharge', ctx);
-    for (const category of domesticReverseCharge.categories ?? []) {
-      assertValidDomesticReverseChargeCategory(category, `${filePath}#domesticReverseCharge`);
-    }
-  }
-
-  if (parsed.countryFields) {
-    assertSectionCountryCode(parsed.countryFields, 'countryFields', ctx);
-    assertValidCountryFields(parsed.countryFields, `${filePath}#countryFields`);
-  }
-
-  if (parsed.contentRequirements) {
-    const contentRequirements = parsed.contentRequirements;
-    assertSectionCountryCode(contentRequirements, 'contentRequirements', ctx);
-    for (const fact of contentRequirements.facts ?? []) {
-      assertValidContentRequirementFact(fact, `${filePath}#contentRequirements`);
-    }
-  }
-
-  if (parsed.b2gRouting) {
-    assertSectionCountryCode(parsed.b2gRouting, 'b2gRouting', ctx);
-    assertValidB2gRoutingFact(parsed.b2gRouting, `${filePath}#b2gRouting`);
-  }
+  validatePolicySection(parsed.policy, ctx, filePath);
+  validateIdentifiersSection(parsed.identifiers, ctx, filePath);
+  validateCorrectionRoutesSection(parsed.correctionRoutes, ctx, filePath);
+  validateVatRatesSection(parsed.vatRates, ctx, filePath);
+  validateTaxSystemSection(parsed.taxSystem, ctx, filePath);
+  validateVatCurrencySection(parsed.vatCurrency, ctx, filePath);
+  validateChannelPolicySection(parsed.channelPolicy, ctx, filePath);
+  validateRetentionSection(parsed.retention, ctx, filePath);
+  validateMentionsSection(parsed.mentions, ctx, filePath);
+  validateReportingSection(parsed.reporting, ctx, filePath);
+  validateDomesticReverseChargeSection(parsed.domesticReverseCharge, ctx, filePath);
+  validateCountryFieldsSection(parsed.countryFields, ctx, filePath);
+  validateContentRequirementsSection(parsed.contentRequirements, ctx, filePath);
+  validateB2gRoutingSection(parsed.b2gRouting, ctx, filePath);
 
   return parsed;
+}
+
+/** Discovers and validates every `<cc>.json` file in `dir` - parameterized so a test can point this
+ *  at an isolated directory instead of the real one, which other specs read concurrently. */
+export function loadComposedCountryFilesFrom(dir: string): ComposedCountryView[] {
+  return discoverCountryCodes(dir).map((code) => loadCountryFile(dir, code));
 }
 
 /** One validated composed view per country with a `countries/data/<cc>.json` file - see this
  *  module's own header. This is the single source `compose.ts#ALL_COMPOSED_COUNTRIES` re-exports,
  *  and the single source every one of the 14 catalogs' own (now-derived) `ALL_XXX_FILES` ultimately
  *  comes from, through `defaultComposedCountryCatalog`. */
-export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = discoverCountryCodes().map(loadCountryFile);
+export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = loadComposedCountryFilesFrom(__dirname);
