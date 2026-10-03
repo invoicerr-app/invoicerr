@@ -37,7 +37,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -79,7 +79,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Check i18n catalogs (used keys must exist in EN)
         run: node frontend/scripts/i18n-check.mjs
@@ -103,7 +103,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install e2e dependencies
         run: cd e2e && npm ci
@@ -152,15 +152,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        # 22, not 20, and that floor is the test runner's own: vitest 5 declares
-        # `engines: ^22.12.0 || ^24.0.0 || >=26.0.0`, so it refuses to start on 20. The backend
-        # RUNTIME is fine on 20 (NestJS 12 asks for 20.19+), which is why the other jobs here still
-        # run 20 and why cypress-run, which boots the real server, was unaffected — only the two jobs
-        # that invoke vitest need this. 22 also happens to be the Node the production image ships
-        # (`node:22-bullseye`), so these two now test on the version the product actually runs.
+        # 24: vitest 5 needs >=22.12, and this now matches production too.
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -234,15 +229,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        # 22, not 20, and that floor is the test runner's own: vitest 5 declares
-        # `engines: ^22.12.0 || ^24.0.0 || >=26.0.0`, so it refuses to start on 20. The backend
-        # RUNTIME is fine on 20 (NestJS 12 asks for 20.19+), which is why the other jobs here still
-        # run 20 and why cypress-run, which boots the real server, was unaffected — only the two jobs
-        # that invoke vitest need this. 22 also happens to be the Node the production image ships
-        # (`node:22-bullseye`), so these two now test on the version the product actually runs.
+        # 24: vitest 5 needs >=22.12, and this now matches production too.
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -479,7 +469,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install backend dependencies
         run: |
@@ -644,7 +634,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install backend dependencies
         run: |
@@ -759,7 +749,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install backend dependencies
         run: |

@@ -14,14 +14,12 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 - `linux/amd64` (x86_64)
 - `linux/arm64/v8` (ARMv8)
 
-:::warning
-`linux/arm/v7` is published but untested
-CI does build and publish a `linux/arm/v7` entry in the image's multi-arch manifest, so `docker pull`
-will hand a 32-bit ARM host an image that claims to fit it. Whether the application actually runs
-there has never been established on real hardware, and Prisma's own prebuilt engine coverage for
-that architecture is the doubt behind this warning. Treat it as unsupported until someone runs it on
-a 32-bit ARM device and reports back; `linux/amd64` and `linux/arm64/v8` are the two variants this
-project exercises.
+:::warning[32-bit ARM is no longer supported]
+`linux/arm/v7` was dropped from the image's multi-arch manifest. Node.js stopped publishing
+`linux-armv7l` binaries starting with Node 24, which both this image and its base image
+(`server-image`) now run on. If you were running Invoicerr on a 32-bit ARM board (Raspberry Pi
+2/3/Zero on the 32-bit OS), install a 64-bit OS on the same board and pull the image again: any
+board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image unchanged.
 :::
 
 ## Quick start

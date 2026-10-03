@@ -1,8 +1,12 @@
-FROM --platform=$BUILDPLATFORM node:22-bullseye AS backend-builder
+FROM --platform=$BUILDPLATFORM node:24-bookworm AS backend-builder
 # PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
 # `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
 # no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
 # points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
+#
+# bookworm, not bullseye: matches the runtime stage's own Debian release (server-image is
+# nginx:bookworm). 24, not 22: matches the runtime's Node, so native deps never cross a Node-ABI
+# boundary between builder and runtime.
 
 WORKDIR /app
 
@@ -17,7 +21,8 @@ COPY backend/. .
 RUN DATABASE_URL=not_required npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM node:22-bullseye AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-bookworm AS frontend-builder
+# Matches backend-builder's version for consistency only; this stage has no native deps.
 
 WORKDIR /app
 
