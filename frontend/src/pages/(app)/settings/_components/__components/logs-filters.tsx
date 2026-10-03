@@ -97,12 +97,12 @@ export function LogsFilters({
   return (
     <div className="flex flex-wrap items-center gap-3 border-b pb-4">
       <div className="relative min-w-[200px] flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder={t("settings.logs.filters.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
+          className="ps-9"
         />
       </div>
 
@@ -219,7 +219,7 @@ export function LogsFilters({
         </Button>
       )}
 
-      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+      <span className="ms-auto text-xs text-muted-foreground tabular-nums">
         {t("settings.logs.filters.showing", { filtered: filteredCount, total: totalLogs })}
       </span>
     </div>

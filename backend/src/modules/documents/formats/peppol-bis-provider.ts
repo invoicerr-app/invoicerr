@@ -43,7 +43,7 @@
  *    fallback email/legal-id/VAT-EAS derivation good enough to never be empty.
  *  - PEPPOL-EN16931-R002: no more than one `cbc:Note` at document level UNLESS BOTH parties are
  *    German. FIXED (was a known, documented limitation — see git history for the original wording):
- *    a French seller's THREE mandatory C. com. mentions (`mentions/data/fr.json`) already emit three
+ *    a French seller's THREE mandatory C. com. mentions (`countries/data/fr.json (section "mentions")`) already emit three
  *    separate `cbc:Note` elements for every OTHER syntax, so a French-seller Peppol BIS export
  *    against a non-German buyer used to fail this rule outright. `semantic/peppol-post-process.ts`'s
  *    `mergePeppolNotesInObject` — wired below as `@e-invoice-eu/core`'s own `postProcessor` extension

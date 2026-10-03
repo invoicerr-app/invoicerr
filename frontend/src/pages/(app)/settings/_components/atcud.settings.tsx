@@ -25,8 +25,7 @@ import {
 } from "./settings-section"
 
 interface CompanyInfo {
-  country?: string
-  countryCode?: string | null
+  documentValidationCode?: { scheme: string } | null
 }
 
 interface AtcudSeriesRow {
@@ -38,16 +37,18 @@ interface AtcudSeriesRow {
   updatedAt: string
 }
 
-/** Same case-insensitive "PT"/"Portugal" check the rest of this screen's own gating relies on — a UX
- *  convenience only, never the enforcement: `documents/actions/atcud-issuance.ts#ensureAtcudIssuable`
- *  is the one place that ACTUALLY decides whether an invoice can be issued, from the company's real,
- *  server-resolved country (`country-policy/country-policy.ts#resolveCompanyCountryCode`). A company
- *  reaching this screen with a country this quick check cannot recognize simply sees the same "not
- *  applicable" message a French or German company would — never a hard error. */
-function isPortugal(company: CompanyInfo | null): boolean {
-  if (!company) return false
-  const value = (company.countryCode || company.country || "").trim().toUpperCase()
-  return value === "PT" || value === "PORTUGAL"
+/** Whether this company's country requires the "ATCUD" validation-code scheme (issue #603) - reads
+ *  the SAME backend-computed fact `GET /api/company/info` already carries
+ *  (`country-policy/schema.ts#DocumentValidationCodeFact`), never a country-code literal decided
+ *  here. A UX convenience only, never the enforcement:
+ *  `documents/actions/atcud-issuance.ts#ensureAtcudIssuable` is the one place that ACTUALLY decides
+ *  whether an invoice can be issued, from the exact same fact, looked up server-side from the
+ *  company's real, server-resolved country
+ *  (`country-policy/country-policy.ts#resolveCompanyCountryCode`). A company reaching this screen
+ *  with a country that declares no such scheme simply sees the same "not applicable" message a
+ *  French or German company would - never a hard error. */
+function requiresAtcud(company: CompanyInfo | null): boolean {
+  return company?.documentValidationCode?.scheme === "ATCUD"
 }
 
 /**
@@ -99,7 +100,7 @@ function numberFormatCopy(typeId: AtcudTypeId, t: ReturnType<typeof useTranslati
 
 /**
  * Issue #496 - one ATCUD type's number format, READ-ONLY. It is Portugal's own ("FT A/{number}" for an
- * invoice, "NC A/{number}" for a credit note, `country-policy/data/pt.json`), or a series this company
+ * invoice, "NC A/{number}" for a credit note, `countries/data/pt.json (section "policy")`), or a series this company
  * already started and keeps; either way it is no longer the company's to change (`PUT
  * /api/company/number-format` answers 405). What this card still gives is the one fact the
  * registration form below needs: the series the next document of this type belongs to, whose AT
@@ -230,7 +231,7 @@ export default function AtcudSettings() {
     flashAdd()
   }
 
-  if (!isPortugal(company ?? null)) {
+  if (!requiresAtcud(company ?? null)) {
     return (
       <SettingsPage title={t("settings.atcud.title", "ATCUD (Portugal)")} dataCy="atcud-section">
         <SettingsSection>

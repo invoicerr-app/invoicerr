@@ -24,7 +24,7 @@
  *    data/fr.json and data/de.json in this same directory for how far a real research pass got
  *    before hitting a real access limit (legifrance.gouv.fr, economie.gouv.fr and
  *    impots.gouv.fr all refused automated requests on 2026-08-30 — the same wall
- *    country-policy/data/fr.json already documents for Légifrance specifically).
+ *    countries/data/fr.json (section "policy") already documents for Légifrance specifically).
  */
 
 export type PartyType = 'COMPANY' | 'INDIVIDUAL';

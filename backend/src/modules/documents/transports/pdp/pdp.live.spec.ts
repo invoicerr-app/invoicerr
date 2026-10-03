@@ -159,7 +159,7 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
       totals,
     });
     // BT-23 (`business-process.ts`): the shipped content
-    // requirement (`content-requirements/data/fr.json`) only binds from `mandatedFrom` 2026-09-01
+    // requirement (`countries/data/fr.json (section "contentRequirements")`) only binds from `mandatedFrom` 2026-09-01
     // (CGI ann. II art. 242 nonies A I 8° bis), so `buildSemanticInvoice`'s own temporal gate
     // correctly resolves NOTHING for an invoice dated today (2026-08-31, one calendar day short of
     // it, per the `issueDate` comment above) — `gatedCode` below is expected `undefined`, proving

@@ -295,25 +295,30 @@ export interface RunAsyncSendInput {
    */
   numberingOnlyFrom?: string[];
   /**
-   * Whether THIS type's own descriptor declares an article-reference field on its lines
-   * (`kind: 'hiddenReference'`, `entity: 'article'` - see `stock/apply-stock-on-issuance.ts`'s own
-   * `declaresArticleReference` for the exact predicate). PR #473 review point 2: the stock effect
-   * (`applyStockOnIssuance` below) must never run for a type whose descriptor does not declare that
-   * field at all - a credit note's own lines carry no such field (credit-note.descriptor.ts), so an
-   * `articleId` a caller still manages to post on one (the line VALIDATOR keeps any undeclared key) must
-   * never reach the stock effect regardless. The same "each caller reads its own type's descriptor and
-   * passes the fact explicitly" discipline `numberOnEnqueue`/`numberingOnlyFrom` above already hold,
-   * for the identical reason (this function never sees a descriptor) - never a `typeId` check here.
+   * Whether THIS type's own descriptor opts into `stockEffect: 'decrement'` (issue #579 - see
+   * `descriptors/types.ts`'s own `DocumentTypeDescriptor.stockEffect` header for the full "why",
+   * and `stock/apply-stock-on-issuance.ts`'s own `decrementsStockOnIssuance` for the exact predicate).
+   * An EXPLICIT descriptor fact, never inferred from whether a line CAN reference an article: a
+   * quote's own lines declare the identical `articleId` field the invoice's do (for the
+   * catalog-prefill picker alone), which used to make `declaresArticleReference` - the predicate this
+   * field used to be named after and computed from - return `true` for the quote too, decrementing
+   * stock on a quote SEND exactly like an invoice SEND. The stock effect (`applyStockOnIssuance`
+   * below) must never run for a type whose descriptor does not set this field - a credit note's own
+   * descriptor does not (credit-note.descriptor.ts), so an `articleId` a caller still manages to post
+   * on one of its lines (the line VALIDATOR keeps any undeclared key) must never reach the stock
+   * effect regardless. The same "each caller reads its own type's descriptor and passes the fact
+   * explicitly" discipline `numberOnEnqueue`/`numberingOnlyFrom` above already hold, for the identical
+   * reason (this function never sees a descriptor) - never a `typeId` check here.
    *
    * OPTIONAL, deliberately, like `events`/`webhooks` above: every EXISTING spec of this function
-   * predates this field and must keep passing unchanged. Absent defaults to `false` - "no capability
-   * declared, no stock effect" is the SAFE default (a type this codebase does not yet know about must
-   * never decrement stock by accident), unlike `numberOnEnqueue`, where the safe default runs the
-   * other way. Production wiring (invoice-actions.ts, quote-actions.ts) always passes the real,
-   * descriptor-computed value; credit-note-actions.ts passes `false` explicitly, matching what its own
-   * descriptor already says.
+   * predates this field and must keep passing unchanged. Absent defaults to `false` - "no stock
+   * effect declared, no stock effect" is the SAFE default (a type this codebase does not yet know
+   * about must never decrement stock by accident), unlike `numberOnEnqueue`, where the safe default
+   * runs the other way. Production wiring (invoice-actions.ts) passes `true`; quote-actions.ts and
+   * credit-note-actions.ts both pass `false` explicitly (computed from their own descriptor, which
+   * never sets `stockEffect`), matching what each descriptor already says.
    */
-  declaresArticleReference?: boolean;
+  decrementsStock?: boolean;
   /**
    * Optional hook run immediately after THIS call actually WINS the numbering race just above (the
    * exact same `numbered` truthy condition the stock-effect call already gates on — never for the
@@ -339,6 +344,23 @@ export interface RunAsyncSendInput {
      *  alone (ATCUD's own need) never required this. */
     data: Record<string, unknown>;
   }) => Promise<void>;
+  /**
+   * Issue #581 - extra statuses, besides the universal "draft"/"send_failed", from which THIS
+   * type's own "send" may genuinely start, on TOP of the two every type's own SEND_TRANSITIONS
+   * already shares. Exists for the invoice's own "validated" (invoice.descriptor.ts,
+   * `VALIDATE_TRANSITIONS`): a validated-but-unsent record is exactly as send-ready as a draft one -
+   * ALREADY numbered (so `eligibleForAtomicNumbering` below is always false for it regardless, see
+   * that constant's own header), never yet delivered - so only the plain status compare-and-swap just
+   * below needs to accept it as a starting point; the ATOMIC-numbering branch's own hardcoded
+   * `['draft', 'send_failed']` is deliberately left untouched, since a record that reaches this
+   * function already numbered can never take that branch in the first place. Absent (every EXISTING
+   * caller/spec of this function predates this field) means exactly the original, two-status gate -
+   * the same "capability absent, no effect" posture `events`/`webhooks`/`onNumbered` above already
+   * hold. Never widens the ATOMIC-numbering compare-and-swap, which stays the universal two statuses:
+   * widening THAT one for a status whose record always already carries a number would be a no-op
+   * dressed up as a real option, nothing more.
+   */
+  additionalFromStatuses?: string[];
 }
 
 export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<ActionResult> {
@@ -352,10 +374,11 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     preflight,
     numberOnEnqueue,
     numberingOnlyFrom,
-    declaresArticleReference = false,
+    decrementsStock = false,
     onNumbered,
     events,
     webhooks,
+    additionalFromStatuses = [],
   } = input;
   // Reassigned below, ONLY on the phase-1 path, when `preflight` hands back a resolved replacement —
   // see `RunAsyncSendInput.preflight`'s own header. Untouched (still exactly `input.data`) for the
@@ -410,9 +433,9 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
         // STOCK EFFECT - this recovery is the first and only time THIS
         // document is ever numbered (a stranded record was never numbered before), so it is also the
         // first and only time its stock effect can run - the exact same `if (numbered)` gate phase 1's
-        // own stock-effect call below is tied to. Gated on `declaresArticleReference`, never `typeId`
-        // (PR #473 review point 2) - see that field's own header.
-        if (declaresArticleReference) await applyStockOnIssuance(companyId, record);
+        // own stock-effect call below is tied to. Gated on `decrementsStock`, never `typeId` (issue
+        // #579) - see that field's own header.
+        if (decrementsStock) await applyStockOnIssuance(companyId, record);
         if (onNumbered) {
           await onNumbered({ companyId, typeId, documentId: record.id, numbered: recovery.numbered, data });
         }
@@ -683,7 +706,11 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     const startNewDelivery = existing.status === 'draft' && existing.deliveryConfirmedAt != null;
     sending = startNewDelivery
       ? await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft'], { startNewDelivery })
-      : await upsertDocument(companyId, typeId, documentId, 'sending', data, ['draft', 'send_failed']);
+      : await upsertDocument(companyId, typeId, documentId, 'sending', data, [
+          'draft',
+          'send_failed',
+          ...additionalFromStatuses,
+        ]);
   }
 
   // The fact is ACQUIRED right above (Postgres already holds "sending", numbered atomically with it
@@ -702,11 +729,11 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // other numbering sites (documents.service.ts#runAction, send-document-email.ts), so the
     // decrement runs exactly once per document, at whichever site actually issues its number - for a
     // sent invoice, that is right here. Never-throwing - see `stock/apply-stock-on-issuance.ts`'s own
-    // header. Gated on `declaresArticleReference`, never `typeId` (PR #473 review point 2): a credit
-    // note's own descriptor declares no article-reference field on its lines at all, so an `articleId`
-    // a caller still manages to post on one (the line VALIDATOR keeps any undeclared key) never
-    // reaches this call - see `RunAsyncSendInput.declaresArticleReference`'s own header.
-    if (declaresArticleReference) await applyStockOnIssuance(companyId, sending);
+    // header. Gated on `decrementsStock`, never `typeId` (issue #579): a credit note's and a quote's
+    // own descriptor neither sets `stockEffect: 'decrement'`, so an `articleId` a caller still manages
+    // to post on one of their lines (the line VALIDATOR keeps any undeclared key) never reaches this
+    // call - see `RunAsyncSendInput.decrementsStock`'s own header.
+    if (decrementsStock) await applyStockOnIssuance(companyId, sending);
     // See `RunAsyncSendInput.onNumbered`'s own header - a type-agnostic hook, never a branch on
     // `typeId` in this core file. Runs AFTER the stock effect, same as it, for the same reason: both
     // are anchored to `numbered` being the atomic winner of the numbering race, never to

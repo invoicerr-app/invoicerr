@@ -174,25 +174,26 @@ Every action of every document type — core or third-party — runs through the
 `DocumentsService.runAction` (`documents.service.ts`), in the exact same order, described in full
 in [Adding a country](./adding-a-country.md#the-four-gates--what-happens-when-you-actually-try-to-run-an-action):
 country policy (403) → status (409) → implementation (501) → validation (400). A document type
-author never reimplements any of this — it is generic over `typeId`. The only thing a new type's
-own `country-policy/data/*.json` files need to add is a `documentTypes` entry naming the new type
-and `rules` for each of its actions (see that guide); until a country's file says so, EVERY action
-of a brand-new type is refused for it, loudly, by the same "no permissive fallback" rule that
-already governs every existing type.
+author never reimplements any of this - it is generic over `typeId`. The only thing a new type
+needs is a `documentTypes` entry naming the new type and `rules` for each of its actions, in every
+country's own `policy` section (`countries/data/<cc>.json`, see that guide); until a country's
+section says so, EVERY action of a brand-new type is refused for it, loudly, by the same "no
+permissive fallback" rule that already governs every existing type.
 
 ### Composing with countries, without naming one
 
 A document type descriptor never mentions a country. Three separate, optional mechanisms let a
 country still shape a type without either one naming the other:
 
-- **`country-fields/data/<cc>.json`** can `add`/`modify`/`remove` a FIELD on an existing type's
-  shape for one country (`country-fields/data/fr.json`'s `invoice.lines[].supplyType` is the
-  worked example) — the type's own descriptor stays the trunk shape every country starts from.
+- **The `countryFields` section** of `countries/data/<cc>.json` can `add`/`modify`/`remove` a
+  FIELD on an existing type's shape for one country (France's own `invoice.lines[].supplyType` is
+ the worked example) - the type's own descriptor stays the trunk shape every country starts from.
 - **`usesLegalMentions: true`** opts a type into the country-mandated-mentions block on its
-  rendered PDF (`mentions/`) — only `invoice.descriptor.ts` sets it today, since "expense" has no
-  `issueDate` field for a mention to hang off and a third-party type may have no reason to.
-- **`country-policy/data/<cc>.json`** decides, per country, which of the type's own declared
-  actions are even offered — the type itself has no opinion on this; see
+ rendered PDF (the `mentions` section) - only `invoice.descriptor.ts` sets it today, since
+  "expense" has no `issueDate` field for a mention to hang off and a third-party type may have no
+  reason to.
+- **The `policy` section** of `countries/data/<cc>.json` decides, per country, which of the type's
+ own declared actions are even offered - the type itself has no opinion on this; see
   [Adding a country](./adding-a-country.md).
 
 ### A worked example — reading `expense.descriptor.ts` end to end

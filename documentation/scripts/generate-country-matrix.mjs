@@ -76,9 +76,20 @@ const OUT_DIRS = {
 
 // =================================================================================================
 // DATA LOADING — locale-free. Reads exactly what the backend itself would load.
+//
+// Issue #603 step 6 physically moved every mechanism's per-country data into ONE file per country,
+// `documents/countries/data/<cc>.json`, one optional top-level key per mechanism (the same keys the
+// backend's own `ComposedCountryView` declares). This script used to call a `loadDataDir(relPath)`
+// helper once per mechanism, each doing its OWN `readdirSync` over that mechanism's own directory -
+// eleven independent directory scans. There is now only ONE directory to discover countries from,
+// so `loadComposedCountryDir()` reads it once, and `loadSection(key)` below just picks each
+// mechanism's own key back out, country by country, returning EXACTLY the same per-country object
+// `loadDataDir` used to return for that mechanism (b2g-routing's old `{ countryCode, rule }`
+// envelope is gone - the merged file's `b2gRouting` key already holds the rule itself) - so every
+// value this script renders from is unchanged, only where it is read from.
 // =================================================================================================
-function loadDataDir(relPath) {
-  const dir = join(DOCUMENTS_ROOT, relPath);
+function loadComposedCountryDir() {
+  const dir = join(DOCUMENTS_ROOT, 'countries', 'data');
   if (!existsSync(dir)) return {};
   const files = readdirSync(dir)
     .filter((f) => /^[a-z]{2}\.json$/.test(f))
@@ -98,26 +109,34 @@ function loadDataDir(relPath) {
   return out;
 }
 
-const countryPolicy = loadDataDir('country-policy/data');
-// b2g-routing files wrap the fact in a top-level { countryCode, rule } envelope (unlike every
-// sibling mechanism, which is flat) — see b2g-routing/schema.ts's own CountryB2gRoutingFile.
-const b2gRouting = Object.fromEntries(
-  Object.entries(loadDataDir('b2g-routing/data')).map(([cc, file]) => [cc, file.rule]),
-);
-const correctionRoutes = loadDataDir('correction-routes/data');
-const channelPolicy = loadDataDir('transports/channel-policy/data');
-const taxSystems = loadDataDir('tax/tax-systems/data');
-const countryIdentifiers = loadDataDir('country-identifiers/data');
-const mentions = loadDataDir('mentions/data');
-const countryFields = loadDataDir('country-fields/data');
-const contentRequirements = loadDataDir('content-requirements/data');
+const COMPOSED_COUNTRIES = loadComposedCountryDir();
+
+/** Every country that declares `sectionKey` in its merged file, keyed by country code - the same
+ *  shape `loadDataDir(relPath)` used to return for one mechanism's own directory. */
+function loadSection(sectionKey) {
+  const out = {};
+  for (const [cc, file] of Object.entries(COMPOSED_COUNTRIES)) {
+    if (file[sectionKey] !== undefined) out[cc] = file[sectionKey];
+  }
+  return out;
+}
+
+const countryPolicy = loadSection('policy');
+const b2gRouting = loadSection('b2gRouting');
+const correctionRoutes = loadSection('correctionRoutes');
+const channelPolicy = loadSection('channelPolicy');
+const taxSystems = loadSection('taxSystem');
+const countryIdentifiers = loadSection('identifiers');
+const mentions = loadSection('mentions');
+const countryFields = loadSection('countryFields');
+const contentRequirements = loadSection('contentRequirements');
 // How long a document archived for this country must be kept — and, just as much, what that duration
 // is counted FROM. A country may declare several rules at once: they are simultaneous obligations, so
 // the effective date is the latest of them, never a choice between them (see the catalogue's own
 // `compute-retention.ts` header). Read here so the public page can state one of the most practical
 // facts a business needs, instead of leaving it unsaid.
-const archiveRetention = loadDataDir('archive/retention/data');
-const vatRates = loadDataDir('vat-rates/data');
+const archiveRetention = loadSection('retention');
+const vatRates = loadSection('vatRates');
 
 // ---------------------------------------------------------------------------------------------
 // The local-cancellation whitelist lives in TypeScript (`correction-routes/cancel-policy.ts`), a
@@ -1225,6 +1244,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovakia',
     SI: 'Slovenia',
     GB: 'United Kingdom',
+    DZ: 'Algeria',
   },
   fr: {
     FR: 'France',
@@ -1261,6 +1281,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovaquie',
     SI: 'Slovénie',
     GB: 'Royaume-Uni',
+    DZ: 'Algérie',
   },
 };
 assertSameShape(COUNTRY_NAMES.en, COUNTRY_NAMES.fr, 'COUNTRY_NAMES');
@@ -1296,13 +1317,12 @@ function transportWithModel(id, locale) {
   return `${label} (${STRINGS[locale].transportModel[model]})`;
 }
 
-// The 5 countries this product covers today (2026-09-10 prune — every other country's data files
-// were removed; see the root git log for that change). Every one of these gets
-// a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details"); `unionCountries`
-// below is, as a direct consequence, ALSO exactly this set — there is no country left with data in
-// only some mechanisms and no page at all, unlike the pre-prune matrix, which had rows with no
-// detail page (a thin row for a country nobody had written a narrative for yet).
-const DETAIL_PAGES = ['DE', 'FR', 'IT', 'PL', 'PT'];
+// The 5 countries kept by the 2026-09-10 prune, plus Algeria (DZ, issue #558). Every one of these
+// gets a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details");
+// `unionCountries` below is, as a direct consequence, ALSO exactly this set: there is no country
+// left with data in only some mechanisms and no page at all, unlike the pre-prune matrix, which had
+// rows with no detail page (a thin row for a country nobody had written a narrative for yet).
+const DETAIL_PAGES = ['DE', 'DZ', 'FR', 'IT', 'PL', 'PT'];
 
 // =================================================================================================
 // TEXT / MDX HELPERS

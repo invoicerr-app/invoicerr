@@ -164,11 +164,21 @@ export async function paymentMethodsFor(
   if (!descriptor.usesPaymentMethods) return [];
 
   const currency = typeof data.currency === 'string' ? data.currency : undefined;
-  return resolveEnabledPaymentMethodPresentations(companyId, {
-    amountMinor: totals.grossMinor > 0 ? totals.grossMinor : undefined,
-    currency,
-    reference: displayNumber ?? undefined,
-  });
+  // Issue #416 ("payment methods per client") - the SAME client id `recipientLanguageFor` resolves
+  // just above, read off the descriptor's own 'client' reference field (`clientIdFromData`). A
+  // dangling/cross-tenant/absent id resolves the restriction to "none on file" (unrestricted), never
+  // a throw - see `resolveEnabledPaymentMethodPresentations`'s own header on why a rendering gap must
+  // never block issuing/sending the document itself.
+  const clientId = clientIdFromData(descriptor, data);
+  return resolveEnabledPaymentMethodPresentations(
+    companyId,
+    {
+      amountMinor: totals.grossMinor > 0 ? totals.grossMinor : undefined,
+      currency,
+      reference: displayNumber ?? undefined,
+    },
+    clientId,
+  );
 }
 
 /**
@@ -223,10 +233,9 @@ async function recipientLanguageFor(
   companyLanguage: string | null | undefined,
   data: Record<string, unknown>,
 ): Promise<RenderLanguage> {
-  const clientField = findClientReferenceField(descriptor);
-  const clientId = clientField ? data[clientField.key] : undefined;
+  const clientId = clientIdFromData(descriptor, data);
 
-  if (typeof clientId !== 'string' || clientId === '') {
+  if (!clientId) {
     return resolveRecipientLanguage(undefined, companyLanguage);
   }
 
@@ -235,6 +244,21 @@ async function recipientLanguageFor(
     select: { language: true },
   });
   return resolveRecipientLanguage(client?.language, companyLanguage);
+}
+
+/** The document's own 'client' reference field value, read straight off `data` - the SAME resolution
+ *  `recipientLanguageFor` above used to inline, now shared with `paymentMethodsFor` (issue #416):
+ *  both need "which client, if any, is this document FOR", neither needs a second spelling of how to
+ *  find it. `undefined` for a type with no such field, or a present field with no/a wrong-typed value
+ * - never thrown, the same "a rendering gap must never block issuing/sending the document itself"
+ *  discipline every other resolver in this file already holds. */
+function clientIdFromData(
+  descriptor: DocumentTypeDescriptor,
+  data: Record<string, unknown>,
+): string | undefined {
+  const clientField = findClientReferenceField(descriptor);
+  const clientId = clientField ? data[clientField.key] : undefined;
+  return typeof clientId === 'string' && clientId !== '' ? clientId : undefined;
 }
 
 /** What `render-html.ts` needs to print a linked credit note: the corrected invoice's number and

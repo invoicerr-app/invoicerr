@@ -65,7 +65,7 @@ export function legacyOptionLabels(field: FieldRendererProps["field"]): { value:
 
 /** `requiredIfPresent` (DocumentFieldDescriptor, backend types.ts): this field is required only once
  *  a named SIBLING field is itself set — e.g. a Polish correction invoice's own `correctionReason`,
- *  required the moment `correctsInvoiceId` resolves (country-fields/data/pl.json). Watches a dummy,
+ *  required the moment `correctsInvoiceId` resolves (countries/data/pl.json (section "countryFields")). Watches a dummy,
  *  never-real field name when the hint is absent so the `watch()` call itself stays unconditional
  *  (react-hook-form's own hook-order requirement) without ever subscribing to the WHOLE form the way
  *  `watch()` with no argument at all would. This is a SCREEN convenience only — the backend's own

@@ -38,7 +38,7 @@ const PageHeaderActions = () => {
 
   if (!actions) return null
 
-  return <div className="flex items-center gap-2 ml-auto">{actions}</div>
+  return <div className="flex items-center gap-2 ms-auto">{actions}</div>
 }
 
 /**

@@ -111,7 +111,7 @@ describe('FR→DE B2B, valid VAT: reverse charge, judged by real EN 16931 Schema
 // The OSS branch — FR→DE B2C GOODS used to be a hard,
 // named block (`UnsupportedOssDestinationError`, "no VAT rate table is known for DE") because no
 // tax-system file existed for DE. DE's real standard VAT rate (19%) was read from the European
-// Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) — the send now goes through, and
+// Commission's TEDB (`countries/data/de.json (section "taxSystem")`'s own `provenance`) — the send now goes through, and
 // the vendored EN 16931 Schematron judges the resulting CII, not a hand-asserted opinion of it.
 //
 // CORRECTED (2026-09-21): this case used to assert 19% for a seller that had declared NOTHING about

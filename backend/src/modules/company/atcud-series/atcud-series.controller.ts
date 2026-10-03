@@ -12,7 +12,7 @@ import { AtcudSeriesResponse, AtcudSeriesService, UpsertAtcudSeriesBody } from '
  * "Séries ATCUD" — the settings screen this backs lets a Portuguese company record the AT-issued
  * validation code for each (série × tipo de documento) it registered on the Portal das Finanças,
  * BEFORE issuing any invoice in that series (AT FAQ 4308, quoted verbatim in `documents/
- * country-policy/data/pt.json`). Scoped to the caller's ACTIVE company (`@ActiveCompany()`) — never a
+ * countries/data/pt.json (section "policy")`). Scoped to the caller's ACTIVE company (`@ActiveCompany()`) — never a
  * URL parameter — the same discipline `SigningCertificatesController`/`ChannelsController` already
  * hold; the only path param anywhere below (`:id` on DELETE) names a ROW, not a company, and
  * `remove()` itself re-checks `companyId` in its own `WHERE`.

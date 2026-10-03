@@ -8,12 +8,21 @@ import { hashDocumentData } from '../archive/document-data-hash';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
 import * as reportOnSend from '../reporting/report-on-send';
+import * as stock from '../stock/apply-stock-on-issuance';
 import { runAsyncSendAction } from './async-send';
 
 vi.mock('../persistence');
 vi.mock('../numbering/take-number');
 vi.mock('../archive/archive-on-send');
 vi.mock('../reporting/report-on-send');
+// Issue #579: only `applyStockOnIssuance` (the DB-touching half) is mocked here, this file proves
+// the WIRING of `RunAsyncSendInput.decrementsStock` (the caller-supplied fact - see that field's own
+// header, async-send.ts), never `apply-stock-on-issuance.ts`'s own computation, which
+// `stock/apply-stock-on-issuance.spec.ts` already proves independently.
+vi.mock('../stock/apply-stock-on-issuance', async () => {
+  const actual = await vi.importActual('../stock/apply-stock-on-issuance');
+  return { ...actual, applyStockOnIssuance: vi.fn() };
+});
 
 /**
  * `runAsyncSendAction` in isolation — the shared two-phase engine every type's "send" now goes
@@ -1971,6 +1980,181 @@ describe('runAsyncSendAction', () => {
         }),
       ).resolves.toMatchObject({ document: { status: 'sent' } });
       expect(deliver).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // Issue #579: this file's own two `applyStockOnIssuance` call sites (the primary phase-1
+  // enqueue-time numbering path, and the numberless-"sending"-recovery path inside phase 2), both
+  // gated on `RunAsyncSendInput.decrementsStock`, the EXPLICIT fact each caller now reads off its
+  // own descriptor's `stockEffect`, never inferred from the type's own `typeId` or field shape.
+  describe('the stock-effect gate (decrementsStock)', () => {
+    afterEach(() => vi.resetAllMocks());
+
+    it('phase 1 (primary enqueue path): decrements stock exactly once when `decrementsStock: true` and this call WINS the number', async () => {
+      const lines = [{ articleId: 'article-1', quantity: 3 }];
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'draft',
+        data: { ...baseInput.data, lines },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: { ...baseInput.data, lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'INV-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+      });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        data: { ...baseInput.data, lines },
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver: vi.fn(),
+        decrementsStock: true,
+      });
+
+      expect(stock.applyStockOnIssuance).toHaveBeenCalledTimes(1);
+      expect(stock.applyStockOnIssuance).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ id: 'doc-1', data: { ...baseInput.data, lines } }),
+      );
+    });
+
+    it("phase 1 (primary enqueue path): never decrements when `decrementsStock` is omitted (the quote's/credit note's own default), even though this call WINS the number", async () => {
+      const lines = [{ articleId: 'article-1', quantity: 3 }];
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'draft',
+        data: { ...baseInput.data, lines },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: { ...baseInput.data, lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 1,
+          displayNumber: 'QUOTE-2026-0001',
+        },
+        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
+      });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        data: { ...baseInput.data, lines },
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver: vi.fn(),
+        // `decrementsStock` deliberately absent - the default every pre-#579 spec of this function
+        // already relies on.
+      });
+
+      expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
+    });
+
+    it('phase 2 recovery (a numberless "sending" record, no `numberingOnlyFrom`): decrements stock exactly once when `decrementsStock: true`', async () => {
+      const lines = [{ articleId: 'article-1', quantity: 5 }];
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'invoice',
+        status: 'sending',
+        data: { ...baseInput.data, lines },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: null,
+        displayNumber: null,
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending',
+          data: { ...baseInput.data, lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 9,
+          displayNumber: 'INV-2026-0009',
+        },
+        numbered: { number: 9, displayNumber: 'INV-2026-0009' },
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 9,
+        displayNumber: 'INV-2026-0009',
+      });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        typeId: 'invoice',
+        data: { ...baseInput.data, lines },
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver: vi.fn().mockResolvedValue({ message: 'Sent.' }),
+        decrementsStock: true,
+      });
+
+      expect(stock.applyStockOnIssuance).toHaveBeenCalledTimes(1);
+      expect(stock.applyStockOnIssuance).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ id: 'doc-1', data: { ...baseInput.data, lines } }),
+      );
+    });
+
+    it('phase 2 recovery: never decrements when `decrementsStock` is false, even though this call recovers the number', async () => {
+      const lines = [{ articleId: 'article-1', quantity: 5 }];
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        id: 'doc-1',
+        typeId: 'quote',
+        status: 'sending',
+        data: { ...baseInput.data, lines },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        number: null,
+        displayNumber: null,
+      });
+      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
+        document: {
+          id: 'doc-1',
+          typeId: 'quote',
+          status: 'sending',
+          data: { ...baseInput.data, lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: 9,
+          displayNumber: 'QUOTE-2026-0009',
+        },
+        numbered: { number: 9, displayNumber: 'QUOTE-2026-0009' },
+      });
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        id: 'doc-1',
+        status: 'sent',
+        number: 9,
+        displayNumber: 'QUOTE-2026-0009',
+      });
+
+      await runAsyncSendAction({
+        ...baseInput,
+        data: { ...baseInput.data, lines },
+        queueDispatcher: { enqueueAction: vi.fn() },
+        deliver: vi.fn().mockResolvedValue({ message: 'Sent.' }),
+        decrementsStock: false,
+      });
+
+      expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
     });
   });
 });

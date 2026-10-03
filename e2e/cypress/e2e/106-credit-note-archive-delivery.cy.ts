@@ -32,7 +32,7 @@ const PRE_MANDATE = "2026-08-31";
 const CREDITED_GROSS = "144.00 EUR";
 const INVOICE_GROSS = "240.00 EUR";
 
-/** France's fixed credit-note format (issue #496, `country-policy/data/fr.json`): "CN-{year}-{number:4}",
+/** France's fixed credit-note format (issue #496, `countries/data/fr.json (section "policy")`): "CN-{year}-{number:4}",
  *  its own series, counted from 1 after `resetAndSeed`. The linked note is issued first, the free one
  *  second; the refused one consumes no number. */
 const FIRST_CREDIT_NOTE = "CN-2026-0001";

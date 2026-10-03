@@ -70,7 +70,7 @@ back to any other source.
 
 ## Identifiers
 
-`country-identifiers/data/pl.json` declares one scheme: **LEGAL_ID** (the NIP), sourced `legal`, with
+`countries/data/pl.json` declares one scheme: **LEGAL_ID** (the NIP), sourced `legal`, with
 `required: false`.
 
 As for Italy, the `required: false` is a limit of the catalog rather than of the law. This catalog's
@@ -95,11 +95,10 @@ cancellation attempt is refused, by name, rather than silently allowed or silent
 
 ## Sources
 
-`backend/src/modules/documents/country-policy/data/pl.json`, `correction-routes/data/pl.json`,
-`correction-routes/cancel-policy.ts`, `b2g-routing/data/pl.json`,
-`transports/channel-policy/data/pl.json`, `tax/tax-systems/data/pl.json`,
-`country-identifiers/data/pl.json`, `vat-rates/data/pl.json`,
-`vat-currency/data/pl.json` (VAT stated in PLN, sourced to the NBP's own Table A), plus
-`archive/retention/data/pl.json` — five years, counted not from the invoice date but from the end of
-the calendar year the tax fell due in (ustawa o VAT art. 112 pointing at Ordynacja podatkowa art. 70
-§ 1) — and `transports/ksef/ksef.live.spec.ts` for the live-proof claim above.
+`backend/src/modules/documents/countries/data/pl.json` (one file, all of this country's own
+sections: action policy; correction routes; B2G routing; channel policy; the tax system;
+identifiers; the VAT rate ladder; VAT-currency conversion, VAT stated in PLN, sourced to the NBP's
+own Table A; and archive retention, five years, counted not from the invoice date but from the end
+of the calendar year the tax fell due in, ustawa o VAT art. 112 pointing at Ordynacja podatkowa
+art. 70 § 1), plus `correction-routes/cancel-policy.ts`
+and `transports/ksef/ksef.live.spec.ts` for the live-proof claim above.

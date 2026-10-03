@@ -29,7 +29,7 @@ export function Catch() {
         {message ? <p className="max-w-md text-xs text-muted-foreground/70">{message}</p> : null}
       </div>
       <Button onClick={() => window.location.reload()}>
-        <RefreshCw className="h-4 w-4 mr-2" />
+        <RefreshCw className="h-4 w-4 me-2" />
         {t("errorBoundary.reload")}
       </Button>
     </div>

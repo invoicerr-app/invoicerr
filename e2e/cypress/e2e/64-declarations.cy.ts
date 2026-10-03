@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * implemented-awaiting-accreditation — `reporting/providers/pt-declaration-provider.ts`'s own
  * header), this spec proves the screen is honest in BOTH directions:
  *  - a French seller (the default seed) now DOES have a reporting obligation on file
- *    (`reporting/data/fr.json`: CGI art. 289 E, discharged by the PDP transport, plus two unverified
+ *    (`countries/data/fr.json (section "reporting")`: CGI art. 289 E, discharged by the PDP transport, plus two unverified
  *    art. 290/290 A e-reporting facts) — `GET /documents/declarations` reflects that (`hasObligation:
  *    true`), but nothing is ever auto-enqueued for it: the PDP fact is `dischargedBy: "transport"`
  *    and the other two carry a `scope`, both deliberately excluded from `registry.ts#obligationFor`'s
@@ -90,7 +90,7 @@ function createPortugueseInvoiceDraft(clientId: string) {
 							quantity: 1,
 							unit: "day",
 							// Portugal's own standard rate (CIVA art. 18.º n.º 1 alínea c) — see
-							// vat-rates/data/pt.json), a domestic PT-to-PT sale to keep this spec clear of the
+							// countries/data/pt.json (section "vatRates")), a domestic PT-to-PT sale to keep this spec clear of the
 							// cross-border tax engine entirely — the ONLY thing under test here is the
 							// declarative-reporting mechanism, never the tax treatment.
 							unitPrice: 500,
@@ -111,7 +111,7 @@ function createPortugueseInvoiceDraft(clientId: string) {
 
 describe("Declarations — a country with an obligation on file but nothing auto-enqueued yet", () => {
 	before(() => {
-		cy.resetAndSeed(); // the default seeded company is French — reporting/data/fr.json now DOES
+		cy.resetAndSeed(); // the default seeded company is French — countries/data/fr.json (section "reporting") now DOES
 		// declare France's own facts (289 E, transport-discharged; 290/290 A, scoped and unverified),
 		// but none of them is a fact registry.ts#obligationFor will ever auto-trigger a report job for.
 	});
@@ -181,7 +181,7 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 		// `actions/atcud-issuance.ts#ensureAtcudIssuable`) BEFORE the record ever leaves "draft" unless
 		// the series' AT validation code is registered (`company/atcud-series/`) before any document in
 		// it is issued (AT FAQ 4308). Since issue #496 the number FORMAT is Portugal's own,
-		// "FT A/{number}" (`country-policy/data/pt.json`), ATCUD-compatible out of the box and not the
+		// "FT A/{number}" (`countries/data/pt.json (section "policy")`), ATCUD-compatible out of the box and not the
 		// company's to change: the series to register is "FT A".
 		const atcudSeriesId = "FT A";
 		cy.request({

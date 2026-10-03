@@ -1,46 +1,12 @@
 /**
- * A real-`readFileSync` passthrough for every REAL shipped file (fr/it/pl/de/es/mx/us.json,
- * read straight off disk exactly like an unmocked test would) — the ONLY intercepted path is the one
- * INVENTED "zz.json" this file's own last test uses to prove the load-time gate against an eighth
- * country that never shipped, without needing a real, checked-in file that deliberately breaks the
- * rule it exists to enforce (see `all.ts`'s own `loadCountryFile` export comment).
+ * Content-pinning spec for the shipped correction-routes catalog - `ALL_CORRECTION_ROUTES_FILES`
+ * (`./all.ts`) now derives from `defaultComposedCountryCatalog` (issue #603 step 6), not from a
+ * direct disk read of this directory, so there is nothing left here to mock at the `node:fs`
+ * boundary. The load-time-gate proof this file used to carry directly (an invented eighth country,
+ * `loadCountryFile('zz')`, proving a route with no legal provenance refuses to load) moved with the
+ * mechanism it was proving: see `countries/data/all.spec.ts`.
  */
-
-// Named with the "mock" prefix deliberately: `vi.mock` factories below are hoisted above this
-// declaration, and only an out-of-scope reference whose name starts with "mock" survives that
-// hoist (Vitest's own documented exception to "a mock factory can't close over module scope").
-const mockZzFileNoProvenance = {
-  countryCode: 'ZZ',
-  routes: [
-    {
-      routeId: 'CREDIT_NOTE',
-      status: 'required',
-      // No legal citation — exactly the case the load-time gate requires to fail load.
-      provenance: { kind: 'unverified', resolutionNote: 'Invented for this test, never researched.' },
-    },
-  ],
-};
-
-import { vi } from 'vitest';
-
-// The inner `readFileSync` implementation below runs SYNCHRONOUSLY, every time production code
-// calls it — it cannot itself `await vi.importActual`. So the actual module is resolved ONCE, here,
-// at factory setup, and captured in `actual` for the mock's own function body to call synchronously.
-vi.mock('node:fs', async () => {
-  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
-  return {
-    ...actual,
-    readFileSync: vi.fn((path: string, encoding: BufferEncoding) => {
-      if (typeof path === 'string' && path.endsWith('zz.json')) {
-        return JSON.stringify(mockZzFileNoProvenance);
-      }
-      return actual.readFileSync(path, encoding);
-    }),
-  };
-});
-
-import { InvalidCorrectionRouteProvenanceError } from '../schema';
-import { ALL_CORRECTION_ROUTES_FILES, loadCountryFile } from './all';
+import { ALL_CORRECTION_ROUTES_FILES } from './all';
 
 describe('correction-routes/data/all.ts', () => {
   it('loads every shipped file without throwing', () => {
@@ -51,9 +17,9 @@ describe('correction-routes/data/all.ts', () => {
   // correction-routes rules for DE/FR/IT/PL/PT only — every other country the YAML or a later
   // direct-reading lot ever covered (AT/BE/BG/CY/CZ/DK/EE/ES/FI/GR/HR/HU/IE/LT/LU/LV/MT/MX/NL/RO/
   // SE/SI/SK/US) was `git rm`'d along with its data/xx.json.
-  it('ships exactly the five kept-country files (DE/FR/IT/PL/PT)', () => {
+  it('ships exactly the six kept-country files (DE/DZ/FR/IT/PL/PT)', () => {
     const countries = ALL_CORRECTION_ROUTES_FILES.map((f) => f.countryCode).sort();
-    expect(countries).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(countries).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every shipped route carries either legal or unverified provenance, never anything else', () => {
@@ -154,33 +120,16 @@ describe('correction-routes/data/all.ts', () => {
     expect(statusOf('DE', 'LEDGER_ANNOTATION')).toBe('unverified');
   });
 
-  // THE LOAD-TIME GATE, proven against an INVENTED eighth country — the acceptance criterion:
-  // "an invented 8th country with no provenance refuses to load".
-  it('an eighth, invented country with a "required" route but no legal provenance REFUSES to load', () => {
-    expect(() => loadCountryFile('zz')).toThrow(InvalidCorrectionRouteProvenanceError);
-    expect(() => loadCountryFile('zz')).toThrow(/legal citation/);
-  });
+  // THE LOAD-TIME GATE, proven against an INVENTED eighth country - moved to
+  // `countries/data/all.spec.ts` (issue #603 step 6): see this file's own header.
 });
 
 // BE's own correction-routes data file (Belgium) was removed by the 5-country prune
 // (2026-09-10) along with every other country outside FR/PL/IT/PT/DE —
 // it was never registered in data/all.ts to begin with, so nothing here re-anchors it.
 
-// Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
-// really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
-// with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
-// silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
-// red here — the whole point of "adding a country = dropping a file" is only true if this holds. Uses
-// `require('node:fs')` (real, unmocked — the file-level `vi.mock` above only overrides
-// `readFileSync`) rather than the module's own mocked `readFileSync`.
-describe('correction-routes/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_CORRECTION_ROUTES_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const { readdirSync } = require('node:fs');
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_CORRECTION_ROUTES_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_CORRECTION_ROUTES_FILES`) tested a mechanism that moved: `data/all.ts` no longer reads
+// this directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`, which
+// itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

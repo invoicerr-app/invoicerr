@@ -82,7 +82,7 @@ export const AddressAutocompleteInput = React.forwardRef<HTMLInputElement, Addre
                   onSuggestionSelect?.(suggestion)
                   setFocused(false)
                 }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                className="block w-full px-3 py-2 text-start text-sm hover:bg-accent hover:text-accent-foreground"
                 data-cy={dataCyValue ? `${dataCyValue}-suggestion-${index}` : undefined}
               >
                 {suggestion.label}

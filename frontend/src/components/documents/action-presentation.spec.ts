@@ -35,9 +35,21 @@ const cancel: DocumentActionDescriptor = {
   availableWhen: ["sent", "send_failed"],
   transitions: [{ from: ["sent", "send_failed"], to: "cancelled" }],
 }
+/**
+ * Issue #581 - "Validate": numbers and locks a draft invoice without sending it, mirroring the real
+ * backend shape (invoice.descriptor.ts's `VALIDATE_TRANSITIONS`): lands on "validated" for the
+ * ordinary case, or "sending" for the one case where validating actually performs a real send (a
+ * country channel mandate active for this exact operation - today France's PDP, Italy's SdI).
+ */
+const validate: DocumentActionDescriptor = {
+  id: "validate",
+  label: "Validate",
+  availableWhen: ["draft"],
+  transitions: [{ from: ["draft"], to: ["validated", "sending"] }],
+}
 const lockedActions = [saveDraft, send, cancel]
 
-function descriptor(actions: DocumentActionDescriptor[], numbering?: { onEnterStatus: string }) {
+function descriptor(actions: DocumentActionDescriptor[], numbering?: { onEnterStatus: string | string[] }) {
   return { id: "invoice", label: "Invoice", fields: [], actions, numbering } as DocumentTypeDescriptor
 }
 
@@ -71,6 +83,10 @@ describe("actionLocksDocument", () => {
   it("is false when there is no save action for this type/status to compare against", () => {
     expect(actionLocksDocument([send, cancel], send, "draft")).toBe(false)
   })
+
+  it("issue #581: is true for 'validate' from 'draft' - the same lock 'send' causes, since 'validate' also retargets 'save-draft's own country-restricted statuses", () => {
+    expect(actionLocksDocument([saveDraft, validate, send, cancel], validate, "draft")).toBe(true)
+  })
 })
 
 describe("actionAssignsNumber", () => {
@@ -88,6 +104,35 @@ describe("actionAssignsNumber", () => {
     expect(
       actionAssignsNumber(descriptor(lockedActions, { onEnterStatus: "sent" }), saveDraft, "draft"),
     ).toBe(false)
+  })
+
+  // Issue #581: `numbering.onEnterStatus` widened from a bare string to a SET - the invoice's own real
+  // shape is now `["sending", "validated"]` (both "send" and the new "validate" can be the first
+  // transition that numbers a record). These three prove the SET form is read correctly, not just the
+  // single-string form every test above already covers.
+  it("is true for 'validate' landing on 'validated', against a SET onEnterStatus", () => {
+    const invoiceDescriptor = descriptor([saveDraft, validate, send, cancel], {
+      onEnterStatus: ["sending", "validated"],
+    })
+    expect(actionAssignsNumber(invoiceDescriptor, validate, "draft")).toBe(true)
+  })
+
+  it("is true for 'validate' landing on 'sending' (the mandated-channel branch), against the SAME SET", () => {
+    const mandatedValidate: DocumentActionDescriptor = {
+      ...validate,
+      transitions: [{ from: ["draft"], to: "sending" }],
+    }
+    const invoiceDescriptor = descriptor([saveDraft, mandatedValidate, send, cancel], {
+      onEnterStatus: ["sending", "validated"],
+    })
+    expect(actionAssignsNumber(invoiceDescriptor, mandatedValidate, "draft")).toBe(true)
+  })
+
+  it("is still true for 'send' against the SET form (backward compatible with the single-status case)", () => {
+    const invoiceDescriptor = descriptor([saveDraft, validate, send, cancel], {
+      onEnterStatus: ["sending", "validated"],
+    })
+    expect(actionAssignsNumber(invoiceDescriptor, send, "draft")).toBe(true)
   })
 })
 

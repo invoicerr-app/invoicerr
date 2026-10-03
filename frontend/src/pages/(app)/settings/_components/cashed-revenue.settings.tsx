@@ -162,6 +162,7 @@ export default function CashedRevenueSettings() {
                         {period.byCurrency.map((amount) => (
                           <span
                             key={amount.currency}
+                            dir="ltr"
                             className="font-mono tabular-nums"
                             data-cy={`cashed-revenue-period-${period.key}-amount-${amount.currency}`}
                           >
@@ -174,6 +175,7 @@ export default function CashedRevenueSettings() {
                   primary={
                     period.consolidated ? (
                       <span
+                        dir="ltr"
                         className="font-mono tabular-nums text-sm"
                         title={period.consolidated.notes.join(" ")}
                         data-cy={`cashed-revenue-period-${period.key}-consolidated`}

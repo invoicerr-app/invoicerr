@@ -128,8 +128,8 @@ describe('CountryReadinessService', () => {
       });
 
       if (partial.length === 0) {
-        // country-identifiers/data/it.json and pl.json (added alongside DE/FR/PT's own files), and
-        // later transports/channel-policy/data/de.json + pt.json, closed every remaining gap: every
+        // countries/data/it.json (section "identifiers") and pl.json (added alongside DE/FR/PT's own files), and
+        // later countries/data/de.json (section "channelPolicy") + pt.json, closed every remaining gap: every
         // one of the 5 shipped countries (DE, FR, IT, PL, PT) now has a data/xx.json file in all 6
         // core mechanisms, so there is currently no
         // "partially wired" country left for this branch to exercise against real data — the

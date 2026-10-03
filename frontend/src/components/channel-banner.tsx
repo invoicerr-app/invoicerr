@@ -73,7 +73,7 @@ export function ChannelBannerSource({ provenance, t }: { provenance?: ChannelPro
       <summary className="cursor-pointer text-sm underline-offset-2 hover:underline">
         {t("settings.channels.banner.readSource", "Read the source")}
       </summary>
-      <blockquote className="mt-1 border-l-2 pl-3 text-sm italic">{quote}</blockquote>
+      <blockquote className="mt-1 border-s-2 ps-3 text-sm italic">{quote}</blockquote>
     </details>
   )
 }

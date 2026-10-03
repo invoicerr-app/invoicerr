@@ -40,7 +40,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    `transportId: "peppol"` — a transport this app had wired and connected the federal portal's own
  *    acceptance of Peppol as an input channel to, carrying `formatSyntax: "xrechnung"` via that
  *    transport's own format override — but that transport was removed from the product on 2026-09-15
- *    (no real Access Point account ever backed it; see `b2g-routing/data/de.json`'s own `notes` for
+ *    (no real Access Point account ever backed it; see `countries/data/de.json (section "b2gRouting")`'s own `notes` for
  *    the full, dated history), so the rule reverted to `"zre-ozgre"` and this suite's assertions revert
  *    with it. GENUINE STRUCTURAL LIMIT, UNCHANGED throughout: `download-xml` is only
  *    `availableWhen: ['sending', 'sent', 'send_failed']` (`invoice.descriptor.ts`'s own numbering
@@ -103,10 +103,10 @@ const FAKE_SDI = {
 	certificatePassword: "e2e-fake-cert-password",
 };
 
-/** Chorus Pro (FR) — same discipline as `31-national-channels.cy.ts`'s own "Vague 3": PISTE's OAuth
+/** Chorus Pro (FR) - same discipline as `31-national-channels.cy.ts`'s own "Vague 3": PISTE's OAuth
  *  hosts are fixed by environment, never a user-editable field, so these fictitious credentials reach
- *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real (`HTTP 400
- *  invalid_client`) — never a closed port. See that file's own header for the manual verification. */
+ *  the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`) and are rejected for real, never a closed
+ *  port. See that file's own header for the manual verification. */
 const FAKE_CHORUS_PRO = {
 	clientId: "e2e-fake-piste-client-id",
 	clientSecret: "e2e-fake-piste-client-secret",
@@ -356,8 +356,8 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// REINFORCEMENT (see this file's own header): the preflight now PASSES (chorus-pro is
 				// registered AND connected) — B2G precedence still forces chorus-pro rather than
 				// "email" (the company's free choice), exactly like the IT/SdI case further down. The
-				// queue then GENUINELY fails, against the real PISTE sandbox (fake credentials,
-				// HTTP 400 invalid_client) — never a silent success, never a send through email. Same
+				// queue then GENUINELY fails, against the real PISTE sandbox with fake credentials -
+				// never a silent success, never a send through email. Same
 				// budget as 31's own chorus-pro/PDP/KSeF/SdI tests — see that file's own
 				// comment on why it is 90000ms, not 40000ms: PISTE itself answers fast, but the
 				// preamble before each of the 3 attempts even reaches PISTE measured ~11-12s on CI
@@ -668,7 +668,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		);
 
 		// The Codice Univoco Ufficio (IPA) — a NEW field, offered ONLY because this client is
-		// GOVERNMENT (never for an ordinary Italian client — see b2g-routing/data/it.json).
+		// GOVERNMENT (never for an ordinary Italian client — see countries/data/it.json (section "b2gRouting")).
 		cy.get('[data-cy="client-identifier-IT_PA_CODE"]', { timeout: 10000 })
 			.should("exist")
 			.clear()

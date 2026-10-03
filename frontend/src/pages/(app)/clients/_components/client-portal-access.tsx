@@ -130,7 +130,7 @@ export function ClientPortalAccessDialog({ client, onOpenChange }: ClientPortalA
             loading={createAccess.isPending}
             dataCy="portal-access-create-button"
           >
-            <UserRoundCheck className="mr-2 h-4 w-4" />
+            <UserRoundCheck className="me-2 h-4 w-4" />
             {t("clients.portalAccess.createButton")}
           </Button>
 

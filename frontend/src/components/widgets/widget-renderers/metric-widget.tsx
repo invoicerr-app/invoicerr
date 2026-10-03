@@ -33,14 +33,14 @@ function metricTone(id: string, label: string): Tone {
 }
 
 // A left accent stripe, not a filled background — "sober tile" per the identity brief: the shape
-// (a stripe) and the color both carry the signal, without the tile shouting. `border-l-transparent`
+// (a stripe) and the color both carry the signal, without the tile shouting. `border-s-transparent`
 // keeps the ordinary, unremarkable case (a plain count or flow) visually silent.
 const TONE_BORDER: Record<Tone, string> = {
-  neutral: "border-l-transparent",
-  info: "border-l-info",
-  success: "border-l-success",
-  warning: "border-l-warning",
-  destructive: "border-l-destructive",
+  neutral: "border-s-transparent",
+  info: "border-s-info",
+  success: "border-s-success",
+  warning: "border-s-warning",
+  destructive: "border-s-destructive",
 }
 
 interface VariationChipProps {
@@ -125,7 +125,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           <span className="min-w-0">{metric.label}</span>
           {metric.link && (
             <ChevronRight
-              className="mt-px size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"
+              className="mt-px size-3.5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
               aria-hidden="true"
             />
           )}
@@ -136,7 +136,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           {metric.approx ? "≈ " : ""}
           {metric.value.toLocaleString()}
           {metric.unit ? (
-            <span className="ml-1 text-sm font-normal text-muted-foreground">{metric.unit}</span>
+            <span className="ms-1 text-sm font-normal text-muted-foreground">{metric.unit}</span>
           ) : null}
         </p>
         {metric.previousValue !== undefined && (
@@ -169,7 +169,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           data-cy={`widget-${metric.id}`}
           data-widget-kind="metric"
           className={cn(
-            "cursor-pointer gap-2 border-l-4 py-4 transition-colors duration-150",
+            "cursor-pointer gap-2 border-s-4 py-4 transition-colors duration-150",
             // Background and shadow only: the left border carries the tile's tone and must survive a hover.
             "hover:bg-accent/40 hover:shadow-md",
             "group-focus-visible:ring-2 group-focus-visible:ring-ring",
@@ -186,7 +186,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
     <Card
       data-cy={`widget-${metric.id}`}
       data-widget-kind="metric"
-      className={cn("gap-2 border-l-4 py-4", TONE_BORDER[tone])}
+      className={cn("gap-2 border-s-4 py-4", TONE_BORDER[tone])}
     >
       {cardBody}
     </Card>

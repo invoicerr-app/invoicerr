@@ -285,7 +285,7 @@ describe('resolveInvoiceCrossBorderTax — FR→US export: G/O, art. 146', () =>
 // OSS follow-up (2026-09-01): DE used to be the textbook example of "no destination
 // rate table" — the OSS gate's own error message names it verbatim (see resolve-invoice-tax.ts's own
 // header, "OSS with no destination rate table"). Germany's real standard VAT rate (19%) was read
-// from the European Commission's TEDB (`tax-systems/data/de.json`'s own `provenance`) along
+// from the European Commission's TEDB (`countries/data/de.json (section "taxSystem")`'s own `provenance`) along
 // with all 26 other EU member states — DE no longer blocks. The BLOCK MECHANISM itself is still
 // exercised below, via dependency injection, against a registry that genuinely has no destination
 // file — proving the gate did not get weakened, only the real-world DE gap got closed.

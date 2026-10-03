@@ -101,7 +101,7 @@ export default function CurrencyRatesSettings() {
       title={t("settings.company.currencyRates.title", "Exchange rates")}
       description={t(
         "settings.company.currencyRates.description",
-        "Manually-entered rates used to consolidate dashboard totals into your reference currency below. No rate is ever derived automatically — enter both directions if you need them.",
+        "Rates entered here consolidate dashboard totals into your reference currency above and convert a payment recorded in a different currency than its invoice. A daily job also refreshes any pair you have already added, from the European Central Bank or, when it does not quote a currency, from exchangerate-api.com as a fallback; it never creates a new pair on its own. The most recently dated rate for a pair wins, whether it was entered by hand or added automatically.",
       )}
       dataCy="currency-rates-card"
       contentClassName="grid gap-4"

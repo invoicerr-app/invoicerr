@@ -498,7 +498,7 @@ export default function PublicSignaturePage() {
                   />
                 )}
 
-                <div className="mx-auto flex max-w-sm items-start gap-2 text-left">
+                <div className="mx-auto flex max-w-sm items-start gap-2 text-start">
                   <Checkbox
                     id="signature-confirm-read"
                     checked={hasReadDocument}

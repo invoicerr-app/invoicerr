@@ -45,7 +45,7 @@ export function StatementList({ statements, loading, selectedStatementId, onSele
                 type="button"
                 onClick={() => onSelect(statement.id)}
                 className={cn(
-                  "w-full text-left p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
+                  "w-full text-start p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
                   selectedStatementId === statement.id && "bg-muted",
                 )}
                 data-cy={`bank-reconciliation-statement-item-${statement.id}`}

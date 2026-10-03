@@ -65,7 +65,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    redundant explanation on every linked credit note would be exactly the kind of unrequested legal
  *    assertion this file's own header already declines to invent). This is a PRODUCT choice about
  *    what THIS SCREEN requires before saving, the same "required on this screen, not a legal
- *    requirement this repo is asserting" distinction `country-fields/data/pl.json`'s own
+ *    requirement this repo is asserting" distinction `countries/data/pl.json (section "countryFields")`'s own
  *    `correctionReason` (on the INVOICE type, for Poland's `correctsInvoiceId`) already draws — see
  *    that file's own header. `requiredIfAbsent` (descriptors/types.ts) is the mirror image of the
  *    `requiredIfPresent` hint that field already uses.
@@ -78,7 +78,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * 106j ust. 1) gives a seller-issued reduction NO instrument of its own: the SAME referenced document,
  * the faktura korygująca, covers both an increase and a decrease, and the FA(3) `RodzajFaktury`
  * enumeration this repo already reads (`formats/national/fa3-provider.ts`) has no "avoir"/"nota
- * kredytowa" type at all (`correction-routes/data/pl.json`'s own CREDIT_NOTE fact, status
+ * kredytowa" type at all (`countries/data/pl.json (section "correctionRoutes")`'s own CREDIT_NOTE fact, status
  * `'forbidden'`, sourced). A FREE credit note for a Polish seller is therefore not a lesser version of
  * that document, it has no legal basis to exist AT ALL — `credit-note-actions.ts`'s own
  * `assertCreditNoteAllowedForCountry` reads that exact fact (never a second, invented one) and
@@ -133,7 +133,7 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  * same identifiers by SERIES that article already allows justify a DEDICATED credit-note series (the
  * existing per-`(companyId, typeId)` sequence, numbering/sequence.ts, needs no change at all: a
  * correcting document is exactly the kind of distinct activity that provision has in mind - see
- * country-policy/data/fr.json's own credit-note `numbering` fact for the full citation). This is not
+ * countries/data/fr.json (section "policy")'s own credit-note `numbering` fact for the full citation). This is not
  * FR-only either: PT/DE/IT all require it too (country-policy/'s per-country facts, with provenance  -
  * DE/IT are UNVERIFIED, honestly flagged rather than guessed at), and only Poland's own
  * `assertCreditNoteAllowedForCountry` above already makes the point moot there (a Polish credit

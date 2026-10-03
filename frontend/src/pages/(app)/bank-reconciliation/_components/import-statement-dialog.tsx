@@ -614,13 +614,14 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
           <TableBody>
             {preview.lines.map((line, index) => (
               <TableRow key={line.key} data-cy={`bank-reconciliation-import-preview-row-${index}`}>
-                <TableCell className="tabular-nums whitespace-nowrap">
+                <TableCell dir="ltr" className="tabular-nums whitespace-nowrap">
                   {line.date?.toLocaleDateString()}
                 </TableCell>
                 <TableCell className="max-w-xs truncate" title={line.label}>
                   {line.label}
                 </TableCell>
                 <TableCell
+                  dir="ltr"
                   className={cn(
                     "text-right font-mono tabular-nums whitespace-nowrap",
                     (line.amountMinor ?? 0) < 0 && "text-destructive",
@@ -1002,7 +1003,7 @@ export function ImportStatementDialog({ onImported }: ImportStatementDialogProps
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)} dataCy="bank-reconciliation-import-button">
-        <Upload className="h-4 w-4 mr-0 md:mr-2" />
+        <Upload className="h-4 w-4 me-0 md:me-2" />
         <span className="hidden md:inline-flex">{t("bankReconciliation.import.button")}</span>
       </Button>
 

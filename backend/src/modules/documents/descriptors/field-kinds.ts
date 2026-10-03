@@ -107,7 +107,7 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     // row — legitimately carries either a FOREIGN country's real rate (e.g. Germany's 19% on a FR
     // seller's OSS sale) OR a 0% small-business-exemption rate for a DOMESTIC franchise seller
     // (`applyDomesticTaxScheme`, added 2026-09-13 — a franchise-exempt FR seller's own catalog may not
-    // even list "0" as an option, since `tax-systems/data/fr.json` records `hasDomesticZeroRate:
+    // even list "0" as an option, since `countries/data/fr.json (section "taxSystem")` records `hasDomesticZeroRate:
     // false`), neither of which the seller's own domestic catalog (`options` here) was ever meant to
     // validate in the first place. Without this, the surgical fix (the resolved
     // treatment is persisted at "sending" and REPLAYED through this exact validator when the queued

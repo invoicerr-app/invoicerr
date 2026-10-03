@@ -4,8 +4,45 @@ import { toast } from "sonner"
 
 import { actionLocksDocument } from "@/components/documents/action-presentation"
 import type { DocumentActionDescriptor, DocumentInstance } from "@/components/documents/types"
+import { countryName } from "@/components/channel-banner"
 import { useResolveActionParamsDefaults, useRunDocumentAction } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
+
+/** Server-side code `domestic-currency-issuance.ts`'s own `DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE`
+ *  names a 400 with, mirrored by hand, the same "no shared package between the four projects"
+ *  convention `billing.settings.tsx`'s own local codes already follow. #566 review: the raw catalog
+ *  quote and the bare country code must never reach the toast (#554, #563) - only this translated,
+ *  parameterized copy may. */
+const DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE = "DOMESTIC_INVOICE_CURRENCY_MISMATCH"
+
+interface DomesticInvoiceCurrencyMismatchParams {
+  countryCode?: string
+  requiredCurrency?: string
+  invoiceCurrency?: string
+}
+
+function apiErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.body as { code?: string } | undefined)?.code
+}
+
+function apiErrorParams(error: unknown): DomesticInvoiceCurrencyMismatchParams | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.body as { params?: DomesticInvoiceCurrencyMismatchParams } | undefined)?.params
+}
+
+/** A human-readable currency name from an ISO 4217 code, in the reader's own language - the same
+ *  `Intl.DisplayNames` convention `channel-banner.tsx`'s own `countryName` already uses for country
+ *  codes, applied to a currency instead so this message never has to hardcode a name-per-currency
+ *  table. Falls back to the raw code if the runtime cannot resolve one. */
+function currencyName(language: string, code?: string): string {
+  if (!code) return ""
+  try {
+    return new Intl.DisplayNames([language, "en"], { type: "currency" }).of(code) ?? code
+  } catch {
+    return code
+  }
+}
 
 interface UseDocumentActionRunnerOptions {
   typeId: string
@@ -67,7 +104,7 @@ export function useDocumentActionRunner({
   onActionSuccess,
   onDocumentUpdate,
 }: UseDocumentActionRunnerOptions) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [pendingAction, setPendingAction] = useState<DocumentActionDescriptor | undefined>()
   const [pendingDefaults, setPendingDefaults] = useState<Record<string, unknown>>({})
   // Set only for an action `actionLocksDocument` says is about to lock the record — one MORE gate
@@ -106,6 +143,27 @@ export function useDocumentActionRunner({
         onActionSuccess?.(result.document, actionId)
       }
     } catch (error) {
+      // #566 review: the backend's own message for this one code carries a raw legal quote, a
+      // source-checked date and the bare country code - never shown as-is. Branch on the stable code
+      // instead and render a short, translated, parameterized message with the country's display
+      // name, the same `apiErrorCode`/`t(key, default, {vars})` pattern billing.settings.tsx and
+      // signature/[token].tsx already use for their own named backend errors.
+      if (apiErrorCode(error) === DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE) {
+        const params = apiErrorParams(error) ?? {}
+        toast.error(
+          t(
+            "documents.form.messages.domesticInvoiceCurrencyMismatch",
+            "Invoices between two companies in {{country}} must be in {{currencyName}} " +
+              "({{currencyCode}}). Change the currency to {{currencyCode}} before sending.",
+            {
+              country: countryName(i18n.language, params.countryCode) || params.countryCode,
+              currencyName: currencyName(i18n.language, params.requiredCurrency),
+              currencyCode: params.requiredCurrency,
+            },
+          ),
+        )
+        return
+      }
       // The message IS the point here: a 501 means the action is declared on this document type but
       // nobody registered an implementation for it yet — say exactly that, never fail silently.
       const message = error instanceof ApiError ? error.message : t("documents.form.messages.actionError")

@@ -12,6 +12,7 @@ import {
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
+import { ALLOWED_ATTACHMENT_MIMES } from './attachments/attachments.service';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
@@ -56,7 +57,12 @@ import {
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
 import { listDeclarations, ListDeclarationsResult } from './reporting/list-declarations';
-import { ActionRegistry, ActionResult, DocumentInstanceResult } from './actions/action-registry';
+import {
+  ActionRegistry,
+  ActionResult,
+  ActionTransmissionPreview,
+  DocumentInstanceResult,
+} from './actions/action-registry';
 import { collectWidgets } from './contributions/collect-widgets';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { Widget } from './contributions/widgets';
@@ -74,6 +80,7 @@ import {
 } from './country-identifiers/country-identifiers';
 import { PartyType } from './country-identifiers/schema';
 import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing/b2g-routing';
+import { defaultCountryPolicyCatalog } from './country-policy/registry';
 import {
   CorrectionRoutesDecision,
   CORRECTION_ROUTES_DATA_DIR_HINT,
@@ -99,6 +106,7 @@ import {
   DocumentFieldDescriptor,
   DocumentTypeDescriptor,
   isActionAvailable,
+  onEnterStatuses,
   WidgetLocation,
 } from './descriptors/types';
 import { dropEmptyRows, stripSidecarKeys, validateAgainstDescriptor } from './descriptors/validate';
@@ -124,7 +132,7 @@ import {
   listDocumentsPage,
   ListDocumentsPageResult,
 } from './persistence';
-import { applyStockOnIssuance, declaresArticleReference } from './stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, decrementsStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
 import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
@@ -256,6 +264,94 @@ export interface DocumentSettlementView {
  *  array: a document with nothing to caveat answers `[]`, never 204 and never a missing key. */
 export interface DocumentTaxWarningsView {
   warnings: string[];
+}
+
+/**
+ * The extension `DocumentsService#downloadImportOriginal` (issue #549) puts on the filename it
+ * hands back - presentation only, deliberately separate from `archive/storage.ts#extFor`, which
+ * names the file this same artifact is written to ON DISK. Changing THAT map would silently break
+ * reading back every archive already written under it; this one only ever affects a fresh
+ * `Content-Disposition` header, so it is free to cover every mime `attachments.service.ts#
+ * ALLOWED_ATTACHMENT_MIMES` accepts as an import original, images included, where `extFor` itself
+ * still falls back to `.bin`.
+ */
+function extensionForOriginalMime(mime: string): string {
+  if (mime === 'application/pdf') return 'pdf';
+  if (mime === 'application/xml' || mime === 'text/xml') return 'xml';
+  if (mime === 'image/jpeg') return 'jpg';
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/webp') return 'webp';
+  return 'bin';
+}
+
+/**
+ * The mime `DocumentsService#downloadImportOriginal` actually serves - never the archive row's
+ * stored value verbatim. That value came from whatever `mime` the ORIGINAL upload declared
+ * (`attachments.service.ts#AttachmentUploadInput`, client-supplied, before #340's own import wrote
+ * it into the `IMPORT_ORIGINAL` archive), so a row written by a build that once accepted a wider
+ * mime, or one that predates a later tightening of the allow-list, must never be trusted as-is:
+ * this is the one function deciding what this route is willing to tell a browser to do with the
+ * bytes it is about to stream. `ALLOWED_ATTACHMENT_MIMES` is the exact set the import path itself
+ * accepts today (`attachments.service.ts`) - anything outside it falls back to the inert
+ * `application/octet-stream`, which every browser downloads rather than renders.
+ */
+export function safeOriginalMime(mime: string): string {
+  return ALLOWED_ATTACHMENT_MIMES.includes(mime) ? mime : 'application/octet-stream';
+}
+
+/**
+ * The ASCII-only `Content-Disposition` fallback filename (RFC 6266 section 4.3): every byte outside
+ * printable ASCII (0x20-0x7E) - control characters INCLUDING CR/LF, and anything non-ASCII - becomes
+ * `_`, and a literal quote or backslash is replaced the same way so the value can never break out of
+ * the `filename="..."` quoted string it is embedded in. `displayNumber` (this function's only real
+ * caller's own input) is the number the IMPORTED document's previous tool printed - never validated
+ * against a charset, since #340 keeps it "exactly as entered" - so this is the one place issue #549's
+ * code review asked for: header-injection and control-character safety belongs here, not upstream of
+ * it, because upstream is exactly where the legal requirement is to keep the value verbatim.
+ */
+export function asciiContentDispositionFallback(value: string): string {
+  const sanitized = Array.from(value)
+    .map((ch) => {
+      const code = ch.codePointAt(0) ?? 0;
+      if (code < 0x20 || code > 0x7e) return '_';
+      if (ch === '"' || ch === '\\') return '_';
+      return ch;
+    })
+    .join('');
+  return sanitized || 'original';
+}
+
+/**
+ * The UTF-8, percent-encoded `filename*` extension (RFC 5987/8187) that lets a compliant client
+ * recover the real, accented/quoted/whatever-it-was file name the ASCII fallback above had to
+ * mangle. Encodes every byte outside RFC 5987's own `attr-char` set (`ALPHA / DIGIT / "!" / "#" /
+ * "$" / "&" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"`) - stricter than `encodeURIComponent`
+ * alone, which leaves `'`, `(`, `)` and `*` unescaped even though RFC 5987 does not allow them
+ * unescaped in this position.
+ */
+export function rfc5987Encode(value: string): string {
+  const ATTR_CHAR = /^[A-Za-z0-9!#$&+\-.^_`|~]$/;
+  let out = '';
+  for (const byte of Buffer.from(value, 'utf8')) {
+    const ch = String.fromCharCode(byte);
+    out += ATTR_CHAR.test(ch) ? ch : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+
+/**
+ * The full `Content-Disposition` header value for issue #549's "Download original" - the one place
+ * this repo builds this header from a value it did not itself generate (every OTHER
+ * `Content-Disposition` in this module is built from `typeId`/`id`/a provider's own fixed `syntax`,
+ * never a user-supplied string). Carries BOTH forms RFC 6266 documents for exactly this situation:
+ * an ASCII-sanitized `filename=` every client understands, and a UTF-8 `filename*` a compliant one
+ * prefers - see `asciiContentDispositionFallback`/`rfc5987Encode` above for what each strips or
+ * encodes and why.
+ */
+export function buildOriginalContentDisposition(filename: string): string {
+  const ascii = asciiContentDispositionFallback(filename);
+  const encoded = rfc5987Encode(filename);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 @Injectable()
@@ -636,7 +732,7 @@ export class DocumentsService implements OnModuleInit {
    * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
    * country, never the company's: a French company invoicing a German government body has no
    * field-overlay file of its OWN country to thank for a Leitweg-ID input
-   * (`country-fields/data/de.json`'s own overlay only ever applies for a DE-country COMPANY — see
+   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY — see
    * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
    * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
    * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
@@ -666,7 +762,7 @@ export class DocumentsService implements OnModuleInit {
    */
   /**
    * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
-   * `save-draft` or `send`) only ever quotes the LAW (country-policy/data/pl.json's own art. 106j
+   * `save-draft` or `send`) only ever quotes the LAW (countries/data/pl.json (section "policy")'s own art. 106j
    * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
    * whenever the refusal is genuinely the "no credit note instrument at all" one: the seller's own
    * `correction-routes` CREDIT_NOTE route is itself `'forbidden'` - the SAME fact
@@ -833,6 +929,15 @@ export class DocumentsService implements OnModuleInit {
    *  `documents.controller.ts#getB2gRoutingRule`'s own header. */
   async getB2gRoutingRule(countryCode: string) {
     return resolveB2gRoutingRule(countryCode);
+  }
+
+  /** Issue #558: the domestic-invoicing-currency obligation declared for a country, or `undefined`
+   *  when none is declared. See `documents.controller.ts#getDomesticInvoiceCurrencyRule`'s own header
+   *  for why this is exposed at all (the create-invoice form's own currency preselection) and
+   *  `country-policy/domestic-currency-issuance.ts` for the actual send-time enforcement, which never
+   *  reads this endpoint and re-derives the same fact from the catalog directly. */
+  getDomesticInvoiceCurrencyRule(countryCode: string) {
+    return defaultCountryPolicyCatalog.domesticInvoiceCurrencyFor(countryCode) ?? null;
   }
 
   private resolveType(typeId: string): DocumentTypeDescriptor {
@@ -1094,6 +1199,36 @@ export class DocumentsService implements OnModuleInit {
       typeId,
       documentId: payload.documentId,
       data: payload.data ?? {},
+      params: {},
+    });
+  }
+
+  /**
+   * Issue #581 - whether running ONE action on ONE EXISTING document would genuinely transmit it
+   * somewhere, and through what channel, BEFORE the user confirms it. Read from the record's own
+   * PERSISTED `data`, the same "known, accepted staleness" `getTaxWarnings` already lives with - a
+   * user who edited the client or the issue date in the form but has not yet saved sees the preview
+   * for what is currently ON FILE, not their unsaved edit; this mirrors every other preview this
+   * module already composes from `instance.data` (tax warnings, correction routes) rather than
+   * threading live form state through a GET. `{ transmits: false }` for an unknown type/action/record,
+   * or for an action with no transmission-preview resolver registered at all (the overwhelming
+   * majority) - never an error: this is a courtesy preview, not a gate anything else depends on.
+   */
+  async getActionTransmissionPreview(
+    companyId: string,
+    typeId: string,
+    id: string,
+    actionId: string,
+  ): Promise<ActionTransmissionPreview> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    const resolver = this.actionRegistry.resolveTransmissionPreview(typeId, actionId);
+    if (typeof resolver !== 'function') return { transmits: false };
+
+    return resolver({
+      companyId,
+      typeId,
+      documentId: id,
+      data: (instance.data ?? {}) as Record<string, unknown>,
       params: {},
     });
   }
@@ -1565,7 +1700,7 @@ export class DocumentsService implements OnModuleInit {
       descriptor.numbering !== undefined &&
       result.document !== undefined &&
       result.document.typeId === typeId &&
-      result.document.status === descriptor.numbering.onEnterStatus &&
+      onEnterStatuses(descriptor.numbering).includes(result.document.status) &&
       result.document.number == null &&
       isNumberingAllowedFrom(descriptor.numbering, currentStatus);
 
@@ -1600,14 +1735,16 @@ export class DocumentsService implements OnModuleInit {
         // decrement happens THERE, not here. This site covers any OTHER action that numbers a document
         // synchronously through `runAction`.
         //
-        // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b): the "reads
-        // data.lines type-agnostically" claim above is about the FORMAT (never a typeId check), not
-        // about running unconditionally - a type whose descriptor declares no article-reference field
-        // on its lines at all (the credit note) must never have this effect applied, whatever its
-        // lines happen to carry (an undeclared key the line validator kept, e.g.). This is the SAME
-        // descriptor already resolved above for `enteringNumberedStatus`/`isNumberingAllowedFrom`,
-        // never a second lookup.
-        if (declaresArticleReference(descriptor)) {
+        // GATED on `decrementsStockOnIssuance(descriptor)` (issue #579: the EXPLICIT
+        // `DocumentTypeDescriptor.stockEffect` fact, never inferred from whether a line CAN reference
+        // an article, a quote's own lines declare that exact field too, for the catalog-prefill
+        // picker, with no intention of ever moving stock). The "reads data.lines type-agnostically"
+        // claim above is about the FORMAT (never a typeId check), not about running unconditionally -
+        // a type whose descriptor does not opt into `stockEffect: 'decrement'` (today: every type but
+        // the invoice) must never have this effect applied, whatever its lines happen to carry (an
+        // undeclared key the line validator kept, e.g.). This is the SAME descriptor already resolved
+        // above for `enteringNumberedStatus`/`isNumberingAllowedFrom`, never a second lookup.
+        if (decrementsStockOnIssuance(descriptor)) {
           await applyStockOnIssuance(companyId, numberedDocument);
         }
       }
@@ -1864,12 +2001,18 @@ export class DocumentsService implements OnModuleInit {
         );
       }
       if (original.mime !== 'application/pdf') {
-        throw new ConflictException(
-          "This document's original file, as imported, is not a PDF (it is a structured " +
+        // Issue #549 - `code` lets the frontend show its own translated message pointing at
+        // "Download original" (document-downloads.ts#downloadDocumentPdf) instead of this raw
+        // English text, the same way `downloadDocumentFormat`'s own `errors` array lets its caller
+        // show something more specific than the generic wrapper message.
+        throw new ConflictException({
+          message:
+            "This document's original file, as imported, is not a PDF (it is a structured " +
             `"${original.mime}" file the previous tool issued). Invoicerr keeps it verbatim as the ` +
             'legal original, but this endpoint only ever serves a PDF, so it cannot be relabeled or ' +
-            'converted here.',
-        );
+            'converted here. Use "Download original" instead to get the file as issued.',
+          code: 'IMPORT_ORIGINAL_NOT_PDF',
+        });
       }
       return original.bytes;
     }
@@ -1901,6 +2044,59 @@ export class DocumentsService implements OnModuleInit {
     // exists). A configured-but-failing signature THROWS here, same as a Puppeteer failure would —
     // never a silently-unsigned document served to a company that turned signing on.
     return signRenderedPdfIfConfigured(this.signingCertificates, companyId, pdf);
+  }
+
+  /**
+   * "GET .../original" (issue #549) - the archived `IMPORT_ORIGINAL` artifact's own bytes, verbatim,
+   * for ANY original type (PDF, structured XML, image), the one route this repo offers for the
+   * non-PDF case `renderInstancePdf` above refuses (409) by design. Authorization is exactly
+   * `renderInstancePdf`'s own: `findOwnedDocument` first (company scoping, 404 for another company's
+   * or a nonexistent document - never a distinguishing message), never a path or filename read from
+   * user input - the bytes come from the archive row this company's OWN document owns, resolved by
+   * `companyId`/`documentId` alone.
+   *
+   * Only an "imported" document ever has an `IMPORT_ORIGINAL` archive at all (`archive/
+   * import-original.ts`'s own header) - every other status refuses with the same 409 shape
+   * `renderInstancePdf` already uses for "no archived original", so a scripted client probing this
+   * route on an ordinary sent invoice gets a clear, named refusal rather than a 404 that could be
+   * mistaken for "wrong id".
+   *
+   * The `mime` returned is `safeOriginalMime(original.mime)`, never the archive row's raw value -
+   * see that function's own header on why a stored mime is never trusted as-is. `filename` is the
+   * plain, human-readable name (used by `billing/export-zip.service.ts` as a zip entry name, where
+   * header-injection does not apply); the CALLER that puts it in an HTTP header
+   * (`documents.controller.ts#downloadOriginal`) is responsible for running it through
+   * `buildOriginalContentDisposition` first - `displayNumber` is a previous tool's own number,
+   * entered verbatim (#340's own decision), so it is exactly as untrusted as any other user input.
+   */
+  async downloadImportOriginal(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<{ bytes: Buffer; mime: string; filename: string }> {
+    const instance = await findOwnedDocument(companyId, typeId, id);
+    if (instance.status !== 'imported') {
+      throw new ConflictException(
+        'Only an imported document has an archived original to download - this document was never ' +
+          'imported from another tool.',
+      );
+    }
+
+    const original = await findImportOriginalArtifact(companyId, id);
+    if (!original) {
+      throw new ConflictException(
+        'This imported document has no archived original on file, so nothing can be served for it. ' +
+          'Contact support: an imported document must never be missing its legal archive.',
+      );
+    }
+
+    const mime = safeOriginalMime(original.mime);
+    const base = instance.displayNumber ?? id;
+    return {
+      bytes: original.bytes,
+      mime,
+      filename: `${base}-original.${extensionForOriginalMime(mime)}`,
+    };
   }
 
   /**

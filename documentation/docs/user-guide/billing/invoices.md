@@ -12,10 +12,19 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter**: toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
+- **Filter**: toggle the status chips: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
-- **Download** — a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**
-- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)
+- **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
+- **Validate** - assign the invoice's legal number and lock it, without sending anything. A warning
+  appears first: this is final, correct a mistake with a credit note afterwards, the same as for a sent
+  invoice. For a French or Italian domestic B2B invoice, validating also transmits it through your
+  accredited channel (PDP for France, SdI for Italy), since each country's own law treats the invoice
+  as not genuinely issued until it reaches that channel - the warning dialog says so explicitly in
+  that case, naming the channel and stating it cannot be undone; see
+  [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
+  [Italy](../../developer-guide/countries/italy.md#validate-and-the-sdi-mandate). For every other
+  invoice, **Send** stays a separate, later step
+- **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit
@@ -35,7 +44,7 @@ Click **Add New** and fill in:
 - **Line items** — Designation, Quantity, Unit, Unit price, VAT rate, and a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)
 - **Notes** (optional)
 
-There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically, and the one actually used is only recorded afterwards, when you mark the invoice as paid.
+There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically - unless the client has its own [restriction](../clients.md#restricting-payment-methods-for-a-client), in which case only the methods you allowed for that client are printed. The one actually used is only recorded afterwards, when you mark the invoice as paid.
 
 ### Creating from a quote
 

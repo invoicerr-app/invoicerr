@@ -57,7 +57,7 @@ const IMPLEMENTED_ROUTE_IDS: ReadonlySet<CorrectionRouteId> = new Set(['INTERNAL
  * `correctsInvoiceId` field creates the linked invoice, `formats/national/fa3-provider.ts` builds it
  * as a real `RodzajFaktury = KOR` FA(3) document (`fa3-kor.ts`), and `transports/ksef-transport.ts`
  * submits it — the whole point of THIS particular route being the one Poland's own law actually
- * requires (`correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE`, `status: 'required'`). No
+ * requires (`countries/data/pl.json (section "correctionRoutes")`'s own `CORRECTIVE_INVOICE`, `status: 'required'`). No
  * other country's format provider reads `correctsInvoiceId` at all today, even though DE/FR/PT also
  * declare this route (`required`/`allowed`) in their own files — an honest, named gap, not a silent
  * over-claim: this predicate is the ONE place that decides it, the same role it already plays for

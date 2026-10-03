@@ -1,7 +1,7 @@
 /**
- * PT — direct-load content spec: reads `pt.json` straight off
- * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
- * exact load-time gate (`assertValidCorrectionRouteFact`) independently.
+ * PT - direct-load content spec for the `correctionRoutes` section. Issue #603 step 6 moved the
+ * data: this now reads it out of `countries/data/pt.json` (the single merged per-country file), and
+ * re-runs the exact load-time gate (`assertValidCorrectionRouteFact`) independently.
  *
  * PT was not part of the original correction-routes research pass (2026-08-29, covering
  * FR/IT/PL/DE/ES/MX/US only) — this is the first, direct reading for this country, grounded in the
@@ -15,8 +15,8 @@ import { join } from 'node:path';
 import { assertValidCorrectionRouteFact, CORRECTION_ROUTE_IDS, CountryCorrectionRoutesFile } from '../schema';
 
 function loadPt(): CountryCorrectionRoutesFile {
-  const raw = readFileSync(join(__dirname, 'pt.json'), 'utf-8');
-  return JSON.parse(raw) as CountryCorrectionRoutesFile;
+  const raw = readFileSync(join(__dirname, '../../countries/data/pt.json'), 'utf-8');
+  return (JSON.parse(raw) as { correctionRoutes: CountryCorrectionRoutesFile }).correctionRoutes;
 }
 
 describe('PT — correction-routes/data/pt.json', () => {

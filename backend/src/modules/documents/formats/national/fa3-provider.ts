@@ -38,8 +38,8 @@
  * rather than emit anything. Polish law has no seller-issued credit-note instrument distinct from the
  * faktura korygująca: art. 106j ust. 1 ustawy o VAT covers every post-issue change (a reduction
  * included) with that ONE corrective invoice, and the FA(3) `RodzajFaktury` enumeration has `KOR` for
- * it and no "nota kredytowa" type at all (`correction-routes/data/pl.json`'s own CREDIT_NOTE fact,
- * `forbidden`, and `country-policy/data/pl.json`'s `credit-note` rules, both sourced). The Polish path
+ * it and no "nota kredytowa" type at all (`countries/data/pl.json (section "correctionRoutes")`'s own CREDIT_NOTE fact,
+ * `forbidden`, and `countries/data/pl.json (section "policy")`'s `credit-note` rules, both sourced). The Polish path
  * is therefore the INVOICE carrying `correctsInvoiceId` (below), and a credit-note document must never
  * be dressed up as one: it would be numbered in the credit-note series, not the invoice series art.
  * 106j ust. 2 pkt 2 requires. The credit note's own `download-xml` action does not offer `fa3`
@@ -52,7 +52,7 @@
  * used at the reference, re-verified directly against THIS file's own vendored `schemat_FA3.xsd`
  * (`DaneFaKorygowanej`'s `xsd:choice` between `NrKSeF`+`NrKSeFFaKorygowanej` and `NrKSeFN` — see
  * `fa3-kor.ts`'s own header for which branch applies and why). `PrzyczynaKorekty` reads
- * `data.correctionReason` (`country-fields/data/pl.json`) when set, or else a generic, honest fallback
+ * `data.correctionReason` (`countries/data/pl.json (section "countryFields")`) when set, or else a generic, honest fallback
  * naming the corrected invoice — never an empty element (the schema allows omitting it entirely, but a
  * KOR that names no reason at all when a human COULD have typed one is a worse document than a
  * generic one). `TZnakowy`'s own `maxLength` is 240 (verified against `ElementarneTypyDanych_v10-0E.xsd`

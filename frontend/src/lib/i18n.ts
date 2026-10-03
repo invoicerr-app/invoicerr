@@ -147,6 +147,51 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
 
 export const LANGUAGE_STORAGE_KEY = "i18nextLng"
 
+/**
+ * Issue #559 - the right-to-left locales this app actually recognizes. Deliberately an explicit
+ * list, never i18next's own `i18n.dir()`: that helper guesses from a broad, script-based table
+ * (it also flags e.g. `ug`/Uyghur, `dv`/Divehi and a dozen Arabic macrolanguage variants this app
+ * has no catalog for) rather than from a locale this app actually ships. No Arabic translation is
+ * complete yet (`ar` is still `beta` in `SUPPORTED_LANGUAGES` above), but the mechanism is in place
+ * for when Hebrew, Persian or Urdu catalogs arrive too - none of them need a code change here.
+ */
+export const RTL_LOCALES = ["ar", "he", "fa", "ur"]
+
+// Dev-only hook so the e2e suite can exercise the RTL layout before a real RTL translation is
+// complete (no Arabic catalog exists yet - see RTL_LOCALES's own comment). `import.meta.env.DEV` is
+// statically `false` in a production build (`vite build`), so every branch below folds away and
+// this locale code and the English catalog it re-registers under never reach a shipped bundle - it
+// only exists under `vite`/`start:test`, which is what both local dev and the e2e stack run.
+// Content is the SAME in-memory English resource bundle already loaded above, not a second file on
+// disk, so it can never drift from the real `en` catalog.
+//
+// No hyphen in the code on purpose: `load: "languageOnly"` below makes i18next split on "-"/"_" and
+// resolve against the part BEFORE it, the same normalization a real "ar-SA" gets reduced to "ar" -
+// "rtl-test" was silently reduced to "rtl", which is not itself a key of `resources`/`supportedLngs`,
+// and every lookup fell back to "en" (caught live: `document.documentElement.dir` stayed "ltr" after
+// switching to it). A single token has nothing to split.
+const DEV_RTL_TEST_LOCALE: string | null = import.meta.env.DEV ? "rtltest" : null
+
+if (DEV_RTL_TEST_LOCALE !== null) {
+  // Added to `resources` BEFORE `.init()` runs, never via a post-init `addResourceBundle` call -
+  // caught live (Cypress, Firefox): with `addResourceBundle` called right after `.init()` (which is
+  // never awaited), `i18n.language` became "rtltest" correctly but `i18n.resolvedLanguage` stayed
+  // "en" even a second later - resolvedLanguage is decided once, against whichever bundles already
+  // exist at the moment the detector's own languageChanged fires, and never revisited once a later
+  // bundle for the same code shows up. Being in `resources` from the start avoids the race instead
+  // of chasing it. Same English strings as the real `en` entry above, not a second file on disk, so
+  // it can never drift from that catalog.
+  resources[DEV_RTL_TEST_LOCALE] = { translation: resources.en.translation }
+}
+
+/** True when `lang` (a resolved i18next language, or the dev-only RTL test locale) reads right-to-left. */
+export function isRtlLocale(lang: string | undefined | null): boolean {
+  if (!lang) return false
+  if (DEV_RTL_TEST_LOCALE !== null && lang === DEV_RTL_TEST_LOCALE) return true
+  const base = lang.split("-")[0].toLowerCase()
+  return RTL_LOCALES.includes(base)
+}
+
 i18n
   .use(
     new LanguageDetector(null, {
@@ -159,7 +204,9 @@ i18n
   .init({
     resources,
     fallbackLng: "en",
-    supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
+    supportedLngs: DEV_RTL_TEST_LOCALE
+      ? [...SUPPORTED_LANGUAGES.map((l) => l.code), DEV_RTL_TEST_LOCALE]
+      : SUPPORTED_LANGUAGES.map((l) => l.code),
     nonExplicitSupportedLngs: true,
     interpolation: {
       escapeValue: false,
@@ -174,9 +221,13 @@ i18n
 // signal (or not fire at all): Chromium decides whether to prompt from `lang`, not from the text it
 // renders. Kept in sync on every change, not just at boot, since `changeLanguage` (the preferences
 // picker) never remounts the document.
+//
+// `dir` comes from `isRtlLocale` (issue #559), never `i18n.dir()` - see RTL_LOCALES's own comment
+// for why: this app's explicit list, not i18next's broad script-based guess.
 function syncDocumentLanguage() {
-  document.documentElement.lang = i18n.resolvedLanguage || i18n.language || "en"
-  document.documentElement.dir = i18n.dir()
+  const lang = i18n.resolvedLanguage || i18n.language || "en"
+  document.documentElement.lang = lang
+  document.documentElement.dir = isRtlLocale(lang) ? "rtl" : "ltr"
 }
 i18n.on("languageChanged", syncDocumentLanguage)
 // `languageChanged` can fire synchronously inside `.init()` above, before this listener existed —

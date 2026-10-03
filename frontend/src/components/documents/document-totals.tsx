@@ -13,6 +13,7 @@ import {
   looksNumeric,
 } from "@/components/documents/totals-calculator"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
+import { LtrValue } from "@/components/ui/ltr-value"
 import { commonLinesOf, deriveQuoteOptions, linesForOption } from "@/components/documents/quote-options"
 import { useCompany } from "@/hooks/queries"
 
@@ -362,7 +363,9 @@ function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; 
       {showVat && (
         <div className="flex justify-between gap-4 font-medium" data-cy="document-totals-net">
           <dt>{t("documents.totals.net")}</dt>
-          <dd className="amount">{formatTotal(totals.netMinor, currency)}</dd>
+          <dd className="amount">
+            <LtrValue>{formatTotal(totals.netMinor, currency)}</LtrValue>
+          </dd>
         </div>
       )}
 
@@ -379,14 +382,16 @@ function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; 
                 base: fromMinor(entry.baseMinor, currency).toFixed(decimals),
               })}
             </dt>
-            <dd className="amount">{formatTotal(entry.vatMinor, currency)}</dd>
+            <dd className="amount">
+              <LtrValue>{formatTotal(entry.vatMinor, currency)}</LtrValue>
+            </dd>
           </div>
         ))}
 
       <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
         <dt>{t(includesCommon ? "documents.totals.grossIncludingCommon" : "documents.totals.gross")}</dt>
         <dd className="amount text-base" data-cy="document-totals-gross">
-          {formatTotal(totals.grossMinor, currency)}
+          <LtrValue>{formatTotal(totals.grossMinor, currency)}</LtrValue>
         </dd>
       </div>
 

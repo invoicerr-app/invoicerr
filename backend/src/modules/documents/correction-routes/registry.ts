@@ -1,10 +1,31 @@
-import { ALL_CORRECTION_ROUTES_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryCorrectionRoutesFile } from './schema';
 
 function buildIndex(files: CountryCorrectionRoutesFile[]): Record<string, CountryCorrectionRoutesFile> {
   const index: Record<string, CountryCorrectionRoutesFile> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `correctionRoutes` section
+ * from the composed per-country view, instead of this catalog's own `data/all.ts` directly. No
+ * import cycle results, because `countries/compose.ts` reads the RAW loader
+ * (`correction-routes/data/all.ts`'s own `ALL_CORRECTION_ROUTES_FILES`), never this registry: see
+ * that file's own header. The dependency direction is therefore one-way: this file depends on
+ * `countries/registry.ts`, which depends on `countries/compose.ts`, which depends on
+ * `correction-routes/data/all.ts`; nothing depends back on this file from inside that chain. A
+ * country with no `correctionRoutes` section in the composed view is simply left out here, the same
+ * "no permissive fallback" this catalog already held when it read `ALL_CORRECTION_ROUTES_FILES`
+ * directly.
+ */
+function correctionRoutesFromComposedCatalog(): CountryCorrectionRoutesFile[] {
+  const files: CountryCorrectionRoutesFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const correctionRoutes = defaultComposedCountryCatalog.get(countryCode)?.correctionRoutes;
+    if (correctionRoutes) files.push(correctionRoutes);
+  }
+  return files;
 }
 
 /**
@@ -28,11 +49,16 @@ function buildIndex(files: CountryCorrectionRoutesFile[]): Record<string, Countr
  *
  * Read by `correction-routes.ts`'s own `resolveCorrectionRoutesForCountry` — never by anything that
  * writes to Prisma.
+ *
+ * The constructor still takes a plain `CountryCorrectionRoutesFile[]` (never the composed catalog
+ * itself), so an explicit, smaller list still works exactly as before for every existing caller and
+ * test (e.g. `new CorrectionRoutesCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where it
+ * reads from.
  */
 export class CorrectionRoutesCatalog {
   private readonly files: Record<string, CountryCorrectionRoutesFile>;
 
-  constructor(files: CountryCorrectionRoutesFile[] = ALL_CORRECTION_ROUTES_FILES) {
+  constructor(files: CountryCorrectionRoutesFile[] = correctionRoutesFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 

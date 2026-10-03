@@ -274,7 +274,7 @@ export default function BrandingSettings() {
                     onClick={() => fileInputRef.current?.click()}
                     data-cy="branding-logo-upload-button"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-4 w-4 me-2" />
                     {status.hasLogo
                       ? t("settings.branding.logo.replace", "Replace logo")
                       : t("settings.branding.logo.upload", "Upload logo")}
@@ -289,7 +289,7 @@ export default function BrandingSettings() {
                       onClick={handleRemoveLogo}
                       data-cy="branding-logo-remove-button"
                     >
-                      <X className="h-4 w-4 mr-2" />
+                      <X className="h-4 w-4 me-2" />
                       {t("settings.branding.logo.remove", "Remove logo")}
                     </Button>
                   )}

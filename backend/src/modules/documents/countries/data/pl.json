@@ -1,0 +1,757 @@
+{
+  "countryCode": "PL",
+  "policy": {
+    "countryCode": "PL",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt",
+      "credit-note"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under Polish law. To revisit if the product were ever to give legal effect to the mere fact of saving a draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME citation, read live on 2026-09-03 on eur-lex.europa.eu, as de.json/it.json/es.json's own quote.send: an EU regulation is directly applicable, without national transposition, so it is identical for Poland. A quote is not an invoice (see invoice.send below, specific to Polish tax law and the KSeF regime): it is this general regime of non-discrimination against electronic writing that grounds the sending of a quote."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified either requires or prohibits this precise mechanism under Polish law (the only legal constraint would bear on the resulting invoice). To confirm via a dedicated review if a specific traceability rule were ever to attach to it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under Polish law. To confirm via a dedicated review if a specific rule were ever to attach to the deposit request itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under Polish law (the only legal constraint would bear on the invoices that result once issued, not on the creation of these drafts). To confirm via a dedicated review if a specific rule were ever to attach to the generation of a schedule itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under Polish law. To confirm via a dedicated review before extending this mechanism to a document type whose duplication would carry legal significance."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to a quote's PDF is a product convenience — a quote is not even a tax document. No text identified that would specifically govern sharing a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To confirm via a dedicated review if needed."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Asking a client to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience — signing a quote is not a legally governed act, it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no Polish text on advanced/qualified electronic signature applies here. To confirm via a dedicated review if needed."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "NO legal research was performed for this entry - unlike this rule's neighbors above, this note does not claim any text was read. Allowed because this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained - to be confirmed by a dedicated review before this record is relied on as a substitute for a legally regulated acceptance mechanism."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "REUSES the citation already read by correction-routes/data/pl.json (route INTERNAL_CREDIT_NOTE, forbidden) — Podręcznik KSeF 2.0 cz. II, § 1.6.2, checked on 2026-08-29 (date preserved as-is: reused, not re-verified by this task). Literal translation from the Polish: « Once the invoice file has been transmitted to KSeF, it is no longer possible to edit it… The ONLY way to correct an error… is to issue a corrective invoice in KSeF. » This is THE most explicit citation among the five new countries on exactly this fact: a Polish invoice transmitted to KSeF is LITERALLY non-editable — correction must go through a separate corrective invoice (faktura korygująca, art. 106j ust. 1 ustawy o VAT), never through a new draft save on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as draft an invoice already 'sent'."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Krajowy System e-Faktur zapewnia autentyczność pochodzenia, integralność treści oraz czytelność faktury ustrukturyzowanej. [...] Fakturę ustrukturyzowaną uznaje się za wystawioną w dniu jej przesłania do Krajowego Systemu e-Faktur.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Art. 106m ust. 1 and art. 106na ust. 1 of the ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług (Dz. U. 2004 Nr 54 poz. 535). Read live on 2026-09-03 on isap.sejm.gov.pl (the official portal of the Sejm Chancellery, consolidated text — 'Opracowano na podstawie: t.j. Dz. U. z 2025 r. poz. 775 [...], z 2026 r. poz. 507, 846', state of the law displayed as of 2026-07-20) — the same authority as the Podręcznik KSeF already cited by correction-routes. This text is the most FAVORABLE of the five new countries on this exact fact: the structured invoice (via KSeF) is legally DEEMED ISSUED as soon as it is transmitted to the system, and the system itself GUARANTEES its authenticity and integrity — no recipient-consent condition to check here, unlike Germany/Italy/Spain (the former Polish art. 106n, which set a recipient-acceptance condition for the NON-structured electronic invoice, was itself REPEALED — '(uchylony)' in the text read — by the shift to the mandatory KSeF regime). NUANCE NOT MODELED HERE: the effective-date schedule for KSeF's own MANDATORY character (large taxpayers 2026-03-31, others 2026-12-31) remains 'suggested'/unverified in transports/channel-policy/data/pl.json for lack of a citation of its own consultation date — a DISTINCT subject (the channel/mandate), outside the scope of this rule, which covers only the admissibility of the structured sending itself, already well established today."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for art. 106m/106na (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking). `transports/channel-policy/data/pl.json` carries KSeF as `requirement: \"suggested\"`, never `\"mandated\"` (unlike France's PDP or Italy's SdI) - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes a Polish invoice through a real send here, whatever its own issue date: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime. WHAT WOULD SETTLE THIS FURTHER, should the same question as France's arise: channel-policy/data/pl.json's own note on KSeF's effective-date schedule (large taxpayers 2026-03-31, others 2026-12-31) - promoting that fact to `\"mandated\"` would need its own sourced consultation date before this rule's own behavior could change."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating an invoice into a new draft is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under Polish law. The tax question (ustawa o VAT) bears on THE ISSUED INVOICE that will result, not on this initial draft."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the mere fact of declaring it in this tool. The resulting balance is a PROJECTION displayed on screen, never a document status — see invoice.descriptor.ts."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (Directive 2014/55/EU) — it is not in itself a Polish legal obligation for THIS company to produce it. The national format actually mandated in Poland is FA(3), transmitted via KSeF (a DISTINCT subject, the mandated channel/format — see transports/channel-policy/data/pl.json, which remains 'suggested'/unverified for lack of a citation of its own consultation date on the MANDATORY character and its schedule), outside the scope of this rule, which only builds the voluntary standardized EN 16931 FORMAT. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export without asserting that it is legally required IN THIS PRECISE FORM."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the mere fact of offering this export. This action has no registered implementation to date anyway (see invoice-actions.ts) — the real blocker comes from the 501, not from this rule."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified either requires or specifically prohibits sharing a link to an invoice already communicated to its legitimate recipient. The link's security is a technical guarantee documented in share-links/share-links.service.ts, not a separate legal requirement to source here."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "Owner decision (PR #473 review): a Polish seller issues no credit note, linked or free. The correction is a faktura korygująca, already implemented as a KOR invoice numbered in the invoice series. Art. 106j ust. 2 pkt 2 (\"numer kolejny\") is one of the mandatory particulars a faktura korygująca must carry, which this document type has no way to produce. A credit note issued before this decision is unaffected going forward (see credit-note-actions.ts's own header) - this rule only blocks a NEW save-draft/send. PR #473 review round 2: \"credit-note\" was briefly dropped from this file's own top-level `documentTypes` to go with this rule, which had the side effect of making an already-issued Polish credit note UNREACHABLE (no sidebar entry, no list) - reverted; the type stays LISTED, this rule alone is what keeps it read-only (no new save-draft/send, share-link untouched below)."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "Same owner decision and citation as credit-note.save-draft above - the corrective instrument for a Polish seller is the faktura korygująca (KOR), numbered in the invoice series, never this document type's own numbering series."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "UNCHANGED by the owner's PR #473 decision refusing new credit notes for a Polish seller (see save-draft/send above): a credit note issued BEFORE that decision must stay readable/shareable - never deleted, never renumbered, only no longer editable or sendable. Same reasoning as invoice.share-link above otherwise: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "Issue #472. Same citation, same read and same date as this file's own credit-note rules and `numbering` fact (art. 106j ust. 2 pkt 2 ustawy o VAT, reused). NOTHING IS NEEDED IN POLAND BEYOND THE EXISTING KOR: the Polish correction is a faktura korygująca, built by formats/national/fa3-provider.ts as RodzajFaktury KOR on an INVOICE carrying correctsInvoiceId, numbered in the invoice series - and FA(3) has no credit-note document type to map this one to. A credit-note document (only a legacy one can exist for a Polish seller, the type is refused at save) therefore gets no electronic file: the credit note's own download-xml does not even offer fa3, and fa3-provider.ts refuses a credit note outright."
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording an expense is an internal management entry in the tool. Polish accounting obligations bear on the company's own accounting, not on this recording mechanism within the tool. To confirm via a dedicated review if this core were ever to produce accounting documents enforceable against third parties from this data."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a mis-entered expense; no text identified specifically governs the deletion of such an entry prior to any accounting close. To confirm via a dedicated review if this core were ever to distinguish a \"closed\" state for an expense."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records an already-occurred fact, never issues anything. The `statuses` field restricts re-writing the fields to the 'received' status alone: once approved or rejected, the review decision must no longer be silently undone (same mechanics as `invoice.save-draft` above). Not researched here: Poland will receive its domestic invoices via KSeF, an accredited channel (a distinct subject, outside the scope of this internal approval workflow)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched for Poland beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a purchase-order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order commits less than a quote anyway (it does not constitute an offer of sale, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it even less likely. Research not specifically resumed for this type/action (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: an EU REGULATION applies directly, without national variant, in all Member States). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination against electronic writing that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Cancelling a purchase order sent to a supplier is a purely commercial act (the company gives up its own order), never the correction of an already-transmitted tax document — this is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module only concern a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation towards the supplier fall under ordinary contract law, outside the scope of this rule (which only says whether THIS TOOL may record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, as this document is transmitted to no one (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse recorded as received against a purchase order, to feed a 3-way matching check that is itself internal to the tool, never transmitted to a third party or declared to an authority. No text identified that would target this act specifically. Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a mis-entered draft is the same internal operation, with no recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, over the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt by name). Research not specifically conducted for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      }
+    ],
+    "notes": "Poland - research from 2026-09-03. THIS IS THE UNBLOCKING TARGETED BY THIS TASK: before this file, a Polish company had EVERY document action blocked (DECISION 1 of country-policy.ts) - no pl.json file existed. The product-internal acts follow the same reasoning already held by fr.json/us.json for the same actions. The legal heavy lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on isap.sejm.gov.pl (the official consolidated text of the Sejm Chancellery, state of the law as of 2026-07-20) for art. 106m/106na of the ustawa o VAT (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of citations already read on 2026-08-29 by correction-routes/data/pl.json for the immutability of the issued invoice (invoice.save-draft, INTERNAL_CREDIT_NOTE forbidden - the most explicit citation among the five new countries: « nie jest możliwe jej edytowanie »); credit-note.save-draft/send were later reversed to allowed:false by PR #473's own owner decision (see those two rules' own notes) - a Polish seller issues no credit note at all, the faktura korygująca (a KOR invoice) is the only corrective instrument. \"credit-note\" itself stays in this file's own top-level `documentTypes` (PR #473 review round 2): dropping it there, alongside the allowed:false rules, made an ALREADY-ISSUED credit note unreachable in the app (no sidebar entry, no list) - the type is only refused for NEW save-draft/send, never hidden outright; an existing one stays listed, openable and shareable, per credit-note.save-draft's own note above.",
+    "numbering": [
+      {
+        "typeId": "credit-note",
+        "requirement": "type-not-issuable",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Faktura korygująca powinna zawierać: [...] 2) numer kolejny oraz datę jej wystawienia;",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "art. 106j ust. 2 pkt 2 ustawy o VAT (tekst jednolity, isap.sejm.gov.pl PDF D20040535Lj, read 2026-09-26). The credit-note TYPE is refused outright for a Polish seller (correction-routes/data/pl.json's own CREDIT_NOTE 'forbidden' route, read by credit-note-actions.ts#assertCreditNoteAllowedForCountry) - the Polish correction is a KOR, i.e. an INVOICE carrying correctsInvoiceId, numbered in the invoice's own series by the invoice's own numbering (descriptors/invoice.descriptor.ts). This fact's requirement is therefore already satisfied by the invoice type; there is nothing on the credit-note type itself to number for a Polish seller."
+      }
+    ],
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "pl-vat-106e-1-2",
+          "appliesTo": ["invoice"],
+          "summary": "Polish law requires a sequential number, in one or more series, that identifies the invoice unambiguously. It constrains no character and no length.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« Art. 106e. 1. Faktura powinna zawierać: [...] 2) kolejny numer nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę; »",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "Ustawa o podatku od towarów i usług, consolidated text Dz.U. 2025 poz. 775 (the latest « tekst jednolity » the Sejm's ELI API lists for DU/2004/535), read first-hand from https://api.sejm.gov.pl/eli/acts/DU/2025/775/text.pdf with pdftotext on 2026-09-28."
+        },
+        {
+          "id": "pl-ksef-fa3-p2",
+          "appliesTo": ["invoice"],
+          "summary": "KSeF's FA(3) schema holds the invoice number (P_2) as a single-line token of 1 to 256 characters; whitespace at the edges or doubled would be collapsed by the schema's token type.",
+          "maxLength": 256,
+          "forbidsEdgeOrDoubleSpaces": true,
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "<xsd:element name=\"P_2\" type=\"tns:TZnakowy\"> <xsd:documentation>Kolejny numer faktury, nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę</xsd:documentation> [...] <xsd:simpleType name=\"TZnakowy\"> <xsd:documentation>Typ znakowy ograniczony do 256 znaków</xsd:documentation> <xsd:restriction base=\"xsd:token\"> <xsd:minLength value=\"1\"/> <xsd:maxLength value=\"256\"/>",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "The Ministry of Finance schema this repository vendors (formats/vendored/pl/schemat_FA3.xsd), read on 2026-09-28. `forbidsEdgeOrDoubleSpaces` is derived from xsd:token's whitespace collapsing, not from a sentence of the schema: a number with such spaces would not survive the round trip unchanged."
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A quote (oferta) is not an invoice: art. 106e of the ustawa o VAT and the FA(3) schema govern the faktura. No Polish text read in this pass constrains the number of a quote.",
+          "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Polish text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "INVOICE-{year}-{number:4}",
+          "constrainedBy": ["pl-vat-106e-1-2", "pl-ksef-fa3-p2"],
+          "rationale": "Unchanged from the product's previous shared default, so a Polish company already running it keeps it as it is; far below KSeF's 256 characters.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515, researched 2026-09-28: art. 106e ust. 1 pkt 2 (this file's own pl-vat-106e-1-2 constraint) requires a sequential number assigned \"w ramach jednej lub więcej serii\" (within one or more series) that unambiguously identifies the invoice, without naming a calendar year or any other time-bounded range the way FR's BOI-TVA-DECLA-30-20-20-10 §90, DE's UStAE 14.5 Abs. 11 or IT's Risoluzione 1/E/2013 do. The closest official ruling found, KIS (Dyrektor Krajowej Informacji Skarbowej) 0114-KDIP1-3.4012.603.2022.1.KP of 7 February 2023 (eureka.mf.gov.pl, read first-hand), confirms only that \"sposób nadawania numerów poszczególnym fakturom ustala wyłącznie podatnik\" (the taxpayer alone decides how numbers are assigned to invoices) while keeping the sequence chronological, continuous and identifiable - a general freedom-of-method statement, never a ruling on a calendar-year-bounded series by name. Several Polish accounting-practice sources describe annual-reset invoice numbering as common and accepted, but none is the primary legal text or on-point administrative ruling this catalog's `legal` provenance requires. No source found forbids it either. Stays `never` under issue #515's own rule (\"if a country's source does not allow it, or you cannot read it first-hand, that country stays never\"). What would settle it: a KIS interpretacja indywidualna, or Ministry of Finance guidance, addressing a calendar-year-bounded invoice series by name."
+          }
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "CN-{year}-{number:4}",
+          "constrainedBy": [],
+          "rationale": "Declared only so the type resolves like every other: a Polish seller issues no credit note (the correction is a KOR invoice, numbered in the invoice series), and the type's save-draft and send are refused for Poland.",
+          "unconstrained": "No Polish rule constrains this number because Polish law has no such document: see this file's credit-note `numbering` fact (type-not-issuable, art. 106j ust. 2 pkt 2) and correction-routes/data/pl.json's CREDIT_NOTE 'forbidden' route.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Moot: a Polish seller never issues this type at all (type-not-issuable, this file's own credit-note `numbering` fact above), so there is nothing to number, let alone restart. Declared `never` only so every format carries the field consistently."
+          }
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Polish text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Polish text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Polish text read in this pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Polish text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started is kept as it is: Polish law asks for a sequential number within one or more series, and never for a running series to change format.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Art. 106e. 1. Faktura powinna zawierać: [...] 2) kolejny numer nadany w ramach jednej lub więcej serii, który w sposób jednoznaczny identyfikuje fakturę; »",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "onViolation": "If the running series breaks the KSeF rule above (over 256 characters, or spaces at the edges or doubled), the country format applies from the next number. The counter is not reset and no number is reused."
+      }
+    }
+  },
+  "identifiers": {
+    "countryCode": "PL",
+    "schemes": [
+      {
+        "scheme": "LEGAL_ID",
+        "appliesTo": "COMPANY",
+        "label": "NIP",
+        "required": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "«Art. 106e. 1. Faktura powinna zawierać: [...] 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25;»",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 106e ust. 1 pkt 4 — read as the official consolidated text (tekst jednolity) at Dz.U. 2025 poz. 775 (Obwieszczenie Marszałka Sejmu RP z dnia 21 maja 2025 r.), fetched directly as a PDF from dziennikustaw.gov.pl (https://dziennikustaw.gov.pl/D2025000077501.pdf, landing page https://dziennikustaw.gov.pl/DU/rok/2025/pozycja/775), curl then `pdftotext -layout`, 2026-09-13 — isap.sejm.gov.pl was not used (sits behind Incapsula bot protection). This binds the SELLER (`podatnik`, the taxpayer issuing the invoice) and is required on every invoice except two narrow, non-waiving substitutions: pkt 24 lit. a (a PL-prefixed number for one triangulation-type intra-EU case) and pkt 25 (an EX-suffixed cross-border small-business-exemption number, a 2025 addition under art. 113a ust. 1) — neither carve-out removes the requirement, both substitute a differently-formatted identifier for the same slot. There is no exemption for a small/exempt domestic seller comparable to France's or Portugal's franchise-based waiver of the identifier itself. Also confirmed NOT waived by the <=450 zl / 100 EUR simplified-invoice threshold (art. 106e ust. 5 pkt 3 i ust. 6): that threshold omits only the buyer's name/address and price-breakdown detail (pkt 3, 8, 9, 11-14), never the seller's or buyer's identification number — ust. 6 goes further and forbids using the threshold AT ALL for a sale where no buyer number under ust. 1 pkt 5 is stated, i.e. the simplification is designed for the known-buyer case, not as a blanket small-amount exemption from identification. IMPORTANT TEXTUAL POINT: the Act's own text never uses the abbreviation \"NIP\" anywhere in art. 106e, or (per a full-text search of the whole consolidated text) anywhere in the Act at all — it always uses the phrase quoted above. \"NIP\" is defined in a SEPARATE statute, ustawa z dnia 13 października 1995 r. o zasadach ewidencji i identyfikacji podatników i płatników (read as the tekst jednolity at Dz.U. 2026 poz. 151, https://dziennikustaw.gov.pl/D2026000015101.pdf, same method, 2026-09-13): its art. 3 ust. 1 assigns NIP to \"pozostałych podmiotów podlegających obowiązkowi ewidencyjnemu\" (all OTHER — i.e. non-natural-person — entities subject to the registration duty) but PESEL instead to a natural person who is neither a registered active VAT taxpayer nor otherwise required to register (art. 3 ust. 1 pkt 1, ust. 1a). `appliesTo` is therefore deliberately set to `'COMPANY'`, NOT `'BOTH'`: for a COMPANY-record seller, NIP specifically (not PESEL) is what this same identification Act assigns, unconditionally alongside art. 106e's own unconditional seller mandate — but for an INDIVIDUAL-record seller the correct identifier can legally be PESEL instead, a different scheme this catalog does not model at all; labelling this fact \"NIP\" and applying it to INDIVIDUAL sellers too would be wrong in exactly that case, not merely imprecise. `required` is nonetheless set to `false` at country level, for the SAME structural reason as Italy's own facts (see it.json's file-level notes for the full reasoning, reproduced here briefly): this catalog's `appliesTo` axis is consumed identically by the SELLER call-sites (`onboarding.tsx`/`company.settings.tsx`, always `partyType: \"COMPANY\"`) and the BUYER call-site (`client-upsert.tsx`, `partyType` from the client's own record type), with `required: true` enforced as a real hard save-block in all three. Poland's BUYER-side rule (art. 106e ust. 1 pkt 5) is genuinely conditional — quoted here for completeness: «5) numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej, pod którym otrzymał on towary lub usługi, z zastrzeżeniem pkt 24 lit. b;» — self-limiting by its own wording rather than carved out by a numbered exception: it only obligates stating the buyer's number when the buyer actually HAS one and used it to receive the supply; a private consumer simply has no such number to state, so the obligation has no object for that buyer, not because a waiver applies. This is a materially different drafting technique from Italy's (which names Codice Fiscale as an explicit alternative document) but reaches the same practical conclusion this catalog must respect: the buyer's own NIP cannot be safely marked `required: true` here either, so — exactly as for Italy — a single `required` value cannot honestly serve both the seller's unconditional duty and the buyer's conditional one, and `false` is the value that never risks refusing a lawful save. What a resolutionNote-style fix would need: a way to ask whether a given party is itself a registered VAT taxpayer (or, on the seller side, whether an INDIVIDUAL seller is VAT-registered/cash-register-using — the PESEL/NIP switch above) — the same missing axis this task's report names for Italy. No separate `unverified` fact is added for this buyer-side half, unlike Italy's Codice Fiscale: Poland has no second, distinctly-named identifier scheme to host it under (the buyer's number, when owed at all, IS the same NIP already modeled here) — the conditional buyer-side position is instead documented here, in this fact's own `notes`, and in this file's own top-level `notes` below, rather than invented as a second scheme entry with nothing new to say. REGON and KRS (art. 96b ust. 1 i ust. 3 pkt 3 i 5 — the public \"wykaz podatników VAT\" the tax administration publishes, a completely different provision from art. 106e) are established NOT to be invoice-content requirements at all: a full-text search of the whole consolidated Act for \"REGON\" and \"Krajowym Rejestrze Sądowym\" found zero occurrences inside art. 106e or its neighboring invoice-content articles (106a-106q) — neither is added as a scheme here on the strength of commercial habit alone."
+      }
+    ],
+    "notes": "Poland (2026-09-13). Primary source: ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, read as the tekst jednolity gazetted at Dz.U. 2025 poz. 775 (https://dziennikustaw.gov.pl/D2025000077501.pdf), curl + `pdftotext -layout`, cross-checked against the next-newest tekst jednolity (Dz.U. 2024 poz. 361) where noted in the underlying research; isap.sejm.gov.pl was not used (Incapsula bot protection). Only ONE scheme is declared (\"LEGAL_ID\", i.e. NIP) — no separate \"VAT\" scheme is proposed: Polish invoice law's \"numer, za pomocą którego podatnik/nabywca jest zidentyfikowany na potrzeby podatku\" is the SAME number this catalog already models as LEGAL_ID for a domestic party, unlike France's or Portugal's own SIREN-vs-TVA / NIF-vs-VAT-prefix splits. `required: false` is a DELIBERATE, structural choice, not an under-statement of the law — see this scheme's own `notes` for why a single boolean cannot honestly represent both Poland's unconditional SELLER duty (art. 106e ust. 1 pkt 4) and its conditional BUYER duty (art. 106e ust. 1 pkt 5) given this catalog's `appliesTo` axis and this product's shared seller/buyer consumption path (`country-identifiers.ts`'s `resolveRequiredIdentifiers`, `onboarding.tsx`, `company.settings.tsx`, `client-upsert.tsx` — all read before writing this file). DELIBERATELY NOT ENCODED, reported instead: (1) the buyer-side conditional half of pkt 5 — see this scheme's own `notes`, folded in rather than given a separate `unverified` fact because Poland has no second, distinctly-named identifier to host one under (contrast Italy's Codice Fiscale, which does get its own fact in it.json). (2) A KSeF-specific routing identifier for the buyer — established NOT to exist: art. 106gb ust. 4 i ust. 5 (formerly art. 106nc in the 2024-vintage text) shows a domestic, actively-registered VAT taxpayer's KSeF delivery resolves automatically off their own NIP (no second identifier), and the four carved-out buyer classes (foreign, no Polish establishment, an uninvolved Polish fixed establishment, or a small-business-exemption taxpayer under art. 113a) fall back to \"made available in a manner agreed with the buyer\" secured by a PER-INVOICE access/verification code (ust. 5), not a persistent per-party routing identifier comparable to Italy's Codice Destinatario — so no third scheme is needed for Poland's KSeF channel, it rides entirely on the NIP already modeled here. (3) The PESEL alternative for a non-VAT-registered INDIVIDUAL seller (ustawa o zasadach ewidencji i identyfikacji podatników i płatników, art. 3 ust. 1 pkt 1 i ust. 1a) — reported in this scheme's own `notes`; this catalog has no PESEL scheme and `appliesTo` is kept `'COMPANY'`-only for exactly this reason, rather than `'BOTH'` with a wrong label for some individual sellers. OPEN QUESTIONS NOT RESOLVED BY THIS PASS (see the underlying research file for the full list): whether a non-VAT-registered Polish COMPANY (as opposed to an individual) still holds and must state a NIP at all — the identification Act's PESEL/NIP branch is drafted specifically for natural-person taxpayers, and this task did not chase whether a non-VAT-registered legal person can issue a `faktura VAT` under this Act in the first place; the exact NIP character format (10-digit numeric is the widely-known convention, not chased to a primary-text statement in either statute read here — no `pattern` is declared for that reason)."
+  },
+  "correctionRoutes": {
+    "countryCode": "PL",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Interdite EN TANT QUE DOCUMENT DISTINCT — pas interdite en substance. Il n'existe pas d'instrument séparé : l'art. 106j ust. 1 donne UN instrument pour les deux sens, et l'énumération FA(3) RodzajFaktury est fermée — {VAT, KOR, ZAL, ROZ, UPR, KOR_ZAL, KOR_ROZ} — sans type « avoir ». Source : Art. 106j ust. 1 ustawy o VAT ; broszura FA(3), Ministerstwo Finansów.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Idem — même instrument unique : « podstawa opodatkowania lub kwota podatku wskazana w fakturze uległa zmianie » est neutre quant au SENS de la variation ; le remède est un KOR. Source : Art. 106j ust. 1 pkt 1.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Contrast with Italy: EXACTLY THE OPPOSITE symmetry — Poland handles both upward and downward corrections through the SAME document, Italy through two documents, one mandatory (DEBIT_NOTE) and the other optional (CREDIT_NOTE)."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« podatnik WYSTAWIA fakturę korygującą » — obligation, pas faculté, pour les 5 cas de l'art. 106j ust. 1, dont pkt 5 « stwierdzono pomyłkę w jakiejkolwiek pozycji faktury ». Un verrou de forme s'y ajoute : ust. 2 pkt 2a impose d'y porter le numéro KSeF de la facture corrigée — SAUF, exception statutaire lue dans le même point : « z wyjątkiem faktur korygujących wystawianych do faktur, dla których nie został nadany numer identyfikujący w Krajowym Systemie e-Faktur » (« sauf pour les factures correctives visant des factures auxquelles aucun numéro KSeF n'a été attribué »), et ust. 4 impose la forme structurée. Source : Art. 106j ust. 1, ust. 2 pkt 2a (avec son exception), ust. 4 — ustawa o VAT, tekst jednolity Dz.U. 2025 poz. 775 (isap.sejm.gov.pl, vérifié 2026-09-16, texte brut).",
+          "sourceCheckedAt": "2026-09-16"
+        },
+        "notes": "This is THE Polish route (switchover on 2026-02-01, repeal of art. 106k, the buyer's own nota korygująca disappears — see the YAML's own headline). IMPLEMENTED as of 2026-09-16 (KOR pattern) — `correctsInvoiceId` (descriptors/invoice.descriptor.ts) links the correction to the original invoice; `formats/national/fa3-provider.ts` builds it as a real `RodzajFaktury = KOR` FA(3) document, choosing between the schema's own `NrKSeF`/`NrKSeFN` branches per the exception this citation now carries (see `formats/national/fa3-kor.ts`'s own header); `transports/ksef-transport.ts` submits it like any other FA(3). The screen: the SAME 'Correct' dialog every route already uses (custom/invoice-correction-routes-button.tsx) navigates to the invoice creation screen pre-linked, where Poland's own `country-fields/data/pl.json` overlay adds a conditionally-required `correctionReason` field. `correctionReason` itself is a PRODUCT choice, not this citation's own legal claim — see that overlay file's own header: art. 106j ust. 2a leaves the reason optional."
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Applicable au NIP de l'acheteur erroné : « należy wystawić fakturę korygującą \"do zera\" i nową fakturę pierwotną zawierającą poprawne dane ». Exécuté AU MOYEN de factures correctives, jamais par une annulation — la voie existe, le mécanisme d'annulation non. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.4 (06/08/2026).",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Po przesłaniu pliku faktury do KSeF nie jest możliwe jej edytowanie… Jedyną formą poprawienia błędu… jest wystawienie faktury korygującej w KSeF » — applicable à toute facture acceptée par KSeF. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.2.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "The YAML's own CANONICAL INVERSION: the exact opposite of France and Italy, which IMPOSE it (required) in their respective rejection cases. The same route is required there and forbidden here — this is the best justification for a per-country status rather than a single shared model."
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« W KSeF nie jest możliwe anulowanie wystawionej faktury ». Corroboré par un négatif vérifié : la chaîne « anulow » apparaît ZÉRO fois dans le texte consolidé de l'ustawa o VAT (~1 Mo), et zéro fois dans la broszura FA(3) ; aucun type d'annulation dans FA(3). Source : Podręcznik KSeF 2.0 cz. II, § 1.6.3 ; tekst jednolity Dz.U. 2025 poz. 775.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "The YAML flags a residual defect of the OLD, demolished engine (pl.ts declared requiresAuthorityAck: true, unfounded — out of scope for C1, with no effect on this file mechanism)."
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Documenté par un EXEMPLE de l'administration : facture du 7/02/2026 rejetée, corrigée, renvoyée le même jour sous le MÊME numéro, acceptée hors ordre chronologique — « nie jest to… przesłanka zobowiązująca podatnika do wystawienia faktury korygującej, w celu poprawienia nadanego pierwotnie numeru faktury, wskazanego w polu P_2 ». Applicable après rejet du XML. Source : Podręcznik KSeF 2.0 cz. II, § 1.6.7 et Przykład 5.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not researched for Poland: nobody has yet verified, against a primary Polish legal text, whether a correction can be made by a simple register annotation, without issuing any document. This remains to be established before an answer can be given."
+        }
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the French research, discovered_by: FR research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+        }
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+        }
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.PL.routes (it was discovered during the German research, discovered_by: DE research, 2026-08-29) — no research was conducted for Poland, never promoted for lack of a declared status."
+        }
+      }
+    ],
+    "notes": "Poland — HEADLINE: the nota korygująca (the buyer's own instrument, outside the eleven canonical routes — BUYER_CORRECTION_NOTE in the YAML) is REMOVED as of 2026-02-01 (ustawa of 16/06/2023, Dz.U. 2023 poz. 1598 art. 1 pkt 15, « uchyla się art. 106k » ; date set by the ustawa of 09/05/2024, Dz.U. 2024 poz. 852 art. 1 pkt 6 lit. a) — since that date, the Polish BUYER no longer has ANY correction instrument, everything starts from the seller. The file above transcribes the POST-2026-02-01 state (the only one in force as of this transcription's date); the earlier regime (BUYER_CORRECTION_NOTE, open under conditions) is not modeled — out of scope for C1 (no temporal versioning in this file mechanism v1). Additional TEMPORAL fact not modeled: the KSeF channel itself remains optional until 2026-03-31 (large taxpayers, art. 145l) or until 2026-12-31 (small taxpayers, art. 145m) — a different switchover from the correction model's own."
+  },
+  "vatRates": {
+    "countryCode": "PL",
+    "rates": [
+      {
+        "id": "pl-standard",
+        "rate": 23,
+        "label": "Stawka podstawowa",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 41. 1. Stawka podatku wynosi 22 %, z zastrzeżeniem ust. 2–12c, art. 83, art. 119 ust. 7, art. 120 ust. 2 i 3, art. 122 i art. 129 ust. 1. — Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny [...] określonych na ten rok w ustawie budżetowej [...] jest wyższa niż 3 % wartości produktu krajowego brutto [...]: 1) stawka podatku, o której mowa w art. 41 ust. 1 i 13, art. 109 ust. 2, art. 110, art. 120 ust. 3a i art. 138i ust. 4, wynosi 23 %;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 41 ust. 1 (the BASE rate, 22%) AS RAISED to 23% by art. 146ef ust. 1 pkt 1) (the rate CURRENTLY applicable). Read directly on 2026-09-13 on the official consolidated text (tekst jednolity), Dziennik Ustaw 2025 r. poz. 775 (« Obwieszczenie Marszałka Sejmu Rzeczypospolitej Polskiej z dnia 21 maja 2025 r. w sprawie ogłoszenia jednolitego tekstu ustawy o podatku od towarów i usług », dated 2025-06-16), a 228-page PDF at https://dziennikustaw.gov.pl/DU/2025/775/D2025000077501.pdf, retrieved with `curl -L` (a first attempt without `-L` returned only a 302 redirect stub, not the PDF) then converted with `pdftotext -layout`. THIS IS NOT A FIXED RATE: art. 146ef sets up a conditional ANNUAL test (defense spending measured against GDP) which, as soon as it is met in a given year, raises the art. 41 base rates (22%/7%) to 23%/8% until the finance minister publishes, by obwieszczenie in the Monitor Polski, the end of the period — see the publication clause quoted above (art. 146ef ust. 2). This test has been met WITHOUT INTERRUPTION since 2024-01-01; Poland's high defense budget makes its continuation in 2026 very likely according to secondary sources (INFORLEX, LEX — not primary, used here only to corroborate how current the mechanism is, never to establish the figure itself), but NO direct search for the end-of-period obwieszczenie was done on monitorpolski.gov.pl in this task — a silent reversion to 22%/7% at a year change (should defense spending fall back under 3% of GDP) would leave this figure frozen-wrong with nothing in this file's form flagging it, for want of a validFrom/validTo in this schema. The 5% rate of art. 41 ust. 2a (załącznik nr 10) IS NOT touched by art. 146ef — it stays 5% in every case, override or not."
+      },
+      {
+        "id": "pl-reduced-8",
+        "rate": 8,
+        "label": "Stawka obniżona (Załącznik nr 3)",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Dla towarów i usług wymienionych w załączniku nr 3 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 7 %, z zastrzeżeniem art. 114 ust. 1 i art. 138i ust. 4. — Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny [...] określonych na ten rok w ustawie budżetowej [...] jest wyższa niż 3 % wartości produktu krajowego brutto [...]: [...] 2) stawka podatku, o której mowa w art. 41 ust. 2, art. 120 ust. 2 i 3 oraz tytule załącznika nr 3 do ustawy, wynosi 8 %; [...]",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa o VAT, art. 41 ust. 2 (the BASE rate, 7%) AS RAISED to 8% by art. 146ef ust. 1 pkt 2) (the rate CURRENTLY applicable). Same direct reading, same PDF/URL/method as pl-standard above. Applies to the goods/services of załącznik nr 3 to the ustawa, whose heading (read in the same PDF) is: « WYKAZ TOWARÓW I USŁUG OPODATKOWANYCH STAWKĄ PODATKU W WYSOKOŚCI 7 % » (coffee/tea, confectionery, processed products, live farm animals, and other broadly processed products — non-exhaustive list, not transcribed here). THIS IS NOT A FIXED RATE: art. 146ef sets up a conditional ANNUAL test (defense spending measured against GDP) which, as soon as it is met in a given year, raises the art. 41 base rates (22%/7%) to 23%/8% until the finance minister publishes, by obwieszczenie in the Monitor Polski, the end of the period — see the publication clause quoted above (art. 146ef ust. 2). This test has been met WITHOUT INTERRUPTION since 2024-01-01; Poland's high defense budget makes its continuation in 2026 very likely according to secondary sources (INFORLEX, LEX — not primary, used here only to corroborate how current the mechanism is, never to establish the figure itself), but NO direct search for the end-of-period obwieszczenie was done on monitorpolski.gov.pl in this task — a silent reversion to 22%/7% at a year change (should defense spending fall back under 3% of GDP) would leave this figure frozen-wrong with nothing in this file's form flagging it, for want of a validFrom/validTo in this schema. The 5% rate of art. 41 ust. 2a (załącznik nr 10) IS NOT touched by art. 146ef — it stays 5% in every case, override or not."
+      },
+      {
+        "id": "pl-super-reduced-5",
+        "rate": 5,
+        "label": "Stawka obniżona (Załącznik nr 10)",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2a. Dla towarów i usług wymienionych w załączniku nr 10 do ustawy, innych niż klasyfikowane według Polskiej Klasyfikacji Wyrobów i Usług w grupowaniu usługi związane z wyżywieniem (PKWiU 56), stawka podatku wynosi 5 %, z zastrzeżeniem art. 138i ust. 4.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa o VAT, art. 41 ust. 2a — same direct reading, same PDF/URL/method as pl-standard above. THIS RATE IS NOT TOUCHED by the art. 146ef override (see pl-standard's own note on the conditional raise mechanism): 5% is both the base rate AND the currently applicable rate. Applies to the goods/services of załącznik nr 10, whose heading (read in the same PDF) is: « WYKAZ TOWARÓW I USŁUG OPODATKOWANYCH STAWKĄ PODATKU W WYSOKOŚCI 5 % » (meat, fish, dairy products/eggs/honey, vegetables, fruit, cereals — basic/raw foodstuffs, non-exhaustive list, not transcribed here)."
+      },
+      {
+        "id": "pl-zero",
+        "rate": 0,
+        "label": "Stawka 0% (WDT / eksport)",
+        "category": "ZERO",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "3. W wewnątrzwspólnotowej dostawie towarów stawka podatku wynosi 0 %, z zastrzeżeniem art. 42. 4. W eksporcie towarów, o którym mowa w art. 2 pkt 8 lit. a, stawka podatku wynosi 0 %.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa o VAT, art. 41 ust. 3-4 (ust. 5 to 11, not cited here, extend the same 0% rate to exports by flat-rate farmers and set the evidentiary conditions — the same rule extended, not transcribed). Same direct reading, same PDF/URL/method as pl-standard. A GENUINE ZERO RATE (\"stawka podatku 0%\", an actually stated percentage), distinct from the art. 43 exemption (« Art. 43. 1. Zwalnia się od podatku: [...] »; a separate EXEMPT category, typically with no deduction right, not modeled as a distinct entry in this catalog beyond pl-exempt-113 below). An older secondary source (not verified against the primary text in this task) reports a domestic 0% rate on basic foodstuffs between 2022-02-01 and 2024-03-31 (« tarcza antyinflacyjna », the anti-inflation shield, set by rozporządzenie rather than by this ustawa itself) — the current consolidated text (2025-05-21) carries NO such clause on art. 41 ust. 2a (a flat 5%, with no exception to 0%), which is consistent with the idea that this measure has expired, but this absence does not itself date the expiry via a directly consulted primary source — no entry is created for this historical rate, out of caution."
+      },
+      {
+        "id": "pl-exempt-113",
+        "rate": 0,
+        "label": "Zwolnienie podmiotowe (do 200 000 zł)",
+        "category": "EXEMPT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 113. 1. Zwalnia się od podatku sprzedaż dokonywaną przez podatnika posiadającego siedzibę działalności gospodarczej na terytorium kraju, u którego wartość sprzedaży, z wyłączeniem podatku, nie przekroczyła w poprzednim ani bieżącym roku podatkowym kwoty 200 000 zł.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Ustawa o VAT, art. 113 ust. 1, as it appears in the 2025-05-21 tekst jednolity (Dz.U. 2025 poz. 775) — same PDF/URL/method as pl-standard above. A SUBJECTIVE exemption by turnover threshold, the same nature as fr-exempt-293b (franchise en base) in vat-rates/data/fr.json — not a VAT rate in the strict sense but a below-threshold exemption scheme, included here because it is a common choice when issuing an invoice. A SCHEDULED AND DATED CHANGE, confirmed by a separate primary source (a one-page PDF, https://dziennikustaw.gov.pl/D2025000089601.pdf, `curl -L` + `pdftotext -layout`): « DZIENNIK USTAW RZECZYPOSPOLITEJ POLSKIEJ, Warszawa, dnia 7 lipca 2025 r., Poz. 896 USTAWA z dnia 24 czerwca 2025 r. o zmianie ustawy o podatku od towarów i usług Art. 1. W ustawie [...] w art. 113 w ust. 1 wyrazy „kwoty 200 000 zł\" zastępuje się wyrazami „kwoty 240 000 zł\". Art. 3. Ustawa wchodzi w życie z dniem 1 stycznia 2026 r. » — that is: the threshold rises from 200 000 zł to 240 000 zł as of 2026-01-01. The `label` field above deliberately carries the threshold in force TODAY (200 000 zł); the new threshold (240 000 zł) is not yet applicable as of the verification date (2026-09-13) and lives in this note rather than in the label, as this schema has no field dedicated to a future effective date (no validFrom/validTo in schema.ts)."
+      }
+    ],
+    "notes": "Poland (2026-09-13). Five entries, all 'legal', SOURCED FROM THE PRIMARY LEGAL TEXT: ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, tekst jednolity Dz.U. 2025 poz. 775 (dziennikustaw.gov.pl, official PDF, `curl -L` + `pdftotext -layout` — isap.sejm.gov.pl returned an anti-bot blocking page, « Pardon Our Interruption », hence the choice of dziennikustaw.gov.pl as the source). THE RATES ENCODED ARE THOSE ACTUALLY APPLIED TODAY — 23%/8%/5% — NOT the base rates of art. 41 (22%/7%/5%): see each pl-standard/pl-reduced-8 entry's own note for the art. 146ef conditional raise mechanism (an annual test tied to defense spending/GDP), which has NO equivalent in this schema (no field for a condition or a formula — just `rate: number`). THE ZERO RATE (WDT/export, art. 41 ust. 3-4) IS DISTINCT from the subjective threshold exemption (art. 113) AND from the general exemption by transaction type (art. 43) — see pl-zero's own note. WHAT HAS NOT BEEN ESTABLISHED, documented honestly rather than guessed: (1) no direct search for the art. 146ef end-of-period obwieszczenie was done on monitorpolski.gov.pl — the continuation of 23%/8% beyond end-2026 is therefore NOT guaranteed by this research; (2) the exact date/instrument of the end of the domestic 0% rate on basic foodstuffs (2022-2024) was not traced to a primary source — see pl-zero; (3) no exhaustive check of amendments to the ustawa between 2025-05-21 (the date of the tekst jednolity used here) and today was done beyond the art. 113 amendment itself found and cited on pl-exempt-113 — a change to the rates within this 16-month window would go undetected by this research. This catalog does not model temporality (no validFrom/validTo field in schema.ts)."
+  },
+  "taxSystem": {
+    "countryCode": "PL",
+    "kind": "VAT",
+    "standardRate": 23,
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Art. 41. 1. Stawka podatku wynosi 22 %, z zastrzeżeniem ust. 2–12c, art. 83, art. 119 ust. 7, art. 120 ust. 2 i 3, art. 122 i art. 129 ust. 1. — Art. 146ef. 1. W okresie od dnia 1 stycznia 2024 r. do końca roku, w którym suma wydatków wymienionych w art. 40 ust. 1 pkt 2 ustawy z dnia 11 marca 2022 r. o obronie Ojczyzny [...] określonych na ten rok w ustawie budżetowej [...] jest wyższa niż 3 % wartości produktu krajowego brutto [...]: 1) stawka podatku, o której mowa w art. 41 ust. 1 i 13, art. 109 ust. 2, art. 110, art. 120 ust. 3a i art. 138i ust. 4, wynosi 23 %;",
+      "sourceCheckedAt": "2026-09-13"
+    },
+    "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (23%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/pl.json's own 'pl-standard' entry: Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 41 ust. 1 together with art. 146ef ust. 1 pkt 1), read live on 2026-09-13 in the tekst jednolity PDF (Dz.U. 2025 poz. 775) at https://dziennikustaw.gov.pl/DU/2025/775/D2025000077501.pdf (see that file's entry and its own notes for the full retrieval method — curl -L then pdftotext -layout, not a fetch-summary). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry, never retyped or translated. THE RATE ACTUALLY IN FORCE IS 23%, AND IT IS ART. 146EF THAT PRODUCES IT, NOT ART. 41 ALONE: art. 41 ust. 1 sets a BASE rate of 22%; art. 146ef ust. 1 pkt 1) raises it to 23% for as long as an annual conditional test tied to defence spending as a share of GDP is met — a test that vat-rates/data/pl.json's own notes record as having been met without interruption since 2024-01-01. This note must not be read as saying art. 41 by itself yields 23% — it does not, it yields 22%; the 23% actually charged today is art. 146ef overriding that 22% base, and the sourceText above quotes both provisions together for exactly that reason. Both citations (the TEDB reading and the statute) agree on the same figure (23%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here."
+  },
+  "vatCurrency": {
+    "countryCode": "PL",
+    "rule": {
+      "nationalCurrency": "PLN",
+      "requiredOnInvoice": true,
+      "taxableAmountRequiredOnInvoice": false,
+      "rateSource": "nbp",
+      "rateDateRule": "The NBP Table A average rate of the LAST BUSINESS DAY PRECEDING the day the tax obligation arises (VAT act art. 31a ust. 1), strictly BEFORE the tax point, never on it, unlike France's and Italy's own 'on or before' anchor. This codebase has no per-operation tax-point date on an invoice, so the tax point is approximated by the document's own issue date, and the rate is resolved for the last NBP-published business day strictly before that date. Poland's statute ALSO lets the taxpayer opt into the ECB rate instead (art. 31a ust. 1, same paragraph); that option is never exercised here, see `notes`.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Ustawa o VAT, art. 106e ust. 11: \"Kwoty podatku wykazuje się w złotych. Kwoty podatku wyrażone w walucie obcej wykazuje się w złotych przy zastosowaniu zasad przeliczania na złote przyjętych dla przeliczania kwot stosowanych do określenia podstawy opodatkowania.\" Art. 31a ust. 1: \"W przypadku gdy kwoty stosowane do określenia podstawy opodatkowania są określone w walucie obcej, przeliczenia na złote dokonuje się według kursu średniego danej waluty obcej ogłoszonego przez Narodowy Bank Polski na ostatni dzień roboczy poprzedzający dzień powstania obowiązku podatkowego.\"",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Art. 106e ust. 11 names only the TAX amount ('kwoty podatku'), never the taxable base, as the figure that must be shown in złoty, hence `taxableAmountRequiredOnInvoice: false`, the same posture France's own BOFiP §380 documents for the identical distinction. Art. 31a ust. 1 lets a taxpayer choose the ECB rate INSTEAD of NBP Table A; this codebase never exercises that option: issue #517 is explicit that Poland's rate source must be NBP Table A specifically, 'or a clear refusal when no NBP rate is available; never silently use another source', see `../nbp-rates-client.ts`'s own header for the refusal this rule drives. Citations reused verbatim from `~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md` (2026-09-28), sourced there from isap.sejm.gov.pl's own consolidated text (Dz.U. 2025 poz. 775); that research file's own 'what I could not verify' section flags NBP's own publication time/method as unconfirmed on nbp.pl directly (site blocking); this codebase's own `nbp-rates-client.ts` reads NBP's public JSON API (api.nbp.pl) rather than the HTML site, which is unaffected by that specific access limitation."
+    }
+  },
+  "channelPolicy": {
+    "countryCode": "PL",
+    "facts": [
+      {
+        "providerId": "ksef",
+        "requirement": "suggested",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 106ga.79) 1. Podatnicy są obowiązani wystawiać faktury ustrukturyzowane przy użyciu Krajowego Systemu e-Faktur.",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "RE-VERIFIED 2026-09-28 (issue #527) against the Ministry of Finance's own tax explanatory note (\"Objaśnienia podatkowe\", 28 January 2026, art. 14a par. 1 pkt 2 Ordynacja podatkowa, gov.pl/attachment/8fde481a-18aa-4b1b-843e-5bbd303d6f94 - fetched and read directly): every claim below is CONFIRMED, word for word, including the 2024 turnover reference year for the 200 000 000 zl threshold (a couple of low-quality secondary summaries say \"2025\" - wrong, contradicted by the MoF's own text and by the statute mirrors on lexlege.pl/arslege.pl, which all agree on 2024). The MoF note itself states plainly this regime applies \"od dnia 1 lutego 2026 r.\" with no slippage. As of this re-check, BOTH real-world start dates have already passed: the >200M zl tier has been bound since 1 February 2026, and the general tier since 1 April 2026 (corroborated by an individual tax ruling applying KSeF post-go-live, Dyrektor KIS 9 April 2026, sygn. 0114-KDIP1-1.4012.132.2026.1.ESZ). THIS DOES NOT CHANGE THE CONCLUSION BELOW: the art. 145m ust. 1 monthly allowance (<= 10 000 zl of structured-eligible sales per calendar month) remains ACTIVE through 31 December 2026 for every obligated taxpayer, general tier included - so even a company well past its own go-live date can still lawfully send a plain invoice for a given month under that threshold. Arming `requirement: 'mandated'` today would refuse those still-lawful invoices exactly as before; the reasoning that keeps this fact `suggested` (see below) is therefore UNCHANGED by both go-live dates now being in the past, not weakened by it. One adjacent, NOT settled, development found in Polish tax press (rp.pl, bezprawnik.pl, mid-to-late September 2026): the Ministry of Finance is reported to be proposing to defer PENALTIES for KSeF errors from 1 January 2027 to 1 January 2028 - about the SANCTION regime, never the invoicing-obligation dates themselves, and not confirmed via any primary gov.pl page as enacted (could be a draft nowelizacja still) - noted here for completeness, not acted on. Base obligation (art. 106ga ust. 1 of the VAT act of 11 March 2004, unified text announced by the Marszałek Sejmu on 21 May 2025, Dz.U. 2025 poz. 775): this is the citation carried by `sourceText` above. The same article, ust. 2, provides SIX exemption categories from this obligation, reproduced here verbatim because they condition who is even concerned by KSeF: « 2. Obowiązek, o którym mowa w ust. 1, nie dotyczy wystawiania faktur: 1) przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju; 2) przez podatnika nieposiadającego siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miejsce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę; 3) przez podatnika korzystającego z procedur szczególnych, o których mowa w dziale XII w rozdziałach 7, 7a i 9, dokumentujących czynności rozliczane w tych procedurach; 4) na rzecz nabywcy towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej; 5) w przypadku odpowiednio udokumentowanych dostaw towarów lub świadczenia usług, określonych w przepisach wydanych na podstawie art. 106s; 6) przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust. 1. » The base date often cited (1 February 2026) is that of art. 23 of the law of 16 June 2023 (Dz.U. 2023 poz. 1598, as amended), printed in the same unified text: « Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 [...], które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 4) art. 1 pkt 7 lit. e, pkt 13 lit. b w zakresie art. 106h ust. 2 i 4, pkt 24 w zakresie art. 106ni ust. 1–3 i 5–7 i pkt 30, które wchodzą w życie z dniem 1 sierpnia 2026 r. » BUT two transitional articles — inserted by a MORE RECENT law, that of 5 August 2025 (Dz.U. 2025 poz. 1203, art. 1 pkt 34, published 1 September 2025) — replace an older transitional regime (the same unified text of May 2025 still carried, before this August law, an art. 145l running only until 31 July 2026 and no art. 145m — an OUTDATED version, no longer to be cited) and change the real scope of this date for most taxpayers: « „Art. 145l. W okresie od dnia 1 lutego 2026 r. do dnia 31 marca 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników nie przekroczyła w 2024 r. kwoty 200 000 000 zł. Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł. 2. Podatnik, o którym mowa w ust. 1, traci prawo do wystawiania faktur elektronicznych oraz faktur w postaci papierowej począwszy od faktury, którą przekroczono wartość, o której mowa w ust. 1.” » In other words, as of the drafting date (2026-09-13): taxpayers whose 2024 turnover including VAT exceeded 200,000,000 zł are indeed bound from 1 February 2026 (no grace period, art. 145l); ALL OTHER taxpayers subject to the obligation remain free to issue ordinary invoices (electronic or paper) up to and including 31 March 2026 — they are therefore only bound from 1 April 2026; and, independently of this threshold, EVERY taxpayer subject to the obligation keeps, until 31 December 2026, the right to issue ordinary invoices for a given calendar month as long as the total including VAT of sales documented by structured invoices that month stays ≤ 10,000 zł — losing this grace period from the invoice that exceeds this threshold onward (art. 145m ust. 1 and 2). This entry deliberately stays `requirement: 'suggested'` despite provenance now being `legal`: `channel-policy/mandate.ts#activeChannelMandateFor` only knows a SINGLE `mandatedFrom` date, compared against each invoice's own `issueDate` — it knows nothing of the company's 2024 turnover nor of its structured-eligible sales for the current month. Arming this fact with `mandatedFrom: '2026-02-01'` (or even '2026-04-01') WOULD REFUSE invoices that are still perfectly lawful: an electronic or paper invoice issued by an SME under the 200,000,000 zł threshold before 1 April 2026, or by ANY taxpayer for a month where its structured-eligible sales stay ≤ 10,000 zł until 31 December 2026 inclusive, remains LAWFUL today. Refusing a still-lawful invoice would be a PRODUCT FAILURE; leaving this fact `suggested` is only a GAP that the user remains free to avoid by connecting KSeF voluntarily — the former is worse than the latter. A correct implementation would require (1) that the mandate mechanism know the company's 2024 turnover including VAT, to decide between 1 February and 1 April 2026 (art. 145l), and (2) that it know its structured-eligible sales FOR THE CALENDAR MONTH of each invoice, to apply or not the art. 145m allowance until 31 December 2026 — two pieces of data this product neither computes nor stores today (they would need to be derived from the company's own invoice history, or explicitly declared), and a mandate schema that accepts more than a single date (an annual turnover threshold, a rolling monthly cap) to faithfully represent this two-speed timetable plus its residual allowance."
+      }
+    ]
+  },
+  "retention": {
+    "countryCode": "PL",
+    "rules": [
+      {
+        "label": "VAT",
+        "years": 5,
+        "origin": "taxDeadlineYearEndUnknownSafe",
+        "legalRef": "ustawa o VAT art. 112, renvoi vers Ordynacja podatkowa art. 70 § 1",
+        "notes": "Raw text retrieved on 2026-09-13. Ustawa o VAT (consolidated text, Dz.U. 2024 poz. 361) via curl -sL https://dziennikustaw.gov.pl/DU/2024/361/D2024000036101.pdf (HTTP 200) then pdftotext -layout. Art. 112: « Podatnicy są obowiązani przechowywać ewidencje prowadzone dla celów rozliczania podatku oraz wszystkie dokumenty, w szczególności faktury, związane z tym rozliczaniem do czasu upływu terminu przedawnienia zobowiązania podatkowego, z zastrzeżeniem art. 109b ust. 7, art. 130d ust. 3, art. 134 ust. 3, art. 138h ust. 3 i art. 138i ust. 8. » (the referenced carve-outs — art. 109b/130d/134/138h/138i — are OSS/IOSS/import special regimes, not relevant to an ordinary domestic invoice). This article does NOT set a number of years: it refers to the LIMITATION period of the tax obligation itself. Ordynacja podatkowa (consolidated text, Dz.U. 2026 poz. 622, the Marshal's consolidation of 22 April 2026) via curl -sL https://api.sejm.gov.pl/eli/acts/DU/2026/622/text.pdf (HTTP 200; isap.sejm.gov.pl sits behind Incapsula and was avoided) then pdftotext -layout. Art. 70 § 1: « Zobowiązanie podatkowe przedawnia się z upływem 5 lat, licząc od końca roku kalendarzowego, w którym upłynął termin płatności podatku. » — FIVE years, counted from the end of the calendar year in which the tax PAYMENT deadline fell — not the year the invoice was issued. Poland's VAT payment deadline falls the month (or quarter, for a quarterly filer) after the invoice's own period: an invoice issued near year-end can therefore have its payment deadline — and hence the starting point of the 5 years — fall in January of the FOLLOWING year. Neither a company's VAT filing frequency (monthly/quarterly) nor its exact settlement periods are stored by this product: the exact deadline year therefore cannot be determined from the document alone. SAFE reading adopted (never the shortest one): origin `taxDeadlineYearEndUnknownSafe` = 31 December of (year of issuance + 1), which covers both filing regimes without needing to know which applies — see compute-retention.ts for the demonstration that this ceiling can never be exceeded by the true deadline. Data that would make this point exact: the company's VAT filing frequency and the actual settlement date of the relevant period."
+      }
+    ],
+    "notes": "A single text, but two distinct articles, and a period that is NOT anchored on the issuance date: see the rule's own note above for the full chain (ustawa o VAT art. 112 → Ordynacja podatkowa art. 70 § 1) and why the safe origin adopted deliberately differs from `issueDateYearEnd`. Established on 2026-09-13 with the coordinator's help (access via `api.sejm.gov.pl`, which bypasses `isap.sejm.gov.pl`'s Incapsula wall); every citation was re-checked by grep against its own retrieval before this file was written, per this module's own discipline."
+  },
+  "countryFields": {
+    "countryCode": "PL",
+    "overlays": [
+      {
+        "typeId": "invoice",
+        "operations": [
+          {
+            "op": "add",
+            "path": "",
+            "field": {
+              "key": "correctionReason",
+              "kind": "text",
+              "label": "Correction reason",
+              "required": false,
+              "requiredIfPresent": "correctsInvoiceId",
+              "hideWhenEmpty": true,
+              "helpText": "Why this invoice corrects the one above (\"przyczyna korekty\") — carried onto the KSeF submission as FA(3)'s own PrzyczynaKorekty element (formats/national/fa3-provider.ts) once a corrected invoice is set."
+            }
+          },
+          {
+            "op": "add",
+            "path": "lines",
+            "field": {
+              "key": "supplyType",
+              "kind": "select",
+              "label": "Supply type",
+              "required": false,
+              "options": [
+                {
+                  "value": "GOODS",
+                  "label": "Goods"
+                },
+                {
+                  "value": "SERVICES",
+                  "label": "Services"
+                }
+              ],
+              "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+            }
+          }
+        ]
+      }
+    ],
+    "notes": "Poland's own field overlay — a SINGLE addition, `correctionReason`, conditionally required (`requiredIfPresent: \"correctsInvoiceId\"` — descriptors/types.ts) rather than unconditionally: `correctsInvoiceId` (invoice.descriptor.ts trunk field) is what actually flags an invoice as a correction, so an ORDINARY Polish invoice (the overwhelming majority) never has to carry a reason at all — only once `correctsInvoiceId` is set does this field become mandatory on THIS screen. IMPORTANT PROVENANCE NUANCE, read before assuming this is a legal citation: the reason is legally OPTIONAL, not mandatory. Art. 106j ust. 2 (the faktura korygująca's own MANDATORY content list) does not list a reason at all — verbatim: \"2. Faktura korygująca powinna zawierać: ... 2a) numer identyfikujący w Krajowym Systemie e-Faktur fakturę, której dotyczy faktura korygująca ...; 3) dane zawarte w fakturze ...; 5) jeżeli korekta wpływa na zmianę podstawy opodatkowania lub kwoty podatku należnego – odpowiednio kwotę korekty ...; 6) w przypadkach innych niż wskazane w pkt 5 – prawidłową treść korygowanych pozycji.\" The reason lives ONE paragraph down, in the file's own OPTIONAL list: \"2a. Faktura korygująca może zawierać: 1) wyrazy \\\"FAKTURA KORYGUJĄCA\\\" albo \\\"KOREKTA\\\"; 2) przyczynę korekty.\" (\"może\" = may/can, not \"powinna\"/\"musi\") — ustawa o VAT z 11 marca 2004 r., tekst jednolity Dz.U. 2025 poz. 775, art. 106j ust. 2 i 2a (isap.sejm.gov.pl, checked 2026-09-16, raw consolidated text — same source correction-routes/data/pl.json's own AUTHORITY_ANNULMENT citation already reads). Requiring it here is therefore a PRODUCT decision (a correction naming no reason at all is a poor audit trail, and the Ministry's own FA(3) schema still exposes PrzyczynaKorekty as an element worth filling even though the underlying statute never forces it), not a legal `kind: 'legal'`-grade fact the way `correction-routes/data/pl.json`'s own CORRECTIVE_INVOICE route citation is — this file's own schema (`country-fields/schema.ts`) does not require field-overlay operations to carry provenance at all (see that file's own header: 'add/modify/remove this field' is a structural/product fact, not itself a new legal claim), which is exactly the case here. The FIELD's own server-side enforcement (never trusted from the screen alone) needs NO bespoke code at all: `requiredIfPresent` is read generically by `descriptors/validate.ts#validateAgainstDescriptor`, which `documents.service.ts#runAction` already runs, against the MERGED descriptor, for every action on this type (save-draft included) — a Polish invoice with `correctsInvoiceId` set and no `correctionReason` is refused (400, naming the field) before any handler ever sees it, proven end to end by `43-correction-routes.cy.ts`'s own Poland describe block. SECOND OPERATION, added later: the SAME `supplyType` line subfield France's own `fr.json` already adds, byte-identical in key, kind, label, options and optionality — a LINE subfield, unlike `correctionReason` above. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Poland's transposition defines the two in the directive's own terms — « Przez dostawę towarów, o której mowa w art. 5 ust. 1 pkt 1, rozumie się przeniesienie prawa do rozporządzania towarami jak właściciel » (ustawa o VAT, art. 7 ust. 1) against « Przez świadczenie usług, o którym mowa w art. 5 ust. 1 pkt 1, rozumie się każde świadczenie na rzecz osoby fizycznej, osoby prawnej lub jednostki organizacyjnej niemającej osobowości prawnej, które nie stanowi dostawy towarów w rozumieniu art. 7 » (same act, art. 8 ust. 1), the residual definition the directive itself uses. Same consolidated text this file's own art. 106j citation above already reads — ustawa z 11 marca 2004 r. o podatku od towarów i usług, tekst jednolity Dz.U. 2025 poz. 775 — but fetched from a DIFFERENT host on 2026-09-21: isap.sejm.gov.pl now answers an automated request with an Incapsula challenge page rather than the PDF, so the text was read from the Dziennik Ustaw itself (https://dziennikustaw.gov.pl/D2025000077501.pdf), the same obwieszczenie. WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so a Polish seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this operation's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this operation existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+  },
+  "b2gRouting": {
+    "countryCode": "PL",
+    "transportId": "ksef",
+    "formatSyntax": "fa3",
+    "requiredClientIdentifiers": [
+      {
+        "scheme": "VAT",
+        "label": "NIP (Numer Identyfikacji Podatkowej)",
+        "why": "FA(3) requires the buyer's NIP in the Podmiot2/DaneIdentyfikacyjne block (`formats/national/fa3-provider.ts` reads `getIdentifier(client, 'VAT')`, stripped of any leading two-letter country prefix) — a government client (a Jednostki Samorządu Terytorialnego/JST or a central body) with no NIP on file cannot be built into a FA(3) document at all. ksef.podatki.gov.pl's own JST page confirms this is not a formality: \"Podatnicy krajowi posiadający NIP, odbierają faktury przy użyciu systemu (czyli elektronicznie)\" (\"Domestic taxpayers WITH a NIP receive invoices using the system [KSeF], i.e. electronically\") — the NIP is what makes a Polish public body a KSeF-addressable recipient at all."
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "eInvoicing Country Factsheet — Poland (European Commission, Digital Building Blocks, eInvoicing space, page last updated 14 Aug 2025): \"Businesses will use KSeF for B2B e-Invoices, while B2G transactions can be processed through either KSeF or PEF\" — both platforms operate \"within the OpenPeppol network\". Separately, on the Polish Ministry of Finance's own KSeF portal (ksef.podatki.gov.pl/jednostki-samorzadu-terytorialnego-jst/, the page dedicated to local government units): \"Podatnicy krajowi posiadający NIP, odbierają faktury przy użyciu systemu (czyli elektronicznie)\" — domestic NIP-holding taxpayers, which includes JST public bodies, receive their invoices through KSeF. The same official page lists the phased mandatory rollout: \"1 lutego 2026\", \"1 kwietnia 2026\" (with a 10,000 PLN/month threshold exemption), the transitional period for certain exemptions (simplified invoices, cash-register receipts) ending \"31 grudnia 2026\", and full mandatory compliance from \"1 stycznia 2027\".",
+      "sourceCheckedAt": "2026-09-02"
+    },
+    "notes": "READ DIRECTLY on 2026-09-02, TWO CONVERGING SOURCES: (1) ec.europa.eu/digital-building-blocks/sites/spaces/DIGITAL/pages/467108896/eInvoicing+in+Poland (the European Commission's own official country factsheet); (2) ksef.podatki.gov.pl (the Polish Ministry of Finance's own KSeF portal), in particular its page dedicated to local government units (JST), ksef.podatki.gov.pl/jednostki-samorzadu-terytorialnego-jst/ — reached after two HTTP 301 redirects (podatki.gov.pl/ksef/ → podatki.gov.pl/ksef → ksef.podatki.gov.pl), all followed and read, never guessed. DECISION ON THE CHANNEL — SETTLED BY READING, NOT BY THE MOST OBVIOUS OPTION: the Commission's factsheet documents TWO possible Polish B2G channels, KSeF AND PEF (Platforma Elektronicznego Fakturowania) — PEF having \"adopted the Peppol BIS standard and incorporated Polish-specific requirements\" then \"developed additional extensions to the e-Invoicing standard... approved by OpenPeppol\". This rule deliberately chooses KSeF, NOT PEF/Peppol, for a reason of REAL DELIVERABILITY, not preference: PEF's Polish extension (the CIUS/Poland-specific Peppol extensions, approved by OpenPeppol but specific to it) is NOT vendored in this repository — no `formats/*-provider.ts` builds it — whereas KSeF AND its national FA(3) format (`formats/national/fa3-provider.ts`, judged against the official vendored XSD `vendored/pl/schemat_FA3.xsd`, never against an unsuited generic EN 16931 Schematron) are ALREADY implemented and PROVEN LIVE (see the session's own memory: \"KSeF channel proven end-to-end, real CLEARED + ksefNumber, 2026-06-28\") — sending generic Peppol BIS to PEF would contradict the rule as read (PEF requires the Polish-specific extensions, never bare Peppol BIS), exactly the case this task's own instructions ask to avoid; KSeF, conversely, IS a channel the same factsheet states is usable for B2G (\"B2G transactions can be processed through either KSeF or PEF\"), and its FA(3) format is the Polish national format itself, never a generic substitute. `transportId: \"ksef\"` and `formatSyntax: \"fa3\"` therefore reference building blocks that ACTUALLY exist and are already proven, not a bet. DISTINCTION FROM `channel-policy/data/pl.json` (pre-existing, not modified by this task): that file encodes a DIFFERENT axis — the mandate for the Polish SELLER's OWN country, for EVERY invoice it issues (`requirement: \"suggested\"`, provenance `unverified`, for lack of as clean a citation as this one at the time); THIS rule encodes the B2G axis — the government CLIENT's country, regardless of the seller's own country — and carries ITS OWN `legal` provenance, independently sourced today (two direct readings, never carried over from channel-policy/pl.json's own note, which itself remains unverified by this task). HONEST LIMIT ON THE TIMELINE: as of the reading date (2026-09-02), KSeF's mandatory rollout is under way but NOT COMPLETE (milestones read: 1 February 2026, 1 April 2026 with an exemption under 10,000 PLN/month, the transitional period for certain exemptions ending 31 December 2026, full compliance from 1 January 2027) — this rule asserts that KSeF IS the recognized Polish B2G channel, never that EVERY send through it is today legally forced for EVERY company size; unlike `channel-policy/schema.ts`, the `b2g-routing/schema.ts` format in any case has NO temporal field (`mandatedFrom`) to grade this — see `schema.ts`'s own header, a B2G rule is a single rule, not dated. NO `requiredDocumentFields` is added: FA(3) carries no B2G-specific field requirement beyond the NIP already covered by `requiredClientIdentifiers` above."
+  }
+}

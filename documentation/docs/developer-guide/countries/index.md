@@ -1,14 +1,14 @@
 ---
 title: "Country directory — e-invoicing system by country"
-description: "The five countries Invoicerr supports, and around a hundred it does not: the local system, the authority, and what adding each one would involve."
+description: "The six countries Invoicerr supports, and around a hundred it does not: the local system, the authority, and what adding each one would involve."
 sidebar_label: "Overview"
 keywords: [e-invoicing by country, country support, Invoicerr countries]
 ---
 
 # Country directory
 
-Invoicerr supports **five countries**: Germany, France, Italy, Poland and Portugal. "Supports" has a
-precise meaning here — those five have data files in the per-country catalogues under
+Invoicerr supports **six countries**: Germany, France, Italy, Poland, Portugal and Algeria. "Supports"
+has a precise meaning here: those six have data files in the per-country catalogues under
 `backend/src/modules/documents/`, and those files are the only thing that makes a country work,
 because no business code in this repository ever asks "what country is this?".
 
@@ -36,6 +36,7 @@ is the only page that can say which mechanism has a file today and which does no
 | [Italy](./italy.md) | [Italy in the compliance matrix](../country-support/it.md) |
 | [Poland](./poland.md) | [Poland in the compliance matrix](../country-support/pl.md) |
 | [Portugal](./portugal.md) | [Portugal in the compliance matrix](../country-support/pt.md) |
+| [Algeria](./algeria.md) | [Algeria in the compliance matrix](../country-support/dz.md) |
 
 ## Not supported
 
@@ -132,11 +133,10 @@ lists the catalogue files someone would have to write.
 | [Thailand](./thailand.md) | e-Tax Invoice |
 | [Vietnam](./vietnam.md) | GDT |
 
-### Africa (20)
+### Africa (19)
 
 | Country | Local system |
 |---|---|
-| [Algeria](./algeria.md) | DGI |
 | [Angola](./angola.md) | AGT |
 | [Benin](./benin.md) | e-MECeF |
 | [Cameroon](./cameroon.md) | DGI |

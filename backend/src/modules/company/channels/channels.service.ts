@@ -169,7 +169,7 @@ export interface LegalChannelStatus {
  * Issue #527 - the settings screen's top banner (design A, folded onto design C): this company's OWN
  * country's overall channel-policy situation, ONE fact, computed the same way `suggestedChannels`
  * already is - `tone: 'none'` (never an empty screen) for a country with no fact at all (DE, PT: see
- * `channel-policy/data/de.json`'s own header on why `facts: []` is itself a researched fact, not a
+ * `countries/data/de.json (section "channelPolicy")`'s own header on why `facts: []` is itself a researched fact, not a
  * gap) - the frontend supplies the SENTENCE (via `t()`, interpolating the fields below), this object
  * only ever supplies the VERDICT.
  */

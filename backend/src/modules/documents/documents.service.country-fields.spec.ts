@@ -34,7 +34,7 @@ vi.mock('./b2g-routing/b2g-routing');
 
 /**
  * A SYNTHETIC field overlay, injected directly into this test's own DocumentsService instance — NOT
- * the real shipped `country-fields/data/fr.json` (which now ships one real `add` — `supplyType` on
+ * the real shipped `countries/data/fr.json (section "countryFields")` (which now ships one real `add` — `supplyType` on
  * `invoice.lines`, for BT-23; see that file's own header). This exercises all THREE operations
  * (`remove`/`modify`/`add`) for real, end to end, on a FIXTURE independent of whatever the real file
  * happens to contain: this suite's own job is proving `DocumentsService` WIRES the mechanism, not
@@ -264,7 +264,7 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
    * rule's own `requiredDocumentFields` — e.g. Germany's Leitweg-ID (`data.buyerReference`) — even
    * for a company whose OWN country has no field overlay for it at all (here: FR, `FR_OVERLAY` above,
    * which adds "siren", never "buyerReference"). This is what closes the documented UX gap
-   * `country-fields/data/de.json`'s own header names: "a seller in a country with no overlay for
+   * `countries/data/de.json (section "countryFields")`'s own header names: "a seller in a country with no overlay for
    * this field... has no SCREEN control for it today".
    */
   describe('describeTypeForCompany(companyId, typeId, clientId) — the B2G document-field hint bridge', () => {

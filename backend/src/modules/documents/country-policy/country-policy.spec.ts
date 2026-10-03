@@ -387,7 +387,7 @@ describe('resolveAvailableDocumentTypes', () => {
   });
 
   // PR #473 review point 2 (round 2): a Polish seller may not CREATE a new credit note
-  // (save-draft/send both `allowed: false`, country-policy/data/pl.json), but one issued BEFORE that
+  // (save-draft/send both `allowed: false`, countries/data/pl.json (section "policy")), but one issued BEFORE that
   // owner decision must stay reachable - the sidebar entry and the list this decision drives both
   // read `documentTypes`, never a per-action rule. Dropping "credit-note" from `documentTypes`
   // entirely (the round-1 mistake this test guards against) would make an already-issued Polish

@@ -82,7 +82,7 @@ function PaymentReturnBanner({ kind, onDismiss }: { kind: PaymentReturn; onDismi
         size="icon"
         onClick={onDismiss}
         aria-label={t("pwaInstall.dismiss")}
-        className="absolute right-2 top-2 h-7 w-7"
+        className="absolute end-2 top-2 h-7 w-7"
       >
         <X className="h-4 w-4" />
       </Button>

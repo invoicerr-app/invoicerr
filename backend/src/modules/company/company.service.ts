@@ -222,7 +222,23 @@ export class CompanyService {
         details: { companyId: company.id, hash },
       });
     }
-    return await prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } });
+    const result = await prisma.company.findUnique({
+      where: { id: companyId },
+      include: { partyIdentifiers: true },
+    });
+    if (!result) return null;
+
+    // Issue #603: expose the country's own `documentValidationCode` fact (e.g. Portugal's ATCUD)
+    // instead of letting the frontend decide from `country`/`countryCode` itself - see
+    // country-policy/schema.ts's own header. Replaces the settings tab's and the ATCUD settings
+    // screen's own `=== "PT"` / `=== "PORTUGAL"` checks, which read this same endpoint.
+    const countryCode = (result.countryCode || guessCountryCode(result.country ?? undefined) || '')
+      .trim()
+      .toUpperCase();
+    return {
+      ...result,
+      documentValidationCode: defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode) ?? null,
+    };
   }
 
   /** Issue #516 - see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
@@ -514,7 +530,11 @@ export class CompanyService {
       throw new BadRequestException('The last number issued is required.');
     }
 
-    if (countryCode === 'PT') {
+    // Issue #603: read from the country's own `documentValidationCode` fact instead of a literal
+    // 'PT' - behaviourally identical today, since Portugal is still the only country declaring that
+    // fact (see this fact's own header in country-policy/schema.ts).
+    const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode);
+    if (documentValidationCode?.scheme === 'ATCUD') {
       return this.declarePortugalNewSeries(companyId, request.typeId, format, lastNumber, referenceDate);
     }
 

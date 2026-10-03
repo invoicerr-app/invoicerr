@@ -267,7 +267,7 @@ export function ClientImportDialog() {
   return (
     <>
       <Button type="button" variant="outline" onClick={() => setOpen(true)} dataCy="clients-import-button">
-        <Upload className="h-4 w-4 mr-0 md:mr-2" />
+        <Upload className="h-4 w-4 me-0 md:me-2" />
         <span className="hidden md:inline-flex">{t("clients.import.button")}</span>
       </Button>
 
@@ -287,7 +287,7 @@ export function ClientImportDialog() {
                 onClick={downloadTemplate}
                 dataCy="clients-import-template-link"
               >
-                <Download className="h-4 w-4 mr-1.5" />
+                <Download className="h-4 w-4 me-1.5" />
                 {t("clients.import.downloadTemplate")}
               </Button>
 

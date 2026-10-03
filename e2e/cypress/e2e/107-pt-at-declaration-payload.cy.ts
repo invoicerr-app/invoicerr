@@ -16,14 +16,14 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    (e-Fatura webservice manual, fields 1.6.4, 1.6.14.3, 1.6.14.4);
  *  - both declarations are shown, accepted, on the Declarations screen.
  *
- * Sources and reading dates: `backend/src/modules/documents/reporting/data/pt.json`.
+ * Sources and reading dates: `countries/data/pt.json (section "reporting")`.
  */
 const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
 const FT_CODE = "E2EFTCODE1";
 const NC_CODE = "E2ENCCODE1";
 // Issue #496: Portugal's own number formats ("FT A/{number}", "NC A/{number}",
-// `country-policy/data/pt.json`), one series each across years - never a company setting.
+// `countries/data/pt.json (section "policy")`), one series each across years - never a company setting.
 const INVOICE_NUMBER = "FT A/0001";
 const CREDIT_NOTE_NUMBER = "NC A/0001";
 

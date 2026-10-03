@@ -503,7 +503,7 @@ describe("Company Settings E2E", () => {
 		// placeholder row for a no-longer-required one — it must never touch a row that actually
 		// carries a value, no matter whose scheme it is. Before this guard existed, switching country
 		// silently deleted such a row on the very next save, with no warning. Italy's own
-		// "IT_PA_CODE" (Codice Univoco Ufficio, `country-identifiers/data/it.json`) is used here
+		// "IT_PA_CODE" (Codice Univoco Ufficio, `countries/data/it.json (section "identifiers")`) is used here
 		// because it is the one scheme among FR/DE/IT/PL/PT no OTHER supported country offers — moving
 		// away from Italy is guaranteed to orphan it, unlike LEGAL_ID/VAT, which every one of the five
 		// countries offers under some form.
@@ -644,6 +644,40 @@ describe("Company Settings E2E", () => {
 						"IT_PA_CODE is gone once removed on purpose",
 					).to.eq(false);
 				});
+		});
+	});
+
+	/**
+	 * Issue #563: `country-identifiers/data/*.json`'s own `helpText` is a developer note (English
+	 * research language, em dashes) meant for the person editing that catalog, not for a self-hoster
+	 * filling in their company. It used to render verbatim below the field. It is now replaced by a
+	 * curated, translated `settings.identifiers.help.<countryCode>.<scheme>` key, short and plain
+	 * English with a worked example, that falls back to nothing (never the raw catalog text) when
+	 * missing. This proves both halves for Germany, whose catalog file declares a `helpText` on BOTH
+	 * its schemes (VAT and LEGAL_ID): the translated text renders, and the raw catalog sentence never
+	 * does.
+	 */
+	describe("Country identifier help text is translated, not the raw catalog text (issue #563)", () => {
+		it("Settings > Company, Germany: VAT and commercial-register fields show the curated help text", () => {
+			cy.visit("/settings/company");
+			cy.wait(3000);
+			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should("be.visible");
+
+			cy.selectCountry("company-country-input", "Germany");
+
+			// Raw catalog helpText (de.json): "German EU VAT number (DE + 9 digits), needed to
+			// qualify as B2B for cross-border VAT treatment." (the source text uses an em dash there).
+			cy.get('[data-cy="company-identifier-VAT-help"]', { timeout: 10000 })
+				.should("be.visible")
+				.and("contain.text", "DE123456789")
+				.and("not.contain.text", "needed to qualify as B2B for cross-border VAT treatment");
+
+			// Raw catalog helpText (de.json): "Commercial register number (Amtsgericht + HRB/HRA,
+			// e.g. HRB 12345 München)"
+			cy.get('[data-cy="company-identifier-LEGAL_ID-help"]')
+				.should("be.visible")
+				.and("contain.text", "registering court")
+				.and("not.contain.text", "Amtsgericht + HRB/HRA");
 		});
 	});
 

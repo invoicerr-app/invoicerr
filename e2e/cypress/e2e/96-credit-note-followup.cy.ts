@@ -10,7 +10,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * for PL, enforced both by `documents.service.ts#runAction`'s own country-policy gate and a second
  * time in code (`credit-note-actions.ts#assertCreditNoteAllowedForCountry`, both shapes).
  *
- * ROUND 2 CORRECTION (this file's own first version got this wrong): `country-policy/data/pl.json`'s
+ * ROUND 2 CORRECTION (this file's own first version got this wrong): `countries/data/pl.json (section "policy")`'s
  * own `documentTypes` list still names "credit-note" - dropping it entirely, as the round-1 fix did,
  * hid the sidebar entry AND made the whole list unreachable, which took an ALREADY-ISSUED Polish
  * credit note down with it (no way to open it, download its PDF, or read its share link), directly
@@ -154,7 +154,7 @@ describe("PR #473 review point 2 - a Polish seller has no NEW credit-note instru
 			failOnStatusCode: false,
 		}).then((res) => {
 			// 403, not 400 - `documents.service.ts#runAction`'s own `evaluateCountryPolicy` gate
-			// (country-policy/data/pl.json's own `allowed: false` rule) refuses this BEFORE the
+			// (countries/data/pl.json (section "policy")'s own `allowed: false` rule) refuses this BEFORE the
 			// handler (and its own in-code `assertCreditNoteAllowedForCountry` guard, which now only
 			// fires for a caller that somehow bypassed this gate) ever runs.
 			expect(res.status, `refused - ${JSON.stringify(res.body).slice(0, 200)}`).to.eq(403);

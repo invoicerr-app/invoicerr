@@ -1,0 +1,882 @@
+{
+  "countryCode": "PT",
+  "policy": {
+    "countryCode": "PT",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "credit-note",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/pl.json/be.json/nl.json/at.json/gr.json/hr.json for this same action: no Portuguese text identified that would specifically govern this act (the Código do IVA — CIVA — only speaks of « fatura », never of an « orçamento »/quote). To revisit if the product were ever to give legal effect to the mere fact of saving a draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — READ DIRECTLY on 2026-09-04 at eur-lex.europa.eu (CELEX:32014R0910, https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0910): HTTP 200, full page (613,377 bytes), citation found verbatim (fresh reading in this session, same direct-curl method as hr.json/gr.json/be.json — an EU regulation of direct applicability, invariant across countries). A quote is not a « fatura » within the meaning of the Código do IVA (CIVA): it is this general regime of non-discrimination of the electronic writing that grounds the sending of a quote, not the specifically tax-related regime developed below for invoice.send."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no Portuguese text identified imposes or forbids this precise mechanism. The only legal constraint bears on THE INVOICE that will result from it (see invoice.save-draft/invoice.send below), never on this prior act of conversion from a quote."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no Portuguese text identified governs this precise mechanism. CIVA art. 29.º n.º 1 alínea b) (read in the primary source on 2026-09-04, see invoice.send below) DOES IMPOSE the issuance of a fatura for any payment received before delivery/performance (« bem como pelos pagamentos que lhes sejam efetuados antes da data da transmissão de bens ou da prestação de serviços ») — but this bears on the deposit invoice ONCE issued, never on this prior act of requesting it from a quote still in draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no Portuguese text identified governs this precise mechanism. The only legal constraint bears on THE INVOICES that will result from it once issued (see invoice.save-draft/invoice.send below, and CIVA art. 29.º n.º 1 alínea b) cited by 'request-deposit' above for any payment received in advance), never on this prior act of generation from a quote still in draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no Portuguese text identified governs it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to a quote's PDF is a product convenience — a quote is not even a « fatura » within the meaning of the CIVA. No Portuguese text identified that would specifically govern the sharing of a link to a document already communicated to its recipient."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Asking a client to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience — a quote is not even a « fatura » within the meaning of the CIVA, and signing a quote is not a legally regulated act, it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no Portuguese text on advanced/qualified electronic signature applies here. To be confirmed by a dedicated review if needed."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "NO legal research was performed for this entry - unlike this rule's neighbors above, this note does not claim any text was read. Allowed because this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained - to be confirmed by a dedicated review before this record is relied on as a substitute for a legally regulated acceptance mechanism."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "As disposições dos artigos 36.º e seguintes devem ser observadas sempre que, emitida a fatura, o valor tributável de uma operação ou o respetivo imposto venham a sofrer retificação por qualquer motivo.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "Código do IVA (CIVA, aprovado pelo Decreto-Lei n.º 394-B/84, texto consolidado tal como servido par l'Autoridade Tributária e Aduaneira — AT), art. 78.º n.º 1 — READ DIRECTLY on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva78.aspx (static HTML page served by the AT itself — classic SharePoint, direct curl without JavaScript; the official domain diariodarepublica.pt, meanwhile, serves this same text behind an OutSystems React SPA with no public API found in this session — see the file-level note below for the complete access method). REINFORCED by art. 36.º n.º 6 (same index page, read the same day, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx): « As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações » — a corrective document to a fatura MUST be a DATED document, SEPARATELY SEQUENTIALLY NUMBERED, referencing the initial fatura and the elements of it that are amended. MECHANISM, in the manner of FR/BE/GR/EE/HR but phrased PROCEDURALLY rather than through a frontal assimilation clause (« é considerada fatura »): Portuguese law never writes \"any document that amends the initial invoice is deemed to be an invoice\", but FUNCTIONALLY imposes the same result — once the fatura is ISSUED, any correction must go through a SEPARATE DOCUMENT, dated and numbered within its own sequence, never a silent re-issue of the original fatura (see credit-note.send below and correction-routes/data/pt.json's own CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE, sourced to the same provisions) — hence `statuses: [\"draft\"]`, which blocks `save-draft` once the invoice is 'sent'. FURTHER REINFORCED by Decreto-Lei n.º 28/2019, de 15 de fevereiro (the invoicing regime itself, see invoice.send below), art. 7.º n.º 5: « As faturas e demais documentos fiscalmente relevantes processados através de programas informáticos ou outros meios eletrónicos devem ser obrigatoriamente registados em base de dados [...], evidenciando igualmente os documentos anulados » — a cancelled document must remain TRACKED in the log/database, never silently erased; and Portaria n.º 363/2010, de 23 de junho (as republished by Portaria n.º 340/2013, de 22 de novembro — technical certification text for invoicing programs), art. 3.º alínea d): the certified program must not « dispor de qualquer função que [...] permita alterar [...] a informação de natureza fiscal, sem gerar evidência agregada à informação original » (have NO function allowing the tax-relevant information to be altered without generating evidence appended to the original information) — three independent texts converge on the same post-issuance immutability requirement."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Para efeitos do artigo anterior, os sujeitos passivos com sede, estabelecimento estável ou domicílio em território nacional e outros sujeitos passivos cuja obrigação de emissão de fatura se encontre sujeita às regras estabelecidas na legislação interna nos termos do artigo 35.º-A do Código do IVA, estão obrigados a utilizar, exclusivamente, programas informáticos que tenham sido objeto de prévia certificação pela AT, sempre que: a) Tenham tido, no ano civil anterior, um volume de negócios superior a € 50 000 ou, quando, no exercício em que se inicia a atividade, o período em referência seja inferior ao ano civil, e o volume de negócios anualizado relativo a esse período seja superior àquele montante; b) Utilizem programas informáticos de faturação; c) Sejam obrigados a dispor de contabilidade organizada ou por ela tenham optado.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "EXPECTED FINDING OF THIS TASK — THE CERTIFIED INVOICING SOFTWARE REGIME, confirmed against the raw text, THREE distinct statutes read in the primary source on 2026-09-04, all served as static HTML/PDF by info.portaldasfinancas.gov.pt (the portal of the Autoridade Tributária e Aduaneira — AT): (1) Decreto-Lei n.º 28/2019, de 15 de fevereiro (« regime da fatura eletrónica » — overhaul and consolidation of the invoicing rules), art. 4.º n.º 1, quoted verbatim above — READ from the official PDF https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Decreto_Lei_28_2019.pdf (25 pages, text extracted with pdftotext -layout, never a fetch-summary). Exact CUMULATIVE CONDITIONS (the text uses « sempre que : » followed by three items a/b/c, the same cumulative syntax as for any such list of conditions in the CIVA itself): national turnover of the preceding calendar year > EUR 50,000 (or prorated for a newly-started activity), AND use of an invoicing program, AND an obligation (or election) to keep organized accounting. For THIS product (Invoicerr, an invoicing SaaS NOT certified by the AT to date): a Portuguese client company crossing THESE THREE cumulative thresholds would be required, by this art. 4.º n.º 1, to use EXCLUSIVELY a program certified by the AT — which, as things stand, is NOT the case for this tool. This does not block the `invoice.send` action in THIS catalog (which documents rules product-by-product, not an overall compliance checklist) but it is the most operationally significant fact found by this task: to be handled as a separate compliance workstream (AT certification of the program), not as a button-level block. (2) Portaria n.º 195/2020, de 13 de agosto (implementing regulation for art. 7.º n.º 3 of the same Decreto-Lei n.º 28/2019) — READ IN FULL, official PDF https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf, published in the Diário da República n.º 157/2020, Série I, páginas 13-15 — imposes the ATCUD (código único do documento) AND the código QR on EVERY fatura and tax-relevant document: art. 3.º (n.ºs 1 to 3) — RE-READ IN THE PRIMARY SOURCE on 2026-09-13, same official PDF (https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf, direct curl, HTTP 200, 37,995 bytes, pdftotext -layout): « 1 - O código de validação da série a atribuir pela AT é composto por uma cadeia de carateres, com um comprimento mínimo de oito (8) carateres. 2 - O ATCUD é composto pela concatenação dos seguintes elementos, separados pelo carácter «-», sem aspas: a) Código de validação da série, como definido no n.º 1; b) O número sequencial do documento dentro da série. 3 - Para efeitos da alínea b) do número anterior, o número sequencial a utilizar é a sequência de caracteres numéricos, sendo que, no caso dos programas informáticos de faturação, é a que se encontra imediatamente a seguir à barra (/), tal como definido na estrutura de dados referida na Portaria n.º 321-A/2007, de 26 de março [...] » — STRUCTURAL FACT for implementing the ATCUD (to remember for whoever codes its generation, rather than re-deriving it): the código de validação is a string of AT LEAST 8 characters (no maximum stated by this text); the exact format of the ATCUD itself, restated at art. 4.º n.º 1 below, is «CodigodeValidação-NumeroSequencial» — A SINGLE separator DASH, no quotation marks; the sequential number is NOT a free product counter but IS the number of the document within its series as defined by the SAF-T (PT) data structure (Portaria n.º 321-A/2007, de 26 de março). art. 4.º n.º 1 (« O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes »), art. 2.º — RE-READ IN THE PRIMARY SOURCE on 2026-09-13, same official PDF — on the MECHANISM FOR OBTAINING the código de validação (the document series, not the taxpayer taken as a whole, is the unit communicated to the AT): « Para a obtenção do código de validação das séries documentais, previsto no n.º 2 do artigo 35.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro, os sujeitos passivos devem comunicar, nos termos do n.º 1 do mesmo artigo, por meio de processamento utilizado, como forma de identificação da série: a) O identificador da série do documento; b) O tipo de documento, de acordo com as tipologias documentais definidas na estrutura de dados a que se refere a Portaria n.º 321-A/2007 [...]; c) O início da numeração sequencial a utilizar na série [...]; d) A data prevista de início da utilização da série para a qual é solicitado o código de validação. » — REINFORCED AND MADE OPERATIONAL by the AT's own official FAQ (primary source: operational guidance from the tax administration, static SharePoint HTML page, direct curl without JavaScript, HTTP 200), « Outras Obrigações > Séries/ATCUD > Âmbito de Aplicação », items 4302-4318, https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, READ on 2026-09-13: FACT — the código de validação is obtained PER PAIR (series identifier × document type), never a single one per taxpayer nor a single one per series taken alone (FAQ 4312): « 4312 - O código de validação a atribuir à serie pode ser apenas um por cada identificador de série para os diferentes tipos de documento? Não. O código de validação a atribuir à serie é específico para cada conjunto composto pelo identificador de série e pelo tipo de documento. » FACT — it MUST be associated with the series BEFORE any document of that series is issued (FAQ 4308): « 4308 - Quando devo comunicar uma série para obter o código de validação? Quanto tempo demora a obter o código por parte da AT? A série deve ser comunicada para obtenção do respetivo código de validação antes do início de utilização da série. A AT disponibilizará o código de validação da série logo após a comunicação da respetiva série. Independentemente do meio de processamento utilizado, o código de validação tem de ser associado à respetiva série antes da emissão de documentos. » NOT VERIFIED by this reading: whether a machine-to-machine web service exists for this communication (the FAQ confirms a self-service flow via the Portal das Finanças and near-immediate delivery « logo após », but not explicitly an automatable API distinct from a web form — to be verified separately before automating this communication). art. 5.º (express reference to the technical specifications of the código QR, « a disponibilizar no Portal das Finanças » by the AT itself) and art. 6.º (placement of the QR on the document): a field table for the código QR CIRCULATES under the title « Especificações Técnicas — Código de Barras Bidimensional — Código QR », Versão 1.0, Agosto 2020, but COULD NOT BE FOUND, as of 2026-09-13, EXCEPT via a third-party mirror (a Portuguese accounting-software vendor, https://www.audico.pt/wp-content/uploads/2020/08/Especificacoes_Tecnicas_Codigo_QR.pdf): every URL attempted under the official domain info.portaldasfinancas.gov.pt (including the historical path .../Novas_regras_faturacao/Documents/Especificacoes_Tecnicas_Codigo_QR.pdf and several case variants) returns HTTP 404. FOR LACK of confirmation from the AT's own domain or a second independent source, this field table IS NOT encoded here as a 'legal' fact — in line with this module's own provenance discipline (country-policy/schema.ts): a source not verified from the authority itself remains 'unverified', never promoted to the rank of a sourced fact on the sole strength of a mirror. To be re-established if the AT republishes this document under a verifiable URL, or if written confirmation from the AT/OCC (Ordem dos Contabilistas Certificados) is obtained. SCOPE DISTINCTION, established by the AT's own official FAQ (item 4307, same page and method as above, READ on 2026-09-13) — DECISIVE FOR THIS PRODUCT, WHICH IS NOT CERTIFIED BY THE AT: « As faturas e demais documentos fiscalmente relevantes emitidos por qualquer meio de processamento como, por exemplo, as máquinas registadoras, têm de exibir o código único de documento (ATCUD), devendo ser inserido pelo respetivo programa ou equipamento, independentemente do volume de negócios ou regime de tributação do emitente. O código QR apenas é exigível a documentos emitidos por programas informáticos de faturação certificados. » OPERATIONAL CONSEQUENCE: the ATCUD obligation applies to this product AS OF TODAY, whether or not it is certified by the AT (see the certification regime cited just above, at point (1)); the código QR obligation, on the other hand, ONLY applies if/when this product itself became a certified program — it is therefore an obligation TO BE DEFERRED, as opposed to the ATCUD, which is a workstream to handle now. art. 8.º (entry into force: 1 January 2021, transitional regime from 1 December 2020 for communicating series already in use) — THIS DATE OF 1 JANUARY 2021 ALONE IS MISLEADING IF PRESENTED AS THE DATE THE ATCUD OBLIGATION TOOK EFFECT: it never was. Despacho n.º 351/2021-XXII, do Secretário de Estado Adjunto e dos Assuntos Fiscais, de 10 de novembro de 2021, alínea e) — READ IN THE PRIMARY SOURCE on 2026-09-13, official signed PDF, hosted by the AT itself, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/Despachos_SEAF/Documents/Despacho_SEAAF_351_2021_XXII.pdf (direct curl, HTTP 200, 608,239 bytes; scanned/signed document, imperfect OCR around the header but the alínea e) quoted below is clean) — SUSPENDED the obligation for the whole of 2022: « Em 2022 fique suspensa, quanto à comunicação de séries e à obrigação de aposição do código único de documento (ATCUD), a obrigatoriedade do disposto no n.º 3 do artigo 7.º e no artigo 35.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro, na sua redação atual, sendo a aposição do ATCUD em todas as faturas e outros documentos fiscalmente relevantes considerada facultativa; » ACTUAL AND APPLIED EFFECTIVE DATE OF THE ATCUD OBLIGATION: 1 JANUARY 2023 (the mention becomes mandatory again upon expiry of this one-year suspension). HONEST CAVEAT, not to be hidden: this reading examined only ONE SINGLE despacho (this one); it DID NOT carry out an exhaustive search of every SEAAF despacho published between late 2021 and today that could have touched this date again. The trade press (secondary source, not verified in the primary source here) is unanimous that 1 January 2023 is the definitive date still in force, but this specific point IS NOT established here with the same rigor as the rest of this note — to be confirmed by a dedicated search of the 2022-2026 SEAAF despachos before relying on it absolutely. (3) Portaria n.º 363/2010, de 23 de junho (« Republicado pela Portaria n.º 340/2013, de 22 de novembro » — technical certification text, whose original art. 1.º and 2.º were EXPRESSLY revoked by Decreto-Lei n.º 28/2019 itself, the legal basis of the obligation having migrated to its own art. 4.º above, BUT whose art. 3.º/4.º/5.º/6.º/7.º — the TECHNICAL certification requirements — remain in force, « Estado: vigente » per the AT's own header) — READ IN FULL, official PDF https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_363_2010.pdf: art. 6.º n.º 1 imposes an identification system using an RSA algorithm (asymmetric encryption) signing, for each document, the CONCATENATION of (a) the document date, (b) the recording date-time, (c) the document number, (d) the total amount, AND (e) « A assinatura gerada no documento anterior, do mesmo tipo e série de documento » — THE SIGNATURE GENERATED ON THE PRECEDING DOCUMENT, OF THE SAME TYPE AND SERIES — THIS IS THE CHAINED SIGNATURE announced by this task's brief: each document cryptographically embeds the signature of its immediate predecessor in the series, making any after-the-fact insertion or deletion detectable. Art. 6.º n.º 3 alínea a) requires printing 4 characters of this signature on the document (positions 1, 11, 21 and 31, separated by a dash) — exactly the « 4-char Hash » already anticipated by the pre-existing product documentation (documentation/compliance/PT-Portugal.md, a document not sourced prior to this task, now confirmed against the primary text). Art. 7.º extends this same signature mechanism to transport documents. THIS CHAINED SIGNATURE MECHANISM, like the certification regime itself, applies to the CERTIFIED PROGRAM (a technical requirement of the software), not to this `invoice.send` product action as such — but it is the EXACT technical counterpart of the immutability already documented by invoice.save-draft above. SEPARATE NUANCE, not conditioned on the certification threshold above: CIVA art. 36.º n.º 10 (read the same day, same page as invoice.save-draft) — « As faturas podem, sob reserva de aceitação pelo destinatário, ser emitidas por via eletrónica. » — the same recipient-CONSENT regime as FR/BE/NL/AT/GR/HR (outside a B2B mandate), applying to EVERY electronic fatura, certified or not. B2G (CIUS-PT): OUT OF SCOPE for this rule and this agent — already audited (2026-09-02): PT remains 'not deliverable' (CIUS-PT not vendorable, assorted third-party portals, no mention of Peppol on the EC factsheet); this task found nothing that would change this verdict."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: nothing in Decreto-Lei n.º 28/2019 or Portaria n.º 195/2020 (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking, ATCUD). `transports/channel-policy/data/pt.json` carries no `\"mandated\"` channel fact for Portugal at all - `resolveActiveInvoiceMandate` (actions/invoice-actions.ts's \"validate\" handler, issue #581) therefore never routes a Portuguese invoice through a real send here: this rule is a plain unblock, with no further branching for the acting mechanism to decide at runtime, unlike France's own. The ATCUD itself (Portaria n.º 195/2020) is still attached the moment this action numbers the invoice (`attachAtcudToNumberedDocument`, actions/atcud-issuance.ts) - a VALIDATED-but-unsent Portuguese invoice is numbered with a real ATCUD exactly as a SENT one is, which is the same obligation invoice.send's own note already grounds, not a new one this rule invents."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating an invoice into a new draft is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and goes entirely back through the normal issuance circuit (new series/numbering, new ATCUD). No Portuguese text identified governs the act of duplication itself."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording a payment is an entry internal to the tool; no specific Portuguese text identified governs the mere fact of declaring it in this tool. ADJACENT NUANCE found and honestly documented, not to be confused with the above: Decreto-Lei n.º 28/2019, art. 9.º (« Emissão de recibos para efeitos de imposto sobre o rendimento das pessoas singulares »), read on 2026-09-04 on the same PDF as invoice.send, provides: « O disposto no presente decreto-lei não prejudica a obrigação de emissão de recibo, nos termos do Código do IRS, por parte dos titulares de rendimentos da categoria B. » — a Portuguese self-employed worker (rendimentos categoria B, the « recibos verdes » regime) has a SEPARATE obligation to issue a RECEIPT (recibo, via the e-fatura system) at the moment of actual payment — an INCOME TAX (IRS) obligation, separate from the VAT fatura itself, and which therefore does not bear on this precise mechanism of recording a payment IN this tool for a client company. Not researched further (out of scope for this task, which covers immutability/sending/credit notes)."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "EN 16931 is NOT the relevant format for Portugal outside of B2G (see below): the format actually established by Portuguese law is the SAF-T (PT) (Standard Audit File for Tax — Portaria n.º 321-A/2007, de 26 de março, reworked by Portaria n.º 1192/2009 then Portaria n.º 302/2016 for its current XML structure), a MONTHLY TRANSMISSION XML file TO THE AT (declarative, not document-by-document), distinct from an « export this invoice to XML » button from the tool — this precise product action therefore has no identified legal basis that would impose or specifically govern it. For B2G (CIUS-PT, UBL 2.1): already audited (2026-09-02) — PT 'not deliverable' (CIUS-PT not vendorable); this task found nothing that would change this verdict, and this file therefore models none of its aspects."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific Portuguese text identified governs the mere fact of offering this export. This action has no registered implementation to date anyway (see invoice-actions.ts) — the real block comes from the 501, not from this rule."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating an unauthenticated public link to an invoice's PDF is a product convenience; no Portuguese text identified specifically imposes or forbids sharing a link to an invoice already communicated to its legitimate recipient. The security of the link is a technical guarantee documented in share-links/share-links.service.ts, not a separate legal requirement to be sourced here."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a credit-note draft is an internal product operation. The Portuguese legal regime for the regularização (see credit-note.send below and correction-routes/data/pt.json's own CREDIT_NOTE) concerns the TAX EFFECT of the document once issued, not the act of saving a draft — same distinction as fr.json/pl.json/nl.json/be.json/gr.json/hr.json for this same action."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Moving a credit note from 'draft' to 'sent' in this tool is an internal product mechanism (no transmission, no email is triggered by this action) — the same methodical distinction that hr.json/nl.json/be.json/gr.json already apply to their own credit-note.send. THE SUBSTANTIVE LEGAL BASIS, however, is real and documented: CIVA art. 78.º n.º 2 (« pode efectuar a dedução do correspondente imposto ») and n.º 3 (« é facultativa, quando houver imposto liquidado a mais, mas apenas pode ser efectuada no prazo de dois anos ») — an OPTION, not an obligation, to reduce the taxable base in the event of cancellation/reduction/return of goods/rebate, conditioned by n.º 5 on proof that the buyer became aware of the correction or was reimbursed. Portuguese law names NO dedicated instrument called « nota de crédito » at this stage (unlike Poland, art. 106j): see correction-routes/data/pt.json's own CREDIT_NOTE for the complete legal characterization — this rule concerns only the PRODUCT ACTION (this tool's 'send' button), never the legal regime of the document itself."
+        },
+        "notes": "See correction-routes/data/pt.json's own CREDIT_NOTE (routeId, status 'allowed', provenance 'legal') for the complete legal characterization of the tax-base-reduction mechanism."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no Portuguese text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+          "sourceCheckedAt": "2026-09-27"
+        },
+        "notes": "Issue #472. CIVA art. 36.º n.º 6, re-read on info.portaldasfinancas.gov.pt (civa_rep/Pages/iva36.aspx) on 2026-09-27, the text this file's own credit-note `numbering` fact already quotes. The EN 16931 export carries what it asks of a correcting document: its own date and number (BT-2, BT-1) and « a referência à fatura a que respeitam » (BG-3). Same scope as invoice.download-xml above: a voluntary EN 16931 export, not the format Portuguese law establishes. WHAT PORTUGAL NEEDS BEYOND THE EN 16931 EXPORT (issue #497): (1) in SAF-T (PT) a credit note is its own document type, `InvoiceType` NC: Portaria n.º 302/2016, field 4.1.4.8, « \"NC\" – Nota de crédito », now read first-hand on the AT's own copy of the Portaria (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_302_2016.pdf, 2026-09-28), replacing the GitHub mirror of SAFTPT1.04_01.xsd this note first cited; the AT's e-Fatura webservice manual (field 1.6.4, same portal) lists the same value. Invoicerr generates no SAF-T (PT) file, so NC is used where the product does need it: the series type an ATCUD is registered under (numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID). (2) the ATCUD, now attached to a Portuguese credit note: see this file's `atcud-required` numbering fact for \"credit-note\"."
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording an expense is a management entry internal to the tool. Portuguese accounting obligations (not explored in depth by this task, outside the requested 'immutability/send/credit-note' scope) bear on the company's own accounting, not on this recording mechanism within the tool."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a wrongly entered expense; no Portuguese text identified specifically governs the deletion of such an entry before any accounting close."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool merely records a fact that has already occurred (an invoice already obtained by another means: upload, OCR, manual entry), never technically receiving a fatura over a dedicated Portuguese channel (the SAF-T (PT) is a regime of MONTHLY DECLARATION from the issuer to the AT, not a RECEPTION channel for the buyer). No Portuguese text identified for THIS precise mechanism of entering/correcting a record already in the database."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no Portuguese text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision. No Portuguese mechanism for a FORMAL rejection addressed to the tax administration (comparable to Croatian čl. 52) was identified by this task — see correction-routes/data/pt.json's own COUNTERPARTY_OBJECTION (unverified, inconclusive absence)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no Portuguese text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, of the same nature as `expense.delete` above; no Portuguese text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a purchase-order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order, moreover, commits less than a quote does (it does not constitute a sales offer, only a purchase intent from the issuing company itself), which makes the existence of a text targeting it even less likely. Research not specifically redone for this type/action (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME text, at the same verification date (2026-09-04, not the 2026-09-03 of de.json/it.json/pl.json), as quote.send above (see its own note: a European REGULATION applies directly, with no national variant, in every Member State). A purchase order is neither an invoice nor a quote, but is an electronic document like any other with regard to this text: it is this same general regime of non-discrimination of the electronic writing that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Cancelling a purchase order sent to a supplier is a purely commercial act (the company gives up its own order), never the correction of a tax document already transmitted — this is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module only concern a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation towards the supplier fall under general contract law, outside the scope of this rule (which only says whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not conducted specifically for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — settling what the warehouse recorded as received against a purchase order, to feed a 3-way matching control that is itself internal to the tool, never transmitted to a third party nor declared to an administration. No text identified that would target this act specifically. Research not conducted specifically for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a wrongly entered draft is the same internal operation, with no recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, on the retention obligations for a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never a goods receipt by name). Research not conducted specifically for this type/action, newly created (2026-09-15) — to revisit if a real need requires it."
+        }
+      }
+    ],
+    "notes": "Portugal (2026-09-04). NINE PRIMARY/OFFICIAL SOURCES READ IN RAW TEXT (direct curl then pdftotext -layout for PDFs, never a fetch-summary): (1) Código do IVA (CIVA), text as served by the Autoridade Tributária e Aduaneira (AT) at info.portaldasfinancas.gov.pt/.../civa_rep/Pages/ivaNN.aspx (one STATIC HTML page per article - classic SharePoint, direct curl without JavaScript) - art. 18.º (rates), art. 29.º (obligation to issue a fatura), art. 36.º (deadline and formalities for faturas, including the mandatory particulars and the electronic-consent regime), art. 53.º (isenção regime for small businesses), art. 78.º (regularizações); (2) Decreto-Lei n.º 28/2019, de 15 de fevereiro (the invoicing regime itself, official 25-page PDF); (3) Portaria n.º 195/2020, de 13 de agosto (ATCUD + código QR, official 3-page PDF, read in full); (4) Portaria n.º 363/2010, de 23 de junho, as republished by Portaria n.º 340/2013 (technical certification requirements for invoicing programs, including the RSA chained signature, official PDF); (5) Portaria n.º 321-A/2007, de 26 de março (foundation of the SAF-T (PT), official PDF, 5 pages - the detailed technical annex is a non-extractable scan, not needed for this task); (6) the raw JSON from the TEDB API (ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch, member state 24 = PT) for the Madeira/Azores regional rates (see vat-rates/data/pt.json); (7) eur-lex.europa.eu CELEX:32014R0910 (eIDAS) for quote.send; (8) the AT's own official FAQ, « Outras Obrigações > Séries/ATCUD > Âmbito de Aplicação » (items 4302-4318), https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, RE-READ on 2026-09-13 (direct curl, HTTP 200, static SharePoint HTML, no JavaScript); (9) Despacho n.º 351/2021-XXII, de 10 de novembro de 2021 (suspension, for the whole of 2022, of the obrigatoriedade of the ATCUD), official signed PDF, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/Despachos_SEAF/Documents/Despacho_SEAAF_351_2021_XXII.pdf, READ on 2026-09-13 (direct curl, HTTP 200, 608,239 bytes, pdftotext -layout). ACCESS METHOD, REUSABLE FINDING FOR THIS BATCH: diariodarepublica.pt (the Portuguese Official Journal) serves ALL of its pages, including the « legislação consolidada », behind an OutSystems React SPA (a massive JS bundle, dr.controller.js, 471 KB, no public REST route identified in this session despite inspecting the bundle) - WORKED AROUND, as documented by this task's brief, via a STATIC official mirror: info.portaldasfinancas.gov.pt (the AT's own portal, classic ASP.NET/SharePoint) serves the CIVA article-by-article as static HTML AND hosts, as PDFs downloadable without authentication, the entirety of the relevant supplementary statutes (Decreto-Lei n.º 28/2019, Portarias 195/2020, 363/2010, 340/2013, 22-A/2012, 321-A/2007) under /pt/apoio_ao_contribuinte/Negocios/Faturacao/Regras_de_faturacao/Legislacao and .../Regras_mecanismos_comunicacao/Certificacao_programas - one more SPA-WORKED-AROUND-VIA-STATIC-OFFICIAL-MIRROR precedent for this catalog, alongside riigiteataja/forin.gr/Legilux/legislation.mt/net.jogtar.hu/retsinformation already documented. NO contradiction found with the B2G-routing audit already delivered (2026-09-02: PT « not deliverable » - CIUS-PT not vendorable): this task found NOTHING that would change this verdict; this file therefore models no b2g-routing. Of the 22 rules, 3 are 'legal' at the substantive-fact level (quote.send, invoice.save-draft, invoice.send), plus one real legal basis documented in a note but NOT promoted to the rule level for credit-note.send (same discipline as gr.json/hr.json) - the remaining 18 are honestly 'unverified' with their own resolutionNote each. REVIEWED on 2026-09-13 (invoice.send only): the effective date of the ATCUD obligation was corrected - the regime remained OPTIONAL throughout 2022 (Despacho n.º 351/2021-XXII, alínea e)), such that its actual and applied effective date is 1 January 2023, not the 1 January 2021 that reading art. 8.º of Portaria n.º 195/2020 alone suggested; the structure of the ATCUD (minimum length of the código de validação, obtaining mechanism per series×document-type pair, mandatory precedence over issuance) was documented from sources re-read in the primary source that day; and the distinction between the ATCUD (required regardless of the software's certification status) and the código QR (required only for software certified by the AT, which this product is not) was made explicit. No 'allowed'/'requirement' value changed during this review - only the provenance notes were corrected and enriched.",
+    "numbering": [
+      {
+        "typeId": "credit-note",
+        "requirement": "sequential-number-required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+          "sourceCheckedAt": "2026-09-26"
+        },
+        "notes": "CIVA art. 36.º n.º 6 (redacção do D.L. n.º 197/2012), read on info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx on 2026-09-26 - same static-HTML-per-article source this file's own notes already used for art. 18/29/36/53/78. The ATCUD this number now carries (issue #497, closing the gap issue #471 left open) is its own fact just below, `atcud-required`, with its own source."
+      },
+      {
+        "typeId": "invoice",
+        "requirement": "atcud-required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "1 - O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Portaria n.º 195/2020, art. 4.º n.º 1, read in full on the AT's own copy (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf, pdftotext -layout, 2026-09-28). Recorded here for issue #497 so the invoice and the credit note carry the same kind of fact; the invoice's ATCUD itself predates it (invoice.send's own notes above). SAF-T (PT) document type FT (Portaria n.º 302/2016, field 4.1.4.8, « \"FT\" – Fatura, emitida nos termos do artigo 36.º do Código do IVA »): the type its series is registered under, Portaria n.º 195/2020, art. 2.º alínea b)."
+      },
+      {
+        "typeId": "credit-note",
+        "requirement": "atcud-required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "1 - O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Issue #497. Portaria n.º 195/2020, art. 4.º n.º 1 puts the ATCUD on « todas as faturas e outros documentos fiscalmente relevantes ». A credit note is a « fatura » for that purpose: Decreto-Lei n.º 28/2019 (the decree whose art. 7.º n.º 3 this Portaria regulates), art. 2.º alínea c), « «Fatura», o documento em papel ou em formato eletrónico que: [...] ii) Constitua um documento retificativo de fatura nos termos legais », and CIVA art. 36.º n.º 6 is the « documentos retificativos de faturas » provision this file's own sequential-number fact quotes. Art. 7.º n.º 3 of the same decree: « Nas faturas e demais documentos fiscalmente relevantes deve constar um código de barras bidimensional (código QR) e um código único de documento ». Both read on the AT's consolidated copy (info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Decreto_Lei_28_2019.pdf, « Estado: vigente », amendments listed up to Decreto-Lei n.º 49/2025, 2026-09-28). THE SERIES: Portaria n.º 195/2020, art. 2.º alínea b) makes the document type, « de acordo com as tipologias documentais definidas na estrutura de dados » of the SAF-T (PT), part of what is communicated to obtain a series' validation code, so a credit note's series is its own \"NC\" series (Portaria n.º 302/2016, field 4.1.4.8, « \"NC\" – Nota de crédito »), never the invoice's FT one; field 4.1.4.1 also forbids using « o mesmo código interno de tipo de documento em diferentes tipos de documentos ». Produced exactly as for the invoice (actions/atcud-issuance.ts): the credit note's number format (Portugal's own \"NC A/{number}\" since issue #496, this file's `numberFormats`) ends in \"/{number}\", a code must be registered for its predicted series before \"send\", and the ATCUD is frozen on the document when it is numbered. NOT covered: the QR code (Portaria n.º 195/2020, art. 6.º, binds programs certified by the AT, which Invoicerr is not; the invoice has none either)."
+      }
+    ],
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "pt-civa-36-5",
+          "appliesTo": ["invoice"],
+          "summary": "Portuguese law requires every invoice to be dated and numbered sequentially.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« 5 - As faturas devem ser datadas, numeradas sequencialmente e conter os seguintes elementos: »",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "CIVA art. 36.º n.º 5, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx, read first-hand on 2026-09-28."
+        },
+        {
+          "id": "pt-civa-36-6",
+          "appliesTo": ["credit-note"],
+          "summary": "Portuguese law requires a document correcting an invoice to carry a sequential number too.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "6 - As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações",
+            "sourceCheckedAt": "2026-09-26"
+          },
+          "notes": "CIVA art. 36.º n.º 6, reused from this file's credit-note `numbering` fact (same page, read 2026-09-26)."
+        },
+        {
+          "id": "pt-at-faq-4310",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "In invoicing software the document number is the document-type code, a space, the series identifier, a slash, then the sequential number within the series. The ATCUD is built from those digits after the slash.",
+          "mustMatch": "^[^ /]+ [^ /]+/[0-9]+$",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« Nos programas de faturação, esta identificação é composta sequencialmente pelos seguintes elementos: o código interno do tipo de documento, um espaço, o identificador da série do documento, uma barra (/) e o número sequencial desse documento dentro dessa série. Por exemplo, em “FT SERIE/000001”, a série corresponde ao conjunto de carateres “SERIE”. » (AT, FAQ 4310)",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. Portaria n.º 195/2020, art. 3.º n.º 3 (quoted in numbering/atcud.ts) defines the ATCUD's sequential number as the digits right after the slash, which is why numbering/atcud.ts refuses any other shape."
+        },
+        {
+          "id": "pt-at-faq-4696",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "A series identifier holds at most 35 characters among unaccented letters, digits, dot, underscore and hyphen; with the space and slash of the number's structure, those are the only characters a Portuguese number may use.",
+          "allowedCharacters": "A-Za-z0-9 ._/-",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« O identificador da série do documento não pode conter mais de 35 carateres [...] são aceites os carateres: [A-Z] - Letras maiúsculas (não inclui carateres acentuados nem o “Ç”); [a-z] - Letras minúsculas (não inclui carateres acentuados nem o “ç”); [0-9] - Números de 0 a 9; [._-] - Ponto, sublinhado e traço [...] não é possível utilizar: um separador no início e/ou no fim; dois ou mais separadores consecutivos; séries com identificador iniciado por “AT” » (AT, FAQ 4696)",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. The 35-character limit and the separator rules bind the series identifier alone, which a whole-number check cannot isolate; the shipped series \"A\" satisfies all of them."
+        },
+        {
+          "id": "pt-saft-invoiceno",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "SAF-T (PT) holds the document number (InvoiceNo) in at most 60 characters, shaped \"TYPE SERIES/NUMBER\".",
+          "maxLength": 60,
+          "mustMatch": "^[^ ]+ [^/^ ]+/[0-9]+$",
+          "provenance": {
+            "kind": "unverified",
+            "resolutionNote": "Read on 2026-09-28 from a THIRD-PARTY copy of the AT's SAF-T (PT) 1.04_01 schema (github.com/fredericoregateiro/saft, SAFTPT1.04_01.xsd, Windows-1252): <xs:element name=\"InvoiceNo\"> <xs:restriction base=\"xs:string\"> <xs:pattern value=\"[^ ]+ [^/^ ]+/[0-9]+\" /> <xs:minLength value=\"1\" /> <xs:maxLength value=\"60\" />. The AT's own URL for the schema returned 404 in this pass. What would settle it: SAFTPT1.04_01.xsd downloaded from info.portaldasfinancas.gov.pt (Portaria n.º 302/2016) and compared byte for byte."
+          }
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "No Portuguese text read in this pass constrains the number of a quote. OPEN QUESTION, not settled here: whether a quote handed to a client is a 'documento de conferência' that Decreto-Lei n.º 28/2019 would require to be issued in its own communicated series, with an ATCUD, was not checked. This product issues no ATCUD on a quote today.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance (and this format carries no {year} token to key by regardless)."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "FT A/{number}",
+          "constrainedBy": ["pt-civa-36-5", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
+          "rationale": "\"FT\" is SAF-T (PT)'s document-type code for a fatura, \"A\" the series identifier, then the sequential number after the slash, the shape FAQ 4310 describes and the ATCUD needs. The series carries no year: FAQ 4317 and 4318 allow one series and one validation code across several years as long as its numbering never restarts, and this product's counter never restarts. A Portuguese company registers the AT validation code of series \"FT A\" once, before its first invoice. The product's previous default (\"INVOICE-{year}-{number:4}\") could not produce an ATCUD at all.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "AT FAQ \"Séries/ATCUD\" 4318, https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand on 2026-09-28 - the same FAQ this file's own `runningSeries` fact already quotes. Explicit and unambiguous the OTHER way from FR/DE/IT: restarting the numbering of an ALREADY-USED series is expressly forbidden. A yearly restart is technically lawful in Portugal, but only through a BRAND NEW series with its own freshly-registered AT validation code each year (FAQ 4318's own example: \"A2021; A2022; A2023\") - a fundamentally different mechanism from keying one counter by the document's issue year, and one this product's ATCUD registration flow (`CompanyAtcudSeries`, `numbering/atcud.ts`) does not support today: registering a series is a one-time, company-initiated step, never an automatic yearly renewal. Building that is its own feature, out of #515's scope - recorded here as a deliberate, sourced non-choice rather than an oversight, per the issue's own expectation (\"Portugal: a yearly restart means a new ATCUD series registered each year [...], so it keeps its continuous series unless a source says otherwise\")."
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "NC A/{number}",
+          "constrainedBy": ["pt-civa-36-6", "pt-at-faq-4310", "pt-at-faq-4696", "pt-saft-invoiceno"],
+          "rationale": "\"NC\" is SAF-T (PT)'s document-type code for a nota de crédito, in series \"A\", numbered on its own counter. The same shape as the invoice: the credit note carries its own ATCUD from series \"NC A\" (this file's credit-note `atcud-required` fact, issue #497).",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. Caso pretenda reiniciar a numeração anualmente, terão de ser utilizadas séries distintas, por exemplo referenciando o ano na série (por exemplo A2021; A2022; A2023…).",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "Same source, same read, same reasoning as this file's own invoice `resetProvenance` above: FAQ 4318 binds every ATCUD series equally, credit note included."
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no Portuguese text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no Portuguese text read in this pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no Portuguese text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started, with its AT validation code, is kept as it is: the AT forbids restarting the numbering of a series already in use, and a series may run across years as long as its numbering never restarts.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Não é possível reiniciar a numeração sequencial de uma série já utilizada. [...] A mesma série e respetivo código de validação só pode ser utilizada em mais do que um ano (plurianual) desde que seja garantida a numeração sequencial ao longo dos vários anos, sem ser reiniciada. » (AT, FAQ 4318) ; « uma série e respetivo código de validação pode ser utilizada durante mais do que um ano, desde que seja mantida a respetiva numeração sequencial ao longo da sua utilização. » (AT, FAQ 4317)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "onViolation": "A running series without the \"TYPE SERIES/NUMBER\" shape cannot carry an ATCUD. The country format then applies from the next number, which starts a NEW series (\"FT A\" or \"NC A\"): its AT validation code must be registered before the first document in it (FAQ 4308). The counter is not reset, so the new series starts at the next number rather than at 1; the starting number is declared when the series is communicated to the AT.",
+        "notes": "AT FAQ « Séries/ATCUD », https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/Pages/faqs-00883.aspx, read first-hand (curl, static HTML) on 2026-09-28. NOT READ, would confirm the last sentence: the AT's series-communication form or webservice specification, for the field that declares a new series' first sequential number."
+      }
+    },
+    "documentValidationCode": {
+      "scheme": "ATCUD",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "O ATCUD, com o formato «ATCUD:CodigodeValidação-NumeroSequencial», deve constar obrigatoriamente em todas as faturas e outros documentos fiscalmente relevantes, emitidos por qualquer dos meios de processamento identificados no artigo 3.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Issue #603 (audit section 1, row 3 / section 5, row B). Decreto-Lei n.º 28/2019, art. 7.º n.º 3, and Portaria n.º 195/2020, art. 4.º n.º 1 - the same citation this file's own `numbering` facts above already quote for \"invoice\"/\"credit-note\" atcud-required. This fact is the COMPANY-LEVEL one, read instead of the four `=== 'PT'` literals the audit named (`actions/atcud-issuance.ts`, `company/company.service.ts`, the settings tab, the ATCUD settings screen): it answers only whether Portugal's companies have a validation-code scheme AT ALL. WHICH document types carry it once numbered stays the `numbering` facts' own concern above, never duplicated here."
+    }
+  },
+  "identifiers": {
+    "countryCode": "PT",
+    "schemes": [
+      {
+        "scheme": "LEGAL_ID",
+        "appliesTo": "BOTH",
+        "label": "NIF / NIPC (Número de Identificação Fiscal / Número de Identificação de Pessoa Coletiva)",
+        "required": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Os nomes, firmas ou denominações sociais e a sede ou domicílio do fornecedor de bens ou prestador de serviços e do destinatário ou adquirente sujeito passivo do imposto, bem como os correspondentes números de identificação fiscal;",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "helpText": "The same number serves as the NIF for a natural person and as the NIPC (Número de Identificação de Pessoa Coletiva) for a legal person — a single tax identifier per entity, universally assigned in Portugal (individuals and companies), regardless of actual VAT liability.",
+        "notes": "Código do IVA (CIVA), text as served by the Autoridade Tributária e Aduaneira (AT), art. 36.º n.º 5 alínea a) — PRIMARY TEXT, read directly on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx (static HTML page served by the AT, direct curl with no JavaScript). FRONT-LINE CLAUSE for the SUPPLIER: the text imposes « os correspondentes números de identificação fiscal » on the « fornecedor de bens ou prestador de serviços » WITH NO CONDITION WHATSOEVER — the seller must ALWAYS carry their NIF/NIPC on the fatura, hence `required: true`. IMPORTANT NUANCE FOR THE BUYER, not to be lost if this fact is ever promoted to an unqualified `required: true`: the same sentence qualifies the recipient with « e do destinatário ou adquirente SUJEITO PASSIVO DO IMPOSTO » — the qualifier « sujeito passivo » (taxable person) applies GRAMMATICALLY to the recipient/buyer, not to the supplier, which means the BUYER's NIF is front-line mandatory ONLY when the buyer is themselves a taxable person for VAT (typically B2B). REINFORCED, read the same day on the same page, by n.º 16 of the same article: « A indicação na fatura do número de identificação fiscal do adquirente ou destinatário não sujeito passivo é sempre obrigatória quando este o solicite. » — for a NON-taxable buyer (a private individual), the NIF is mandatory on the fatura ONLY WHEN REQUESTED by that buyer. This catalog models `required: true` / `appliesTo: 'BOTH'` at the level AT WHICH this fact is consumed by this product (country-identifiers.ts's own resolveRequiredIdentifiers: 'does this country require this identifier for a party of this type', not literally 'must this identifier ALWAYS appear on THIS SPECIFIC invoice') — the NIF/NIPC is, in practice, universally held and communicated by every company AND every private individual in Portugal (a generalized administrative precondition), which the front-line clause above for the supplier confirms without reservation; the conditional nuance on the non-taxable buyer's side (n.º 16) is documented here honestly rather than passed over in silence. FORMAT — RE-VERIFIED 2026-09-16, PRIMARY TEXT NOW REACHED: curl alone still could not reach it (diariodarepublica.pt's SPA shell, confirmed again this session; the scanned 1979 original at https://files.diariodarepublica.pt/1s/1979/11/27700/30743078.pdf downloads fine via curl — HTTP 200 — but is a pure image scan with NO text layer, confirmed by `pdffonts` reporting zero embedded fonts, so pdftotext extracts nothing). The raw text used below was instead read from the SAME official page's live DOM (`document.body.innerText`, server-populated by diariodarepublica.pt's own screenservices API, not by any client-side rendering of ours) — verbatim, unsummarized, independently reproducible by any human visiting the same URL, never a model paraphrase. Decreto-Lei n.º 463/79, de 30 de novembro, Art. 2.º n.º 2, read this way at https://diariodarepublica.pt/dr/detalhe/decreto-lei/463-1979-367228: « O número fiscal das pessoas singulares é um número sequencial, cujo primeiro dígito deve ser diferente do adoptado para as pessoas colectivas e entidades equiparadas, sendo o último um dígito de contrôle da exactidão do número. » — confirms, from the founding 1979 text itself, that a check digit EXISTS and is the LAST digit, and that the FIRST digit distinguishes natural from legal persons — but not the exact digit count or the check-digit arithmetic. CRITICAL CORRECTION: that same page is stamped « Revogado » — DL 463/79 is REPEALED, by Decreto-Lei n.º 14/2013, de 28 de janeiro (Diário da República n.º 19, 1.ª série, de 2013-01-28; consolidated text read the same way at https://diariodarepublica.pt/dr/legislacao-consolidada/decreto-lei/2013-108043706): « ... procede à sistematização e harmonização da legislação referente ao Número de Identificação Fiscal e revoga o Decreto-Lei n.º 463/79, de 30 de novembro ». DL 14/2013 is therefore the CURRENT operative source, and its Artigo 4.º (Secção I, Das pessoas singulares), n.º 1, states: « O NIF a atribuir às pessoas singulares, sejam cidadãos nacionais ou estrangeiros, é um número composto por nove dígitos, sendo os oito primeiros sequenciais e o último um dígito de controlo. » — SETTLING the digit count (NINE) and the check digit's position (9th/last) for natural persons, as a currently-in-force legal fact; n.º 2 adds « O primeiro dígito da esquerda pode variar entre os algarismos 1 a 4. », and n.º 3 « Os algarismos iniciais «45» correspondem aos cidadãos não residentes que apenas obtenham em território português rendimentos sujeitos a retenção na fonte a título definitivo. » WHAT REMAINS UNCONFIRMED, HONESTLY: (1) the exact ARITHMETIC of the check digit (the mod-11 weighted-sum algorithm with weights 9..2 and a 'remainder < 2 → 0' rule commonly described in professional/vendor literature) is stated in NEITHER DL 463/79 NOR DL 14/2013 — a systematic search of DL 14/2013's full consolidated text (39,022 characters) for 'peso', 'multiplic', 'resto', 'divisão', 'algoritmo' and 'módulo' returned ZERO matches; the computation itself is therefore apparently an administrative/technical specification (consistent with DL 463/79's own Art. 1.º n.º 3, which delegated 'a implementação do sistema automático de processamento de dados' to the Instituto de Informática do Ministério das Finanças) never published as primary legal text, at least not found by this task — a widely-implemented industry convention, not a sourced legal fact. (2) for LEGAL PERSONS (pessoas coletivas), DL 14/2013's Artigo 11.º n.º 1 states the NIF/NIPC 'corresponde ao Número de Identificação de Pessoa Coletiva (NIPC) que for atribuído' by the RNPC (Registo Nacional de Pessoas Coletivas) — this same 9-digit/check-digit structure is NOT itself established by this text for companies, which are governed by the RNPC's own separate numbering regime, not read by this task. Because this catalog's `scheme: 'LEGAL_ID'` fact applies to `appliesTo: 'BOTH'` party types under one entry and only the NATURAL-PERSON structure is now sourced, no `pattern` field is added here — a regex covering only individuals would misrepresent companies, whose first-digit range was not verified, and the check-digit arithmetic itself (unsourced) could not be expressed as a static regex regardless."
+      },
+      {
+        "scheme": "VAT",
+        "appliesTo": "BOTH",
+        "label": "Número de Identificação Fiscal para efeitos de IVA",
+        "required": false,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Beneficiam da isenção do imposto os sujeitos passivos com sede ou domicílio em território nacional que, não praticando operações de exportação ou atividades conexas, não tenham atingido, no ano civil anterior, um volume de negócios anual em território nacional superior a 15 000 €.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "helpText": "The Portuguese VAT number is, in common practice, the same NIF/NIPC (see LEGAL_ID above) prefixed with \"PT\" for intra-Community exchanges (VIES) — THIS EQUIVALENCE HAS NOT BEEN CONFIRMED by a front-line clause in the texts read by this task (see notes): treat it as an empirical convention, not as a sourced fact.",
+        "notes": "Código do IVA (CIVA), art. 53.º n.º 1 (« Âmbito de aplicação no território nacional », heading amended by the Decreto-Lei n.º 35/2025, de 24 de março) — PRIMARY TEXT, read directly on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/artigo-53-o-do-civa.aspx (same access method as LEGAL_ID above). A Portuguese taxable person whose previous calendar year's domestic turnover did NOT exceed €15,000 benefits from an ISENÇÃO (exemption) — the same structural reasoning as fr.json/at.json/ee.json/hr.json for this same case: a company under this threshold is simply not registered for VAT in the full sense and therefore has no active VAT number to carry on its invoices, hence `required: false`. ADJACENT DATED FINDING, not modeled here (outside the scope of this specific fact but worth noting): the same art. 53.º, n.os 2 to 6 (read the same day), sets up a EUROPEAN exemption scheme (stemming from EU directive 2020/285, transposed by the Decreto-Lei n.º 35/2025 reform) allowing a taxable person established in ANOTHER Member State to benefit from this SAME Portuguese exemption if their annual EU-wide turnover does not exceed €100,000 and they have obtained, in their Member State of establishment, an individual identification number carrying the SUFFIX \"EX\" — a recent scheme (2025) and distinct from the domestic clause above, not investigated further by this task. FORMAT (the equivalence to the NIF/NIPC prefixed \"PT\"): NOT CONFIRMED by a front-line clause equivalent to the Croatian čl. 77 st. 6 already established by this catalog (hr.json) — no text read by this task (CIVA art. 27.º to 35.º-A reviewed for the registration regime) explicitly states that the Portuguese VAT number IS the prefixed NIF/NIPC. It is a convention widely used in professional tooling (VIES validators, etc.) but it remains HERE an unsourced INFERENCE, documented honestly rather than declared as a verified fact — no `pattern` is therefore declared, by the same discipline as for LEGAL_ID above. What would settle this: a provision of the CIVA (or of the Decreto-Lei n.º 463/79 on the NIF itself) explicitly stating this equivalence, read as primary source."
+      }
+    ],
+    "notes": "Portugal (2026-09-04). Two schemes, as with most countries in this catalog: the NIF/NIPC (LEGAL_ID, universal, front-line required for the seller) and the VAT number (VAT, not required below the €15,000/year exemption threshold). TWO PRIMARY/OFFICIAL SOURCES READ AS RAW TEXT (direct curl on the static HTML pages served by the Autoridade Tributária e Aduaneira — AT — at info.portaldasfinancas.gov.pt, never a fetch-summary): the Código do IVA (CIVA), art. 36.º (mandatory content of the fatura) and art. 53.º (small-business exemption regime, recently modernized by the Decreto-Lei n.º 35/2025). DISCIPLINE APPLIED HONESTLY, UPDATED 2026-09-16: the NIF/NIPC format was RE-INVESTIGATED and, for natural persons, SETTLED. diariodarepublica.pt's SPA still serves no text to a plain curl request, and the 1979 original PDF at files.diariodarepublica.pt is a pure image scan with no text layer (`pdffonts`: zero embedded fonts) — but the SAME official pages' live DOM (`document.body.innerText`, populated server-side by the site's own screenservices API) carries the full verbatim statute text, read this way for two diplomas. FIRST: Decreto-Lei n.º 463/79, de 30 de novembro — the founding statute — turns out to be REPEALED (its own page is stamped « Revogado »), by Decreto-Lei n.º 14/2013, de 28 de janeiro (Diário da República n.º 19, 1.ª série, de 2013-01-28), whose own title is « Sistematização e harmonização da legislação referente ao Número de Identificação Fiscal ». SECOND, and now the operative source: DL 14/2013's Artigo 4.º n.º 1 states « O NIF a atribuir às pessoas singulares [...] é um número composto por nove dígitos, sendo os oito primeiros sequenciais e o último um dígito de controlo. », n.º 2 « O primeiro dígito da esquerda pode variar entre os algarismos 1 a 4. » — settling, for NATURAL PERSONS, the digit count (nine) and the check digit's position (last). NOT settled by either text: the check digit's ARITHMETIC (the mod-11 weighted-sum algorithm widely cited in professional literature — a search of DL 14/2013's full text for 'peso'/'multiplic'/'resto'/'divisão'/'algoritmo'/'módulo' found none of them), and the LEGAL-PERSON structure (DL 14/2013 Art. 11.º defers the NIPC of « pessoas coletivas » to the RNPC's own separate numbering regime, not read by this task). See country-identifiers/data/pt.json's own LEGAL_ID scheme notes for the full citations. No `pattern` field is added for either scheme: VAT's NIF=\"PT\"-prefix equivalence remains unsourced as before, and LEGAL_ID's fact covers `appliesTo: 'BOTH'` while only the natural-person digit structure is now confirmed — a regex would either misstate companies or fabricate the unsourced check-digit arithmetic."
+  },
+  "correctionRoutes": {
+    "countryCode": "PT",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Se, depois de efectuado o registo referido no artigo 45.º, for anulada a operação ou reduzido o seu valor tributável em consequência de invalidade, resolução, rescisão ou redução do contrato, pela devolução de mercadorias ou pela concessão de abatimentos ou descontos, o fornecedor do bem ou prestador do serviço pode efectuar a dedução do correspondente imposto até ao final do período de imposto seguinte àquele em que se verificarem as circunstâncias que determinaram a anulação da liquidação ou a redução do seu valor tributável.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "No internal transcription reference exists for Portugal (coverage limited to FR/IT/PL/DE/ES/MX/US): a first direct reading, C1 evidence level, done by this agent, the same situation as hr.json. Source: Código do IVA (CIVA), text as served by the AT on info.portaldasfinancas.gov.pt, art. 78.º n.º 2 — PRIMARY TEXT (static HTML page from the AT, direct curl), read on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva78.aspx. REINFORCED by n.º 3 of the same article, read the same day: « [...] é facultativa, quando houver imposto liquidado a mais, mas apenas pode ser efectuada no prazo de dois anos » — when the tax was charged IN EXCESS (the sense of a reduction, i.e. the equivalent of a credit note), the correction is OPTIONAL (the seller MAY make it, within a two-year deadline), never mandatory — hence the 'allowed' status rather than 'required'. A PORTUGAL-SPECIFIC FINDING, symmetric to and the opposite of DEBIT_NOTE below (see that entry for the full contrast): the SAME art. 78.º n.º 3 handles BOTH directions (overpaid / underpaid) EXPLICITLY ASYMMETRICALLY — optional in one direction, mandatory in the other — a finer distinction than any found so far in this catalog (which had already noted, for Sweden, a one-sided CREDIT_NOTE REQUIRED requirement; here it is the OPPOSITE: it is the UPWARD correction that is 'required', the downward correction staying 'allowed'). An ADDITIONAL CONDITION was found, read the same day, art. 78.º n.º 5: « [...] a regularização a favor do sujeito passivo só pode ser efectuada quando este tiver na sua posse prova de que o adquirente tomou conhecimento da rectificação ou de que foi reembolsado do imposto, sem o que se considera indevida a respectiva dedução. » — the seller can only benefit from the deduction on condition of PROVING that the buyer became aware of the correction (or was reimbursed) — a purely internal credit note, never communicated to the customer, would therefore NOT allow this deduction (see INTERNAL_CREDIT_NOTE below, where this same provision is treated as a real, unresolved tension). Portuguese law names NO dedicated instrument called « nota de crédito » — it describes a tax EFFECT (the faculty to reduce the base) and two CONDITIONS (the deadline, proof that the customer is aware/was reimbursed), without imposing a single form — the same structural family as the Croatian čl. 33 st. 7 already established by this catalog (hr.json's own CREDIT_NOTE)."
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Nos casos de facturas inexactas que já tenham dado lugar ao registo referido no artigo 45.º, a rectificação é obrigatória quando houver imposto liquidado a menos, podendo ser efectuada sem qualquer penalidade até ao final do período seguinte àquele a que respeita a factura a rectificar, e é facultativa, quando houver imposto liquidado a mais, mas apenas pode ser efectuada no prazo de dois anos.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "A PORTUGAL-SPECIFIC FINDING from this task, the most precise in the batch on this route: CIVA art. 78.º n.º 3 — PRIMARY TEXT, the same AT page as CREDIT_NOTE above, read the same day. EXACT READING: « imposto liquidado a menos » literally means \"tax charged SHORT [of what it should have been]\" — that is, an invoice INITIALLY UNDER-BILLED, whose correction will INCREASE the tax due — exactly the sense of a debit note (DEBIT_NOTE: an UPWARD correction of an already-issued invoice, in the sense of the vocabulary this catalog of correction routes uses). For THIS specific sense, the same paragraph says unambiguously « a rectificação é obrigatória » (the correction is MANDATORY) — hence the 'required' status, in EXPLICIT, SYMMETRIC opposition to the 'allowed' status of CREDIT_NOTE above (« é facultativa, quando houver imposto liquidado a mais » — optional in the opposite direction). This is, to this agent's knowledge, the FIRST time in this catalog that one and the same statutory paragraph EXPLICITLY and SEPARATELY settles the two directions of an invoice correction with DIFFERENT and OPPOSING statuses — most countries already covered (HR, EE, BE...) draw CREDIT_NOTE and DEBIT_NOTE from the SAME general assimilation clause, with no status distinction between the two directions. The text still names no instrument called « nota de débito » — it is the FUNCTIONAL consequence of the obligation to correct which, combined with art. 36.º n.º 6 (CORRECTIVE_INVOICE below), imposes the form of a distinct document referencing the original."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "As guias ou notas de devolução e outros documentos retificativos de faturas devem conter, além da data e numeração sequencial, os elementos a que se refere a alínea a) do número anterior, bem como a referência à fatura a que respeitam e as menções desta que são objeto de alterações.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "CIVA art. 36.º n.º 6 — PRIMARY TEXT, the same AT page as CREDIT_NOTE/DEBIT_NOTE above (https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx), read on 2026-09-04. This is the MOST DIRECT reading of this paragraph against the vocabulary this catalog of correction routes uses: \"Document that AMENDS the original by reference, without being a credit note\" corresponds very precisely to « documentos retificativos de faturas [...] a referência à fatura a que respeitam e as menções desta que são objeto de alterações » (rectifying documents for invoices [...] the reference to the invoice they concern and the particulars of it that are being amended). REINFORCED by art. 78.º n.º 1 (read the same day, see country-policy/data/pt.json's own invoice.save-draft): « As disposições dos artigos 36.º e seguintes devem ser observadas sempre que, emitida a fatura, o valor tributável de uma operação ou o respetivo imposto venham a sofrer retificação por qualquer motivo » — THIS general clause EXPLICITLY refers back to the art. 36.º n.º 6 mechanism for ANY correction, « por qualquer motivo » (for whatever reason), without distinguishing upward/downward — this is therefore the GENERAL route of which CREDIT_NOTE and DEBIT_NOTE above are each a SPECIFIC CASE of status (optional / mandatory). Status 'allowed' (not 'required') at the level of THIS generic route: nothing imposes THIS particular form over another when neither the strict CREDIT_NOTE case nor the strict DEBIT_NOTE case applies."
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — Portugal does NOT have a real-time clearance system comparable to KSeF/SdI: SAF-T (PT) (Portaria n.º 321-A/2007 and its recasts) is a MONTHLY DECLARATION file submitted after the fact to the AT, never a pre-issuance validation (see country-policy/data/pt.json's own invoice.send for the SOFTWARE certification regime, which is a control on the PROGRAM, not on EACH document at the moment of its issuance). The Decreto-Lei n.º 28/2019 (read in primary text on 2026-09-04, art. 1.º to 42.º reviewed) never once describes a mechanism where the AT would REFUSE a fatura at issuance and then allow its reissuance — art. 4.º-A (added by the Decreto-Lei n.º 49/2025, the AT's own free invoicing applications) does provide for a CANCELLATION notice to the buyer (n.º 5), but this is triggered by the TAXABLE PERSON itself, never by a refusal from the authority. Documented structural absence, not positive proof of non-existence: what would settle it is AT doctrine or an explicit provision confirming the absence of any cancellation/refusal mechanism BY the authority for the Portuguese fatura circuit."
+        },
+        "notes": "Decreto-Lei n.º 28/2019, art. 1.º to 42.º, and Portaria n.º 321-A/2007 (SAF-T (PT)), read in primary text on 2026-09-04 — no clearance/refusal-then-reissue mechanism identified; a non-conclusive structural absence."
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled, and a REAL TENSION specific to Portugal was found. CIVA art. 78.º n.º 5 (read in primary text on 2026-09-04, the same page as CREDIT_NOTE above) provides: « Quando o valor tributável de uma operação ou o respectivo imposto sofrerem rectificação para menos, a regularização a favor do sujeito passivo só pode ser efectuada quando este tiver na sua posse prova de que o adquirente tomou conhecimento da rectificação ou de que foi reembolsado do imposto, sem o que se considera indevida a respectiva dedução. » (When the taxable base of a transaction or the corresponding tax undergoes a DOWNWARD correction, the regularization in favor of the taxable person can only be carried out if it holds proof that the buyer became aware of the correction OR was reimbursed the tax — failing that, the deduction is considered improper.) This clause STRUCTURALLY REQUIRES notifying the customer for any reduction the seller wants to be FISCALLY EFFECTIVE — which suggests that a purely internal credit note, never communicated to the customer, would NOT allow the seller to recover the corresponding tax. NO text read, however, states an EXPRESS PROHIBITION of the purely internal entry as such (the taxable person could, in theory, forgo the deduction and communicate nothing): as a matter of discipline (never promoted by reasoning alone), this fact remains 'unverified' rather than 'forbidden' — the same restraint hr.json applies to its own equivalent tension (Zakon o fiskalizaciji čl. 38/48). What would settle it: AT doctrine explicitly confirming that a purely accounting adjustment, with no communication to the customer at all, would remain possible OUTSIDE of any exercise of the corresponding right to deduction."
+        },
+        "notes": "CIVA art. 78.º n.º 5, read in primary text on 2026-09-04 — a real tension documented, not resolved into 'forbidden' as a matter of discipline."
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — the same structural reasoning as CANCEL_AND_REPLACE above: since SAF-T (PT) is a MONTHLY, after-the-fact declarative regime, no procedure for CANCELLATION BY THE AUTHORITY (at the issuer's request or of its own motion) of an already-issued fatura was identified in the Decreto-Lei n.º 28/2019 or in the CIVA (the mechanisms found — CIVA art. 78.º, Decreto-Lei art. 4.º-A — all concern an INITIATIVE by the sujeito passivo itself, never a cancellation DECIDED by the AT). What would settle it: AT doctrine confirming the absence (or existence) of a power to cancel an already-issued fatura of its own motion, beyond the ex officio declared cessation of activity (CIVA art. 34.º n.º 2-3, which concerns the STATUS of the sujeito passivo, not a particular document)."
+        },
+        "notes": "Not researched beyond the texts already read for the other routes (CIVA art. 34.º, 78.º; Decreto-Lei n.º 28/2019 art. 1.º to 42.º) — flagged as probably moot given the absence of clearance, not as settled."
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — the same reasoning as CANCEL_AND_REPLACE/AUTHORITY_ANNULMENT above: this route presupposes a REJECTION scenario by a clearance platform (like KSeF/SdI), a scenario that does not exist for the Portuguese fatura circuit (SAF-T (PT) is an after-the-fact declaration, no validation at issuance). Decreto-Lei n.º 28/2019 art. 7.º n.º 5 (« devendo ser obrigatoriamente registados em base de dados [...] evidenciando igualmente os documentos anulados ») only guarantees that a cancelled document remains TRACKED, never describing a reissuance UNDER THE SAME identity (same date, same number) after any kind of rejection. What would settle it: the same verification as for AUTHORITY_ANNULMENT."
+        },
+        "notes": "Decreto-Lei n.º 28/2019 art. 7.º n.º 5, read in primary text on 2026-09-04 — a traceability mechanism for cancelled documents was found, but it does not match this route's exact definition (no identical reject-then-reissue scenario)."
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — no mechanism comparable to the Croatian čl. 43 (reissuance UNDER THE SAME NUMBER with an added note, for a correction with no tax effect) was identified in the Decreto-Lei n.º 28/2019 or the CIVA read for this task. The only \"repetition\" mechanism identified is art. 4.º-A n.º 3-4 of the Decreto-Lei n.º 28/2019 (added by the Decreto-Lei n.º 49/2025), which concerns the after-the-fact CONSULTATION of already-issued faturas via the AT's own free applications, not an annotated reissuance. What would settle it: AT doctrine or an explicit provision describing a reissuance mechanism under the same number/series for a correction that does not affect the tax calculation."
+        },
+        "notes": "Not researched beyond the texts already read (Decreto-Lei n.º 28/2019, art. 1.º to 42.º) — no conclusive positive or negative finding."
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "A correcção de erros materiais ou de cálculo no registo a que se referem os artigos 44.º a 51.º e 65.º, nas declarações mencionadas no artigo 41.º e nas guias ou declarações mencionadas nas alíneas b) e c) do n.º 1 do artigo 67.º é facultativa quando resultar imposto a favor do sujeito passivo, mas só pode ser efectuada no prazo de dois anos, [...] sendo obrigatória quando resulte imposto a favor do Estado.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "A PRECISE PORTUGAL-SPECIFIC FINDING, distinct from CREDIT_NOTE/DEBIT_NOTE/CORRECTIVE_INVOICE above: CIVA art. 78.º n.º 6 — PRIMARY TEXT, the same AT page, read on 2026-09-04. This n.º 6 EXPLICITLY concerns correcting material or calculation errors IN THE ACCOUNTING REGISTER and the VAT RETURN itself (the registers of art. 44.º-51.º/65.º, the returns of art. 41.º) — NOT the fatura sent to the customer (which falls under art. 78.º n.º 1/n.º 3, see CORRECTIVE_INVOICE/DEBIT_NOTE above). This is very precisely the definition of this route that this catalog of correction routes uses (\"Correction made in the registers, WITHOUT issuing any document [to the customer]\"): a purely DECLARATIVE/ACCOUNTING correction, with no rectifying document at all sent to the customer. Status 'allowed' (the mechanism, taken as a whole, EXISTS and is permitted) — a NUANCE WORTH NOTING, not modeled by this schema's single `status` field: the same paragraph distinguishes, as with DEBIT_NOTE/CREDIT_NOTE above, an OPTIONAL correction (when it benefits the taxable person, two-year deadline) from a MANDATORY correction (when it benefits the State) — the same optional/mandatory asymmetry pattern that art. 78.º n.º 3 already applies to the fatura itself, but APPLIED HERE to the REGISTER, not to the commercial document."
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — no scenario was identified where a correction would produce an AUTOMATIC tax effect, BY OPERATION OF LAW ALONE, with no act required at all (neither a document to the customer nor an identifiable entry in the register/return). The closest finding (CIVA art. 78.º n.º 6, see LEDGER_ANNOTATION above) IS itself an identifiable act — a correction of the register or the return — not an effect by operation of law with no action at all. What would settle it: a provision or doctrine describing a Portuguese case where the adjustment occurs with no entry or notification required at all from the taxable person."
+        },
+        "notes": "CIVA art. 78.º n.º 6 (see LEDGER_ANNOTATION) remains the closest finding but corresponds to an identifiable ACT, not an automatic effect — this route therefore remains distinct and unsettled."
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not settled — no mechanism comparable to the Croatian čl. 52 (the RECIPIENT of a document unilaterally rejects it and MUST report its data to the tax authority, with the consequence that the document loses its effect as an invoice for the recipient) was identified in the CIVA or the Decreto-Lei n.º 28/2019 read for this task. CIVA art. 78.º n.º 4 (read in primary text on 2026-09-04, the same page as CREDIT_NOTE above) only organizes the SYMMETRIC counterpart to the SELLER's own regularization: « O adquirente do bem ou destinatário do serviço [...] corrige [...] a dedução efectuada » — the BUYER corrects its OWN deduction when the SELLER has itself carried out a cancellation/reduction/correction — this is a MECHANICAL consequence of the seller's correction, never a UNILATERAL and INITIAL challenge by the recipient that would, on its own initiative, cause a document to lose its effect as an invoice. What would settle it: AT doctrine or a provision describing a Portuguese mechanism for a unilateral rejection of a fatura by its recipient, with its own tax effect."
+        },
+        "notes": "CIVA art. 78.º n.º 4, read in primary text on 2026-09-04 — an adjacent finding (the mirrored adjustment of the buyer's deduction) but it does not match this route's exact definition (no UNILATERAL and INITIAL rejection by the recipient)."
+      }
+    ],
+    "notes": "Portugal (2026-09-04). No internal transcription reference exists for this country (coverage limited to FR/IT/PL/DE/ES/MX/US): this is the FIRST direct reading, C1 evidence level, done by this agent — against the PRIMARY/OFFICIAL TEXT itself (direct curl + pdftotext -layout, never a fetch-summary), across TWO distinct and complementary statutes: the Código do IVA (CIVA, as served by the AT on info.portaldasfinancas.gov.pt) for the underlying tax mechanism (art. 36.º, 78.º), and the Decreto-Lei n.º 28/2019, de 15 de fevereiro (the invoicing regime, official PDF) for the absence of any clearance/authority-refusal mechanism. HEADLINE of this file: FOUR routes sourced 'legal' — CREDIT_NOTE, DEBIT_NOTE, CORRECTIVE_INVOICE (CIVA art. 78.º n.º 2/n.º 3 and art. 36.º n.º 6, the SAME family of correction mechanism as FR/BE/GR/EE/HR already established by this catalog, BUT with a PORTUGAL-SPECIFIC PARTICULARITY unprecedented in this catalog to this agent's knowledge: the SAME paragraph (art. 78.º n.º 3) EXPLICITLY and ASYMMETRICALLY resolves the two directions of the correction — 'obrigatória' when the tax was charged short [DEBIT_NOTE], 'facultativa' when it was charged in excess [CREDIT_NOTE]) and LEDGER_ANNOTATION (CIVA art. 78.º n.º 6 — correcting the register/return itself, with no document to the customer, the FIRST occurrence of this route sourced 'legal' in this catalog to this agent's knowledge, hr.json having left it 'unverified' for lack of as precise a clause). The other six routes (CANCEL_AND_REPLACE, INTERNAL_CREDIT_NOTE, AUTHORITY_ANNULMENT, RESUBMIT_SAME_IDENTITY, ANNOTATED_DUPLICATE, NO_DOCUMENT_BY_LAW, COUNTERPARTY_OBJECTION — seven, in fact) honestly remain 'unverified', each with its own resolutionNote documenting either a real structural absence (no real-time clearance: SAF-T (PT) is an after-the-fact monthly declaration), or a real but inconclusive tension (CIVA art. 78.º n.º 5 for INTERNAL_CREDIT_NOTE). This file does not model any B2G routing (a decision outside this agent's scope; a B2G audit was already carried out on 2026-09-02: PT remains 'not deliverable', CIUS-PT not vendorable — this task found nothing that would change that verdict)."
+  },
+  "vatRates": {
+    "countryCode": "PT",
+    "rates": [
+      {
+        "id": "pt-standard",
+        "rate": 23,
+        "label": "Taxa normal",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Para as restantes importações, transmissões de bens e prestações de serviços, a taxa de 23%.",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "Código do IVA (CIVA), text as served by the Autoridade Tributária e Aduaneira (AT, the Portuguese tax authority), art. 18.º n.º 1 alínea c) — PRIMARY TEXT, read directly on 2026-09-04 on https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx (a static HTML page served by the AT, direct curl with no JavaScript). Rate applicable to MAINLAND Portugal (Portugal continental) — see the file-level note below for Madeira and the Azores, which apply their own regional rates and are NOT modeled separately here. NO DIVERGENCE with tax-systems/data/pt.json's own TEDB fragment (already in this repository, agent P2-T02/T07: `\"value\" : 23.0, \"situationOn\" : \"2026/01/01\"`) nor with the fresh TEDB reading redone by this task (see the file-level notes): both sources converge on 23%."
+      },
+      {
+        "id": "pt-reduced-13",
+        "rate": 13,
+        "label": "Taxa intermédia",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Para as importações, transmissões de bens e prestações de serviços constantes da lista II anexa a este diploma, a taxa de 13%;",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "CIVA art. 18.º n.º 1 alínea b) — the same AT page as pt-standard above, read the same day. Category REDUCED (not SUPER_REDUCED) by this catalog's own construction: it is the HIGHER of Portugal's two non-standard rates (13% and 6%), the same convention as vat-rates/data/at.json (13% REDUCED) and vat-rates/data/hr.json (13% REDUCED). Applies to the goods and services of the « Lista II » annexed to the CIVA (not transcribed here — a list of articles distinct from the body of the article itself, not reached by this task within the time available; the rate itself, 13%, is on the other hand quoted verbatim above from the very body of art. 18.º)."
+      },
+      {
+        "id": "pt-super-reduced-6",
+        "rate": 6,
+        "label": "Taxa reduzida",
+        "category": "SUPER_REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Para as importações, transmissões de bens e prestações de serviços constantes da lista I anexa a este diploma, a taxa de 6%;",
+          "sourceCheckedAt": "2026-09-04"
+        },
+        "notes": "CIVA art. 18.º n.º 1 alínea a) — the same AT page as pt-standard above, read the same day. Category SUPER_REDUCED (not REDUCED): it is the LOWER of Portugal's two non-standard rates, below the 13% rate above, the same convention as hr-reduced-5 for Croatia. Applies to the goods and services of the « Lista I » annexed to the CIVA (not transcribed here, same limitation as pt-reduced-13 above)."
+      },
+      {
+        "id": "pt-isento",
+        "rate": 0,
+        "label": "Isento (art. 9.º CIVA)",
+        "category": "EXEMPT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Artigo 9.º Isenções nas operações internas Estão isentas do imposto: 1) As prestações de serviços efetuadas no exercício das profissões de médico, odontologista, psicólogo, parteiro, enfermeiro e outras profissões paramédicas; [...] 27) As operações seguintes: a) A concessão e a negociação de créditos, sob qualquer forma, compreendendo operações de desconto e redesconto, bem como a sua administração ou gestão efectuada por quem os concedeu; [...] c) As operações, compreendendo a negociação, relativas a depósitos de fundos, contas correntes, pagamentos, transferências, recebimentos, cheques, efeitos de comércio e afins, com excepção das operações de simples cobrança de dívidas; [...] 28) As operações de seguro e resseguro, bem como as prestações de serviços conexas efectuadas pelos corretores e intermediários de seguro;",
+          "sourceCheckedAt": "2026-09-17"
+        },
+        "notes": "Código do IVA (CIVA), art. 9.º, « Isenções nas operações internas » — PRIMARY TEXT, read directly on 2026-09-17 on https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva9.aspx, the same static-HTML, no-JavaScript, direct-curl method already used for pt-standard/pt-reduced-13/pt-super-reduced-6 above. 28 numbered categories in total (medical/paramedical services, education, financial/credit/insurance operations, cultural and welfare services, among others) — only a representative few (medical services, credit/deposit operations, insurance) are quoted verbatim above; the full enumeration is not reproduced here. Distinct from the 'isenções na exportação' of art. 14.º the file-level note below already discusses: art. 9.º covers DOMESTIC transactions, which is exactly the gap that blocked a purely domestic Portuguese invoice line (a medical service, a credit operation) from ever being issued — the 'select' field kind refuses any value outside this catalog's own `options`, and until this entry existed NOTHING here was ever a valid '0' for Portugal. Modeled as EXEMPT, not ZERO: CIVA never states a literal '0%' for this regime any more than it does for the export exemptions in art. 14.º (see the file-level note's own 'ISENÇÕES ... NOT MODELED' paragraph, now superseded FOR ART. 9.º specifically by this entry: EXEMPT, unlike this schema's ZERO category, does not require a stated percentage, only a genuine exemption from the tax, which art. 9.º's own chapeau — « Estão isentas do imposto » — states directly)."
+      }
+    ],
+    "notes": "Portugal (2026-09-04). Three MAINLAND rates, all 'legal', SOURCED FROM THE PRIMARY LEGAL TEXT itself as served by the Autoridade Tributária e Aduaneira (AT) on info.portaldasfinancas.gov.pt (a static HTML page per CIVA article, direct curl, never a fetch-summary): CIVA art. 18.º n.º 1 — 23% (normal, alínea c)), 13% (intermédia, alínea b), Lista II), 6% (reduzida, alínea a), Lista I). CONFIRMS EXACTLY the task's brief (art. 18: 23/13/6 for the mainland). REGIONAL RATES, DELIBERATELY NOT MODELED HERE, documented honestly instead — CIVA art. 18.º n.º 3, read the same day, same AT page: « As Assembleias Legislativas das Regiões Autónomas dos Açores e da Madeira podem, nos termos previstos na Lei das Finanças das Regiões Autónomas, aprovada pela Lei Orgânica n.º 2/2013, de 2 de setembro, fixar taxas diminuídas do IVA aplicáveis às transmissões de bens e prestações de serviços que se considerem efetuadas nas regiões autónomas [...] » — the CIVA itself DELEGATES to the two autonomous regions the power to set their own reduced rates, BY REGIONAL LEGISLATIVE DECREES distinct from the CIVA (not reached by this task within the time available — the regional government portals of Madeira and the Azores, not explored). CURRENT VALUES, sourced SEPARATELY via the public TEDB API (Taxes in Europe Database, DG TAXUD of the European Commission — the same method already used by tax-systems/data/pt.json's own provenance for the mainland rate): POST request to https://ec.europa.eu/taxation_customs/tedb/rest-api/vatSearch {\"searchForm\":{\"selectedMemberStates\":[24],...}}, consulted on 2026-09-04, HTTP 200 — the PT result set lists, among its « REDUCED » rates, two entries explicitly annotated by the TEDB itself: {\"key\":\"Reduced rate\",\"value\":22.0,\"comments\":\"[...] Madeira Autonomous Region\"} and {\"key\":\"Reduced rate\",\"value\":16.0,\"comments\":\"[...] Azores Autonomous Region\"} — that is, a REGIONAL normal rate of 22% for Madeira and 16% for the Azores (the TEDB files these two regional rates under its own « REDUCED » type because its schema only recognizes a SINGLE « STANDARD » rate per member state — a TEDB artifact, not a CIVA classification). NEITHER the intermediate rate NOR the reduced rate specific to each region (generally reported elsewhere as 12%/5% for Madeira and 9%/4% for the Azores) appears in this same TEDB result set as of the consultation date — THESE TWO PER-REGION VALUES ARE THEREFORE NOT ASSERTED HERE, for want of a source directly consulted by this task (the regional legislative decrees themselves, not reached). IN LINE WITH THIS TASK'S SCOPE (« model the mainland, document the regions in notes without modeling them unless straightforward »): NO separate VatRateFact is created for Madeira/the Azores — this note documents what was found (the legal delegation itself, verbatim and sourced to CIVA art. 18.º n.º 3; the two regional normal rates 22%/16%, sourced from the TEDB) without promoting them into entries of this catalog. ISENÇÕES (exemptions, CIVA art. 9.º/13.º/14.º, exports included) — REVISITED 2026-09-17: art. 9.º (« Isenções nas operações internas », domestic exemptions) is NOW modeled as pt-isento above, category EXEMPT — see that entry's own note for the full reasoning. Art. 14.º (exports, read at its primary text on 2026-09-04, https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva14.aspx) and art. 13.º (intra-Community operations) remain UNMODELED: both qualify their own transactions as « isentas do imposto » too, but are genuinely CROSS-BORDER facts (export outside the EU, intra-Community supply) the tax engine (tax/tax-engine.ts) already resolves on its own for a cross-border invoice — unlike art. 9.º's domestic exemptions, which had NO other path onto an invoice line at all before pt-isento existed. schema.ts's own EXEMPT category never required a literally stated 0% rate in the first place — that requirement belonged only to the DISTINCT ZERO category (see schema.ts's own VatRateCategory) — so this catalog was never actually blocked from modeling art. 9.º; it simply had not yet."
+  },
+  "taxSystem": {
+    "countryCode": "PT",
+    "kind": "VAT",
+    "standardRate": 23,
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Para as restantes importações, transmissões de bens e prestações de serviços, a taxa de 23%.",
+      "sourceCheckedAt": "2026-09-04"
+    },
+    "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (23%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/pt.json's own 'pt-standard' entry: Código do IVA (CIVA), art. 18.º n.º 1 alínea c), read live on 2026-09-04 at https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva18.aspx (see that file's entry and its own notes for the full retrieval method — curl against a static HTML page served by the Autoridade Tributária e Aduaneira, not a fetch-summary; that entry's own file-level notes also cover Madeira/Azores' distinct regional rates, which stay unmodeled here exactly as before). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry — `sourceCheckedAt` is therefore 2026-09-04, the date vat-rates/data/pt.json's own reading was made, not the date of this swap — never retyped or translated. Both citations agree on the same figure (23%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here."
+  },
+  "vatCurrency": {
+    "countryCode": "PT",
+    "rule": {
+      "nationalCurrency": "EUR",
+      "requiredOnInvoice": false,
+      "taxableAmountRequiredOnInvoice": false,
+      "rateSource": "none",
+      "provenance": {
+        "kind": "unverified",
+        "resolutionNote": "CIVA art. 16, §8-9 sets the exchange-rate mechanism (ECB rate, or a Portuguese bank's own selling rate, at the taxpayer's option: day of chargeability or the 1st business day of the month) for converting a foreign-currency taxable amount, but this is the BASE-COMPUTATION article, not the invoice-CONTENT one. CIVA art. 36 (the invoice's own mandatory-content list) was read directly for this research and does NOT, on that direct reading, name a converted-VAT or converted-taxable-amount line among its own requirements, but this was read from a consolidated secondary copy (info.portaldasfinancas.gov.pt), not cross-checked against a second independent source, and Portuguese SAF-T/e-fatura technical documentation (which DOES require euro totals) was only read as a FAQ-level summary, never the full XSD/technical specification itself; the research explicitly flags this as unresolved (`~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md`, 'Ce que je n'ai pas pu vérifier'). What would settle this: a direct, verbatim read of CIVA art. 36's full text confirming no converted-amount requirement, AND a direct read of the AT's own SAF-T-PT / e-fatura technical specification to establish whether the euro-total requirement it does carry is merely a REPORTING mapping (computed from the invoice's own stored data, never printed on the document itself) or actually cascades into a mandatory printed field. Until settled, this codebase treats Portugal the SAME as 'no confirmed invoice-level requirement' (`requiredOnInvoice: false`), the safe default when a requirement is not established, never the reverse (this codebase does not print an unconfirmed legal figure on a real invoice on the theory that it might be required)."
+      },
+      "notes": "Distinct from Germany's own `requiredOnInvoice: false`: Germany's is a settled, sourced, `kind: 'legal'` conclusion (the statute genuinely does not reach the invoice). Portugal's is `kind: 'unverified'`: the statute was read and did not confirm the requirement, but the reading is not settled to the standard this codebase's own `assertValidPolicyProvenance` gate holds a `'legal'` claim to. A future pass that reads CIVA art. 36 and the SAF-T-PT technical spec directly, to a real conclusion either way, should replace this whole `provenance` block rather than only editing this note."
+    }
+  },
+  "channelPolicy": {
+    "countryCode": "PT",
+    "facts": [],
+    "notes": "NO TRANSMISSION CHANNEL is imposed by Portuguese law for B2B invoicing today — established by direct reading of Decreto-Lei n.º 28/2019, de 15 de fevereiro (original publication text, Diário da República, 1.ª série, N.º 33, retrieved as a PDF via curl from files.diariodarepublica.pt, checked 2026-09-13), which governs invoice handling across the whole of Portuguese tax law (IVA, IRC, IRS).\n\nArticle 12.º nº 1 sets out the principle: the electronic transmission of an invoice is a FACULTY subject to the recipient's agreement, never an obligation or an imposed channel: « As faturas e demais documentos fiscalmente relevantes podem, mediante aceitação pelo destinatário, ser emitidos por via eletrónica. » — translation: invoices and other tax-relevant documents MAY, subject to acceptance by the recipient, be issued electronically. The verb is « podem » (may), not « devem » (must): electronic issuance itself remains optional and consensual, unlike the French (PDP) or Italian (SdI) regimes, which remove this choice from the parties. No platform, no network, no intermediary is named anywhere in this article or in the rest of chapter II (« Emissão de documentos ») of the same decree-law.\n\nArticle 3.º lists the only PROCESSING MEANS (« meios de processamento ») recognized — a question of PRODUCING the document, not of its transmission channel: « Os sujeitos passivos devem assegurar que as faturas e demais documentos fiscalmente relevantes sejam processados por uma das seguintes formas: a) Programas informáticos de faturação, incluindo aplicações de faturação disponibilizadas pela Autoridade Tributária e Aduaneira (AT); b) Outros meios eletrónicos, nomeadamente máquinas registadoras, terminais eletrónicos ou balanças eletrónicas; c) Documentos pré-impressos em tipografia autorizada. » — none of these three routes is a transmission channel in the sense of this catalog (KSeF, SdI, PDP…): they are means of GENERATING the document, independently of how it subsequently reaches the customer.\n\nSOFTWARE CERTIFICATION REGIME — DISTINCT FROM A CHANNEL, AND NOT SATISFIED BY THIS PRODUCT TODAY: article 4.º nº 1 imposes, on certain taxpayers, the EXCLUSIVE use of software certified by the AT — a requirement on invoicing SOFTWARE, never on the sending channel: « os sujeitos passivos com sede, estabelecimento estável ou domicílio em território nacional e outros sujeitos passivos cuja obrigação de emissão de fatura se encontre sujeita às regras estabelecidas na legislação interna nos termos do artigo 35.º-A do Código do IVA, estão obrigados a utilizar, exclusivamente, programas informáticos que tenham sido objeto de prévia certificação pela AT, sempre que: » with, at point a), the threshold that triggers this obligation: « Tenham tido, no ano civil anterior, um volume de negócios superior a € 50 000 ou, quando, no exercício em que se inicia a atividade, o período em referência seja inferior ao ano civil, e o volume de negócios anualizado relativo a esse período seja superior àquele montante; ». Invoicerr is NOT certified by the Portuguese AT today: for any Portuguese taxpayer whose turnover exceeds this threshold, this CERTIFIED SOFTWARE obligation applies and is not currently satisfied by this product — a fact distinct from the channel question addressed by this file, never to be confused with it, and which remains a genuine product gap for the Portuguese market independently of anything this file may say about channels.\n\nB2G — A LEGALLY DISTINCT REGIME ALREADY ESTABLISHED IN PRINCIPLE, BUT NOT COVERED HERE: unlike B2B, invoicing in the execution of Portuguese PUBLIC CONTRACTS IS legally mandatory in principle: art. 299.º-B nº 1 do Código dos Contratos Públicos (introduced by Decreto-Lei n.º 111-B/2017, de 31 de agosto, Diário da República, 1.ª série, N.º 168, transposing directive 2014/55/EU; text likewise retrieved as a PDF via curl from files.diariodarepublica.pt, checked 2026-09-13) provides: « No âmbito da execução de contratos públicos, os cocontratantes são obrigados a emitir faturas eletrónicas, as quais, sem prejuízo dos requisitos exigidos na legislação fiscal, contêm imperativamente os seguintes elementos, sempre que aplicáveis: » — translation: in the execution of public contracts, the contracting parties ARE OBLIGED to issue electronic invoices. Nº 3 refers the FORMAT to the European standard: « O modelo de fatura eletrónica é o estabelecido pela norma europeia respetiva aprovada pela Comissão Europeia e publicitada no portal dos contratos públicos. », and nº 5 refers the designation of the CHANNEL and the « aspetos complementares » to a separate portaria, not identified nor read by this task: « A regulamentação dos aspetos complementares da faturação eletrónica é feita por portaria dos membros do Governo responsáveis pelas áreas das finanças e das obras públicas. » WHAT IS ESTABLISHED: the B2G obligation does indeed exist, in principle, in Portuguese law. WHAT IS NOT ESTABLISHED BY THIS TASK: the identity of the concrete platform/channel this portaria imposes (presumably the eSPap/FE-AP platform cited in professional literature, never verified here against an official document) — that is precisely the work of `b2g-routing/data/pt.json`, which does not exist yet: this absence is NOT filled by this file, which deliberately addresses only the general question, outside public procurement.\n\nWHAT THIS READING COULD NOT ESTABLISH, HONESTLY: (1) the text of Decreto-Lei n.º 28/2019 cited above is that of its ORIGINAL PUBLICATION (15 February 2019) — the viewer of « legislação consolidada » from diariodarepublica.pt is a client-side application that serves no raw text on a plain HTTP request (it answers with the application shell regardless of the URL requested), so the accuracy of articles 3.º, 4.º, and 12.º cited here has not been reconfirmed against an official consolidated text incorporating any later amendments; several recent professional sources (accounting firms, software vendors, 2020-2026) nonetheless continue to describe this same recipient-consent rule and this same €50,000 threshold without mentioning any change, which makes it reasonably reliable without being direct documentary proof; (2) a reform widely discussed by the Portuguese professional press for 2027 (obligation of a structured format « CIUS-PT » with a qualified electronic signature, on pain of refusal of payment by the State) was not verified against a primary source by this task — its own wording (\"refusal of payment BY THE STATE\") strongly suggests it extends the B2G regime of art. 299.º-B above rather than introducing a general B2B channel, but this remains an inference rather than a direct reading, to be checked against the relevant Lei do Orçamento do Estado before being encoded anywhere in this repository."
+  },
+  "retention": {
+    "countryCode": "PT",
+    "rules": [
+      {
+        "label": "IVA",
+        "years": 10,
+        "origin": "issueDateYearEnd",
+        "legalRef": "CIVA art. 52.º n.º 1",
+        "notes": "Raw text retrieved on 2026-09-13 via curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2,448,550 bytes, 188 pages), then pdftotext -layout. Art. 52.º n.º 1 (as worded by Decreto-Lei n.º 49/2025, of 27 March, in force since 1 July 2025): « Os sujeitos passivos são obrigados a arquivar e conservar em boa ordem durante os 10 anos civis subsequentes todos os registos e respetivos documentos de suporte, incluindo, quando a contabilidade é estabelecida por meios informáticos, os relativos à análise, programação e execução dos tratamentos. » — the TEN SUBSEQUENT CIVIL (calendar) YEARS (subsequentes): the reading adopted here is the settled one from Portuguese tax doctrine — the ten calendar years following the year the document/record relates to, hence counted from the END of the calendar year of issuance, never from the moment of archiving (the text never says 'a partir do arquivamento'). n.º 2 of the same article was read and changes NOTHING for an ordinary invoice: « Para os registos previstos no artigo 51.º e documentos anexos, o prazo de 10 anos referido no número anterior deve ser contado a partir da data em que for efetuada a última das regularizações previstas nos artigos 24.º e 25.º » — this n.º 2 sets a DIFFERENT starting point (the last VAT adjustment), but ONLY for the records covered by art. 51.º (deduction-adjustment records) and their supporting documents; an ordinary invoice falls under n.º 1 alone, without this correction."
+      }
+    ],
+    "notes": "A single obligation identified so far for Portugal (CIVA art. 52.º, ten years). Established by the coordinator on 2026-09-13 (citation taken word for word from the tax authority's consolidated PDF); the origin axis (end of the calendar year of issuance) was added in that same session from the plain reading of « anos civis subsequentes » — no other invoice-specific retention obligation was researched beyond this article."
+  },
+  "reporting": {
+    "countryCode": "PT",
+    "facts": [
+      {
+        "providerId": "pt-at",
+        "appliesTo": "invoice",
+        "dischargedBy": "provider",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 1: \"As pessoas, singulares ou coletivas, que se encontrem sujeitas às regras de emissão de faturação em território português nos termos do artigo 35.º-A do Código do IVA e aqui pratiquem operações sujeitas a IVA, são obrigadas a comunicar à Autoridade Tributária a Aduaneira (AT), por transmissão eletrónica de dados, os elementos das faturas emitidas nos termos do Código do IVA, bem como os elementos dos documentos que possibilitem a conferência de mercadorias ou de prestação de serviços e recibos, por uma das seguintes vias: a) Por transmissão eletrónica de dados em tempo real; b) Por transmissão eletrónica de dados, mediante remessa de ficheiro normalizado estruturado com base no ficheiro SAF-T (PT)...; c) Por inserção direta no Portal das Finanças; d) (Revogada.)\" — texto consolidado (em vigor), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012).",
+          "sourceCheckedAt": "2026-09-11"
+        },
+        "notes": "PRIMARY SOURCE re-read directly (never a summary): pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (this document's own table of contents does list « Artigo 3.º Comunicação dos elementos das faturas », confirming this is the right DL 198/2012 and not a same-named text — diariodarepublica.pt itself renders only an empty JavaScript shell to a plain request, like other government portals this repository has already run into). The consolidated text read today already carries the deadline's recent amendment (« até ao dia 5 do mês seguinte », n.º 2 — an older \"day 25\" deadline existed before a later shortening, not retraced here: only the version IN FORCE today was verified, which is enough to cover the current obligation). \n\nSECOND RESERVATION, honest and intended by this format (cf. schema.ts): n.º 1 itself lists THREE equivalent legal channels — (a) real-time electronic transmission (the webservice this provider implements), (b) delivery of a standardized SAF-T (PT) file (Portaria n.º 302/2016, of 2 December, which fixed the \"1.04_01\" version of the SAF-T (PT) structure currently in force — Invoicerr does NOT generate this file), (c) direct entry on the Portal das Finanças. A company that discharges its obligation via channel (b) or (c) is therefore COMPLIANT without ever calling this webservice — in tension with reporting/schema.ts's own stance that \"every row in this file is a binding obligation, never optional\", since it models only ONE providerId per obligation. This provider ('pt-at') is only ONE of the three legal channels, not THE mandatory one; declaring it here nonetheless follows the shipped pattern (NAV/myDATA, themselves also real-time channels among other obligations theoretically satisfiable another way) rather than leaving Portugal with no automated declaration at all.\n\nTHIRD RESERVATION (technical status): the AT webservice itself is implemented to the documented contract BUT has never been proven live — no 'subutilizador' identifier nor AT public key was available for this task (see pt-at-client.ts / pt-declaration-provider.ts's own headers). authorityId is NOT an identifier minted by the AT: the AT's response carries only a numeric CodigoResposta + a message + a DataOperacao, with no per-invoice reference at all (unlike NAV's own transactionId or myDATA's own invoiceMark) — this bridge therefore SYNTHESIZES a stable identifier from the invoice number and the DataOperacao returned by the AT, never one the AT itself would recognize if presented with it."
+      },
+      {
+        "providerId": "pt-at",
+        "appliesTo": "credit-note",
+        "dischargedBy": "provider",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 1.º (\"Objeto\"), n.º 2: \"O presente diploma aplica-se ainda, com as devidas adaptações, às faturas e documentos retificativos de fatura, a outros documentos emitidos, independentemente da sua designação, que sejam suscetíveis, nomeadamente, de apresentação ao cliente e que possibilitem a conferência de mercadorias ou de prestação de serviços [...]\". Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 4: \"A AT disponibiliza no Portal das Finanças o modelo de dados para os efeitos previstos nos n.os 1 e 2, devendo dele constar os seguintes elementos relativamente a cada fatura, documento que possibilite a conferência de mercadorias ou de prestação de serviços ou recibo: [...] d) Tipo de documento, nos termos referidos na estrutura de dados a que se refere a Portaria n.º 321-A/2007 [...]; [...] n) Identificação do documento retificado; [...] p) Código único de documento.\" Texto consolidado (em vigor, com as alterações até ao DL n.º 85/2022), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012). The AT's own data model for the real-time channel lists the credit note as a communicable type: \"Manual de Integração de Software – e-Fatura: Comunicação por Webservice - Aspetos Específicos\" (v3.0, Outubro 2025), field 1.6.4 (InvoiceType): \"NC – Nota de Crédito\"; field 1.6.14.3 (Reference): \"Referência à fatura ou fatura simplificada, através de identificação única da mesma, nos sistemas em que exista. Deve ser utilizada a estrutura de numeração do campo de origem.\"; field 1.6.14.4 (DebitCreditIndicator): \"D – Débito (caso o valor da linha, sem imposto, dos documentos a lançar a débito na respetiva conta)\".",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "notes": "Issue #501. PRIMARY SOURCES re-read directly for this fact: the consolidated DL 198/2012 at pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (the AT portal's own diplomas_legislativos folder has no copy of this decree-law under any file name tried), and the AT's own e-Fatura webservice manual, info.portaldasfinancas.gov.pt/pt/apoio_ao_contribuinte/Outras_entidades/Suporte_tecnologico/Webservice/e_Fatura/Documents/Comunicacao_dos_elementos_dos_documentos_de_faturacao.pdf, both fetched with curl and read with pdftotext -layout / as HTML on 2026-09-28. Art. 1.º n.º 2 extends the whole decree-law, art. 3.º included, to \"documentos retificativos de fatura\", and art. 3.º n.º 4 n) requires the identification of the corrected document in what is communicated: a credit note is a rectifying document, so it is communicated by the same channel as the invoice. It is declared as InvoiceType \"NC\", with DebitCreditIndicator \"D\" and a Reference to the corrected invoice's own number on each LineSummary line (reporting/providers/pt-declaration-provider.ts). A credit note that corrects no invoice has no buyer and no document to reference: it is refused with a named error (report:failed), never declared with an invented reference. The same three reservations as the invoice fact above hold here (three equivalent legal channels, pt-at among them; never proven against the real AT endpoint; a synthesized authorityId)."
+      }
+    ]
+  },
+  "domesticReverseCharge": {
+    "countryCode": "PT",
+    "categories": [
+      {
+        "key": "waste-and-scrap-materials",
+        "label": "Waste, scrap and recyclable materials listed in Anexo E",
+        "legalRef": "CIVA art. 2.º n.º 1 alínea i)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "i) As pessoas singulares ou colectivas referidas na alínea a) que, no território nacional, sejam adquirentes dos bens ou dos serviços mencionados no anexo E ao presente Código e tenham direito à dedução total ou parcial do imposto, desde que os respectivos transmitentes ou prestadores sejam sujeitos passivos do imposto;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout — the AT's own consolidated CIVA PDF, edition carrying 'Decreto-Lei n.º 97/2026, de 20/05' as its last update. Anexo E's own item list (the specific waste/scrap/recyclable goods and services it names) is NOT reproduced here — only the triggering category itself (alínea i) is sourced; enumerating Anexo E is its own retrieval, not attempted this wave. Conditions NOT modeled: the buyer must have full-or-partial deduction rights, and the seller/service-provider must itself be a taxable person — buyer/seller-status tests this catalog does not evaluate. Shares the `waste-and-scrap-materials` key with DE (§ 13b Abs. 2 Nr. 7) and FR (CGI art. 283, 2 sexies) — Italy has NO equivalent category under art. 17 (its own scrap-metal reverse charge is a different article, art. 74 commi 7-8 — see `data/it.json`'s own file-level notes)."
+      },
+      {
+        "key": "construction-subcontracting",
+        "label": "Construction, remodelling, repair, maintenance, conservation or demolition of real property, in an empreitada/subempreitada regime",
+        "legalRef": "CIVA art. 2.º n.º 1 alínea j)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "j) (**) As pessoas singulares ou coletivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de serviços de construção civil, incluindo a remodelação, reparação, manutenção, conservação e demolição de bens imóveis, em regime de empreitada ou subempreitada, bem como aquelas que apenas pratiquem operações que não confiram direito à dedução do imposto quando sejam adquirentes de empreitadas de construção ou reabilitação previstas na verba 2.42 da lista I anexa ao presente Código; (Redação do Decreto-Lei n.º 97/2026, de 20/05)-Nota(**) Produz efeitos em 1 de julho de 2026, nos termos do n.º 4 do artigo 18.º do Decreto-Lei n.º 97/2026, de 20/05, podendo aplicar-se a partir de 1 de janeiro de 2026, caso exista opção conjunta do prestador e do adquirente, conforme previsto no n.º 7 do mesmo artigo.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `waste-and-scrap-materials` above. The quoted text's OWN 'Nota(**)' says this wording (as redrafted by Decreto-Lei n.º 97/2026) is effective from 1 July 2026 — already in force as of this catalog's 2026-09-13 retrieval date, optionally back to 1 January 2026 by the provider's and buyer's own joint election. Conditions NOT modeled: the buyer's own establishment-in-Portugal and deduction-rights tests the quote's own text carries. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), DE (§ 13b Abs. 2 Nr. 4) and FR (CGI art. 283, 2 nonies)."
+      },
+      {
+        "key": "greenhouse-gas-and-energy-certificates",
+        "label": "Greenhouse-gas emission rights, certified emission reductions and emission-reduction units",
+        "legalRef": "CIVA art. 2.º n.º 1 alínea l)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "l) As pessoas singulares ou colectivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de prestações de serviços que tenham por objecto direitos de emissão, reduções certificadas de emissões ou unidades de redução de emissões de gases com efeito de estufa, aos quais se refere o Decreto-Lei n.º 233/2004, de 14 de dezembro. (Aditado pela Lei n.º 3-B/2010, de 28 de abril)",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `waste-and-scrap-materials` above. Deliberately keyed the SAME as IT's own `greenhouse-gas-and-energy-certificates` (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter) and shared with DE (§ 13b Abs. 2 Nr. 6) and FR (CGI art. 283, 2 septies), all four ultimately traceable to Directive 2006/112/EC art. 199a — but PT's OWN retrieved text covers only emission rights/certified reductions/reduction units, NOT the broader gas-and-electricity CERTIFICATES IT/DE/FR's own texts also name; this narrower scope is recorded here rather than silently assumed identical (see `schema.ts`'s own header on why a shared key is never itself an equivalence claim)."
+      },
+      {
+        "key": "pt-cork-and-wood",
+        "label": "Cork, wood, pine cones and pine nuts with shell",
+        "legalRef": "CIVA art. 2.º n.º 1 alínea m)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "m) As pessoas singulares ou coletivas referidas na alínea a) que disponham de sede, estabelecimento estável ou domicílio em território nacional e que pratiquem operações que confiram o direito à dedução total ou parcial do imposto, quando sejam adquirentes de cortiça, madeira, pinhas e pinhões com casca. (Aditada pelo Decreto-Lei n.º 165/2019, de 30 de outubro) *- ver nota",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `waste-and-scrap-materials` above. The retrieved text itself carries a '*- ver nota' marker pointing to a footnote elsewhere in the consolidated PDF not chased down for this wave — recorded here rather than silently dropped; a future re-check should read that footnote before treating this fact as complete. No equivalent found in FR/IT/DE's own retrieved text; Portugal-only key."
+      },
+      {
+        "key": "pt-self-consumption-electricity",
+        "label": "Electricity from small self-consumption production units (≤ 1 MW)",
+        "legalRef": "CIVA art. 2.º n.º 1 alínea n)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "n) As pessoas singulares ou coletivas referidas na alínea i) do artigo 1.º que disponham de sede, estabelecimento estável ou domicílio em território nacional, quando sejam adquirentes de eletricidade produzida em unidades de produção para autoconsumo, com potência instalada igual ou inferior a 1 MW, nos termos definidos nas alíneas f) e vvv) do artigo 3.º do Decreto-Lei n.º 15/2022, de 14 de janeiro, na sua redação atual, a autoconsumidores cujo enquadramento no regime normal do imposto resulte unicamente da prática destas transmissões. (Aditada pelo Decreto-Lei n.º 85/2022, de 21 de dezembro - Produz efeitos a partir de 1 de janeiro de 2023)",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `waste-and-scrap-materials` above. Threshold NOT modeled: the ≤ 1 MW installed-capacity ceiling named in the quote's own text is a numeric fact this catalog's category list does not itself evaluate (same discipline as the brief's own instruction not to model thresholds). Buyer is further restricted to the class defined by art. 1.º alínea i) (not itself retrieved here) — a buyer-status test also not modeled. No equivalent found in FR/IT/DE's own retrieved text; Portugal-only key."
+      }
+    ],
+    "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout, 2026-09-13. All five categories are read from the CURRENT consolidated text of CIVA art. 2.º n.º 1 (the article's own 'Incidência subjectiva' body starting mid-document, NOT the earlier reproduction of the 1984 enacting Decreto-Lei's own amendment excerpt that appears near the front of the same PDF and uses '...' placeholders for unchanged text — reading that earlier excerpt instead would have been the same 'a 200 is not the document' trap this brief warned about, one directory up). CIVA art. 36.º n.º 13 (already sourced in `tax/tax-engine.ts#LOCALIZED_MENTION.reverseCharge.PT`) names these same five alíneas by cross-reference ('Nas situações previstas nas alíneas i), j), l), m) e n) do n.º 1 do artigo 2.º') — re-grepped against this file's own retrieval and matches at line 7524 of the extracted text. DELIBERATELY NOT MODELED: buyer establishment/deduction-rights tests common to alíneas i)/j)/l)/m), the ≤1MW threshold on alínea n), and the Anexo E item list behind alínea i) — see each category's own `notes` above."
+  },
+  "countryFields": {
+    "countryCode": "PT",
+    "overlays": [
+      {
+        "typeId": "invoice",
+        "operations": [
+          {
+            "op": "add",
+            "path": "lines",
+            "field": {
+              "key": "supplyType",
+              "kind": "select",
+              "label": "Supply type",
+              "required": false,
+              "options": [
+                {
+                  "value": "GOODS",
+                  "label": "Goods"
+                },
+                {
+                  "value": "SERVICES",
+                  "label": "Services"
+                }
+              ],
+              "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+            }
+          }
+        ]
+      }
+    ],
+    "notes": "Portugal's FIRST field overlay — the SAME `supplyType` line subfield France's own `fr.json` already adds, in the same shape: kind 'select', values GOODS/SERVICES, OPTIONAL, added to `invoice.lines` rather than to the trunk `descriptors/invoice.descriptor.ts`, which stays country-blind. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Portugal's transposition defines the two in the directive's own terms — « Considera-se, em geral, transmissão de bens a transferência onerosa de bens corpóreos por forma correspondente ao exercício do direito de propriedade » (Código do IVA, art. 3.º, n.º 1) against « São consideradas como prestações de serviços as operações efectuadas a título oneroso que não constituem transmissões, aquisições intracomunitárias ou importações de bens » (same code, art. 4.º, n.º 1), the residual definition the directive itself uses. Read in raw text on 2026-09-21 at the tax authority's own publication of the code, info.portaldasfinancas.gov.pt (https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva3.aspx and .../iva4.aspx); diariodarepublica.pt's consolidated view of the same code serves a client-rendered shell to an automated request and could not be used as the source. WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so a Portuguese seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this file's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this file existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+  },
+  "b2gRouting": {
+    "countryCode": "PT",
+    "transportId": "fe-ap",
+    "formatSyntax": "ubl",
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Portaria n.º 289/2019, de 5 de setembro (Diário da República, 1.ª série, N.º 170, de 5 de setembro de 2019, pp. 277-279 — assinada pelos Ministros das Finanças e das Infraestruturas e Habitação). Preamble mandate clause: « Manda o Governo, pelos Ministros das Finanças e das Infraestruturas e Habitação, ao abrigo do disposto no n.º 5 do artigo 299.º-B do Código dos Contratos Públicos, aprovado pelo Decreto-Lei n.º 18/2008, de 29 de janeiro, na sua redação atual, o seguinte: ». Artigo 1.º n.º 1: « A presente portaria procede à regulamentação dos aspetos complementares da fatura eletrónica, nos termos e para os efeitos do disposto no n.º 5 do artigo 299.º-B do CCP, e sistematiza o modelo de governação cometida à ESPAP, I. P., pelo Decreto-Lei n.º 123/2018, de 28 de dezembro. » Artigo 1.º n.º 2: « A presente portaria prossegue o objetivo de estruturar as condições que permitam a implementação da fatura eletrónica no cumprimento das normas europeias EN 16931 de 2017, de 28 de junho de 2017 do Comité Europeu de Normalização, e que, nos termos da Diretiva 2014/55/UE, deva vigorar, entre contraentes públicos e cocontratantes, nestas também incluídas as entidades que nos termos do Código dos Contratos Públicos sejam qualificados como entidades adjudicantes. » Artigo 2.º n.º 1, alínea a): « Definir os requisitos e normas técnicas para o modelo de dados semânticos e lista de sintaxes a que deve respeitar a fatura eletrónica, de modo a garantir o adequado cumprimento da legislação em vigor nesta matéria; ». Artigo 2.º n.º 3: « Os requisitos e normas técnicas referidos no n.º 1 do presente artigo, aplicáveis nos termos do n.º 2 do artigo 1.º, são os publicitados no sítio da Internet da ESPAP, I. P., incluindo a norma técnica específica para Portugal, alinhada com a Norma Europeia de Faturação Eletrónica e assente nos formatos selecionados pela Comissão Europeia, consubstanciada pelo Guia do Modelo de Dados Semântico dos Documentos de Faturação Eletrónica. » Artigo 3.º n.º 4: « Para efeitos da outorga referida na alínea c) do n.º 2 do artigo 12.º e na primeira parte do artigo 14.º do Decreto-Lei n.º 28/2019, de 15 de fevereiro, a adesão à solução de fatura eletrónica da ESPAP, I. P., considera-se requisito bastante, conquanto a mesma siga as condições jurídicas do «Acordo tipo EDI europeu», aprovado pela Recomendação n.º 1994/820/CE, da Comissão, de 19 de outubro. »",
+      "sourceCheckedAt": "2026-09-16"
+    },
+    "notes": "READ DIRECTLY on 2026-09-16 from the official PDF of the original publication (https://files.diariodarepublica.pt/1s/2019/09/17000/0027700279.pdf, retrieved via curl, extracted with pdftotext — verbatim citations above, never paraphrased). METHOD: CCP art. 299.º-B n.º 5 (already cited in transports/channel-policy/data/pt.json's own B2G paragraph) delegates the \"aspetos complementares\" to an unnamed portaria; that portaria's number is not stated anywhere in the CCP text itself, so it had to be found independently. General web search engines (Google, Bing, DuckDuckGo, Mojeek, Startpage) all returned either bot-challenge pages or content unrelated to the query to this task's automated client; Brave Search rendered usable result snippets and pointed to www.espap.gov.pt (the Portuguese shared-services agency, ESPAP, I.P., that runs the FE-AP platform), which DID render as plain HTML to curl once an ASP.NET session cookie was carried across its redirect chain (curl -c/-b cookies.txt) — its own \"Fatura Eletrónica\" and \"Normas Técnicas e Funcionais\" pages (FrontEnd/Paginas/Areas/SP_Fin/SP_Fin_FEAP_tpl_1.aspx and SP_Fin_NormasFEAP_tpl_1.aspx) name \"Portaria n.º 289/2019, de 5 de setembro\" explicitly as \"que regulamenta os aspetos complementares da fatura eletrónica e sistematiza o modelo de governação\" — an exact match to the CCP's own delegating language, independently corroborated by a professional blog (saphety.com) quoting the same portaria's own Article 1. The Diário da República issue number (needed to construct the files.diariodarepublica.pt PDF URL, since diariodarepublica.pt's own \"legislação consolidada\"/\"detalhe\" viewer is the same JS-only OutSystems shell already documented as unreachable by channel-policy/data/pt.json) was found via Arquivo.pt's full-text search API (a full-text index of the Portuguese web, itself a .pt public service) turning up an archived snapshot of a third-party mirror (dre.tretas.org) that cited \"Diário da República n.º 170/2019, Série I de 2019-09-05\" — that number alone (never the mirror's own reproduced text, which this file does NOT cite as provenance) was then used to construct and confirm, by direct HTTP request, first the day's own official sumário PDF (https://files.diariodarepublica.pt/1s/2019/09/17000/0000100002.pdf, listing \"Portaria n.º 289/2019: Regulamenta os aspetos complementares da fatura eletrónica\" at page 277, next item — Portaria n.º 290/2019 — starting page 280) and then the portaria's own 3-page text at the URL above (pages 277-279) — the SAME \"original publication PDF via files.diariodarepublica.pt\" method that already worked for this catalog's channel-policy/data/pt.json and for the de/fr b2g-routing entries in this directory.\n\nTRANSPORT: the portaria's own text never spells out a platform brand name — it speaks only of \"a solução de fatura eletrónica da ESPAP, I. P.\" (art. 3.º n.º 4) and delegates the concrete technical requirements to \"o sítio da Internet da ESPAP, I. P.\" (art. 2.º n.º 3) — a delegation the law itself makes, not an informal cross-reference. Following it to ESPAP's own site (www.espap.gov.pt, plain HTML, curled directly — unlike chorus-pro.gouv.fr in fr.json's own note, this one is NOT JavaScript-gated) names the platform \"FE-AP — Portal da Fatura Eletrónica na Administração Pública\" (also branded \"B2AP\" for the business-to-AP counterpart) throughout its own navigation and its \"Implementação da faturação eletrónica nos contratos públicos\" page. `transportId: \"fe-ap\"` DELIBERATELY names a channel that does NOT exist in `transports/transport-registry.ts` today (email/pdp/ksef/sdi/sdi-pec/chorus-pro only) — the same modeling choice fr.json's own \"chorus-pro\" already documents: sending to a Portuguese government client must REFUSE, loudly naming this channel, rather than silently falling back to email or PDP.\n\nFORMAT: art. 2.º n.º 1 a) delegates the semantic data model and syntax list to ESPAP's own technical instructions, and art. 2.º n.º 3 confirms those are \"os publicitados no sítio da Internet da ESPAP, I. P.\" — read directly there (same session, same cookie jar), ESPAP's \"Normas Técnicas e Funcionais\" page states the Portuguese CIUS is called \"CIUS-PT\" and that its ONLY complete syntax representation today is UBL 2.1 (\"Representação Sintáxica do CIUS-PT para UBL2.1\", v2.1.1, 26/02/2021) — the UN/CEFACT (CII) representation is explicitly marked \"em construção\" (under construction) on that same page, checked 2026-09-16. `formatSyntax: \"ubl\"` therefore resolves against this repository's own generic EN 16931 UBL 2.1 provider (`formats/ubl-provider.ts`, validated against the generic `EN16931_UBL_SCH` Schematron) — the closest already-implemented match, and, unlike fr.json's \"facturx\" choice for Chorus Pro, ACTUALLY the syntax ESPAP's own page names, not an inference from what this repository already builds. KNOWN GAP, NOT FIXED BY THIS TASK (declared scope: the routing rule, not the format builder): `ubl-provider.ts` validates against the EN 16931 baseline Schematron only — this repository vendors no CIUS-PT-specific Schematron (\"Ficheiros em Schematron para validação da representação sintáxica UBL2.1 do CIUS-PT\", published on the same ESPAP page, is NOT among `formats/vendored/` today, which holds only `en16931/`, `peppol/`, `de/`) — so a UBL document built by this provider for a Portuguese government client is EN-16931-valid but not independently checked against CIUS-PT's own extra business rules, exactly the kind of gap it.json's own note already names for FPA12/FPR12.\n\nNOT ESTABLISHED BY THIS TASK: no required client identifier or invoice field is named anywhere in the portaria's own text (unlike FR's SIRET/code-service or IT's Codice Univoco Ufficio) — `requiredClientIdentifiers`/`requiredDocumentFields` are therefore left unset rather than invented; a Portuguese public buyer's own routing code inside FE-AP, if any, was not found in this pass. Decreto-Lei n.º 123/2018, de 28 de dezembro (the governance-model decree-law this portaria's own art. 1.º n.º 1 names) was read via pgdlisboa.pt's consolidated-text service for CONTEXT only, not as this fact's provenance — that reading is a well-established Portuguese legal database, not the official Diário da República, and is not cited above as the sourceText."
+  }
+}

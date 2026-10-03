@@ -65,10 +65,9 @@ import EmailTemplatesSettings from "./_components/templates.settings"
 import WebhooksSettings from "./_components/webhooks.settings"
 
 /** Just enough of `GET /api/company/info` to gate the "atcud" tab below — see `atcud.settings.tsx`'s
- *  own `isPortugal` for the (deliberately loose, UX-only) country check this mirrors. */
+ *  own `requiresAtcud` for the backend-computed fact this mirrors (issue #603). */
 interface CompanyCountryInfo {
-  country?: string
-  countryCode?: string | null
+  documentValidationCode?: { scheme: string } | null
 }
 
 type TabId =
@@ -186,7 +185,7 @@ const TAB_GROUPS: TabGroup[] = [
         icon: ShieldCheck,
         adminOnly: true,
       },
-      // Portugal only — see the `isPortugueseCompany` filter in the component below.
+      // Portugal only - see the `requiresAtcud` filter in the component below.
       { value: "atcud", labelKey: "settings.tabs.atcud", labelDefault: "ATCUD", icon: Hash, adminOnly: true },
       { value: "mail", labelKey: "settings.tabs.mail", labelDefault: "Mail", icon: Server, adminOnly: true },
     ],
@@ -262,8 +261,7 @@ export default function Settings() {
   const { activeRole } = useCompanies()
   const isMember = activeRole === "MEMBER"
   const { data: company } = useGet<CompanyCountryInfo>("/api/company/info")
-  const companyCountryValue = (company?.countryCode || company?.country || "").trim().toUpperCase()
-  const isPortugueseCompany = companyCountryValue === "PT" || companyCountryValue === "PORTUGAL"
+  const requiresAtcud = company?.documentValidationCode?.scheme === "ATCUD"
   // Hosted billing (product decision 2026-09-15) — `GET /api/billing/status` 200 is the ONLY signal
   // this frontend has that the feature exists on this instance at all (`use-billing.ts`'s own
   // header). `isSuccess` false (404 on a self-hosted instance, or still loading) hides the tab
@@ -272,11 +270,13 @@ export default function Settings() {
   // half-populated screen.
   const { isSuccess: billingAvailable } = useBillingStatus()
 
-  // "atcud" only ever applies to a company registered in Portugal — see `atcud.settings.tsx`'s own
-  // header. Hidden here rather than merely showing an empty/inapplicable screen: a French or Polish
-  // company has no reason to ever see a nav entry for a Portuguese-only legal requirement. The
-  // component itself still gates on the SAME check (`isPortugal`) if this tab is ever reached
-  // directly (e.g. a stale bookmark from before the company's own country changed).
+  // "atcud" only ever applies to a company whose country declares the "ATCUD" validation-code
+  // scheme (issue #603: backend's `country-policy/schema.ts#DocumentValidationCodeFact`, Portugal
+  // only today) - see `atcud.settings.tsx`'s own header. Hidden here rather than merely showing an
+  // empty/inapplicable screen: a French or Polish company has no reason to ever see a nav entry for
+  // a Portuguese-only legal requirement. The component itself still gates on the SAME check
+  // (`requiresAtcud`) if this tab is ever reached directly (e.g. a stale bookmark from before the
+  // company's own country changed).
   const groups = TAB_GROUPS.map((group) => ({
     ...group,
     tabs: group.tabs.filter(
@@ -284,7 +284,7 @@ export default function Settings() {
         (!isMember || !item.adminOnly) &&
         (item.value !== "billing" || billingAvailable) &&
         (item.value !== "seats" || billingAvailable) &&
-        (item.value !== "atcud" || isPortugueseCompany),
+        (item.value !== "atcud" || requiresAtcud),
     ),
   })).filter((group) => group.tabs.length > 0)
   const visibleTabs = groups.flatMap((group) => group.tabs)
@@ -358,7 +358,7 @@ export default function Settings() {
           it is a "you are here", not a button to press. */}
       {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
           scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
-      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-r bg-sidebar/60 lg:block">
+      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-e bg-sidebar/60 lg:block">
         <nav aria-label={t("settings.common.navLabel")} className="px-3 py-5" data-cy="settings-nav">
           {groups.map((group) => (
             <div key={group.id} className="mb-5 last:mb-0">
@@ -404,7 +404,7 @@ export default function Settings() {
         className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6"
         data-cy={`settings-tab-${currentTab}`}
       >
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-6xl">
           <Content />
         </div>
       </main>

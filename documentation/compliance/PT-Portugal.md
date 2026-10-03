@@ -32,6 +32,17 @@ ATCUD registered for its series (null, blank, or the pre-regulation `"0"` placeh
 manual still names for an unregistered sender) is refused before the declaration is even sent,
 journaled as failed with the reason, rather than declared with a value that is not really its own.
 
+Whether a company sees the ATCUD feature at all - the settings tab, the ATCUD series screen, the
+preflight that blocks sending without a registered code - is itself decided from data, not from a
+Portugal-specific branch: `countries/data/pt.json`'s own `policy.documentValidationCode` fact
+(`scheme: "ATCUD"`, sourced to the same Portaria n.º 195/2020 art. 4.º n.º 1 quoted above) is the one
+fact `actions/atcud-issuance.ts`, `company/company.service.ts` and both frontend readers
+(`settings/-[tab].tsx`, `settings/_components/atcud.settings.tsx`) check, through
+`GET /api/company/info`'s own `documentValidationCode` field - see [Adding a
+country](../docs/developer-guide/adding-a-country.md)'s own maintainer note on that fact for the
+full design. Another country would turn the feature on for itself by declaring the same fact under
+its own scheme name, never by adding a second country-code branch here.
+
 **Still not implemented**: the **fiscal QR code** printed on the document itself (a separate
 requirement from the ATCUD declaration above), the **certified-software** status required once
 turnover exceeds €50,000 and organized accounting applies (Decreto-Lei n.º 28/2019 art. 4.º; this
@@ -41,7 +52,7 @@ series (Portaria n.º 363/2010 art. 6.º).
 
 ## No transmission channel for a B2B seller
 
-- `transports/channel-policy/data/pt.json` **exists and deliberately declares no fact** (2026-09-13).
+- `countries/data/pt.json` **exists and deliberately declares no fact** (2026-09-13).
   That is a sourced conclusion, not a gap: Decreto-Lei n.º 28/2019 art. 12.º n.º 1 makes electronic
   transmission itself optional and consent-based, *"As faturas e demais documentos fiscalmente
   relevantes podem, mediante aceitação pelo destinatário, ser emitidos por via eletrónica"*, the verb
@@ -55,7 +66,7 @@ series (Portaria n.º 363/2010 art. 6.º).
 
 ## Selling to a government client (B2G): a named, sourced, unwired channel
 
-`b2g-routing/data/pt.json` **does exist** and names a real channel: `transportId: "fe-ap"`,
+`countries/data/pt.json` **does exist** and names a real channel: `transportId: "fe-ap"`,
 `formatSyntax: "ubl"`, sourced to Portaria n.º 289/2019, de 5 de setembro (regulating CCP art.
 299.º-B n.º 5's own delegation), read directly from its original Diário da República publication.
 The portaria delegates the platform to ESPAP, I. P. (the state's own shared-services agency), whose
@@ -134,12 +145,14 @@ locally is not implementable in this app for Portugal today**; an attempt is ref
 
 ## Sources
 
-`backend/src/modules/documents/country-policy/data/pt.json`, `country-identifiers/data/pt.json`,
-`correction-routes/data/pt.json`, `correction-routes/cancel-policy.ts`,
-`tax/tax-systems/data/pt.json`, `vat-rates/data/pt.json`, `reporting/data/pt.json` (the credit-note
-communication duty, `appliesTo: "credit-note"`), plus
+`backend/src/modules/documents/countries/data/pt.json` (one file, all of this country's own
+sections: action policy, including the `documentValidationCode` fact (`scheme: "ATCUD"`) that gates
+the whole feature, and the per-type `numbering` facts (`requirement: "atcud-required"`) that say
+which document types carry it; identifiers; correction routes; the tax system; the VAT rate ladder;
+reporting, the credit-note communication duty, `appliesTo: "credit-note"`; archive retention, the
+ten-year retention, CIVA art. 52.º n.º 1; channel policy, which exists but declares no fact, for
+the sourced reason given above; and B2G routing, which exists and names `fe-ap`/UBL 2.1, for the
+sourced reason given above, not backed by a transport in `transports/transport-registry.ts`
+today), plus `correction-routes/cancel-policy.ts` and
 `reporting/providers/pt-declaration-provider.ts` for the ATCUD and NC declaration mapping quoted
-above, and `archive/retention/data/pt.json` for the ten-year retention (CIVA art. 52.º n.º 1).
-`transports/channel-policy/data/pt.json` exists but declares no fact, for the sourced reason given
-above. `b2g-routing/data/pt.json` exists and names `fe-ap`/UBL 2.1, for the sourced reason given
-above; it is not backed by a transport in `transports/transport-registry.ts` today.
+above.

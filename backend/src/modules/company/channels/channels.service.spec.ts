@@ -298,7 +298,7 @@ describe('ChannelCredentialsService', () => {
   });
 
   describe('suggestedChannels() — reads the country file, never a hard-coded country check', () => {
-    // France now MANDATES pdp (channel-policy/data/fr.json, mandatedFrom
+    // France now MANDATES pdp (countries/data/fr.json (section "channelPolicy"), mandatedFrom
     // 2026-09-01), not merely suggests it: this is the real, shipped shape, not a fixture, so the
     // test proves the SERVICE hands the mandate fields straight through, unmassaged.
     it("a French company's channel policy is pdp, MANDATED from 2026-09-01, with legal provenance", async () => {
@@ -334,9 +334,10 @@ describe('ChannelCredentialsService', () => {
   describe('reportingObligations() — reads the country file, never a hard-coded country check', () => {
     // HU ("nav") and GR ("mydata") were the only two countries this mechanism ever shipped a
     // reporting obligation for — both removed by the 5-country prune (2026-09-10): the shipped
-    // catalog is now honestly EMPTY (reporting/data/all.spec.ts's own
-    // pin). Re-anchored here (not deleted) on that same fact, so this still proves the SERVICE reads
-    // the real (now-empty) catalog rather than a hard-coded guess.
+    // catalog is now honestly EMPTY for both (countries/compose.spec.ts's own pinned coverage
+    // matrix lists "reporting" only for FR and PT). Re-anchored here (not deleted) on that same
+    // fact, so this still proves the SERVICE reads the real (now-empty) catalog rather than a
+    // hard-coded guess.
     it('a Hungarian or Greek company has no reporting obligation any more — the shipped catalog is now empty', async () => {
       for (const [country, countryCode] of [
         ['Hungary', 'HU'],
@@ -347,7 +348,7 @@ describe('ChannelCredentialsService', () => {
       }
     });
 
-    // reporting/data/fr.json now ships three facts (CGI art. 289 E, transport-discharged; two
+    // countries/data/fr.json (section "reporting") now ships three facts (CGI art. 289 E, transport-discharged; two
     // scoped, unverified art. 290/290 A e-reporting facts) — `reportingObligations` returns
     // `factsFor()` UNFILTERED (unlike `list-declarations.ts#declarationProviderIds`, which narrows to
     // `dischargedBy === 'provider'` for the DB query), so all three now surface here. This is the

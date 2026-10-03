@@ -41,23 +41,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Finland.
+the contract each section has to satisfy; this is only the shopping list of sections Finland would need in
+`countries/data/fi.json`.
 
-- `country-policy/data/fi.json` — which document actions Finland allows. Start here: without this
-  file every action is refused with a 403, naming the country.
-- `country-identifiers/data/fi.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/fi.json` and `vat-rates/data/fi.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Finland allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/fi.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/fi.json` — the channel and format a Finnish public buyer requires.
-- `transports/channel-policy/data/fi.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Finnish public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Finland, and from what date.
-- `archive/retention/data/fi.json` — how long an archived document is kept, and what the duration
-  is counted from.
+- `retention` - how long an archived document is kept, and what the duration is
+  counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Data alone will not finish the job here: the Finvoice network is a transmission channel this
 repository does not implement, which is code, not a JSON file — see [When a country needs more than

@@ -303,7 +303,7 @@ export default function ChannelsSettings() {
                   data-cy={`channel-nav-${channel.id}`}
                   onClick={() => setSelectedChannelId(channel.id)}
                   className={cn(
-                    "flex flex-col gap-1 rounded-lg border bg-card p-3 text-left transition-colors",
+                    "flex flex-col gap-1 rounded-lg border bg-card p-3 text-start transition-colors",
                     isSelected ? "border-primary bg-accent text-accent-foreground" : "hover:bg-muted/50",
                   )}
                 >
@@ -689,14 +689,14 @@ function ChannelDetail({
 
       <div className="relative">
         <Search
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t("settings.channels.search.placeholder", "Search an operator by name")}
-          className="pl-9"
+          className="ps-9"
           data-cy={`channel-detail-${channel.id}-search`}
         />
       </div>

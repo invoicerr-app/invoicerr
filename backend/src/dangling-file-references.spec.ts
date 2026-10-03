@@ -61,8 +61,8 @@ import * as ts from 'typescript';
  *    the wrong directory) — this test only proves the path resolves to something, never that it is
  *    the file the sentence around it means.
  *  - A stale factual claim sitting next to an otherwise-valid citation ("only one country mandates
- *    this channel, see `channel-policy/data/fr.json`") — `fr.json` still exists, so nothing here
- *    fires; the claim itself can still be wrong.
+ *    this channel, see the channelPolicy section of `countries/data/fr.json`") — `fr.json` still
+ *    exists, so nothing here fires; the claim itself can still be wrong.
  *  - A comment that names a path only to say it does NOT exist ("no `pl.json` ships under
  *    country-identifiers/data"), which this test cannot tell apart from a stale forward-reference to
  *    one that used to — the two comments found this way were reworded (moved the filename off the

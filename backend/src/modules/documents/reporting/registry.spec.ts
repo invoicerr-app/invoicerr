@@ -11,7 +11,7 @@ describe('reporting obligation files — loaded, not hard-coded', () => {
   // HU ("nav") and GR ("mydata") — the first two countries this mechanism ever shipped a reporting
   // obligation for — were both removed by the 5-country prune (2026-09-10). PT ("pt-at", the AT
   // "comunicação de faturas" webservice) was the first entry the 5-country lineup itself shipped —
-  // see `reporting/data/pt.json`'s own `notes` and `providers/pt-at-client.ts`'s own header for its
+  // see `countries/data/pt.json (section "reporting")`'s own `notes` and `providers/pt-at-client.ts`'s own header for its
   // "implemented to the documented AT contract, awaiting accreditation" status. FR ("pdp" transport +
   // an unregistered "fr-ereporting" placeholder — see `data/fr.json`'s own facts) followed once the
   // schema grew `dischargedBy`/`scope`. DE/IT/PL still have no file at all, and the registry tolerates

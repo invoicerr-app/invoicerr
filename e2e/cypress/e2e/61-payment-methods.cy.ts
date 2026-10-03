@@ -15,7 +15,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     descriptor.ts) means an invoice's own rendered PDF grows a "Payment methods" section once a
  *     method is enabled, with a richer method (PayPal, with its own configured e-mail line and "Buy
  *     Now" link) rendering more than Cash's bare label alone — proven on the PDF's own DECODED TEXT
- *     (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node plugin process, same technique
+ *     (`cy.task("extractPdfText", ...)`, `pdfjs-dist` in the Node plugin process, same technique
  *     `20-document-totals.cy.ts` already established), never a byte-count delta: a PDF "growing" is
  *     no proof of WHAT grew, so this asserts the exact configured e-mail and link text instead.
  *  3. Flipping a still-unconfigured method's switch never round-trips into a raw backend error: the
@@ -78,7 +78,7 @@ function fetchInvoicePdf(id: string): Cypress.Chainable<string> {
 		});
 }
 
-/** Decodes the PDF's own real page text (`cy.task("extractPdfText", ...)`, `pdf-parse` in the Node
+/** Decodes the PDF's own real page text (`cy.task("extractPdfText", ...)`, `pdfjs-dist` in the Node
  *  plugin process — see `cypress.config.ts`'s own header on that task, and
  *  `20-document-totals.cy.ts` for the same technique). Whitespace collapsed: `pdf.js` places each
  *  text run where Chromium's layout put it, and adjacent runs can land separated by more than one

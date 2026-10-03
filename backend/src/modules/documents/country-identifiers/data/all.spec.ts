@@ -18,9 +18,9 @@ describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files',
   // those notes for why an unconditional seller-side rule still can't be encoded as `required: true`
   // without also wrongly gating a buyer-side client record). US, GB and BE (below) were removed by
   // the prune along with every other country outside FR/PL/IT/PT/DE.
-  it('loads exactly the five countries this mechanism ships', () => {
+  it('loads exactly the six countries this mechanism ships', () => {
     const codes = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
-    expect(codes).toEqual(['DE', 'FR', 'IT', 'PL', 'PT']);
+    expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
   });
 
   it('every fact in every shipped file carries a real provenance (already enforced at load time by data/all.ts — this just makes the property explicit here)', () => {
@@ -97,7 +97,17 @@ describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files',
   // ACCIDENTALLY (a typo, a copy-paste of another country's scheme under a new name) — every legitimate
   // scheme must be added here explicitly, with the fact that names it.
   it("every `scheme` used by a shipped file is one this test explicitly names as legitimate — a typo'd or accidental new scheme name goes red here, not silently", () => {
-    const knownSchemes = new Set(['LEGAL_ID', 'VAT', 'IT_PA_CODE', 'IT_SDI', 'PEC']);
+    const knownSchemes = new Set([
+      'LEGAL_ID',
+      'VAT',
+      'IT_PA_CODE',
+      'IT_SDI',
+      'PEC',
+      'RC',
+      'NIS',
+      'NIF',
+      'AI',
+    ]);
     for (const file of ALL_COUNTRY_IDENTIFIER_FILES) {
       for (const fact of file.schemes) {
         expect(knownSchemes.has(fact.scheme)).toBe(true);
@@ -365,23 +375,55 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
   });
 });
 
+// DZ, issue #567: NIF and NIS each gained a `pattern`, sourced to PR #566's review (native
+// contributor, 2026-09-30) rather than to decree 05-468 itself, which states no format for either
+// scheme. RC and AI stay free text, per the same review, so neither declares a `pattern`. Adding
+// `pattern` does not change either scheme's own `provenance.kind` (NIS stays "legal", NIF stays
+// "unverified"): the requirement and its format are two separate claims, sourced separately.
+describe('country-identifiers/data: the shipped DZ file (issue #567: NIF/NIS formats)', () => {
+  it('NIF accepts a 15-digit value or a 20-digit one (a secondary establishment), and nothing else', () => {
+    const dz = fileFor('DZ');
+    const nif = dz.schemes.find((s) => s.scheme === 'NIF')!;
+    expect(nif.pattern).toBe('^\\d{15}(\\d{5})?$');
+    const regex = new RegExp(nif.pattern!);
+    expect(regex.test('000116000123456')).toBe(true); // 15 digits
+    expect(regex.test('00011600012345600001')).toBe(true); // 20 digits
+    expect(regex.test('00011600012345')).toBe(false); // 14 digits, one short
+    expect(regex.test('00011600012345A')).toBe(false); // right length, a letter
+    // A pattern is a legal claim, so `notes` must say where the FORMAT specifically comes from:
+    // decree 05-468 never states one. That does not disturb the scheme's own "unverified" grading.
+    expect(nif.notes).toMatch(/PR #566 review, native contributor, 2026-09-30/);
+    expect(nif.provenance.kind).toBe('unverified'); // unchanged by adding `pattern`
+  });
+
+  it('NIS accepts a 15-digit value or an 18-digit one (a secondary establishment), and nothing else', () => {
+    const dz = fileFor('DZ');
+    const nis = dz.schemes.find((s) => s.scheme === 'NIS')!;
+    expect(nis.pattern).toBe('^\\d{15}(\\d{3})?$');
+    const regex = new RegExp(nis.pattern!);
+    expect(regex.test('160001234567890')).toBe(true); // 15 digits
+    expect(regex.test('160001234567890123')).toBe(true); // 18 digits
+    expect(regex.test('16000123456789')).toBe(false); // 14 digits, one short, the demo generator's old length
+    expect(regex.test('16000123456789A')).toBe(false); // right length, a letter
+    expect(nis.notes).toMatch(/PR #566 review, native contributor, 2026-09-30/);
+    expect(nis.provenance.kind).toBe('legal'); // unchanged by adding `pattern`
+  });
+
+  it('RC and AI stay free text: the review kept both without a strict format', () => {
+    const dz = fileFor('DZ');
+    const rc = dz.schemes.find((s) => s.scheme === 'RC')!;
+    const ai = dz.schemes.find((s) => s.scheme === 'AI')!;
+    expect(rc.pattern).toBeUndefined();
+    expect(ai.pattern).toBeUndefined();
+  });
+});
+
 // BE's own country-identifiers data file was removed by the 5-country prune (2026-09-10) along with
 // every other country outside FR/PL/IT/PT/DE — it was never registered in data/all.ts to begin with,
 // so nothing here re-anchors it.
 
-// Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
-// really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
-// with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
-// silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
-// red here — the whole point of "adding a country = dropping a file" is only true if this holds.
-describe('country-identifiers/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_COUNTRY_IDENTIFIER_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const { readdirSync } = require('node:fs');
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_COUNTRY_IDENTIFIER_FILES`) tested a mechanism that moved: `data/all.ts` no longer
+// reads this directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`,
+// which itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

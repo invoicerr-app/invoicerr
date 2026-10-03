@@ -91,9 +91,20 @@ export interface DocumentTypeDescriptor {
    * the full picture across the five shipped countries). This is the numbering equivalent of
    * `contributions`/`statuses` themselves being optional: a type that never declares a concern gets
    * none of that concern's machinery.
+   *
+   * `string | string[]` (issue #581): a SINGLE status for every type that numbers at exactly one
+   * place in its lifecycle (every type but the invoice, today), or a SET for a type whose lifecycle
+   * can reach the "first number" moment through more than one route. The invoice is the first: it now
+   * numbers at "sending" (the ordinary async "send") AND at "validated" (the new "Validate" action,
+   * issue #581 - numbers and locks without sending) - the SAME `number == null` once-only guarantee
+   * holds regardless of which of the two a given record actually reaches first, since `number` is
+   * never cleared once set (see this comment's own "first time" paragraph above). Every reader of this
+   * field goes through `onEnterStatuses` below rather than comparing to this field directly, so a type
+   * that only ever needs the single-status case (the overwhelming majority) never has to think about
+   * the array shape at all.
    */
   numbering?: {
-    onEnterStatus: string;
+    onEnterStatus: string | string[];
     /**
      * Restricts numbering to a record whose status IMMEDIATELY BEFORE this transition (never the
      * type's `initialStatus` alone - a genuinely fresh record has no "before" at all, see below) was
@@ -122,6 +133,28 @@ export interface DocumentTypeDescriptor {
      */
     onlyFrom?: string[];
   };
+  /**
+   * Whether ISSUING this type moves stock, and which way: an EXPLICIT descriptor fact (issue #579),
+   * never inferred from whether a line CAN reference an article. Before this field existed,
+   * `stock/apply-stock-on-issuance.ts#declaresArticleReference` (a purely STRUCTURAL check: "does one
+   * of this type's 'array' fields declare a `hiddenReference`/`entity: 'article'` row field") was used
+   * to gate the decrement itself, which was wrong: the quote's own `lines` declares that exact field
+   * too, for the catalog-prefill picker (quote.descriptor.ts), with no intention of ever delivering
+   * goods, so sending a quote decremented stock exactly like sending an invoice, and converting it
+   * into an invoice and sending THAT decremented it a second time for the same sale.
+   * `declaresArticleReference` still answers its own, narrower, structural question, kept for
+   * whatever else might need "can a line of this type reference an article" (the catalog-prefill
+   * picker's own wiring); it is simply never again what the stock engine's own call sites
+   * (`documents.service.ts#runAction`, `actions/async-send.ts`, `actions/send-document-email.ts`;
+   * see `stock/apply-stock-on-issuance.ts#decrementsStockOnIssuance`) read to decide whether to run.
+   *
+   * `'decrement'` is the only value today, the invoice's, the one type that actually delivers goods.
+   * Absent means NO stock effect, the safe default: a type this codebase does not yet know about must
+   * never move stock by accident, the same posture `numbering` above already holds for "never
+   * numbered". A later goods-receipt stock INCREASE (issue #579's own "out of scope here") is a
+   * DIFFERENT value this union is expected to grow into, never a reuse of `'decrement'`.
+   */
+  stockEffect?: 'decrement';
   /**
    * This type's DEFAULT email — subject/body, sent when the document is delivered by mail (the
    * quote's own unconditional "send", the invoice's "email" transport — see actions/generic-actions.ts
@@ -306,7 +339,7 @@ export interface DocumentFieldDescriptor {
   required?: boolean;
   /**
    * Makes this field required ONLY once a named SIBLING field (elsewhere in the SAME document) is
-   * itself present — e.g. a correction invoice's own `correctionReason` (`country-fields/data/pl.json`),
+   * itself present — e.g. a correction invoice's own `correctionReason` (`countries/data/pl.json (section "countryFields")`),
    * required on THIS SCREEN once `correctsInvoiceId` actually names an original invoice (a product
    * choice, not a legal one — see that file's own header for why art. 106j ustawy o VAT leaves the
    * reason OPTIONAL); an ordinary, non-correcting Polish invoice needs no reason at all, so
@@ -544,6 +577,21 @@ export function targetEntitiesOf(field: DocumentFieldDescriptor): string[] {
  *  one predicate that decides which shape the field's stored value takes. See `entities`'s comment. */
 export function isMultiTargetReference(field: DocumentFieldDescriptor): boolean {
   return !!field.entities;
+}
+
+/**
+ * `DocumentTypeDescriptor.numbering.onEnterStatus` normalized to an array - the one place that
+ * reconciles its two shapes (a bare string, the original and still most common case, or a set, issue
+ * #581's own widening) so every caller checks membership the same way instead of hand-rolling
+ * "is this a string or an array" three times over (`lifecycle.ts`'s boot check,
+ * `documents.service.ts`'s post-handler numbering hook, `send-document-email.ts`'s own defensive
+ * fallback). Returns an empty array for a type that declares no `numbering` at all - callers already
+ * gate on `descriptor.numbering` being present before this is worth calling, the same way they always
+ * did before this helper existed.
+ */
+export function onEnterStatuses(numbering: DocumentTypeDescriptor['numbering']): string[] {
+  if (!numbering) return [];
+  return Array.isArray(numbering.onEnterStatus) ? numbering.onEnterStatus : [numbering.onEnterStatus];
 }
 
 export interface DocumentActionDescriptor {

@@ -1,12 +1,32 @@
+import { defaultComposedCountryCatalog } from '../../countries/registry';
 import { defaultVatRateCatalog, VatRateCatalog } from '../../vat-rates/registry';
 import { CountryTaxSystemProfile, TaxSystemSpec } from '../types';
-import { ALL_TAX_SYSTEM_FILES } from './data/all';
 import { CountryTaxSystemFact } from './schema';
 
 function buildIndex(files: CountryTaxSystemFact[]): Record<string, CountryTaxSystemFact> {
   const index: Record<string, CountryTaxSystemFact> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `taxSystem` section from the
+ * composed per-country view, instead of this catalog's own `data/all.ts` directly. No import cycle
+ * results, because `countries/compose.ts` reads the RAW loader (`tax/tax-systems/data/all.ts`'s own
+ * `ALL_TAX_SYSTEM_FILES`), never this registry: see that file's own header. The dependency direction
+ * is therefore one-way: this file depends on `countries/registry.ts`, which depends on
+ * `countries/compose.ts`, which depends on `tax/tax-systems/data/all.ts`; nothing depends back on
+ * this file from inside that chain. A country with no `taxSystem` section in the composed view is
+ * simply left out here, the same "no permissive fallback" this catalog already held when it read
+ * `ALL_TAX_SYSTEM_FILES` directly.
+ */
+function taxSystemFactsFromComposedCatalog(): CountryTaxSystemFact[] {
+  const files: CountryTaxSystemFact[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const taxSystem = defaultComposedCountryCatalog.get(countryCode)?.taxSystem;
+    if (taxSystem) files.push(taxSystem);
+  }
+  return files;
 }
 
 /**
@@ -65,12 +85,16 @@ function toTaxSystemSpec(fact: CountryTaxSystemFact, catalog: VatRateCatalog): T
  * one consumer: it resolves the SELLER's profile (must exist — see that file's own guard) and,
  * OPTIONALLY, the BUYER's (a missing buyer profile is exactly the "no destination rate table" fact
  * that makes an OSS sale to an uncatalogued country a NAMED block rather than a guess).
+ *
+ * The constructor still takes a plain `CountryTaxSystemFact[]` (never the composed catalog itself),
+ * so an explicit, smaller list still works exactly as before for every existing caller and test (e.g.
+ * `new TaxSystemRegistry([FR_FACT])`): only the NO-ARGUMENT default changed where it reads from.
  */
 export class TaxSystemRegistry {
   private readonly files: Record<string, CountryTaxSystemFact>;
 
   constructor(
-    files: CountryTaxSystemFact[] = ALL_TAX_SYSTEM_FILES,
+    files: CountryTaxSystemFact[] = taxSystemFactsFromComposedCatalog(),
     private readonly vatRateCatalog: VatRateCatalog = defaultVatRateCatalog,
   ) {
     this.files = buildIndex(files);

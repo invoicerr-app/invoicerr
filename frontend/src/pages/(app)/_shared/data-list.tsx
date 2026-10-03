@@ -35,7 +35,7 @@ export function ListSearch({ value, onChange, placeholder, dataCy, className }: 
   return (
     <div className={cn("relative min-w-0", className)}>
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <Input
@@ -44,7 +44,7 @@ export function ListSearch({ value, onChange, placeholder, dataCy, className }: 
         aria-label={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full pl-9"
+        className="w-full ps-9"
         data-cy={dataCy}
       />
     </div>
@@ -173,6 +173,7 @@ export function ListRow({
       <div className={ROW_GRID}>
         <div className="order-1 min-w-0">{identity}</div>
         <div
+          dir="ltr"
           className={cn(
             "order-3 text-sm text-foreground sm:order-2 sm:text-right",
             !figures && "hidden sm:block",

@@ -45,7 +45,7 @@ describe('b2g-routing/data/all.ts', () => {
   // "The German B2G gap" — briefly CLOSED (2026-09-02 to 2026-09-15) by routing DE through a
   // "peppol" transport, carrying "xrechnung" CONTENT via that transport's own format override. That
   // transport was removed from the product on 2026-09-15 (no real Access Point account ever backed
-  // it — see `b2g-routing/data/de.json`'s own `notes` for the full, dated history), so the rule
+  // it — see `countries/data/de.json (section "b2gRouting")`'s own `notes` for the full, dated history), so the rule
   // reverted to naming "zre-ozgre" — a channel this app does not implement — and sending to a German
   // government client is refused, by name, again. The XRechnung CONTENT requirement itself is
   // untouched: it is a fact of § 4 Abs. 1 ERechV, independent of which transport (if any) can carry it.
@@ -86,19 +86,8 @@ describe('b2g-routing/data/all.ts', () => {
   });
 });
 
-// Drop-in invariant (readdir-discovery conversion) — proves all.ts's own `discoverCountryCodes()`
-// really does pick up every `<cc>.json` sitting in this directory: this test re-reads the directory
-// with the IDENTICAL pattern, independently of all.ts's own implementation, so a regression that
-// silently drops a file from discovery (a typo'd pattern, a change that stops sorting, anything) goes
-// red here — the whole point of "adding a country = dropping a file" is only true if this holds.
-describe('b2g-routing/data — every *.json on disk is actually loaded (drop-in invariant)', () => {
-  it('ALL_B2G_ROUTING_FILES covers exactly the country files present in this directory, no more, no fewer', () => {
-    const { readdirSync } = require('node:fs');
-    const onDisk = readdirSync(__dirname)
-      .filter((name: string) => /^[a-z]{2}\.json$/.test(name))
-      .map((name: string) => name.replace(/\.json$/, '').toUpperCase())
-      .sort();
-    const loaded = ALL_B2G_ROUTING_FILES.map((f) => f.countryCode).sort();
-    expect(loaded).toEqual(onDisk);
-  });
-});
+// The "drop-in invariant" that used to live here (re-reading this directory's own `*.json` listing
+// against `ALL_B2G_ROUTING_FILES`) tested a mechanism that moved: `data/all.ts` no longer reads this
+// directory at all (issue #603 step 6) - it derives from `defaultComposedCountryCatalog`, which
+// itself is discovered from `countries/data/*.json`. The equivalent proof now lives in
+// `countries/data/all.spec.ts`.

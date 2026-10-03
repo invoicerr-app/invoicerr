@@ -119,8 +119,120 @@ export interface CountryDocumentPolicyFile {
    * `number-formats.ts#assertValidNumberFormats` at the same two points every other fact here is.
    */
   numberFormats?: CountryNumberFormats;
+  /**
+   * Issue #558 - whether this country requires an invoice to be issued in its OWN official currency
+   * when BOTH the seller and the buyer are established there (a purely domestic operation) - Algeria's
+   * own Banque d'Algerie reglement n. 07-01, art. 5, is the first sourced example
+   * (`data/dz.json`). Deliberately a per-country, OPTIONAL fact, not a new top-level catalog: most
+   * shipped countries (DE/FR/IT/PL/PT today) have no such obligation sourced and simply omit this
+   * field - absence here means "no domestic-currency rule found", never "foreign currency forbidden"
+   * by omission (the same "no permissive fallback, no invented block" discipline every other fact in
+   * this file already holds). File-only, like `numberFormats` above: read at request time from the
+   * in-memory catalog (`registry.ts#domesticInvoiceCurrencyFor`), never mirrored into a table, and
+   * enforced at "send" by `domestic-currency-issuance.ts#runDomesticInvoiceCurrencyPreflight`, see
+   * that file's own header for how "domestic" is decided (mirrors
+   * `transports/channel-policy/mandate.ts`'s own `isDomestic`, the established precedent for exactly
+   * this seller/buyer-country comparison).
+   */
+  domesticInvoiceCurrency?: DomesticInvoiceCurrencyFact;
+  /**
+   * Issue #581 (owner's decision, 2026-10-01, after PR #602's own review) - whether VALIDATING an
+   * invoice in this country must itself transmit it through the country's own mandated channel,
+   * rather than only numbering and locking it. Deliberately an EXPLICIT per-country fact, never
+   * inferred from whether `transports/channel-policy/data/<cc>.json` happens to declare an active
+   * mandate: the two questions are related but not the same one - a country could plausibly mandate a
+   * channel for ordinary SENDING while still allowing VALIDATE to stop at numbering-and-locking (the
+   * channel mandate alone says nothing about what "Validate" specifically must do), so inferring one
+   * from the other would have been encoding a legal conclusion nobody actually read a text for. See
+   * `invoice-validation-transmission.ts`'s own header for how this combines with the ACTIVE mandate
+   * check (`channel-policy/mandate.ts`) at runtime: BOTH conditions must hold - this fact says the
+   * country's law treats validation-without-transmission as not genuinely "issued" at all, the active
+   * mandate check says THIS operation (today's date, this buyer) is actually bound by it.
+   *
+   * File-only, like `domesticInvoiceCurrency` above: read at request time from the in-memory catalog
+   * (`registry.ts#invoiceValidationFor`), never mirrored into a table, enforced at "validate" by
+   * `invoice-validation-transmission.ts#resolveInvoiceValidationTransmission`. Optional: a country with
+   * no such fact declared (DE/PL/PT/DZ today) simply omits the field, meaning "Validate" always only
+   * numbers and locks there, however this question might one day be answered for any one operation.
+   */
+  invoiceValidation?: InvoiceValidationFact;
+  /**
+   * Issue #603 (audit section 5, group B) - whether this country requires every issued, fiscally
+   * relevant document to carry a validation code from its own tax authority. A GENERIC name, never
+   * a boolean "requiresAtcud": Portugal's own scheme is the ATCUD (Decreto-Lei n.º 28/2019, art. 7.º
+   * n.º 3; Portaria n.º 195/2020), but the fact names the scheme rather than assuming it is the only
+   * one that will ever exist - another country may one day require its own code under its own name.
+   * This is the single, COMPANY-LEVEL fact `actions/atcud-issuance.ts`, `company.service.ts`'s own
+   * number-declaration flow and the settings screen now read instead of four independent `=== 'PT'`
+   * literals (`AUDIT_DONNEES_PAYS.md`, section 1, row 3 / section 5, row B). Deliberately separate
+   * from the PER-DOCUMENT-TYPE `numbering` facts above (`requirement: 'atcud-required'`): those say
+   * WHICH document types carry the code once numbered (today: "invoice", "credit-note"), this one
+   * only says whether the company's country has such a scheme AT ALL - the question the four
+   * replaced literals actually asked. File-only, like `invoiceValidation` above: read at request
+   * time from the in-memory catalog (`registry.ts#documentValidationCodeFor`), never mirrored into a
+   * table. Optional: a country with no such scheme (every shipped country but Portugal today) simply
+   * omits the field - the same "no permissive fallback" discipline every other reader here holds.
+   */
+  documentValidationCode?: DocumentValidationCodeFact;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
+  notes?: string;
+}
+
+/**
+ * ONE country's answer to "does Validate itself transmit the invoice" - see
+ * `CountryDocumentPolicyFile.invoiceValidation`'s own header for the full design and why this is
+ * deliberately separate from the channel-mandate catalog.
+ */
+export interface InvoiceValidationFact {
+  /** `true`: once an operation is ALSO covered by this country's own active channel mandate
+   *  (`channel-policy/mandate.ts#activeChannelMandateForOperation`), validating performs the real
+   *  transmission through that channel - see `invoice-validation-transmission.ts`. `false` (the same
+   *  as omitting the whole fact) would be a pointless, always-inert entry; this field only exists to
+   *  be `true` - declaring it `false` is refused at load time, the same "do not encode a fact that
+   *  changes nothing" discipline this catalog already holds for other always-true-or-absent flags. */
+  transmitsThroughMandatedChannel: true;
+  /**
+   * Plain-English name of the channel this transmits through once the condition above fires - e.g.
+   * "the accredited platform (PDP)" for France, "SdI" for Italy. Shown verbatim in the Validate
+   * confirmation dialog's own transmission alert (document-form.tsx) - plain data, not an i18n key,
+   * the same convention `DocumentTypeDescriptor.label`/`DocumentActionDescriptor.label` already hold.
+   * Required whenever `transmitsThroughMandatedChannel` is `true`: a warning that something will be
+   * transmitted "somewhere" unnamed would be worse than not showing one at all.
+   */
+  channelLabel: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
+/**
+ * ONE country's own validation-code scheme - see `CountryDocumentPolicyFile.documentValidationCode`'s
+ * own header for the full design (issue #603) and why this is deliberately separate from the
+ * per-document-type `numbering` facts above.
+ */
+export interface DocumentValidationCodeFact {
+  /** The scheme's own name, shown verbatim wherever the product names the requirement (settings
+   *  screen, error messages) - e.g. "ATCUD" for Portugal. Plain data, not an i18n key, the same
+   *  convention `InvoiceValidationFact.channelLabel` already holds for the identical reason: a
+   *  legal scheme has one real name, never a translated one. */
+  scheme: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
+/**
+ * ONE country's domestic-invoicing-currency obligation - see `CountryDocumentPolicyFile
+ * .domesticInvoiceCurrency`'s own header for the full "why" and for why this is deliberately NOT a
+ * boolean or a bare string: the currency itself is the fact, and it needs the same provenance every
+ * other legal claim in this catalog already carries.
+ */
+export interface DomesticInvoiceCurrencyFact {
+  /** ISO 4217 code, e.g. "DZD" - the country's own official currency, mandatory for an invoice whose
+   *  seller AND buyer are both established in this country. Never a company preference: like
+   *  `numberFormats` above, this is a compliance matter the country file states once, not something a
+   *  company configures for itself. */
+  currency: string;
+  provenance: PolicyProvenance;
   notes?: string;
 }
 
@@ -128,10 +240,10 @@ export interface CountryDocumentPolicyFile {
  * ONE country's numbering requirement for ONE document type - issue #471. Two possible
  * `requirement`s, deliberately not a boolean: `'sequential-number-required'` says the type itself
  * must carry a continuous, sequential number once issued (what CGI ann. II art. 242 nonies A, I, 7°
- * asks of a French credit note, `country-policy/data/fr.json`'s own fact); `'type-not-issuable'`
+ * asks of a French credit note, `countries/data/fr.json (section "policy")`'s own fact); `'type-not-issuable'`
  * says the question does not even arise for this type in this country because the type itself has
  * no legal existence here (Poland's own credit-note fact: a Polish credit note IS an invoice, a KOR,
- * numbered by the invoice's own numbering - see `correction-routes/data/pl.json`'s CREDIT_NOTE
+ * numbered by the invoice's own numbering - see `countries/data/pl.json (section "correctionRoutes")`'s CREDIT_NOTE
  * `'forbidden'` route, which this fact deliberately does not duplicate, only cross-references).
  */
 export interface DocumentNumberingFact {
@@ -257,6 +369,83 @@ export function assertValidNumberingProvenance(fact: DocumentNumberingFact, cont
     fact.provenance,
     `${context}: numbering fact "${fact.typeId}"`,
     'a numbering fact',
+  );
+}
+
+export class InvalidDomesticInvoiceCurrencyError extends Error {}
+
+/**
+ * The `domesticInvoiceCurrency` (issue #558) analogue of `assertValidProvenance` above - same
+ * provenance gate, called from the same load-time point (data/all.ts) every other fact here already
+ * is, plus the one extra check this fact needs and the others don't: a real 3-letter ISO 4217 code,
+ * never a blank or placeholder string a downstream currency lookup would fail on silently.
+ */
+export function assertValidDomesticInvoiceCurrencyFact(
+  fact: DomesticInvoiceCurrencyFact,
+  context: string,
+): void {
+  if (fact.currency?.trim()?.length !== 3) {
+    throw new InvalidDomesticInvoiceCurrencyError(
+      `${context}: "domesticInvoiceCurrency.currency" must be a real 3-letter ISO 4217 code, got ` +
+        `${JSON.stringify(fact.currency)}.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: domestic-invoice-currency fact`,
+    'a domestic-invoice-currency fact',
+  );
+}
+
+export class InvalidInvoiceValidationFactError extends Error {}
+
+/**
+ * The `invoiceValidation` (issue #581, owner's decision 2026-10-01) analogue of
+ * `assertValidDomesticInvoiceCurrencyFact` above - same provenance gate, plus the two checks this
+ * fact needs and the others do not: `transmitsThroughMandatedChannel` must be the literal `true` (a
+ * country file declaring it `false` is encoding a no-op as if it were a real fact - omitting the
+ * whole field already means exactly that), and `channelLabel` must be a real, non-blank name (a
+ * warning that something transmits "somewhere" unnamed is worse than no warning).
+ */
+export function assertValidInvoiceValidationFact(fact: InvoiceValidationFact, context: string): void {
+  if ((fact as { transmitsThroughMandatedChannel?: unknown }).transmitsThroughMandatedChannel !== true) {
+    throw new InvalidInvoiceValidationFactError(
+      `${context}: "invoiceValidation.transmitsThroughMandatedChannel" must be the literal ` +
+        `true - omit the whole "invoiceValidation" field instead of declaring it false.`,
+    );
+  }
+  if (!fact.channelLabel?.trim()) {
+    throw new InvalidInvoiceValidationFactError(
+      `${context}: "invoiceValidation.channelLabel" must be a real, non-blank channel name.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: invoice-validation fact`,
+    'an invoice-validation fact',
+  );
+}
+
+export class InvalidDocumentValidationCodeError extends Error {}
+
+/**
+ * The `documentValidationCode` (issue #603) analogue of `assertValidDomesticInvoiceCurrencyFact`
+ * above - same provenance gate, plus the one extra check this fact needs: a real, non-blank scheme
+ * name, never a blank or placeholder string a downstream message would print verbatim.
+ */
+export function assertValidDocumentValidationCodeFact(
+  fact: DocumentValidationCodeFact,
+  context: string,
+): void {
+  if (!fact.scheme?.trim()) {
+    throw new InvalidDocumentValidationCodeError(
+      `${context}: "documentValidationCode.scheme" must be a real, non-blank scheme name.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: document-validation-code fact`,
+    'a document-validation-code fact',
   );
 }
 

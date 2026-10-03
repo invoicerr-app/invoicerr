@@ -21,6 +21,23 @@ Click **Add New** and fill in:
 - **Description** (optional, multi-line) — supports `**bold**` and `*italic*`; copied onto the line item as its description
 - **Type** — Hour, Day, Deposit, Service, or Product
 - **Unit Price** and **VAT Rate**
+- **Quantity** and **Low stock threshold** (both optional) - see **Stock tracking** below
+
+## Stock tracking
+
+Leave **Quantity** blank and an article is not stock-tracked at all: nothing about it is ever
+counted, and picking it on a line never changes anything else. Set a **Quantity** and the article
+starts tracking stock from that number; **Low stock threshold** then controls when it shows up as
+low stock on the Articles page (leave it blank for no alert at all).
+
+:::info[Which documents move stock]
+Only **sending an invoice** decrements stock, by the quantity on every line that references a
+tracked article. Sending a quote, sending a credit note, and sending a purchase order never change
+stock, even when their own lines reference the same article: a quote is not a commitment to
+deliver, and a credit note corrects an invoice without moving goods a second time. Converting an
+accepted quote into an invoice and sending that invoice decrements stock exactly once, at the
+invoice's own send - never at the quote's.
+:::
 
 ## Using an article in a quote or invoice
 

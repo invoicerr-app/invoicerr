@@ -8,7 +8,7 @@ import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { SigningCredentialsPort } from '../signing/signing-credentials-port';
-import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
+import { decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { runAsyncSendAction } from './async-send';
 import { ActionRegistry } from './action-registry';
 import { registerEmailRecipientDefaultFromClient, registerSaveDraftAction } from './generic-actions';
@@ -38,10 +38,12 @@ export interface QuoteActionDeps {
 }
 
 /** Same direct-import model as `invoice-actions.ts`'s own `INVOICE_DESCRIPTOR` constant - computed
- *  once, off the type's own descriptor, so `declaresArticleReference` below reflects whatever
- *  quote.descriptor.ts's `lines` field actually declares (PR #473 review point 2). */
+ *  once, off the type's own descriptor, so `decrementsStockOnIssuance` below reflects whatever
+ *  quote.descriptor.ts actually declares. Issue #579: this is `false` - the quote's own `lines` DOES
+ *  declare an `articleId` field (for the catalog-prefill picker), but the descriptor never sets
+ *  `stockEffect: 'decrement'`, so sending a quote must never move stock; only the invoice does. */
 const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
-const QUOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(QUOTE_DESCRIPTOR);
+const QUOTE_DECREMENTS_STOCK = decrementsStockOnIssuance(QUOTE_DESCRIPTOR);
 
 /**
  * Registers the quote type's action IMPLEMENTATIONS. "save-draft" is the generic mechanism
@@ -76,7 +78,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
       numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
-      declaresArticleReference: QUOTE_DECLARES_ARTICLE_REFERENCE,
+      decrementsStock: QUOTE_DECREMENTS_STOCK,
       deliver: async ({ companyId: c, document }) => {
         // `params.recipient` is already validated (required, non-empty text) by
         // DocumentsService.runAction before this handler — and therefore this `deliver` closure —
