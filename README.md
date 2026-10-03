@@ -363,7 +363,10 @@ own reviews and tests; it does not replace them. `wyro.json` at the root holds i
 ## Community
 
 [Issues](https://github.com/invoicerr-app/invoicerr/issues) for bugs and feature requests,
-[Discussions](https://github.com/invoicerr-app/invoicerr/discussions) for questions and ideas.
+[Discussions](https://github.com/invoicerr-app/invoicerr/discussions) for questions and ideas,
+[Discord](https://discord.gg/6sDwqXFqnK) to chat with users, self-hosters and contributors.
+
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/6sDwqXFqnK)
 
 ## License
 
