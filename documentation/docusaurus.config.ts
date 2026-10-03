@@ -230,6 +230,11 @@ const config: Config = {
           label: 'GitHub',
           position: 'right',
         },
+        {
+          href: 'https://github.com/sponsors/invoicerr-app',
+          label: 'Sponsor',
+          position: 'right',
+        },
       ],
     },
     footer: {
@@ -271,6 +276,10 @@ const config: Config = {
             {
               label: 'GitHub',
               href: 'https://github.com/invoicerr-app/invoicerr',
+            },
+            {
+              label: 'Sponsor',
+              href: 'https://github.com/sponsors/invoicerr-app',
             },
           ],
         },
