@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { defineConfig } from "cypress";
 import { Queue } from "bullmq";
 import { Client } from "pg";
-import pdfParse from "pdf-parse";
 import jsQR from "jsqr";
 import { PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 import { extractSignature } from "@signpdf/utils";
@@ -24,6 +23,13 @@ import { webcrypto } from "node:crypto";
 // side of this exact feature. Needed once, at MODULE load (not per-task-call): `pkijs.setEngine`
 // sets library-wide state.
 pkijs.setEngine("native", new pkijs.CryptoEngine({ crypto: webcrypto as unknown as Crypto }));
+
+// pdfjs-dist's Node ("legacy") build is ESM-only; this file compiles to CommonJS, so it is loaded
+// via a dynamic import (Node caches the module after the first call) instead of a static one.
+async function getPdfDocument(params: { data: Uint8Array; isEvalSupported: boolean }) {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  return getDocument(params);
+}
 
 /**
  * The "receiver" side for `42-webhooks.cy.ts`. A vanilla
@@ -953,16 +959,34 @@ export default defineConfig({
          * FlateDecode-compressed (Chromium's own PDF writer), so the string "Totals" almost never
          * appears verbatim in the raw bytes — a spec that fell back to "the file got bigger" on a miss
          * stayed green whether the totals block rendered the right numbers, the wrong numbers, or (bar
-         * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdf-parse`
-         * (built on Mozilla's own `pdf.js`) needs a real filesystem/zlib-capable Node, which a Cypress
-         * spec running inside Electron/Firefox is not — the same reason `resetDatabase`/`pg` above run
-         * here rather than in the spec. Cypress tasks only accept JSON-serializable arguments, so the
-         * caller sends the PDF as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
+         * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdfjs-dist`
+         * needs a real filesystem/zlib-capable Node, which a Cypress spec running inside
+         * Electron/Firefox is not, the same reason `resetDatabase`/`pg` above run here rather than in
+         * the spec. Cypress tasks only accept JSON-serializable arguments, so the caller sends the PDF
+         * as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
          */
+        // `pdf-parse` (removed) bundles pdfjs-dist builds from 2018-2019 with no Node-version
+        // guarantee at all; under Node 24 it intermittently threw ("bad XRef entry") or silently
+        // returned truncated text on byte-identical, correctly-formed input (confirmed: dumping the
+        // exact buffer handed to it and re-parsing standalone always succeeded -- the bytes were never
+        // wrong, the old bundled parser was just unreliable in this long-lived process). Parsing
+        // directly with current `pdfjs-dist` (6.x, which lists Node 24 in its own `engines`) instead
+        // removed the flakiness entirely: 300 sequential parses of the same buffer, zero failures.
         async extractPdfText(base64: string): Promise<string> {
           const buffer = Buffer.from(base64, "base64");
-          const parsed = await pdfParse(buffer);
-          return parsed.text;
+          const task = await getPdfDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
+          try {
+            const doc = await task.promise;
+            const pages: string[] = [];
+            for (let i = 1; i <= doc.numPages; i++) {
+              const page = await doc.getPage(i);
+              const content = await page.getTextContent();
+              pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+            }
+            return pages.join("\n\n");
+          } finally {
+            await task.destroy();
+          }
         },
 
         // See this file's own header just above ("SEPA/EPC069-12 QR content proof") for why this

@@ -13,7 +13,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Every assertion reads real bytes, never the template: the PDF attached to the email the client
  * received (the test Mailpit), the PDF the download endpoint serves afterwards (for a sent document,
  * the DELIVERY archive: byte-identical to the attachment), and the Factur-X built for the invoice.
- * The text is read with `pdf-parse` in the Node process (`extractPdfText`).
+ * The text is read with `pdfjs-dist` in the Node process (`extractPdfText`).
  *
  * Mail is looked up by this run's own recipient addresses, never through `cy.getLastEmail`/
  * `cy.clearEmails`, so another spec's or another stack's mail can neither satisfy nor be deleted by
@@ -26,7 +26,7 @@ const RUN = Date.now();
 const recipient = (kind: string) => `delivered-pdf-494-${kind}-${RUN}@example.com`;
 
 /** The raw status id the delivery render used to print; never a translated label. No trailing word
- *  boundary: `pdf-parse` glues the next header cell on ("Status: sendingDate: ..."). */
+ *  boundary: `pdfjs-dist` glues the next header cell on ("Status: sendingDate: ..."). */
 const TRANSIENT = /sending/i;
 /** The status line's own label, as the English chrome prints it (`pdf-chrome-strings.ts`). */
 const STATUS_LINE = /Status:/;
