@@ -263,6 +263,9 @@ The full, canonical text lives at [developercertificate.org](https://developerce
 pull request with an unsigned commit will be asked to amend and force-push before review — `git commit
 --amend -s`, or `git rebase --signoff HEAD~N` for several commits at once.
 
+A `DCO Check` workflow enforces this on every pull request and fails with the exact commits
+missing a sign-off; fix a red check with `git rebase --signoff <base-branch>` then a force-push.
+
 ## Security
 
 Please do not report a security vulnerability through a public issue, pull request or discussion.

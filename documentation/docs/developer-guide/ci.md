@@ -21,6 +21,20 @@ above (or leave it unlabeled for "Other") before it merges if you want it to sho
 right heading in the next release's notes.
 :::
 
+## DCO check
+
+`dco.yml` runs on every pull request targeting `dev` or `main`. It reads the pull request's commits
+through the GitHub API and fails if one of them (other than a merge commit or a bot commit) has no
+`Signed-off-by` line matching its author, as required by
+[`CONTRIBUTING.md`](https://github.com/invoicerr-app/invoicerr/blob/dev/CONTRIBUTING.md).
+The failing run names each offending commit; fix it with `git rebase --signoff <base-branch>` and a
+force-push.
+
+:::info[Not required by branch protection]
+This check runs and reports, but a pull request can still be merged while it is red until branch
+protection is updated to require it.
+:::
+
 `release-discord.yml` posts a short summary of every published **pre-release** to the Discord
 announcements channel, through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret.
 A full release (the pre-release checkbox left unticked) never posts here; see
