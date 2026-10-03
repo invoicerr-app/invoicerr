@@ -317,6 +317,13 @@ every other language is translated from.
 
 [![Translation status](https://hosted.weblate.org/widget/invoicerr/horizontal-auto.svg)](https://hosted.weblate.org/engage/invoicerr/)
 
+## Support the project
+
+Invoicerr is free and open source, maintained in spare time. If it saves you time or money, consider
+supporting its development through [GitHub Sponsors](https://github.com/sponsors/invoicerr-app).
+
+[![Sponsors](https://img.shields.io/github/sponsors/invoicerr-app?logo=githubsponsors&label=sponsors)](https://github.com/sponsors/invoicerr-app)
+
 ## Contributors
 
 Maintainer: [Roméo Chevrier](https://github.com/Impre-visible) (@Impre-visible).
