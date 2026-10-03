@@ -33,7 +33,7 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
        ports:
          - "80:80"
        environment:
-         - DATABASE_URL=postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db
+         - DATABASE_URL=postgresql://invoicerr:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to this one}@invoicerr_db:5432/invoicerr_db
          - APP_URL=https://invoicerr.example.com
          - CORS_ORIGINS=http://localhost:5173,https://invoicerr.example.com
 
@@ -60,7 +60,8 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
        image: postgres:15
        environment:
          POSTGRES_USER: invoicerr
-         POSTGRES_PASSWORD: invoicerr
+         # Postgres applies this only on first init of an empty volume.
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to this one}
          POSTGRES_DB: invoicerr_db
        volumes:
          - db_data:/var/lib/postgresql/data
@@ -99,6 +100,21 @@ The repository's [`docker-compose.yml`](https://github.com/invoicerr-app/invoice
 `docker compose pull && docker compose up -d` picks up a new image and re-applies pending database
 migrations automatically on the container's next boot — same as any other restart.
 
+:::warning[Upgrading from a version with no POSTGRES_PASSWORD]
+Versions before this change hardcoded the database password to `invoicerr`. Postgres only applies
+`POSTGRES_PASSWORD` the first time it initialises its volume, so an existing deployment's database
+still has the old password regardless of what you now set. Pick one:
+
+- Set `POSTGRES_PASSWORD=invoicerr` in your `.env` to match what the database already has, and move
+  on. You can change it later with the option below.
+- Pick a new password, connect to the running database (`docker compose exec invoicerr_db psql -U
+  invoicerr`) and run `ALTER USER invoicerr PASSWORD 'your-new-password';`, then set that same value
+  as `POSTGRES_PASSWORD` in your `.env` before the next `docker compose up -d`.
+
+Setting a `POSTGRES_PASSWORD` that does not match what is actually inside the database makes the app
+fail to connect; it does not reset anything inside Postgres by itself.
+:::
+
 One thing that is **not** automatic: if a release actually **drops a country** from one of the
 document-action policy / identifier-requirements / B2G-routing catalogs, removing that country's
 database rows is a deliberate, separate step — every automatic boot path only ever adds/updates
@@ -120,7 +136,8 @@ These are set under the `invoicerr` service's `environment` key.
 
 | Variable | Description |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://invoicerr:invoicerr@invoicerr_db:5432/invoicerr_db` |
+| `DATABASE_URL` | PostgreSQL connection string, built from `POSTGRES_PASSWORD` below, e.g. `postgresql://invoicerr:${POSTGRES_PASSWORD}@invoicerr_db:5432/invoicerr_db` |
+| `POSTGRES_PASSWORD` | Required. The `invoicerr_db` service's own password, generated with e.g. `openssl rand -hex 24`. Postgres sets it only once, the first time the database volume is initialised; see the upgrade warning below before changing it on an existing deployment. |
 | `APP_URL` | Full public URL of the frontend (e.g. `https://invoicerr.example.com`). Required for email templates and links, and used as better-auth's own base URL. |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Required — the app refuses to boot without a reachable Redis (BullMQ queues every document-send job). Defaults to `localhost:6379`, no password, if unset; `REDIS_URL` (e.g. `redis://:pass@redis:6379`) is accepted instead and wins when both are set. |
 | `BETTER_AUTH_SECRET` | The one that's actually documented and recommended — any random string, e.g. `openssl rand -hex 32`. Leaving it (and `JWT_SECRET` below) unset falls back to a known default, which the app flags as insecure. |
