@@ -31,6 +31,12 @@ Invoicerr is a simple, open-source invoicing application designed to help freela
 - **Database**: PostgreSQL
 - **Containerization**: Docker & Docker Compose
 
+## Community
+
+Questions, self-hosting help and e-invoicing per-country questions are welcome on our
+[Discord server](https://discord.gg/6sDwqXFqnK). Bugs and feature requests go on
+[GitHub Issues](https://github.com/invoicerr-app/invoicerr/issues).
+
 ## License
 
 Invoicerr is open source under the
