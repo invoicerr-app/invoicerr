@@ -961,7 +961,7 @@ export default defineConfig({
          * stayed green whether the totals block rendered the right numbers, the wrong numbers, or (bar
          * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdfjs-dist`
          * needs a real filesystem/zlib-capable Node, which a Cypress spec running inside
-         * Electron/Firefox is not — the same reason `resetDatabase`/`pg` above run here rather than in
+         * Electron/Firefox is not, the same reason `resetDatabase`/`pg` above run here rather than in
          * the spec. Cypress tasks only accept JSON-serializable arguments, so the caller sends the PDF
          * as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
          */

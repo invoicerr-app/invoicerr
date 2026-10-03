@@ -359,7 +359,7 @@ describe("Document totals", () => {
 						// fallback this used to have would stay green whether the totals block rendered the
 						// RIGHT numbers, the WRONG numbers, or none at all, as long as the byte count
 						// happened to land above the threshold. Decode the actual page text instead
-						// (`cy.task("extractPdfText", ...)`, `pdfjs-dist` in the Node plugin process — see
+						// (`cy.task("extractPdfText", ...)`, `pdfjs-dist` in the Node plugin process, see
 						// `cypress.config.ts`'s own header on that task) and assert the real amounts:
 						// 2 hours x 50 = 100.00 net, 20% VAT = 20.00, gross = 120.00
 						// (`render-html.ts`'s own `netDisplay`/`vatDisplay`/`grossDisplay`, "<amount> EUR").
