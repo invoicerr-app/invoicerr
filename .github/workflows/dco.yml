@@ -1,0 +1,54 @@
+name: DCO Check
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+
+permissions:
+  pull-requests: read
+
+jobs:
+  dco:
+    name: Sign-off check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check commits are signed off
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          commits_json=$(gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate)
+
+          # Merge commits have more than one parent and carry no author's own work; bot commits
+          # (renovate[bot], dependabot[bot], github-actions[bot], ...) cannot run `git commit -s`.
+          rows=$(jq -r '
+            .[]
+            | select((.parents | length) <= 1)
+            | select((.author.login // "") | endswith("[bot]") | not)
+            | [.sha, .commit.author.name, .commit.author.email, (.commit.message | @base64)]
+            | @tsv
+          ' <<< "$commits_json")
+
+          unsigned=()
+          while IFS=$'\t' read -r sha name email message_b64; do
+            [ -z "$sha" ] && continue
+            message=$(printf '%s' "$message_b64" | base64 -d)
+            if ! grep -qF "Signed-off-by: $name <$email>" <<< "$message"; then
+              unsigned+=("${sha:0:7} ($name <$email>)")
+            fi
+          done <<< "$rows"
+
+          if [ "${#unsigned[@]}" -gt 0 ]; then
+            echo "Missing a Signed-off-by line matching the commit author:"
+            printf '  - %s\n' "${unsigned[@]}"
+            echo
+            echo "Fix: git rebase --signoff <base-branch>, then force-push this branch."
+            exit 1
+          fi
+
+          echo "All commits are signed off."
