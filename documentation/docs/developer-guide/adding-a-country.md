@@ -127,6 +127,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
 | Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `countryFields` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No - read live from the file. |
+| Localized tax mentions | `localizedMentions` | The exact wording this country's statute prescribes for the invoice mention of a tax situation (`franchise`, `reverseCharge`, `exportGoods`, `intraComm`), each with its `code`, `text` and the quoted `source`. A situation with no entry prints the generic Directive-citing mention. | No - read live from the file by `tax/tax-engine.ts`. |
 | Mandatory mentions | `mentions` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No - read live from the file. |
 | Content requirements | `contentRequirements` | Whether a specific EN 16931 field (e.g. BT-23) must carry a country-derived value from a date. | No - read live from the file. |
 | VAT rate catalog | `vatRates` | The rate **ladder** a user picks from on one invoice line (presentation data, not a tax computation). | No - read live from the file. |
@@ -152,7 +153,7 @@ proof that behaviour did not change - not a set of future steps still to do.
 `registry.ts`, a read-only view that groups every one of the 14 existing catalogs' already-loaded,
 already-validated files by country code into one `ComposedCountryView` object per country, with one
 optional field per mechanism: `policy`, `identifiers`, `correctionRoutes`, `vatRates`, `taxSystem`,
-`vatCurrency`, `channelPolicy`, `retention`, `mentions`, `reporting`, `domesticReverseCharge`,
+`vatCurrency`, `channelPolicy`, `retention`, `mentions`, `localizedMentions`, `reporting`, `domesticReverseCharge`,
 `countryFields`, `contentRequirements`, `b2gRouting`.
 
 :::info[Nothing moved yet]

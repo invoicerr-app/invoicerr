@@ -159,7 +159,7 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   every mention they require is either a structured field or conditioned on the transaction, which
   this resolver (country + date, nothing else) cannot express. Read `mentions/data/all.ts`'s header
   before assuming there is a hole to fill. Distinct from the per-country wordings the TAX engine
-  emits, which live in `tax/tax-engine.ts`'s own `LOCALIZED_MENTION` table.
+  emits, which live in each country's `localizedMentions` section.
 - `archive/retention/` — how long an archived document must be kept, and **what that duration is
   counted from** (`origin`, mandatory per rule, never defaulted). DE/FR/PL/PT today; Italy is
   deliberately absent because DPR 600/1973 art. 22 makes the obligation run until tax assessments

@@ -27,6 +27,7 @@ import { CountryVatCurrencyFile } from '../vat-currency/schema';
 import { CountryChannelPolicyFile } from '../transports/channel-policy/schema';
 import { CountryRetentionFile } from '../archive/retention/schema';
 import { CountryMentionsFile } from '../mentions/schema';
+import { CountryLocalizedMentionsFile } from '../tax/localized-mentions';
 import { CountryReportingObligationFile } from '../reporting/schema';
 import { CountryDomesticReverseChargeFile } from '../domestic-reverse-charge/schema';
 import { CountryFieldOverlayFile } from '../country-fields/schema';
@@ -47,6 +48,7 @@ export interface ComposedCountryView {
   channelPolicy?: CountryChannelPolicyFile;
   retention?: CountryRetentionFile;
   mentions?: CountryMentionsFile;
+  localizedMentions?: CountryLocalizedMentionsFile;
   reporting?: CountryReportingObligationFile;
   domesticReverseCharge?: CountryDomesticReverseChargeFile;
   countryFields?: CountryFieldOverlayFile;
@@ -67,6 +69,7 @@ export const COMPOSED_COUNTRY_SECTION_KEYS: ReadonlyArray<keyof Omit<ComposedCou
   'channelPolicy',
   'retention',
   'mentions',
+  'localizedMentions',
   'reporting',
   'domesticReverseCharge',
   'countryFields',

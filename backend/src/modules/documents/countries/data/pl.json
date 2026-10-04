@@ -691,6 +691,16 @@
     ],
     "notes": "A single text, but two distinct articles, and a period that is NOT anchored on the issuance date: see the rule's own note above for the full chain (ustawa o VAT art. 112 → Ordynacja podatkowa art. 70 § 1) and why the safe origin adopted deliberately differs from `issueDateYearEnd`. Established on 2026-09-13 with the coordinator's help (access via `api.sejm.gov.pl`, which bypasses `isap.sejm.gov.pl`'s Incapsula wall); every citation was re-checked by grep against its own retrieval before this file was written, per this module's own discipline."
   },
+  "localizedMentions": {
+    "countryCode": "PL",
+    "situations": {
+      "reverseCharge": {
+        "code": "PL_ODWROTNE_OBCIAZENIE",
+        "text": "odwrotne obciążenie",
+        "source": "Ustawa o VAT art. 106e ust. 1 pkt 18: \"[...] wyrazy „odwrotne obciążenie”\"."
+      }
+    }
+  },
   "countryFields": {
     "countryCode": "PL",
     "overlays": [
