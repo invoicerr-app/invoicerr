@@ -22,7 +22,7 @@
  *    (small-business exemption, reverse charge, export, intra-Community supply) declares it in its
  *    own `countries/data/<cc>.json` under `localizedMentions`; `localizedMention` below reads it and
  *    falls back to the generic Directive-citing `MENTION` text when the country has no entry.
- * 2. (2026-09-21) The reference's "B2C across the union" branch taxed EVERY such sale of goods in the
+ * 2. The reference's "B2C across the union" branch taxed EVERY such sale of goods in the
  *    BUYER's country, from the first euro. That is only half of Directive 2006/112/EC: art. 59c(1)
  *    disapplies art. 33(a) below a EUR 10 000 per-seller, per-calendar-year, all-member-states-combined
  *    threshold, leaving art. 32 (the seller's own country) to govern. The branch now reads the seller's
