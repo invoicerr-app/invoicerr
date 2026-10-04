@@ -231,6 +231,11 @@ const config: Config = {
           position: 'right',
         },
         {
+          href: 'https://discord.gg/6sDwqXFqnK',
+          label: 'Discord',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/sponsors/invoicerr-app',
           label: 'Sponsor',
           position: 'right',
@@ -267,6 +272,10 @@ const config: Config = {
             {
               label: 'GitHub Issues',
               href: 'https://github.com/invoicerr-app/invoicerr/issues',
+            },
+            {
+              label: 'Discord',
+              href: 'https://discord.gg/6sDwqXFqnK',
             },
           ],
         },
