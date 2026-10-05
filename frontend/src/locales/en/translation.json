@@ -2014,7 +2014,7 @@
           "endOfMonth": "End of month, from the issue date"
         }
       },
-      "capWarning": "This term is longer than the maximum businesses may agree on in your country: {{maxNetDays}} days net, or {{maxEndOfMonthDays}} days end of month. You can still save it.",
+      "capWarning": "This term exceeds the legal maximum in your country ({{maxNetDays}} days net, {{maxEndOfMonthDays}} days end of month). You can still save it.",
       "save": "Save",
       "messages": {
         "saveSuccess": "Payment terms saved",

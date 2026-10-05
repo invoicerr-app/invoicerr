@@ -1438,7 +1438,7 @@
                     "endOfMonth": "Fin de mois, depuis la date d'émission"
                 }
             },
-            "capWarning": "Ce délai dépasse le maximum que des entreprises peuvent convenir dans votre pays : {{maxNetDays}} jours nets, ou {{maxEndOfMonthDays}} jours fin de mois. Vous pouvez tout de même l'enregistrer.",
+            "capWarning": "Ce délai dépasse le maximum légal dans votre pays ({{maxNetDays}} jours nets, {{maxEndOfMonthDays}} jours fin de mois). Vous pouvez tout de même l'enregistrer.",
             "save": "Enregistrer",
             "messages": {
                 "saveSuccess": "Conditions de paiement enregistrées",

@@ -60,10 +60,6 @@ describe('resolvePaymentTerms cap, read from the country data', () => {
     expect(over.exceedsCap.quote).toBe(true);
   });
 
-  it('carries the legal source with the cap', () => {
-    expect(resolvePaymentTerms({ countryCode: CAPPED.toLowerCase() }).cap?.source).toMatch(/L\. 441-10/);
-  });
-
   it('warns nothing for a country whose data has no paymentTerms section, or no country at all', () => {
     for (const countryCode of [...UNCAPPED, 'XX', '', null, undefined]) {
       const resolved = resolvePaymentTerms({ countryCode, invoiceDueDays: 365, quoteDueDays: 365 });

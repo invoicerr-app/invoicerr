@@ -104,7 +104,7 @@ export interface Company {
 export interface ResolvedPaymentTerms {
   quote: { days: number; mode: "net" | "endOfMonth" } | null
   invoice: { days: number; mode: "net" | "endOfMonth" } | null
-  cap: { maxNetDays: number; maxEndOfMonthDays: number; source: string } | null
+  cap: { maxNetDays: number; maxEndOfMonthDays: number } | null
   exceedsCap: { quote: boolean; invoice: boolean }
 }
 

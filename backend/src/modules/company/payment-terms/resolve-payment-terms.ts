@@ -12,8 +12,6 @@ export interface DueDateTerm {
 export interface PaymentTermCap {
   maxNetDays: number;
   maxEndOfMonthDays: number;
-  /** Legal text the cap comes from, for the settings screen. */
-  source: string;
 }
 
 export interface ResolvedPaymentTerms {
@@ -56,11 +54,7 @@ export function resolvePaymentTerms(company: {
   const invoice = resolveTerm(company.invoiceDueDays, company.invoiceDueMode);
   const capFact = paymentTermsCapFor(company.countryCode ?? '');
   const cap: PaymentTermCap | null = capFact
-    ? {
-        maxNetDays: capFact.maxNetDays,
-        maxEndOfMonthDays: capFact.maxEndOfMonthDays,
-        source: capFact.provenance.kind === 'legal' ? capFact.provenance.sourceText : '',
-      }
+    ? { maxNetDays: capFact.maxNetDays, maxEndOfMonthDays: capFact.maxEndOfMonthDays }
     : null;
   return { quote, invoice, cap, exceedsCap: { quote: exceeds(quote, cap), invoice: exceeds(invoice, cap) } };
 }

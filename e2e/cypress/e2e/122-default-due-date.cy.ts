@@ -30,24 +30,29 @@ function openCreateWizard(typeId: "quote" | "invoice") {
 }
 
 function pickCurrencyAndContinue() {
-	cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
-	cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
-	cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
+	cy.pickDocumentFieldOption("currency", "eur");
 	cy.continueDocumentWizard();
+}
+
+function typeInLine(field: string, value: string) {
+	cy.get(`input[name="lines.0.${field}"]`).scrollIntoView().should("be.visible").clear();
+	cy.get(`input[name="lines.0.${field}"]`).type(value);
 }
 
 function fillOneLineAndReachRecap(typeId: "quote" | "invoice") {
 	cy.get('[data-cy="document-field-lines-add-row"]').click();
 	cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
-	cy.get('input[name="lines.0.description"]').type("Consulting", { force: true });
-	cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("1", { force: true });
-	cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("100", { force: true });
+	typeInLine("description", "Consulting");
+	typeInLine("quantity", "1");
+	typeInLine("unitPrice", "100");
 	if (typeId === "invoice") {
 		// Only the invoice requires a unit and a VAT rate on its lines.
-		cy.get('input[name="lines.0.unit"]').type("unit", { force: true });
+		typeInLine("unit", "unit");
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
-			.click({ force: true });
+			.scrollIntoView()
+			.should("be.visible")
+			.click();
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
 			.first()
@@ -154,7 +159,10 @@ describe("Default due date", () => {
 		configureTerms({});
 		cy.visit("/settings/paymentTerms", { timeout: 20000 });
 		cy.get('[data-cy="payment-terms-invoice-days-input"]', { timeout: 15000 }).type("90");
-		cy.get('[data-cy="payment-terms-invoice-cap-warning"]').should("be.visible");
+		cy.get('[data-cy="payment-terms-invoice-cap-warning"]')
+			.should("be.visible")
+			.and("contain.text", "60 days net")
+			.and("contain.text", "45 days end of month");
 		cy.get('[data-cy="payment-terms-quote-cap-warning"]').should("not.exist");
 
 		cy.get('[data-cy="payment-terms-invoice-days-input"]').clear();
@@ -173,7 +181,7 @@ describe("Default due date", () => {
 			.its("body")
 			.should((terms) => {
 				expect(terms.invoice).to.deep.eq({ days: 90, mode: "endOfMonth" });
-				expect(terms.quote).to.eq(null);
+				expect(terms.quote).to.be.null;
 				expect(terms.exceedsCap.invoice).to.eq(true);
 			});
 	});

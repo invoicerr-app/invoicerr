@@ -51,12 +51,12 @@ function TermSection({
   draft,
   cap,
   onChange,
-}: {
+}: Readonly<{
   termKey: TermKey
   draft: TermDraft
   cap: ResolvedPaymentTerms["cap"]
   onChange: (next: TermDraft) => void
-}) {
+}>) {
   const { t } = useTranslation()
   const invalid = Number.isNaN(parseDays(draft.days))
   return (
@@ -112,13 +112,10 @@ function TermSection({
       {cap && exceedsCap(draft, cap) && (
         <Alert variant="warning" data-cy={`payment-terms-${termKey}-cap-warning`}>
           <AlertDescription>
-            <p>
-              {t("settings.paymentTerms.capWarning", {
-                maxNetDays: cap.maxNetDays,
-                maxEndOfMonthDays: cap.maxEndOfMonthDays,
-              })}
-            </p>
-            {cap.source && <p className="mt-1 text-xs opacity-80">{cap.source}</p>}
+            {t("settings.paymentTerms.capWarning", {
+              maxNetDays: cap.maxNetDays,
+              maxEndOfMonthDays: cap.maxEndOfMonthDays,
+            })}
           </AlertDescription>
         </Alert>
       )}
