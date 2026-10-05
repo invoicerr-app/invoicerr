@@ -451,6 +451,94 @@ describe("Correct — the screen, browser level", () => {
 		});
 	});
 
+	it("FR company on an ISSUED invoice with two lines: the credit note opens with every original line checked, and unchecking one still saves a partial credit note", () => {
+		setInvoiceTransport("email");
+		const dates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+		const twoLines = (clientId: string) => {
+			const data = invoiceData(clientId, dates);
+			data.lines.push({
+				description: "Formation",
+				quantity: 2,
+				unit: "day",
+				unitPrice: 500,
+				vatRate: "20",
+			});
+			return data;
+		};
+
+		createClient("Client Avoir Partiel SARL").then((clientId) => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data: twoLines(clientId) },
+			}).then((saved) => {
+				const invoiceId = saved.body?.document?.id as string;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: invoiceId, data: twoLines(clientId) },
+				}).then(() => {
+					openCorrectionDialog(invoiceId);
+					cy.get(
+						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
+					).click();
+					cy.location("pathname", { timeout: 10000 }).should(
+						"eq",
+						"/documents/credit-note",
+					);
+					cy.pickToday('[data-cy="document-field-issueDate-input"]');
+					cy.continueDocumentWizard();
+
+					const rows =
+						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]';
+					cy.get(rows, { timeout: 10000 }).should("have.length", 2);
+					cy.get(rows).each(($box) => {
+						expect($box).to.be.checked;
+					});
+
+					cy.get(rows).first().uncheck({ force: true });
+					cy.continueDocumentWizard();
+					cy.continueDocumentWizard();
+
+					cy.intercept(
+						"POST",
+						`${api}/api/documents/types/credit-note/actions/save-draft`,
+					).as("savePartialCreditNote");
+					cy.get('[data-cy="document-action-save-draft"]')
+						.scrollIntoView()
+						.click();
+					cy.wait("@savePartialCreditNote").then((interception) => {
+						expect(interception.response?.statusCode).to.be.oneOf([200, 201]);
+						const creditNoteId = interception.response?.body?.document
+							?.id as string;
+						cy.request({
+							url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
+						})
+							.its("body.data.correctedLines")
+							.should("have.length", 1);
+					});
+				});
+			});
+		});
+	});
+
+	it("FR company on a VALIDATED (numbered, not sent) invoice: the correction button is offered", () => {
+		const dates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+		createClient("Client Valide SARL").then((clientId) => {
+			createInvoiceDraft(clientId, dates).then((invoiceId) => {
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/validate`,
+					body: { documentId: invoiceId, data: invoiceData(clientId, dates) },
+				}).then((res) => {
+					expect(res.body?.document?.status).to.eq("validated");
+					openCorrectionDialog(invoiceId);
+					cy.get('[data-cy="document-correction-dialog"]').should("be.visible");
+				});
+			});
+		});
+	});
+
 	/**
 	 * Issue #554: the dialog used to print the catalog's own raw `provenance.sourceText` (research
 	 * notes, mostly in French mixed with foreign-language legal quotations) and the backend's own
