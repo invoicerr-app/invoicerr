@@ -766,6 +766,26 @@
       }
     ]
   },
+  "localizedMentions": {
+    "countryCode": "IT",
+    "situations": {
+      "reverseCharge": {
+        "code": "IT_INVERSIONE_CONTABILE",
+        "text": "inversione contabile",
+        "source": "DPR 633/1972 art. 21 comma 6-bis lett. a): \"[...] con l'annotazione «inversione contabile»\"."
+      },
+      "exportGoods": {
+        "code": "IT_OPERAZIONE_NON_IMPONIBILE_EXPORT",
+        "text": "operazione non imponibile",
+        "source": "DPR 633/1972 art. 21 comma 6 lett. b): \"operazioni non imponibili di cui agli articoli 8, 8-bis, 9 e 38-quater, con l'annotazione «operazione non imponibile»\"."
+      },
+      "intraComm": {
+        "code": "IT_OPERAZIONE_NON_IMPONIBILE_ICS",
+        "text": "operazione non imponibile",
+        "source": "D.L. 331/1993 art. 46 comma 2: \"[...] con l'indicazione, in luogo dell'ammontare dell'imposta, che si tratta di operazione non imponibile [...]\"."
+      }
+    }
+  },
   "domesticReverseCharge": {
     "countryCode": "IT",
     "categories": [
@@ -869,7 +889,7 @@
           "sourceCheckedAt": "2026-09-13"
         },
         "validUntil": "2026-12-31",
-        "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above — see that category's own `notes` for the exact quoted sentence and citation trail. Two distinct lettere combined into one fact because they were both amendments extending the SAME original mechanism (d-bis added the base GHG-quota case, d-ter its own extension to other compliance units and gas/electricity certificates) and are read together on the statute's own page — contrast `tax/tax-engine.ts`'s own `LOCALIZED_MENTION.exportGoods`/`intraComm` for Italy, which are correctly kept SEPARATE because those rest on two different STATUTES, not two adjacent lettere of the same comma. `it-` prefix omitted deliberately: this key is shared with DE (§ 13b Abs. 2 Nr. 6), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l), GHG allowances only — PT's own retrieved text does not extend to gas/electricity certificates the way IT/DE/FR's do; see PT's own fact for that narrower scope)."
+        "notes": "Same retrieval as `investment-gold` above; same DPR 633/1972 art. 17 comma 8 sunset as `it-mobile-network-terminal-equipment` above, see that category's own `notes` for the exact quoted sentence and citation trail. Two distinct lettere combined into one fact because they were both amendments extending the SAME original mechanism (d-bis added the base GHG-quota case, d-ter its own extension to other compliance units and gas/electricity certificates) and are read together on the statute's own page, contrast this file's own `localizedMentions.situations.exportGoods`/`intraComm`, which are correctly kept SEPARATE because those rest on two different STATUTES, not two adjacent lettere of the same comma. `it-` prefix omitted deliberately: this key is shared with DE (§ 13b Abs. 2 Nr. 6), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l), GHG allowances only, PT's own retrieved text does not extend to gas/electricity certificates the way IT/DE/FR's do; see PT's own fact for that narrower scope)."
       },
       {
         "key": "gas-and-electricity-to-reseller",

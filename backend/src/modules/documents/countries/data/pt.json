@@ -748,6 +748,21 @@
     ],
     "notes": "A single obligation identified so far for Portugal (CIVA art. 52.º, ten years). Established by the coordinator on 2026-09-13 (citation taken word for word from the tax authority's consolidated PDF); the origin axis (end of the calendar year of issuance) was added in that same session from the plain reading of « anos civis subsequentes » — no other invoice-specific retention obligation was researched beyond this article."
   },
+  "localizedMentions": {
+    "countryCode": "PT",
+    "situations": {
+      "franchise": {
+        "code": "PT_REGIME_ISENCAO",
+        "text": "IVA - regime de isenção",
+        "source": "CIVA art. 57.º n.º 2: \"As faturas emitidas pelos sujeitos passivos referidos no número anterior no exercício da sua atividade devem sempre conter a menção 'IVA - regime de isenção'.\""
+      },
+      "reverseCharge": {
+        "code": "PT_IVA_AUTOLIQUIDACAO",
+        "text": "IVA - autoliquidação",
+        "source": "CIVA art. 36.º n.º 13: \"[...] as faturas emitidas pelo transmitente dos bens ou prestador dos serviços devem conter a expressão 'IVA - autoliquidação'.\""
+      }
+    }
+  },
   "reporting": {
     "countryCode": "PT",
     "facts": [
@@ -834,7 +849,7 @@
         "notes": "Same retrieval as `waste-and-scrap-materials` above. Threshold NOT modeled: the ≤ 1 MW installed-capacity ceiling named in the quote's own text is a numeric fact this catalog's category list does not itself evaluate (same discipline as the brief's own instruction not to model thresholds). Buyer is further restricted to the class defined by art. 1.º alínea i) (not itself retrieved here) — a buyer-status test also not modeled. No equivalent found in FR/IT/DE's own retrieved text; Portugal-only key."
       }
     ],
-    "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout, 2026-09-13. All five categories are read from the CURRENT consolidated text of CIVA art. 2.º n.º 1 (the article's own 'Incidência subjectiva' body starting mid-document, NOT the earlier reproduction of the 1984 enacting Decreto-Lei's own amendment excerpt that appears near the front of the same PDF and uses '...' placeholders for unchanged text — reading that earlier excerpt instead would have been the same 'a 200 is not the document' trap this brief warned about, one directory up). CIVA art. 36.º n.º 13 (already sourced in `tax/tax-engine.ts#LOCALIZED_MENTION.reverseCharge.PT`) names these same five alíneas by cross-reference ('Nas situações previstas nas alíneas i), j), l), m) e n) do n.º 1 do artigo 2.º') — re-grepped against this file's own retrieval and matches at line 7524 of the extracted text. DELIBERATELY NOT MODELED: buyer establishment/deduction-rights tests common to alíneas i)/j)/l)/m), the ≤1MW threshold on alínea n), and the Anexo E item list behind alínea i) — see each category's own `notes` above."
+    "notes": "Retrieved curl -A \"Mozilla/5.0\" https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/Cod_download/Documents/CIVA.pdf (HTTP 200, 2 448 550 bytes, 188 pages), pdftotext -layout, 2026-09-13. All five categories are read from the CURRENT consolidated text of CIVA art. 2.º n.º 1 (the article's own 'Incidência subjectiva' body starting mid-document, NOT the earlier reproduction of the 1984 enacting Decreto-Lei's own amendment excerpt that appears near the front of the same PDF and uses '...' placeholders for unchanged text, reading that earlier excerpt instead would have been the same 'a 200 is not the document' trap this brief warned about, one directory up). CIVA art. 36.º n.º 13 (already sourced in `localizedMentions.situations.reverseCharge` in this file) names these same five alíneas by cross-reference ('Nas situações previstas nas alíneas i), j), l), m) e n) do n.º 1 do artigo 2.º'), re-grepped against this file's own retrieval and matches at line 7524 of the extracted text. DELIBERATELY NOT MODELED: buyer establishment/deduction-rights tests common to alíneas i)/j)/l)/m), the ≤1MW threshold on alínea n), and the Anexo E item list behind alínea i), see each category's own `notes` above."
   },
   "countryFields": {
     "countryCode": "PT",

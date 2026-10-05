@@ -661,6 +661,16 @@
     ],
     "notes": "Two distinct texts (UStG § 14b and AO § 147) each impose EIGHT years from the end of the calendar year of issuance — see the per-rule notes above for the demonstration that an invoice does fall under the AO's eight-year tier (Buchungsbeleg, Abs. 1 Nr. 4) and not the ten-year tier (Nr. 1/4a, reserved for books/annual accounts/customs documents). Sources consulted as RAW TEXT on 2026-09-13: gesetze-im-internet.de/ustg_1980/__14b.html and gesetze-im-internet.de/ao_1977/__147.html (both HTTP 200)."
   },
+  "localizedMentions": {
+    "countryCode": "DE",
+    "situations": {
+      "reverseCharge": {
+        "code": "DE_STEUERSCHULDNERSCHAFT",
+        "text": "Steuerschuldnerschaft des Leistungsempfängers",
+        "source": "UStG § 14a Abs. 1: \"[...] Rechnung mit der Angabe „Steuerschuldnerschaft des Leistungsempfängers“ [...]\"."
+      }
+    }
+  },
   "domesticReverseCharge": {
     "countryCode": "DE",
     "categories": [
@@ -786,7 +796,7 @@
         "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the buyer to itself be a business whose main activity in acquiring these services consists of reselling them, with only incidental own consumption (a certified buyer-status test). Shares the `telecommunications-services` key with FR (CGI art. 283, 2 octies)."
       }
     ],
-    "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200), 2026-09-13 — the same host and article family already used for `tax/tax-engine.ts#LOCALIZED_MENTION.reverseCharge.DE` (§ 14a Abs. 1/Abs. 5). DELIBERATELY EXCLUDED, whole: § 13b Abs. 2 Nr. 1 ('Werklieferungen und nicht unter Absatz 1 fallende sonstige Leistungen eines im Ausland ansässigen Unternehmers') and Nr. 5 Buchst. a) ('der in § 3g Absatz 1 Satz 1 genannten Gegenstände eines im Ausland ansässigen Unternehmers unter den Bedingungen des § 3g') are NOT declared as categories at all, even though both are part of the same Abs. 2 list every other fact in this file is drawn from: both explicitly hinge on the SUPPLIER being established ABROAD ('im Ausland ansässiger Unternehmer'), which is a cross-border fact this product's own seller-country/buyer-country model already routes through `resolve-invoice-tax.ts`'s CROSS-BORDER branch — declaring them here would double-cover a case the engine already handles differently under a DOMESTIC-only catalog. DELIBERATELY NOT MODELED, for every category that IS declared above: the buyer-status tests § 13b Abs. 5 layers onto Abs. 2's own list (an 'Unternehmer' test, a sustained-activity test evidenced by a tax-office certificate for Nr. 4/8/12, a reseller test for Nr. 5 Buchst. b, a juristische-Person-des-öffentlichen-Rechts exclusion for several) — Abs. 5 is a single long paragraph conditioning ALL of Abs. 2's Nummern on facts (the buyer's own status, sometimes evidenced by a certificate) this catalog's flat category list has no field for; and the EUR 5 000 per-transaction threshold on Nr. 10/11. Anlage 3 (Nr. 7) and Anlage 4 (Nr. 11)'s own item lists are not reproduced — see each fact's own notes."
+    "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200), 2026-09-13, the same host and article family already used for `localizedMentions.situations.reverseCharge` in this file (§ 14a Abs. 1/Abs. 5). DELIBERATELY EXCLUDED, whole: § 13b Abs. 2 Nr. 1 ('Werklieferungen und nicht unter Absatz 1 fallende sonstige Leistungen eines im Ausland ansässigen Unternehmers') and Nr. 5 Buchst. a) ('der in § 3g Absatz 1 Satz 1 genannten Gegenstände eines im Ausland ansässigen Unternehmers unter den Bedingungen des § 3g') are NOT declared as categories at all, even though both are part of the same Abs. 2 list every other fact in this file is drawn from: both explicitly hinge on the SUPPLIER being established ABROAD ('im Ausland ansässiger Unternehmer'), which is a cross-border fact this product's own seller-country/buyer-country model already routes through `resolve-invoice-tax.ts`'s CROSS-BORDER branch, declaring them here would double-cover a case the engine already handles differently under a DOMESTIC-only catalog. DELIBERATELY NOT MODELED, for every category that IS declared above: the buyer-status tests § 13b Abs. 5 layers onto Abs. 2's own list (an 'Unternehmer' test, a sustained-activity test evidenced by a tax-office certificate for Nr. 4/8/12, a reseller test for Nr. 5 Buchst. b, a juristische-Person-des-öffentlichen-Rechts exclusion for several), Abs. 5 is a single long paragraph conditioning ALL of Abs. 2's Nummern on facts (the buyer's own status, sometimes evidenced by a certificate) this catalog's flat category list has no field for; and the EUR 5 000 per-transaction threshold on Nr. 10/11. Anlage 3 (Nr. 7) and Anlage 4 (Nr. 11)'s own item lists are not reproduced, see each fact's own notes."
   },
   "countryFields": {
     "countryCode": "DE",
