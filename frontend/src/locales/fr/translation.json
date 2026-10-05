@@ -2728,7 +2728,22 @@
                                 "label": "Quantité"
                             },
                             "unit": {
-                                "label": "Unité"
+                                "label": "Unité",
+                                "suggestedValues": {
+                                    "C62": "Pièce",
+                                    "HUR": "Heure",
+                                    "DAY": "Jour",
+                                    "WEE": "Semaine",
+                                    "MON": "Mois",
+                                    "ANN": "Année",
+                                    "KGM": "Kilogramme",
+                                    "GRM": "Gramme",
+                                    "LTR": "Litre",
+                                    "MTR": "Mètre",
+                                    "KMT": "Kilomètre",
+                                    "SET": "Lot",
+                                    "BX": "Boîte"
+                                }
                             },
                             "unitPrice": {
                                 "label": "Prix unitaire"

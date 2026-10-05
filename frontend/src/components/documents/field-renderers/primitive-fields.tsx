@@ -156,11 +156,23 @@ function SiblingSuggestionsDatalist({
   )
 }
 
+/** The typed text of a field with fixed `suggestedValues` is shown as the entry's label and stored as its
+ *  value: picking "Day" or typing it stores the code, any other text is stored as typed. */
+function suggestedValueOf(field: FieldRendererProps["field"], typed: string): string {
+  const wanted = typed.trim().toLowerCase()
+  return field.suggestedValues?.find((entry) => entry.label.toLowerCase() === wanted)?.value ?? typed
+}
+
+function suggestedLabelOf(field: FieldRendererProps["field"], stored: string): string {
+  return field.suggestedValues?.find((entry) => entry.value === stored)?.label ?? stored
+}
+
 export function TextField({ field, name }: FieldRendererProps) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
   const suggestionsPath = siblingSuggestionsPath(field, name)
+  const fixedListId = field.suggestedValues ? `${name.replace(/\./g, "-")}-suggested` : undefined
   // A stable, collision-safe id: `name` itself is already unique per field instance (react-hook-form
   // never reuses one), just not a valid HTML id verbatim (dots).
   const datalistId = suggestionsPath ? `${name.replace(/\./g, "-")}-suggestions` : undefined
@@ -178,12 +190,20 @@ export function TextField({ field, name }: FieldRendererProps) {
           <FieldChrome field={field} required={required}>
             <BetterInput
               {...rhfField}
-              value={rhfField.value ?? ""}
+              value={suggestedLabelOf(field, rhfField.value ?? "")}
+              onChange={(event) => rhfField.onChange(suggestedValueOf(field, event.target.value))}
               disabled={readOnly}
-              list={datalistId}
+              list={datalistId ?? fixedListId}
               data-cy={`document-field-${field.key}-input`}
             />
           </FieldChrome>
+          {fixedListId && field.suggestedValues && (
+            <datalist id={fixedListId}>
+              {field.suggestedValues.map((entry) => (
+                <option key={entry.value} value={entry.label} />
+              ))}
+            </datalist>
+          )}
           {datalistId && suggestionsPath && (
             <SiblingSuggestionsDatalist
               id={datalistId}
