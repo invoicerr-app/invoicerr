@@ -451,11 +451,50 @@ describe("Correct — the screen, browser level", () => {
 		});
 	});
 
+	/** Starts the credit note from the invoice's correction dialog and lands on the "Lines" step. */
+	function startCreditNoteFromInvoice(invoiceId: string) {
+		openCorrectionDialog(invoiceId);
+		cy.get('[data-cy="document-correction-dialog"]').should("be.visible");
+		cy.get(
+			'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
+		).click();
+		cy.location("pathname", { timeout: 10000 }).should(
+			"eq",
+			"/documents/credit-note",
+		);
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+		cy.continueDocumentWizard();
+	}
+
+	/** Saves the credit note draft from the "Lines" step and reads back its `correctedLines`. */
+	function saveCreditNoteAndReadLines(invoiceId: string, expectedLines: number) {
+		cy.continueDocumentWizard();
+		cy.continueDocumentWizard();
+		cy.intercept(
+			"POST",
+			`${api}/api/documents/types/credit-note/actions/save-draft`,
+		).as("saveCreditNote");
+		cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+		cy.wait("@saveCreditNote").then((interception) => {
+			expect(interception.response?.statusCode).to.be.oneOf([200, 201]);
+			const creditNoteId = interception.response?.body?.document?.id as string;
+			cy.request({
+				url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
+			}).then((doc) => {
+				expect(doc.body.data.invoice).to.eq(invoiceId);
+				expect(doc.body.data.correctedLines).to.have.length(expectedLines);
+			});
+		});
+	}
+
+	const CORRECTED_ROWS =
+		'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]';
+	const PRE_MANDATE_DATES = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+
 	it("FR company on an ISSUED invoice with two lines: the credit note opens with every original line checked, and unchecking one still saves a partial credit note", () => {
 		setInvoiceTransport("email");
-		const dates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
-		const twoLines = (clientId: string) => {
-			const data = invoiceData(clientId, dates);
+		createClient("Client Avoir Partiel SARL").then((clientId) => {
+			const data = invoiceData(clientId, PRE_MANDATE_DATES);
 			data.lines.push({
 				description: "Formation",
 				quantity: 2,
@@ -463,77 +502,45 @@ describe("Correct — the screen, browser level", () => {
 				unitPrice: 500,
 				vatRate: "20",
 			});
-			return data;
-		};
-
-		createClient("Client Avoir Partiel SARL").then((clientId) => {
 			cy.request({
 				method: "POST",
 				url: `${api}/api/documents/types/invoice/actions/save-draft`,
-				body: { data: twoLines(clientId) },
+				body: { data },
 			}).then((saved) => {
 				const invoiceId = saved.body?.document?.id as string;
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/invoice/actions/send`,
-					body: { documentId: invoiceId, data: twoLines(clientId) },
+					body: { documentId: invoiceId, data },
 				}).then(() => {
-					openCorrectionDialog(invoiceId);
-					cy.get(
-						'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
-					).click();
-					cy.location("pathname", { timeout: 10000 }).should(
-						"eq",
-						"/documents/credit-note",
-					);
-					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard();
-
-					const rows =
-						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]';
-					cy.get(rows, { timeout: 10000 }).should("have.length", 2);
-					cy.get(rows).each(($box) => {
-						expect($box).to.be.checked;
-					});
-
-					cy.get(rows).first().uncheck({ force: true });
-					cy.continueDocumentWizard();
-					cy.continueDocumentWizard();
-
-					cy.intercept(
-						"POST",
-						`${api}/api/documents/types/credit-note/actions/save-draft`,
-					).as("savePartialCreditNote");
-					cy.get('[data-cy="document-action-save-draft"]')
-						.scrollIntoView()
-						.click();
-					cy.wait("@savePartialCreditNote").then((interception) => {
-						expect(interception.response?.statusCode).to.be.oneOf([200, 201]);
-						const creditNoteId = interception.response?.body?.document
-							?.id as string;
-						cy.request({
-							url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
-						})
-							.its("body.data.correctedLines")
-							.should("have.length", 1);
-					});
+					startCreditNoteFromInvoice(invoiceId);
+					cy.get(CORRECTED_ROWS, { timeout: 10000 })
+						.should("have.length", 2)
+						.and("be.checked");
+					cy.get(CORRECTED_ROWS).first().uncheck({ force: true });
+					saveCreditNoteAndReadLines(invoiceId, 1);
 				});
 			});
 		});
 	});
 
-	it("FR company on a VALIDATED (numbered, not sent) invoice: the correction button is offered", () => {
-		const dates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+	it("FR company on a VALIDATED (numbered, not sent) invoice: the correction button is offered, and the credit note is saved against it with every original line checked", () => {
 		createClient("Client Valide SARL").then((clientId) => {
-			createInvoiceDraft(clientId, dates).then((invoiceId) => {
+			createInvoiceDraft(clientId, PRE_MANDATE_DATES).then((invoiceId) => {
 				cy.request({
 					method: "POST",
 					url: `${api}/api/documents/types/invoice/actions/validate`,
-					body: { documentId: invoiceId, data: invoiceData(clientId, dates) },
+					body: {
+						documentId: invoiceId,
+						data: invoiceData(clientId, PRE_MANDATE_DATES),
+					},
 				}).then((res) => {
 					expect(res.body?.document?.status).to.eq("validated");
-					openCorrectionDialog(invoiceId);
-					cy.get('[data-cy="document-correction-dialog"]').should("be.visible");
+					startCreditNoteFromInvoice(invoiceId);
+					cy.get(CORRECTED_ROWS, { timeout: 10000 })
+						.should("have.length", 1)
+						.and("be.checked");
+					saveCreditNoteAndReadLines(invoiceId, 1);
 				});
 			});
 		});
