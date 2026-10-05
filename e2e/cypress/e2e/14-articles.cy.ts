@@ -37,6 +37,63 @@ function fillArticleWizard(opts: {
     cy.continueSteppedDialog('article-dialog'); // pricing -> stock (the wizard's last step)
 }
 
+const api = Cypress.env('apiUrl');
+
+/** Creates a stock-tracked article through the API and returns its id. */
+function createCatalogArticle(name: string, unitPrice: number) {
+    return cy
+        .request({
+            method: 'POST',
+            url: `${api}/api/articles`,
+            body: { name, unitPrice, vatRate: 20, quantity: 10, lowStockThreshold: 3 },
+        })
+        .then((res) => {
+            expect(res.status, 'article created').to.be.oneOf([200, 201]);
+            return res.body.id as string;
+        });
+}
+
+/** Opens the invoice wizard, fills the Details step and lands on the Lines step. */
+function openInvoiceLinesStep() {
+    cy.visit('/documents/invoice', { timeout: 20000 });
+    cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+    cy.get('[data-cy="document-form"]', { timeout: 15000 }).should('be.visible');
+    cy.pickDocumentClient();
+    cy.pickToday('[data-cy="document-field-issueDate-input"]');
+    cy.pickToday('[data-cy="document-field-dueDate-input"]');
+    cy.pickDocumentFieldOption('currency', 'eur');
+    cy.continueDocumentWizard(); // Details -> Lines
+}
+
+const lineRow = (index: number) => `[data-cy="document-field-lines-row-${index}"]`;
+
+/** Adds a line and types `search` into its Designation, leaving the catalog list open. */
+function addLineAndSearch(index: number, search: string) {
+    cy.get('[data-cy="document-field-lines-add-row"]').click();
+    cy.get(lineRow(index)).should('exist');
+    cy.get(`input[name="lines.${index}.description"]`).type(search);
+    cy.get(`${lineRow(index)} [data-cy="catalog-search-option-0"]`, { timeout: 10000 }).should('be.visible');
+}
+
+function expectLinePrefilled(index: number, name: string, unitPrice: string) {
+    cy.get(`input[name="lines.${index}.description"]`).should('have.value', name);
+    cy.get(`input[name="lines.${index}.unitPrice"]`).should('have.value', unitPrice);
+    cy.get(`${lineRow(index)} [data-cy="catalog-search-option-0"]`).should('not.exist');
+}
+
+function fillLineQuantityAndUnit(index: number) {
+    cy.get(`input[name="lines.${index}.quantity"]`).clear().type('1');
+    cy.get(`input[name="lines.${index}.unit"]`).clear().type('unit');
+}
+
+function pickLineVatRate(index: number) {
+    cy.get(`${lineRow(index)} [data-cy="document-field-vatRate-input"] button`).first().scrollIntoView().click();
+    cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should('be.visible');
+    cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
+        .first()
+        .click();
+}
+
 describe('Articles E2E', () => {
     describe('Page Load', () => {
         it('loads the articles page', () => {
@@ -222,31 +279,7 @@ describe('Articles E2E', () => {
             cy.get('[data-cy="article-dialog"]').should('not.exist');
 
             // Pick it from the catalog while creating an invoice, through the generic form.
-            cy.visit('/documents/invoice', { timeout: 20000 });
-            cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-            cy.get('[data-cy="document-form"]', { timeout: 15000 }).should('be.visible');
-
-            // The "client" reference field — same generic SearchSelect pattern every other spec in
-            // this suite uses for one (see 20-document-totals.cy.ts's own comment on why the BUTTON,
-            // not the container, is what opens the popover).
-            // Picking the client is not just a value change: the screen re-fetches its own descriptor
-            // with that client (the country field overlays depend on the buyer) and rebuilds every field
-            // node below when the answer lands. `pickDocumentClient` (support/commands.ts) waits for that
-            // rebuild AND for the picker's own teardown, so the calendar opened on the next line is not
-            // unmounted or dismissed under the command driving it.
-            cy.pickDocumentClient();
-
-            // "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the invoice wizard's own
-            // "Details" step (document-create-dialog.tsx's `buildFieldGroups`) — same fill as
-            // 30-document-xml-format.cy.ts's own Details step, needed to reach "Lines" at all.
-            cy.pickToday('[data-cy="document-field-issueDate-input"]');
-            cy.pickToday('[data-cy="document-field-dueDate-input"]');
-            cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
-            cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should(
-                'be.visible',
-            );
-            cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-            cy.continueDocumentWizard(); // Details -> Lines
+            openInvoiceLinesStep();
 
             cy.get('[data-cy="document-field-lines-add-row"]').click();
             cy.get('[data-cy="document-field-lines-row-0"]').should('exist');
@@ -292,6 +325,116 @@ describe('Articles E2E', () => {
             // line's own discount are NOT in it, so they must stay untouched by this action.
             cy.get('input[name="lines.0.quantity"]').should('have.value', '');
             cy.get('input[name="lines.0.discountPercent"]').should('have.value', '');
+        });
+    });
+    describe('Type-to-search in the line Designation', () => {
+        const stamp = Date.now();
+        const nameA = `Alpha ${stamp} Widget`;
+        const nameB = `Beta ${stamp} Gadget`;
+        let articleA: string;
+
+        before(() => {
+            cy.login();
+            createCatalogArticle(nameA, 800).then((id) => {
+                articleA = id;
+            });
+            createCatalogArticle(nameB, 450);
+        });
+
+        it('proposes catalog matches while typing, applies a pick by keyboard and by mouse, keeps free text', () => {
+            openInvoiceLinesStep();
+
+            addLineAndSearch(0, `Alpha ${stamp}`);
+            cy.get(`${lineRow(0)} [data-cy="catalog-search-option-1"]`).should('not.exist');
+            cy.get('input[name="lines.0.description"]').type('{downArrow}{enter}');
+            expectLinePrefilled(0, nameA, '800');
+            cy.get(`${lineRow(0)} [data-cy="document-field-vatRate-input"] button`).should('contain', '20');
+            fillLineQuantityAndUnit(0);
+
+            addLineAndSearch(1, `Beta ${stamp}`);
+            cy.contains(`${lineRow(1)} [data-cy="catalog-search-option-0"]`, nameB).click();
+            expectLinePrefilled(1, nameB, '450');
+            cy.get(`${lineRow(1)} [data-cy="document-field-vatRate-input"] button`).should('contain', '20');
+            fillLineQuantityAndUnit(1);
+
+            cy.get('[data-cy="document-field-lines-add-row"]').click();
+            cy.get('input[name="lines.2.description"]').type('Hand typed line');
+            cy.get(`${lineRow(2)} [data-cy="catalog-search-option-0"]`).should('not.exist');
+            cy.get('input[name="lines.2.unitPrice"]').clear().type('42');
+            fillLineQuantityAndUnit(2);
+            pickLineVatRate(2);
+
+            cy.continueDocumentWizard(); // Lines -> Options
+            cy.continueDocumentWizard(); // Options -> Summary
+
+            cy.intercept('POST', `${api}/api/documents/types/invoice/actions/save-draft`).as('saveDraft');
+            cy.get('[data-cy="document-action-save-draft"]').click();
+            cy.wait('@saveDraft').then(({ response }) => {
+                expect(response?.statusCode, 'save-draft succeeded').to.be.oneOf([200, 201]);
+                const id = response?.body?.document?.id as string;
+
+                cy.request({ url: `${api}/api/documents/${id}?typeId=invoice` })
+                    .its('body.data.lines')
+                    .then((lines: Record<string, unknown>[]) => {
+                        expect(lines).to.have.length(3);
+                        expect(lines[0]).to.deep.include({ description: nameA, unitPrice: 800, articleId: articleA });
+                        expect(lines[1]).to.deep.include({ description: nameB, unitPrice: 450 });
+                        expect(String(lines[0].vatRate)).to.match(/20|standard/i);
+                        expect(lines[2]).to.deep.include({ description: 'Hand typed line', unitPrice: 42 });
+                        expect(lines[2]).to.not.have.property('articleId');
+                    });
+            });
+        });
+
+        it('closes the list on Escape and leaves the typed text alone', () => {
+            openInvoiceLinesStep();
+
+            addLineAndSearch(0, `Alpha ${stamp}`);
+            cy.get('input[name="lines.0.description"]').type('{esc}');
+            cy.get(`${lineRow(0)} [data-cy="catalog-search-option-0"]`).should('not.exist');
+            cy.get('input[name="lines.0.description"]').should('have.value', `Alpha ${stamp}`);
+        });
+    });
+
+    describe('Catalog assist on received invoices', () => {
+        const stamp = Date.now();
+        const name = `Supplier Part ${stamp}`;
+
+        it('prefills a received invoice line from the catalog without touching stock', () => {
+            createCatalogArticle(name, 120).then((articleId) => {
+                cy.visit('/documents/received-invoice', { timeout: 20000 });
+                cy.get('[data-cy="received-invoice-upload-button"]', { timeout: 15000 }).click();
+                cy.get('[data-cy="received-invoice-upload-dropzone"]').selectFile(
+                    'cypress/fixtures/received-invoices/supplier-invoice-plain.pdf',
+                    { action: 'drag-drop' },
+                );
+                cy.get('[data-cy="document-create-dialog"]', { timeout: 15000 }).should('be.visible');
+
+                addLineAndSearch(0, `Supplier Part ${stamp}`);
+                cy.get('input[name="lines.0.description"]').type('{downArrow}{enter}');
+                expectLinePrefilled(0, name, '120');
+                cy.get('input[name="lines.0.vatRate"]').should('have.value', '20');
+
+                cy.continueDocumentWizard(); // Lines -> Options
+                cy.continueDocumentWizard(); // Options -> Summary
+
+                cy.intercept('POST', `${api}/api/documents/types/received-invoice/actions/receive`).as('receive');
+                cy.get('[data-cy="document-action-receive"]').click();
+                cy.wait('@receive').then(({ response }) => {
+                    expect(response?.statusCode, 'receive succeeded').to.be.oneOf([200, 201]);
+                    const id = response?.body?.document?.id as string;
+
+                    cy.request({ url: `${api}/api/documents/${id}?typeId=received-invoice` })
+                        .its('body.data.lines')
+                        .then((lines: Record<string, unknown>[]) => {
+                            expect(lines).to.have.length(1);
+                            expect(lines[0]).to.deep.include({ description: name, unitPrice: 120 });
+                            expect(lines[0]).to.not.have.property('articleId');
+                        });
+                });
+
+                cy.request({ url: `${api}/api/articles/${articleId}` }).its('body.quantity').should('eq', 10);
+            });
         });
     });
 });

@@ -3757,6 +3757,9 @@
     "address-autocomplete": {
       "suggestionsLabel": "Address suggestions"
     },
+    "catalog-search": {
+      "suggestionsLabel": "Catalog suggestions"
+    },
     "document-language-select": {
       "automatic": "Automatic",
       "languages": {

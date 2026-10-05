@@ -3,6 +3,7 @@ import { useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { BetterInput } from "@/components/better-input"
+import { CatalogSearchInput } from "@/components/catalog-search-input"
 import { DatePicker } from "@/components/date-picker"
 import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import {
@@ -156,7 +157,12 @@ function SiblingSuggestionsDatalist({
   )
 }
 
-export function TextField({ field, name }: FieldRendererProps) {
+export interface TextFieldCatalog {
+  entity: string
+  onSelect: (id: string) => void
+}
+
+export function TextField({ field, name, catalog }: FieldRendererProps & { catalog?: TextFieldCatalog }) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
@@ -176,13 +182,24 @@ export function TextField({ field, name }: FieldRendererProps) {
               single-child invariant). A `<datalist>` is invisible either way - only `list={id}` on
               the input itself matters for the browser to find it. */}
           <FieldChrome field={field} required={required}>
-            <BetterInput
-              {...rhfField}
-              value={rhfField.value ?? ""}
-              disabled={readOnly}
-              list={datalistId}
-              data-cy={`document-field-${field.key}-input`}
-            />
+            {catalog ? (
+              <CatalogSearchInput
+                {...rhfField}
+                entity={catalog.entity}
+                onCatalogSelect={catalog.onSelect}
+                value={rhfField.value ?? ""}
+                disabled={readOnly}
+                data-cy={`document-field-${field.key}-input`}
+              />
+            ) : (
+              <BetterInput
+                {...rhfField}
+                value={rhfField.value ?? ""}
+                disabled={readOnly}
+                list={datalistId}
+                data-cy={`document-field-${field.key}-input`}
+              />
+            )}
           </FieldChrome>
           {datalistId && suggestionsPath && (
             <SiblingSuggestionsDatalist

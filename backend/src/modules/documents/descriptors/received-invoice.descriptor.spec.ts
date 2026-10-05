@@ -145,3 +145,19 @@ describe('received-invoice.descriptor — passes validateLifecycle and has the d
     });
   });
 });
+
+describe('received-invoice.descriptor: catalog assist on lines', () => {
+  const lines = () => buildReceivedInvoiceDescriptor().fields.find((f) => f.key === 'lines');
+
+  it('prefills description, unit price and VAT rate from the article catalog', () => {
+    expect(lines()?.prefillFrom).toEqual({
+      entity: 'article',
+      map: { description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+    });
+  });
+
+  it('never maps articleId, so a received invoice line cannot be attributed to stock', () => {
+    expect(Object.keys(lines()?.prefillFrom?.map ?? {})).not.toContain('articleId');
+    expect(lines()?.fields?.map((f) => f.key)).not.toContain('articleId');
+  });
+});

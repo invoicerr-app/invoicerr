@@ -39,9 +39,17 @@ accepted quote into an invoice and sending that invoice decrements stock exactly
 invoice's own send - never at the quote's.
 :::
 
-## Using an article in a quote or invoice
+## Using an article in a line
 
-While editing line items on a quote or invoice, use the **Add from catalog...** picker next to **Add Item** and select an article. It adds a new line pre-filled with the article's Name, Description, Type, Unit Price, and VAT Rate — adjust the quantity or any field before saving, the catalog article itself is left untouched.
+Each line has a **Designation** field. Start typing in it and the catalog articles whose name matches are listed under the field. Pick one with the mouse, or with the Up and Down arrow keys followed by Enter, and the line is filled with the article's Name, Unit Price and VAT Rate. Escape closes the list. Quantity and every other field stay yours to adjust, and the catalog article itself is left untouched.
+
+You never have to pick anything: if you ignore the list, whatever you typed is kept as a free-text line.
+
+The **From catalog** button on each line opens the same catalog as a picker, for browsing instead of typing. It applies the same values.
+
+### Received invoices
+
+The lines of a received invoice get the same help: typing in **Designation** or using **From catalog** copies the article's Name, Unit Price and VAT Rate into the line. The line is not linked to the article, so recording a received invoice never changes the article's stock.
 
 ## First use
 

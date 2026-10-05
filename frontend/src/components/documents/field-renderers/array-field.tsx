@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { fetchPrefillFields, useReferenceSearch } from "@/hooks/queries"
 
+import { type TextFieldCatalog, TextField } from "./primitive-fields"
 import type { FieldRendererProps } from "./registry"
 
 /**
@@ -66,6 +67,24 @@ export function coercePrefillValue(
   return String(value)
 }
 
+/** The row values a catalog pick maps onto, or null when the entity has nothing to copy. */
+async function resolvePrefillValues(
+  entity: string,
+  id: string,
+  map: Record<string, string>,
+  rowFields: DocumentFieldDescriptor[],
+): Promise<Record<string, unknown> | null> {
+  const sourceFields = await fetchPrefillFields(entity, id)
+  if (!sourceFields) return null
+
+  const values: Record<string, unknown> = {}
+  for (const [rowKey, sourceKey] of Object.entries(map)) {
+    const targetField = rowFields.find((rowField) => rowField.key === rowKey)
+    values[rowKey] = coercePrefillValue(targetField, sourceFields[sourceKey])
+  }
+  return values
+}
+
 interface RowPrefillPickerProps {
   arrayFieldKey: string
   rowIndex: number
@@ -106,15 +125,8 @@ function RowPrefillPicker({
     if (!id) return
     // A provider with no `getFields` (most reference entities) resolves this to null — the button
     // still opened the picker, it simply has nothing to copy over. Never a crash either way.
-    const sourceFields = await fetchPrefillFields(entity, id)
-    if (!sourceFields) return
-
-    const values: Record<string, unknown> = {}
-    for (const [rowKey, sourceKey] of Object.entries(map)) {
-      const targetField = rowFields.find((rowField) => rowField.key === rowKey)
-      values[rowKey] = coercePrefillValue(targetField, sourceFields[sourceKey])
-    }
-    onPrefill(values)
+    const values = await resolvePrefillValues(entity, id, map, rowFields)
+    if (values) onPrefill(values)
   }
 
   return (
@@ -144,6 +156,8 @@ interface LineRowCardProps {
   /** The "fill from catalog" picker, when the array field declares `prefillFrom` — rendered inside
    *  this card, above the designation row, rather than threading that whole feature down here. */
   prefillSlot?: React.ReactNode
+  /** Makes the designation field search the catalog as the user types. */
+  designationCatalog?: TextFieldCatalog
   /** Issue #468 (point 3): disables the remove button. Individual row FIELDS disable themselves
    *  generically through `DocumentFormReadOnlyProvider` (they render through `DocumentField`, same as
    *  every top-level field) - only this component's own button needs the flag explicitly. */
@@ -168,6 +182,7 @@ function LineRowCard({
   onRemove,
   removeLabel,
   prefillSlot,
+  designationCatalog,
   readOnly = false,
 }: LineRowCardProps) {
   const { control, watch } = useFormContext()
@@ -202,11 +217,20 @@ function LineRowCard({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         {headField && (
           <div className="w-full sm:min-w-0 sm:flex-1">
-            <DocumentField
-              field={headField}
-              name={`${rowPath}.${headField.key}`}
-              documentTypeId={documentTypeId}
-            />
+            {designationCatalog && headField.kind === "text" ? (
+              <TextField
+                field={headField}
+                name={`${rowPath}.${headField.key}`}
+                documentTypeId={documentTypeId}
+                catalog={designationCatalog}
+              />
+            ) : (
+              <DocumentField
+                field={headField}
+                name={`${rowPath}.${headField.key}`}
+                documentTypeId={documentTypeId}
+              />
+            )}
           </div>
         )}
         <div className="flex items-center justify-end gap-2 sm:mt-1 sm:shrink-0">
@@ -268,6 +292,11 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
   const readOnly = useDocumentFormReadOnly()
 
   const emptyRow = Object.fromEntries(rowFields.map((rowField) => [rowField.key, undefined]))
+  const applyPrefill = (index: number, values: Record<string, unknown>) => {
+    for (const [rowKey, value] of Object.entries(values)) {
+      setValue(`${name}.${index}.${rowKey}`, value, { shouldDirty: true, shouldValidate: true })
+    }
+  }
   const arrayError = (errors as Record<string, { message?: string }>)[name]?.message
 
   return (
@@ -302,16 +331,25 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
                   map={field.prefillFrom.map}
                   rowFields={rowFields}
                   disabled={readOnly}
-                  onPrefill={(values) => {
-                    for (const [rowKey, value] of Object.entries(values)) {
-                      setValue(`${name}.${index}.${rowKey}`, value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  }}
+                  onPrefill={(values) => applyPrefill(index, values)}
                 />
               )
+            }
+            designationCatalog={
+              field.prefillFrom
+                ? {
+                    entity: field.prefillFrom.entity,
+                    onSelect: async (id) => {
+                      const values = await resolvePrefillValues(
+                        field.prefillFrom!.entity,
+                        id,
+                        field.prefillFrom!.map,
+                        rowFields,
+                      )
+                      if (values) applyPrefill(index, values)
+                    },
+                  }
+                : undefined
             }
           />
         ))}
