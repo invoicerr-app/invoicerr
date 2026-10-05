@@ -13,8 +13,8 @@ import { RenderLanguage } from './supported-languages';
  * This is a THIRD place, distinct from both:
  *  - the per-locale `translation.json` files under `frontend/src/locales` (`t()`), which only ever
  *    reach the SPA screen — no code path from a PDF/email render ever imports i18next or reads them;
- *  - the country-mandated wordings in `mentions/data/*.json` and `tax/tax-engine.ts`'s own
- *    `LOCALIZED_MENTION` table, which are statutory text selected by COUNTRY, never by this recipient
+ *  - the country-mandated wordings in `mentions/data/*.json` and each country's `localizedMentions`
+ *    section in `countries/data/*.json`, which are statutory text selected by COUNTRY, never by this recipient
  *    language (see those files' own headers — this dictionary must never be reached for by anything
  *    that resolves a mention).
  *

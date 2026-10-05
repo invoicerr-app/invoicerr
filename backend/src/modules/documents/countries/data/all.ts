@@ -43,6 +43,7 @@ import { assertValidVatCurrencyRule } from '../../vat-currency/schema';
 import { assertValidChannelPolicyFact } from '../../transports/channel-policy/schema';
 import { assertValidRetentionRule } from '../../archive/retention/schema';
 import { assertValidMentionRule } from '../../mentions/schema';
+import { assertValidLocalizedMentions } from '../../tax/localized-mentions';
 import { assertValidReportingObligationFact } from '../../reporting/schema';
 import { assertValidDomesticReverseChargeCategory } from '../../domestic-reverse-charge/schema';
 import { assertValidCountryFields } from '../../country-fields/schema';
@@ -217,6 +218,16 @@ function validateMentionsSection(
   }
 }
 
+function validateLocalizedMentionsSection(
+  localizedMentions: ComposedCountryView['localizedMentions'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!localizedMentions) return;
+  assertSectionCountryCode(localizedMentions, 'localizedMentions', ctx);
+  assertValidLocalizedMentions(localizedMentions, `${filePath}#localizedMentions`);
+}
+
 function validateReportingSection(
   reporting: ComposedCountryView['reporting'],
   ctx: LoadContext,
@@ -294,6 +305,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateChannelPolicySection(parsed.channelPolicy, ctx, filePath);
   validateRetentionSection(parsed.retention, ctx, filePath);
   validateMentionsSection(parsed.mentions, ctx, filePath);
+  validateLocalizedMentionsSection(parsed.localizedMentions, ctx, filePath);
   validateReportingSection(parsed.reporting, ctx, filePath);
   validateDomesticReverseChargeSection(parsed.domesticReverseCharge, ctx, filePath);
   validateCountryFieldsSection(parsed.countryFields, ctx, filePath);

@@ -10,7 +10,7 @@
  * `tax-engine.ts`, `resolve-invoice-tax.ts` or the frontend reads it yet — see this directory's own
  * `data/all.ts` header and `DESIGN.md` (this same directory) for what a FUTURE wave still has to wire:
  * the `country-fields/` overlay a line would use to pick a category, the new `DocumentLine` field and
- * `domesticVat` branch `tax-engine.ts` would need, and the new `LOCALIZED_MENTION` situation key each
+ * `domesticVat` branch `tax-engine.ts` would need, and the new `localizedMentions` situation key each
  * country's own mention would resolve through.
  *
  * Same "a country is data" provenance discipline as `country-policy/schema.ts`'s own
