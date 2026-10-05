@@ -539,7 +539,7 @@ describe("Correct — the screen, browser level", () => {
 					cy.get(CORRECTED_ROWS, { timeout: 10000 })
 						.should("have.length", 2)
 						.and("be.checked");
-					cy.get(CORRECTED_ROWS).first().uncheck({ force: true });
+					cy.get(CORRECTED_ROWS).first().scrollIntoView().should("be.visible").and("be.enabled").uncheck();
 					saveCreditNoteAndReadLines(invoiceId, 1);
 				});
 			});
