@@ -1910,7 +1910,8 @@
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
       "branding": "Branding",
-      "billing": "Subscription"
+      "billing": "Subscription",
+      "paymentTerms": "Payment terms"
     },
     "branding": {
       "title": "Branding",
@@ -1989,6 +1990,35 @@
       },
       "messages": {
         "exportError": "Export failed"
+      }
+    },
+    "paymentTerms": {
+      "title": "Payment terms",
+      "description": "The due date a new quote or invoice starts with, counted from its issue date. You can still change it on each document.",
+      "quote": {
+        "title": "Quotes",
+        "description": "Due date proposed on a new quote."
+      },
+      "invoice": {
+        "title": "Invoices",
+        "description": "Due date proposed on a new invoice."
+      },
+      "form": {
+        "days": "Number of days",
+        "daysPlaceholder": "No default",
+        "daysHint": "Leave empty to keep the due date blank.",
+        "daysInvalid": "Enter a whole number of days between 0 and 365.",
+        "mode": "Counted",
+        "modes": {
+          "net": "Net, from the issue date",
+          "endOfMonth": "End of month, from the issue date"
+        }
+      },
+      "capWarning": "This term is longer than the maximum businesses may agree on in your country: {{maxNetDays}} days net, or {{maxEndOfMonthDays}} days end of month. You can still save it.",
+      "save": "Save",
+      "messages": {
+        "saveSuccess": "Payment terms saved",
+        "saveError": "Failed to save the payment terms"
       }
     },
     "dataExport": {

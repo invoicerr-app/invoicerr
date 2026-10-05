@@ -37,7 +37,7 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 Click **Add New** and fill in:
 
 - **Client** (required)
-- **Date** and **Due date** (both required)
+- **Date** and **Due date** (both required). The due date is filled in as soon as you pick the date, from your [payment terms](../settings/payment-terms.md); you can still change it
 - **Currency** (required)
 - **Origin document** and **Corrects invoice** (optional) — links back to the quote/invoice this one was raised from, or the invoice it corrects
 - **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in

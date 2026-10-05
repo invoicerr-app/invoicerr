@@ -25,7 +25,7 @@ There is no delete action on a quote — a client can also **Decline** it from t
 Click **Add New** and fill in:
 
 - **Client** (required)
-- **Date** (required) and **Due date** (optional)
+- **Date** (required) and **Due date** (optional). If you set quote [payment terms](../settings/payment-terms.md), the due date is filled in as soon as you pick the date; you can still change it
 - **Currency** (required)
 - **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in
 - **Line items** — each has a Designation, Quantity, Unit price, and VAT rate, plus a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)

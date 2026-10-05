@@ -20,6 +20,8 @@ vi.mock("@/hooks/queries", () => ({
   useResolveActionParamsDefaults: vi.fn(),
 }))
 
+vi.mock("@/hooks/queries/use-payment-terms", () => ({ usePaymentTerms: vi.fn(() => ({ data: undefined })) }))
+
 import {
   useDocumentType,
   useReferenceFields,

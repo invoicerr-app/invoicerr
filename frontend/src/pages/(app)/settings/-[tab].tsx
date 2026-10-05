@@ -3,6 +3,7 @@ import {
   Armchair,
   Banknote,
   Building2,
+  CalendarClock,
   CreditCard,
   FileSpreadsheet,
   FileText,
@@ -57,6 +58,7 @@ import { LogsSettings } from "./_components/logs.settings"
 import MailSettings from "./_components/mail.settings"
 import MembersSettings from "./_components/members.settings"
 import PaymentsSettings from "./_components/payments.settings"
+import PaymentTermsSettings from "./_components/payment-terms.settings"
 import RecurringSettings from "./_components/recurring.settings"
 import SeatsSettings from "./_components/seats.settings"
 import SigningCertificatesSettings from "./_components/signing-certificates.settings"
@@ -75,6 +77,7 @@ type TabId =
   | "branding"
   | "billing"
   | "recurring"
+  | "paymentTerms"
   | "payments"
   | "customFields"
   | "expenseCategories"
@@ -110,7 +113,7 @@ interface TabGroup {
 }
 
 /**
- * The 21 tabs in the six groups the flat list already implied (company identity · invoicing rules ·
+ * The 22 tabs in the six groups the flat list already implied (company identity · invoicing rules ·
  * sending and legal compliance · people and access · developer surface · the irreversible corner).
  * Order inside a group runs from the everyday to the rare. This is the ONE declaration both the
  * desktop rail and the mobile picker are drawn from.
@@ -142,6 +145,13 @@ const TAB_GROUPS: TabGroup[] = [
     id: "invoicing",
     tabs: [
       { value: "recurring", labelKey: "settings.tabs.recurring", icon: Repeat },
+      {
+        value: "paymentTerms",
+        labelKey: "settings.tabs.paymentTerms",
+        labelDefault: "Payment terms",
+        icon: CalendarClock,
+        adminOnly: true,
+      },
       {
         value: "payments",
         labelKey: "settings.tabs.payments",
@@ -234,6 +244,7 @@ const CONTENT: Record<TabId, ComponentType> = {
   branding: BrandingSettings,
   billing: BillingSettings,
   recurring: RecurringSettings,
+  paymentTerms: PaymentTermsSettings,
   payments: PaymentsSettings,
   customFields: CustomFieldsSettings,
   expenseCategories: ExpenseCategoriesSettings,

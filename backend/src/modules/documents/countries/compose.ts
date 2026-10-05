@@ -33,6 +33,7 @@ import { CountryDomesticReverseChargeFile } from '../domestic-reverse-charge/sch
 import { CountryFieldOverlayFile } from '../country-fields/schema';
 import { CountryContentRequirementsFile } from '../content-requirements/schema';
 import { B2gRoutingRuleFact } from '../b2g-routing/schema';
+import { CountryPaymentTermsFile } from '../payment-terms/schema';
 
 /** One composed view per country, one optional field per existing catalog: see this module's own
  *  header. A field is present if and only if that catalog's own `data/<cc>.json` exists for this
@@ -54,6 +55,7 @@ export interface ComposedCountryView {
   countryFields?: CountryFieldOverlayFile;
   contentRequirements?: CountryContentRequirementsFile;
   b2gRouting?: B2gRoutingRuleFact;
+  paymentTerms?: CountryPaymentTermsFile;
 }
 
 /** Every section key `ComposedCountryView` declares besides `countryCode` itself, in the same order
@@ -75,6 +77,7 @@ export const COMPOSED_COUNTRY_SECTION_KEYS: ReadonlyArray<keyof Omit<ComposedCou
   'countryFields',
   'contentRequirements',
   'b2gRouting',
+  'paymentTerms',
 ];
 
 /** One composed view per country with a `countries/data/<cc>.json` file: see this module's own
