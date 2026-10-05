@@ -172,7 +172,7 @@ export function TextField({ field, name }: FieldRendererProps) {
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
   const suggestionsPath = siblingSuggestionsPath(field, name)
-  const fixedListId = field.suggestedValues ? `${name.replace(/\./g, "-")}-suggested` : undefined
+  const fixedListId = field.suggestedValues ? `${name.replaceAll(".", "-")}-suggested` : undefined
   // A stable, collision-safe id: `name` itself is already unique per field instance (react-hook-form
   // never reuses one), just not a valid HTML id verbatim (dots).
   const datalistId = suggestionsPath ? `${name.replace(/\./g, "-")}-suggestions` : undefined

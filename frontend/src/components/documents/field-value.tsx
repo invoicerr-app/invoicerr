@@ -97,8 +97,9 @@ export function DocumentFieldValue({ field, value, data }: DocumentFieldValuePro
 
   switch (field.kind) {
     case "text": {
-      const suggested = field.suggestedValues?.find((entry) => entry.value === value)
-      return <span>{suggested?.label ?? String(value)}</span>
+      const text = typeof value === "string" ? value : JSON.stringify(value)
+      const suggested = field.suggestedValues?.find((entry) => entry.value === text)
+      return <span>{suggested?.label ?? text}</span>
     }
 
     case "longText":

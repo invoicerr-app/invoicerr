@@ -22,11 +22,11 @@ function startInvoiceAtLines() {
 function addLine(index: number, unit: string) {
 	cy.get('[data-cy="document-field-lines-add-row"]').click();
 	cy.get(row(index)).should("exist");
-	cy.get(`input[name="lines.${index}.description"]`).type(`Line ${index}`, { force: true });
-	cy.get(`input[name="lines.${index}.quantity"]`).clear({ force: true }).type("2", { force: true });
-	cy.get(`input[name="lines.${index}.unit"]`).type(unit, { force: true });
-	cy.get(`input[name="lines.${index}.unitPrice"]`).clear({ force: true }).type("50", { force: true });
-	cy.get(`${row(index)} [data-cy="document-field-vatRate-input"] button`).first().click({ force: true });
+	cy.get(`input[name="lines.${index}.description"]`).type(`Line ${index}`);
+	cy.get(`input[name="lines.${index}.quantity"]`).clear().type("2");
+	cy.get(`input[name="lines.${index}.unit"]`).type(unit);
+	cy.get(`input[name="lines.${index}.unitPrice"]`).clear().type("50");
+	cy.get(`${row(index)} [data-cy="document-field-vatRate-input"] button`).first().click();
 	cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 	cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
 		.first()
@@ -81,7 +81,7 @@ describe("Invoice line `unit` picklist and VAT rate label", () => {
 		startInvoiceAtLines();
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		const trigger = `${row(0)} [data-cy="document-field-vatRate-input"] button`;
-		cy.get(trigger).first().click({ force: true });
+		cy.get(trigger).first().click();
 
 		cy.get('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]').then(($options) => {
 			const longest = [...$options].reduce((a, b) => (b.textContent!.length > a.textContent!.length ? b : a));
