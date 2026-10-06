@@ -22,6 +22,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     real download, verified by its own response headers/body, not merely a click that fires.
  */
 
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 function createUsdClient() {
@@ -38,7 +40,7 @@ function createUsdClient() {
 				country: "France",
 				currency: "USD",
 				isActive: true,
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

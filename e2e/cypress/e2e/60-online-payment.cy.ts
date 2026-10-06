@@ -28,6 +28,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    instead observed via `cy.intercept` (a spy, never a mocked response — the request still hits the
  *    real backend).
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 const STRIPE_SECRET_KEY = "sk_test_e2e_fake_secret_key";
@@ -61,7 +63,7 @@ function createClient(name: string, email: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.its("body.id");

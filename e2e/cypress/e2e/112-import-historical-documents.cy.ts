@@ -20,6 +20,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * settings form (simple text/date inputs, no risk driving them), the import dialog's upload step (a
  * real file input), the CSV import's real preview, and every detail-page assertion/screenshot.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const appOrigin = Cypress.config("baseUrl");
 
@@ -45,7 +47,7 @@ function createClient(name: string, contactEmail: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

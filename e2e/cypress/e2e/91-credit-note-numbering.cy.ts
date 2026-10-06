@@ -24,6 +24,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     starting point) does NOT number it retroactively - `numbering.onlyFrom: ['draft']`'s own
  *     guarantee (descriptors/types.ts) - it stays "Issued without a number" even once "sent" again.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const appOrigin = Cypress.config("baseUrl");
 
@@ -43,7 +45,7 @@ function createClient(name: string, contactEmail: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

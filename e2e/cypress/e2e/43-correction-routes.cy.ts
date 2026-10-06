@@ -26,6 +26,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * to duplicate the full PL issuance that 44 already covers). Last describe of the last
  * numbered file in the suite: the switch does not contaminate any other spec.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 /**
@@ -67,7 +69,7 @@ function createClient(name: string) {
 				country: "France",
 				currency: "EUR",
 				isActive: true,
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

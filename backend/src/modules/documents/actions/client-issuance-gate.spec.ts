@@ -2,6 +2,11 @@ import { vi, type Mock } from 'vitest';
 
 import prisma from '@/prisma/prisma.service';
 
+import {
+  ISSUABLE_CLIENT_FIELDS,
+  NAME_ONLY_CLIENT_FIELDS,
+  createTestCompany,
+} from '../__tests__/issuable-client';
 import * as b2gRouting from '../b2g-routing/b2g-routing';
 import { seedCountryIdentifierRequirements } from '../country-identifiers/seed';
 import * as countryPolicy from '../country-policy/country-policy';
@@ -22,15 +27,13 @@ import { registerQuoteActions } from './quote-actions';
 import * as vatCurrencyIssuance from '../vat-currency/vat-currency-issuance';
 import * as applyStockOnIssuance from '../stock/apply-stock-on-issuance';
 
-vi.mock('../persistence');
-vi.mock('../transports/company-transport');
-vi.mock('../country-policy/country-policy');
-vi.mock('../transports/channel-policy/mandate');
-vi.mock('../b2g-routing/b2g-routing');
-vi.mock('../numbering/take-number');
 vi.mock('../tax/load-and-resolve');
-
-const RESOLVED_COUNTRY = 'FR';
+vi.mock('../numbering/take-number');
+vi.mock('../b2g-routing/b2g-routing');
+vi.mock('../transports/channel-policy/mandate');
+vi.mock('../country-policy/country-policy');
+vi.mock('../transports/company-transport');
+vi.mock('../persistence');
 
 function documentFor(clientId: string, typeId: 'invoice' | 'quote', status: string) {
   return {
@@ -92,35 +95,14 @@ describe('issuing an invoice requires a complete client; a quote does not', () =
 
   beforeAll(async () => {
     await seedCountryIdentifierRequirements(prisma);
-    const company = await prisma.company.create({
-      data: {
-        name: 'Issuance Gate Co',
-        foundedAt: new Date('2020-01-01'),
-        address: '1 Test Street',
-        postalCode: '75001',
-        city: 'Paris',
-        country: 'France',
-        countryCode: RESOLVED_COUNTRY,
-        phone: '+33100000000',
-        email: `issuance-gate-${Date.now()}-${Math.random()}@example.com`,
-      },
-    });
+    const company = await createTestCompany('Issuance Gate Co');
     seededCompanyId = company.id;
     const incomplete = await prisma.client.create({
-      data: { companyId: company.id, name: 'Name Only SARL', country: 'France', countryCode: 'FR' },
+      data: { companyId: company.id, name: 'Name Only SARL', ...NAME_ONLY_CLIENT_FIELDS },
     });
     incompleteId = incomplete.id;
     const complete = await prisma.client.create({
-      data: {
-        companyId: company.id,
-        name: 'Complete SARL',
-        country: 'France',
-        countryCode: 'FR',
-        address: '2 Rue Complète',
-        postalCode: '75002',
-        city: 'Paris',
-        partyIdentifiers: { create: { scheme: 'LEGAL_ID', value: '123456789' } },
-      },
+      data: { companyId: company.id, name: 'Complete SARL', ...ISSUABLE_CLIENT_FIELDS },
     });
     completeId = complete.id;
   });
@@ -132,20 +114,20 @@ describe('issuing an invoice requires a complete client; a quote does not', () =
   afterEach(() => vi.resetAllMocks());
 
   beforeEach(() => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('DE');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
-      (_companyId: string, data: Record<string, unknown>) =>
-        Promise.resolve({ data, crossBorder: false, warnings: [] }),
+    vi.mocked(countryPolicy.resolveCompanyCountryCode).mockResolvedValue('DE');
+    vi.mocked(mandate.activeChannelMandateForOperation).mockReturnValue(undefined);
+    vi.mocked(companyTransport.getCompanyInvoiceTransportId).mockResolvedValue('email');
+    vi.mocked(taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany).mockImplementation(
+      async (_companyId, data) => ({ data, crossBorder: false, warnings: [] }) as never,
     );
-    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
-      applies: false,
-      missingIdentifierSchemes: [],
-    });
-    vi.spyOn(atcudIssuance, 'attachAtcudToNumberedDocument').mockResolvedValue(undefined);
-    vi.spyOn(vatCurrencyIssuance, 'attachVatNationalCurrencyToNumberedDocument').mockResolvedValue(undefined);
-    vi.spyOn(applyStockOnIssuance, 'applyStockOnIssuance').mockResolvedValue(undefined);
+    vi.mocked(b2gRouting.resolveClientB2gRouting).mockResolvedValue({ applies: false } as never);
+    for (const [module, name] of [
+      [atcudIssuance, 'attachAtcudToNumberedDocument'],
+      [vatCurrencyIssuance, 'attachVatNationalCurrencyToNumberedDocument'],
+      [applyStockOnIssuance, 'applyStockOnIssuance'],
+    ] as const) {
+      vi.spyOn(module, name as never).mockResolvedValue(undefined as never);
+    }
   });
 
   it('Validate is refused for a client with no address, city or catalog-required identifier, naming each', async () => {

@@ -26,6 +26,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  d) a SENT quote (never locked, unlike a) and b)): "save-draft" still succeeds, and the screen
  *     still offers it with no locked notice at all.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const appOrigin = Cypress.config("baseUrl");
 
@@ -49,7 +51,7 @@ function createClient(name: string, contactEmail: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {
@@ -431,7 +433,7 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				postalCode: "75003",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 			failOnStatusCode: false,
 		}).then((created) => {

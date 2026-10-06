@@ -21,6 +21,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * the delivery), and against the real render pipeline in
  * `backend/src/modules/documents/totals/linked-credit-note.spec.ts`.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 /** 2 x 300.00 at 10% off, 20% VAT: net 540.00, VAT 108.00, gross 648.00. */
@@ -43,7 +45,7 @@ function createClient() {
 				postalCode: "69002",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

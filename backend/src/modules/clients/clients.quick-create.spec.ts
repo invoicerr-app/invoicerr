@@ -1,7 +1,6 @@
 /**
- * `ClientsService` constructed DIRECTLY against real Prisma, same convention as
- * `clients.identifier-pattern.spec.ts`: a client created with only a name and a country is stored
- * without an address, and completing it later keeps everything already on file.
+ * A client created with only a name and a country is stored without an address, and completing it
+ * later keeps everything already on file. Real Prisma, no Nest.
  */
 import { vi } from 'vitest';
 
@@ -9,39 +8,19 @@ vi.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: vi.fn(),
 }));
 
-import { ClientsService } from './clients.service';
-import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
-
-const fakeWebhookDispatcher = {
-  dispatch: vi.fn().mockResolvedValue(undefined),
-} as unknown as WebhookDispatcherService;
-
-const fakeVatValidator: VatValidationPort = {
-  validate: vi.fn().mockResolvedValue({ status: 'VALID', checkedAt: new Date(), source: 'eu-vies' }),
-};
+import {
+  NAME_ONLY_CLIENT_FIELDS,
+  createClientsServiceForTest,
+  createTestCompany,
+} from '../documents/__tests__/issuable-client';
 
 describe('ClientsService - a client created with a name and a country only', () => {
+  const service = createClientsServiceForTest();
   let companyId: string;
-  let service: ClientsService;
 
   beforeAll(async () => {
-    const company = await prisma.company.create({
-      data: {
-        name: 'Quick Create Co',
-        foundedAt: new Date('2020-01-01'),
-        address: '1 Test Street',
-        postalCode: '75001',
-        city: 'Paris',
-        country: 'France',
-        countryCode: 'FR',
-        phone: '+33100000000',
-        email: `quick-create-${Date.now()}-${Math.random()}@example.com`,
-      },
-    });
-    companyId = company.id;
-    service = new ClientsService(fakeWebhookDispatcher, fakeVatValidator);
+    companyId = (await createTestCompany('Quick Create Co')).id;
   });
 
   afterAll(async () => {
@@ -54,23 +33,17 @@ describe('ClientsService - a client created with a name and a country only', () 
       address: '',
       postalCode: '',
       city: '',
-      country: 'France',
-      countryCode: 'FR',
-      isActive: true,
+      ...NAME_ONLY_CLIENT_FIELDS,
     } as never);
 
     const row = await prisma.client.findUniqueOrThrow({ where: { id: created.id } });
-    expect(row.address).toBeNull();
-    expect(row.postalCode).toBeNull();
-    expect(row.city).toBeNull();
+    expect([row.address, row.postalCode, row.city]).toEqual([null, null, null]);
   });
 
   it('can be completed later without losing what was already on file', async () => {
     const created = await service.createClient(companyId, {
       name: 'Completed Later SARL',
-      country: 'France',
-      countryCode: 'FR',
-      isActive: true,
+      ...NAME_ONLY_CLIENT_FIELDS,
     } as never);
 
     await service.editClientsInfo(companyId, {
@@ -79,18 +52,10 @@ describe('ClientsService - a client created with a name and a country only', () 
       address: '2 Rue Complète',
       postalCode: '75002',
       city: 'Paris',
-      country: 'France',
-      countryCode: 'FR',
-      isActive: true,
+      ...NAME_ONLY_CLIENT_FIELDS,
     } as never);
 
     const row = await prisma.client.findUniqueOrThrow({ where: { id: created.id } });
-    expect(row).toMatchObject({
-      name: 'Completed Later SARL',
-      address: '2 Rue Complète',
-      postalCode: '75002',
-      city: 'Paris',
-      country: 'France',
-    });
+    expect(row).toMatchObject({ name: 'Completed Later SARL', address: '2 Rue Complète', city: 'Paris' });
   });
 });

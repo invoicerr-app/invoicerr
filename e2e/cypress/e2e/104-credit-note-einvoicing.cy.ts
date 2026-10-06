@@ -12,6 +12,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *  b) a LEGACY credit note (issued before #471, so "sent" with no number) gets NO file: 409.
  *  c) a FREE credit note (no invoice, so no buyer) gets no file either: 400, saying why.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 function createClient() {
@@ -30,7 +32,7 @@ function createClient() {
 				postalCode: "69001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

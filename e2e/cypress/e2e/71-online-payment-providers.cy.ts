@@ -29,6 +29,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *    `paypal-provider.ts`'s own header on why capture is triggered from the approval event rather than
  *    a bespoke "return" endpoint.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 const MOLLIE_API_KEY = "test_e2e_fake_api_key";
@@ -72,7 +74,7 @@ function createClient(name: string, email: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
-				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.its("body.id");
