@@ -39,8 +39,8 @@ export function classifyCountryDrift<Row extends { countryCode: string }>(
 
   return {
     inSync: added.length === 0 && changed.length === 0 && removed.length === 0,
-    addedCountries: added.sort(byCodeUnit),
-    changedCountries: changed.sort(byCodeUnit),
-    removedCountries: removed.sort(byCodeUnit),
+    addedCountries: added.toSorted(byCodeUnit),
+    changedCountries: changed.toSorted(byCodeUnit),
+    removedCountries: removed.toSorted(byCodeUnit),
   };
 }
