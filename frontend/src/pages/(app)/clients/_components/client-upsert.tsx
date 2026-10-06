@@ -35,7 +35,11 @@ import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import {
+  type IdentifierRequirement,
+  identifierHelpText,
+  useRequiredIdentifiers,
+} from "@/hooks/use-required-identifiers"
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -471,12 +475,11 @@ function FiscalStep({
   requiredIdentifiers,
   requiredIdentifiersReason,
   catalogRequirements,
-  countryCode,
   canLookupScheme,
   onCompanyLookup,
   companyLookupLoading,
   lookupIdentifierLabel,
-}: {
+}: Readonly<{
   form: UseFormReturn<FieldValues>
   isGovernment: boolean
   b2gRule: B2gRoutingRule | null | undefined
@@ -487,12 +490,11 @@ function FiscalStep({
   // which also mixes in B2G-only requirements. Used only to tell, by reference, which entry in
   // `requiredIdentifiers` is actually catalog-sourced and should get the translated help text.
   catalogRequirements: IdentifierRequirement[] | undefined
-  countryCode: string | undefined
   canLookupScheme: (scheme: string) => boolean
   onCompanyLookup: (value: string | undefined, scheme?: LookupScheme) => void | Promise<void>
   companyLookupLoading: boolean
   lookupIdentifierLabel: string | undefined
-}) {
+}>) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-cy="client-form-fiscal">
@@ -592,16 +594,7 @@ function FiscalStep({
             const current = form.watch("identifiers" as never) || []
             const formIndex = (current as { scheme: string }[]).findIndex((i) => i.scheme === req.scheme)
             if (formIndex < 0) return null
-            // Same guard as company.settings.tsx/onboarding.tsx (issue #563): a requirement sourced
-            // straight from the country-identifiers catalog (`req` is one of the objects
-            // `requiredIdentifiersResult.requirements` itself returned) shows a curated, translated
-            // help text, falling back to nothing rather than the catalog's own raw developer note.
-            // A B2G-only requirement (its `helpText` is the B2G rule's own `why`, a different
-            // catalog entirely) is shown as-is.
-            const isCatalogSourced = catalogRequirements?.includes(req)
-            const helpText = isCatalogSourced
-              ? t(`settings.identifiers.help.${countryCode}.${req.scheme}`, "")
-              : req.helpText
+            const helpText = identifierHelpText(req, catalogRequirements, t)
             return (
               <FormField
                 key={req.scheme}
@@ -1716,7 +1709,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           requiredIdentifiers={requiredIdentifiers}
           requiredIdentifiersReason={requiredIdentifiersReason}
           catalogRequirements={requiredIdentifiersResult?.requirements}
-          countryCode={countryCodeValue}
           canLookupScheme={canLookupScheme}
           onCompanyLookup={onCompanyLookup}
           companyLookupLoading={companyLookupLoading}

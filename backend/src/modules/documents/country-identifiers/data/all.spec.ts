@@ -217,7 +217,7 @@ describe('country-identifiers/data — the shipped DE and PT files', () => {
     expect(regex.test('DE123456789')).toBe(true); // DE + 9 digits
     expect(regex.test('DE12345')).toBe(false); // too short
     expect(regex.test('FR123456789')).toBe(false); // wrong country prefix
-    expect(vat.helpText).toMatch(/DE \+ 9 digits/);
+    expect(vat.helpText).toMatch(/DE followed by 9 digits/);
   });
 
   it('the FR LEGAL_ID pattern accepts SIREN (9 digits) OR SIRET (14 digits) — user decision, 2026-09-01 — still required for BOTH party types', () => {

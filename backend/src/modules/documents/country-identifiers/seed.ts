@@ -31,6 +31,7 @@ export interface CountryIdentifierRequirementRow {
   required: boolean;
   pattern: string | null;
   helpText: string | null;
+  helpTextKey: string | null;
   provenanceKind: string;
   sourceText: string | null;
   sourceCheckedAt: Date | null;
@@ -51,6 +52,7 @@ export const COUNTRY_IDENTIFIER_REQUIREMENT_ROW_SELECT = {
   required: true,
   pattern: true,
   helpText: true,
+  helpTextKey: true,
   provenanceKind: true,
   sourceText: true,
   sourceCheckedAt: true,
@@ -98,6 +100,7 @@ export function rowFor(countryCode: string, fact: IdentifierSchemeFact): Country
     required: fact.required,
     pattern: fact.pattern ?? null,
     helpText: fact.helpText ?? null,
+    helpTextKey: fact.helpTextKey ?? null,
     provenanceKind: fact.provenance.kind,
     sourceText: legal?.sourceText ?? null,
     sourceCheckedAt: legal ? new Date(legal.sourceCheckedAt) : null,
@@ -156,6 +159,7 @@ export async function seedCountryIdentifierRequirements(
             required: row.required,
             pattern: row.pattern,
             helpText: row.helpText,
+            helpTextKey: row.helpTextKey,
             provenanceKind: row.provenanceKind,
             sourceText: row.sourceText,
             sourceCheckedAt: row.sourceCheckedAt,

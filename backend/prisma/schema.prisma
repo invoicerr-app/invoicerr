@@ -3025,6 +3025,7 @@ model CountryIdentifierRequirement {
   pattern     String? // optional validation regex — a legal CLAIM like `required`, covered by the
   // same provenance below, never a UI-invented default
   helpText    String?
+  helpTextKey String? // frontend i18n key of the help text a form shows beside this identifier
 
   // Provenance — see country-identifiers/schema.ts's IdentifierProvenance. Exactly one of the two
   // shapes below is populated, enforced by assertValidProvenance() before a row is ever written,
