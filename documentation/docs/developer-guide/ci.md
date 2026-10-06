@@ -71,3 +71,34 @@ gate to HIGH, or dropping `ignore-unfixed`, is a deliberate follow-up once the c
 findings is known and triaged, not something to do by just editing the `severity` input.
 :::
 
+## Lighthouse CI on the frontend
+
+`lighthouse.yml` audits the logged-in screens with [`@lhci/cli`](https://github.com/GoogleChrome/lighthouse-ci).
+It brings up the same stack as the Cypress job (Postgres, Redis, the backend, the built frontend),
+seeds a test account with a company, a client, a quote and an invoice through the API
+(`.github/lighthouse/seed.sh`), signs in with a Puppeteer script (`.github/lighthouse/login.cjs`) and
+audits:
+
+- `/dashboard`
+- `/documents/invoice` and `/documents/quote` (the lists)
+- `/documents/invoice/:id` (a draft invoice, which is the invoice editor) and `/documents/quote/:id`
+- `/settings/company`
+
+The "new document" dialog opens from a button and has no URL of its own, so it cannot be audited by a
+page load.
+
+It runs when `dev` is merged into `main` (a pull request targeting `main`), and by hand: open the
+Actions tab, pick **Lighthouse CI** and use **Run workflow** on the branch you want to measure.
+
+The Performance, Accessibility, Best Practices and SEO scores, with the final URL of each page, go to
+the run summary and, on a pull request, to a single comment updated in place. The full reports are the
+`lighthouse-report` artifact.
+
+:::info[A redirect fails the job]
+Every audited page must end on the path that was requested. A redirect to the sign-in page would
+still get a score, so the job fails instead of reporting it.
+:::
+
+This is informative only: no score failing the pull request yet. Budgets (a minimum score below
+which the job fails) are a deliberate follow-up once a baseline of real scores exists, not
+something to add by just editing this file.
