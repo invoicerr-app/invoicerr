@@ -122,7 +122,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Document-action policy | `policy` | Which document **actions** (send, save-draft, …) a company of this country may run, and under what status restriction. | Yes - auto-corrected on **every boot**, in every environment (see "Boot-time self-correction" below), plus `prisma/seed.ts` on an explicit migrate/seed. |
 | B2G routing | `b2gRouting` | When this country is the **government client's** country: which transport + format, which client identifiers/document fields it needs. | Yes - `boot-upsert.ts`, unconditionally re-upserted on **every** backend boot (`OnModuleInit`). |
 | Correction routes | `correctionRoutes` | For each of the 11 canonical correction routes (credit note, corrective invoice, cancel-and-replace, …), is it `required`/`allowed`/`forbidden`/`unverified` for this country. | No - read live from the file. |
-| Local cancel (derived) | `correction-routes/cancel-policy.ts` (code, not a section) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country (a whitelist cross-checked against the `correctionRoutes` section above). | No - pure function over the section above. |
+| Local cancel | `correctionRoutes` (`locallyImplementable` / `restrictedToStatuses` on the `CANCEL_AND_REPLACE` route) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country, and from which invoice statuses. Read by `correction-routes/cancel-policy.ts`. | No - read live from the file. |
 | Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
 | Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
 | Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
@@ -518,6 +518,13 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
  fit any of the eleven, that is a change to the closed vocabulary - `CORRECTION_ROUTE_IDS` in
  `correction-routes/schema.ts` - first, never a silent extra value dropped into a country's
   section.
+- Local cancellation of an issued invoice is declared on the `CANCEL_AND_REPLACE` route itself:
+  `"locallyImplementable": true` when this app can realize it for the country, plus an optional
+  `"restrictedToStatuses": ["send_failed"]` when the law only covers some post-issuance statuses
+  (see Italy's route). Leave the flag out when the route exists in law but is realized through
+  another mechanism (Poland's corrective invoices) or is not researched: the cancel is then refused
+  with the route's own words. The loader rejects the flag on any other route, on a `forbidden` or
+  `unverified` route, and `restrictedToStatuses` without the flag.
 - `channelPolicy`'s `requirement: "mandated"` **requires** `legal` provenance and a `mandatedFrom`
  date - the schema throws at load if you mark something mandated on an `unverified` claim. If
   you're not yet confident the channel is genuinely *required* rather than merely usual, stay

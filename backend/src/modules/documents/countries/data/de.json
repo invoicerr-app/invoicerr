@@ -495,6 +495,7 @@
       {
         "routeId": "CANCEL_AND_REPLACE",
         "status": "allowed",
+        "locallyImplementable": true,
         "provenance": {
           "kind": "legal",
           "sourceText": "Ouverte, et rétroactive : « Auch der Stornierung einer Rechnung nebst Neuausstellung einer sie ersetzenden Rechnung kann eine Rückwirkung beim Vorsteuerabzug zukommen » (BFH 22/01/2020 - XI R 10/17). LIMITE : plusieurs factures pour une même opération non marquées « Duplikat » ou « Kopie » entraînent la responsabilité § 14c sur CHACUNE. Source : UStAE 15.2a Abs. 7 S. 5 ; UStAE 14c.1 Abs. 4 S. 5.",

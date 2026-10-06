@@ -568,6 +568,8 @@
       {
         "routeId": "CANCEL_AND_REPLACE",
         "status": "allowed",
+        "locallyImplementable": true,
+        "restrictedToStatuses": ["send_failed"],
         "provenance": {
           "kind": "legal",
           "sourceText": "Après scarto UNIQUEMENT (inexistant après livraison au destinataire) : si la réémission sous identité d'origine est impossible, soit nouvelle facture avec nouveaux numéro et date liée à la facture scartata « stornata con variazione contabile interna », soit numérotation sectionnelle « 1/R », « 50/R ». Source : Circolare 13/E du 02/07/2018, § 1.6 p. 12.",

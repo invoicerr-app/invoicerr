@@ -74,7 +74,66 @@ describe('resolveCancelPolicyForCountry — the per-country map', () => {
     expect(resolveCancelPolicyForCountry('Fr')).toEqual({ allowed: true });
   });
 
-  it('countriesWithLocalCancel() enumerates exactly the three whitelisted countries — the map, pinned', () => {
-    expect(new Set(countriesWithLocalCancel())).toEqual(new Set(['FR', 'DE', 'IT']));
+  it('countriesWithLocalCancel() enumerates exactly the countries whose data founds a local cancel', () => {
+    expect(countriesWithLocalCancel()).toEqual(['DE', 'FR', 'IT']);
+  });
+});
+
+/** The table this module used to hard-code, kept as test data: the data-driven resolver must give
+ *  the exact same decision for every input the old one was ever asked about. */
+const LEGACY_CANCEL_TABLE: Record<string, { expectedStatus: string; restrictedToStatuses?: string[] }> = {
+  FR: { expectedStatus: 'allowed' },
+  DE: { expectedStatus: 'allowed' },
+  IT: { expectedStatus: 'allowed', restrictedToStatuses: ['send_failed'] },
+};
+
+function legacyDecision(countryCode: string | undefined | null): {
+  allowed: boolean;
+  restrictedToStatuses?: string[];
+} {
+  const resolved = (countryCode ?? '').trim().toUpperCase();
+  const route = resolved
+    ? defaultCorrectionRoutesCatalog.fileFor(resolved)?.routes.find((r) => r.routeId === 'CANCEL_AND_REPLACE')
+    : undefined;
+  const entry = LEGACY_CANCEL_TABLE[resolved];
+  if (!route || !entry) return { allowed: false };
+  if (route.status !== entry.expectedStatus) throw new Error(`legacy table drifted for ${resolved}`);
+  return entry.restrictedToStatuses
+    ? { allowed: true, restrictedToStatuses: entry.restrictedToStatuses }
+    : { allowed: true };
+}
+
+function decisionWithoutReason(countryCode: string | undefined | null) {
+  const { reason, ...rest } = resolveCancelPolicyForCountry(countryCode);
+  return { decision: rest, hasReason: reason !== undefined };
+}
+
+describe('resolveCancelPolicyForCountry: same decisions as the legacy hard-coded table', () => {
+  const registryCountries = defaultCorrectionRoutesCatalog.countries();
+  const inputs: Array<string | undefined | null> = [
+    ...registryCountries,
+    ...registryCountries.map((countryCode) => countryCode.toLowerCase()),
+    'BE',
+    'XX',
+    '',
+    '   ',
+    undefined,
+    null,
+  ];
+
+  it('covers every country the registry knows', () => {
+    expect(registryCountries.length).toBeGreaterThan(0);
+    expect(registryCountries).toEqual(expect.arrayContaining(Object.keys(LEGACY_CANCEL_TABLE)));
+  });
+
+  it.each(inputs.map((input) => [String(input), input]))('%s', (_label, input) => {
+    const expected = legacyDecision(input);
+    const { decision, hasReason } = decisionWithoutReason(input);
+    expect(decision).toEqual(expected);
+    expect(hasReason).toBe(!expected.allowed);
+  });
+
+  it('enumerates the same countries as the legacy table', () => {
+    expect(countriesWithLocalCancel()).toEqual(Object.keys(LEGACY_CANCEL_TABLE).sort());
   });
 });
