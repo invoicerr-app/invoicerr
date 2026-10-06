@@ -518,6 +518,7 @@
         "appliesTo": "BOTH",
         "label": "NIF / NIPC (Número de Identificação Fiscal / Número de Identificação de Pessoa Coletiva)",
         "required": true,
+        "demoGenerator": { "id": "pt-nif" },
         "provenance": {
           "kind": "legal",
           "sourceText": "Os nomes, firmas ou denominações sociais e a sede ou domicílio do fornecedor de bens ou prestador de serviços e do destinatário ou adquirente sujeito passivo do imposto, bem como os correspondentes números de identificação fiscal;",
@@ -531,6 +532,7 @@
         "appliesTo": "BOTH",
         "label": "Número de Identificação Fiscal para efeitos de IVA",
         "required": false,
+        "demoGenerator": { "id": "prefixed-copy", "prefix": "PT", "source": "LEGAL_ID" },
         "provenance": {
           "kind": "legal",
           "sourceText": "Beneficiam da isenção do imposto os sujeitos passivos com sede ou domicílio em território nacional que, não praticando operações de exportação ou atividades conexas, não tenham atingido, no ano civil anterior, um volume de negócios anual em território nacional superior a 15 000 €.",

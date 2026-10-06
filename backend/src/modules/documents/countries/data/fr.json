@@ -492,6 +492,7 @@
         "appliesTo": "BOTH",
         "label": "SIREN / SIRET",
         "required": true,
+        "demoGenerator": { "id": "siret" },
         "pattern": "^\\d{9}(\\d{5})?$",
         "helpText": "9 digits (SIREN — the legal-unit number the invoice must carry) or 14 digits (SIRET — the establishment number, accepted because its own first 9 digits ARE the SIREN).",
         "provenance": {
@@ -506,6 +507,7 @@
         "appliesTo": "COMPANY",
         "label": "N° TVA intracommunautaire",
         "required": false,
+        "demoGenerator": { "id": "fr-vat-from-siren", "source": "LEGAL_ID" },
         "provenance": {
           "kind": "legal",
           "sourceText": "Le numéro individuel d'identification attribué à l'assujetti en application de l'article 286 ter du code précité et sous lequel il a effectué la livraison de biens ou la prestation de services ; […] II. – Les factures dont le montant est inférieur ou égal à 150 € hors taxe ainsi que celles établies par les assujettis bénéficiant du régime de franchise en base prévu aux articles 293 B et 293 B ter du code général des impôts […] peuvent ne pas comporter les mentions énoncées aux 2° et 12° du I du présent article.",

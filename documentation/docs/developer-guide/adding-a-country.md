@@ -536,6 +536,26 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   Narrowing the invoicing mandate does not discharge whatever DECLARATION the same law may still
   require for the cross-border operation (France's e-reporting, Italy's art. 1 comma 3-bis). That
   belongs to the `reporting` section, and neither is implemented today.
+- `identifiers` schemes may carry a `demoGenerator`, which is how the demo seed
+  (`backend/src/modules/demo/`) fills that identifier on its sample companies and clients. A scheme
+  without one stays empty on demo parties, so a country that should appear in the demo gives one to
+  every scheme its demo parties need (at least every `required` scheme that applies to companies).
+  The value names an algorithm from `DEMO_IDENTIFIER_GENERATORS` in
+  `backend/src/modules/demo/generators/identifiers.ts`, never a country:
+  - a checksum algorithm with no parameters, written `{ "id": "pl-nip" }`: `siret`, `de-ust-idnr`,
+    `it-partita-iva`, `pl-nip`, `pt-nif`;
+  - a value derived from another scheme of the same party, generated earlier in the file:
+    `{ "id": "fr-vat-from-siren", "source": "LEGAL_ID" }`, or
+    `{ "id": "prefixed-copy", "prefix": "PT", "source": "LEGAL_ID" }`;
+  - a `template` of literal text and tokens, for identifiers with no checksum: `{digits:N}` draws N
+    random digits, `{name}` inserts a variable and `{name:lastN}` its last N characters. Variables are
+    declared once on the section as `demoVariables` (`name`, integer `min` and `max`, optional
+    `padTo`) and drawn once per party, so several schemes can share them. See Algeria's file.
+
+  The demo module checks every country file when it loads: an unknown algorithm, a missing
+  parameter, a `source` not generated before it, an undeclared template variable, a required scheme
+  with no generator, or a generated sample that fails the scheme's own `pattern` all throw. A new
+  checksum algorithm goes into the registry under a name that describes the algorithm.
 - `contentRequirements` facts are **always** `legal` - there is no `unverified` escape hatch for a
   content requirement; if you can't source it yet, don't ship it.
 - `taxSystem` may omit `standardRate` for a VAT/GST country **if** the same file's own `vatRates`

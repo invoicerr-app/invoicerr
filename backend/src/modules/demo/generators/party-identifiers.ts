@@ -1,93 +1,155 @@
 /**
- * One checksum-valid identifier set per supported country, in the shape `country-identifiers/data/
- * <cc>.json` actually declares for that country (`modules/documents/country-identifiers/`):
- *  - FR: `LEGAL_ID` (SIRET, required) + `VAT` (intra-EU VAT, derived from the same SIREN).
- *  - DE: `VAT` (USt-IdNr) only.
- *  - IT: `VAT` (Partita IVA, BARE 11 digits, no "IT" prefix, matching how this codebase's own
- *    `validateItVat`/`vat-syntax.ts` dispatcher reads it and how `e2e/cypress/fixtures/scenarios.ts`
- *    stores Italian legal ids).
- *  - PL: `LEGAL_ID` (NIP, BARE 10 digits: the NIP itself carries no country prefix; the "PL" prefix
- *    only ever appears on the derived VAT-number FORM, which this catalog does not separately declare
- *    for Poland).
- *  - PT: `LEGAL_ID` (NIF/NIPC, required) + `VAT` ("PT" + the same NIF digits).
- *  - DZ: `RC`, `NIS`, `NIF`, `AI` (all four, `countries/data/dz.json (section "identifiers")`'s own four schemes,
- *    every one `required: true`). RC and AI declare no `pattern` (free text per PR #566's review,
- *    native contributor, 2026-09-30); NIF and NIS each now declare one (digits only, 15 or 20 for
- *    NIF, 15 or 18 for NIS, same source), enforced by `validate-identifier-value.ts`. No check-digit
- *    algorithm for any of the four turned up in issue #558's own research though - unlike FR/DE/IT/PL's
- *    real checksums or even PT's homegrown one (`identifiers.ts`'s own header), there is nothing to
- *    compute here. The four values below are plausible, fixed-shape demo strings that also satisfy the
- *    declared patterns - not a legal claim, same discipline `data-pools.ts`'s own DZ entry states for
- *    names and addresses.
+ * The identifiers a demo party gets, read from each country file's `identifiers` section: every scheme
+ * declaring a `demoGenerator` is filled, in file order, by the registry algorithm it names. Plans are
+ * built and checked once at load, so a bad country file fails here rather than mid-seed.
  */
 import {
-  generateDeVat,
-  generateFrIdentifiers,
-  generateItPartitaIva,
-  generatePlNip,
-  generatePtNif,
+  ComposedCountryCatalog,
+  defaultComposedCountryCatalog,
+} from '@/modules/documents/countries/registry';
+import {
+  CountryIdentifierRequirementsFile,
+  DemoIdentifierGeneratorSpec,
+  DemoIdentifierVariable,
+} from '@/modules/documents/country-identifiers/schema';
+
+import { SUPPORTED_COUNTRY_CODES, SupportedCountryCode } from './data-pools';
+import {
+  DEMO_IDENTIFIER_GENERATORS,
+  DemoIdentifierGenerator,
+  assertRenderableToken,
+  templateTokens,
 } from './identifiers';
-import { SupportedCountryCode } from './data-pools';
-import { Rng, intBetween } from './rng';
+import { Rng, createRng, intBetween } from './rng';
 
 export interface PartyIdentifierEntry {
-  scheme: 'LEGAL_ID' | 'VAT' | 'RC' | 'NIS' | 'NIF' | 'AI';
+  scheme: string;
   value: string;
 }
 
-/** Same general shape as the fixtures `e2e/cypress/e2e/113-algeria-onboarding-and-currency.cy.ts`
- *  already types by hand for its own Algerian company/client, randomized per-digit so two demo
- *  parties never collide. No checksum (see this file's own header on RC/NIS/NIF/AI). NIS and NIF are
- *  each built to exactly 15 digits, the shorter of the two lengths `countries/data/dz.json (section "identifiers")`
- *  now declares a `pattern` for (NIF `^\d{15}(\d{5})?$`, NIS `^\d{15}(\d{3})?$`, both from PR #566's
- *  review, native contributor, 2026-09-30). A demo party is always a primary establishment, never a
- *  secondary one, so the longer (20/18-digit) branch is never exercised here. */
-function generateDzIdentifiers(rng: Rng): PartyIdentifierEntry[] {
-  const digits = (count: number) => Array.from({ length: count }, () => intBetween(rng, 0, 9)).join('');
-  const wilaya = String(intBetween(rng, 1, 58)).padStart(2, '0');
-  const year = 2000 + intBetween(rng, 15, 26);
-  return [
-    { scheme: 'RC', value: `${wilaya}/00-${digits(7)}B${String(year).slice(-2)}` },
-    { scheme: 'NIS', value: `${wilaya}${digits(13)}` }, // 2 + 13 = 15 digits
-    { scheme: 'NIF', value: `000${wilaya}${digits(10)}` }, // 3 + 2 + 10 = 15 digits
-    { scheme: 'AI', value: `${wilaya}/${year}` },
-  ];
+interface PlannedScheme {
+  scheme: string;
+  spec: DemoIdentifierGeneratorSpec;
+  generator: DemoIdentifierGenerator;
+  pattern?: RegExp;
 }
+
+export interface DemoIdentifierPlan {
+  variables: DemoIdentifierVariable[];
+  schemes: PlannedScheme[];
+}
+
+const SAMPLE_SEEDS = ['demo-identifiers-check-1', 'demo-identifiers-check-2', 7, 1234];
+const SAMPLES_PER_SEED = 25;
+
+function planScheme(
+  fact: CountryIdentifierRequirementsFile['schemes'][number],
+  spec: DemoIdentifierGeneratorSpec,
+  ready: ReadonlySet<string>,
+  variableNames: ReadonlySet<string>,
+): PlannedScheme {
+  const generator = DEMO_IDENTIFIER_GENERATORS[spec.id];
+  if (!generator) throw new Error(`unknown demo generator "${spec.id}"`);
+  for (const param of generator.params) {
+    if (!spec[param]) throw new Error(`demo generator "${spec.id}" needs "${param}"`);
+  }
+  if (spec.source !== undefined && !ready.has(spec.source)) {
+    throw new Error(`source scheme "${spec.source}" must declare a demo generator earlier in the file`);
+  }
+  for (const token of templateTokens(spec.template ?? '')) assertRenderableToken(token, variableNames);
+  // Every demo party is a company.
+  if (fact.appliesTo === 'INDIVIDUAL') throw new Error('a demo generator on an INDIVIDUAL-only scheme');
+  return {
+    scheme: fact.scheme,
+    spec,
+    generator,
+    pattern: fact.pattern ? new RegExp(fact.pattern) : undefined,
+  };
+}
+
+export function generatePartyIdentifiersFromPlan(rng: Rng, plan: DemoIdentifierPlan): PartyIdentifierEntry[] {
+  const variables = new Map<string, string>();
+  for (const v of plan.variables) {
+    variables.set(v.name, String(intBetween(rng, v.min, v.max)).padStart(v.padTo ?? 0, '0'));
+  }
+  const generated = new Map<string, string>();
+  return plan.schemes.map(({ scheme, spec, generator }) => {
+    const value = generator.generate({ rng, spec, generated, variables });
+    generated.set(scheme, value);
+    return { scheme, value };
+  });
+}
+
+function assertSamplesMatchPatterns(plan: DemoIdentifierPlan): void {
+  for (const seed of SAMPLE_SEEDS) {
+    const rng = createRng(seed);
+    for (let i = 0; i < SAMPLES_PER_SEED; i++) {
+      generatePartyIdentifiersFromPlan(rng, plan).forEach(({ value }, index) => {
+        const { scheme, pattern } = plan.schemes[index];
+        if (pattern && !pattern.test(value)) {
+          throw new Error(`generated "${value}" for "${scheme}" does not match its pattern ${pattern}`);
+        }
+      });
+    }
+  }
+}
+
+export function buildDemoIdentifierPlan(file: CountryIdentifierRequirementsFile): DemoIdentifierPlan {
+  const context = `country ${file.countryCode} identifiers`;
+  try {
+    const variables = file.demoVariables ?? [];
+    for (const v of variables) {
+      if (!Number.isInteger(v.min) || !Number.isInteger(v.max) || v.min > v.max) {
+        throw new Error(`demo variable "${v.name}" needs integer min <= max`);
+      }
+    }
+    const variableNames = new Set(variables.map((v) => v.name));
+    const ready = new Set<string>();
+    const schemes: PlannedScheme[] = [];
+    for (const fact of file.schemes) {
+      if (!fact.demoGenerator) continue;
+      schemes.push(planScheme(fact, fact.demoGenerator, ready, variableNames));
+      ready.add(fact.scheme);
+    }
+    const missing = file.schemes.find(
+      (f) => f.required && f.appliesTo !== 'INDIVIDUAL' && !ready.has(f.scheme),
+    );
+    if (missing) throw new Error(`required scheme "${missing.scheme}" has no demo generator`);
+    const plan = { variables, schemes };
+    assertSamplesMatchPatterns(plan);
+    return plan;
+  } catch (error) {
+    throw new Error(`${context}: ${(error as Error).message}`);
+  }
+}
+
+export function buildDemoIdentifierPlans(
+  catalog: ComposedCountryCatalog,
+  demoCountries: readonly string[],
+): Map<string, DemoIdentifierPlan> {
+  const plans = new Map<string, DemoIdentifierPlan>();
+  for (const countryCode of new Set([...catalog.countries(), ...demoCountries])) {
+    const file = catalog.get(countryCode)?.identifiers;
+    const declaresDemo = !!file?.demoVariables || !!file?.schemes.some((f) => f.demoGenerator);
+    if (!demoCountries.includes(countryCode) && !declaresDemo) continue;
+    if (!file || !declaresDemo) throw new Error(`demo country ${countryCode} declares no demo identifier`);
+    plans.set(countryCode, buildDemoIdentifierPlan(file));
+  }
+  return plans;
+}
+
+const PLANS = buildDemoIdentifierPlans(defaultComposedCountryCatalog, SUPPORTED_COUNTRY_CODES);
 
 export function generatePartyIdentifiers(
   rng: Rng,
   countryCode: SupportedCountryCode,
 ): PartyIdentifierEntry[] {
-  switch (countryCode) {
-    case 'FR': {
-      const { siret, vat } = generateFrIdentifiers(rng);
-      return [
-        { scheme: 'LEGAL_ID', value: siret },
-        { scheme: 'VAT', value: vat },
-      ];
-    }
-    case 'DE':
-      return [{ scheme: 'VAT', value: generateDeVat(rng) }];
-    case 'IT':
-      return [{ scheme: 'VAT', value: generateItPartitaIva(rng) }];
-    case 'PL':
-      return [{ scheme: 'LEGAL_ID', value: generatePlNip(rng) }];
-    case 'PT': {
-      const nif = generatePtNif(rng);
-      return [
-        { scheme: 'LEGAL_ID', value: nif },
-        { scheme: 'VAT', value: `PT${nif}` },
-      ];
-    }
-    case 'DZ':
-      return generateDzIdentifiers(rng);
-  }
+  const plan = PLANS.get(countryCode);
+  if (!plan) throw new Error(`no demo identifier plan for ${countryCode}`);
+  return generatePartyIdentifiersFromPlan(rng, plan);
 }
 
-/** The value a document line's `vatRate` (a 'select' field, `usesVatRateCatalog: true`) must carry to
- *  resolve to this country's own STANDARD rate: every shipped `vat-rates/data/<cc>.json` names its
- *  standard-category rate `"<cc>-standard"` (lowercase), confirmed by reading all five files directly
- *  before this was written. */
+/** Every shipped `vat-rates` section names its standard-category rate `"<cc>-standard"`. */
 export function standardVatRateId(countryCode: SupportedCountryCode): string {
   return `${countryCode.toLowerCase()}-standard`;
 }

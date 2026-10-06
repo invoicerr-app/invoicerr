@@ -1,28 +1,14 @@
 /**
- * Forward generators for every checksummed national identifier the demo seed needs, one per
- * supported country (FR/DE/IT/PL/PT), each a MIRROR of this codebase's own OFFLINE validator so a
- * generated value is guaranteed to pass it:
- *
- *  - FR (SIRET + intra-EU VAT): `modules/sirene/sirene.utils.ts#isValidSiret`/`calculateFrenchVAT`.
- *  - DE (USt-IdNr): `modules/documents/tax/vat-syntax.ts#validateDeVat` (ISO 7064 Mod 11,10).
- *  - IT (Partita IVA): `vat-syntax.ts#validateItVat` (Luhn-like).
- *  - PL (NIP): `vat-syntax.ts#validateNip` (weighted mod 11).
- *  - PT (NIF/NIPC): no validator exists ANYWHERE in this codebase (confirmed by research before this
- *    file was written; `country-identifiers/validate-identifier-value.ts` skips the checksum for
- *    every scheme but the pattern regex, and `vat-syntax.ts`'s own dispatcher falls to a
- *    structural-only default for PT). `validatePtNif` below implements the standard, published
- *    Módulo 11 algorithm directly and is the only thing in this codebase (or, until now, this
- *    project's own research) that checks a PT NIF's checksum at all. `demo-mode-seed.spec.ts` proves
- *    generator and validator agree with each other, which is the strongest claim available with no
- *    third, independent implementation to cross-check against.
- *
- * `demo-mode-seed.spec.ts` runs every generator below against several seeds and asserts the result
- * passes the matching REAL validator (FR/DE/IT/PL) or this file's own `validatePtNif` (PT), the test
- * issue #533 asked for: "runs the seed with several seeds and checks every country's documents
- * validate".
+ * Forward generators for the national identifiers the demo seed fills in. Each checksummed one mirrors
+ * this codebase's own offline validator (`sirene.utils.ts`, `tax/vat-syntax.ts`) so a generated value
+ * always passes it; the PT NIF has no validator elsewhere, so `validatePtNif` below implements the
+ * published Modulo 11 algorithm. `DEMO_IDENTIFIER_GENERATORS` exposes them by algorithm id, the id a
+ * country file's identifier scheme names in its `demoGenerator`.
  */
 import { calculateFrenchVAT, isValidSiret } from '@/modules/sirene/sirene.utils';
 import { validateDeVat, validateFrVat, validateItVat, validateNip } from '@/modules/documents/tax/vat-syntax';
+
+import { DemoIdentifierGeneratorSpec } from '@/modules/documents/country-identifiers/schema';
 
 import { Rng, intBetween } from './rng';
 
@@ -45,6 +31,13 @@ export interface FrIdentifiers {
 }
 
 export function generateFrIdentifiers(rng: Rng): FrIdentifiers {
+  const siret = generateSiret(rng);
+  const siren = siret.slice(0, 9);
+  const vat = calculateFrenchVAT(siren);
+  return { siret, siren, vat };
+}
+
+export function generateSiret(rng: Rng): string {
   // Build the first 13 digits at random, then solve the 14th (an odd 0-based position, never
   // doubled, see `isValidSiret`'s own loop) so the FULL 14-digit Luhn sum is a multiple of 10.
   const first13 = randomDigits(rng, 13);
@@ -58,10 +51,7 @@ export function generateFrIdentifiers(rng: Rng): FrIdentifiers {
     sum += d;
   }
   const checkDigit = (10 - (sum % 10)) % 10;
-  const siret = digitsToString([...first13, checkDigit]);
-  const siren = siret.slice(0, 9);
-  const vat = calculateFrenchVAT(siren);
-  return { siret, siren, vat };
+  return digitsToString([...first13, checkDigit]);
 }
 
 export function assertValidFrIdentifiers({ siret, vat }: FrIdentifiers): void {
@@ -141,8 +131,7 @@ export function assertValidPlNip(value: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Portugal: NIF/NIPC, 9 digits, standard Módulo 11 (no validator exists in this codebase, see this
-// file's own header). First digit fixed to '5' (sociedade anónima / company), the documented
+// Portugal: NIF/NIPC, 9 digits, standard Módulo 11. First digit fixed to '5' (sociedade anónima / company), the documented
 // convention for a Portuguese legal-entity NIF.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -176,3 +165,74 @@ export function assertValidPtNif(value: string): void {
   const result = validatePtNif(value);
   if (!result.valid) throw new Error(`Generated an invalid PT NIF: ${value} (${result.reason})`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Registry, keyed by the algorithm id a scheme's `demoGenerator.id` names
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DemoGeneratorParam = 'source' | 'prefix' | 'template';
+
+export interface DemoGeneratorInput {
+  rng: Rng;
+  spec: DemoIdentifierGeneratorSpec;
+  /** Values already generated for the same party, by scheme. */
+  generated: ReadonlyMap<string, string>;
+  variables: ReadonlyMap<string, string>;
+}
+
+export interface DemoIdentifierGenerator {
+  params: readonly DemoGeneratorParam[];
+  generate(input: DemoGeneratorInput): string;
+}
+
+const TEMPLATE_TOKEN = /\{(\w+)(?::(\w+))?\}/g;
+
+export interface TemplateToken {
+  name: string;
+  modifier?: string;
+}
+
+export function templateTokens(template: string): TemplateToken[] {
+  return [...template.matchAll(TEMPLATE_TOKEN)].map(([, name, modifier]) => ({ name, modifier }));
+}
+
+/** Throws unless the token can be rendered: `digits:N`, or a declared variable with an optional `lastN`. */
+export function assertRenderableToken(token: TemplateToken, variableNames: ReadonlySet<string>): void {
+  if (token.name === 'digits') {
+    if (!/^[1-9]\d*$/.test(token.modifier ?? '')) throw new Error('{digits:N} needs a positive length');
+    return;
+  }
+  if (!variableNames.has(token.name)) throw new Error(`template variable "${token.name}" is not declared`);
+  if (token.modifier !== undefined && !/^last[1-9]\d*$/.test(token.modifier)) {
+    throw new Error(`unknown template modifier "${token.modifier}" on "${token.name}"`);
+  }
+}
+
+function renderTemplate({ rng, spec, variables }: DemoGeneratorInput): string {
+  return (spec.template ?? '').replace(TEMPLATE_TOKEN, (_match, name: string, modifier?: string) => {
+    if (name === 'digits') return digitsToString(randomDigits(rng, Number(modifier)));
+    const value = variables.get(name) ?? '';
+    return modifier ? value.slice(-Number(modifier.slice('last'.length))) : value;
+  });
+}
+
+function sourceValue({ spec, generated }: DemoGeneratorInput): string {
+  return generated.get(spec.source ?? '') ?? '';
+}
+
+export const DEMO_IDENTIFIER_GENERATORS: Readonly<Record<string, DemoIdentifierGenerator>> = {
+  siret: { params: [], generate: ({ rng }) => generateSiret(rng) },
+  'fr-vat-from-siren': {
+    params: ['source'],
+    generate: (input) => calculateFrenchVAT(sourceValue(input).slice(0, 9)),
+  },
+  'de-ust-idnr': { params: [], generate: ({ rng }) => generateDeVat(rng) },
+  'it-partita-iva': { params: [], generate: ({ rng }) => generateItPartitaIva(rng) },
+  'pl-nip': { params: [], generate: ({ rng }) => generatePlNip(rng) },
+  'pt-nif': { params: [], generate: ({ rng }) => generatePtNif(rng) },
+  'prefixed-copy': {
+    params: ['prefix', 'source'],
+    generate: (input) => `${input.spec.prefix}${sourceValue(input)}`,
+  },
+  template: { params: ['template'], generate: renderTemplate },
+};

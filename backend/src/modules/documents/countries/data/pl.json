@@ -455,6 +455,7 @@
         "appliesTo": "COMPANY",
         "label": "NIP",
         "required": false,
+        "demoGenerator": { "id": "pl-nip" },
         "provenance": {
           "kind": "legal",
           "sourceText": "«Art. 106e. 1. Faktura powinna zawierać: [...] 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25;»",

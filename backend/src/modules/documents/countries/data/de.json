@@ -440,6 +440,7 @@
         "appliesTo": "BOTH",
         "label": "Umsatzsteuer-Identifikationsnummer (USt-IdNr.)",
         "required": false,
+        "demoGenerator": { "id": "de-ust-idnr" },
         "pattern": "^DE\\d{9}$",
         "helpText": "German EU VAT number (DE + 9 digits) — needed to qualify as B2B for cross-border VAT treatment.",
         "provenance": {

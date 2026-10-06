@@ -425,12 +425,17 @@
   },
   "identifiers": {
     "countryCode": "DZ",
+    "demoVariables": [
+      { "name": "wilaya", "min": 1, "max": 58, "padTo": 2 },
+      { "name": "year", "min": 2015, "max": 2026 }
+    ],
     "schemes": [
       {
         "scheme": "RC",
         "appliesTo": "COMPANY",
         "label": "RC (Registre du Commerce)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}/00-{digits:7}B{year:last2}" },
         "helpText": "The trade register number every economic agent carries: always required for the seller, and for the buyer only when the buyer is itself a company (a private, final consumer is never asked for one).",
         "provenance": {
           "kind": "legal",
@@ -444,6 +449,7 @@
         "appliesTo": "COMPANY",
         "label": "NIS (Numero d'Identification Statistique)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}{digits:13}" },
         "pattern": "^\\d{15}(\\d{3})?$",
         "helpText": "The statistical identification number: same sourcing and the same seller/buyer distinction as RC above. The native contributor consulted on issue #558 described this one as only sometimes shown in practice; the decree's own text states it plainly, so this entry follows the decree.",
         "provenance": {
@@ -458,6 +464,7 @@
         "appliesTo": "COMPANY",
         "label": "NIF (Numero d'Identification Fiscale)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "000{wilaya}{digits:10}" },
         "pattern": "^\\d{15}(\\d{5})?$",
         "helpText": "The tax identification number. Not found in decree 05-468's own list of mandatory invoice mentions after a full reading of its text: this requirement rests only on the native contributor's description of current practice, not on a legal text this task read.",
         "provenance": {
@@ -471,6 +478,7 @@
         "appliesTo": "COMPANY",
         "label": "AI (Article d'Imposition)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}/{year}" },
         "helpText": "The tax-office article number a business is registered under. No legal text was found naming this requirement: it rests only on the native contributor's description of current practice.",
         "provenance": {
           "kind": "unverified",
