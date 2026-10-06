@@ -135,6 +135,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Reporting obligation | `reporting` | Whether this country requires an invoice's data to reach its tax authority after issuance, independently of how the invoice was delivered - distinct from channel policy, which is about delivery. Each fact says WHO discharges it (`dischargedBy: "provider"`, the seller itself; or `"transport"`, when the delivery channel already carries the data as a legal side effect - France's PDP for a B2B-domestic invoice) and, optionally, WHICH transactions it covers (`scope`, e.g. `"b2c"`/`"international"`/`"payments"` - absent means "every transaction", the shape Portugal's own file still uses). Only an unscoped `"provider"` fact is auto-triggered at send time; a `"transport"` fact or a scoped one is catalog data only - see `reporting/schema.ts`'s own header. | No - read live from the file. |
 | VAT national currency | `vatCurrency` | Whether this country's VAT must additionally appear converted into its own national currency when the invoice is issued in another one, and whether the taxable amount must too. | No - read live from the file. |
 | Domestic reverse charge | `domesticReverseCharge` | The statutory categories in which the buyer, not the seller, owes the VAT on a purely domestic supply. | No - read live from the file; not wired into the tax engine yet. |
+| Company lookup | `companyLookup` | Which company registry providers autofill a company or client form for this country, in the order they are tried before the worldwide directories, and the i18n key of the note shown with it. See "Company lookup" below. | No - read live from the file by `company-lookup/coverage/registry.ts`. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* the `taxSystem` section - see
@@ -554,6 +555,38 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   `dischargedBy: "transport"`, is deliberately never auto-triggered at send time (this codebase has
   no per-invoice B2B/B2C classifier yet) — it stays catalog data, read by the settings screen, until
   that wiring exists.
+
+- `companyLookup` lists provider ids (`"providers": ["fr-recherche-entreprises", "eu-vies"]`, each the
+  `id` of a provider registered in `company-lookup/registry.ts#buildDefaultProviders`) and an
+  optional `noteKey`. See "Company lookup" below.
+
+#### Company lookup
+
+The company lookup (autofill of a company or client form from a business register) reads one fact
+per country: which providers serve it, and what note the user sees about it.
+
+```json
+"companyLookup": {
+  "countryCode": "DE",
+  "providers": ["eu-vies"],
+  "noteKey": "companyLookup.notes.DE"
+}
+```
+
+- `providers` are tried in the order listed, then the worldwide directories (GLEIF, Peppol
+  Directory), which serve every country and are never listed. Put the national register first and
+  `eu-vies` after it for an EU member state.
+- `noteKey` is a key of `frontend/src/locales/en/translation.json`, under `companyLookup.notes`,
+  holding the English text; the API returns keys, never text, so the note is translated like any
+  other string. Add the English text in the same pull request.
+- A provider declares only its `id`; it never names a country. Its `supports()` checks the
+  identifier's format and asks the lookup data whether it serves the query's country.
+
+Most countries the lookup covers have no file in `countries/data/`. Their facts live in
+`backend/src/modules/company-lookup/data/coverage.json`, keyed by country code, with the same
+`providers` and `noteKey` fields. A country with its own file declares its `companyLookup` section
+there instead: the loader refuses a `coverage.json` entry for a country that has a file, so the fact
+never exists twice. Moving a country into `countries/data/` therefore means moving its entry too.
 
 ### 4. Register the file — almost always a no-op
 

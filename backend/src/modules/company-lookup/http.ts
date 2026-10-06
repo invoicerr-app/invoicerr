@@ -5,6 +5,7 @@
  * is time-boxed, non-2xx is an error (except the 404 that means "not found"),
  * and nothing here ever throws an unhandled rejection into Nest.
  */
+import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
 import { ProviderLookupError } from './types';
 
 export const DEFAULT_TIMEOUT_MS = 8000;
@@ -88,7 +89,7 @@ export function alnum(value: string): string {
 /** Strips a leading ISO country prefix from a VAT number ('FR44732829320' → '44732829320'). */
 export function stripVatPrefix(value: string, countryCode: string): string {
   const clean = alnum(value);
-  const prefix = countryCode.toUpperCase() === 'GR' ? 'EL' : countryCode.toUpperCase();
+  const prefix = defaultTaxUnionRegistry.vatPrefixFor(countryCode);
   return clean.startsWith(prefix) ? clean.slice(prefix.length) : clean;
 }
 

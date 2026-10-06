@@ -8,6 +8,7 @@
  * The endpoint answers JSONP and reports every problem — including a bad GUID — with
  * HTTP 200 and a `Message` field, so the body has to be inspected, not the status.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchText, toDate } from '../http';
 import {
   CompanyLookupCompany,
@@ -44,7 +45,6 @@ export function unwrapJsonp(body: string): any {
 export class AustraliaAbrProvider implements CompanyRegistryProvider {
   readonly id = 'au-abr';
   readonly label = 'ABN Lookup (Australian Business Register)';
-  readonly countries = ['AU'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'ABN (11 digits)';
   readonly docsUrl = 'https://abr.business.gov.au/Documentation/Default';
@@ -57,7 +57,7 @@ export class AustraliaAbrProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'AU') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return isValidAbn(query.value);
   }
 
@@ -88,7 +88,7 @@ export class AustraliaAbrProvider implements CompanyRegistryProvider {
       postalCode: data.AddressPostcode || undefined,
       state: data.AddressState || undefined,
       country: 'Australia',
-      countryCode: 'AU',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.AbnStatusEffectiveFrom),
       status: /active/i.test(data.AbnStatus ?? '') ? 'ACTIVE' : 'INACTIVE',
       vatRegistered: !!data.Gst,

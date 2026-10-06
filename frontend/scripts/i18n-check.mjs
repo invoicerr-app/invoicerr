@@ -73,6 +73,8 @@ function parseArgs(argv) {
             // backend/src/modules/plugins/plugins.service.ts sends these keys to
             // webhook-instructions-modal.tsx as plain data.
             'webhook.instructions.',
+            // backend/src/modules/company-lookup sends these keys as each country's `noteKeys`.
+            'companyLookup.notes.',
         ]
     }
     return opts

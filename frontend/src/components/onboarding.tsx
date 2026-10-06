@@ -152,6 +152,7 @@ export default function OnBoarding({
     lookup: onCompanyLookup,
     isLoading: companyLookupLoading,
     capability,
+    note: lookupNoteText,
     isAvailable: canLookupCompany,
     coverage: lookupCoverage,
     schemes: lookupSchemes,
@@ -484,7 +485,7 @@ export default function OnBoarding({
                     )}
                   </AlertTitle>
                   <AlertDescription>
-                    {capability?.note ||
+                    {lookupNoteText ||
                       t(
                         "settings.company.onboarding.identifierStep.noAutoSearchFallback",
                         "No automatic company search is available for this country on this instance — enter the details by hand.",

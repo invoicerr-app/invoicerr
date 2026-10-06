@@ -5,6 +5,7 @@
  * Docs     : https://ares.gov.cz/stranky/vyvojar-info
  * Credentials: none.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -24,7 +25,6 @@ export function isValidIco(value: string): boolean {
 export class CzechAresProvider implements CompanyRegistryProvider {
   readonly id = 'cz-ares';
   readonly label = 'ARES (Ministerstvo financí)';
-  readonly countries = ['CZ'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'IČO (8 digits) or DIČ';
   readonly docsUrl = 'https://ares.gov.cz/stranky/vyvojar-info';
@@ -37,12 +37,12 @@ export class CzechAresProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'CZ') return false;
-    return isValidIco(stripVatPrefix(query.value, 'CZ'));
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
+    return isValidIco(stripVatPrefix(query.value, query.countryCode));
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const ico = digits(stripVatPrefix(query.value, 'CZ')).padStart(8, '0');
+    const ico = digits(stripVatPrefix(query.value, query.countryCode)).padStart(8, '0');
     const data = await fetchJson<any>(`${ARES_URL}/${ico}`, { timeoutMs: this.timeoutMs });
     if (!data?.ico) return null;
 
@@ -60,7 +60,7 @@ export class CzechAresProvider implements CompanyRegistryProvider {
       city: sidlo.nazevObce,
       state: sidlo.nazevKraje,
       country: sidlo.nazevStatu ?? 'Česká republika',
-      countryCode: 'CZ',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.datumVzniku),
       status: data.datumZaniku ? 'INACTIVE' : 'ACTIVE',
       vatRegistered: data.dic ? true : null,

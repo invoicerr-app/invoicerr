@@ -80,10 +80,7 @@ export class CompanyLookupService {
 
     const providers = this.registry.forCountry(countryCode);
     if (providers.length === 0) {
-      return this.fail(
-        'UNSUPPORTED_COUNTRY',
-        this.registry.capability(countryCode).note ?? 'No registry API is available for this country',
-      );
+      return this.fail('UNSUPPORTED_COUNTRY', 'No registry API is available for this country');
     }
 
     const cacheKey = `${countryCode}:${input.scheme ?? 'AUTO'}:${value.toUpperCase()}`;

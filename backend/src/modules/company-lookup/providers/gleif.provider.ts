@@ -34,7 +34,7 @@ export function isLei(value: string): boolean {
 export class GleifProvider implements CompanyRegistryProvider {
   readonly id = 'gleif';
   readonly label = 'GLEIF (Global LEI Index)';
-  readonly countries = 'ALL' as const;
+  readonly worldwide = true;
   readonly coverage: ProviderCoverage = 'PARTIAL';
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'Registration number or LEI';

@@ -1,4 +1,5 @@
 import { CompanyLookupService } from './company-lookup.service';
+import { CompanyLookupCoverage } from './coverage/registry';
 import { CompanyLookupRegistry } from './registry';
 import {
   CompanyLookupCompany,
@@ -59,8 +60,19 @@ const acme: CompanyLookupCompany = {
   city: 'Praha',
 };
 
-function serviceWith(providers: CompanyRegistryProvider[], ttlMs = 60_000) {
-  return new CompanyLookupService(new CompanyLookupRegistry(providers), ttlMs);
+// The fakes' own country lists stand in for the lookup data.
+function coverageOf(providers: FakeProvider[]): CompanyLookupCoverage {
+  const facts: Record<string, { providers: string[] }> = {};
+  for (const provider of providers) {
+    for (const cc of provider.countries) {
+      facts[cc] = { providers: [...(facts[cc]?.providers ?? []), provider.id] };
+    }
+  }
+  return new CompanyLookupCoverage(facts);
+}
+
+function serviceWith(providers: FakeProvider[], ttlMs = 60_000) {
+  return new CompanyLookupService(new CompanyLookupRegistry(providers, coverageOf(providers)), ttlMs);
 }
 
 describe('CompanyLookupService', () => {

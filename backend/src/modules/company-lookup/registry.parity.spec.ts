@@ -1,14 +1,10 @@
 import { ISO_COUNTRY_CODES } from './data/iso-countries';
 import { buildDefaultProviders, CompanyLookupRegistry } from './registry';
-import { CountryLookupCapability } from './types';
+import { noteText } from './note-text.test-fixtures';
 
 const EXTRA_CODES = ['XI', 'QQ', '', 'fr', 'gr', 'gb', 'XYZ'];
 
 const CREDENTIAL_VARS = [...new Set(buildDefaultProviders().flatMap((p) => p.credentialEnvVars ?? []))];
-
-function noteOf(capability: CountryLookupCapability): string | undefined {
-  return capability.note;
-}
 
 function withCredentials<T>(configured: boolean, run: () => T): T {
   const saved = Object.fromEntries(CREDENTIAL_VARS.map((name) => [name, process.env[name]]));
@@ -29,7 +25,7 @@ function withCredentials<T>(configured: boolean, run: () => T): T {
 function describeCountry(registry: CompanyLookupRegistry, code: string, configured: boolean) {
   return withCredentials(configured, () => {
     const capability = registry.capability(code);
-    return { status: capability.status, coverage: capability.coverage, note: noteOf(capability) };
+    return { status: capability.status, coverage: capability.coverage, note: noteText(capability) };
   });
 }
 

@@ -33,7 +33,7 @@ interface CountryCapability {
     providers: ProviderCapability[];
     schemes: string[];
     identifierLabel?: string;
-    note?: string;
+    noteKeys: string[];
 }
 
 /** Worldwide directories: they answer for any country, so they must always be tried last. */
@@ -64,7 +64,7 @@ describe('Company lookup — capabilities', () => {
                 // Partial coverage must say so — the UI shows this note when a lookup
                 // comes up empty, so an unexplained country is a real defect.
                 if (capability.coverage === 'PARTIAL') {
-                    expect(capability.note, `${where} note`).to.be.a('string').and.not.be.empty;
+                    expect(capability.noteKeys, `${where} note`).to.be.an('array').and.not.be.empty;
                 }
 
                 const ids = capability.providers.map((p) => p.id);
