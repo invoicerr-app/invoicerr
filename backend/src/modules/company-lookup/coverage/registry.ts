@@ -73,7 +73,7 @@ export class CompanyLookupCoverage {
 
   /** Every country with at least one fact, sorted. */
   countries(): string[] {
-    return Object.keys(this.facts).sort();
+    return Object.keys(this.facts).sort((a, b) => a.localeCompare(b));
   }
 
   factsFor(countryCode: string): CompanyLookupFacts | undefined {

@@ -26,20 +26,22 @@ function fail(context: string, message: string): never {
   throw new InvalidCompanyLookupFactsError(`${context}: ${message}`);
 }
 
+function assertValidProviders(providers: unknown, context: string): void {
+  if (!Array.isArray(providers) || providers.length === 0) {
+    fail(context, '"providers" must be a non-empty array when present.');
+  }
+  for (const id of providers) {
+    if (typeof id !== 'string' || !PROVIDER_ID.test(id)) fail(context, `"${id}" is not a provider id.`);
+  }
+  if (new Set(providers).size !== providers.length) fail(context, '"providers" lists a provider twice.');
+}
+
 export function assertValidCompanyLookupFacts(facts: CompanyLookupFacts, context: string): void {
   if (!facts || typeof facts !== 'object') fail(context, 'company lookup facts must be an object.');
   const unknown = Object.keys(facts).filter((key) => !KNOWN_KEYS.has(key));
   if (unknown.length > 0) fail(context, `unknown company lookup key(s) ${unknown.join(', ')}.`);
   const { providers, noteKey } = facts;
-  if (providers !== undefined) {
-    if (!Array.isArray(providers) || providers.length === 0) {
-      fail(context, '"providers" must be a non-empty array when present.');
-    }
-    for (const id of providers) {
-      if (typeof id !== 'string' || !PROVIDER_ID.test(id)) fail(context, `"${id}" is not a provider id.`);
-    }
-    if (new Set(providers).size !== providers.length) fail(context, '"providers" lists a provider twice.');
-  }
+  if (providers !== undefined) assertValidProviders(providers, context);
   if (noteKey !== undefined && (typeof noteKey !== 'string' || !NOTE_KEY.test(noteKey))) {
     fail(context, `"noteKey" must match ${NOTE_KEY}.`);
   }
