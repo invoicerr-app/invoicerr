@@ -7,6 +7,7 @@
  * not do that for any catalog: nothing in this module is imported from outside `countries/` yet.
  */
 import { ALL_COMPOSED_COUNTRIES, ComposedCountryView } from './compose';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(views: ComposedCountryView[]): Record<string, ComposedCountryView> {
   const index: Record<string, ComposedCountryView> = {};
@@ -28,7 +29,7 @@ export class ComposedCountryCatalog {
   /** Every country code with a composed view, sorted, matching every sibling catalog's own
    *  `countries()`. */
   countries(): string[] {
-    return Object.keys(this.views).sort();
+    return Object.keys(this.views).sort(byCodeUnit);
   }
 
   /** The composed view for a country, or `undefined` if none of the 14 catalogs has any file for it

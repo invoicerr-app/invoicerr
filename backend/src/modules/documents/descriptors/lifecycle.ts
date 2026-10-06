@@ -47,6 +47,7 @@ import {
   DocumentTypeDescriptor,
   onEnterStatuses,
 } from './types';
+import { byCodeUnit } from '@/lib/compare';
 
 /** What `DocumentActionDescriptor.availableWhen` MUST equal for an action declaring `transitions` —
  *  see this file's header. 'always' wins over everything else (an action available from a brand-new
@@ -65,8 +66,8 @@ export function transitionsAvailableWhen(transitions: DocumentActionTransition[]
 function availableWhenEquals(a: 'always' | string[], b: 'always' | string[]): boolean {
   if (a === 'always' || b === 'always') return a === b;
   if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
+  const sortedA = [...a].sort(byCodeUnit);
+  const sortedB = [...b].sort(byCodeUnit);
   return sortedA.every((value, index) => value === sortedB[index]);
 }
 

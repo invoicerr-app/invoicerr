@@ -2,6 +2,7 @@ import { defaultComposedCountryCatalog } from '../../countries/registry';
 import { defaultVatRateCatalog, VatRateCatalog } from '../../vat-rates/registry';
 import { CountryTaxSystemProfile, TaxSystemSpec } from '../types';
 import { CountryTaxSystemFact } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(files: CountryTaxSystemFact[]): Record<string, CountryTaxSystemFact> {
   const index: Record<string, CountryTaxSystemFact> = {};
@@ -105,7 +106,7 @@ export class TaxSystemRegistry {
   }
 
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   /** `undefined` for a country with no known tax-system fact — deliberately NOT a fallback profile,

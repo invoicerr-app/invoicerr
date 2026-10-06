@@ -66,6 +66,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..', '..');
 const DOCUMENTS_ROOT = join(REPO_ROOT, 'backend', 'src', 'modules', 'documents');
 
+// Locale-independent order, so the generated pages are identical on every machine.
+function byCodeUnit(a, b) {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 // English only since the docs site dropped its i18n locale (2026-09-16) — see this file's own
 // header, point 1. Kept as a locale map (rather than hardcoding 'en' throughout) so every render
 // function below still takes an explicit `locale` parameter instead of silently assuming one.
@@ -93,7 +100,7 @@ function loadComposedCountryDir() {
   if (!existsSync(dir)) return {};
   const files = readdirSync(dir)
     .filter((f) => /^[a-z]{2}\.json$/.test(f))
-    .sort();
+    .sort(byCodeUnit);
   const out = {};
   for (const file of files) {
     const cc = file.slice(0, 2).toUpperCase();
@@ -1061,8 +1068,8 @@ const GLOSSARY = {
 function assertSameShape(a, b, path) {
   if (typeof a === 'function' || typeof b === 'function') return; // leaf, either side may be a template fn
   if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return; // leaf strings
-  const keysA = Object.keys(a).sort();
-  const keysB = Object.keys(b).sort();
+  const keysA = Object.keys(a).sort(byCodeUnit);
+  const keysB = Object.keys(b).sort(byCodeUnit);
   if (JSON.stringify(keysA) !== JSON.stringify(keysB)) {
     throw new Error(
       `generate-country-matrix: locale shape mismatch at "${path}" — en has [${keysA}], fr has [${keysB}].`,
@@ -1635,7 +1642,7 @@ const ALL_SOURCES = [
   contentRequirements,
   vatRates,
 ];
-const unionCountries = Array.from(new Set(ALL_SOURCES.flatMap((src) => Object.keys(src)))).sort();
+const unionCountries = Array.from(new Set(ALL_SOURCES.flatMap((src) => Object.keys(src)))).sort(byCodeUnit);
 
 const SOURCE_FILE_LABELS = [
   ['country-policy/data', countryPolicy],

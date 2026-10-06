@@ -7,6 +7,7 @@
  */
 import { rowFor, CountryIdentifierRequirementRow } from './seed';
 import { CountryIdentifierRequirementsCatalog } from './registry';
+import { byCodeUnit } from '@/lib/compare';
 
 export interface CountryIdentifierRequirementsDriftReport {
   /** true when the DB already matches `data/*.json` exactly for every country — nothing to reseed. */
@@ -44,7 +45,7 @@ function rowContentKey(row: CountryIdentifierRequirementRow): string {
 
 /** Order-independent content signature for a whole country's rows. */
 function countrySignature(rows: CountryIdentifierRequirementRow[]): string {
-  return rows.map(rowContentKey).sort().join('\n');
+  return rows.map(rowContentKey).sort(byCodeUnit).join('\n');
 }
 
 export function detectCountryIdentifierRequirementsDrift(
@@ -83,9 +84,9 @@ export function detectCountryIdentifierRequirementsDrift(
     }
   }
 
-  added.sort();
-  changed.sort();
-  removed.sort();
+  added.sort(byCodeUnit);
+  changed.sort(byCodeUnit);
+  removed.sort(byCodeUnit);
 
   return {
     inSync: added.length === 0 && changed.length === 0 && removed.length === 0,

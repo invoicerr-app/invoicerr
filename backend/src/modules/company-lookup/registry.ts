@@ -42,6 +42,7 @@ import {
   ProviderCapability,
   ProviderCoverage,
 } from './types';
+import { byCodeUnit } from '@/lib/compare';
 
 /**
  * Fallback order. A national register knows every company in its country, so it always
@@ -220,7 +221,7 @@ export class CompanyLookupRegistry {
       if (p.countries === 'ALL') continue; // worldwide providers add no country of their own
       for (const c of p.countries) countries.add(c);
     }
-    return [...countries].sort().map((cc) => this.capability(cc));
+    return [...countries].sort(byCodeUnit).map((cc) => this.capability(cc));
   }
 }
 

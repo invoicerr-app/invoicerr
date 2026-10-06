@@ -30,6 +30,7 @@ import {
 import { defaultCountryIdentifierRequirementsCatalog } from '../modules/documents/country-identifiers/registry';
 import { PrismaB2gRoutingClient, upsertB2gRoutingRules } from '../modules/documents/b2g-routing/boot-upsert';
 import { defaultB2gRoutingCatalog } from '../modules/documents/b2g-routing/registry';
+import { byCodeUnit } from '@/lib/compare';
 
 // Deliberately loosely typed, not the generated Prisma Client type — same reasoning as each
 // underlying seed/upsert function's own client interface (see their headers): an internal release
@@ -71,7 +72,7 @@ export interface CatalogReleaseSummary {
 
 function removedCountries(existingCountryCodes: string[], keptCountryCodes: readonly string[]): string[] {
   const keep = new Set(keptCountryCodes);
-  return [...new Set(existingCountryCodes)].filter((code) => !keep.has(code)).sort();
+  return [...new Set(existingCountryCodes)].filter((code) => !keep.has(code)).sort(byCodeUnit);
 }
 
 export async function releaseCatalogs(prisma: PrismaCatalogReleaseClient): Promise<CatalogReleaseSummary> {

@@ -157,12 +157,12 @@ const locales = fs
   .readdirSync(LOCALES_DIR, { withFileTypes: true })
   .filter((e) => e.isDirectory() && e.name !== SOURCE_LOCALE)
   .map((e) => e.name)
-  .sort();
+  .sort((a, b) => a.localeCompare(b));
 
 /* ---------- checks ---------- */
 
 // 1. Used keys missing from the source locale (hard failure).
-const missing = [...staticKeys.keys()].filter((k) => !enKeys.has(k)).sort();
+const missing = [...staticKeys.keys()].filter((k) => !enKeys.has(k)).sort((a, b) => a.localeCompare(b));
 
 // 2. Dead source-locale keys: not statically used, not matching a dynamic pattern, not an
 //    external key, and not present as a quoted literal anywhere in the sources
@@ -181,7 +181,7 @@ const isProtected = (key) =>
   corpus.includes(`'${key}'`) ||
   corpus.includes(`"${key}"`) ||
   corpus.includes(`\`${key}\``);
-const dead = [...enKeys].filter((k) => !isProtected(k)).sort();
+const dead = [...enKeys].filter((k) => !isProtected(k)).sort((a, b) => a.localeCompare(b));
 
 // 3. Per-locale coverage vs the source locale (warn only). A key counts as translated when it
 //    exists; identical-to-source values are reported separately (often legitimate: proper nouns…).

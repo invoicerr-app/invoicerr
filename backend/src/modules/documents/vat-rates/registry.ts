@@ -1,5 +1,6 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryVatRatesFile, VatRateFact } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(files: CountryVatRatesFile[]): Record<string, CountryVatRatesFile> {
   const index: Record<string, CountryVatRatesFile> = {};
@@ -51,7 +52,7 @@ export class VatRateCatalog {
 
   /** Country codes that have a catalog file — sorted, for stable test/iteration order. */
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   /** Every rate declared for a country, in file order. Empty for a country with no file at all — the

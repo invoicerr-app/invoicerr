@@ -1,5 +1,6 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryIdentifierRequirementsFile, IdentifierSchemeFact } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(
   files: CountryIdentifierRequirementsFile[],
@@ -63,7 +64,7 @@ export class CountryIdentifierRequirementsCatalog {
   /** Country codes that have an identifier-requirements file — sorted, for stable test/seed
    *  iteration order. */
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   /** Every identifier-scheme fact declared for a country, in file order. Empty for a country with

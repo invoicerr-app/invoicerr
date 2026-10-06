@@ -16,6 +16,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
+import { byCodeUnit } from "@/lib/compare"
 
 /**
  * Animation types and configurations
@@ -357,8 +358,8 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
 
     const arraysEqual = React.useCallback((a: string[], b: string[]): boolean => {
       if (a.length !== b.length) return false
-      const sortedA = [...a].sort()
-      const sortedB = [...b].sort()
+      const sortedA = [...a].sort(byCodeUnit)
+      const sortedB = [...b].sort(byCodeUnit)
       return sortedA.every((val, index) => val === sortedB[index])
     }, [])
 

@@ -1,3 +1,5 @@
+import { byCodeUnit } from "@/lib/compare"
+
 /**
  * "Does the form differ from what is saved?" — answered by comparing VALUES, never by
  * react-hook-form's own `formState.isDirty`. Verified live on the detail page: after
@@ -16,7 +18,7 @@ function normalize(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString()
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {}
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    for (const key of Object.keys(value as Record<string, unknown>).sort(byCodeUnit)) {
       const normalized = normalize((value as Record<string, unknown>)[key])
       if (normalized !== undefined) out[key] = normalized
     }

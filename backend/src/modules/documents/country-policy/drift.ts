@@ -13,6 +13,7 @@
  */
 import { rowFor, DocumentCountryActionRuleRow } from './seed';
 import { CountryPolicyCatalog } from './registry';
+import { byCodeUnit } from '@/lib/compare';
 
 export interface CountryPolicyDriftReport {
   /** true when the DB already matches `data/*.json` exactly for every country — nothing to reseed. */
@@ -49,7 +50,7 @@ function rowContentKey(row: DocumentCountryActionRuleRow): string {
     sourceText: row.sourceText,
     sourceCheckedAt: row.sourceCheckedAt ? row.sourceCheckedAt.toISOString() : null,
     resolutionNote: row.resolutionNote,
-    statuses: [...row.statuses].sort(),
+    statuses: [...row.statuses].sort(byCodeUnit),
     notes: row.notes,
   });
 }
@@ -57,7 +58,7 @@ function rowContentKey(row: DocumentCountryActionRuleRow): string {
 /** Order-independent content signature for a whole country's rows — sorting before joining means a
  *  different DB read order or a different file iteration order never reads as drift on its own. */
 function countrySignature(rows: DocumentCountryActionRuleRow[]): string {
-  return rows.map(rowContentKey).sort().join('\n');
+  return rows.map(rowContentKey).sort(byCodeUnit).join('\n');
 }
 
 export function detectCountryPolicyDrift(
@@ -96,9 +97,9 @@ export function detectCountryPolicyDrift(
     }
   }
 
-  added.sort();
-  changed.sort();
-  removed.sort();
+  added.sort(byCodeUnit);
+  changed.sort(byCodeUnit);
+  removed.sort(byCodeUnit);
 
   return {
     inSync: added.length === 0 && changed.length === 0 && removed.length === 0,

@@ -23,6 +23,7 @@ import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
 import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import { byCodeUnit } from '@/lib/compare';
 
 const PAGE_SIZE = 10;
 
@@ -178,7 +179,7 @@ export async function listDeclarations(
       observedAt: row.observedAt,
     })),
     pageCount: Math.ceil(total / PAGE_SIZE),
-    statusCodes: distinctRows.map((row) => row.statusCode).sort(),
+    statusCodes: distinctRows.map((row) => row.statusCode).sort(byCodeUnit),
     hasObligation: companyCountryCode ? catalog.factsFor(companyCountryCode).length > 0 : undefined,
   };
 }
