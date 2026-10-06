@@ -14,6 +14,18 @@ beforeEach(() => {
  * validation test now only fills UP TO the step that owns the field under test, since an earlier
  * step's own "Continue" already blocks before a later step ever mounts.
  */
+function expectClientDetail(label: string, value: string): void {
+	cy.get('[data-cy="client-view-dialog"]')
+		.contains("dt", label)
+		.next("dd")
+		.should("have.text", value);
+}
+
+function searchClients(term: string): void {
+	cy.visit("/clients");
+	cy.get('[data-cy="clients-search"]', { timeout: 10000 }).type(term);
+}
+
 describe("Clients E2E", () => {
 	describe("Create Clients", () => {
 		it("creates a company client", () => {
@@ -501,9 +513,9 @@ describe("Clients E2E", () => {
 			cy.visit("/clients");
 			cy.wait(2000);
 			cy.get('[data-cy="view-client-button-info@techinnovations.com"]').click();
-			cy.contains("456 Innovation Drive");
-			cy.contains("Suite 200");
-			cy.contains("CA");
+			expectClientDetail("Address", "456 Innovation Drive");
+			expectClientDetail("Address Line 2", "Suite 200");
+			expectClientDetail("State/Province", "CA");
 		});
 
 		it("creates a client with addressLine2 only (European address)", () => {
@@ -593,7 +605,7 @@ describe("Clients E2E", () => {
 			cy.wait(2000);
 
 			cy.get('[data-cy="view-client-button-info@simple.co.uk"]').click();
-			cy.contains("Building B");
+			expectClientDetail("Address Line 2", "Building B");
 		});
 	});
 
@@ -837,23 +849,15 @@ describe("Clients E2E", () => {
 
 	describe("Search Clients", () => {
 		it("searches for a client by name", () => {
-			cy.visit("/clients");
-			cy.wait(2000);
-			cy.get('input[placeholder*="earch"], input[placeholder*="echerch"]', {
-				timeout: 10000,
-			}).type("ACME");
-			cy.wait(500);
-			cy.contains("ACME Corporation");
+			searchClients("ACME");
+			cy.get('[data-cy="client-row-contact@acme.org"]').should("be.visible");
+			cy.get('[data-cy="client-row-jane.doe@freelance.org"]').should("not.exist");
 		});
 
 		it("searches for a client by email", () => {
-			cy.visit("/clients");
-			cy.wait(2000);
-			cy.get('input[placeholder*="earch"], input[placeholder*="echerch"]', {
-				timeout: 10000,
-			}).type("jane.doe");
-			cy.wait(500);
-			cy.contains("Jane");
+			searchClients("jane.doe");
+			cy.get('[data-cy="client-row-jane.doe@freelance.org"]').should("be.visible");
+			cy.get('[data-cy="client-row-contact@acme.org"]').should("not.exist");
 		});
 	});
 
@@ -862,8 +866,8 @@ describe("Clients E2E", () => {
 			cy.visit("/clients");
 			cy.wait(2000);
 			cy.get('[data-cy="view-client-button-jane.doe@freelance.org"]').click();
-			cy.contains("Jane Doe");
-			cy.contains("jane.doe@freelance.org");
+			cy.get('[data-cy="client-view-name"]').should("have.text", "Jane Doe");
+			cy.get('[data-cy="client-view-contact-0"]').should("contain.text", "jane.doe@freelance.org");
 		});
 	});
 

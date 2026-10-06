@@ -208,29 +208,29 @@ function analyzeRealTree(): { unmarked: Finding[]; staleMarkers: Marker[] } {
 describe('no undocumented companyId: null next to a logger call under backend/src', () => {
   it('every companyId: null adjacent to a logger.*() call carries an INSTANCE-LEVEL-LOG marker', () => {
     const { unmarked } = analyzeRealTree();
-    if (unmarked.length === 0) return;
 
     const report = unmarked.map((f) => `  ${f.file}:${f.line}`).join('\n');
-    throw new Error(
+    expect(
+      unmarked,
       `Found ${unmarked.length} logger.*() call passing companyId: null explicitly with no ` +
         `"// INSTANCE-LEVEL-LOG: <reason>" comment covering it:\n${report}\n\n` +
         'Fix: if this call site runs inside a company-scoped request/job, OMIT companyId entirely — it ' +
         'will inherit the active company automatically (@/lib/request-context.ts). If it is genuinely ' +
         'instance-level (no company could ever apply), add a one-line `// INSTANCE-LEVEL-LOG: <reason>` ' +
         'comment directly above the call, stating why no company could ever apply there.',
-    );
+    ).toEqual([]);
   });
 
   it('every INSTANCE-LEVEL-LOG marker still covers a real companyId: null call (catches a stale marker)', () => {
     const { staleMarkers } = analyzeRealTree();
-    if (staleMarkers.length === 0) return;
 
     const report = staleMarkers.map((m) => `  ${m.file}:${m.line}`).join('\n');
-    throw new Error(
+    expect(
+      staleMarkers,
       `Found ${staleMarkers.length} "INSTANCE-LEVEL-LOG" marker(s) with no companyId: null logger call ` +
         `near them any more — the reviewed call was removed, fixed, or moved out of reach since. Remove ` +
         `the stale marker(s):\n${report}`,
-    );
+    ).toEqual([]);
   });
 });
 
