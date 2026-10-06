@@ -5,7 +5,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * `ADDRESS_AUTOCOMPLETE_URL` has to be set on the BACKEND before it boots (it is read straight from
  * `process.env`, no DB row) - this repo's shared CI stack (`.github/workflows/cypress.yml`'s
- * `cypress-run` job) sets it to `http://127.0.0.1:41976`, the fixed port the fake Photon server below
+ * `cypress-run` job) sets it to `http://127.0.0.1:19876`, the fixed port the fake Photon server below
  * always binds to (see `cypress.config.ts`'s own header on that fake for why fixed, not ephemeral).
  * Running this spec against a DIFFERENT backend (a plain local `npm run start:test`) needs the same
  * variable exported before that command, or the "happy path" test below times out waiting for a

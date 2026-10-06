@@ -28,7 +28,7 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit
-- **Correct** (scale icon, appears once an invoice is **Sent** or **Send failed**): opens the correction routes for this invoice; see below. This is also where **cancelling** an invoice lives: an invoice that reached "Sent" is never removed, only cancelled, and only where this country's law allows it
+- **Correct** (scale icon, appears once an invoice is **Validated**, **Sent** or **Send failed**): opens the correction routes for this invoice; see below. This is also where **cancelling** an invoice lives: an invoice that reached "Sent" is never removed, only cancelled, and only where this country's law allows it
 - **Issue credit note** - start a [credit note](credit-notes.md) correcting this invoice's own lines
 - **Create receipt** (receipt icon) — generate a [receipt](receipts.md) from this invoice
 
@@ -60,9 +60,9 @@ There is no "recurring" choice at creation time. Once an invoice exists, its row
 
 ## Correcting an invoice
 
-Click the scale icon on a **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed. Each route carries a short, plain-language explanation of what it means for you and, where the law provides one, a short legal reference (for example "Art. 106j ust. 1, VAT Act"), never the raw legal research notes behind the app's own country data.
+Click the scale icon on a **Validated**, **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed. Each route carries a short, plain-language explanation of what it means for you and, where the law provides one, a short legal reference (for example "Art. 106j ust. 1, VAT Act"), never the raw legal research notes behind the app's own country data.
 
-- **Required** or **Allowed** routes are choosable. Picking one that this app implements (an internal credit note, a local cancellation, or, for Poland, a corrective invoice) takes you straight to the pre-linked screen; picking one your country's law permits but this app doesn't implement yet shows an honest "not implemented" message instead of pretending to run something.
+- **Required** or **Allowed** routes are choosable. Picking one that this app implements (an internal credit note, a local cancellation, or, for Poland, a corrective invoice) takes you straight to the pre-linked screen (for a credit note, with all of the invoice's lines already checked); picking one your country's law permits but this app doesn't implement yet shows an honest "not implemented" message instead of pretending to run something.
 - **Not established** routes are shown but not choosable: the law hasn't settled whether this country allows them.
 - Routes your country's law forbids outright are never shown. If every route for this country is forbidden, the dialog says so in one sentence instead of leaving an empty list.
 
