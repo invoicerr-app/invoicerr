@@ -259,6 +259,7 @@ describe("Quick client creation from a quote, completion required before an invo
 
 	it("refuses to Validate an invoice for that client, naming what is missing, then validates once the client is completed", () => {
 		cy.intercept("PATCH", `${api}/api/clients/*`).as("updateClient");
+		cy.intercept("GET", `${api}/api/clients/${quickClientId}`).as("editedClient");
 		cy.intercept("POST", `${api}/api/documents/types/invoice/actions/validate`).as("validateInvoice");
 
 		cy.request({
@@ -289,7 +290,12 @@ describe("Quick client creation from a quote, completion required before an invo
 				.its("body.status")
 				.should("eq", "draft");
 
-			cy.get("[data-sonner-toast]").contains("button", "Edit client").click();
+			// A native click: Cypress's synthetic pointerdown makes sonner's swipe handler throw.
+			cy.get("[data-sonner-toast]")
+				.contains("button", "Edit client")
+				.then(($button) => $button[0].click());
+			cy.location("pathname", { timeout: 15000 }).should("eq", "/clients");
+			cy.wait("@editedClient").its("response.statusCode").should("eq", 200);
 			cy.get('[data-cy="client-dialog"]', { timeout: 15000 }).should("be.visible");
 			cy.get('[data-cy="client-dialog-step-address"]').click();
 			cy.get('[name="address"]').type("2 Rue Complète");
