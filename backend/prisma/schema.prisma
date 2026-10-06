@@ -839,10 +839,10 @@ model Client {
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
-  address          String
+  address          String? // Optional until an invoice is validated; see the issuance gate
   addressLine2     String? // Second line for address (apartment, suite, etc.)
-  postalCode       String
-  city             String
+  postalCode       String?
+  city             String?
   state            String? // State/Province (for US addresses, etc.)
   country          String
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)

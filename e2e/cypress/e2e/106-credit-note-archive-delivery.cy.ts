@@ -62,6 +62,7 @@ function createClient(name: string, contactEmail: string): Cypress.Chainable<str
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.then((res) => {

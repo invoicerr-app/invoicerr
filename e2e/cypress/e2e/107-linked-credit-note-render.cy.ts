@@ -43,6 +43,7 @@ function createClient() {
 				postalCode: "69002",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.then((res) => {

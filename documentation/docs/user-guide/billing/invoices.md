@@ -23,7 +23,9 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
   that case, naming the channel and stating it cannot be undone; see
   [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
   [Italy](../../developer-guide/countries/italy.md#validate-and-the-sdi-mandate). For every other
-  invoice, **Send** stays a separate, later step
+  invoice, **Send** stays a separate, later step. Validating is refused while the client has no
+  address, no city, or lacks an identifier required for its country; the message names what is missing
+  and links to the client
 - **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
@@ -36,7 +38,9 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 
 Click **Add New** and fill in:
 
-- **Client** (required)
+- **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
+  with just a name and a country. The client must be complete before the invoice is validated or sent;
+  see [Clients](../clients.md#completing-a-client-before-invoicing)
 - **Date** and **Due date** (both required)
 - **Currency** (required)
 - **Origin document** and **Corrects invoice** (optional) — links back to the quote/invoice this one was raised from, or the invoice it corrects

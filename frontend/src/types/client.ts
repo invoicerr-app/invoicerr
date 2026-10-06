@@ -47,10 +47,10 @@ export interface Client {
   // normal, supported record — e.g. one only ever billed on paper, or via the client portal itself.
   contactEmail?: string
   contactPhone?: string
-  address?: string
+  address?: string | null
   addressLine2?: string
-  postalCode?: string
-  city?: string
+  postalCode?: string | null
+  city?: string | null
   state?: string
   country?: string
   countryCode?: string | null

@@ -327,6 +327,7 @@ describe("Settings — email templates per document type", () => {
 				postalCode: "75004",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 			failOnStatusCode: false,
 		}).then((created) => {

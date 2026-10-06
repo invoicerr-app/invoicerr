@@ -52,6 +52,7 @@ function createClient(name: string, email: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.its("body.id");

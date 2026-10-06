@@ -67,6 +67,7 @@ function createClient(name: string) {
 				country: "France",
 				currency: "EUR",
 				isActive: true,
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.then((res) => {

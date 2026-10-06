@@ -24,7 +24,8 @@ There is no delete action on a quote — a client can also **Decline** it from t
 
 Click **Add New** and fill in:
 
-- **Client** (required)
+- **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
+  with just a name and a country; see [Clients](../clients.md#creating-a-client-from-a-quote-or-an-invoice)
 - **Date** (required) and **Due date** (optional)
 - **Currency** (required)
 - **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in

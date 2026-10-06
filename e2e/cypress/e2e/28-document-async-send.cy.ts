@@ -151,6 +151,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					postalCode: "75002",
 					isActive: true,
 					type: "COMPANY",
+					identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 				},
 				failOnStatusCode: false,
 			}).then((created) => {

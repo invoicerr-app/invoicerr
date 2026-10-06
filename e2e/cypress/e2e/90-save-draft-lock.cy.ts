@@ -49,6 +49,7 @@ function createClient(name: string, contactEmail: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.then((res) => {
@@ -430,6 +431,7 @@ describe('Issue #468 - "save-draft" refuses to rewrite an issued document', () =
 				postalCode: "75003",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 			failOnStatusCode: false,
 		}).then((created) => {

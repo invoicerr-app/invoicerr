@@ -38,6 +38,7 @@ function createUsdClient() {
 				country: "France",
 				currency: "USD",
 				isActive: true,
+				identifiers: [{ scheme: "LEGAL_ID", value: "732829320" }],
 			},
 		})
 		.then((res) => {
