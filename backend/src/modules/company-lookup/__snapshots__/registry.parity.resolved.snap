@@ -963,12 +963,12 @@
     "withoutCredentials": {
       "status": "AVAILABLE",
       "coverage": "REGISTER",
-      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API — the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
     },
     "withCredentials": {
       "status": "AVAILABLE",
       "coverage": "REGISTER",
-      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API — the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
     }
   },
   {
@@ -2349,12 +2349,12 @@
     "withoutCredentials": {
       "status": "AVAILABLE",
       "coverage": "PARTIAL",
-      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API — Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
     },
     "withCredentials": {
       "status": "AVAILABLE",
       "coverage": "PARTIAL",
-      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API — Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
     }
   },
   {
@@ -3966,12 +3966,12 @@
     "withoutCredentials": {
       "status": "AVAILABLE",
       "coverage": "PARTIAL",
-      "note": "There is no federal business register — company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+      "note": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
     },
     "withCredentials": {
       "status": "AVAILABLE",
       "coverage": "PARTIAL",
-      "note": "There is no federal business register — company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+      "note": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
     }
   },
   {
@@ -4103,12 +4103,12 @@
     "withoutCredentials": {
       "status": "AVAILABLE",
       "coverage": "REGISTER",
-      "note": "Vietnam publishes no direct API — the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
+      "note": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
     },
     "withCredentials": {
       "status": "AVAILABLE",
       "coverage": "REGISTER",
-      "note": "Vietnam publishes no direct API — the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
+      "note": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
     }
   },
   {
@@ -4288,12 +4288,12 @@
     "withoutCredentials": {
       "status": "UNAVAILABLE",
       "coverage": "PARTIAL",
-      "note": "No public business-register API is available for this country — company details are entered manually."
+      "note": "No public business-register API is available for this country. Company details are entered manually."
     },
     "withCredentials": {
       "status": "UNAVAILABLE",
       "coverage": "PARTIAL",
-      "note": "No public business-register API is available for this country — company details are entered manually."
+      "note": "No public business-register API is available for this country. Company details are entered manually."
     }
   },
   {
@@ -4354,12 +4354,12 @@
     "withoutCredentials": {
       "status": "UNAVAILABLE",
       "coverage": "PARTIAL",
-      "note": "No public business-register API is available for this country — company details are entered manually."
+      "note": "No public business-register API is available for this country. Company details are entered manually."
     },
     "withCredentials": {
       "status": "UNAVAILABLE",
       "coverage": "PARTIAL",
-      "note": "No public business-register API is available for this country — company details are entered manually."
+      "note": "No public business-register API is available for this country. Company details are entered manually."
     }
   }
 ]

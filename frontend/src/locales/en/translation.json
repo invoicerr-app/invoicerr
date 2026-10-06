@@ -5578,7 +5578,7 @@
   },
   "companyLookup": {
     "notes": {
-      "generic": "No public business-register API is available for this country — company details are entered manually.",
+      "generic": "No public business-register API is available for this country. Company details are entered manually.",
       "partialOnly": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not.",
       "viesOnly": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them.",
       "AT": "Austria validates through VIES; Firmenbuch extracts are sold per query.",
@@ -5586,7 +5586,7 @@
       "BG": "Bulgaria validates through VIES; the Търговски регистър has no free JSON API.",
       "CN": "The national enterprise credit system (GSXT) has no public API.",
       "CY": "Cyprus validates through VIES; the Registrar of Companies has no public API.",
-      "DE": "Germany does not disclose names through VIES and the Handelsregister has no public API — the VAT number can be validated, the rest is entered by hand.",
+      "DE": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand.",
       "EE": "Estonia validates through VIES; the Äriregister API requires an X-Road/paid contract.",
       "ES": "Spain validates the VAT number through VIES but does not disclose the name or address; the Registro Mercantil has no free API.",
       "GR": "Greece validates through VIES; GEMI has no free public API.",
@@ -5598,15 +5598,15 @@
       "LT": "Lithuania validates through VIES; Registrų centras charges for its API.",
       "LU": "Luxembourg validates through VIES; RCS extracts require an account.",
       "LV": "Latvia validates through VIES; the Uzņēmumu reģistrs publishes bulk open data but no per-company API.",
-      "MC": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API — Monegasque numbers are not in the French register either.",
+      "MC": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either.",
       "MT": "Malta validates through VIES; the MBR has no public API.",
       "MX": "The SAT publishes no company lookup service; the RFC is validated offline instead.",
       "PT": "Portugal validates through VIES; the Registo Comercial has no free API.",
       "SE": "Sweden validates through VIES; Bolagsverket sells its API per query.",
       "SG": "ACRA data is published through data.gov.sg datasets that require an account.",
       "SI": "Slovenia validates through VIES; AJPES charges for register access.",
-      "US": "There is no federal business register — company data sits with each state's Secretary of State, none of which share a common API.",
-      "VN": "Vietnam publishes no direct API — the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance.",
+      "US": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API.",
+      "VN": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance.",
       "ZA": "CIPC enterprise enquiries require a paid customer account."
     }
   }
