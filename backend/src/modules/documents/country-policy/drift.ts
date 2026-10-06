@@ -14,6 +14,7 @@
 import { rowFor, DocumentCountryActionRuleRow } from './seed';
 import { CountryPolicyCatalog } from './registry';
 import { byCodeUnit } from '@/lib/compare';
+import { classifyCountryDrift } from '../countries/country-drift';
 
 export interface CountryPolicyDriftReport {
   /** true when the DB already matches `data/*.json` exactly for every country — nothing to reseed. */
@@ -73,38 +74,5 @@ export function detectCountryPolicyDrift(
     ]),
   );
 
-  const actualByCountry = new Map<string, DocumentCountryActionRuleRow[]>();
-  for (const row of existingRows) {
-    const bucket = actualByCountry.get(row.countryCode);
-    if (bucket) bucket.push(row);
-    else actualByCountry.set(row.countryCode, [row]);
-  }
-
-  const added: string[] = [];
-  const changed: string[] = [];
-  const removed: string[] = [];
-
-  for (const countryCode of new Set([...expectedByCountry.keys(), ...actualByCountry.keys()])) {
-    const expected = expectedByCountry.get(countryCode);
-    const actual = actualByCountry.get(countryCode);
-
-    if (expected && !actual) {
-      added.push(countryCode);
-    } else if (!expected && actual) {
-      removed.push(countryCode);
-    } else if (expected && actual && countrySignature(expected) !== countrySignature(actual)) {
-      changed.push(countryCode);
-    }
-  }
-
-  added.sort(byCodeUnit);
-  changed.sort(byCodeUnit);
-  removed.sort(byCodeUnit);
-
-  return {
-    inSync: added.length === 0 && changed.length === 0 && removed.length === 0,
-    addedCountries: added,
-    changedCountries: changed,
-    removedCountries: removed,
-  };
+  return classifyCountryDrift(expectedByCountry, existingRows, countrySignature);
 }
