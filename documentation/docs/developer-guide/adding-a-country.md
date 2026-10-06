@@ -125,7 +125,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Local cancel (derived) | `correction-routes/cancel-policy.ts` (code, not a section) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country (a whitelist cross-checked against the `correctionRoutes` section above). | No - pure function over the section above. |
 | Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
 | Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
-| Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
+| Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply, and how a legal identifier is written into an e-invoice (see the maintainer note below, "how a legal identifier is written into an e-invoice"). | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `countryFields` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No - read live from the file. |
 | Localized tax mentions | `localizedMentions` | The exact wording this country's statute prescribes for the invoice mention of a tax situation (`franchise`, `reverseCharge`, `exportGoods`, `intraComm`), each with its `code`, `text` and the quoted `source`. A situation with no entry prints the generic Directive-citing mention. | No - read live from the file by `tax/tax-engine.ts`. |
 | Mandatory mentions | `mentions` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No - read live from the file. |
@@ -432,6 +432,38 @@ membership and VAT-prefix facts are either already present (every EU/GCC state i
 absent (no union membership at all), exactly like every other reference-data fact in this product.
 This table only changes when the EU or the GCC itself gains or loses a member, or Peppol publishes
 a new EAS code - a rare, well-sourced event, never a per-country-PR concern.
+
+### Maintainer note: how a legal identifier is written into an e-invoice
+
+The EN 16931 builder (`formats/semantic/build-semantic-invoice.ts`) knows nothing about any country's
+legal identifier. Three optional fields on an `identifiers` scheme entry tell it what to do with a
+party's `LEGAL_ID`:
+
+| Field | Applies to | Effect |
+| --- | --- | --- |
+| `iso6523Scheme` | The party's own country | The ISO 6523 ICD written as the `schemeID` of the party's legal registration identifier (BT-30, BT-47). France declares `0002` (SIRENE). |
+| `electronicAddressScheme` | The seller's country, both parties | Both parties' legal identifiers become their electronic address (BT-34, BT-49) under this ICD, and the seller's is also its party identifier (BT-29). France declares `0225`. |
+| `einvoiceReduction` | The seller's country, both parties | `{ "whenDigits": 14, "keepDigits": 9 }` writes a 14-digit value as its first 9 digits: a French SIRET becomes its SIREN. The Chorus Pro Factur-X instance skips it (`legalIdOverride: 'full'`). |
+
+A country that declares none of them gets a bare `cbc:CompanyID` with no `schemeID`, never a guessed
+register. `countries/data/all.ts` checks each field at load time (`assertValidEinvoiceFacts`).
+
+A BUYER can be established in a country this product ships no file for. When such a country still
+has a well-known ISO 6523 scheme for its legal identifier, it goes in
+`country-identifiers/iso6523/legal-id-reference.json` instead: today only the Netherlands (`0106`,
+KVK, sourced to the Peppol rule NL-R-003). That table refuses a country that has its own
+`countries/data/<cc>.json`: once a country gets a file, its `iso6523Scheme` moves onto its own
+`LEGAL_ID` entry.
+
+`formats/country-data-equivalence.spec.ts` pins the bytes every format builds for a seller and a
+buyer of each shipped country, the Netherlands and an unresolvable country. A change to these
+fields that changes an output shows up there as a named snapshot failure.
+
+:::info[National formats take their country from `b2gRouting`]
+FatturaPA and FA(3) need a country of their own, for an address whose country cannot be resolved
+and for FA(3)'s seller tax prefix. They read it from the one country whose `b2gRouting.formatSyntax`
+names them (`formats/national/format-country.ts`), never from a literal.
+:::
 
 ### Maintainer note: a mention whose value changes on a schedule
 

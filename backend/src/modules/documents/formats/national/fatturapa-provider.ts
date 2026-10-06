@@ -102,8 +102,10 @@ import {
 import { validateXsd } from '../vendored/validate-xsd';
 import { escapeXmlTree } from './fatturapa-xml-guard';
 import { extractNationalLines, NationalLine } from './national-lines';
+import { nationalFormatCountry } from './format-country';
 
 const FATTURAPA_XSD = 'it/Schema_VFPR12.xsd';
+const fatturapaFormatId = 'fatturapa';
 
 /** Format a number as a string matching the yup SPrezzoSchema regex: /^[-]?\d{1,12}(\.\d{2,8})$/ */
 function fmtAmount(n: number, decimals = 2): string {
@@ -233,7 +235,8 @@ async function build(
 
   // ── identifiers ──────────────────────────────────────────────────
   const vatId = getIdentifier(company, 'VAT') || '';
-  const vatCountry = (company.country || 'IT').slice(0, 2).toUpperCase();
+  const formatCountry = nationalFormatCountry(fatturapaFormatId);
+  const vatCountry = (company.country || formatCountry).slice(0, 2).toUpperCase();
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
@@ -269,7 +272,7 @@ async function build(
     formatoTrasmissione = 'FPR12';
     codiceDestinatario = '0000000';
     pecDestinatario = clientePec;
-  } else if (clienteVatCountry && clienteVatCountry !== 'IT') {
+  } else if (clienteVatCountry && clienteVatCountry !== formatCountry) {
     formatoTrasmissione = 'FPR12';
     codiceDestinatario = 'XXXXXXX';
   } else {
@@ -365,9 +368,9 @@ async function build(
             Indirizzo: client.address || 'N/A',
             CAP: client.postalCode || '00000',
             Comune: client.city || 'N/A',
-            Nazione: clienteVatCountry || 'IT',
+            Nazione: clienteVatCountry || formatCountry,
           },
-          ...(clienteVatCountry && clienteVatCountry !== 'IT'
+          ...(clienteVatCountry && clienteVatCountry !== formatCountry
             ? {
                 StabileOrganizzazione: {
                   Indirizzo: client.address || 'N/A',
@@ -431,7 +434,7 @@ async function build(
 }
 
 export const fatturapaFormatProvider: DocumentFormatProvider = {
-  id: 'fatturapa',
+  id: fatturapaFormatId,
   syntax: 'FATTURAPA',
   mime: 'application/xml',
   build,

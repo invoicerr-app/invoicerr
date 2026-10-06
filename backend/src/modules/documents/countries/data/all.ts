@@ -34,6 +34,7 @@ import {
 } from '../../country-policy/schema';
 import {
   assertPatternIsExplainable,
+  assertValidEinvoiceFacts,
   assertValidProvenance as assertValidIdentifierProvenance,
 } from '../../country-identifiers/schema';
 import { assertValidCorrectionRouteFact } from '../../correction-routes/schema';
@@ -135,6 +136,7 @@ function validateIdentifiersSection(
   for (const fact of identifiers.schemes) {
     assertValidIdentifierProvenance(fact, `${filePath}#identifiers`);
     assertPatternIsExplainable(fact, `${filePath}#identifiers`);
+    assertValidEinvoiceFacts(fact, `${filePath}#identifiers`);
   }
 }
 

@@ -46,7 +46,10 @@ the contract each section has to satisfy; this is only the shopping list of sect
 
 - `policy` - which document actions the Netherlands allows. Start here: without this
   section every action is refused with a 403, naming the country.
-- `identifiers` - which national identifier a party must carry.
+- `identifiers` - which national identifier a party must carry. A Dutch buyer's KVK number is
+  already written under ISO 6523 scheme `0106` from `country-identifiers/iso6523/legal-id-reference.json`;
+  `nl.json` would take that fact over on its own `LEGAL_ID` entry (`iso6523Scheme`) and the row
+  would leave the reference table.
 - `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
 - `correctionRoutes` - all eleven canonical correction routes, `unverified` where
