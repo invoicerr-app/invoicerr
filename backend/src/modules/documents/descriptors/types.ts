@@ -402,6 +402,13 @@ export interface DocumentFieldDescriptor {
    * datalist at all, byte-for-byte the render this field always had.
    */
   suggestSiblingValues?: true;
+  /**
+   * 'text' only: a fixed list of stored values offered through the same `<datalist>` mechanism as
+   * `suggestSiblingValues`, while any other typed text stays valid. `value` is what is stored, `label`
+   * its English display text: the screen and the PDF show the label of a stored value that matches
+   * one entry and the raw text of any other.
+   */
+  suggestedValues?: readonly { value: string; label: string }[];
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**

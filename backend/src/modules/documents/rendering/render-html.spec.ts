@@ -522,6 +522,52 @@ describe('renderDocumentHtml', () => {
   // disappears from the printed table when NO row in the document sets a value, not merely an
   // empty cell on the rows that lack it. This is what keeps a document saved before such a field
   // existed rendering byte-for-byte as before — an old `lines` array never carries the key at all.
+  describe('suggestedValues (stored code shown as its label)', () => {
+    const descriptor: DocumentTypeDescriptor = {
+      id: 'test',
+      label: 'Test',
+      fields: [
+        {
+          key: 'lines',
+          kind: 'array',
+          label: 'Lines',
+          fields: [
+            {
+              key: 'unit',
+              kind: 'text',
+              label: 'Unit',
+              suggestedValues: [
+                { value: 'DAY', label: 'Day' },
+                { value: 'HUR', label: 'Hour' },
+              ],
+            },
+          ],
+        },
+      ],
+      actions: [],
+    };
+    const render = (unit: string, language?: 'fr') =>
+      renderDocumentHtml({
+        descriptor,
+        instance: { ...baseInstance, data: { lines: [{ unit }] } },
+        company: baseCompany,
+        referenceLabels: {},
+        language,
+      });
+
+    it('prints the English label of a known code by default', () => {
+      expect(render('DAY')).toContain('<td style="padding: 8px;">Day</td>');
+    });
+
+    it('prints the label in the document language', () => {
+      expect(render('HUR', 'fr')).toContain('<td style="padding: 8px;">Heure</td>');
+    });
+
+    it('prints any other text as typed', () => {
+      expect(render('sprint')).toContain('<td style="padding: 8px;">sprint</td>');
+    });
+  });
+
   describe('hideWhenEmpty on an array row SUBFIELD (column suppression)', () => {
     const descriptor: DocumentTypeDescriptor = {
       id: 'test',

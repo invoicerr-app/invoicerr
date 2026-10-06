@@ -43,6 +43,10 @@ export interface DocumentFieldDescriptor {
    *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
    *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */
   suggestSiblingValues?: true
+  /** Mirrors the backend's `DocumentFieldDescriptor.suggestedValues` (descriptors/types.ts) - 'text'
+   *  only: a fixed list offered through the same `<datalist>`, any other text staying valid. `value`
+   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. */
+  suggestedValues?: DocumentFieldOption[]
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
