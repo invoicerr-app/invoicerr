@@ -703,6 +703,12 @@ Some countries genuinely need code, not just data:
  itself - see France's own `countryFields` section's `supplyType` addition, which exists only to
   let France's own BT-23 content requirement derive a value.
 
+One part of a country stays in TypeScript on purpose: its demo seed pool. The sample content used
+to populate the demo (country name and language, cities and postal codes, company, client and
+contact names, streets, articles) lives in `backend/src/modules/demo/generators/data-pools.ts`.
+It is fictional sample content, not a legal or behavioural rule, so it cannot drift from a country
+JSON file. A new country that should appear in the demo adds its pool there.
+
 ## Two real files worth reading end to end
 
 Every example below is now a SECTION inside one country's own `countries/data/<cc>.json`, not a
