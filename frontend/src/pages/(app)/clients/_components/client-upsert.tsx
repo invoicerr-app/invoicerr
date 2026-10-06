@@ -23,7 +23,7 @@ import { AddressAutocompleteInput } from "@/components/address-autocomplete-inpu
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
-import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
+import { currencyForCountry, documentLanguageForCountry } from "@/lib/reference/countries"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
@@ -33,7 +33,6 @@ import { useEffect, useRef, useState } from "react"
 import { useFieldArray, useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
-import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
@@ -342,8 +341,8 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
 
 /**
  * ADDRESS — the postal address, country included. Country has to be set here (before the next step)
- * because it drives BOTH the required-identifiers catalog and the currency default
- * (`useCountryToCurrency`) the Fiscalité step shows.
+ * because it drives BOTH the required-identifiers catalog and the currency default the Fiscalité step
+ * shows.
  */
 function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
   const { t, i18n } = useTranslation()
@@ -360,7 +359,11 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
                 <CountrySelect
                   value={field.value}
                   onChange={(value) => field.onChange(value)}
-                  onCountryCodeChange={(code) => form.setValue("countryCode", code as never)}
+                  onCountryCodeChange={(code) => {
+                    form.setValue("countryCode", code as never)
+                    const currency = currencyForCountry(code)
+                    if (currency) form.setValue("currency", currency as never)
+                  }}
                   data-cy="client-country-select"
                 />
               </FormControl>
@@ -1128,7 +1131,7 @@ function ContactStep({
   /** Fired the moment the user picks a value here BY HAND (including explicitly picking back
    *  "Automatic") — the one signal that permanently retires the country-based suggestion for the
    *  rest of this wizard session (`Client.language` is decided by that country ONLY until a human
-   *  says otherwise; see `country-default-language.ts`'s own header). */
+   *  says otherwise). */
   onLanguageManuallyChanged: () => void
 }) {
   const { t } = useTranslation()
@@ -1334,8 +1337,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // last line of defense below jump to whichever step actually shows the field it just rejected.
   const dialogRef = useRef<SteppedDialogHandle>(null)
 
-  // Country → `language` suggestion (see `country-default-language.ts` and the effect that reads
-  // it, further down). A plain ref, not state: it must never itself trigger a re-render, only
+  // Country → `language` suggestion (see the effect that reads it, further down). A plain ref, not state: it must never itself trigger a re-render, only
   // stand as a permanent "the user already decided" latch once the language field is touched by
   // hand — the same shape `requiredIdentifiersRef` below uses for the same reason. `languageAutoFilled`
   // IS state, since it drives whether the "this is a suggestion" hint renders.
@@ -1522,20 +1524,13 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  useCountryToCurrency(form)
-
   const countryCodeValue = form.watch("countryCode")
 
-  // Owner decision: `Client.language` is pre-filled from the country ONLY at creation, and ONLY
-  // until the user picks one themselves — never guessed again later, and never touched at all while
-  // editing an existing client (see `country-default-language.ts`'s header and `Client.language`'s
-  // own schema comment for why guessing this at SEND time was rejected outright). Re-runs on every
-  // country change while untouched — including clearing a now-stale earlier suggestion back to
-  // "Automatic" when the newly picked country has none of its own researched default.
+  // Only at creation and until the user picks a language: a country names a jurisdiction, not a language.
   useEffect(() => {
     if (isEditing) return
     if (languageTouchedRef.current) return
-    const suggestion = getDefaultLanguageForCountry(countryCodeValue)
+    const suggestion = documentLanguageForCountry(countryCodeValue)
     form.setValue("language", suggestion ?? null)
     setLanguageAutoFilled(!!suggestion)
   }, [countryCodeValue, isEditing, form])

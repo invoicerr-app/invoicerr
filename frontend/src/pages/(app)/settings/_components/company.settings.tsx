@@ -45,7 +45,7 @@ import {
   useReconciliationSettings,
   useSetReconciliationSettings,
 } from "@/hooks/queries"
-import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
+import { currencyForCountry } from "@/lib/reference/countries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
@@ -341,7 +341,6 @@ export default function CompanySettings() {
       unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  useCountryToCurrency(form)
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
@@ -629,7 +628,11 @@ export default function CompanySettings() {
                       <CountrySelect
                         value={field.value}
                         onChange={(value) => field.onChange(value)}
-                        onCountryCodeChange={(code) => form.setValue("countryCode", code)}
+                        onCountryCodeChange={(code) => {
+                          form.setValue("countryCode", code)
+                          const currency = currencyForCountry(code)
+                          if (currency) form.setValue("currency", currency)
+                        }}
                         data-cy="company-country-input"
                       />
                     </FormControl>

@@ -46,6 +46,11 @@ Click **Add New** and fill in the form.
   and emails; see [Document Language](document-language.md)
 - Founded Date (optional, cannot be in the future)
 
+Picking a country fills in **Currency** with that country's usual currency, and, for a new client,
+suggests a **Document Language** when the country has one clear choice. Both are only starting
+points: change either one freely. Editing an existing client never changes its currency or language
+on its own; only picking a different country fills in the currency again.
+
 ## Restricting payment methods for a client
 
 By default, a client is offered every [payment method](billing/payment-methods.md) your company

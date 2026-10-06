@@ -19,6 +19,9 @@ Your business identity — this information appears on every document you issue.
 - **Default document language** — the language a document (PDF and email) renders in for any client
   who hasn't set one of their own; see [Document Language](../document-language.md)
 
+Picking a country fills in **Currency** with that country's usual currency. Change it if you invoice
+in another one; opening the settings again never changes it on its own.
+
 Your country matters more than it looks: it decides which identifiers you are asked for, which VAT
 rates you can pick, how an invoice may be corrected, and whether the law forces a particular delivery
 channel. The [country compliance matrix](../../developer-guide/country-support/index.md) shows what is
