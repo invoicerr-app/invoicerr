@@ -67,7 +67,7 @@ export class CorrectionRoutesCatalog {
   }
 
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort((a, b) => a.localeCompare(b));
   }
 
   /** The country's own correction-routes file, or `undefined` for a country with none at all — the
