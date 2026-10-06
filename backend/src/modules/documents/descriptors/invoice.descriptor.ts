@@ -1,6 +1,7 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
 import { BUILT_IN_PAYMENT_METHODS } from '../payment-methods/built-in';
 import { transitionsAvailableWhen } from './lifecycle';
+import { SUGGESTED_UNIT_CODES, SUGGESTED_UNIT_LABELS } from '../formats/semantic/unit-code';
 import { standardDocumentEmailTranslations } from './standard-email-translations';
 import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
@@ -60,12 +61,9 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    next to the quantity itself (BT-129) — confirmed by the old canonical model's own fixtures at
  *    git tag `avant-refonte-documents` (e.g. `unitCode="C62"` on every BilledQuantity/
  *    InvoicedQuantity in compliance/schemas/en16931/* and compliance/providers/format/__fixtures__/*
- *    — "C62" being the UN/ECE Recommendation 20 code for "one/piece"). Declared here as free `text`,
- *    deliberately NOT a closed list of UN/ECE codes: nothing downstream in this branch renders or
- *    transmits an EN16931 XML today (the compliance engine that used to do that was removed
- *    entirely), so enforcing that exact vocabulary now would model for a consumer that does not
- *    exist — a future format-emitting consumer can tighten this into a closed `options` list (or a
- *    dedicated field kind) without needing to move the field out of the trunk. EN 16931 is a European
+ *    ("C62" being the UN/ECE Recommendation 20 code for "one/piece"). Declared as free `text` that
+ *    suggests Rec20 codes (`suggestedValues`), deliberately NOT a closed list: `formats/semantic/unit-code.ts`
+ *    maps any stored value to a code and falls back to C62. EN 16931 is a European
  *    norm, not a France-specific one, so this field is NOT flagged as suspected-French.
  *
  *  - `vatRate` (kind: 'select') — `options` is intentionally EMPTY in this trunk descriptor:
@@ -627,13 +625,17 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             min: 0,
           },
           {
-            // STRUCTURAL, not legal — EN 16931's BT-130 (mandatory unit-of-measure code). See this
-            // file's header for the full reasoning on why this is free text, not a closed code list.
+            // STRUCTURAL, not legal: EN 16931's BT-130 (mandatory unit-of-measure code). Free text
+            // with suggested Rec20 codes, never a closed list; see this file's header.
             key: 'unit',
             kind: 'text',
             label: 'Unit',
             required: true,
             helpText: 'How the quantity is counted — e.g. "hour", "day", "kg", "unit".',
+            suggestedValues: SUGGESTED_UNIT_CODES.map((value) => ({
+              value,
+              label: SUGGESTED_UNIT_LABELS[value],
+            })),
           },
           {
             key: 'unitPrice',

@@ -1,6 +1,6 @@
 /**
- * Maps the invoice line's free-text `unit` (`invoice.descriptor.ts`'s own field — deliberately NOT a
- * closed list; see that file's header) to a UN/ECE Recommendation N°20 unit-of-measure code.
+ * Maps the invoice line's `unit` (`invoice.descriptor.ts`'s own field: a free-text input that
+ * suggests UN/ECE Rec20 codes, never a closed list; see that file's header) to a UN/ECE Recommendation N°20 unit-of-measure code.
  *
  * ## A real pitfall, found empirically, not assumed
  *
@@ -58,6 +58,43 @@ const UNIT_CODES: Readonly<Record<string, string>> = {
   box: 'BX',
 };
 
+/** The Rec20 codes the line's unit input suggests, in display order. */
+export const SUGGESTED_UNIT_CODES = [
+  'C62',
+  'HUR',
+  'DAY',
+  'WEE',
+  'MON',
+  'ANN',
+  'KGM',
+  'GRM',
+  'LTR',
+  'MTR',
+  'KMT',
+  'SET',
+  'BX',
+] as const;
+
+const KNOWN_REC20_CODES: ReadonlySet<string> = new Set(Object.values(UNIT_CODES));
+
+/** English labels, the fallback for a locale with no translation of its own. */
+export const SUGGESTED_UNIT_LABELS: Readonly<Record<(typeof SUGGESTED_UNIT_CODES)[number], string>> = {
+  C62: 'Piece',
+  HUR: 'Hour',
+  DAY: 'Day',
+  WEE: 'Week',
+  MON: 'Month',
+  ANN: 'Year',
+  KGM: 'Kilogram',
+  GRM: 'Gram',
+  LTR: 'Litre',
+  MTR: 'Metre',
+  KMT: 'Kilometre',
+  SET: 'Set',
+  BX: 'Box',
+};
+
 export function unitCodeFor(unit: string): string {
-  return UNIT_CODES[unit.trim().toLowerCase()] ?? 'C62';
+  const trimmed = unit.trim();
+  return UNIT_CODES[trimmed.toLowerCase()] ?? (KNOWN_REC20_CODES.has(trimmed) ? trimmed : 'C62');
 }
