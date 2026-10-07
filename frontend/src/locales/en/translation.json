@@ -4975,10 +4975,7 @@
       },
       "array": {
         "addRow": "Add row",
-        "removeRow": "Remove row",
-        "prefillButton": "From catalog",
-        "prefillSearchPlaceholder": "Search catalog...",
-        "prefillNoResults": "No matches"
+        "removeRow": "Remove row"
       },
       "select": {
         "lockedFromReference": "Follows the linked record — cannot be edited directly."

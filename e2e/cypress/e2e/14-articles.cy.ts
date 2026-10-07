@@ -248,22 +248,10 @@ describe('Articles E2E', () => {
         });
     });
 
-    // Adapted to the generic document model (frontend/src/components/documents/): the old, bespoke
-    // invoice form ("invoice-dialog", "items.N.*") is gone, replaced by the descriptor-driven
-    // DocumentForm every document type now shares (documents/[typeId]/index.tsx). The INTENT this test
-    // proves is unchanged — picking a catalog article really fills a line's own fields, with real
-    // values asserted, not just "a callback fired" — only the path to it changed: the generic
-    // `prefillFrom` mechanism (descriptors/types.ts, backend; field-renderers/array-field.tsx,
-    // frontend) that the invoice/quote descriptors declare for their `lines` array field, backed by
-    // a NEW `article` reference provider (backend/src/modules/documents/references/
-    // article-reference.provider.ts). The core names neither "article" nor "invoice" anywhere in
-    // that mechanism — this spec is what proves the WIRING of it for this one, real, concrete case.
     describe('Selection in invoice line items', () => {
-        it('prefills an invoice line when an article is picked from the catalog', () => {
+        it('prefills an invoice line when an article is picked from the designation suggestions', () => {
             const articleName = `Web Design Day ${Date.now()}`;
 
-            // Create a reusable article first — the /articles page and its own form are untouched by
-            // the document-model refactor (articles/ is the one module that survived it as-is).
             cy.visit('/articles');
             cy.get('[data-cy="article-add-button"]', { timeout: 10000 }).click();
             cy.wait(500);
@@ -278,51 +266,17 @@ describe('Articles E2E', () => {
             cy.wait(1500);
             cy.get('[data-cy="article-dialog"]').should('not.exist');
 
-            // Pick it from the catalog while creating an invoice, through the generic form.
             openInvoiceLinesStep();
 
-            cy.get('[data-cy="document-field-lines-add-row"]').click();
-            cy.get('[data-cy="document-field-lines-row-0"]').should('exist');
+            addLineAndSearch(0, articleName);
+            cy.get(`${lineRow(0)} [data-cy="document-field-lines-row-0-prefill"]`).should('not.exist');
+            cy.contains(`${lineRow(0)} [data-cy="catalog-search-option-0"]`, articleName).click();
 
-            // The GENERIC "from catalog" picker — one per row, offered because invoice.descriptor.ts
-            // declares `prefillFrom: { entity: 'article', map: {...} }` on `lines`, not a bespoke
-            // article widget wired into this one form.
-            //
-            // The form has grown fields since this spec was last green (custom fields, attachments —
-            // see the dialog's own comment history): on the default 1000x660 viewport this row now
-            // sits below the fold of the dialog's own `overflow-y-auto`, so its trigger's real
-            // bounding rect can be off-screen at click time. `force: true` alone (the repo's usual
-            // SearchSelect-trigger pattern — see 20-document-totals.cy.ts's own comment) bypasses
-            // Cypress's actionability check but does NOT fix that: Radix positions the popover off an
-            // off-screen anchor, landing it somewhere unreachable too (Cypress's own suggestion on
-            // that failure). `scrollIntoView()` first — same fix 05-clients.cy.ts and others already
-            // use for a trigger far down a scrollable form — puts the anchor in view for real, which
-            // is what a real user has to do here too.
-            cy.get('[data-cy="document-field-lines-row-0-prefill"] button')
-                .first()
-                .scrollIntoView()
-                .click({ force: true });
-            cy.get('[data-cy="document-field-lines-row-0-prefill-options"]', { timeout: 10000 }).should(
-                'be.visible',
-            );
-            cy.contains(
-                '[data-cy="document-field-lines-row-0-prefill-options"] button',
-                articleName,
-            ).click({ force: true });
-
-            // What actually got filled: the mapped fields, with the article's real values —
-            // `description` from the article's `name` (this line shape has one designation field,
-            // not the old separate name+description pair), `unitPrice` from its `unitPrice`, and
-            // `vatRate` (a catalog-backed SearchSelect, not a plain input) showing the picked rate.
             cy.get('input[name="lines.0.description"]').should('have.value', articleName);
             cy.get('input[name="lines.0.unitPrice"]').should('have.value', '800');
-            cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button').should(
-                'contain',
-                '20',
-            );
+            cy.get(`${lineRow(0)} [data-cy="document-field-vatRate-input"] button`).should('contain', '20');
 
-            // And rien d'autre: `map` names exactly description/unitPrice/vatRate — quantity and the
-            // line's own discount are NOT in it, so they must stay untouched by this action.
+            // The prefill map never names quantity or discount, so a pick must leave them untouched.
             cy.get('input[name="lines.0.quantity"]').should('have.value', '');
             cy.get('input[name="lines.0.discountPercent"]').should('have.value', '');
         });

@@ -17,8 +17,8 @@ The **Articles** page is a catalog of reusable line items — services or produc
 
 Click **Add New** and fill in:
 
-- **Name** (required) — shown in the catalog picker
-- **Description** (optional, multi-line) — supports `**bold**` and `*italic*`; copied onto the line item as its description
+- **Name** (required): what the line Designation suggestions match, show and copy
+- **Description** (optional, multi-line): supports `**bold**` and `*italic*`; kept in the catalog, not copied onto a line
 - **Type** — Hour, Day, Deposit, Service, or Product
 - **Unit Price** and **VAT Rate**
 - **Quantity** and **Low stock threshold** (both optional) - see **Stock tracking** below
@@ -45,11 +45,9 @@ Each line has a **Designation** field. Start typing in it and the catalog articl
 
 You never have to pick anything: if you ignore the list, whatever you typed is kept as a free-text line.
 
-The **From catalog** button on each line opens the same catalog as a picker, for browsing instead of typing. It applies the same values.
-
 ### Received invoices
 
-The lines of a received invoice get the same help: typing in **Designation** or using **From catalog** copies the article's Name, Unit Price and VAT Rate into the line. The line is not linked to the article, so recording a received invoice never changes the article's stock.
+The lines of a received invoice get the same help: typing in **Designation** and picking a suggestion copies the article's Name, Unit Price and VAT Rate into the line. The line is not linked to the article, so recording a received invoice never changes the article's stock.
 
 ## First use
 

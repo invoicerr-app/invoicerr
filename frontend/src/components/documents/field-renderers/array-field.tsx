@@ -1,18 +1,15 @@
 import { Plus, Trash2 } from "lucide-react"
-import { useState } from "react"
-import type React from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { DocumentField } from "@/components/documents/document-field"
 import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import { formatTotal } from "@/components/documents/document-totals"
-import SearchSelect from "@/components/search-input"
 import { toMinor } from "@/components/documents/totals-calculator"
 import type { DocumentFieldDescriptor } from "@/components/documents/types"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { fetchPrefillFields, useReferenceSearch } from "@/hooks/queries"
+import { fetchPrefillFields } from "@/hooks/queries"
 
 import { type TextFieldCatalog, TextField } from "./primitive-fields"
 import type { FieldRendererProps } from "./registry"
@@ -85,66 +82,6 @@ async function resolvePrefillValues(
   return values
 }
 
-interface RowPrefillPickerProps {
-  arrayFieldKey: string
-  rowIndex: number
-  entity: string
-  map: Record<string, string>
-  rowFields: DocumentFieldDescriptor[]
-  onPrefill: (values: Record<string, unknown>) => void
-  disabled?: boolean
-}
-
-/**
- * The "fill from catalog" button one ROW gets when its array field declares `prefillFrom`
- * (descriptors/types.ts, backend) — e.g. an invoice/quote line picking an Article. Reuses the exact
- * same generic reference-search endpoint a 'reference' FIELD already uses (`useReferenceSearch`,
- * `/api/documents/references/:entity/search`) for the picker's own options; the one thing THIS
- * component adds is resolving the picked id's raw FIELDS (`fetchPrefillFields`, the entity's
- * OPTIONAL `getFields` — see reference-registry.ts) and copying the mapped ones onto the row. Never
- * names "article" or any document type: `entity`/`map` come entirely from the descriptor.
- *
- * A pure action trigger, like the old, now-orphaned ArticlePicker it replaces (component/
- * article-picker.tsx) — it keeps no selected value of its own, `value` is always "".
- */
-function RowPrefillPicker({
-  arrayFieldKey,
-  rowIndex,
-  entity,
-  map,
-  rowFields,
-  onPrefill,
-  disabled = false,
-}: RowPrefillPickerProps) {
-  const { t } = useTranslation()
-  const [search, setSearch] = useState("")
-  const { data: options = [] } = useReferenceSearch(entity, search)
-
-  const handleSelect = async (value: string | string[]) => {
-    const id = Array.isArray(value) ? value[0] : value
-    if (!id) return
-    // A provider with no `getFields` (most reference entities) resolves this to null — the button
-    // still opened the picker, it simply has nothing to copy over. Never a crash either way.
-    const values = await resolvePrefillValues(entity, id, map, rowFields)
-    if (values) onPrefill(values)
-  }
-
-  return (
-    <SearchSelect
-      className="w-full sm:w-56"
-      value=""
-      options={options.map((option) => ({ value: option.id, label: option.label }))}
-      onValueChange={handleSelect}
-      onSearchChange={setSearch}
-      placeholder={t("documents.form.array.prefillButton")}
-      searchPlaceholder={t("documents.form.array.prefillSearchPlaceholder")}
-      noResultsText={t("documents.form.array.prefillNoResults")}
-      disabled={disabled}
-      data-cy={`document-field-${arrayFieldKey}-row-${rowIndex}-prefill`}
-    />
-  )
-}
-
 interface LineRowCardProps {
   arrayFieldKey: string
   name: string
@@ -153,9 +90,6 @@ interface LineRowCardProps {
   documentTypeId?: string
   onRemove: () => void
   removeLabel: string
-  /** The "fill from catalog" picker, when the array field declares `prefillFrom` — rendered inside
-   *  this card, above the designation row, rather than threading that whole feature down here. */
-  prefillSlot?: React.ReactNode
   /** Makes the designation field search the catalog as the user types. */
   designationCatalog?: TextFieldCatalog
   /** Issue #468 (point 3): disables the remove button. Individual row FIELDS disable themselves
@@ -181,7 +115,6 @@ function LineRowCard({
   documentTypeId,
   onRemove,
   removeLabel,
-  prefillSlot,
   designationCatalog,
   readOnly = false,
 }: LineRowCardProps) {
@@ -210,7 +143,6 @@ function LineRowCard({
 
   return (
     <div className="space-y-3 rounded-md border p-4" data-cy={`document-field-${arrayFieldKey}-row-${index}`}>
-      {prefillSlot && <div className="flex justify-end">{prefillSlot}</div>}
       {/* Column on mobile so the designation gets the FULL row width instead of sharing it with the
           subtotal/remove cluster (that pairing squeezed the one field a user actually reads down to
           about half the screen) — back to one row at `sm:` and up, unchanged from before. */}
@@ -322,19 +254,6 @@ export function ArrayField({ field, name, documentTypeId }: FieldRendererProps) 
             onRemove={() => remove(index)}
             removeLabel={t("documents.form.array.removeRow")}
             readOnly={readOnly}
-            prefillSlot={
-              field.prefillFrom && (
-                <RowPrefillPicker
-                  arrayFieldKey={field.key}
-                  rowIndex={index}
-                  entity={field.prefillFrom.entity}
-                  map={field.prefillFrom.map}
-                  rowFields={rowFields}
-                  disabled={readOnly}
-                  onPrefill={(values) => applyPrefill(index, values)}
-                />
-              )
-            }
             designationCatalog={
               field.prefillFrom
                 ? {
