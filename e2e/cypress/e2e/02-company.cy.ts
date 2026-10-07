@@ -483,7 +483,8 @@ describe("Company Settings E2E", () => {
 				.clear()
 				.type(tooLongDescription, { delay: 0 });
 			cy.get('[data-cy="company-submit-btn"]').click();
-			cy.contains(/max|length|500|characters|caractères/i);
+			cy.contains("Description must be less than 500 characters").should("be.visible");
+			cy.get('[data-cy="company-description-input"]').should("have.attr", "aria-invalid", "true");
 		});
 
 		// The test "validates starting numbers are positive" was REMOVED on 2026-09-13, not

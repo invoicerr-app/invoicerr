@@ -1413,7 +1413,37 @@
             "apiKeys": "Clés API",
             "channels": "Facturation électronique",
             "signing": "Certificats de signature",
-            "members": "Membres"
+            "members": "Membres",
+            "paymentTerms": "Conditions de paiement"
+        },
+        "paymentTerms": {
+            "title": "Conditions de paiement",
+            "description": "L'échéance proposée sur un nouveau devis ou une nouvelle facture, calculée depuis sa date d'émission. Vous pouvez toujours la modifier sur chaque document.",
+            "quote": {
+                "title": "Devis",
+                "description": "Date d'échéance proposée sur un nouveau devis."
+            },
+            "invoice": {
+                "title": "Factures",
+                "description": "Date d'échéance proposée sur une nouvelle facture."
+            },
+            "form": {
+                "days": "Nombre de jours",
+                "daysPlaceholder": "Aucune par défaut",
+                "daysHint": "Laissez vide pour que l'échéance reste vide.",
+                "daysInvalid": "Saisissez un nombre entier de jours entre 0 et 365.",
+                "mode": "Décompte",
+                "modes": {
+                    "net": "Net, depuis la date d'émission",
+                    "endOfMonth": "Fin de mois, depuis la date d'émission"
+                }
+            },
+            "capWarning": "Ce délai dépasse le maximum légal dans votre pays ({{maxNetDays}} jours nets, {{maxEndOfMonthDays}} jours fin de mois). Vous pouvez tout de même l'enregistrer.",
+            "save": "Enregistrer",
+            "messages": {
+                "saveSuccess": "Conditions de paiement enregistrées",
+                "saveError": "Échec de l'enregistrement des conditions de paiement"
+            }
         },
         "invitations": {
             "create": {
