@@ -76,4 +76,10 @@ export class EditCompanyDto {
   /** "monthly" or "quarterly" - see Company.revenuePeriod's own schema.prisma comment. Null/empty
    *  clears it back to the "monthly" default. */
   revenuePeriod?: string | null;
+  /** Default due date for new quotes/invoices: a day count (0-365) and "net" or "endOfMonth". Null/empty
+   *  clears it back to "no default"; validated in `payment-terms/resolve-payment-terms.ts`. */
+  quoteDueDays?: number | null;
+  quoteDueMode?: string | null;
+  invoiceDueDays?: number | null;
+  invoiceDueMode?: string | null;
 }
