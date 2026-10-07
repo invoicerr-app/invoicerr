@@ -135,6 +135,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | Reporting obligation | `reporting` | Whether this country requires an invoice's data to reach its tax authority after issuance, independently of how the invoice was delivered - distinct from channel policy, which is about delivery. Each fact says WHO discharges it (`dischargedBy: "provider"`, the seller itself; or `"transport"`, when the delivery channel already carries the data as a legal side effect - France's PDP for a B2B-domestic invoice) and, optionally, WHICH transactions it covers (`scope`, e.g. `"b2c"`/`"international"`/`"payments"` - absent means "every transaction", the shape Portugal's own file still uses). Only an unscoped `"provider"` fact is auto-triggered at send time; a `"transport"` fact or a scoped one is catalog data only - see `reporting/schema.ts`'s own header. | No - read live from the file. |
 | VAT national currency | `vatCurrency` | Whether this country's VAT must additionally appear converted into its own national currency when the invoice is issued in another one, and whether the taxable amount must too. | No - read live from the file. |
 | Domestic reverse charge | `domesticReverseCharge` | The statutory categories in which the buyer, not the seller, owes the VAT on a purely domestic supply. | No - read live from the file; not wired into the tax engine yet. |
+| Payment term cap | `paymentTerms` | The longest payment term two businesses may agree on in this country, in days after the issue date: `maxNetDays`, and `maxEndOfMonthDays` for a term counted to the end of the month. Provenance is mandatory. Read by the payment-terms setting (`GET /api/company/payment-terms`) to show a non-blocking warning; a country without the section gets no warning. | No - read live from the file. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* the `taxSystem` section - see
@@ -154,7 +155,7 @@ proof that behaviour did not change - not a set of future steps still to do.
 already-validated files by country code into one `ComposedCountryView` object per country, with one
 optional field per mechanism: `policy`, `identifiers`, `correctionRoutes`, `vatRates`, `taxSystem`,
 `vatCurrency`, `channelPolicy`, `retention`, `mentions`, `localizedMentions`, `reporting`, `domesticReverseCharge`,
-`countryFields`, `contentRequirements`, `b2gRouting`.
+`countryFields`, `contentRequirements`, `b2gRouting`, `paymentTerms`.
 
 :::info[Nothing moved yet]
 Step 1 reads the existing files through the existing loaders and validators. It does not move a
