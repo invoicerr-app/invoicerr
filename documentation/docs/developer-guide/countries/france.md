@@ -17,6 +17,16 @@ established there. A French seller's foreign-currency invoice also states its VA
 ECB's rate, frozen at issue; and its late-payment mention falls back to the statutory rule's own
 wording once the twice-yearly rate table runs out, rather than blocking the send.
 
+## Payment term cap
+
+France's `paymentTerms` section (`countries/data/fr.json`) holds the longest payment term two
+businesses may agree on, from Code de commerce art. L. 441-10, I: 60 days net after the invoice's
+issue date (`maxNetDays`), or 45 days end of month (`maxEndOfMonthDays`), the latter only when the
+contract states it expressly. The [payment terms setting](../../user-guide/settings/payment-terms.md)
+reads these two numbers to warn, without blocking, when a company's default term goes beyond them.
+Periodic invoices have a shorter cap (45 days net, CGI art. 289, I, 3) that this section does not
+model.
+
 ## Validate and the PDP mandate
 
 Invoicerr's **Validate** action normally only assigns an invoice's legal number and locks it, with

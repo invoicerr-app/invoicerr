@@ -238,11 +238,11 @@ describeGated('migration-vs-schema enum tripwire (fresh Postgres)', () => {
       }
     }
 
-    if (problems.length > 0) {
-      throw new Error(
-        'migration-vs-schema enum drift on a freshly migrated database:\n' +
-          problems.map((p) => `  - ${p}`).join('\n'),
-      );
-    }
+    expect(allNames.size).toBeGreaterThan(0);
+    expect(
+      problems,
+      'migration-vs-schema enum drift on a freshly migrated database:\n' +
+        problems.map((p) => `  - ${p}`).join('\n'),
+    ).toEqual([]);
   });
 });

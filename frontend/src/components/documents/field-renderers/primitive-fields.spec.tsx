@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { useForm } from "react-hook-form"
 import { describe, expect, it } from "vitest"
 
@@ -108,5 +108,54 @@ describe("<TextField> - suggestSiblingValues gates the datalist (issue #373 foll
     const input = screen.getByTestId("document-field-option-input")
     expect(input.getAttribute("list")).toBeNull()
     expect(document.querySelectorAll("datalist")).toHaveLength(0)
+  })
+})
+
+const unitField: DocumentFieldDescriptor = {
+  key: "unit",
+  kind: "text",
+  label: "Unit",
+  suggestedValues: [
+    { value: "DAY", label: "Jour" },
+    { value: "HUR", label: "Heure" },
+  ],
+}
+
+function UnitForm({ stored, onChange }: { stored: string; onChange: (value: string) => void }) {
+  const methods = useForm<{ unit: string }>({ defaultValues: { unit: stored } })
+  methods.watch((values) => onChange(values.unit ?? ""))
+  return (
+    <Form {...methods}>
+      <TextField field={unitField} name="unit" />
+    </Form>
+  )
+}
+
+describe("<TextField> - suggestedValues", () => {
+  it("offers the labels in a datalist and shows a stored code as its label", () => {
+    render(<UnitForm stored="DAY" onChange={() => {}} />)
+
+    const input = screen.getByTestId("document-field-unit-input") as HTMLInputElement
+    expect(input.value).toBe("Jour")
+    const options = document.getElementById(input.getAttribute("list") as string)?.querySelectorAll("option")
+    expect(Array.from(options ?? []).map((option) => option.getAttribute("value"))).toEqual(["Jour", "Heure"])
+  })
+
+  it("shows a stored free-text value as typed", () => {
+    render(<UnitForm stored="sprint" onChange={() => {}} />)
+
+    expect((screen.getByTestId("document-field-unit-input") as HTMLInputElement).value).toBe("sprint")
+  })
+
+  it("stores the code when a label is entered and the raw text otherwise", () => {
+    let stored = ""
+    render(<UnitForm stored="" onChange={(value) => (stored = value)} />)
+    const input = screen.getByTestId("document-field-unit-input")
+
+    fireEvent.change(input, { target: { value: "heure" } })
+    expect(stored).toBe("HUR")
+
+    fireEvent.change(input, { target: { value: "sprint" } })
+    expect(stored).toBe("sprint")
   })
 })
