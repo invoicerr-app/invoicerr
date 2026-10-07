@@ -63,6 +63,7 @@ export const queryKeys = {
   },
   company: {
     info: () => ["company", "info"] as const,
+    paymentTerms: () => ["company", "paymentTerms"] as const,
   },
   billing: {
     status: () => ["billing", "status"] as const,

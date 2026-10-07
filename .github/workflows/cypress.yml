@@ -381,7 +381,7 @@ jobs:
       # calls that task just gets a harmless connection-refused warning in its own backend log the
       # one time an address field is typed into, degrading to an empty suggestion list exactly like
       # a real self-hosted instance whose Photon server went down - never a broken test.
-      ADDRESS_AUTOCOMPLETE_URL: http://127.0.0.1:41976
+      ADDRESS_AUTOCOMPLETE_URL: http://127.0.0.1:19876
     services:
       postgres-test:
         image: postgres:16

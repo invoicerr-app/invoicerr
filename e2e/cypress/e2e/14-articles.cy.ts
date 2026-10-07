@@ -98,7 +98,7 @@ describe('Articles E2E', () => {
     describe('Page Load', () => {
         it('loads the articles page', () => {
             cy.visit('/articles');
-            cy.contains(/articles/i, { timeout: 10000 });
+            cy.contains('h1', 'Articles', { timeout: 10000 }).should('be.visible');
         });
 
         it('shows the add button', () => {
