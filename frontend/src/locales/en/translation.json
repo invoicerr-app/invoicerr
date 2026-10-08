@@ -188,7 +188,8 @@
         },
         "foundedAt": {
           "label": "Founded Date",
-          "placeholder": "Select founding date"
+          "placeholder": "Select founding date",
+          "description": "Official registration date, filled automatically by the company lookup."
         },
         "contactEmail": {
           "label": "Email",
@@ -379,6 +380,11 @@
       },
       "customFields": {
         "heading": "Custom fields"
+      },
+      "quick": {
+        "title": "New client",
+        "description": "Name and country are enough for now. The rest can be completed later, and is needed before an invoice is validated.",
+        "openFull": "Fill in all the details"
       }
     },
     "view": {
@@ -1910,7 +1916,8 @@
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
       "branding": "Branding",
-      "billing": "Subscription"
+      "billing": "Subscription",
+      "paymentTerms": "Payment terms"
     },
     "branding": {
       "title": "Branding",
@@ -1989,6 +1996,35 @@
       },
       "messages": {
         "exportError": "Export failed"
+      }
+    },
+    "paymentTerms": {
+      "title": "Payment terms",
+      "description": "The due date a new quote or invoice starts with, counted from its issue date. You can still change it on each document.",
+      "quote": {
+        "title": "Quotes",
+        "description": "Due date proposed on a new quote."
+      },
+      "invoice": {
+        "title": "Invoices",
+        "description": "Due date proposed on a new invoice."
+      },
+      "form": {
+        "days": "Number of days",
+        "daysPlaceholder": "No default",
+        "daysHint": "Leave empty to keep the due date blank.",
+        "daysInvalid": "Enter a whole number of days between 0 and 365.",
+        "mode": "Counted",
+        "modes": {
+          "net": "Net, from the issue date",
+          "endOfMonth": "End of month, from the issue date"
+        }
+      },
+      "capWarning": "This term exceeds the legal maximum in your country ({{maxNetDays}} days net, {{maxEndOfMonthDays}} days end of month). You can still save it.",
+      "save": "Save",
+      "messages": {
+        "saveSuccess": "Payment terms saved",
+        "saveError": "Failed to save the payment terms"
       }
     },
     "dataExport": {
@@ -3757,6 +3793,9 @@
     "address-autocomplete": {
       "suggestionsLabel": "Address suggestions"
     },
+    "catalog-search": {
+      "suggestionsLabel": "Catalog suggestions"
+    },
     "document-language-select": {
       "automatic": "Automatic",
       "languages": {
@@ -4377,7 +4416,22 @@
                 "label": "Quantity"
               },
               "unit": {
-                "label": "Unit"
+                "label": "Unit",
+                "suggestedValues": {
+                  "C62": "Piece",
+                  "HUR": "Hour",
+                  "DAY": "Day",
+                  "WEE": "Week",
+                  "MON": "Month",
+                  "ANN": "Year",
+                  "KGM": "Kilogram",
+                  "GRM": "Gram",
+                  "LTR": "Litre",
+                  "MTR": "Metre",
+                  "KMT": "Kilometre",
+                  "SET": "Set",
+                  "BX": "Box"
+                }
               },
               "unitPrice": {
                 "label": "Unit price"
@@ -4927,10 +4981,7 @@
       },
       "array": {
         "addRow": "Add row",
-        "removeRow": "Remove row",
-        "prefillButton": "From catalog",
-        "prefillSearchPlaceholder": "Search catalog...",
-        "prefillNoResults": "No matches"
+        "removeRow": "Remove row"
       },
       "select": {
         "lockedFromReference": "Follows the linked record — cannot be edited directly."
@@ -4983,7 +5034,11 @@
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
         "actionError": "Something went wrong running this action.",
-        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending."
+        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending.",
+        "clientIncomplete": "{{client}} is missing {{fields}}. Complete the client before validating or sending this invoice.",
+        "clientIncompleteAction": "Edit client",
+        "clientIncompleteField_address": "the address",
+        "clientIncompleteField_city": "the city"
       },
       "newTitle": "New: {{label}}",
       "transitionOr": "or",

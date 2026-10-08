@@ -6,6 +6,7 @@ import { dropEmptyRows } from "@/components/documents/empty-rows"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import { isActionAvailable } from "@/components/documents/types"
+import { useDueDateDefault } from "@/components/documents/use-due-date-default"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { useDocumentType, useReferenceFields } from "@/hooks/queries"
 
@@ -127,6 +128,14 @@ export function useDocumentForm({
     resolver: zodResolver(schema),
     defaultValues: initialData ?? defaultValuesFor(descriptor.fields),
   })
+
+  useDueDateDefault(
+    form,
+    descriptor.id,
+    effectiveDescriptor.fields,
+    currentDocumentId,
+    (initialData as Record<string, unknown> | undefined)?.dueDate,
+  )
 
   // Keeps `watchedClientId` in sync with the LIVE form value of the client field — a plain
   // subscription into local state (see the comment above for why this isn't `form.watch` read

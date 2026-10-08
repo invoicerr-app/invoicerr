@@ -8,10 +8,10 @@ import { ClientUpsert } from "@/pages/(app)/clients/_components/client-upsert"
 import type { Client } from "@/types"
 
 /**
- * Wires the "client" reference entity to the real client wizard (client-upsert.tsx) — reused as-is,
- * never re-implemented: `onCreate` is the exact prop the standalone /clients screen already passes
- * it, so a client made from a document's own picker is saved through the identical mutation,
- * validation and country-identifiers wiring as one made from /clients.
+ * Wires the "client" reference entity to the client form (client-upsert.tsx) in its quick mode
+ * (name and country only, the full wizard one click away), reused and not re-implemented:
+ * `onCreate` is the exact prop the standalone /clients screen already passes it, so a client made
+ * from a document's own picker is saved through the identical mutation as one made from /clients.
  *
  * Also invalidates the reference-search cache (`["document-references", "client", ...]`) — a
  * SEPARATE react-query namespace from `queryKeys.clients.listsAll()`, which is all `ClientUpsert`'s
@@ -24,6 +24,7 @@ function ClientQuickCreate({ open, onOpenChange, onCreated }: ReferenceCreateCom
   const queryClient = useQueryClient()
   return (
     <ClientUpsert
+      quick
       open={open}
       onOpenChange={onOpenChange}
       onCreate={(client: Client) => {

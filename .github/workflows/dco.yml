@@ -5,6 +5,8 @@ on:
     branches:
       - dev
       - main
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   pull-requests: read
@@ -19,8 +21,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
         run: |
           set -euo pipefail
+
+          # A queue entry's ref is refs/heads/gh-readonly-queue/<base>/pr-<number>-<sha>.
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER=$(sed -nE 's#^refs/heads/gh-readonly-queue/.+/pr-([0-9]+)-[0-9a-f]+$#\1#p' <<< "$QUEUE_HEAD_REF")
+          fi
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No pull request number found (merge group ref: '$QUEUE_HEAD_REF')."
+            exit 1
+          fi
 
           commits_json=$(gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate)
 

@@ -17,8 +17,8 @@ The **Articles** page is a catalog of reusable line items — services or produc
 
 Click **Add New** and fill in:
 
-- **Name** (required) — shown in the catalog picker
-- **Description** (optional, multi-line) — supports `**bold**` and `*italic*`; copied onto the line item as its description
+- **Name** (required): what the line Designation suggestions match, show and copy
+- **Description** (optional, multi-line): supports `**bold**` and `*italic*`; kept in the catalog, not copied onto a line
 - **Type** — Hour, Day, Deposit, Service, or Product
 - **Unit Price** and **VAT Rate**
 - **Quantity** and **Low stock threshold** (both optional) - see **Stock tracking** below
@@ -39,9 +39,15 @@ accepted quote into an invoice and sending that invoice decrements stock exactly
 invoice's own send - never at the quote's.
 :::
 
-## Using an article in a quote or invoice
+## Using an article in a line
 
-While editing line items on a quote or invoice, use the **Add from catalog...** picker next to **Add Item** and select an article. It adds a new line pre-filled with the article's Name, Description, Type, Unit Price, and VAT Rate — adjust the quantity or any field before saving, the catalog article itself is left untouched.
+Each line has a **Designation** field. Start typing in it and the catalog articles whose name matches are listed under the field. Pick one with the mouse, or with the Up and Down arrow keys followed by Enter, and the line is filled with the article's Name, Unit Price and VAT Rate. Escape closes the list. Quantity and every other field stay yours to adjust, and the catalog article itself is left untouched.
+
+You never have to pick anything: if you ignore the list, whatever you typed is kept as a free-text line.
+
+### Received invoices
+
+The lines of a received invoice get the same help: typing in **Designation** and picking a suggestion copies the article's Name, Unit Price and VAT Rate into the line. The line is not linked to the article, so recording a received invoice never changes the article's stock.
 
 ## First use
 

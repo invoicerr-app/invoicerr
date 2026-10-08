@@ -138,42 +138,6 @@ const contentRequirements = loadSection('contentRequirements');
 const archiveRetention = loadSection('retention');
 const vatRates = loadSection('vatRates');
 
-// ---------------------------------------------------------------------------------------------
-// The local-cancellation whitelist lives in TypeScript (`correction-routes/cancel-policy.ts`), a
-// plain data literal extracted here by brace-matching rather than hand-copied (see the previous
-// version of this script, preserved in git history, for the full reasoning — unchanged by this
-// rewrite).
-// ---------------------------------------------------------------------------------------------
-function loadCancelWhitelist() {
-  const path = join(DOCUMENTS_ROOT, 'correction-routes', 'cancel-policy.ts');
-  const src = readFileSync(path, 'utf-8');
-  const marker = 'const CANCEL_LOCAL_AVAILABILITY';
-  const markerIdx = src.indexOf(marker);
-  if (markerIdx === -1) {
-    throw new Error(
-      `generate-country-matrix: "${marker}" not found in ${path} — the cancel-policy.ts shape ` +
-        'changed; update loadCancelWhitelist() in this script to match.',
-    );
-  }
-  const braceStart = src.indexOf('{', markerIdx);
-  let depth = 0;
-  let i = braceStart;
-  for (; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        i++;
-        break;
-      }
-    }
-  }
-  const literal = src.slice(braceStart, i);
-  return new Function(`"use strict"; return (${literal});`)();
-}
-
-const cancelWhitelist = loadCancelWhitelist();
-
 function findCorrectionRoute(file, routeId) {
   return file?.routes?.find((r) => r.routeId === routeId);
 }
@@ -183,13 +147,9 @@ function findCorrectionRoute(file, routeId) {
 function resolveCancelPolicy(cc) {
   const route = findCorrectionRoute(correctionRoutes[cc], 'CANCEL_AND_REPLACE');
   if (!route) return { key: 'NONE' };
-  const whitelisted = cancelWhitelist[cc];
-  if (!whitelisted) return { key: 'NO', routeStatus: route.status };
-  if (route.status !== whitelisted.expectedStatus) {
-    return { key: 'DRIFT', expected: whitelisted.expectedStatus, actual: route.status };
-  }
-  if (whitelisted.restrictedToStatuses) {
-    return { key: 'RESTRICTED', statuses: whitelisted.restrictedToStatuses, routeStatus: route.status };
+  if (!route.locallyImplementable) return { key: 'NO', routeStatus: route.status };
+  if (route.restrictedToStatuses) {
+    return { key: 'RESTRICTED', statuses: route.restrictedToStatuses, routeStatus: route.status };
   }
   return { key: 'YES', routeStatus: route.status };
 }
@@ -275,7 +235,6 @@ const STRINGS = {
     cancel: {
       tagNone: '—',
       tagNo: 'no',
-      tagDrift: '⚠ drift',
       tagRestricted: 'restricted',
       tagYes: 'yes',
       detailNone:
@@ -285,10 +244,6 @@ const STRINGS = {
         'correction-routes data, but no local cancellation mechanism is wired for it (see ' +
         'correction-routes/cancel-policy.ts — the law may allow the route, the channel/mechanism to ' +
         'realize it here does not exist yet).',
-      detailDrift: (expected, actual) =>
-        `cancel-policy.ts's whitelist expected CANCEL_AND_REPLACE status "${expected}" but the data ` +
-        `now says "${actual}" — the whitelist in correction-routes/cancel-policy.ts needs review; ` +
-        'this line is not a reliable fact until it is.',
       detailRestricted: (statuses) =>
         `Available, but only while the invoice is in status ${statuses.join(', ')} — ` +
         'CANCEL_AND_REPLACE narrows to this in this country\'s own data.',
@@ -525,9 +480,6 @@ const STRINGS = {
         'Not through this app yet. The law here may allow it in principle, but no channel or mechanism in ' +
         'this app actually carries it out for this country yet — a known gap, not a silent "no".',
       plainCancelNone: 'Nothing is declared yet for this country — see the details below for what would settle it.',
-      plainCancelDrift:
-        "This app's own records disagree with each other about this — see the details below rather than " +
-        'trusting a plain answer until that is sorted out.',
       plainTaxIntro: (name, kindLabel, rate) =>
         `If you're registered for ${kindLabel} in ${name}, the standard rate is ${rate} — the percentage ` +
         'added on top of most sales.',
@@ -611,7 +563,6 @@ const STRINGS = {
     cancel: {
       tagNone: '—',
       tagNo: 'non',
-      tagDrift: '⚠ dérive',
       tagRestricted: 'restreinte',
       tagYes: 'oui',
       detailNone:
@@ -621,11 +572,6 @@ const STRINGS = {
         "correction-routes propres à ce pays, mais aucun mécanisme d'annulation local n'y est " +
         'câblé (voir correction-routes/cancel-policy.ts — la loi peut permettre la voie, le canal/' +
         "mécanisme pour la réaliser ici n'existe pas encore).",
-      detailDrift: (expected, actual) =>
-        `La liste blanche de cancel-policy.ts attendait le statut « ${expected} » pour ` +
-        `CANCEL_AND_REPLACE, mais la donnée dit maintenant « ${actual} » — la liste blanche dans ` +
-        "correction-routes/cancel-policy.ts doit être revue ; cette ligne n'est pas un fait fiable " +
-        "tant que ce n'est pas fait.",
       detailRestricted: (statuses) =>
         `Disponible, mais seulement tant que la facture est au statut ${statuses.join(', ')} — ` +
         "CANCEL_AND_REPLACE se restreint à cela dans les données propres à ce pays.",
@@ -873,9 +819,6 @@ const STRINGS = {
         "mécanisme de cette application ne le réalise encore pour ce pays — un manque connu, jamais un " +
         '« non » silencieux.',
       plainCancelNone: 'Rien n\'est encore déclaré pour ce pays — voir les détails ci-dessous pour ce qui trancherait.',
-      plainCancelDrift:
-        "Les propres données de cette application se contredisent sur ce point — voir les détails " +
-        "ci-dessous plutôt qu'une réponse simple, tant que ce n'est pas réglé.",
       plainTaxIntro: (name, kindLabel, rate) =>
         `Si vous êtes assujetti à la ${kindLabel} en ${name}, le taux normal est de ${rate} — le ` +
         'pourcentage ajouté au-dessus de la plupart des ventes.',
@@ -1188,8 +1131,8 @@ const DOC_TYPE_PLURAL_PLAIN_LABELS = {
 };
 /** Every `DocumentInstance.status` value a country-policy `rules[].statuses` narrowing has ever
  *  named, across all five shipped countries — see country-policy/data/*.json's own `invoice.save-
- *  draft` (`["draft"]`) and `received-invoice.receive` (`["received"]"`), and correction-routes/
- *  cancel-policy.ts's own Italian `restrictedToStatuses: ["send_failed"]`. */
+ *  draft` (`["draft"]`) and `received-invoice.receive` (`["received"]"`), and the CANCEL_AND_REPLACE
+ *  route's own `restrictedToStatuses`. */
 const STATUS_PLAIN_LABELS = {
   en: { draft: 'draft', sent: 'sent', send_failed: 'failed to send', received: 'received' },
   fr: { draft: 'brouillon', sent: 'envoyée', send_failed: "en échec d'envoi", received: 'reçue' },
@@ -1695,7 +1638,7 @@ function buildMatrixPage(locale) {
       : S.common.dash;
 
     const cancelResult = resolveCancelPolicy(cc);
-    const cancelCell = { NONE: S.cancel.tagNone, NO: S.cancel.tagNo, DRIFT: S.cancel.tagDrift, RESTRICTED: S.cancel.tagRestricted, YES: S.cancel.tagYes }[cancelResult.key];
+    const cancelCell = { NONE: S.cancel.tagNone, NO: S.cancel.tagNo, RESTRICTED: S.cancel.tagRestricted, YES: S.cancel.tagYes }[cancelResult.key];
 
     const tax = taxSummary(cc, locale);
 
@@ -1843,17 +1786,15 @@ function renderCorrectionRoutesSection(cc, locale, mark) {
 function renderCancelSection(cc, locale) {
   const S = STRINGS[locale].cancel;
   const result = resolveCancelPolicy(cc);
-  const tag = { NONE: S.tagNone, NO: S.tagNo, DRIFT: S.tagDrift, RESTRICTED: S.tagRestricted, YES: S.tagYes }[result.key];
+  const tag = { NONE: S.tagNone, NO: S.tagNo, RESTRICTED: S.tagRestricted, YES: S.tagYes }[result.key];
   const detail =
     result.key === 'NONE'
       ? S.detailNone
       : result.key === 'NO'
         ? S.detailNo(result.routeStatus)
-        : result.key === 'DRIFT'
-          ? S.detailDrift(result.expected, result.actual)
-          : result.key === 'RESTRICTED'
-            ? S.detailRestricted(result.statuses)
-            : S.detailYes;
+        : result.key === 'RESTRICTED'
+          ? S.detailRestricted(result.statuses)
+          : S.detailYes;
   return `**${tag}** — ${detail}\n`;
 }
 
@@ -2131,7 +2072,7 @@ function renderPlainCorrection(cc, locale, name, mark) {
   return out.join('\n');
 }
 
-/** The local-cancel derived fact, in plain words — same YES/RESTRICTED/NO/DRIFT/NONE outcomes
+/** The local-cancel derived fact, in plain words: same YES/RESTRICTED/NO/NONE outcomes
  *  `resolveCancelPolicy` already computes for the matrix and for Part 2's own `renderCancelSection`,
  *  just without the internal `CANCEL_AND_REPLACE` identifier in the reader-facing sentence. */
 function renderPlainCancel(cc, locale) {
@@ -2142,8 +2083,6 @@ function renderPlainCancel(cc, locale) {
       return S.plainCancelNone;
     case 'NO':
       return S.plainCancelNo;
-    case 'DRIFT':
-      return S.plainCancelDrift;
     case 'RESTRICTED':
       return S.plainCancelRestricted(result.statuses.map((s) => plainStatusLabel(s, locale)).join(', '));
     default:

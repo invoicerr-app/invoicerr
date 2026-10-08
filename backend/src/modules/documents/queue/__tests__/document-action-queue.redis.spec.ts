@@ -64,6 +64,7 @@ import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { withDerivedContactFields } from '../../../clients/primary-contact';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
 import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
+import { ISSUABLE_CLIENT_FIELDS } from '../../__tests__/issuable-client';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
 // `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
@@ -261,9 +262,10 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // Every "send" below renders a real PDF, and the FIRST one would otherwise pay this process's
     // one-time Chromium launch inside `waitForStatus`'s own 20 s budget — a cost that belongs to the
     // runner, not to the queue round-trip that budget exists to bound. Paid here instead, under this
-    // hook's own 60 s timeout. See queue-test-pdf-warmup.ts for the measurements.
+    // hook's own 180 s timeout, since the cold launch alone can exceed 30 s on a hosted runner.
+    // See queue-test-pdf-warmup.ts for the measurements.
     await warmUpPdfRenderer();
-  });
+  }, 180_000);
 
   afterAll(async () => {
     // TARGETED cleanup, never `queue.obliterate()` — this queue is SHARED with a live `start:test`
@@ -333,11 +335,7 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
       data: {
         companyId,
         name: 'No Email Client',
-        address: '1 Client Street',
-        postalCode: '00000',
-        city: 'Testville',
-        country: 'France',
-        countryCode: 'FR',
+        ...ISSUABLE_CLIENT_FIELDS,
       },
     });
     const invoiceData = {
@@ -381,10 +379,7 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
         companyId,
         name: 'Never Used Client',
         contacts: { create: { email: `never-used-${Date.now()}@example.com`, isPrimary: true, position: 0 } },
-        address: '1 Client Street',
-        postalCode: '00000',
-        city: 'Testville',
-        country: 'France',
+        ...ISSUABLE_CLIENT_FIELDS,
       },
     });
 

@@ -8,7 +8,7 @@ The **Credit notes** page is where you correct an invoice you already sent, or i
 
 ## Two kinds of credit note
 
-- **Linked** - corrects a specific invoice. Set **Invoice**, then pick the **Corrected lines**: the rows on that invoice this credit note credits. Amount, currency and the rendered PDF all come from the invoice's own selected rows, priced with the invoice's own per-line discount, so you never re-type figures.
+- **Linked** - corrects a specific invoice. Set **Invoice**, then pick the **Corrected lines**: the rows on that invoice this credit note credits. Amount, currency and the rendered PDF all come from the invoice's own selected rows, priced with the invoice's own per-line discount, so you never re-type figures. When you start from an invoice's **Issue credit note** button, every line arrives already checked; uncheck the ones you do not want to credit for a partial credit note.
 - **Free** - no invoice to correct (an overpayment refund, a commercial gesture). Leave **Invoice** empty and fill in your own **Lines** instead, plus a **Reason** explaining the deduction.
 
 A linked credit note's **Currency** always matches the invoice it corrects and isn't editable independently. A free credit note has no client of its own (the type carries no client field), so it is archived but not delivered to anyone; deliver it yourself if the client needs a copy.

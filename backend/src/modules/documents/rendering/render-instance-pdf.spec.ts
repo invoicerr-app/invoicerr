@@ -22,6 +22,7 @@ import prisma from '@/prisma/prisma.service';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
+import { buildClientReferenceProvider } from '../references/client-reference.provider';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
@@ -654,5 +655,62 @@ describe('renderDocumentInstance - the status line follows the render purpose (i
   it('an on-demand render of an issued quote (signed) prints none: it stands in for the delivered copy', async () => {
     const html = await htmlFor('signed', 'on-demand');
     expect(html).not.toContain('>Status:<');
+  });
+});
+
+describe('renderDocumentInstance - a draft for a client with no address, city or postal code', () => {
+  const quoteDescriptor = buildQuoteDescriptor();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedResolveCustomFields.mockResolvedValue([]);
+    mockedRenderPdf.mockResolvedValue(Buffer.from('pdf-bytes'));
+    (prisma.company.findUnique as Mock).mockResolvedValue({
+      name: 'Dupont Consulting',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      iban: null,
+      language: null,
+      exemptVat: false,
+      brandingAccentColor: null,
+      brandingFont: null,
+      brandingLogoId: null,
+    });
+    (prisma.client.findFirst as Mock).mockResolvedValue({ language: null });
+  });
+
+  it('renders the working copy with the client name and never prints a null', async () => {
+    const referenceRegistry = new EntityReferenceRegistry();
+    const nameOnlyClient = {
+      id: 'client-1',
+      name: 'Name Only SARL',
+      address: null,
+      postalCode: null,
+      city: null,
+    };
+    const clientsService = { getClientById: vi.fn().mockResolvedValue(nameOnlyClient) };
+    referenceRegistry.register('client', buildClientReferenceProvider(clientsService as never));
+
+    await renderDocumentInstance(
+      { referenceRegistry },
+      'company-1',
+      quoteDescriptor,
+      {
+        id: 'quote-1',
+        status: 'draft',
+        data: { client: 'client-1', currency: 'EUR', issueDate: '2026-06-30', lines: [] },
+        createdAt: new Date(),
+        displayNumber: null,
+        atcud: null,
+        acceptedOption: null,
+      },
+      'on-demand',
+    );
+
+    const html = mockedRenderPdf.mock.calls[0][0];
+    expect(html).toContain('Name Only SARL');
+    expect(html).not.toMatch(/\bnull\b/);
   });
 });

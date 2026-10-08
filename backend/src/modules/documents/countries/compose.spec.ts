@@ -81,6 +81,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'countryFields',
         'contentRequirements',
         'b2gRouting',
+        'paymentTerms',
       ],
       IT: [
         'policy',

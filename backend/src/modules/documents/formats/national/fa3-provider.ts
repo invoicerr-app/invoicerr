@@ -80,6 +80,7 @@ import { validateXsd } from '../vendored/validate-xsd';
 import { FaVatKorContext, resolveFaVatKorContext } from './fa3-kor';
 import { extractNationalLines, NationalLine } from './national-lines';
 import { nationalFormatCountry } from './format-country';
+import { documentCurrencyOrSellerNational } from './seller-currency';
 
 const fa3FormatId = 'fa3';
 const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/';
@@ -156,7 +157,7 @@ async function build(
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
-  const currency = totals.currency || 'PLN';
+  const currency = documentCurrencyOrSellerNational(totals.currency, company);
   const formatCountry = nationalFormatCountry(fa3FormatId);
 
   // ── KOR (faktura korygująca) — see this file's own header and fa3-kor.ts's for the full design. ──

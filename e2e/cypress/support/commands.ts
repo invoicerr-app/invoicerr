@@ -916,6 +916,8 @@ Cypress.Commands.add('resetAndSeed', () => {
             postalCode: '75001',
             isActive: true,
             type: 'COMPANY',
+            // French invoices need the buyer's SIREN: without it Validate and Send refuse.
+            identifiers: [{ scheme: 'LEGAL_ID', value: '732829320' }],
         },
         failOnStatusCode: false,
     }).then((res) => {

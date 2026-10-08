@@ -27,13 +27,16 @@ export interface ClientSchemaIdentifierRequirement {
  * of. The wizard passes its refs' `.current`; the import passes the per-row country's own
  * requirements and an empty map (a freshly imported row has no "value already on file" to
  * grandfather - see `validate-identifier-value.ts`'s own DECISION 2 for what that grandfather clause
- * is for on an EDIT, which an import row never is).
+ * is for on an EDIT, which an import row never is). `optionalAddress` is the quick-create form, which
+ * only asks for a name and a country.
  */
 export function buildClientSchema(
   t: TFunction,
   requiredIdentifiers: ClientSchemaIdentifierRequirement[],
   originalIdentifierValues: Map<string, string>,
+  options: { optionalAddress?: boolean } = {},
 ) {
+  const optionalAddress = options.optionalAddress ?? false
   return z
     .object({
       type: z.enum(["INDIVIDUAL", "COMPANY"]),
@@ -90,12 +93,16 @@ export function buildClientSchema(
           }),
         )
         .optional(),
-      address: z.string().min(1, t("clients.upsert.validation.address.required")),
+      address: optionalAddress
+        ? z.string().optional()
+        : z.string().min(1, t("clients.upsert.validation.address.required")),
       addressLine2: z.string().optional(),
       postalCode: z
         .string()
         .refine((val) => isValidPostalCode(val), t("clients.upsert.validation.postalCode.format")),
-      city: z.string().min(1, t("clients.upsert.validation.city.required")),
+      city: optionalAddress
+        ? z.string().optional()
+        : z.string().min(1, t("clients.upsert.validation.city.required")),
       state: z.string().optional(),
       country: z.string().min(1, t("clients.upsert.validation.country.required")),
       countryCode: z.string().optional(),

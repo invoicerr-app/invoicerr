@@ -174,6 +174,9 @@ export interface CountryDocumentPolicyFile {
    * omits the field - the same "no permissive fallback" discipline every other reader here holds.
    */
   documentValidationCode?: DocumentValidationCodeFact;
+  /** The revenue basis (invoiced or cashed) a company of this country starts from when it has not
+   *  chosen one. Absent means "invoiced", the product's default everywhere else. */
+  revenueBasisDefault?: RevenueBasisDefaultFact;
   /** Free-form, file-level caveats — e.g. "this file deliberately does not cover X" — distinct from
    *  a per-rule `notes`, which explains ONE rule. */
   notes?: string;
@@ -216,6 +219,16 @@ export interface DocumentValidationCodeFact {
    *  convention `InvoiceValidationFact.channelLabel` already holds for the identical reason: a
    *  legal scheme has one real name, never a translated one. */
   scheme: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
+export const REVENUE_BASES = ['invoiced', 'cashed'] as const;
+
+export interface RevenueBasisDefaultFact {
+  basis: (typeof REVENUE_BASES)[number];
+  /** Plain English, shown verbatim on the settings screen next to the default. */
+  reason: string;
   provenance: PolicyProvenance;
   notes?: string;
 }
@@ -481,4 +494,24 @@ export function assertValidPolicyProvenance(
         'would settle it.',
     );
   }
+}
+
+export class InvalidRevenueBasisDefaultError extends Error {}
+
+export function assertValidRevenueBasisDefaultFact(fact: RevenueBasisDefaultFact, context: string): void {
+  if (!(REVENUE_BASES as readonly string[]).includes(fact.basis)) {
+    throw new InvalidRevenueBasisDefaultError(
+      `${context}: "revenueBasisDefault.basis" must be one of ${REVENUE_BASES.join(', ')}, not "${fact.basis}".`,
+    );
+  }
+  if (!fact.reason?.trim()) {
+    throw new InvalidRevenueBasisDefaultError(
+      `${context}: "revenueBasisDefault.reason" must be a real, non-blank sentence.`,
+    );
+  }
+  assertValidPolicyProvenance(
+    fact.provenance,
+    `${context}: revenue-basis default`,
+    'a revenue-basis default',
+  );
 }

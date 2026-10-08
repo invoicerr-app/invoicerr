@@ -461,6 +461,16 @@
         "sourceCheckedAt": "2026-09-24"
       },
       "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): D.Lgs. 127/2015 art. 1 comma 6 - the SAME verbatim penalty clause already quoted in transports/channel-policy/data/it.json's own SdI mandate fact (Normattiva consolidated text, checked 2026-09-24) - is explicit in a way France's own CGI art. 289 bis I is not: a domestic Italian B2B invoice issued by any means OTHER than SdI (comma 3) 'si intende non emessa' - IS DEEMED NOT ISSUED AT ALL, not merely penalized as a late or defective one. Read together with comma 3's own mandate (equally quoted in that same channel-policy fact) and with DPR 633/1972 art. 21 comma 1 (country-policy/data/it.json's own invoice.send rule, checked 2026-09-03 - the general validity of the Italian electronic invoice), this is a STRONGER textual basis than France's own art. 289 bis for exactly the question issue #581 asks: numbering and locking an invoice WITHOUT transmitting it through SdI leaves it, in the terms of comma 6 itself, not issued - so actions/invoice-actions.ts's 'validate' handler must transmit it for real, never stop at a number and a lock, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two, the same way it does for France)."
+    },
+    "revenueBasisDefault": {
+      "basis": "cashed",
+      "reason": "Italian regime forfettario taxes revenue received, not invoiced (L. 190/2014 art. 1 c. 64).",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "ricavi o [...] compensi percepiti",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Legge 190/2014, art. 1, comma 64: taxable income is the profitability coefficient applied to revenue received. Applies to the regime forfettario (no VAT charged, comma 58/59), the most common regime among this product's Italian freelance users; a company under another regime sets its own basis."
     }
   },
   "identifiers": {
@@ -568,6 +578,8 @@
       {
         "routeId": "CANCEL_AND_REPLACE",
         "status": "allowed",
+        "locallyImplementable": true,
+        "restrictedToStatuses": ["send_failed"],
         "provenance": {
           "kind": "legal",
           "sourceText": "Après scarto UNIQUEMENT (inexistant après livraison au destinataire) : si la réémission sous identité d'origine est impossible, soit nouvelle facture avec nouveaux numéro et date liée à la facture scartata « stornata con variazione contabile interna », soit numérotation sectionnelle « 1/R », « 50/R ». Source : Circolare 13/E du 02/07/2018, § 1.6 p. 12.",

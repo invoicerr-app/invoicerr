@@ -19,6 +19,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `cy.clearEmails`, so another spec's or another stack's mail can neither satisfy nor be deleted by
  * this one. `mailpitUrl` comes from `cypress.config.ts` (`MAILPIT_URL`).
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const mailpit = Cypress.env("mailpitUrl");
 const RUN = Date.now();
@@ -55,6 +57,7 @@ function createClient(name: string, contactEmail: string): Cypress.Chainable<str
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {
