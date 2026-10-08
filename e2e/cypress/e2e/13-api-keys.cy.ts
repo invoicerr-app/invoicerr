@@ -7,8 +7,7 @@ beforeEach(() => {
 describe('API Keys Settings E2E', () => {
     it('loads the API keys page', () => {
         cy.visit('/settings/apiKeys');
-        cy.wait(1000);
-        cy.contains(/api keys/i, { timeout: 10000 });
+        cy.contains('h1', 'API Keys', { timeout: 10000 }).should('be.visible');
     });
 
     it('displays the create form', () => {

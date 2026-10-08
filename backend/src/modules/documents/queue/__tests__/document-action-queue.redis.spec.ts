@@ -262,9 +262,10 @@ describeWithRedis('document-action queue — real Redis, real Postgres, real Mai
     // Every "send" below renders a real PDF, and the FIRST one would otherwise pay this process's
     // one-time Chromium launch inside `waitForStatus`'s own 20 s budget — a cost that belongs to the
     // runner, not to the queue round-trip that budget exists to bound. Paid here instead, under this
-    // hook's own 60 s timeout. See queue-test-pdf-warmup.ts for the measurements.
+    // hook's own 180 s timeout, since the cold launch alone can exceed 30 s on a hosted runner.
+    // See queue-test-pdf-warmup.ts for the measurements.
     await warmUpPdfRenderer();
-  });
+  }, 180_000);
 
   afterAll(async () => {
     // TARGETED cleanup, never `queue.obliterate()` — this queue is SHARED with a live `start:test`

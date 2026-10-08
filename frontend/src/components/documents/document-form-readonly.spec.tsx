@@ -9,10 +9,6 @@ import { SelectField, TextField } from "@/components/documents/field-renderers/p
 import type { DocumentFieldDescriptor } from "@/components/documents/types"
 import { Form } from "@/components/ui/form"
 
-// `ArrayField`'s own `LineRowCard` mounts inside a Popper-driven picker only when a row declares
-// `prefillFrom` - this fixture never does, so no `ResizeObserver` stub is needed the way
-// date-field.spec.tsx's does for its own Popover-based `DatePicker`.
-
 const textField: DocumentFieldDescriptor = { key: "notes", kind: "text", label: "Notes" }
 const selectField: DocumentFieldDescriptor = {
   key: "category",

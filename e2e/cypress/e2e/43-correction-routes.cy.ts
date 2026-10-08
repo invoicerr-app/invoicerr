@@ -176,6 +176,37 @@ function sendInvoice(
 		});
 }
 
+/** Creates a client and an invoice (sent, or validated only), then opens its correction dialog. Yields the invoice id. */
+function openCorrectionDialogOnNewInvoice(
+	clientName: string,
+	dates: { issueDate: string; dueDate: string },
+	mode: "send" | "validate" = "send",
+) {
+	return createClient(clientName).then((clientId) =>
+		createInvoiceDraft(clientId, dates).then((invoiceId) => {
+			const issue =
+				mode === "send"
+					? sendInvoice(invoiceId, clientId, dates)
+					: cy
+							.request({
+								method: "POST",
+								url: `${api}/api/documents/types/invoice/actions/validate`,
+								body: { documentId: invoiceId, data: invoiceData(clientId, dates) },
+							})
+							.then((res) => {
+								expect(res.body?.document?.status).to.eq("validated");
+							});
+			return issue.then(() => {
+				openCorrectionDialog(invoiceId);
+				cy.get('[data-cy="document-correction-dialog"]', {
+					timeout: 5000,
+				}).should("be.visible");
+				return cy.wrap(invoiceId, { log: false });
+			});
+		}),
+	);
+}
+
 describe("Correction routes — GET /api/documents/:id/correction-routes", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -341,13 +372,7 @@ describe("Correct — the screen, browser level", () => {
 		const preMandateDates = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
 		const clientName = "Client Corriger SARL";
 
-		createClient(clientName).then((clientId) => {
-			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
-				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					openCorrectionDialog(invoiceId);
-					cy.get('[data-cy="document-correction-dialog"]', {
-						timeout: 5000,
-					}).should("be.visible");
+		openCorrectionDialogOnNewInvoice(clientName, preMandateDates).then((invoiceId) => {
 
 					// The imposed route: status, AND the curated, translated explanation (issue #554)
 					// and never the catalog's own raw provenance text (the DGFiP/AIFE excerpt, in
@@ -450,7 +475,91 @@ describe("Correct — the screen, browser level", () => {
 							});
 					});
 				});
+	});
+
+	/** Chooses the credit-note route in the open correction dialog and lands on the "Lines" step. */
+	function chooseCreditNoteRoute() {
+		cy.get(
+			'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
+		).click();
+		cy.location("pathname", { timeout: 10000 }).should(
+			"eq",
+			"/documents/credit-note",
+		);
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+		cy.continueDocumentWizard();
+	}
+
+	/** Saves the credit note draft from the "Lines" step and reads back its `correctedLines`. */
+	function saveCreditNoteAndReadLines(invoiceId: string, expectedLines: number) {
+		cy.continueDocumentWizard();
+		cy.continueDocumentWizard();
+		cy.intercept(
+			"POST",
+			`${api}/api/documents/types/credit-note/actions/save-draft`,
+		).as("saveCreditNote");
+		cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+		cy.wait("@saveCreditNote").then((interception) => {
+			expect(interception.response?.statusCode).to.be.oneOf([200, 201]);
+			const creditNoteId = interception.response?.body?.document?.id as string;
+			cy.request({
+				url: `${api}/api/documents/${creditNoteId}?typeId=credit-note`,
+			}).then((doc) => {
+				expect(doc.body.data.invoice).to.eq(invoiceId);
+				expect(doc.body.data.correctedLines).to.have.length(expectedLines);
 			});
+		});
+	}
+
+	const CORRECTED_ROWS =
+		'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]';
+	const PRE_MANDATE_DATES = { issueDate: "2026-08-10", dueDate: "2026-09-10" };
+
+	it("FR company on an ISSUED invoice with two lines: the credit note opens with every original line checked, and unchecking one still saves a partial credit note", () => {
+		setInvoiceTransport("email");
+		createClient("Client Avoir Partiel SARL").then((clientId) => {
+			const data = invoiceData(clientId, PRE_MANDATE_DATES);
+			data.lines.push({
+				description: "Formation",
+				quantity: 2,
+				unit: "day",
+				unitPrice: 500,
+				vatRate: "20",
+			});
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/invoice/actions/save-draft`,
+				body: { data },
+			}).then((saved) => {
+				const invoiceId = saved.body?.document?.id as string;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/send`,
+					body: { documentId: invoiceId, data },
+				}).then(() => {
+					openCorrectionDialog(invoiceId);
+					chooseCreditNoteRoute();
+					cy.get(CORRECTED_ROWS, { timeout: 10000 })
+						.should("have.length", 2)
+						.and("be.checked");
+					cy.get(CORRECTED_ROWS).first().scrollIntoView().should("be.visible").and("be.enabled").uncheck();
+					saveCreditNoteAndReadLines(invoiceId, 1);
+				});
+			});
+		});
+	});
+
+	it("FR company on a VALIDATED (numbered, not sent) invoice: the correction button is offered, and the credit note is saved against it with every original line checked", () => {
+		openCorrectionDialogOnNewInvoice(
+			"Client Valide SARL",
+			PRE_MANDATE_DATES,
+			"validate",
+		).then((invoiceId) => {
+			chooseCreditNoteRoute();
+			cy.get(CORRECTED_ROWS, { timeout: 10000 })
+				.should("have.length", 1)
+				.and("be.checked");
+			saveCreditNoteAndReadLines(invoiceId, 1);
 		});
 	});
 
@@ -468,13 +577,7 @@ describe("Correct — the screen, browser level", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-18", dueDate: "2026-09-18" };
 
-		createClient("Client Traduction SARL").then((clientId) => {
-			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
-				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					openCorrectionDialog(invoiceId);
-					cy.get('[data-cy="document-correction-dialog"]', {
-						timeout: 5000,
-					}).should("be.visible");
+		openCorrectionDialogOnNewInvoice("Client Traduction SARL", preMandateDates).then((invoiceId) => {
 
 					// The header: the curated, translated explanation, never the backend's own raw
 					// developer note (`correction-routes.ts`'s own `LIMITATION_TEXT`, still sent by the
@@ -492,21 +595,13 @@ describe("Correct — the screen, browser level", () => {
 						.and("not.contain.text", "annulation comptable")
 						.and("not.contain.text", "PPF");
 				});
-			});
-		});
 	});
 
 	it("a route declared by French law but not implemented here (CREDIT_NOTE): the honest state on screen, never a stub pretending otherwise", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-11", dueDate: "2026-09-11" };
 
-		createClient("Client Non Implémenté SARL").then((clientId) => {
-			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
-				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					openCorrectionDialog(invoiceId);
-					cy.get('[data-cy="document-correction-dialog"]', {
-						timeout: 5000,
-					}).should("be.visible");
+		openCorrectionDialogOnNewInvoice("Client Non Implémenté SARL", preMandateDates).then((invoiceId) => {
 
 					// CREDIT_NOTE is "allowed" in France (the YAML) but is NOT one of the wired
 					// routes (only INTERNAL_CREDIT_NOTE is) — the button stays clickable (the
@@ -526,8 +621,6 @@ describe("Correct — the screen, browser level", () => {
 
 					cy.get('[data-cy="document-create-dialog"]').should("not.exist");
 				});
-			});
-		});
 	});
 
 	/**
@@ -542,13 +635,7 @@ describe("Correct — the screen, browser level", () => {
 		setInvoiceTransport("email");
 		const preMandateDates = { issueDate: "2026-08-14", dueDate: "2026-09-14" };
 
-		createClient("Client Voies Interdites SARL").then((clientId) => {
-			createInvoiceDraft(clientId, preMandateDates).then((invoiceId) => {
-				sendInvoice(invoiceId, clientId, preMandateDates).then(() => {
-					openCorrectionDialog(invoiceId);
-					cy.get('[data-cy="document-correction-dialog"]', {
-						timeout: 5000,
-					}).should("be.visible");
+		openCorrectionDialogOnNewInvoice("Client Voies Interdites SARL", preMandateDates).then((invoiceId) => {
 					cy.get('[data-cy="document-correction-routes-list"]', {
 						timeout: 5000,
 					}).should("exist");
@@ -590,8 +677,6 @@ describe("Correct — the screen, browser level", () => {
 						).to.be.at.most(el.clientWidth + 1);
 					});
 				});
-			});
-		});
 	});
 
 	/**

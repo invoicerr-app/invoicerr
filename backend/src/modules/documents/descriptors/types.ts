@@ -402,6 +402,13 @@ export interface DocumentFieldDescriptor {
    * datalist at all, byte-for-byte the render this field always had.
    */
   suggestSiblingValues?: true;
+  /**
+   * 'text' only: a fixed list of stored values offered through the same `<datalist>` mechanism as
+   * `suggestSiblingValues`, while any other typed text stays valid. `value` is what is stored, `label`
+   * its English display text: the screen and the PDF show the label of a stored value that matches
+   * one entry and the raw text of any other.
+   */
+  suggestedValues?: readonly { value: string; label: string }[];
   /** 'select': the choices offered. */
   options?: { value: string; label: string }[];
   /**
@@ -510,23 +517,19 @@ export interface DocumentFieldDescriptor {
   min?: number;
   max?: number;
   /**
-   * 'array' only: lets each ROW offer a "fill from catalog" action — the mechanism the 14-articles
-   * cypress spec's "prefills an invoice line when an article is picked from the catalog" exercises.
-   * `entity` names the EntityReferenceRegistry entry that backs the picker (e.g. "article" — see
-   * references/article-reference.provider.ts); `map` pairs a ROW subfield KEY with the name of a
-   * field on THAT entity's own raw record (e.g. `{ description: 'name', unitPrice: 'unitPrice',
-   * vatRate: 'vatRate' }`). The core never interprets `map`'s values itself, and never mentions
-   * "article" anywhere in this file or in field-kinds.ts/validate.ts — it only carries the shape;
-   * the frontend (field-renderers/array-field.tsx) is what actually resolves the picked entity's raw
-   * fields (via the provider's OPTIONAL `getFields`, see reference-registry.ts) and copies the
-   * mapped ones onto the row, with a per-target-KIND coercion (a 'select' target always needs a
-   * string, an entity field might be a number) that is itself generic, keyed by FIELD KIND, never by
-   * which entity or document type is involved.
+   * 'array' only: makes each ROW's text designation (its first subfield) search a catalog and fill
+   * the row from the picked entry. `entity` names the EntityReferenceRegistry entry that backs the
+   * search (e.g. "article", see references/article-reference.provider.ts); `map` pairs a ROW
+   * subfield KEY with the name of a field on THAT entity's own raw record (e.g.
+   * `{ description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' }`). The core never
+   * interprets `map`'s values itself, and never mentions "article" anywhere in this file or in
+   * field-kinds.ts/validate.ts; it only carries the shape. The frontend
+   * (field-renderers/array-field.tsx) resolves the picked entity's raw fields (via the provider's
+   * OPTIONAL `getFields`, see reference-registry.ts) and copies the mapped ones onto the row, with a
+   * coercion keyed by the target FIELD KIND, never by which entity or document type is involved.
    *
-   * Declaring this on a field whose entity has no `getFields` implementation degrades to "the button
-   * still opens the picker, but nothing gets filled" rather than a crash — the same "a rendering gap
-   * must never block the form" discipline render-instance-pdf.ts already holds for a dangling
-   * reference.
+   * Declaring this on a field whose entity has no `getFields` implementation degrades to "a
+   * suggestion can still be picked, but nothing gets filled" rather than a crash.
    */
   prefillFrom?: { entity: string; map: Record<string, string> };
   /**

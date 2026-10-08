@@ -209,7 +209,8 @@ function startFakePdpServer(): Promise<string> {
  * `109-address-autocomplete.cy.ts` itself starts this server (`cy.task('startFakePhotonServer')`),
  * so only that spec ever sees a populated dropdown.
  */
-const FAKE_PHOTON_PORT = 41976;
+// Below the Linux ephemeral range (32768-60999) so no outgoing connection on the runner can hold it.
+const FAKE_PHOTON_PORT = 19876;
 interface FakePhotonFeature {
   properties: {
     housenumber?: string;
