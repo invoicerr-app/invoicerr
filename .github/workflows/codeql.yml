@@ -21,6 +21,8 @@ on:
     branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
+  merge_group:
+    types: [checks_requested]
   schedule:
     - cron: '25 20 * * 4'
 
