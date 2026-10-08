@@ -131,8 +131,8 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    then has nothing to attribute that line's quantity to, which is the correct, honest outcome for
  *    a business that keeps no catalog record of what it just sold.
  *
- * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }` — lets a row's UI offer a
- * "from catalog" button (field-renderers/array-field.tsx, frontend) that fills `description`/
+ * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }`, which lets a row's designation
+ * search the catalog (field-renderers/array-field.tsx, frontend) and fill `description`/
  * `unitPrice`/`vatRate`/`articleId` from a picked Article (articles/articles.service.ts — the ONE
  * module that survived the pre-refactor architecture unchanged). See types.ts's own comment on
  * `prefillFrom` for the full, entity-agnostic mechanism; this descriptor only ever supplies the map,

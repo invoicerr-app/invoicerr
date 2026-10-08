@@ -366,6 +366,11 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
         // lines (a plain scanned PDF, or a structured deposit this best-effort extraction could not
         // parse a single BG-25 line out of) is still a completely valid record — see this file's own
         // header, "Fields — why these, and why so little is required".
+        // `articleId` is deliberately not mapped: a received invoice never moves stock.
+        prefillFrom: {
+          entity: 'article',
+          map: { description: 'name', unitPrice: 'unitPrice', vatRate: 'vatRate' },
+        },
         fields: [
           {
             key: 'description',
