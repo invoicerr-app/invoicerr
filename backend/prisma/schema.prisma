@@ -517,6 +517,15 @@ model Company {
   // hand but never the reverse - see `resolve-revenue-basis.ts`'s own header).
   revenuePeriod String?
 
+  // Default due date for new quotes and invoices, one pair per document type: a day count and a mode
+  // ("net": issue date + N days; "endOfMonth": issue date + N days, then that month's last day).
+  // Nullable, resolved by `company/payment-terms/resolve-payment-terms.ts`: NULL days means "no
+  // default", the due date stays blank. `String?` for the modes, same reasoning as `revenueBasis`.
+  quoteDueDays   Int?
+  quoteDueMode   String?
+  invoiceDueDays Int?
+  invoiceDueMode String?
+
   // Automatic reminders ("relances automatiques") — OPT-IN, default `false`: auto-emailing a
   // company's own CLIENTS is side-effectful in a way none of this module's other background sweeps
   // are (the conformity/currency-rate sweeps only ever touch this company's own rows) — a company
@@ -839,10 +848,10 @@ model Client {
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
-  address          String
+  address          String? // Optional until an invoice is validated; see the issuance gate
   addressLine2     String? // Second line for address (apartment, suite, etc.)
-  postalCode       String
-  city             String
+  postalCode       String?
+  city             String?
   state            String? // State/Province (for US addresses, etc.)
   country          String
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)

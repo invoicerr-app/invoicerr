@@ -43,6 +43,10 @@ export interface DocumentFieldDescriptor {
    *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
    *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */
   suggestSiblingValues?: true
+  /** Mirrors the backend's `DocumentFieldDescriptor.suggestedValues` (descriptors/types.ts) - 'text'
+   *  only: a fixed list offered through the same `<datalist>`, any other text staying valid. `value`
+   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. */
+  suggestedValues?: DocumentFieldOption[]
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
@@ -93,9 +97,9 @@ export interface DocumentFieldDescriptor {
   fields?: DocumentFieldDescriptor[]
   min?: number
   max?: number
-  /** 'array' only: lets each ROW offer a "fill from catalog" button — see field-renderers/
+  /** 'array' only: makes each ROW's text designation search a catalog, see field-renderers/
    *  array-field.tsx and the backend's `DocumentFieldDescriptor.prefillFrom` (descriptors/types.ts)
-   *  for the full mechanism. `entity` names the EntityReferenceRegistry entry backing the picker
+   *  for the full mechanism. `entity` names the EntityReferenceRegistry entry backing the search
    *  (e.g. "article"); `map` pairs a ROW subfield KEY with a field name on that entity's own raw
    *  record. Opaque to every kind but the array renderer — it never gets interpreted by field kind. */
   prefillFrom?: { entity: string; map: Record<string, string> }

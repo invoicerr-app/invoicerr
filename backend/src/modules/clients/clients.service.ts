@@ -385,6 +385,9 @@ export class ClientsService {
     // (which needs them for the INDIVIDUAL-identity check on a legacy-shape payload) without Prisma
     // ever seeing them as create args.
     const clientData = { ...data };
+    for (const key of ['address', 'postalCode', 'city'] as const) {
+      if (clientData[key]?.trim() === '') clientData[key] = null;
+    }
     delete clientData.contactFirstname;
     delete clientData.contactLastname;
     delete clientData.contactEmail;

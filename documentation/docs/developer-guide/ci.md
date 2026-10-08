@@ -7,6 +7,34 @@ sidebar_position: 14
 This page documents the parts of `.github/workflows/` a contributor is likely to run into, beyond
 the test suites already covered in `CLAUDE.md`'s own CI section.
 
+## Merge queue
+
+Pull requests into `dev` are merged through GitHub's merge queue, never with the merge button
+directly. A maintainer adds an approved pull request to the queue; GitHub then builds a temporary
+`gh-readonly-queue/dev/pr-<number>-<sha>` branch holding the current `dev`, every pull request
+ahead in the queue, and this one, runs the required checks on it, and merges only if they pass. A
+pull request whose queue run fails is removed from the queue and stays open.
+
+This is why the workflows that produce required checks listen to `merge_group` next to
+`pull_request`:
+
+| Workflow | Required check |
+| --- | --- |
+| `cypress.yml` | `tests-green` |
+| `scenarios.yml` | `scenarios-green` |
+| `dco.yml` | `Sign-off check` |
+| `codeql.yml` | `Analyze (actions)`, `Analyze (javascript-typescript)` |
+
+A workflow added later that should gate merges needs the same trigger, otherwise the queue waits for
+a check that never reports. Under `merge_group` there is no `github.event.pull_request`: `dco.yml`
+reads the pull request number from the queue branch name instead. Path filters do not apply to
+`merge_group`.
+
+:::info[SonarCloud is not a queue check]
+SonarCloud's automatic analysis only analyzes pull requests and the default branch, so it never
+reports on a queue branch. Its result gates the pull request itself, before it is queued.
+:::
+
 ## Release notes and the Discord announcement
 
 `.github/release.yml` groups pull requests into the categories GitHub's "Generate release notes"
@@ -30,10 +58,8 @@ through the GitHub API and fails if one of them (other than a merge commit or a 
 The failing run names each offending commit; fix it with `git rebase --signoff <base-branch>` and a
 force-push.
 
-:::info[Not required by branch protection]
-This check runs and reports, but a pull request can still be merged while it is red until branch
-protection is updated to require it.
-:::
+It also runs on every merge queue entry, reading the pull request number from the queue branch
+name, so it can be a required check of the queue.
 
 `release-discord.yml` posts a short summary of every published **pre-release** to the Discord
 announcements channel, through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret.
@@ -71,3 +97,34 @@ gate to HIGH, or dropping `ignore-unfixed`, is a deliberate follow-up once the c
 findings is known and triaged, not something to do by just editing the `severity` input.
 :::
 
+## Lighthouse CI on the frontend
+
+`lighthouse.yml` audits the logged-in screens with [`@lhci/cli`](https://github.com/GoogleChrome/lighthouse-ci).
+It brings up the same stack as the Cypress job (Postgres, Redis, the backend, the built frontend),
+seeds a test account with a company, a client, a quote and an invoice through the API
+(`.github/lighthouse/seed.sh`), signs in with a Puppeteer script (`.github/lighthouse/login.cjs`) and
+audits:
+
+- `/dashboard`
+- `/documents/invoice` and `/documents/quote` (the lists)
+- `/documents/invoice/:id` (a draft invoice, which is the invoice editor) and `/documents/quote/:id`
+- `/settings/company`
+
+The "new document" dialog opens from a button and has no URL of its own, so it cannot be audited by a
+page load.
+
+It runs when `dev` is merged into `main` (a pull request targeting `main`), and by hand: open the
+Actions tab, pick **Lighthouse CI** and use **Run workflow** on the branch you want to measure.
+
+The Performance, Accessibility, Best Practices and SEO scores, with the final URL of each page, go to
+the run summary and, on a pull request, to a single comment updated in place. The full reports are the
+`lighthouse-report` artifact.
+
+:::info[A redirect fails the job]
+Every audited page must end on the path that was requested. A redirect to the sign-in page would
+still get a score, so the job fails instead of reporting it.
+:::
+
+This is informative only: no score failing the pull request yet. Budgets (a minimum score below
+which the job fails) are a deliberate follow-up once a baseline of real scores exists, not
+something to add by just editing this file.

@@ -367,3 +367,87 @@ describe("<ClientUpsert>", () => {
     expect(screen.getByTestId("client-currency-select")).toHaveTextContent("United States Dollar")
   })
 })
+
+describe("<ClientUpsert quick>", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  function renderQuick(onCreate = vi.fn()) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ClientUpsert quick open onOpenChange={vi.fn()} onCreate={onCreate} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    return onCreate
+  }
+
+  const quickHandlers = (post: (body: Record<string, unknown>) => void) => ({
+    "GET /api/company/info": () => ({ country: "France", countryCode: "FR" }),
+    "GET /api/custom-fields/resolved": () => [],
+    "GET /api/documents/required-identifiers": () => ({
+      requirements: [{ scheme: "LEGAL_ID", label: "SIREN / SIRET", required: true, appliesTo: "BOTH" }],
+    }),
+    "POST /api/clients": (_url: URL, init?: RequestInit) => {
+      post(JSON.parse(init?.body as string))
+      return { id: "client-new", name: "Name Only SARL" }
+    },
+  })
+
+  it("creates a client from a name alone, with the company country prefilled, and hands it back", async () => {
+    const post = vi.fn()
+    installFetchMock(quickHandlers(post))
+    const onCreate = renderQuick()
+
+    await screen.findByTestId("client-quick-dialog")
+    await waitFor(() => expect(screen.getByTestId("client-country-select")).toHaveTextContent("France"))
+    fireEvent.change(fieldInput("name"), { target: { value: "Name Only SARL" } })
+    fireEvent.click(screen.getByTestId("client-quick-submit"))
+
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    expect(post.mock.calls[0][0]).toMatchObject({
+      name: "Name Only SARL",
+      country: "France",
+      countryCode: "FR",
+    })
+    expect(post.mock.calls[0][0].address).toBe("")
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith({ id: "client-new", name: "Name Only SARL" }))
+  })
+
+  it("asks for a name before saving", async () => {
+    const post = vi.fn()
+    installFetchMock(quickHandlers(post))
+    renderQuick()
+
+    await screen.findByTestId("client-quick-dialog")
+    fireEvent.click(screen.getByTestId("client-quick-submit"))
+
+    expect(await screen.findByText("Company name is required")).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it("opens the full wizard, keeping what was typed", async () => {
+    installFetchMock(quickHandlers(vi.fn()))
+    renderQuick()
+
+    await screen.findByTestId("client-quick-dialog")
+    fireEvent.change(fieldInput("name"), { target: { value: "Kept Name" } })
+    fireEvent.click(screen.getByTestId("client-quick-open-full"))
+
+    await screen.findByTestId("client-dialog-step-body-identity")
+    expect(screen.queryByTestId("client-quick-dialog")).not.toBeInTheDocument()
+    expect(fieldInput("name").value).toBe("Kept Name")
+  })
+})
