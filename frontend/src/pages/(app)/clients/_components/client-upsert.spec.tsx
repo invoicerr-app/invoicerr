@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import i18n from "i18next"
 import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -110,6 +111,21 @@ function pickCountry(label: string) {
   fireEvent.click(
     screen.getByTestId(`client-country-select-option-${label.toLowerCase().replace(/\s+/g, "-")}`),
   )
+}
+
+/** Picks a country on the Address step, fills the rest of it, and lands on the Fiscal step. */
+async function advanceToFiscalStep(countryLabel: string) {
+  pickCountry(countryLabel)
+  fireEvent.change(fieldInput("address"), { target: { value: "1 Rue Test" } })
+  fireEvent.change(fieldInput("city"), { target: { value: "Warszawa" } })
+  fireEvent.click(screen.getByTestId("client-dialog-continue"))
+  await screen.findByTestId("client-dialog-step-body-fiscal")
+}
+
+const CREATE_HANDLERS: Record<string, FetchHandler> = {
+  "GET /api/custom-fields/resolved": () => [],
+  "GET /api/documents/required-identifiers": () => ({ requirements: [] }),
+  "GET /api/clients/duplicates": () => [],
 }
 
 describe("<ClientUpsert>", () => {
@@ -238,13 +254,7 @@ describe("<ClientUpsert>", () => {
 
     renderDialog(null)
     await advanceToAddressStep()
-
-    pickCountry("Poland")
-    fireEvent.change(fieldInput("address"), { target: { value: "1 Rue Test" } })
-    fireEvent.change(fieldInput("city"), { target: { value: "Warszawa" } })
-    fireEvent.click(screen.getByTestId("client-dialog-continue"))
-
-    await screen.findByTestId("client-dialog-step-body-fiscal")
+    await advanceToFiscalStep("Poland")
     fireEvent.click(screen.getByTestId("client-dialog-continue"))
 
     await screen.findByTestId("client-dialog-step-body-contact")
@@ -290,7 +300,7 @@ describe("<ClientUpsert>", () => {
 
   it("never touches an existing client's language, even when its country implies a different one", async () => {
     const patch = vi.fn()
-    // Germany implies "de" (see country-default-language.ts) — this client's `language` is
+    // Germany implies "de" (see lib/reference/countries.json) - this client's `language` is
     // deliberately left unset, so a bug re-applying the creation-time pre-fill logic while EDITING
     // would silently turn a blank ("Automatic") language into "de" the moment this dialog opens.
     const germanClientNoLanguage: Client = {
@@ -322,6 +332,39 @@ describe("<ClientUpsert>", () => {
 
     await waitFor(() => expect(patch).toHaveBeenCalled())
     expect(patch.mock.calls[0][0].language).toBeNull()
+  })
+
+  it("pre-fills the currency from the country picked in a French interface", async () => {
+    await i18n.changeLanguage("fr")
+    try {
+      installFetchMock(CREATE_HANDLERS)
+      renderDialog(null)
+      await advanceToAddressStep()
+      await advanceToFiscalStep("Allemagne")
+
+      expect(screen.getByTestId("client-currency-select")).toHaveTextContent("Euro")
+    } finally {
+      await i18n.changeLanguage("en")
+    }
+  })
+
+  it("pre-fills the national currency of a country outside the euro area", async () => {
+    installFetchMock(CREATE_HANDLERS)
+    renderDialog(null)
+    await advanceToAddressStep()
+    await advanceToFiscalStep("Poland")
+
+    expect(screen.getByTestId("client-currency-select")).toHaveTextContent("Polish")
+  })
+
+  it("keeps an existing client's currency when the dialog opens", async () => {
+    installFetchMock(CREATE_HANDLERS)
+    renderDialog({ ...CLIENT, currency: "USD" })
+
+    fireEvent.click(await screen.findByTestId("client-dialog-step-fiscal"))
+    await screen.findByTestId("client-dialog-step-body-fiscal")
+
+    expect(screen.getByTestId("client-currency-select")).toHaveTextContent("United States Dollar")
   })
 })
 

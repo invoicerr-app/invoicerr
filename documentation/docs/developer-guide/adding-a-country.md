@@ -488,6 +488,27 @@ and for FA(3)'s seller tax prefix. They read it from the one country whose `b2gR
 names them (`formats/national/format-country.ts`), never from a literal.
 :::
 
+### Maintainer note: frontend country reference data
+
+Two suggestions in the interface need a fact about every country in the world, not only the six
+this product ships a seller file for: the currency filled in when a country is picked (client
+creation, company settings) and the document language suggested for a new client. Both read
+`frontend/src/lib/reference/countries.json`, keyed by ISO 3166-1 alpha-2 code, through
+`frontend/src/lib/reference/countries.ts` (`currencyForCountry`, `documentLanguageForCountry`). The
+lookup uses the `countryCode` the country picker sets, never the country name the picker displays,
+so it works in every interface language.
+
+`documentLanguage` is deliberately absent for a country with no single dominant language (Belgium,
+Switzerland) and for one whose language documents cannot be rendered in: a suggestion there would be
+a guess, or would fall back to English at render time anyway. The accessor also ignores any value
+outside `DOCUMENT_LANGUAGE_CODES`.
+
+`frontend/src/lib/reference/countries.spec.ts` keeps the file honest: every country the picker offers
+has a currency the currency picker offers, and for every `countries/data/<cc>.json` the currency
+equals that country's `domesticInvoiceCurrency`, or else its `vatCurrency` national currency. Adding
+a country file whose currency disagrees with the reference fails that spec; fix whichever side is
+wrong.
+
 ### Maintainer note: a mention whose value changes on a schedule
 
 A mention's `noteValues` table is not always a one-time fact. France's late-payment penalty rate

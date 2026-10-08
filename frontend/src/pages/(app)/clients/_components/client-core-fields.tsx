@@ -2,6 +2,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import CountrySelect from "@/components/country-select"
+import { currencyForCountry } from "@/lib/reference/countries"
 import type { FieldValues, UseFormReturn } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
@@ -103,7 +104,11 @@ export function ClientCountryField({ form }: Readonly<{ form: UseFormReturn<Fiel
             <CountrySelect
               value={field.value}
               onChange={(value) => field.onChange(value)}
-              onCountryCodeChange={(code) => form.setValue("countryCode", code as never)}
+              onCountryCodeChange={(code) => {
+                form.setValue("countryCode", code as never)
+                const currency = currencyForCountry(code)
+                if (currency) form.setValue("currency", currency as never)
+              }}
               data-cy="client-country-select"
             />
           </FormControl>
