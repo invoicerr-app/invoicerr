@@ -94,6 +94,7 @@ describe('assertValidProvenance', () => {
 
 describe('assertPatternIsExplainable', () => {
   const legal = { kind: 'legal', sourceText: 'Text.', sourceCheckedAt: '2026-08-30' } as const;
+  const helpTextKey = 'settings.identifiers.help.FR.LEGAL_ID';
 
   it('accepts a fact with no pattern at all — nothing to explain', () => {
     expect(() => assertPatternIsExplainable({ ...base, provenance: legal }, 'test')).not.toThrow();
@@ -102,7 +103,7 @@ describe('assertPatternIsExplainable', () => {
   it('accepts a fact whose pattern carries its own helpText', () => {
     expect(() =>
       assertPatternIsExplainable(
-        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', provenance: legal },
+        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', helpTextKey, provenance: legal },
         'test',
       ),
     ).not.toThrow();
@@ -110,17 +111,26 @@ describe('assertPatternIsExplainable', () => {
 
   it('rejects a pattern with no helpText — a refusal at write time would have no words to explain it', () => {
     expect(() =>
-      assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', provenance: legal }, 'test'),
-    ).toThrow(InvalidIdentifierPatternError);
+      assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', helpTextKey, provenance: legal }, 'test'),
+    ).toThrow(/no helpText(?!Key)/);
   });
 
   it('rejects a pattern with a blank helpText the same way', () => {
     expect(() =>
       assertPatternIsExplainable(
-        { ...base, pattern: '^\\d{9}$', helpText: '   ', provenance: legal },
+        { ...base, pattern: '^\\d{9}$', helpText: '   ', helpTextKey, provenance: legal },
         'test',
       ),
     ).toThrow(InvalidIdentifierPatternError);
+  });
+
+  it('rejects a pattern with no helpTextKey: a form would show the field with nothing to explain it', () => {
+    expect(() =>
+      assertPatternIsExplainable(
+        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', provenance: legal },
+        'test',
+      ),
+    ).toThrow(/no helpTextKey/);
   });
 
   it('names the scheme, the pattern, and the caller-supplied context', () => {

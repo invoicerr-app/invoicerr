@@ -619,6 +619,14 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   Narrowing the invoicing mandate does not discharge whatever DECLARATION the same law may still
   require for the cross-border operation (France's e-reporting, Italy's art. 1 comma 3-bis). That
   belongs to the `reporting` section, and neither is implemented today.
+- `identifiers`: what a form shows beside a field is translated text, so it never lives in this
+  file. A scheme entry names it with `helpTextKey` (`settings.identifiers.help.<CC>.<SCHEME>`), and
+  you add the English text under that key in `frontend/src/locales/en/translation.json`; Weblate
+  translates it from there. `helpText` is a different, short English phrase naming the expected
+  shape (`"9 digits (SIREN) or 14 digits (SIRET)"`), used only in the API's refusal of a value that
+  fails `pattern`. A scheme with a `pattern` must declare both; research notes go in `notes`, never
+  in either. `frontend/src/hooks/use-required-identifiers.spec.ts` fails on a `helpTextKey` with no
+  English text, and on an English help text no country file points to.
 - `contentRequirements` facts are **always** `legal` - there is no `unverified` escape hatch for a
   content requirement; if you can't source it yet, don't ship it.
 - `taxSystem` may omit `standardRate` for a VAT/GST country **if** the same file's own `vatRates`

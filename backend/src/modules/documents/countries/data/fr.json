@@ -503,7 +503,8 @@
         "label": "SIREN / SIRET",
         "required": true,
         "pattern": "^\\d{9}(\\d{5})?$",
-        "helpText": "9 digits (SIREN — the legal-unit number the invoice must carry) or 14 digits (SIRET — the establishment number, accepted because its own first 9 digits ARE the SIREN).",
+        "helpText": "9 digits (SIREN) or 14 digits (SIRET)",
+        "helpTextKey": "settings.identifiers.help.FR.LEGAL_ID",
         "iso6523Scheme": "0002",
         "electronicAddressScheme": "0225",
         "einvoiceReduction": {

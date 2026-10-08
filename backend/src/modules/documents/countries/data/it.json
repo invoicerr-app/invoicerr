@@ -505,7 +505,8 @@
         "label": "Codice Univoco Ufficio (IPA)",
         "required": false,
         "pattern": "^[A-Za-z0-9]{6}$",
-        "helpText": "6-character 'Codice Ufficio' looked up on indicepa.gov.it — only a Pubblica Amministrazione has one. Needed so a domestic invoice to a government client routes as FPA12, not FPR12/XXXXXXX.",
+        "helpText": "6 letters or digits",
+        "helpTextKey": "settings.identifiers.help.IT.IT_PA_CODE",
         "provenance": {
           "kind": "legal",
           "sourceText": "«CodiceDestinatario: identifica il soggetto al quale è destinata la fattura; - nei casi di fattura destinata ad una Pubblica Amministrazione il suo valore, di 6 caratteri, deve corrispondere a quello presente nel campo Codice Ufficio riportato nella rubrica \"Indice PA\" (WWW.INDICEPA.GOV.IT).»",
@@ -519,7 +520,8 @@
         "label": "Codice Destinatario (SdI)",
         "required": false,
         "pattern": "^[A-Za-z0-9]{7}$",
-        "helpText": "7-character code the Sistema di Interscambio assigns on request ('Richiesta codici destinatario B2B' on fatturapa.gov.it) to a non-PA recipient with an accredited receiving channel. Needed so a domestic B2B/private invoice routes to the right mailbox instead of falling back to a placeholder.",
+        "helpText": "7 letters or digits",
+        "helpTextKey": "settings.identifiers.help.IT.IT_SDI",
         "provenance": {
           "kind": "legal",
           "sourceText": "«CodiceDestinatario: identifica il soggetto al quale è destinata la fattura; [...] - nei casi di fattura destinata ad un soggetto diverso da Pubblica Amministrazione il suo valore, di 7 caratteri, deve corrispondere a: uno dei codici che il Sistema di Interscambio attribuisce ai soggetti, con canale accreditato in ricezione, che ne abbiano fatto richiesta attraverso la funzione \"Richiesta codici destinatario B2B\" presente sul sito WWW.FATTURAPA.GOV.IT; [...]»",
@@ -532,7 +534,7 @@
         "appliesTo": "BOTH",
         "label": "PEC (Posta Elettronica Certificata)",
         "required": false,
-        "helpText": "Certified email address used as the SdI delivery channel when the recipient has no Codice Destinatario (SdI) on file. Only used for a non-PA recipient.",
+        "helpTextKey": "settings.identifiers.help.IT.PEC",
         "provenance": {
           "kind": "legal",
           "sourceText": "«PECDestinatario: indirizzo di Posta Elettronica Certificata al quale viene recapitata la fattura; viene valorizzato nei soli casi di destinatario diverso da Pubblica Amministrazione, qualora il destinatario utilizzi il canale PEC per ricevere le fatture. Può essere valorizzato solo se il valore di CodiceDestinatario è uguale a '0000000'.» Same par. 1.1, on the CodiceDestinatario branch itself: «'0000000', nei casi di fattura destinata ad un soggetto che riceve tramite PEC e questa sia indicata nel campo PECDestinatario;»",
