@@ -550,6 +550,7 @@
       {
         "routeId": "CANCEL_AND_REPLACE",
         "status": "allowed",
+        "locallyImplementable": true,
         "provenance": {
           "kind": "legal",
           "sourceText": "Doit porter « référence exacte à la facture initiale et la mention expresse de l'annulation de celle-ci » — applicable aux ventes annulées ou résiliées, rabais. Source : BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240.",

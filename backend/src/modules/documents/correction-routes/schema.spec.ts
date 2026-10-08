@@ -94,3 +94,51 @@ describe('assertValidCorrectionRouteFact', () => {
     expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(/resolutionNote/);
   });
 });
+
+describe('assertValidCorrectionRouteFact: local availability on CANCEL_AND_REPLACE', () => {
+  const cancelFact = (overrides: Partial<CorrectionRouteFact>) =>
+    baseFact({ routeId: 'CANCEL_AND_REPLACE', ...overrides });
+  const unverifiedProvenance = { kind: 'unverified', resolutionNote: 'Not researched.' } as const;
+
+  it.each<[string, Partial<CorrectionRouteFact>]>([
+    ['no flag at all', {}],
+    ['implementable, unrestricted', { locallyImplementable: true }],
+    ['implementable on a required route', { status: 'required', locallyImplementable: true }],
+    ['implementable, narrowed', { locallyImplementable: true, restrictedToStatuses: ['send_failed'] }],
+    ['explicitly not implementable', { locallyImplementable: false }],
+    ['not implementable on a forbidden route', { status: 'forbidden', locallyImplementable: false }],
+  ])('accepts %s', (_label, overrides) => {
+    expect(() => assertValidCorrectionRouteFact(cancelFact(overrides), 'test')).not.toThrow();
+  });
+
+  it.each<[string, Partial<CorrectionRouteFact>, RegExp]>([
+    ['the flag on another route', { routeId: 'CREDIT_NOTE', locallyImplementable: true }, /only read on/],
+    [
+      'a narrowing on another route',
+      { routeId: 'CREDIT_NOTE', restrictedToStatuses: ['sent'] },
+      /only read on/,
+    ],
+    ['a non-boolean flag', { locallyImplementable: 'yes' as never }, /must be a boolean/],
+    ['an implementable forbidden route', { status: 'forbidden', locallyImplementable: true }, /cannot be/],
+    [
+      'an implementable unverified route',
+      { status: 'unverified', provenance: unverifiedProvenance, locallyImplementable: true },
+      /cannot be/,
+    ],
+    ['a narrowing without the flag', { restrictedToStatuses: ['send_failed'] }, /requires/],
+    [
+      'a narrowing on a non-implementable route',
+      { locallyImplementable: false, restrictedToStatuses: ['send_failed'] },
+      /requires/,
+    ],
+    ['an empty narrowing', { locallyImplementable: true, restrictedToStatuses: [] }, /non-empty array/],
+    ['a blank status name', { locallyImplementable: true, restrictedToStatuses: [' '] }, /non-empty array/],
+    [
+      'a non-array narrowing',
+      { locallyImplementable: true, restrictedToStatuses: 'sent' as never },
+      /non-empty array/,
+    ],
+  ])('rejects %s', (_label, overrides, message) => {
+    expect(() => assertValidCorrectionRouteFact(cancelFact(overrides), 'test')).toThrow(message);
+  });
+});
