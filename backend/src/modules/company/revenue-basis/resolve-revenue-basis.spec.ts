@@ -4,6 +4,7 @@ import {
   normalizeRevenuePeriod,
   resolveRevenueSettings,
 } from './resolve-revenue-basis';
+import { defaultComposedCountryCatalog } from '@/modules/documents/countries/registry';
 
 describe('defaultRevenueBasisFor', () => {
   it('FR: cashed (URSSAF micro-entrepreneur)', () => {
@@ -124,5 +125,46 @@ describe('normalizeRevenuePeriod', () => {
 
   it('rejects anything else, named', () => {
     expect(() => normalizeRevenuePeriod('yearly')).toThrow(/revenuePeriod must be/);
+  });
+});
+
+/** The defaults this resolver used to hard-code, kept as test data: the data-driven resolver must
+ *  answer every input exactly as the old table did. */
+const LEGACY_CASHED_COUNTRIES = new Set(['FR', 'IT']);
+const LEGACY_REASONS: Record<string, string> = {
+  FR: 'French micro-entrepreneurs declare cashed revenue (urssaf.fr; CSS art. R133-30-1 to 10).',
+  IT: 'Italian regime forfettario taxes revenue received, not invoiced (L. 190/2014 art. 1 c. 64).',
+};
+const LEGACY_FALLBACK_REASON =
+  'No clear cashed-basis default found for this country - kept at "invoiced", this product’s own ' +
+  'pre-existing behavior (dashboard totals already count by issue date).';
+
+function legacyDefault(countryCode: string | null | undefined) {
+  const normalized = (countryCode ?? '').trim().toUpperCase();
+  return LEGACY_CASHED_COUNTRIES.has(normalized)
+    ? { basis: 'cashed', reason: LEGACY_REASONS[normalized] }
+    : { basis: 'invoiced', reason: LEGACY_FALLBACK_REASON };
+}
+
+describe('defaultRevenueBasisFor: same answers as the legacy hard-coded table', () => {
+  const registryCountries = defaultComposedCountryCatalog.countries();
+  const inputs: Array<string | null | undefined> = [
+    ...registryCountries,
+    ...registryCountries.map((countryCode) => countryCode.toLowerCase()),
+    ...registryCountries.map((countryCode) => ` ${countryCode} `),
+    'US',
+    'XX',
+    '',
+    '   ',
+    undefined,
+    null,
+  ];
+
+  it('covers every country the legacy table named', () => {
+    expect(registryCountries).toEqual(expect.arrayContaining([...LEGACY_CASHED_COUNTRIES]));
+  });
+
+  it.each(inputs.map((input) => [JSON.stringify(input) ?? 'undefined', input]))('%s', (_label, input) => {
+    expect(defaultRevenueBasisFor(input)).toEqual(legacyDefault(input));
   });
 });

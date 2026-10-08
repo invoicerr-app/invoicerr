@@ -1,10 +1,13 @@
 import {
   assertValidDocumentValidationCodeFact,
   assertValidProvenance,
+  assertValidRevenueBasisDefaultFact,
   DocumentActionRuleFact,
   DocumentValidationCodeFact,
   InvalidDocumentValidationCodeError,
   InvalidPolicyProvenanceError,
+  InvalidRevenueBasisDefaultError,
+  RevenueBasisDefaultFact,
 } from './schema';
 
 const base: Omit<DocumentActionRuleFact, 'provenance'> = {
@@ -131,5 +134,36 @@ describe('assertValidDocumentValidationCodeFact', () => {
   it('names the caller-supplied context in the error', () => {
     const fact = { scheme: '', provenance: legalProvenance } as DocumentValidationCodeFact;
     expect(() => assertValidDocumentValidationCodeFact(fact, 'pt.json')).toThrow(/pt\.json/);
+  });
+});
+
+describe('assertValidRevenueBasisDefaultFact', () => {
+  const validFact: RevenueBasisDefaultFact = {
+    basis: 'cashed',
+    reason: 'Declared on cashed revenue.',
+    provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-09-28' },
+  };
+  const withOverrides = (overrides: Record<string, unknown>) =>
+    ({ ...validFact, ...overrides }) as RevenueBasisDefaultFact;
+
+  it.each(['cashed', 'invoiced'])('accepts basis "%s"', (basis) => {
+    expect(() => assertValidRevenueBasisDefaultFact(withOverrides({ basis }), 'test')).not.toThrow();
+  });
+
+  it.each<[string, Record<string, unknown>, RegExp]>([
+    ['an unknown basis', { basis: 'accrued' }, /must be one of/],
+    ['a blank reason', { reason: '  ' }, /non-blank sentence/],
+    ['a missing reason', { reason: undefined }, /non-blank sentence/],
+  ])('rejects %s', (_label, overrides, message) => {
+    const fact = withOverrides(overrides);
+    expect(() => assertValidRevenueBasisDefaultFact(fact, 'xx.json')).toThrow(
+      InvalidRevenueBasisDefaultError,
+    );
+    expect(() => assertValidRevenueBasisDefaultFact(fact, 'xx.json')).toThrow(message);
+  });
+
+  it('runs the shared provenance gate', () => {
+    const fact = withOverrides({ provenance: undefined });
+    expect(() => assertValidRevenueBasisDefaultFact(fact, 'test')).toThrow(InvalidPolicyProvenanceError);
   });
 });

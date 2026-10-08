@@ -31,6 +31,7 @@ import {
   assertValidInvoiceValidationFact,
   assertValidNumberingProvenance,
   assertValidProvenance as assertValidPolicyProvenance,
+  assertValidRevenueBasisDefaultFact,
 } from '../../country-policy/schema';
 import {
   assertPatternIsExplainable,
@@ -123,6 +124,9 @@ function validatePolicySection(
   }
   if (policy.documentValidationCode) {
     assertValidDocumentValidationCodeFact(policy.documentValidationCode, `${filePath}#policy`);
+  }
+  if (policy.revenueBasisDefault) {
+    assertValidRevenueBasisDefaultFact(policy.revenueBasisDefault, `${filePath}#policy`);
   }
 }
 

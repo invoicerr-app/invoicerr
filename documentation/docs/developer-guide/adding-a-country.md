@@ -387,6 +387,28 @@ check above (it is generic over the field), but the ATCUD computation itself
 (`numbering/atcud.ts`, `actions/atcud-issuance.ts`) stays Portugal-specific code: a second scheme
 would still need its own implementation, this fact only lets the gate find it without a new literal.
 
+### Maintainer note: `revenueBasisDefault`, the default revenue basis
+
+A company that has not chosen a revenue basis (Settings > Company > Revenue basis) starts from its
+country's `policy.revenueBasisDefault`:
+
+```json
+"revenueBasisDefault": {
+  "basis": "cashed",
+  "reason": "Shown verbatim on the settings screen next to the default.",
+  "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "YYYY-MM-DD" },
+  "notes": "optional free text"
+}
+```
+
+`basis` is `invoiced` or `cashed`; `reason` must be non-blank; `provenance` goes through the same gate
+as every other fact in this file, at load time (`countries/data/all.ts`). A country without the fact
+defaults to `invoiced`, the product's behaviour everywhere else, so declare it only where one regime
+is both clearly cash-based in law and the most common among the country's freelancers (France's
+micro-entrepreneur, Italy's regime forfettario). The company has no regime field, so a default for a
+less common regime would be wrong more often than right. Read by
+`company/revenue-basis/resolve-revenue-basis.ts` through `registry.ts#revenueBasisDefaultFor`.
+
 ### Maintainer note: EU/GCC membership and Peppol EAS live in a reference table, not a country file
 
 Issue #603 (audit section 1, row 1 / section 5, row A) replaced FOUR independent copies of the EU
