@@ -186,8 +186,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 			.first()
 			.click({ force: true });
 
-		// Portaled outside the row (Radix Popover) — queried directly, the same technique as
-		// 14-articles.cy.ts for the "from catalog" picker.
+		// Portaled outside the row (Radix Popover), so queried directly.
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 })
 			.should("be.visible")
 			// vat-rates/registry.ts composes this label ({{rate}}% — {{label}}) from
