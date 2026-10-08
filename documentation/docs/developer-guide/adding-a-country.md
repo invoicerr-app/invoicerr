@@ -136,6 +136,7 @@ separate directory or file to open any more; the "Section" column names the exac
 | VAT national currency | `vatCurrency` | Whether this country's VAT must additionally appear converted into its own national currency when the invoice is issued in another one, and whether the taxable amount must too. | No - read live from the file. |
 | Domestic reverse charge | `domesticReverseCharge` | The statutory categories in which the buyer, not the seller, owes the VAT on a purely domestic supply. | No - read live from the file; not wired into the tax engine yet. |
 | Company lookup | `companyLookup` | Which company registry providers autofill a company or client form for this country, in the order they are tried before the worldwide directories, and the i18n key of the note shown with it. See "Company lookup" below. | No - read live from the file by `company-lookup/coverage/registry.ts`. |
+| Payment term cap | `paymentTerms` | The longest payment term two businesses may agree on in this country, in days after the issue date: `maxNetDays`, and `maxEndOfMonthDays` for a term counted to the end of the month. Provenance is mandatory. Read by the payment-terms setting (`GET /api/company/payment-terms`) to show a non-blocking warning; a country without the section gets no warning. | No - read live from the file. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* the `taxSystem` section - see
@@ -155,7 +156,7 @@ proof that behaviour did not change - not a set of future steps still to do.
 already-validated files by country code into one `ComposedCountryView` object per country, with one
 optional field per mechanism: `policy`, `identifiers`, `correctionRoutes`, `vatRates`, `taxSystem`,
 `vatCurrency`, `channelPolicy`, `retention`, `mentions`, `localizedMentions`, `reporting`, `domesticReverseCharge`,
-`countryFields`, `contentRequirements`, `b2gRouting`.
+`countryFields`, `contentRequirements`, `b2gRouting`, `paymentTerms`.
 
 :::info[Nothing moved yet]
 Step 1 reads the existing files through the existing loaders and validators. It does not move a

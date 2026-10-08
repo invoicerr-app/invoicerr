@@ -1035,5 +1035,16 @@
   "companyLookup": {
     "countryCode": "FR",
     "providers": ["fr-recherche-entreprises", "eu-vies"]
+  },
+  "paymentTerms": {
+    "countryCode": "FR",
+    "maxNetDays": 60,
+    "maxEndOfMonthDays": 45,
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "Code de commerce, art. L. 441-10, I: \"Le délai convenu entre les parties pour régler les sommes dues ne peut dépasser soixante jours après la date d'émission de la facture. Par dérogation, un délai maximal de quarante-cinq jours fin de mois après la date d'émission de la facture peut être convenu entre les parties, sous réserve que ce délai soit expressément stipulé par contrat et qu'il ne constitue pas un abus manifeste à l'égard du créancier.\"",
+      "sourceCheckedAt": "2026-10-05"
+    },
+    "notes": "Read directly at codes.droit.org (Code de commerce PDF, https://codes.droit.org/PDF/Code%20de%20commerce.pdf). Absent a contrary agreement the term cannot exceed thirty days after receipt of the goods or performance of the service (first paragraph of the same article). A periodic invoice (CGI art. 289, I, 3) is capped at forty-five days net, which this fact does not model."
   }
 }

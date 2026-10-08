@@ -25,6 +25,7 @@ import type { Widget } from "@/components/widgets/types"
  *   documents.descriptors.<typeId>.label
  *   documents.descriptors.<typeId>.fields.<fieldKey>.label
  *   documents.descriptors.<typeId>.fields.<fieldKey>.options.<optionValue>
+ *   documents.descriptors.<typeId>.fields.<fieldKey>.suggestedValues.<value>
  *   documents.descriptors.<typeId>.fields.<arrayFieldKey>.fields.<rowFieldKey>.label   (nested 'array' rows)
  *   documents.descriptors.<typeId>.actions.<actionId>.label
  *   documents.descriptors.<typeId>.actions.<actionId>.params.<paramKey>.label
@@ -105,6 +106,20 @@ export function descriptorFieldOptionLabel(
 ): string {
   const segment = fieldPathSegment(fieldPath)
   return t(`documents.descriptors.${typeId}.fields.${segment}.options.${optionValue}`, {
+    defaultValue: rawLabel,
+  })
+}
+
+/** One 'text' field's own `suggestedValues[].label`, for the entry whose `value` is `suggestedValue`. */
+export function descriptorFieldSuggestedValueLabel(
+  t: DescriptorTranslator,
+  typeId: string,
+  fieldPath: string[],
+  suggestedValue: string,
+  rawLabel: string,
+): string {
+  const segment = fieldPathSegment(fieldPath)
+  return t(`documents.descriptors.${typeId}.fields.${segment}.suggestedValues.${suggestedValue}`, {
     defaultValue: rawLabel,
   })
 }
@@ -202,11 +217,16 @@ function translateDocumentFields(
       ...option,
       label: descriptorFieldOptionLabel(t, typeId, path, option.value, option.label),
     }))
+    const suggestedValues = field.suggestedValues?.map((entry) => ({
+      ...entry,
+      label: descriptorFieldSuggestedValueLabel(t, typeId, path, entry.value, entry.label),
+    }))
     const nestedFields = field.fields ? translateDocumentFields(t, typeId, field.fields, path) : undefined
     return {
       ...field,
       label,
       ...(options ? { options } : {}),
+      ...(suggestedValues ? { suggestedValues } : {}),
       ...(nestedFields ? { fields: nestedFields } : {}),
     }
   })

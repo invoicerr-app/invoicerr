@@ -11,6 +11,11 @@ import {
   normalizeRevenuePeriod,
   resolveRevenueSettings,
 } from '@/modules/company/revenue-basis/resolve-revenue-basis';
+import {
+  normalizeDueDays,
+  normalizeDueMode,
+  resolvePaymentTerms,
+} from '@/modules/company/payment-terms/resolve-payment-terms';
 import { MailTemplateType, Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
@@ -126,6 +131,10 @@ type PickedCompanyInput = Pick<
   | 'distanceSalesRegime'
   | 'revenueBasis'
   | 'revenuePeriod'
+  | 'quoteDueDays'
+  | 'quoteDueMode'
+  | 'invoiceDueDays'
+  | 'invoiceDueMode'
 >;
 
 /**
@@ -178,6 +187,10 @@ export function pickCompanyInput(input: EditCompanyDto): PickedCompanyInput {
     distanceSalesRegime: normalizeDistanceSalesRegime(input.distanceSalesRegime),
     revenueBasis: normalizeRevenueBasis(input.revenueBasis),
     revenuePeriod: normalizeRevenuePeriod(input.revenuePeriod),
+    quoteDueDays: normalizeDueDays('quoteDueDays', input.quoteDueDays),
+    quoteDueMode: normalizeDueMode('quoteDueMode', input.quoteDueMode),
+    invoiceDueDays: normalizeDueDays('invoiceDueDays', input.invoiceDueDays),
+    invoiceDueMode: normalizeDueMode('invoiceDueMode', input.invoiceDueMode),
   };
 }
 
@@ -254,6 +267,25 @@ export class CompanyService {
       throw new NotFoundException(`Company "${companyId}" not found.`);
     }
     return resolveRevenueSettings(company);
+  }
+
+  async getPaymentTerms(companyId: string) {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        quoteDueDays: true,
+        quoteDueMode: true,
+        invoiceDueDays: true,
+        invoiceDueMode: true,
+        countryCode: true,
+        country: true,
+      },
+    });
+    if (!company) {
+      throw new NotFoundException(`Company "${companyId}" not found.`);
+    }
+    const countryCode = company.countryCode || guessCountryCode(company.country ?? undefined) || '';
+    return resolvePaymentTerms({ ...company, countryCode });
   }
 
   private async upsertPartyIdentifiers(
