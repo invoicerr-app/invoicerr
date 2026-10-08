@@ -20,8 +20,7 @@ describe('Settings E2E', () => {
     describe('Company Settings', () => {
         it('loads company settings page', () => {
             cy.visit('/settings/company');
-            cy.wait(1000);
-            cy.contains(/company|entreprise|société/i, { timeout: 10000 });
+            cy.contains('h1', 'Company Settings', { timeout: 10000 }).should('be.visible');
         });
 
         it('displays company form', () => {
@@ -35,8 +34,7 @@ describe('Settings E2E', () => {
     describe('Invitations Settings', () => {
         it('loads invitations page', () => {
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains(/invitation/i, { timeout: 10000 });
+            cy.contains('h1', 'Invitations', { timeout: 10000 }).should('be.visible');
         });
 
         it('creates a new invitation code', () => {
@@ -71,16 +69,14 @@ describe('Settings E2E', () => {
 
     describe('Danger Zone Settings', () => {
         it('loads danger zone page', () => {
-            cy.visit('/settings/danger-zone');
-            cy.wait(1000);
-            cy.contains(/danger/i, { timeout: 10000 });
+            cy.visit('/settings/danger');
+            cy.contains('h1', 'Danger Zone', { timeout: 10000 }).should('be.visible');
         });
 
         it('shows reset buttons', () => {
-            cy.visit('/settings/danger-zone');
-            cy.wait(1000);
-
-            cy.get('button').should('have.length.at.least', 1);
+            cy.visit('/settings/danger');
+            cy.get('[data-cy="danger-reset-company-data-button"]', { timeout: 10000 }).scrollIntoView().should('be.visible');
+            cy.get('[data-cy="danger-delete-company-button"]').scrollIntoView().should('be.visible');
         });
     });
 

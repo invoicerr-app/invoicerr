@@ -66,6 +66,7 @@ describe('resolveRequiredIdentifiers', () => {
         required: true,
         pattern: '^\\d{14}$',
         helpText: '14 digits',
+        helpTextKey: 'settings.identifiers.help.FR.LEGAL_ID',
       },
       {
         scheme: 'VAT',
@@ -88,6 +89,7 @@ describe('resolveRequiredIdentifiers', () => {
         required: true,
         pattern: '^\\d{14}$',
         helpText: '14 digits',
+        helpTextKey: 'settings.identifiers.help.FR.LEGAL_ID',
       },
     ]);
   });

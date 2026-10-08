@@ -3,6 +3,7 @@ import { useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
 import { BetterInput } from "@/components/better-input"
+import { CatalogSearchInput } from "@/components/catalog-search-input"
 import { DatePicker } from "@/components/date-picker"
 import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import {
@@ -156,11 +157,28 @@ function SiblingSuggestionsDatalist({
   )
 }
 
-export function TextField({ field, name }: FieldRendererProps) {
+export interface TextFieldCatalog {
+  entity: string
+  onSelect: (id: string) => void
+}
+
+/** The typed text of a field with fixed `suggestedValues` is shown as the entry's label and stored as its
+ *  value: picking "Day" or typing it stores the code, any other text is stored as typed. */
+function suggestedValueOf(field: FieldRendererProps["field"], typed: string): string {
+  const wanted = typed.trim().toLowerCase()
+  return field.suggestedValues?.find((entry) => entry.label.toLowerCase() === wanted)?.value ?? typed
+}
+
+function suggestedLabelOf(field: FieldRendererProps["field"], stored: string): string {
+  return field.suggestedValues?.find((entry) => entry.value === stored)?.label ?? stored
+}
+
+export function TextField({ field, name, catalog }: FieldRendererProps & { catalog?: TextFieldCatalog }) {
   const { control } = useFormContext()
   const required = useConditionallyRequired(field)
   const readOnly = useDocumentFormReadOnly()
   const suggestionsPath = siblingSuggestionsPath(field, name)
+  const fixedListId = field.suggestedValues ? `${name.replaceAll(".", "-")}-suggested` : undefined
   // A stable, collision-safe id: `name` itself is already unique per field instance (react-hook-form
   // never reuses one), just not a valid HTML id verbatim (dots).
   const datalistId = suggestionsPath ? `${name.replace(/\./g, "-")}-suggestions` : undefined
@@ -176,14 +194,33 @@ export function TextField({ field, name }: FieldRendererProps) {
               single-child invariant). A `<datalist>` is invisible either way - only `list={id}` on
               the input itself matters for the browser to find it. */}
           <FieldChrome field={field} required={required}>
-            <BetterInput
-              {...rhfField}
-              value={rhfField.value ?? ""}
-              disabled={readOnly}
-              list={datalistId}
-              data-cy={`document-field-${field.key}-input`}
-            />
+            {catalog ? (
+              <CatalogSearchInput
+                {...rhfField}
+                entity={catalog.entity}
+                onCatalogSelect={catalog.onSelect}
+                value={rhfField.value ?? ""}
+                disabled={readOnly}
+                data-cy={`document-field-${field.key}-input`}
+              />
+            ) : (
+              <BetterInput
+                {...rhfField}
+                value={suggestedLabelOf(field, rhfField.value ?? "")}
+                onChange={(event) => rhfField.onChange(suggestedValueOf(field, event.target.value))}
+                disabled={readOnly}
+                list={datalistId ?? fixedListId}
+                data-cy={`document-field-${field.key}-input`}
+              />
+            )}
           </FieldChrome>
+          {fixedListId && field.suggestedValues && (
+            <datalist id={fixedListId}>
+              {field.suggestedValues.map((entry) => (
+                <option key={entry.value} value={entry.label} />
+              ))}
+            </datalist>
+          )}
           {datalistId && suggestionsPath && (
             <SiblingSuggestionsDatalist
               id={datalistId}

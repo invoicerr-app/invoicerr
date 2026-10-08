@@ -23,7 +23,9 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
   that case, naming the channel and stating it cannot be undone; see
   [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
   [Italy](../../developer-guide/countries/italy.md#validate-and-the-sdi-mandate). For every other
-  invoice, **Send** stays a separate, later step
+  invoice, **Send** stays a separate, later step. Validating is refused while the client has no
+  address, no city, or lacks an identifier required for its country; the message names what is missing
+  and links to the client
 - **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
@@ -36,13 +38,17 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 
 Click **Add New** and fill in:
 
-- **Client** (required)
-- **Date** and **Due date** (both required)
+- **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
+  with just a name and a country. The client must be complete before the invoice is validated or sent;
+  see [Clients](../clients.md#completing-a-client-before-invoicing)
+- **Date** and **Due date** (both required). The due date is filled in as soon as you pick the date, from your [payment terms](../settings/payment-terms.md); you can still change it
 - **Currency** (required)
 - **Origin document** and **Corrects invoice** (optional) — links back to the quote/invoice this one was raised from, or the invoice it corrects
 - **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in
 - **Line items** — Designation, Quantity, Unit, Unit price, VAT rate, and a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)
 - **Notes** (optional)
+
+The **Unit** field suggests common units (piece, hour, day, week, month, year, kilogram, gram, litre, metre, kilometre, set, box) in your language, and you can still type any other value. A suggested unit is exported in e-invoices as its standard UN/ECE Recommendation 20 code (for example `DAY`), and a unit you type yourself is exported as the generic `C62` code unless it is a known unit name or code.
 
 There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically - unless the client has its own [restriction](../clients.md#restricting-payment-methods-for-a-client), in which case only the methods you allowed for that client are printed. The one actually used is only recorded afterwards, when you mark the invoice as paid.
 

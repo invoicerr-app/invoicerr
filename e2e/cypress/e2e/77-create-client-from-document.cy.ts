@@ -70,10 +70,17 @@ describe("Create client from the document wizard's own client picker", () => {
 
 		// The picker's own popover closed…
 		cy.get('[data-cy="document-field-client-input-options"]').should("not.exist");
-		// …the REAL client wizard opened ON TOP of it…
-		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+		// …the quick client form opened ON TOP of it…
+		cy.get('[data-cy="client-quick-dialog"]', { timeout: 5000 }).should("be.visible");
 		// …and the document wizard underneath is still there, untouched, never closed or reset.
 		cy.get('[data-cy="document-create-dialog"]').should("exist");
+
+		cy.screenshot("create-client/quick-dialog-desktop");
+
+		// The quick form hands over to the full wizard on request.
+		cy.get('[data-cy="client-quick-open-full"]').click();
+		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
+		cy.get('[data-cy="client-quick-dialog"]').should("not.exist");
 
 		cy.screenshot("create-client/nested-dialog-desktop");
 
@@ -166,6 +173,149 @@ describe("Create client from the document wizard's own client picker", () => {
 						);
 					});
 			});
+		});
+	});
+});
+
+const QUICK_CLIENT_NAME = "Name Only SARL";
+
+/** Shared by the two tests below: the second one completes the client the first one created. */
+let quickClientId = "";
+
+/** Opens the "Create new client" quick form from a fresh document wizard of `typeId`. */
+function openQuickClientForm(typeId: "quote" | "invoice") {
+	cy.visit(`/documents/${typeId}`);
+	cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
+	cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
+	cy.openSearchSelect("document-field-client-input");
+	cy.get('[data-cy="document-field-client-input-create-new"]').click();
+	cy.get('[data-cy="client-quick-dialog"]', { timeout: 5000 }).should("be.visible");
+}
+
+function clientById(id: string) {
+	return cy.request({ url: `${api}/api/clients/${id}` }).its("body");
+}
+
+describe("Quick client creation from a quote, completion required before an invoice is validated", () => {
+	before(() => {
+		cy.resetAndSeed();
+	});
+	beforeEach(() => {
+		cy.login();
+		cy.viewport(1440, 900);
+	});
+
+	it("creates a client from a name alone on a quote: the company country is prefilled, the client is selected at once and the quote saves", () => {
+		cy.intercept("POST", `${api}/api/clients`).as("createClient");
+		cy.intercept({ method: "GET", url: `${api}/api/documents/types/quote?clientId=*` }).as(
+			"clientAwareDescriptor",
+		);
+
+		openQuickClientForm("quote");
+		cy.get('[data-cy="client-country-select"]').should("contain.text", "France");
+		cy.screenshot("create-client/quick-form-desktop");
+
+		cy.get('[name="name"]').type(QUICK_CLIENT_NAME);
+		cy.get('[data-cy="client-quick-submit"]').click();
+		cy.wait("@createClient").then((interception) => {
+			expect(interception.response?.statusCode).to.be.oneOf([200, 201]);
+			quickClientId = interception.response?.body?.id as string;
+		});
+
+		cy.get('[data-cy="client-quick-dialog"]').should("not.exist");
+		cy.get('[data-cy="document-field-client-input"] button', { timeout: 10000 }).should(
+			"contain.text",
+			QUICK_CLIENT_NAME,
+		);
+		cy.wait("@clientAwareDescriptor", { timeout: 20000 });
+
+		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+		cy.openSearchSelect("document-field-currency-input");
+		cy.get('[data-cy="document-field-currency-input-option-eur"]').click();
+		cy.continueDocumentWizard();
+		cy.get('[data-cy="document-field-lines-add-row"]').click();
+		cy.get('[name="lines.0.description"]').type("Prestation de conseil");
+		cy.get('[name="lines.0.quantity"]').clear().type("1");
+		cy.get('[name="lines.0.unitPrice"]').clear().type("500");
+		cy.openSearchSelect("document-field-vatRate-input");
+		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
+		cy.continueDocumentWizard();
+		cy.continueDocumentWizard();
+		cy.get('[data-cy="document-action-save-draft"]').should("be.visible").click();
+		cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should("be.visible");
+
+		cy.url().then((url) => {
+			const quoteId = url.split("/").pop() as string;
+			cy.request({ url: `${api}/api/documents/${quoteId}?typeId=quote` })
+				.its("body.data.client")
+				.should("eq", quickClientId);
+			clientById(quickClientId).then((client) => {
+				expect(client.name).to.eq(QUICK_CLIENT_NAME);
+				expect(client.address, "no address was asked for").to.be.null;
+				expect(client.city).to.be.null;
+			});
+		});
+	});
+
+	it("refuses to Validate an invoice for that client, naming what is missing, then validates once the client is completed", () => {
+		cy.intercept("PATCH", `${api}/api/clients/*`).as("updateClient");
+		cy.intercept("GET", `${api}/api/clients/${quickClientId}`).as("editedClient");
+		cy.intercept("POST", `${api}/api/documents/types/invoice/actions/validate`).as("validateInvoice");
+
+		cy.request({
+			method: "POST",
+			url: `${api}/api/documents/types/invoice/actions/save-draft`,
+			body: {
+				data: {
+					client: quickClientId,
+					issueDate: "2026-08-30",
+					dueDate: "2026-10-31",
+					currency: "EUR",
+					lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+				},
+			},
+		}).then((saved) => {
+			const invoiceId = saved.body.document.id as string;
+			cy.visit("/documents/invoice");
+			cy.openDocument(invoiceId);
+
+			cy.runDocumentAction("validate");
+			cy.wait("@validateInvoice").its("response.statusCode").should("eq", 400);
+			cy.get("[data-sonner-toast]", { timeout: 15000 })
+				.should("contain.text", QUICK_CLIENT_NAME)
+				.and("contain.text", "SIREN / SIRET")
+				.and("contain.text", "the address");
+			cy.screenshot("create-client/validate-refused-desktop");
+			cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+				.its("body.status")
+				.should("eq", "draft");
+
+			// A native click: Cypress's synthetic pointerdown makes sonner's swipe handler throw.
+			cy.get("[data-sonner-toast]")
+				.contains("button", "Edit client")
+				.then(($button) => $button[0].click());
+			cy.location("pathname", { timeout: 15000 }).should("eq", "/clients");
+			cy.wait("@editedClient").its("response.statusCode").should("eq", 200);
+			cy.get('[data-cy="client-dialog"]', { timeout: 15000 }).should("be.visible");
+			cy.get('[data-cy="client-dialog-step-address"]').click();
+			cy.get('[name="address"]').type("2 Rue Complète");
+			cy.get('[name="postalCode"]').type("75002");
+			cy.get('[name="city"]').type("Paris");
+			cy.get('[data-cy="client-dialog-step-fiscal"]').click();
+			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).type("732829320");
+			cy.get('[data-cy="client-dialog-step-recap"]').click();
+			cy.get('[data-cy="client-submit"]').click();
+			cy.wait("@updateClient").its("response.statusCode").should("be.oneOf", [200, 201]);
+			clientById(quickClientId).then((client) => {
+				expect(client.name, "completing never loses what was already there").to.eq(QUICK_CLIENT_NAME);
+				expect(client.address).to.eq("2 Rue Complète");
+			});
+
+			cy.visit("/documents/invoice");
+			cy.openDocument(invoiceId);
+			cy.runDocumentAction("validate");
+			cy.wait("@validateInvoice").its("response.statusCode").should("be.oneOf", [200, 201]);
+			cy.get('[data-cy="document-status-badge"]', { timeout: 15000 }).should("contain.text", "Validated");
 		});
 	});
 });

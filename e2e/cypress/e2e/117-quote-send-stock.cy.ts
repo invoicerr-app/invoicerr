@@ -5,7 +5,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * `declaresArticleReference` (stock/apply-stock-on-issuance.ts) used to answer "can a line of this
  * type reference an article" - TRUE for the quote too, since its own `lines` declares the exact same
- * `articleId` field the invoice's does (the catalog-prefill picker). That made the quote's own "send"
+ * `articleId` field the invoice's does (filled by a catalog pick). That made the quote's own "send"
  * (quote-actions.ts, unconditionally by email) decrement stock exactly like an invoice's, and
  * converting that quote into an invoice and sending IT decremented the SAME sale's stock a second
  * time. The fix: `DocumentTypeDescriptor.stockEffect` is now an EXPLICIT descriptor fact

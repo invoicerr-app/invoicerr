@@ -67,7 +67,12 @@ export interface IdentifierSchemeFact {
   /** Optional validation regex. Declared here for a future consumer; no frontend code enforces it
    *  today (checked 2026-08-30 — see the country-identifiers.spec.ts assertion on this). */
   pattern?: string;
+  /** The expected shape in a few English words, for the API's refusal of a value that fails
+   *  `pattern` (`validate-identifier-value.ts`). Never shown in a form: see `helpTextKey`. */
   helpText?: string;
+  /** Key of this field's help text in the frontend's locale catalog
+   *  (`frontend/src/locales/en/translation.json`), the single, translated source a form shows. */
+  helpTextKey?: string;
   provenance: IdentifierProvenance;
   /** Free-form caveats — same convention as country-policy/schema.ts's own per-rule `notes`. */
   notes?: string;
@@ -115,6 +120,12 @@ export class InvalidIdentifierPatternError extends Error {}
  * seed.ts again right before writing), for the same reason that header gives for doing so twice.
  */
 export function assertPatternIsExplainable(fact: IdentifierSchemeFact, context: string): void {
+  if (fact.pattern && !fact.helpTextKey?.trim()) {
+    throw new InvalidIdentifierPatternError(
+      `${context}: identifier scheme "${fact.scheme}" declares a pattern ("${fact.pattern}") but no ` +
+        'helpTextKey, so a form would show the field with no words on the shape it expects.',
+    );
+  }
   if (fact.pattern && !fact.helpText?.trim()) {
     throw new InvalidIdentifierPatternError(
       `${context}: identifier scheme "${fact.scheme}" declares a pattern ("${fact.pattern}") but no ` +

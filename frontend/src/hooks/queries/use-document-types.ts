@@ -412,7 +412,7 @@ export function useReferenceResolve(entity: string | undefined, id: string | und
  * `unitPrice`/`vatRate`. `null` when the id doesn't resolve, or the entity has no prefill data to
  * offer at all (most reference entities don't — see `EntityReferenceProvider.getFields`, an OPTIONAL
  * method on the backend). Not a React Query hook, deliberately: this is fetched once, imperatively,
- * the moment a row's "from catalog" picker (field-renderers/array-field.tsx) resolves a selection —
+ * the moment a row's designation search (field-renderers/array-field.tsx) resolves a selection;
  * there is nothing about it worth keeping live or cached.
  */
 export async function fetchPrefillFields(

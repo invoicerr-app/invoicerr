@@ -66,6 +66,10 @@ export class CorrectionRoutesCatalog {
     return !!this.files[(countryCode ?? '').toUpperCase()];
   }
 
+  countries(): string[] {
+    return Object.keys(this.files).sort((a, b) => a.localeCompare(b));
+  }
+
   /** The country's own correction-routes file, or `undefined` for a country with none at all — the
    *  same "no permissive fallback, no silent guess" discipline `MentionsCatalog.fileFor` and
    *  `resolveB2gRoutingRule` both already hold. */

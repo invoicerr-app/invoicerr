@@ -23,6 +23,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * page, and the error must disappear from the screen while it stays open, not only after a
  * reload.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 describe("A document's asynchronous send goes through the queue — all the way to \"Sent\", with the PDF in Mailpit", () => {
@@ -151,6 +153,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					postalCode: "75002",
 					isActive: true,
 					type: "COMPANY",
+					identifiers: FRENCH_BUYER_IDENTIFIERS,
 				},
 				failOnStatusCode: false,
 			}).then((created) => {

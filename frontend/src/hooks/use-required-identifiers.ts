@@ -7,6 +7,7 @@ export interface IdentifierRequirement {
   required: boolean
   pattern?: string
   helpText?: string
+  helpTextKey?: string
 }
 
 // Mirrors backend/src/modules/documents/country-identifiers/country-identifiers.ts's
@@ -30,6 +31,21 @@ export function useRequiredIdentifiers(
   return useApiQuery<RequiredIdentifiersResult>(["required-identifiers", countryCode, partyType], url!, {
     enabled: !!url,
   })
+}
+
+/**
+ * The help text a form shows beside an identifier field. A requirement from the country catalog is
+ * explained by its own translated `helpTextKey`, never by the API's English `helpText`, which only
+ * names the expected shape for a refusal. A requirement the frontend adds itself (`withVatIdentifier`,
+ * a B2G-only scheme) already carries display text.
+ */
+export function identifierHelpText(
+  requirement: IdentifierRequirement,
+  catalogRequirements: IdentifierRequirement[] | undefined,
+  t: (key: string, defaultValue: string) => string,
+): string | undefined {
+  if (!catalogRequirements?.includes(requirement)) return requirement.helpText
+  return requirement.helpTextKey ? t(requirement.helpTextKey, "") : undefined
 }
 
 /**
