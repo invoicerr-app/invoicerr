@@ -138,6 +138,19 @@ export class CompanyController {
     return this.companyService.declareLastNumberIssued(companyId, body);
   }
 
+  @Get('payment-terms')
+  @RequiresScope('company:read')
+  @ApiOperation({
+    summary: 'Get the resolved default due-date terms for quotes and invoices',
+    description:
+      'Day count and net/end-of-month mode per document type, the company country’s legal cap when its ' +
+      'country data declares one, and whether each configured term exceeds it. Set through POST /api/company/info.',
+  })
+  @ApiResponse({ status: 200, description: 'Resolved payment terms' })
+  async getPaymentTerms(@ActiveCompany() companyId: string) {
+    return this.companyService.getPaymentTerms(companyId);
+  }
+
   /**
    * GET /api/company/revenue-settings - issue #516: the RESOLVED revenue basis/period (this
    * company's own explicit choice, or the computed per-country default), plus whether each is

@@ -644,8 +644,8 @@ function buildEntityReferenceRegistry(
   // (both entities, one search implementation, two different `options`).
   registry.register('client', buildClientReferenceProvider(clientsService, { excludeSuppliers: true }));
   registry.register('supplier', buildClientReferenceProvider(clientsService));
-  // The catalog article picker (14-articles.cy.ts, quote/invoice line `prefillFrom`) — the only
-  // provider that implements `getFields` today (see article-reference.provider.ts).
+  // The catalog article search on document lines (`prefillFrom`), the only provider that
+  // implements `getFields` today (see article-reference.provider.ts).
   registry.register('article', buildArticleReferenceProvider(articlesService));
   // The invoice's "origin" field (multi-target: quote OR another invoice) and the credit note's
   // "invoice" field are what needed these: a 'reference' field pointing at another document TYPE's

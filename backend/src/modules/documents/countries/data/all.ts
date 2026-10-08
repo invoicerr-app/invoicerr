@@ -50,6 +50,7 @@ import { assertValidCountryFields } from '../../country-fields/schema';
 import { assertValidContentRequirementFact } from '../../content-requirements/schema';
 import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
 import { byCodeUnit } from '@/lib/compare';
+import { assertValidPaymentTerms } from '../../payment-terms/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -285,6 +286,16 @@ function validateB2gRoutingSection(
   assertValidB2gRoutingFact(b2gRouting, `${filePath}#b2gRouting`);
 }
 
+function validatePaymentTermsSection(
+  paymentTerms: ComposedCountryView['paymentTerms'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!paymentTerms) return;
+  assertSectionCountryCode(paymentTerms, 'paymentTerms', ctx);
+  assertValidPaymentTerms(paymentTerms, `${filePath}#paymentTerms`);
+}
+
 function loadCountryFile(dir: string, code: string): ComposedCountryView {
   const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
@@ -312,6 +323,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateCountryFieldsSection(parsed.countryFields, ctx, filePath);
   validateContentRequirementsSection(parsed.contentRequirements, ctx, filePath);
   validateB2gRoutingSection(parsed.b2gRouting, ctx, filePath);
+  validatePaymentTermsSection(parsed.paymentTerms, ctx, filePath);
 
   return parsed;
 }

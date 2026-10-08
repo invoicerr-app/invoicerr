@@ -140,13 +140,13 @@ export default function SearchSelect({
             variant="outline"
             disabled={disabled}
             className={cn(
-              "w-full justify-between text-start font-normal h-9 min-h-8 p-3",
+              "w-full min-w-0 justify-between overflow-hidden text-start font-normal h-9 min-h-8 p-3",
               (!multiple && !value) || (multiple && !(value as string[]).length)
                 ? "text-muted-foreground"
                 : "",
             )}
           >
-            <div className="flex flex-wrap gap-1 flex-1 items-center">
+            <div className="flex flex-wrap gap-1 flex-1 min-w-0 items-center">
               {multiple ? (
                 !(value as string[]).length ? (
                   <span>{placeholder}</span>
@@ -165,9 +165,11 @@ export default function SearchSelect({
                   ))
                 )
               ) : getOptionLabel(value as string) ? (
-                <span>{getOptionLabel(value as string)}</span>
+                <span className="min-w-0 max-w-full truncate" title={getOptionLabel(value as string)}>
+                  {getOptionLabel(value as string)}
+                </span>
               ) : (
-                <span>{placeholder}</span>
+                <span className="min-w-0 max-w-full truncate">{placeholder}</span>
               )}
             </div>
             <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", isOpen && "rotate-180")} />

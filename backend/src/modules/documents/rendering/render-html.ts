@@ -71,6 +71,10 @@ function renderFieldValue(
   switch (field.kind) {
     case 'text': {
       const stringValue = String(value);
+      const suggested = field.suggestedValues?.find((entry) => entry.value === stringValue);
+      if (suggested) {
+        return escapeHtmlSafe(strings.suggestedValueLabels[suggested.value] ?? suggested.label);
+      }
       return escapeHtmlSafe(stringValue);
     }
 
