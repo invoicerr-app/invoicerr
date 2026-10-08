@@ -108,7 +108,7 @@ describe('ClientsService — country-identifiers pattern enforcement', () => {
     } catch (err) {
       const message = (err as Error).message;
       expect(message).toContain('IT_SDI');
-      expect(message).toMatch(/7-character/); // the shape, in words (this fact's own helpText)
+      expect(message).toMatch(/7 letters or digits/); // the shape, in words (this fact's own helpText)
       expect(message).not.toContain('[A-Za-z0-9]'); // never the raw regex
       expect(message).toContain('"ABC"');
     }

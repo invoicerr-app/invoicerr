@@ -29,7 +29,11 @@ import type React from "react"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
+import {
+  identifierHelpText,
+  useRequiredIdentifiers,
+  withVatIdentifier,
+} from "@/hooks/use-required-identifiers"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 
 /**
@@ -185,15 +189,8 @@ export default function OnBoarding({
     legalIdRequirement?.label ||
     lookupIdentifierLabel ||
     t("settings.company.onboarding.identifierStep.genericLabel", "National company identifier")
-  // Same guard as company.settings.tsx/client-upsert.tsx (issue #563): `legalIdRequirement.helpText`
-  // off the API is the country-identifiers catalog's own raw developer note when this requirement
-  // is catalog-sourced (always true for LEGAL_ID here, `withVatIdentifier` only ever adds a VAT
-  // entry), replaced by a curated, translated key, falling back to nothing rather than that text.
-  const legalIdIsCatalogSourced =
-    legalIdRequirement && requiredIdentifiersResult?.requirements?.includes(legalIdRequirement)
-  const legalIdHelpText = legalIdIsCatalogSourced
-    ? t(`settings.identifiers.help.${countryCodeValue}.LEGAL_ID`, "")
-    : legalIdRequirement?.helpText
+  const legalIdHelpText =
+    legalIdRequirement && identifierHelpText(legalIdRequirement, requiredIdentifiersResult?.requirements, t)
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -631,12 +628,7 @@ export default function OnBoarding({
                         const current = form.watch("identifiers") || []
                         const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                         if (formIndex < 0) return null
-                        // Same guard as this file's own LEGAL_ID field above and
-                        // company.settings.tsx/client-upsert.tsx (issue #563).
-                        const isCatalogSourced = requiredIdentifiersResult?.requirements?.includes(req)
-                        const helpText = isCatalogSourced
-                          ? t(`settings.identifiers.help.${countryCodeValue}.${req.scheme}`, "")
-                          : req.helpText
+                        const helpText = identifierHelpText(req, requiredIdentifiersResult?.requirements, t)
                         return (
                           <FormField
                             key={req.scheme}
