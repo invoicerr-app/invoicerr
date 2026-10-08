@@ -122,10 +122,10 @@ separate directory or file to open any more; the "Section" column names the exac
 | Document-action policy | `policy` | Which document **actions** (send, save-draft, …) a company of this country may run, and under what status restriction. | Yes - auto-corrected on **every boot**, in every environment (see "Boot-time self-correction" below), plus `prisma/seed.ts` on an explicit migrate/seed. |
 | B2G routing | `b2gRouting` | When this country is the **government client's** country: which transport + format, which client identifiers/document fields it needs. | Yes - `boot-upsert.ts`, unconditionally re-upserted on **every** backend boot (`OnModuleInit`). |
 | Correction routes | `correctionRoutes` | For each of the 11 canonical correction routes (credit note, corrective invoice, cancel-and-replace, …), is it `required`/`allowed`/`forbidden`/`unverified` for this country. | No - read live from the file. |
-| Local cancel (derived) | `correction-routes/cancel-policy.ts` (code, not a section) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country (a whitelist cross-checked against the `correctionRoutes` section above). | No - pure function over the section above. |
+| Local cancel | `correctionRoutes` (`locallyImplementable` / `restrictedToStatuses` on the `CANCEL_AND_REPLACE` route) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country, and from which invoice statuses. Read by `correction-routes/cancel-policy.ts`. | No - read live from the file. |
 | Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
 | Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
-| Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
+| Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply. A scheme with `required: true` also gates invoice **Validate** and **Send** for a client of this country: the action is refused until the client carries a value for it. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `countryFields` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No - read live from the file. |
 | Localized tax mentions | `localizedMentions` | The exact wording this country's statute prescribes for the invoice mention of a tax situation (`franchise`, `reverseCharge`, `exportGoods`, `intraComm`), each with its `code`, `text` and the quoted `source`. A situation with no entry prints the generic Directive-citing mention. | No - read live from the file by `tax/tax-engine.ts`. |
 | Mandatory mentions | `mentions` | Free-text legal mentions (BG-1) this country requires on every invoice, temporal. | No - read live from the file. |
@@ -388,6 +388,28 @@ check above (it is generic over the field), but the ATCUD computation itself
 (`numbering/atcud.ts`, `actions/atcud-issuance.ts`) stays Portugal-specific code: a second scheme
 would still need its own implementation, this fact only lets the gate find it without a new literal.
 
+### Maintainer note: `revenueBasisDefault`, the default revenue basis
+
+A company that has not chosen a revenue basis (Settings > Company > Revenue basis) starts from its
+country's `policy.revenueBasisDefault`:
+
+```json
+"revenueBasisDefault": {
+  "basis": "cashed",
+  "reason": "Shown verbatim on the settings screen next to the default.",
+  "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "YYYY-MM-DD" },
+  "notes": "optional free text"
+}
+```
+
+`basis` is `invoiced` or `cashed`; `reason` must be non-blank; `provenance` goes through the same gate
+as every other fact in this file, at load time (`countries/data/all.ts`). A country without the fact
+defaults to `invoiced`, the product's behaviour everywhere else, so declare it only where one regime
+is both clearly cash-based in law and the most common among the country's freelancers (France's
+micro-entrepreneur, Italy's regime forfettario). The company has no regime field, so a default for a
+less common regime would be wrong more often than right. Read by
+`company/revenue-basis/resolve-revenue-basis.ts` through `registry.ts#revenueBasisDefaultFor`.
+
 ### Maintainer note: EU/GCC membership and Peppol EAS live in a reference table, not a country file
 
 Issue #603 (audit section 1, row 1 / section 5, row A) replaced FOUR independent copies of the EU
@@ -434,6 +456,27 @@ membership and VAT-prefix facts are either already present (every EU/GCC state i
 absent (no union membership at all), exactly like every other reference-data fact in this product.
 This table only changes when the EU or the GCC itself gains or loses a member, or Peppol publishes
 a new EAS code - a rare, well-sourced event, never a per-country-PR concern.
+
+### Maintainer note: frontend country reference data
+
+Two suggestions in the interface need a fact about every country in the world, not only the six
+this product ships a seller file for: the currency filled in when a country is picked (client
+creation, company settings) and the document language suggested for a new client. Both read
+`frontend/src/lib/reference/countries.json`, keyed by ISO 3166-1 alpha-2 code, through
+`frontend/src/lib/reference/countries.ts` (`currencyForCountry`, `documentLanguageForCountry`). The
+lookup uses the `countryCode` the country picker sets, never the country name the picker displays,
+so it works in every interface language.
+
+`documentLanguage` is deliberately absent for a country with no single dominant language (Belgium,
+Switzerland) and for one whose language documents cannot be rendered in: a suggestion there would be
+a guess, or would fall back to English at render time anyway. The accessor also ignores any value
+outside `DOCUMENT_LANGUAGE_CODES`.
+
+`frontend/src/lib/reference/countries.spec.ts` keeps the file honest: every country the picker offers
+has a currency the currency picker offers, and for every `countries/data/<cc>.json` the currency
+equals that country's `domesticInvoiceCurrency`, or else its `vatCurrency` national currency. Adding
+a country file whose currency disagrees with the reference fails that spec; fix whichever side is
+wrong.
 
 ### Maintainer note: a mention whose value changes on a schedule
 
@@ -520,6 +563,13 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
  fit any of the eleven, that is a change to the closed vocabulary - `CORRECTION_ROUTE_IDS` in
  `correction-routes/schema.ts` - first, never a silent extra value dropped into a country's
   section.
+- Local cancellation of an issued invoice is declared on the `CANCEL_AND_REPLACE` route itself:
+  `"locallyImplementable": true` when this app can realize it for the country, plus an optional
+  `"restrictedToStatuses": ["send_failed"]` when the law only covers some post-issuance statuses
+  (see Italy's route). Leave the flag out when the route exists in law but is realized through
+  another mechanism (Poland's corrective invoices) or is not researched: the cancel is then refused
+  with the route's own words. The loader rejects the flag on any other route, on a `forbidden` or
+  `unverified` route, and `restrictedToStatuses` without the flag.
 - `channelPolicy`'s `requirement: "mandated"` **requires** `legal` provenance and a `mandatedFrom`
  date - the schema throws at load if you mark something mandated on an `unverified` claim. If
   you're not yet confident the channel is genuinely *required* rather than merely usual, stay
@@ -538,6 +588,14 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   Narrowing the invoicing mandate does not discharge whatever DECLARATION the same law may still
   require for the cross-border operation (France's e-reporting, Italy's art. 1 comma 3-bis). That
   belongs to the `reporting` section, and neither is implemented today.
+- `identifiers`: what a form shows beside a field is translated text, so it never lives in this
+  file. A scheme entry names it with `helpTextKey` (`settings.identifiers.help.<CC>.<SCHEME>`), and
+  you add the English text under that key in `frontend/src/locales/en/translation.json`; Weblate
+  translates it from there. `helpText` is a different, short English phrase naming the expected
+  shape (`"9 digits (SIREN) or 14 digits (SIRET)"`), used only in the API's refusal of a value that
+  fails `pattern`. A scheme with a `pattern` must declare both; research notes go in `notes`, never
+  in either. `frontend/src/hooks/use-required-identifiers.spec.ts` fails on a `helpTextKey` with no
+  English text, and on an English help text no country file points to.
 - `contentRequirements` facts are **always** `legal` - there is no `unverified` escape hatch for a
   content requirement; if you can't source it yet, don't ship it.
 - `taxSystem` may omit `standardRate` for a VAT/GST country **if** the same file's own `vatRates`

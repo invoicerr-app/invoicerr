@@ -75,6 +75,9 @@ function parseArgs(argv) {
             'webhook.instructions.',
             // backend/src/modules/company-lookup sends these keys as each country's `noteKeys`.
             'companyLookup.notes.',
+            // The country-identifiers catalog (backend countries/data/<cc>.json) names these
+            // as each scheme's helpTextKey, sent to the identifier forms as plain data.
+            'settings.identifiers.help.',
         ]
     }
     return opts

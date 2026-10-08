@@ -1,4 +1,5 @@
 import { tolerateUncaughtException } from "../support/e2e";
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
 
 /**
  * The authenticated client portal — a client with an invoice AND a quote
@@ -52,6 +53,7 @@ function createClient(name: string, email: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.its("body.id");

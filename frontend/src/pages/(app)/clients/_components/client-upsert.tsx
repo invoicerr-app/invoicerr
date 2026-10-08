@@ -14,16 +14,15 @@ import { cn } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { DocumentField } from "@/components/documents/document-field"
-import { useClientDuplicates, useResolvedCompanyCustomFields } from "@/hooks/queries"
+import { useClientDuplicates, useCompany, useResolvedCompanyCustomFields } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input"
-import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
-import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
+import { documentLanguageForCountry } from "@/lib/reference/countries"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
@@ -33,9 +32,12 @@ import { useEffect, useRef, useState } from "react"
 import { useFieldArray, useForm, type FieldValues, type UseFormReturn } from "react-hook-form"
 import { Link } from "react-router"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
-import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { type IdentifierRequirement, useRequiredIdentifiers } from "@/hooks/use-required-identifiers"
+import {
+  type IdentifierRequirement,
+  identifierHelpText,
+  useRequiredIdentifiers,
+} from "@/hooks/use-required-identifiers"
 import { type B2gRoutingRule, useB2gRoutingRule } from "@/hooks/use-b2g-routing"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -49,8 +51,10 @@ import {
   type SteppedDialogStep,
   stepForField,
 } from "@/components/ui/stepped-dialog"
+import { ClientCountryField, ClientTypeAndNameFields } from "./client-core-fields"
 import { ClientPaymentMethodsDialog } from "./client-payment-methods"
 import { ClientPortalAccessDialog } from "./client-portal-access"
+import { ClientQuickForm } from "./client-quick-form"
 import { buildClientSchema } from "@/lib/client-schema"
 import { normalizeClientContacts } from "@/lib/normalize-client-contacts"
 
@@ -168,6 +172,9 @@ interface ClientUpsertProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreate?: (client: Client) => void
+  /** Creation opens on a one-screen form (type, name, country) instead of the wizard, which stays
+   *  one click away. Ignored when editing. */
+  quick?: boolean
 }
 
 /**
@@ -211,76 +218,7 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
   const { t } = useTranslation()
   return (
     <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-identity">
-      <FormField
-        control={form.control}
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t("clients.upsert.fields.type.label") || "Client type"}</FormLabel>
-            <FormControl>
-              <Select value={field.value || "COMPANY"} onValueChange={(value) => field.onChange(value)}>
-                <SelectTrigger dataCy="client-type-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="COMPANY" dataCy="client-type-company">
-                    {t("clients.upsert.fields.type.company") || "Company"}
-                  </SelectItem>
-                  <SelectItem value="INDIVIDUAL" dataCy="client-type-individual">
-                    {t("clients.upsert.fields.type.individual") || "Individual"}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {clientType === "COMPANY" ? (
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.name.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.name.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : (
-        <>
-          <FormField
-            control={form.control}
-            name="contactFirstname"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactFirstname.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="contactLastname"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactLastname.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </>
-      )}
+      <ClientTypeAndNameFields form={form} clientType={clientType} />
 
       <div className="sm:col-span-2">
         <FormField
@@ -312,6 +250,7 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
                 placeholder={t("clients.upsert.fields.foundedAt.placeholder")}
               />
             </FormControl>
+            <FormDescription>{t("clients.upsert.fields.foundedAt.description")}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -342,32 +281,15 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
 
 /**
  * ADDRESS — the postal address, country included. Country has to be set here (before the next step)
- * because it drives BOTH the required-identifiers catalog and the currency default
- * (`useCountryToCurrency`) the Fiscalité step shows.
+ * because it drives BOTH the required-identifiers catalog and the currency default the Fiscalité step
+ * shows.
  */
 function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
   const { t, i18n } = useTranslation()
   return (
     <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-address">
       <div className="sm:col-span-2">
-        <FormField
-          control={form.control}
-          name="country"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
-              <FormControl>
-                <CountrySelect
-                  value={field.value}
-                  onChange={(value) => field.onChange(value)}
-                  onCountryCodeChange={(code) => form.setValue("countryCode", code as never)}
-                  data-cy="client-country-select"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <ClientCountryField form={form} />
       </div>
 
       <div className="sm:col-span-2">
@@ -471,12 +393,11 @@ function FiscalStep({
   requiredIdentifiers,
   requiredIdentifiersReason,
   catalogRequirements,
-  countryCode,
   canLookupScheme,
   onCompanyLookup,
   companyLookupLoading,
   lookupIdentifierLabel,
-}: {
+}: Readonly<{
   form: UseFormReturn<FieldValues>
   isGovernment: boolean
   b2gRule: B2gRoutingRule | null | undefined
@@ -487,12 +408,11 @@ function FiscalStep({
   // which also mixes in B2G-only requirements. Used only to tell, by reference, which entry in
   // `requiredIdentifiers` is actually catalog-sourced and should get the translated help text.
   catalogRequirements: IdentifierRequirement[] | undefined
-  countryCode: string | undefined
   canLookupScheme: (scheme: string) => boolean
   onCompanyLookup: (value: string | undefined, scheme?: LookupScheme) => void | Promise<void>
   companyLookupLoading: boolean
   lookupIdentifierLabel: string | undefined
-}) {
+}>) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6" data-cy="client-form-fiscal">
@@ -592,16 +512,7 @@ function FiscalStep({
             const current = form.watch("identifiers" as never) || []
             const formIndex = (current as { scheme: string }[]).findIndex((i) => i.scheme === req.scheme)
             if (formIndex < 0) return null
-            // Same guard as company.settings.tsx/onboarding.tsx (issue #563): a requirement sourced
-            // straight from the country-identifiers catalog (`req` is one of the objects
-            // `requiredIdentifiersResult.requirements` itself returned) shows a curated, translated
-            // help text, falling back to nothing rather than the catalog's own raw developer note.
-            // A B2G-only requirement (its `helpText` is the B2G rule's own `why`, a different
-            // catalog entirely) is shown as-is.
-            const isCatalogSourced = catalogRequirements?.includes(req)
-            const helpText = isCatalogSourced
-              ? t(`settings.identifiers.help.${countryCode}.${req.scheme}`, "")
-              : req.helpText
+            const helpText = identifierHelpText(req, catalogRequirements, t)
             return (
               <FormField
                 key={req.scheme}
@@ -1128,7 +1039,7 @@ function ContactStep({
   /** Fired the moment the user picks a value here BY HAND (including explicitly picking back
    *  "Automatic") — the one signal that permanently retires the country-based suggestion for the
    *  rest of this wizard session (`Client.language` is decided by that country ONLY until a human
-   *  says otherwise; see `country-default-language.ts`'s own header). */
+   *  says otherwise). */
   onLanguageManuallyChanged: () => void
 }) {
   const { t } = useTranslation()
@@ -1324,9 +1235,12 @@ function RecapStep({
   )
 }
 
-export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
+export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Readonly<ClientUpsertProps>) {
   const { t } = useTranslation()
   const isEditing = !!client
+  const { data: company } = useCompany()
+  const [wizardRequested, setWizardRequested] = useState(false)
+  const quickActive = !!quick && !isEditing && !wizardRequested
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false)
@@ -1334,8 +1248,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // last line of defense below jump to whichever step actually shows the field it just rejected.
   const dialogRef = useRef<SteppedDialogHandle>(null)
 
-  // Country → `language` suggestion (see `country-default-language.ts` and the effect that reads
-  // it, further down). A plain ref, not state: it must never itself trigger a re-render, only
+  // Country → `language` suggestion (see the effect that reads it, further down). A plain ref, not state: it must never itself trigger a re-render, only
   // stand as a permanent "the user already decided" latch once the language field is touched by
   // hand — the same shape `requiredIdentifiersRef` below uses for the same reason. `languageAutoFilled`
   // IS state, since it drives whether the "this is a suggestion" hint renders.
@@ -1373,8 +1286,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // same superRefine rules, same messages) - see `client-upsert.spec.tsx`, still green.
   const clientSchema = buildClientSchema(
     t,
-    requiredIdentifiersRef.current,
+    quickActive ? [] : requiredIdentifiersRef.current,
     originalIdentifierValuesRef.current,
+    { optionalAddress: quickActive },
   )
 
   const form = useForm<z.infer<typeof clientSchema>>({
@@ -1409,6 +1323,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   // watch the selected client type to conditionally render company-specific fields
   const clientType = form.watch("type")
+
+  // The country is the one address fact tax resolution cannot do without, so the quick form starts
+  // from the issuing company's own and lets the user change it.
+  useEffect(() => {
+    if (!open || !quick || isEditing || !company?.country) return
+    if (form.getValues("country")) return
+    form.setValue("country", company.country)
+    form.setValue("countryCode", company.countryCode ?? "")
+  }, [open, quick, isEditing, company?.country, company?.countryCode, form])
 
   useEffect(() => {
     // Every reset below opens a fresh wizard session — the "has the user touched language by
@@ -1522,20 +1445,13 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  useCountryToCurrency(form)
-
   const countryCodeValue = form.watch("countryCode")
 
-  // Owner decision: `Client.language` is pre-filled from the country ONLY at creation, and ONLY
-  // until the user picks one themselves — never guessed again later, and never touched at all while
-  // editing an existing client (see `country-default-language.ts`'s header and `Client.language`'s
-  // own schema comment for why guessing this at SEND time was rejected outright). Re-runs on every
-  // country change while untouched — including clearing a now-stale earlier suggestion back to
-  // "Automatic" when the newly picked country has none of its own researched default.
+  // Only at creation and until the user picks a language: a country names a jurisdiction, not a language.
   useEffect(() => {
     if (isEditing) return
     if (languageTouchedRef.current) return
-    const suggestion = getDefaultLanguageForCountry(countryCodeValue)
+    const suggestion = documentLanguageForCountry(countryCodeValue)
     form.setValue("language", suggestion ?? null)
     setLanguageAutoFilled(!!suggestion)
   }, [countryCodeValue, isEditing, form])
@@ -1648,6 +1564,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       // language touched by hand for THIS client would wrongly suppress the suggestion for the
       // NEXT one opened in the same mounted dialog.
       resetLanguageSuggestionState()
+      setWizardRequested(false)
     })
   }
 
@@ -1716,7 +1633,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           requiredIdentifiers={requiredIdentifiers}
           requiredIdentifiersReason={requiredIdentifiersReason}
           catalogRequirements={requiredIdentifiersResult?.requirements}
-          countryCode={countryCodeValue}
           canLookupScheme={canLookupScheme}
           onCompanyLookup={onCompanyLookup}
           companyLookupLoading={companyLookupLoading}
@@ -1764,6 +1680,23 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   return (
     <>
+      {quickActive && (
+        <ClientQuickForm
+          form={form as unknown as UseFormReturn<FieldValues>}
+          open={open}
+          submitting={createLoading}
+          onOpenChange={(next) => {
+            if (!next) {
+              form.reset()
+              resetLanguageSuggestionState()
+              setWizardRequested(false)
+            }
+            onOpenChange(next)
+          }}
+          onSubmit={form.handleSubmit(onSubmit)}
+          onOpenFullForm={() => setWizardRequested(true)}
+        />
+      )}
       <SteppedDialog
         ref={dialogRef}
         steps={steps}
@@ -1808,7 +1741,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           onSubmit(parsed.data)
         }}
         submitLabel={isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
-        open={open}
+        open={open && !quickActive}
         onOpenChange={(next) => {
           // A safety reset on every CLOSE (never on open, guarded by `!next`) — `SteppedDialog` itself
           // only calls this once it has decided closing is fine (not dirty, or the user confirmed
@@ -1816,6 +1749,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           if (!next) {
             form.reset()
             resetLanguageSuggestionState()
+            setWizardRequested(false)
           }
           onOpenChange(next)
         }}

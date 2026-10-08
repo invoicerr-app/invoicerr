@@ -482,6 +482,16 @@
         "sourceCheckedAt": "2026-09-24"
       },
       "notes": "Owner's decision, issue #581, 2026-10-01 (revised after PR #602's own review): CGI art. 289 bis I - the SAME verbatim text already quoted in transports/channel-policy/data/fr.json's own PDP mandate fact, read directly on 2026-09-24, Légifrance article permalink LEGIARTI000053546660 - says the EMISSION itself (not merely a later transmission step) 's'opere' through an accredited platform for a domestic B2B operation. Read together with country-policy/data/fr.json's own invoice.send rule (CGI art. 289 VI, electronic issuance generally) and invoice.validate rule (why this country-policy whitelist stays an unconditional allow, the mandate-aware branching living in code, not in this list), this fact is what tells actions/invoice-actions.ts's 'validate' handler that numbering and locking alone do not make a domestic French B2B invoice lawfully issued - only the accredited platform does, for THIS one operation, once channel-policy/mandate.ts's own activeChannelMandateForOperation also confirms the mandate is active today for this exact seller/buyer/issueDate (country-policy/invoice-validation-transmission.ts combines the two). HONEST LIMIT, carried over from channel-policy/data/fr.json's own note: whether a locked-but-not-yet-transmitted invoice would have been lawfully 'emise' under art. 289 bis absent this fact is the legal question issue #581's own 'Legal note' section raised and left to the lawyer review already pending for the legal corpus - this fact is the owner's own PRODUCT decision taken in the meantime, not a claim that the legal question itself is now settled."
+    },
+    "revenueBasisDefault": {
+      "basis": "cashed",
+      "reason": "French micro-entrepreneurs declare cashed revenue (urssaf.fr; CSS art. R133-30-1 to 10).",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "le chiffre d'affaires à déclarer est celui qui a été encaissé au cours de cette période : les ventes et prestations de service réalisées mais non encore payées ne sont pas à déclarer.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "urssaf.fr, \"Déterminer mon chiffre d'affaires\"; Code de la sécurité sociale, art. R133-30-1 to R133-30-10. Applies to the micro-entrepreneur regime, the most common legal form among this product's French freelance users; a company under another regime sets its own basis."
     }
   },
   "identifiers": {
@@ -493,7 +503,8 @@
         "label": "SIREN / SIRET",
         "required": true,
         "pattern": "^\\d{9}(\\d{5})?$",
-        "helpText": "9 digits (SIREN — the legal-unit number the invoice must carry) or 14 digits (SIRET — the establishment number, accepted because its own first 9 digits ARE the SIREN).",
+        "helpText": "9 digits (SIREN) or 14 digits (SIRET)",
+        "helpTextKey": "settings.identifiers.help.FR.LEGAL_ID",
         "provenance": {
           "kind": "legal",
           "sourceText": "Code de commerce art. R.123-237 : « Toute personne immatriculée indique sur ses factures, notes de commande, tarifs et documents publicitaires ainsi que sur toutes correspondances et tous récépissés concernant son activité et signés par elle ou en son nom : 1° Le numéro unique d'identification de l'entreprise délivré conformément à l'article D. 123-235 ; 2° La mention RCS suivie du nom de la ville où se trouve le greffe où elle est immatriculée ; […]. » Art. D. 123-235, auquel il renvoie : « Le numéro unique d'identification qui seul peut être exigé d'une entreprise […] est le numéro d'identité qui lui est attribué lors de son inscription au répertoire des entreprises et de leurs établissements. » Art. R.123-221 : « Le numéro d'identification attribué à chaque unité légale est un numéro d'ordre composé de neuf chiffres. Le numéro d'identification attribué à chaque établissement est composé des neuf chiffres du numéro d'identification de l'unité légale inscrite qui y exerce son activité, suivis d'un numéro d'identification complémentaire de cinq chiffres propre à cet établissement. » — la première phrase est le SIREN (9 chiffres, unité légale), la seconde le SIRET (14 chiffres, établissement) ; D.123-235 renvoie à la première, donc R.123-237 exige le SIREN. CGI ann. II art. 242 nonies A, I, 1° : « le nom complet, le numéro d'identification mentionné au premier alinéa de l'article R. 123-221 du code de commerce et l'adresse de l'assujetti et de son client » — le premier alinéa de R.123-221 est précisément le numéro à neuf chiffres de l'unité légale, jamais le second alinéa (l'établissement).",
@@ -550,6 +561,7 @@
       {
         "routeId": "CANCEL_AND_REPLACE",
         "status": "allowed",
+        "locallyImplementable": true,
         "provenance": {
           "kind": "legal",
           "sourceText": "Doit porter « référence exacte à la facture initiale et la mention expresse de l'annulation de celle-ci » — applicable aux ventes annulées ou résiliées, rabais. Source : BOI-TVA-DED-40-10-20 § 70 ; BOI-TVA-DECLA-30-20-20-20 § 240.",

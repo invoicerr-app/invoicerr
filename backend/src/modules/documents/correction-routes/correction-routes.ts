@@ -39,8 +39,8 @@ export const CORRECTION_ROUTES_DATA_DIR_HINT = 'backend/src/modules/documents/co
  * document type's own creation (`actions/credit-note-actions.ts`), pre-linked to the invoice it
  * corrects (mandatory reference, currency locked — see `credit-note.descriptor.ts`'s own header). Every other one of
  * the eleven canonical routes is DECLARED (a country may `require`/`allow`/`forbid` it) but has NO
- * implementation behind it — this set is one of the two places (`cancel-policy.ts`'s own
- * `CANCEL_LOCAL_AVAILABILITY` is the other) that decide honesty, so a country file changing its mind
+ * implementation behind it. This set is one of the two places (the CANCEL_AND_REPLACE route's own
+ * `locallyImplementable` flag is the other) that decide honesty, so a country file changing its mind
  * about a STATUS can never accidentally change what the API claims is IMPLEMENTED, and vice versa.
  *
  * DELIBERATELY NOT `AUTHORITY_ANNULMENT` — no channel this repo wires (KSeF/SdI/PDP) has an
@@ -68,11 +68,8 @@ const CORRECTIVE_INVOICE_IMPLEMENTED_COUNTRIES: ReadonlySet<string> = new Set(['
 /**
  * `implemented`'s real computation — see `IMPLEMENTED_ROUTE_IDS`'s own header for why
  * `CANCEL_AND_REPLACE`/`CORRECTIVE_INVOICE` alone need the country, not just the route id. Calls
- * `cancel-policy.ts`'s own `resolveCancelPolicyForCountry` directly (never a locally-cached copy of
- * its whitelist) so THIS read path gets the exact same data-drift cross-check
- * `documents.service.ts#runAction`'s own "cancel" gate already gets — a country file edited without
- * revisiting `cancel-policy.ts`'s whitelist fails loudly here too, the moment a caller so much as
- * LISTS the routes, not only once someone actually tries to cancel.
+ * `cancel-policy.ts`'s own `resolveCancelPolicyForCountry` directly so this read path and
+ * `documents.service.ts#runAction`'s "cancel" gate always give the same answer.
  */
 function isImplemented(routeId: CorrectionRouteId, countryCode: string): boolean {
   if (routeId === 'CANCEL_AND_REPLACE') return resolveCancelPolicyForCountry(countryCode).allowed;

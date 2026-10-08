@@ -217,7 +217,7 @@ describe('country-identifiers/data — the shipped DE and PT files', () => {
     expect(regex.test('DE123456789')).toBe(true); // DE + 9 digits
     expect(regex.test('DE12345')).toBe(false); // too short
     expect(regex.test('FR123456789')).toBe(false); // wrong country prefix
-    expect(vat.helpText).toMatch(/DE \+ 9 digits/);
+    expect(vat.helpText).toMatch(/DE followed by 9 digits/);
   });
 
   it('the FR LEGAL_ID pattern accepts SIREN (9 digits) OR SIRET (14 digits) — user decision, 2026-09-01 — still required for BOTH party types', () => {
@@ -392,7 +392,7 @@ describe('country-identifiers/data: the shipped DZ file (issue #567: NIF/NIS for
     expect(regex.test('00011600012345A')).toBe(false); // right length, a letter
     // A pattern is a legal claim, so `notes` must say where the FORMAT specifically comes from:
     // decree 05-468 never states one. That does not disturb the scheme's own "unverified" grading.
-    expect(nif.notes).toMatch(/PR #566 review, native contributor, 2026-09-30/);
+    expect(nif.notes).toMatch(/15 digits, or 20 for a secondary establishment, from the same contributor/);
     expect(nif.provenance.kind).toBe('unverified'); // unchanged by adding `pattern`
   });
 
@@ -405,7 +405,7 @@ describe('country-identifiers/data: the shipped DZ file (issue #567: NIF/NIS for
     expect(regex.test('160001234567890123')).toBe(true); // 18 digits
     expect(regex.test('16000123456789')).toBe(false); // 14 digits, one short, the demo generator's old length
     expect(regex.test('16000123456789A')).toBe(false); // right length, a letter
-    expect(nis.notes).toMatch(/PR #566 review, native contributor, 2026-09-30/);
+    expect(nis.notes).toMatch(/18 for a secondary establishment, as described by the native contributor/);
     expect(nis.provenance.kind).toBe('legal'); // unchanged by adding `pattern`
   });
 
