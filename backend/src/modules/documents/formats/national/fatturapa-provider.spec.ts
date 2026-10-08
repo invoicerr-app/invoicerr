@@ -426,3 +426,21 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     });
   });
 });
+
+describe('fatturapa-provider - currency fallback', () => {
+  it('a document with no currency builds the same file as one in EUR, for an Italian seller', async () => {
+    const { currency, ...withoutCurrency } = VALID_DATA;
+    const withCurrency = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, BUYER);
+    const withFallback = await fatturapaFormatProvider.build(
+      descriptor,
+      document(withoutCurrency),
+      SELLER,
+      BUYER,
+    );
+
+    const xml = new TextDecoder().decode(withFallback.bytes);
+    expect(currency).toBe('EUR');
+    expect(extractTag(flatten(xml), 'Divisa')).toBe('EUR');
+    expect(xml).toBe(new TextDecoder().decode(withCurrency.bytes));
+  });
+});

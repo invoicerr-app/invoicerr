@@ -1,4 +1,4 @@
-import { resolveCountryCode } from '@/utils/watermark';
+import { resolveCountryCode } from '@/utils/country-code';
 
 const FALLBACK_LOCALE = 'en-US';
 

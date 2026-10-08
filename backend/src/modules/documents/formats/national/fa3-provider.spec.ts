@@ -263,3 +263,14 @@ describe('fa3-provider — KOR (faktura korygująca) mode', () => {
     expect(listAuthorityEvents).not.toHaveBeenCalled();
   });
 });
+
+describe('fa3-provider - currency fallback', () => {
+  it('a document with no currency builds the same file as one in PLN, for a Polish seller', async () => {
+    const { currency, ...withoutCurrency } = VALID_DATA;
+    const withCurrency = await fa3FormatProvider.build(descriptor, document(VALID_DATA), SELLER, BUYER);
+    const withFallback = await fa3FormatProvider.build(descriptor, document(withoutCurrency), SELLER, BUYER);
+
+    expect(currency).toBe('PLN');
+    expect(new TextDecoder().decode(withFallback.bytes)).toBe(new TextDecoder().decode(withCurrency.bytes));
+  });
+});

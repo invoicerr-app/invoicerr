@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { resolveCountryCode } from "@/lib/watermark"
+import { resolveCountryCode } from "@/lib/country-code"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

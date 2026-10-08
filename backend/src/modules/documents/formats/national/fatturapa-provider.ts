@@ -102,6 +102,7 @@ import {
 import { validateXsd } from '../vendored/validate-xsd';
 import { escapeXmlTree } from './fatturapa-xml-guard';
 import { extractNationalLines, NationalLine } from './national-lines';
+import { documentCurrencyOrSellerNational } from './seller-currency';
 
 const FATTURAPA_XSD = 'it/Schema_VFPR12.xsd';
 
@@ -224,7 +225,7 @@ async function build(
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
-  const currency = totals.currency || 'EUR';
+  const currency = documentCurrencyOrSellerNational(totals.currency, company);
 
   const issueDate = toDateOnly(data.issueDate);
   // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
