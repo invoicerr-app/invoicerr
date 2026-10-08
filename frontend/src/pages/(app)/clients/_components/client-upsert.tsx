@@ -14,13 +14,12 @@ import { cn } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import { useQueryClient } from "@tanstack/react-query"
 import { DocumentField } from "@/components/documents/document-field"
-import { useClientDuplicates, useResolvedCompanyCustomFields } from "@/hooks/queries"
+import { useClientDuplicates, useCompany, useResolvedCompanyCustomFields } from "@/hooks/queries"
 
 import { Button } from "@/components/ui/button"
 import type { Client } from "@/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AddressAutocompleteInput } from "@/components/address-autocomplete-input"
-import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
 import { getDefaultLanguageForCountry } from "@/lib/country-default-language"
@@ -49,8 +48,10 @@ import {
   type SteppedDialogStep,
   stepForField,
 } from "@/components/ui/stepped-dialog"
+import { ClientCountryField, ClientTypeAndNameFields } from "./client-core-fields"
 import { ClientPaymentMethodsDialog } from "./client-payment-methods"
 import { ClientPortalAccessDialog } from "./client-portal-access"
+import { ClientQuickForm } from "./client-quick-form"
 import { buildClientSchema } from "@/lib/client-schema"
 import { normalizeClientContacts } from "@/lib/normalize-client-contacts"
 
@@ -168,6 +169,9 @@ interface ClientUpsertProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreate?: (client: Client) => void
+  /** Creation opens on a one-screen form (type, name, country) instead of the wizard, which stays
+   *  one click away. Ignored when editing. */
+  quick?: boolean
 }
 
 /**
@@ -211,76 +215,7 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
   const { t } = useTranslation()
   return (
     <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-identity">
-      <FormField
-        control={form.control}
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t("clients.upsert.fields.type.label") || "Client type"}</FormLabel>
-            <FormControl>
-              <Select value={field.value || "COMPANY"} onValueChange={(value) => field.onChange(value)}>
-                <SelectTrigger dataCy="client-type-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="COMPANY" dataCy="client-type-company">
-                    {t("clients.upsert.fields.type.company") || "Company"}
-                  </SelectItem>
-                  <SelectItem value="INDIVIDUAL" dataCy="client-type-individual">
-                    {t("clients.upsert.fields.type.individual") || "Individual"}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {clientType === "COMPANY" ? (
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("clients.upsert.fields.name.label")}</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder={t("clients.upsert.fields.name.placeholder")} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : (
-        <>
-          <FormField
-            control={form.control}
-            name="contactFirstname"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.contactFirstname.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactFirstname.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="contactLastname"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("clients.upsert.fields.contactLastname.label")}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={t("clients.upsert.fields.contactLastname.placeholder")} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </>
-      )}
+      <ClientTypeAndNameFields form={form} clientType={clientType} />
 
       <div className="sm:col-span-2">
         <FormField
@@ -312,6 +247,7 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
                 placeholder={t("clients.upsert.fields.foundedAt.placeholder")}
               />
             </FormControl>
+            <FormDescription>{t("clients.upsert.fields.foundedAt.description")}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -350,24 +286,7 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2" data-cy="client-form-address">
       <div className="sm:col-span-2">
-        <FormField
-          control={form.control}
-          name="country"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel required>{t("clients.upsert.fields.country.label")}</FormLabel>
-              <FormControl>
-                <CountrySelect
-                  value={field.value}
-                  onChange={(value) => field.onChange(value)}
-                  onCountryCodeChange={(code) => form.setValue("countryCode", code as never)}
-                  data-cy="client-country-select"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <ClientCountryField form={form} />
       </div>
 
       <div className="sm:col-span-2">
@@ -1324,9 +1243,12 @@ function RecapStep({
   )
 }
 
-export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUpsertProps) {
+export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Readonly<ClientUpsertProps>) {
   const { t } = useTranslation()
   const isEditing = !!client
+  const { data: company } = useCompany()
+  const [wizardRequested, setWizardRequested] = useState(false)
+  const quickActive = !!quick && !isEditing && !wizardRequested
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false)
@@ -1373,8 +1295,9 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
   // same superRefine rules, same messages) - see `client-upsert.spec.tsx`, still green.
   const clientSchema = buildClientSchema(
     t,
-    requiredIdentifiersRef.current,
+    quickActive ? [] : requiredIdentifiersRef.current,
     originalIdentifierValuesRef.current,
+    { optionalAddress: quickActive },
   )
 
   const form = useForm<z.infer<typeof clientSchema>>({
@@ -1409,6 +1332,15 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   // watch the selected client type to conditionally render company-specific fields
   const clientType = form.watch("type")
+
+  // The country is the one address fact tax resolution cannot do without, so the quick form starts
+  // from the issuing company's own and lets the user change it.
+  useEffect(() => {
+    if (!open || !quick || isEditing || !company?.country) return
+    if (form.getValues("country")) return
+    form.setValue("country", company.country)
+    form.setValue("countryCode", company.countryCode ?? "")
+  }, [open, quick, isEditing, company?.country, company?.countryCode, form])
 
   useEffect(() => {
     // Every reset below opens a fresh wizard session — the "has the user touched language by
@@ -1648,6 +1580,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
       // language touched by hand for THIS client would wrongly suppress the suggestion for the
       // NEXT one opened in the same mounted dialog.
       resetLanguageSuggestionState()
+      setWizardRequested(false)
     })
   }
 
@@ -1764,6 +1697,23 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
 
   return (
     <>
+      {quickActive && (
+        <ClientQuickForm
+          form={form as unknown as UseFormReturn<FieldValues>}
+          open={open}
+          submitting={createLoading}
+          onOpenChange={(next) => {
+            if (!next) {
+              form.reset()
+              resetLanguageSuggestionState()
+              setWizardRequested(false)
+            }
+            onOpenChange(next)
+          }}
+          onSubmit={form.handleSubmit(onSubmit)}
+          onOpenFullForm={() => setWizardRequested(true)}
+        />
+      )}
       <SteppedDialog
         ref={dialogRef}
         steps={steps}
@@ -1808,7 +1758,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           onSubmit(parsed.data)
         }}
         submitLabel={isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
-        open={open}
+        open={open && !quickActive}
         onOpenChange={(next) => {
           // A safety reset on every CLOSE (never on open, guarded by `!next`) — `SteppedDialog` itself
           // only calls this once it has decided closing is fine (not dirty, or the user confirmed
@@ -1816,6 +1766,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate }: ClientUps
           if (!next) {
             form.reset()
             resetLanguageSuggestionState()
+            setWizardRequested(false)
           }
           onOpenChange(next)
         }}

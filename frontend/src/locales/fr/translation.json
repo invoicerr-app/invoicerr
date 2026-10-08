@@ -62,7 +62,8 @@
                 },
                 "foundedAt": {
                     "label": "Date de création",
-                    "placeholder": "Sélectionner la date de création"
+                    "placeholder": "Sélectionner la date de création",
+                    "description": "Date officielle d'immatriculation, remplie automatiquement par la recherche d'entreprise."
                 },
                 "contactEmail": {
                     "label": "Email",
@@ -187,6 +188,11 @@
                 "lookupError": "Impossible de contacter l'annuaire des entreprises.",
                 "lookupInvalid": "Le numéro d'identification semble invalide pour ce pays.",
                 "lookupUnavailable": "Aucune consultation de registre n'est disponible pour ce pays."
+            },
+            "quick": {
+                "title": "Nouveau client",
+                "description": "Le nom et le pays suffisent pour l'instant. Le reste peut être complété plus tard, et sera nécessaire avant de valider une facture.",
+                "openFull": "Renseigner tous les détails"
             }
         },
         "view": {
@@ -3144,6 +3150,14 @@
         "custom": {
             "receivedInvoiceUpload": {
                 "ocrPending": "Lecture du document en cours… les champs se rempliront une fois terminé. Vous pouvez déjà commencer à saisir."
+            }
+        },
+        "form": {
+            "messages": {
+                "clientIncomplete": "Il manque {{fields}} pour {{client}}. Complétez le client avant de valider ou d'envoyer cette facture.",
+                "clientIncompleteAction": "Modifier le client",
+                "clientIncompleteField_address": "l'adresse",
+                "clientIncompleteField_city": "la ville"
             }
         }
     }

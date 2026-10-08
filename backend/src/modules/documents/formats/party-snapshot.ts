@@ -31,10 +31,10 @@ export interface ClientRowForFormat {
   // relation straight through (an `include: { contacts: true }` query, no particular order required:
   // `derivePrimaryContactFields` finds the primary regardless), never the old flat columns.
   contacts: ContactLike[];
-  address: string;
+  address: string | null;
   addressLine2?: string | null;
-  city: string;
-  postalCode: string;
+  city: string | null;
+  postalCode: string | null;
   country: string;
   partyIdentifiers: { scheme: string; value: string }[];
 }

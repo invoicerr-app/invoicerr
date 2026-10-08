@@ -188,7 +188,8 @@
         },
         "foundedAt": {
           "label": "Founded Date",
-          "placeholder": "Select founding date"
+          "placeholder": "Select founding date",
+          "description": "Official registration date, filled automatically by the company lookup."
         },
         "contactEmail": {
           "label": "Email",
@@ -379,6 +380,11 @@
       },
       "customFields": {
         "heading": "Custom fields"
+      },
+      "quick": {
+        "title": "New client",
+        "description": "Name and country are enough for now. The rest can be completed later, and is needed before an invoice is validated.",
+        "openFull": "Fill in all the details"
       }
     },
     "view": {
@@ -5028,7 +5034,11 @@
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
         "actionError": "Something went wrong running this action.",
-        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending."
+        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending.",
+        "clientIncomplete": "{{client}} is missing {{fields}}. Complete the client before validating or sending this invoice.",
+        "clientIncompleteAction": "Edit client",
+        "clientIncompleteField_address": "the address",
+        "clientIncompleteField_city": "the city"
       },
       "newTitle": "New: {{label}}",
       "transitionOr": "or",

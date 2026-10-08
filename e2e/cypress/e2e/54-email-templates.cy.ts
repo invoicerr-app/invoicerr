@@ -32,6 +32,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * per type: `quote` and `invoice` actually share the same set of keys (both have a client AND
  * priced lines), only the example text differs.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 interface DocumentTypeSummary {
@@ -327,6 +329,7 @@ describe("Settings — email templates per document type", () => {
 				postalCode: "75004",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 			failOnStatusCode: false,
 		}).then((created) => {

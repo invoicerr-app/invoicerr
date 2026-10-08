@@ -24,6 +24,7 @@ import * as taxLoadAndResolve from '../tax/load-and-resolve';
 import prisma from '@/prisma/prisma.service';
 
 vi.mock('../persistence');
+vi.mock('./client-issuance-readiness');
 vi.mock('../transports/company-transport');
 vi.mock('../country-policy/country-policy');
 vi.mock('../b2g-routing/b2g-routing');
