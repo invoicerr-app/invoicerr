@@ -18,6 +18,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * under the same rule, evaluated against its OWN issue date, which the last test below pins.
  */
 // Both from `cypress.config.ts` (VITE_BACKEND_URL, MAILPIT_URL): never a literal port (issue #502).
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const mailpit = Cypress.env("mailpitUrl");
 const RUN = Date.now();
@@ -62,6 +64,7 @@ function createClient(name: string, contactEmail: string): Cypress.Chainable<str
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

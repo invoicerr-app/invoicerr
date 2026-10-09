@@ -848,10 +848,10 @@ model Client {
   name             String
   description      String?
   foundedAt        DateTime? // Date when the client company was founded
-  address          String
+  address          String? // Optional until an invoice is validated; see the issuance gate
   addressLine2     String? // Second line for address (apartment, suite, etc.)
-  postalCode       String
-  city             String
+  postalCode       String?
+  city             String?
   state            String? // State/Province (for US addresses, etc.)
   country          String
   countryCode      String? // ISO 3166-1 alpha-2, explicit override; falls back to guessCountryCode(country)
@@ -3034,6 +3034,7 @@ model CountryIdentifierRequirement {
   pattern     String? // optional validation regex — a legal CLAIM like `required`, covered by the
   // same provenance below, never a UI-invented default
   helpText    String?
+  helpTextKey String? // frontend i18n key of the help text a form shows beside this identifier
 
   // Provenance — see country-identifiers/schema.ts's IdentifierProvenance. Exactly one of the two
   // shapes below is populated, enforced by assertValidProvenance() before a row is ever written,

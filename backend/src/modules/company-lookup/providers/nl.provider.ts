@@ -8,6 +8,7 @@
  * The KVK number is not the VAT number: Dutch VAT (BTW-id) is issued separately by
  * the Belastingdienst, so it is left to VIES.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -17,7 +18,6 @@ const KVK_URL = 'https://api.kvk.nl/api/v2/zoeken';
 export class NetherlandsKvkProvider implements CompanyRegistryProvider {
   readonly id = 'nl-kvk';
   readonly label = 'KVK Handelsregister';
-  readonly countries = ['NL'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID'];
   readonly identifierLabel = 'KVK-nummer (8 digits)';
   readonly docsUrl = 'https://developers.kvk.nl/';
@@ -30,7 +30,7 @@ export class NetherlandsKvkProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'NL') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return digits(query.value).length === 8;
   }
 
@@ -52,7 +52,7 @@ export class NetherlandsKvkProvider implements CompanyRegistryProvider {
       postalCode: addr.postcode,
       city: addr.plaats,
       country: 'Nederland',
-      countryCode: 'NL',
+      countryCode: query.countryCode.toUpperCase(),
       status: 'ACTIVE',
     };
   }

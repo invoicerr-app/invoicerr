@@ -7,6 +7,7 @@ import {
   DocumentValidationCodeFact,
   DomesticInvoiceCurrencyFact,
   InvoiceValidationFact,
+  RevenueBasisDefaultFact,
 } from './schema';
 import { byCodeUnit } from '@/lib/compare';
 
@@ -126,6 +127,10 @@ export class CountryPolicyCatalog {
    *  literals this catalog's own AUDIT_DONNEES_PAYS.md named (section 1, row 3). */
   documentValidationCodeFor(countryCode: string): DocumentValidationCodeFact | undefined {
     return this.files[(countryCode ?? '').toUpperCase()]?.documentValidationCode;
+  }
+
+  revenueBasisDefaultFor(countryCode: string): RevenueBasisDefaultFact | undefined {
+    return this.files[(countryCode ?? '').toUpperCase()]?.revenueBasisDefault;
   }
 }
 

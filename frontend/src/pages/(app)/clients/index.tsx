@@ -199,6 +199,22 @@ export default function Clients() {
     )
   }, [viewParamId, viewParamClient, setSearchParams])
 
+  // "?edit=<id>" - the link an invoice refusal gives to a client that still needs completing.
+  const editParamId = searchParams.get("edit") || undefined
+  const { data: editParamClient } = useClient(editParamId)
+  useEffect(() => {
+    if (!editParamId || !editParamClient) return
+    setEditClientDialog(editParamClient)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("edit")
+        return next
+      },
+      { replace: true },
+    )
+  }, [editParamId, editParamClient, setSearchParams])
+
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>(undefined)

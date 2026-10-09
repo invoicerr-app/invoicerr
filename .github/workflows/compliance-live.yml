@@ -48,7 +48,7 @@ jobs:
     # needed by a queue-driven pipeline spec that no longer exists in this codebase (see below).
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:65b16a8b326e0cfbdf33fa7e783f2a0cb352a61448616ccccfd616ef42aa0f65
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -161,10 +161,10 @@ jobs:
       # Encryption key for any credential-store round-trip the specs may touch.
       CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm

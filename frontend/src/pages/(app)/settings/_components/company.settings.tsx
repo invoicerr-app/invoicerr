@@ -45,11 +45,15 @@ import {
   useReconciliationSettings,
   useSetReconciliationSettings,
 } from "@/hooks/queries"
-import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
+import { currencyForCountry } from "@/lib/reference/countries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
-import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
+import {
+  identifierHelpText,
+  useRequiredIdentifiers,
+  withVatIdentifier,
+} from "@/hooks/use-required-identifiers"
 import type { Company, ResolvedRevenueSettings } from "@/types"
 
 import { NumberFormatsSection } from "./number-formats.section"
@@ -341,7 +345,6 @@ export default function CompanySettings() {
       unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  useCountryToCurrency(form)
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
@@ -629,7 +632,11 @@ export default function CompanySettings() {
                       <CountrySelect
                         value={field.value}
                         onChange={(value) => field.onChange(value)}
-                        onCountryCodeChange={(code) => form.setValue("countryCode", code)}
+                        onCountryCodeChange={(code) => {
+                          form.setValue("countryCode", code)
+                          const currency = currencyForCountry(code)
+                          if (currency) form.setValue("currency", currency)
+                        }}
                         data-cy="company-country-input"
                       />
                     </FormControl>
@@ -670,18 +677,7 @@ export default function CompanySettings() {
                     const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                     if (formIndex < 0) return null
                     const isLegalId = req.scheme === "LEGAL_ID"
-                    // `req.helpText` off the API is the country-identifiers catalog's own raw
-                    // developer note (research language, em dashes) for a requirement sourced
-                    // straight from that catalog (issue #563), never shown any more. A curated,
-                    // translated key replaces it, falling back to nothing (never the raw text) when
-                    // none exists yet. An entry NOT sourced from the catalog (the synthetic VAT
-                    // field `withVatIdentifier` adds for a country with no VAT scheme of its own, or
-                    // a B2G-only requirement) already carries a properly localized `helpText` and is
-                    // shown as-is: reference equality against the raw API result tells them apart.
-                    const isCatalogSourced = requiredIdentifiersResult?.requirements?.includes(req)
-                    const helpText = isCatalogSourced
-                      ? t(`settings.identifiers.help.${countryCodeValue}.${req.scheme}`, "")
-                      : req.helpText
+                    const helpText = identifierHelpText(req, requiredIdentifiersResult?.requirements, t)
                     return (
                       <FormField
                         key={req.scheme}

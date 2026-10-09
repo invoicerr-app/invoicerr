@@ -95,8 +95,9 @@ export interface CompanyRegistryProvider {
   readonly id: string;
   /** Registry name shown to the user, e.g. 'Companies House'. */
   readonly label: string;
-  /** ISO 3166-1 alpha-2 codes this provider can answer for, or 'ALL' for a worldwide directory. */
-  readonly countries: readonly string[] | 'ALL';
+  /** True for a worldwide directory. Any other provider serves the countries that list its id in the
+   *  company lookup data (`coverage/schema.ts`). */
+  readonly worldwide?: boolean;
   /** Defaults to REGISTER when omitted. */
   readonly coverage?: ProviderCoverage;
   readonly schemes: readonly LookupScheme[];
@@ -148,6 +149,7 @@ export interface CountryLookupCapability {
   schemes: LookupScheme[];
   /** Prompt for the input field, taken from the first usable provider. */
   identifierLabel?: string;
-  /** Why nothing is available, or what the available data is limited to. */
-  note?: string;
+  /** Frontend i18n keys of the note explaining why nothing is available, or what the available data
+   *  is limited to. Shown translated and joined with a space, in this order. */
+  noteKeys: string[];
 }

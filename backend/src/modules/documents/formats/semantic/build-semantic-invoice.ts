@@ -186,10 +186,10 @@ export class SemanticBuildError extends Error {}
 
 export interface SemanticPartyInput {
   name: string;
-  address: string;
+  address: string | null;
   addressLine2?: string | null;
-  city: string;
-  postalCode: string;
+  city: string | null;
+  postalCode: string | null;
   /** Free text, as stored on Company/Client — resolved via `guessCountryCode`. */
   country: string | null;
   email?: string | null;

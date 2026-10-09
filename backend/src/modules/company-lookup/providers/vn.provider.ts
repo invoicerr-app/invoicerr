@@ -10,6 +10,7 @@
  * third-party mirror (same posture as cvrapi.dk for Denmark) — the tax code leaves the
  * instance, which is why the country note says so.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
@@ -18,7 +19,6 @@ const VIETQR_URL = 'https://api.vietqr.io/v2/business';
 export class VietnamTaxCodeProvider implements CompanyRegistryProvider {
   readonly id = 'vn-tax-code';
   readonly label = 'Mã số thuế (VietQR mirror)';
-  readonly countries = ['VN'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'Mã số thuế (10 or 13 digits)';
   readonly docsUrl = 'https://www.vietqr.io/danh-sach-api/api-tra-cuu-thong-tin-doanh-nghiep/';
@@ -31,7 +31,7 @@ export class VietnamTaxCodeProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'VN') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     const n = digits(query.value).length;
     return n === 10 || n === 13;
   }
@@ -53,7 +53,7 @@ export class VietnamTaxCodeProvider implements CompanyRegistryProvider {
       VAT: entity.id ?? taxCode,
       address: entity.address,
       country: 'Việt Nam',
-      countryCode: 'VN',
+      countryCode: query.countryCode.toUpperCase(),
       // "NNT đang hoạt động" = taxpayer currently trading.
       status: /đang hoạt động/i.test(entity.status ?? '') ? 'ACTIVE' : 'UNKNOWN',
     };

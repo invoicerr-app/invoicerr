@@ -10,6 +10,7 @@
  * the address arrives split across columns. Israeli VAT (מספר עוסק) equals the company
  * number, so no separate VAT lookup is needed.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -41,7 +42,6 @@ function parseIsraeliDate(value: unknown): Date | undefined {
 export class IsraelRegistrarProvider implements CompanyRegistryProvider {
   readonly id = 'il-registrar';
   readonly label = 'רשם החברות (data.gov.il)';
-  readonly countries = ['IL'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'מספר חברה (9 digits)';
   readonly docsUrl = 'https://data.gov.il/dataset/ico_gis';
@@ -54,7 +54,7 @@ export class IsraelRegistrarProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'IL') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return digits(query.value).length === 9;
   }
 
@@ -81,7 +81,7 @@ export class IsraelRegistrarProvider implements CompanyRegistryProvider {
       postalCode: record[FIELD.postalCode] ? String(record[FIELD.postalCode]) : undefined,
       city: record[FIELD.city],
       country: 'ישראל',
-      countryCode: 'IL',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: parseIsraeliDate(record[FIELD.incorporated]),
       status: String(record[FIELD.status] ?? '').includes('פעילה') ? 'ACTIVE' : 'INACTIVE',
     };

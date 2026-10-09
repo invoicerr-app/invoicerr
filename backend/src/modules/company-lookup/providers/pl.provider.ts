@@ -8,6 +8,7 @@
  * The `date` is mandatory and must not be in the future in Polish local time — the
  * register answers "as of" that day, which is also how it reports VAT status.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { localDate } from './shared';
@@ -45,7 +46,6 @@ export function parsePolishAddress(raw: string | undefined): {
 export class PolandWykazProvider implements CompanyRegistryProvider {
   readonly id = 'pl-wykaz-vat';
   readonly label = 'Wykaz podatników VAT (Ministerstwo Finansów)';
-  readonly countries = ['PL'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'NIP (10 digits)';
   readonly docsUrl = 'https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/';
@@ -58,12 +58,12 @@ export class PolandWykazProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'PL') return false;
-    return isValidNip(stripVatPrefix(query.value, 'PL'));
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
+    return isValidNip(stripVatPrefix(query.value, query.countryCode));
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const nip = digits(stripVatPrefix(query.value, 'PL'));
+    const nip = digits(stripVatPrefix(query.value, query.countryCode));
     const date = localDate('Europe/Warsaw');
     const data = await fetchJson<any>(`${WL_URL}/${nip}?date=${date}`, { timeoutMs: this.timeoutMs });
     const subject = data?.result?.subject;
@@ -81,7 +81,7 @@ export class PolandWykazProvider implements CompanyRegistryProvider {
       postalCode,
       city,
       country: 'Polska',
-      countryCode: 'PL',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(subject.registrationLegalDate),
       status: subject.statusVat === 'Czynny' ? 'ACTIVE' : 'UNKNOWN',
       vatRegistered: subject.statusVat ? subject.statusVat === 'Czynny' : null,

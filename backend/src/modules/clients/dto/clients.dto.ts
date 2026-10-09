@@ -66,10 +66,10 @@ export class EditClientsDto {
   // header for the full contract, and this module's `primary-contact.ts` for how a response derives
   // the legacy flat fields back out of whichever contact ends up primary.
   contacts?: ClientContactDto[];
-  address: string;
+  address?: string | null;
   addressLine2?: string;
-  postalCode: string;
-  city: string;
+  postalCode?: string | null;
+  city?: string | null;
   state?: string;
   country: string;
   countryCode?: string;

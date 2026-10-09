@@ -36,6 +36,7 @@ function rowContentKey(row: CountryIdentifierRequirementRow): string {
     required: row.required,
     pattern: row.pattern,
     helpText: row.helpText,
+    helpTextKey: row.helpTextKey,
     provenanceKind: row.provenanceKind,
     sourceText: row.sourceText,
     sourceCheckedAt: row.sourceCheckedAt ? row.sourceCheckedAt.toISOString() : null,

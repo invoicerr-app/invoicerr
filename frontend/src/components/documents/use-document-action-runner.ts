@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -15,6 +16,17 @@ import { ApiError } from "@/hooks/use-api-query"
  *  parameterized copy may. */
 const DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE = "DOMESTIC_INVOICE_CURRENCY_MISMATCH"
 
+/** Server-side code `client-issuance-readiness.ts`'s own `CLIENT_INCOMPLETE_CODE` names a 400 with,
+ *  mirrored by hand like the code above. */
+const CLIENT_INCOMPLETE_CODE = "CLIENT_INCOMPLETE"
+
+interface ClientIncompleteParams {
+  clientId?: string
+  clientName?: string
+  address?: ("address" | "city")[]
+  identifiers?: { scheme: string; label: string }[]
+}
+
 interface DomesticInvoiceCurrencyMismatchParams {
   countryCode?: string
   requiredCurrency?: string
@@ -26,9 +38,9 @@ function apiErrorCode(error: unknown): string | undefined {
   return (error.body as { code?: string } | undefined)?.code
 }
 
-function apiErrorParams(error: unknown): DomesticInvoiceCurrencyMismatchParams | undefined {
+function apiErrorParams<T>(error: unknown): T | undefined {
   if (!(error instanceof ApiError)) return undefined
-  return (error.body as { params?: DomesticInvoiceCurrencyMismatchParams } | undefined)?.params
+  return (error.body as { params?: T } | undefined)?.params
 }
 
 /** A human-readable currency name from an ISO 4217 code, in the reader's own language - the same
@@ -105,6 +117,7 @@ export function useDocumentActionRunner({
   onDocumentUpdate,
 }: UseDocumentActionRunnerOptions) {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const [pendingAction, setPendingAction] = useState<DocumentActionDescriptor | undefined>()
   const [pendingDefaults, setPendingDefaults] = useState<Record<string, unknown>>({})
   // Set only for an action `actionLocksDocument` says is about to lock the record — one MORE gate
@@ -149,7 +162,7 @@ export function useDocumentActionRunner({
       // name, the same `apiErrorCode`/`t(key, default, {vars})` pattern billing.settings.tsx and
       // signature/[token].tsx already use for their own named backend errors.
       if (apiErrorCode(error) === DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE) {
-        const params = apiErrorParams(error) ?? {}
+        const params = apiErrorParams<DomesticInvoiceCurrencyMismatchParams>(error) ?? {}
         toast.error(
           t(
             "documents.form.messages.domesticInvoiceCurrencyMismatch",
@@ -161,6 +174,32 @@ export function useDocumentActionRunner({
               currencyCode: params.requiredCurrency,
             },
           ),
+        )
+        return
+      }
+      // The backend message is English; the fields it names are re-rendered in the reader's language,
+      // with a way straight to the client that needs completing.
+      if (apiErrorCode(error) === CLIENT_INCOMPLETE_CODE) {
+        const params = apiErrorParams<ClientIncompleteParams>(error) ?? {}
+        const names = [
+          ...(params.address ?? []).map((field) =>
+            t(`documents.form.messages.clientIncompleteField_${field}`),
+          ),
+          ...(params.identifiers ?? []).map((identifier) => identifier.label),
+        ]
+        toast.error(
+          t("documents.form.messages.clientIncomplete", {
+            client: params.clientName,
+            fields: new Intl.ListFormat(i18n.language, { style: "long", type: "conjunction" }).format(names),
+          }),
+          {
+            action: params.clientId
+              ? {
+                  label: t("documents.form.messages.clientIncompleteAction"),
+                  onClick: () => navigate(`/clients?edit=${params.clientId}`),
+                }
+              : undefined,
+          },
         )
         return
       }

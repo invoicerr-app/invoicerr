@@ -6,6 +6,7 @@
  * Docs     : https://api.business.govt.nz/api-details#api=nzbn-v5
  * Credentials: NZBN_API_KEY (free subscription).
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -15,7 +16,6 @@ const NZBN_URL = 'https://api.business.govt.nz/gateway/nzbn/v5/entities';
 export class NewZealandNzbnProvider implements CompanyRegistryProvider {
   readonly id = 'nz-nzbn';
   readonly label = 'NZBN register (MBIE)';
-  readonly countries = ['NZ'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID'];
   readonly identifierLabel = 'NZBN (13 digits)';
   readonly docsUrl = 'https://api.business.govt.nz/api-details#api=nzbn-v5';
@@ -28,7 +28,7 @@ export class NewZealandNzbnProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'NZ') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return digits(query.value).length === 13;
   }
 
@@ -55,7 +55,7 @@ export class NewZealandNzbnProvider implements CompanyRegistryProvider {
       postalCode: addr.postCode ? String(addr.postCode) : undefined,
       city: addr.address3 ?? addr.address4,
       country: addr.countryCode ?? 'New Zealand',
-      countryCode: 'NZ',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.registrationDate),
       status: /registered|active/i.test(data.entityStatusDescription ?? '') ? 'ACTIVE' : 'INACTIVE',
     };

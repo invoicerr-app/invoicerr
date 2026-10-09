@@ -8,16 +8,18 @@
  *
  * Liechtenstein companies also carry a CHE UID and are served by the same index.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
 
 const ZEFIX_URL = 'https://www.zefix.admin.ch/ZefixPublicREST/api/v1/company/uid';
+// Zefix answers in German, so the country is named in German too.
+const ZEFIX_COUNTRY_NAMES = new Intl.DisplayNames(['de'], { type: 'region' });
 
 export class SwitzerlandZefixProvider implements CompanyRegistryProvider {
   readonly id = 'ch-zefix';
   readonly label = 'Zefix (Zentraler Firmenindex)';
-  readonly countries = ['CH', 'LI'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'UID (CHE-123.456.789)';
   readonly docsUrl = 'https://www.zefix.admin.ch/ZefixPublicREST/';
@@ -30,7 +32,7 @@ export class SwitzerlandZefixProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (!['CH', 'LI'].includes(query.countryCode.toUpperCase())) return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return digits(query.value).length === 9;
   }
 
@@ -54,7 +56,7 @@ export class SwitzerlandZefixProvider implements CompanyRegistryProvider {
       address: join(addr.street, addr.houseNumber),
       postalCode: addr.swissZipCode ? String(addr.swissZipCode) : addr.foreignZipCode,
       city: addr.city ?? company.legalSeat,
-      country: query.countryCode.toUpperCase() === 'LI' ? 'Liechtenstein' : 'Schweiz',
+      country: ZEFIX_COUNTRY_NAMES.of(query.countryCode.toUpperCase()),
       countryCode: query.countryCode.toUpperCase(),
       status: company.status === 'ACTIVE' || company.deleteDate == null ? 'ACTIVE' : 'INACTIVE',
     };

@@ -5,6 +5,7 @@
  * Docs     : https://brasilapi.com.br/docs#tag/CNPJ
  * Credentials: none.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -34,7 +35,6 @@ export function isValidCnpj(value: string): boolean {
 export class BrazilCnpjProvider implements CompanyRegistryProvider {
   readonly id = 'br-cnpj';
   readonly label = 'Receita Federal (CNPJ)';
-  readonly countries = ['BR'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'CNPJ (14 digits)';
   readonly docsUrl = 'https://brasilapi.com.br/docs#tag/CNPJ';
@@ -47,7 +47,7 @@ export class BrazilCnpjProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'BR') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return isValidCnpj(query.value);
   }
 
@@ -69,7 +69,7 @@ export class BrazilCnpjProvider implements CompanyRegistryProvider {
       city: data.municipio,
       state: data.uf,
       country: 'Brasil',
-      countryCode: 'BR',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.data_inicio_atividade),
       status: /ATIVA/i.test(data.descricao_situacao_cadastral ?? '') ? 'ACTIVE' : 'INACTIVE',
     };

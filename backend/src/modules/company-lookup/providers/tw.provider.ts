@@ -9,6 +9,7 @@
  * The 統一編號 (BAN, "unified business number") is both the registration number and the
  * tax number. Dates come back in the Minguo calendar — "0760221" is 1987-02-21.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
@@ -45,7 +46,6 @@ export function fromMinguoDate(value: unknown): Date | undefined {
 export class TaiwanGcisProvider implements CompanyRegistryProvider {
   readonly id = 'tw-gcis';
   readonly label = '商工登記公示資料 (經濟部 GCIS)';
-  readonly countries = ['TW'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = '統一編號 (8 digits)';
   readonly docsUrl = 'https://data.gcis.nat.gov.tw/main/api';
@@ -58,7 +58,7 @@ export class TaiwanGcisProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'TW') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return isValidBan(query.value);
   }
 
@@ -79,7 +79,7 @@ export class TaiwanGcisProvider implements CompanyRegistryProvider {
       // The register publishes one free-text address line, city included.
       address: company.Company_Location,
       country: '臺灣',
-      countryCode: 'TW',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: fromMinguoDate(company.Company_Setup_Date),
       // 核准設立 = approved and registered; anything else (撤銷, 廢止, 解散) is gone.
       status: /核准設立/.test(company.Company_Status_Desc ?? '') ? 'ACTIVE' : 'INACTIVE',

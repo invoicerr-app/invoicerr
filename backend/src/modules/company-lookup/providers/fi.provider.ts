@@ -7,6 +7,7 @@
  *
  * The Finnish VAT number is the business id without its dash, prefixed with FI.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -24,7 +25,6 @@ export function formatBusinessId(value: string): string | null {
 export class FinlandPrhProvider implements CompanyRegistryProvider {
   readonly id = 'fi-prh';
   readonly label = 'PRH / YTJ (avoindata)';
-  readonly countries = ['FI'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'Y-tunnus (1234567-8)';
   readonly docsUrl = 'https://avoindata.prh.fi/ytj_en.html';
@@ -37,12 +37,12 @@ export class FinlandPrhProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'FI') return false;
-    return formatBusinessId(stripVatPrefix(query.value, 'FI')) !== null;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
+    return formatBusinessId(stripVatPrefix(query.value, query.countryCode)) !== null;
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const businessId = formatBusinessId(stripVatPrefix(query.value, 'FI'));
+    const businessId = formatBusinessId(stripVatPrefix(query.value, query.countryCode));
     if (!businessId) return null;
 
     const data = await fetchJson<any>(`${PRH_URL}?businessId=${businessId}`, { timeoutMs: this.timeoutMs });
@@ -67,7 +67,7 @@ export class FinlandPrhProvider implements CompanyRegistryProvider {
       postalCode: addr.postCode,
       city: office?.city,
       country: 'Suomi',
-      countryCode: 'FI',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(company.businessId?.registrationDate ?? company.registrationDate),
       status: company.status && String(company.status) !== '2' ? 'ACTIVE' : 'UNKNOWN',
     };

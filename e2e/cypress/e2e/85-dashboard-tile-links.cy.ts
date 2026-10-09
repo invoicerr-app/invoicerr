@@ -26,6 +26,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * Screenshots at the end are for the owner (issue #419's own before/after), not assertions.
  */
 
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 /** ISO `YYYY-MM-DD`, offset from the real clock by `days` (negative = past). Computed at run time,
@@ -52,6 +54,7 @@ function createClient(name: string) {
 				country: "France",
 				currency: "EUR",
 				isActive: true,
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

@@ -86,6 +86,9 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
   `cypress/e2e/scenarios/full-lifecycle.cy.ts` — all six legs green as of run `34874375005` (commit
   `b41e99a9`, 2026-09-14) — plus `scenarios-green`, the same fixed-name-aggregator pattern as
   `cypress.yml`'s `tests-green`, for the same branch-protection reason.
+- `cypress.yml`, `scenarios.yml`, `dco.yml` and `codeql.yml` also run on `merge_group`: `dev` merges
+  through a merge queue, which reruns the required checks on `gh-readonly-queue/dev/...` branches.
+  A new workflow that gates merges needs that trigger too (see `developer-guide/ci.md`).
 - `compliance-live.yml` — real-API round-trips, `workflow_dispatch` **or** a nightly `schedule` cron
   (inert on any branch but the repository default, per the file's own comment). See
   `documentation/docs/developer-guide/live-testing.md`.
