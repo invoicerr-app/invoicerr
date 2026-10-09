@@ -70,6 +70,16 @@ export interface IdentifierSchemeFact {
   /** The expected shape in a few English words, for the API's refusal of a value that fails
    *  `pattern` (`validate-identifier-value.ts`). Never shown in a form: see `helpTextKey`. */
   helpText?: string;
+  /** ISO 6523 ICD of the register this identifier belongs to, emitted as the schemeID of a party's
+   *  legal registration identifier (BT-30, BT-47) in an EN 16931 invoice. */
+  iso6523Scheme?: string;
+  /** When the SELLER is established in this country, both parties' identifiers of this scheme double
+   *  as their electronic address (BT-34, BT-49) under this ISO 6523 ICD, and the seller's is also its
+   *  party identifier (BT-29). */
+  electronicAddressScheme?: string;
+  /** When the SELLER is established in this country, a party identifier of this scheme made of exactly
+   *  `whenDigits` digits is emitted as its first `keepDigits` digits. */
+  einvoiceReduction?: { whenDigits: number; keepDigits: number };
   /** Key of this field's help text in the frontend's locale catalog
    *  (`frontend/src/locales/en/translation.json`), the single, translated source a form shows. */
   helpTextKey?: string;
@@ -165,6 +175,37 @@ export function assertValidProvenance(fact: IdentifierSchemeFact, context: strin
     throw new InvalidIdentifierProvenanceError(
       `${context}: identifier scheme "${fact.scheme}" is "unverified" but has no resolutionNote — ` +
         'an unverified fact must say what would settle it.',
+    );
+  }
+}
+
+export class InvalidEinvoiceIdentifierFactError extends Error {}
+
+const ISO_6523_ICD = /^\d{4}$/;
+
+/** The three e-invoice facts above, checked at load time like `assertPatternIsExplainable`. */
+export function assertValidEinvoiceFacts(fact: IdentifierSchemeFact, context: string): void {
+  for (const key of ['iso6523Scheme', 'electronicAddressScheme'] as const) {
+    const value = fact[key];
+    if (value !== undefined && !ISO_6523_ICD.test(value)) {
+      throw new InvalidEinvoiceIdentifierFactError(
+        `${context}: identifier scheme "${fact.scheme}" declares ${key} "${value}", not a 4-digit ISO 6523 ICD.`,
+      );
+    }
+  }
+  const reduction = fact.einvoiceReduction;
+  if (
+    reduction &&
+    !(
+      Number.isInteger(reduction.whenDigits) &&
+      Number.isInteger(reduction.keepDigits) &&
+      reduction.keepDigits > 0 &&
+      reduction.keepDigits < reduction.whenDigits
+    )
+  ) {
+    throw new InvalidEinvoiceIdentifierFactError(
+      `${context}: identifier scheme "${fact.scheme}" declares an einvoiceReduction that does not keep ` +
+        'a positive number of digits smaller than the number it applies to.',
     );
   }
 }

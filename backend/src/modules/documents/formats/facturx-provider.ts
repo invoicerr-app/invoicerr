@@ -54,7 +54,7 @@
  *
  * `FacturxProviderDeps.legalIdOverride` — a FOURTH, unrelated concern (BT-29/BT-30/BT-46/BT-47), same
  * SAME Chorus Pro-only instance, same "replaces a derived value outright" shape: `build-semantic-
- * invoice.ts#toSiren` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
+ * invoice.ts#einvoiceLegalId` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
  * but Chorus Pro routes a deposit to a STRUCTURE identified by the FULL SIRET, not the company-level
  * SIREN — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (another slice
  * of the SAME 2026-09-14 rejection this businessProcessCodeOverride paragraph already closes, just

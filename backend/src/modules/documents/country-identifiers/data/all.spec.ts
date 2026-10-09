@@ -340,11 +340,7 @@ describe('country-identifiers/data — FR VAT promoted to "legal" (2026-09-01)',
   });
 });
 
-// USER DECISION (2026-09-01) — FR's LEGAL_ID accepts SIREN (9 digits) OR SIRET (14 digits). See
-// fr.json's own `notes` for the full reasoning: a valid
-// SIRET always CONTAINS the required SIREN as its own first 9 digits (R.123-221's second alinéa), so
-// accepting the longer value is not a departure from the text, only a tolerance for a more precise
-// input the codebase already knows how to reduce (`build-semantic-invoice.ts#toSiren`).
+// FR's LEGAL_ID accepts SIREN (9 digits) or SIRET (14 digits), reduced by its own `einvoiceReduction`.
 describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or SIRET (2026-09-01)', () => {
   it('is now "legal" provenance, citing R.123-237/D.123-235/R.123-221 and CGI ann. II art. 242 nonies A, I, 1°', () => {
     const fr = fileFor('FR');
@@ -357,7 +353,7 @@ describe('country-identifiers/data — FR LEGAL_ID resolved to accept SIREN or S
       expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-01');
     }
     expect(legalId.notes).toMatch(/SIRET vs SIREN/);
-    expect(legalId.notes).toMatch(/RESOLVED/);
+    expect(legalId.einvoiceReduction).toEqual({ whenDigits: 14, keepDigits: 9 });
   });
 
   it('label is "SIREN / SIRET", pattern accepts 9 OR 14 digits, still required for BOTH party types', () => {

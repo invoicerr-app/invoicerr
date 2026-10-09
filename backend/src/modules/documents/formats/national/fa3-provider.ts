@@ -79,16 +79,17 @@ import { SemanticBuildError } from '../semantic/build-semantic-invoice';
 import { validateXsd } from '../vendored/validate-xsd';
 import { FaVatKorContext, resolveFaVatKorContext } from './fa3-kor';
 import { extractNationalLines, NationalLine } from './national-lines';
+import { nationalFormatCountry } from './format-country';
 import { documentCurrencyOrSellerNational } from './seller-currency';
 
+const fa3FormatId = 'fa3';
 const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/';
 const FA3_XSD = 'pl/schemat_FA3.xsd';
 
-/** Same "not applicable" address builder fa-vat.ts used — `guessCountryCode` resolves the party's
- *  free-text `country`, defaulting to 'PL' the same way `build-semantic-invoice.ts`'s own EN 16931
- *  bridge defaults unresolved countries to this product's primary market (see that file's header). */
-function buildAddress(party: DocumentFormatParty) {
-  const cc = guessCountryCode(party.country) ?? 'PL';
+/** Same "not applicable" address builder fa-vat.ts used: an unresolvable country falls back to the
+ *  format's own country. */
+function buildAddress(party: DocumentFormatParty, formatCountry: string) {
+  const cc = guessCountryCode(party.country) ?? formatCountry;
   const street = party.address || '';
   const cityLine = [party.postalCode, party.city].filter(Boolean).join(' ') || '';
   const addr: Record<string, string> = { KodKraju: cc, AdresL1: street || cityLine || '-' };
@@ -157,6 +158,7 @@ async function build(
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
   const currency = documentCurrencyOrSellerNational(totals.currency, company);
+  const formatCountry = nationalFormatCountry(fa3FormatId);
 
   // ── KOR (faktura korygująca) — see this file's own header and fa3-kor.ts's for the full design. ──
   const correctsInvoiceId =
@@ -221,7 +223,7 @@ async function build(
     DaneIdentyfikacyjne: clientNip
       ? { NIP: clientNip, Nazwa: client.name }
       : { BrakID: '1', Nazwa: client.name },
-    Adres: buildAddress(client),
+    Adres: buildAddress(client, formatCountry),
     ...(client.email || client.phone
       ? {
           DaneKontaktowe: {
@@ -275,9 +277,9 @@ async function build(
         SystemInfo: 'invoicerr',
       },
       Podmiot1: {
-        PrefiksPodatnika: 'PL',
+        PrefiksPodatnika: formatCountry,
         DaneIdentyfikacyjne: { NIP: sellerNip, Nazwa: company.name },
-        Adres: buildAddress(company),
+        Adres: buildAddress(company, formatCountry),
         ...(company.email || company.phone
           ? {
               DaneKontaktowe: {
@@ -323,7 +325,7 @@ async function build(
 }
 
 export const fa3FormatProvider: DocumentFormatProvider = {
-  id: 'fa3',
+  id: fa3FormatId,
   syntax: 'FA_VAT_3',
   mime: 'application/xml',
   build,

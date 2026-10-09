@@ -21,6 +21,7 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import prisma from '@/prisma/prisma.service';
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/registry';
+import { resolveVatCurrencyRule } from '@/modules/documents/vat-currency/registry';
 
 import {
   CountryMeta,
@@ -63,21 +64,18 @@ function baseLine(rng: Rng, meta: CountryMeta, article: { name: string; unitPric
   };
 }
 
-/** Issue #566 (demo dataset, #558 follow-up): every document below billed to `clients.domestic` or
- *  `clients.supplier` (both seeded from THIS SAME country's own pool, see
- *  `createDomesticAndForeignClients` below) is, by construction, the exact domestic operation
- *  `country-policy/schema.ts#DomesticInvoiceCurrencyFact` governs. This seed never actually exercises
- *  that preflight (every "sent" document here goes through `move-to-sent.ts`'s own numbering-only
- *  bypass, never the real "send" action the rule is wired into - see this file's own header), so
- *  nothing would CRASH left at a literal 'EUR', but a demo Algerian company visibly billing itself in
- *  euros would contradict the very rule this product now enforces. Every other supported country
- *  declares no such fact, so this is a no-op everywhere but DZ (`?? 'EUR'` keeps prior behaviour
- *  bit-for-bit for FR/DE/IT/PL/PT). The ONE cross-border line (the quote billed to `clients.foreign`)
- *  deliberately stays pinned to a literal 'EUR' instead, never this - a neutral trade currency for an
- *  export/cross-border sale, which stays allowed under the same rule regardless of either party's own
- *  domestic currency. */
-function domesticCurrencyFor(meta: CountryMeta): string {
-  return defaultCountryPolicyCatalog.domesticInvoiceCurrencyFor(meta.countryCode)?.currency ?? 'EUR';
+/** The currency of every domestic document below: the country's own domestic invoice currency when it
+ *  declares one, else its national currency. The one cross-border quote stays in EUR on purpose. */
+export function domesticCurrencyFor(meta: Pick<CountryMeta, 'countryCode'>): string {
+  const currency =
+    defaultCountryPolicyCatalog.domesticInvoiceCurrencyFor(meta.countryCode)?.currency ??
+    resolveVatCurrencyRule(meta.countryCode)?.nationalCurrency;
+  if (!currency) {
+    throw new Error(
+      `Demo seed: ${meta.countryCode} declares neither a domestic invoice currency nor a national currency.`,
+    );
+  }
+  return currency;
 }
 
 async function createDomesticAndForeignClients(

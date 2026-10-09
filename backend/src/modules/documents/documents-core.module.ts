@@ -338,7 +338,7 @@ function buildTransportRegistry(
   //    descriptor model ever represents.
   //  - `legalIdOverride: 'full'`: Chorus Pro routes a deposit to a STRUCTURE identified by its FULL
   //    14-digit SIRET (schemeID '0002', AIFE's own S2.13), never the 9-digit SIREN
-  //    `build-semantic-invoice.ts#toSiren` reduces to by default — see
+  //    `build-semantic-invoice.ts#einvoiceLegalId` reduces to by default, see
   //    `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (the NEXT rejection
   //    in the SAME 2026-09-14 sequence, `CPP0011117000000000425899`, both parties truncated).
   // Both scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping its

@@ -1,7 +1,9 @@
 import {
   assertPatternIsExplainable,
+  assertValidEinvoiceFacts,
   assertValidProvenance,
   IdentifierSchemeFact,
+  InvalidEinvoiceIdentifierFactError,
   InvalidIdentifierPatternError,
   InvalidIdentifierProvenanceError,
 } from './schema';
@@ -135,5 +137,30 @@ describe('assertPatternIsExplainable', () => {
     expect(() =>
       assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', provenance: legal }, 'it.json'),
     ).toThrow(/it\.json.*LEGAL_ID.*\^\\d\{9\}\$/);
+  });
+});
+
+describe('assertValidEinvoiceFacts', () => {
+  const legal = { kind: 'legal', sourceText: 'Text.', sourceCheckedAt: '2026-08-30' } as const;
+  const check = (facts: Partial<IdentifierSchemeFact>) => () =>
+    assertValidEinvoiceFacts({ ...base, ...facts, provenance: legal }, 'test');
+
+  it('accepts four-digit schemes and a reduction that keeps fewer digits', () => {
+    expect(
+      check({
+        iso6523Scheme: '0002',
+        electronicAddressScheme: '0225',
+        einvoiceReduction: { whenDigits: 14, keepDigits: 9 },
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    ['an iso6523Scheme that is not four digits', { iso6523Scheme: '2' }],
+    ['an electronicAddressScheme that is not four digits', { electronicAddressScheme: 'FR' }],
+    ['a reduction that keeps every digit', { einvoiceReduction: { whenDigits: 9, keepDigits: 9 } }],
+    ['a reduction that keeps nothing', { einvoiceReduction: { whenDigits: 14, keepDigits: 0 } }],
+  ])('rejects %s', (_label, facts) => {
+    expect(check(facts as Partial<IdentifierSchemeFact>)).toThrow(InvalidEinvoiceIdentifierFactError);
   });
 });

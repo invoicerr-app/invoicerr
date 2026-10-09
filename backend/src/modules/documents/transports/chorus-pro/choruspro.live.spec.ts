@@ -132,7 +132,7 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     // 2026-09-14, type "Plateforme agréée") — see `credentials-guide.md` §3 for how that mattress is
     // obtained. `scheme: 'LEGAL_ID'` is correct for a French SIRET: `countries/data/fr.json (section "identifiers")`
     // declares FR's ONLY `LEGAL_ID` scheme as "SIREN / SIRET", pattern `^\d{9}(\d{5})?$` (accepts
-    // either length). `build-semantic-invoice.ts#toSiren()` reduces a 14-digit SIRET to its first 9
+    // either length). `build-semantic-invoice.ts#einvoiceLegalId()` reduces a 14-digit SIRET to its first 9
     // digits (the SIREN) BY DEFAULT before emitting BT-29/BT-30/BT-46/BT-47 — correct for PDP, WRONG
     // for Chorus Pro (see `legalIdOverride: 'full'` on the `buildSemanticInvoice` call below, and
     // `SemanticInvoiceInput.legalIdOverride`'s own header, for the full sourcing: Chorus Pro routes a
