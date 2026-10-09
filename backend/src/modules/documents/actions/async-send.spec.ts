@@ -45,6 +45,37 @@ describe('runAsyncSendAction', () => {
     numberOnEnqueue: true,
   };
 
+  type Row = Record<string, unknown>;
+
+  function documentRow(overrides: Row = {}) {
+    return {
+      id: 'doc-1',
+      typeId: 'quote',
+      status: 'draft',
+      data: baseInput.data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  function mockFound(overrides: Row = {}) {
+    (persistence.findOwnedDocument as Mock).mockResolvedValue(documentRow(overrides));
+  }
+
+  function numberingResult(overrides: Row & { number: number; displayNumber: string }) {
+    return {
+      document: documentRow({ status: 'sending', ...overrides }),
+      numbered: { number: overrides.number, displayNumber: overrides.displayNumber },
+    };
+  }
+
+  function mockNumbered(overrides: Row & { number: number; displayNumber: string }) {
+    (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue(
+      numberingResult(overrides),
+    );
+  }
+
   it('throws (never touches persistence) when called on a never-saved record — unreachable via availableWhen, but never trusted alone', async () => {
     const queueDispatcher = { enqueueAction: vi.fn() };
     const deliver = vi.fn();
@@ -63,13 +94,8 @@ describe('runAsyncSendAction', () => {
       'draft',
       'send_failed',
     ])('from "%s": takes the number ATOMICALLY with the "sending" write, BEFORE enqueueing, and never calls deliver', async (status) => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status,
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       const callOrder: string[] = [];
       const queueDispatcher = {
@@ -134,13 +160,9 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never numbers a type declaring `numberOnEnqueue: false` (expense: no `numbering` at all)', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      mockFound({
         id: 'exp-1',
         typeId: 'expense',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       (persistence.upsertDocument as Mock).mockResolvedValue({
         id: 'exp-1',
@@ -165,13 +187,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never re-numbers a record that already carries one (a "send_failed" retry keeps its number)', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'send_failed',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         // Already numbered from an earlier, successful attempt - the real signal
         // `eligibleForAtomicNumbering` (async-send.ts) reads to skip numbering entirely here.
         number: 3,
@@ -200,13 +217,7 @@ describe('runAsyncSendAction', () => {
     // `deliveryConfirmedAt` used to survive, so phase 2 took it for this send's own confirmation and
     // skipped `deliver()`: the edit was never emailed, never archived.
     it('issue #477: from "draft" on an already-delivered record, clears deliveryConfirmedAt on the "sending" write', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      mockFound({
         number: 3,
         displayNumber: 'QUOTE-2026-0003',
         deliveryConfirmedAt: new Date('2026-09-01T00:00:00Z'),
@@ -231,13 +242,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('issue #477: a "send_failed" retry keeps deliveryConfirmedAt - the delivery it records really happened', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'send_failed',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 3,
         displayNumber: 'QUOTE-2026-0003',
         deliveryConfirmedAt: new Date('2026-09-01T00:00:00Z'),
@@ -261,14 +267,7 @@ describe('runAsyncSendAction', () => {
     });
 
     it('two concurrent "send" calls on the SAME draft: the loser 409s instead of both numbering and enqueueing', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      mockFound();
       // Simulates the real `takeDocumentNumberWithStatusTransition` compare-and-swap (sequence.ts)
       // losing its second race: only the FIRST caller's transaction actually flips "draft" to
       // "sending" (and takes the number with it), the second finds the row already moved on.
@@ -318,26 +317,10 @@ describe('runAsyncSendAction', () => {
     // job is only "does the CORE call it, with the right arguments, at the right moment".
     describe('onNumbered', () => {
       function mockFreshNumbering() {
-        (persistence.findOwnedDocument as Mock).mockResolvedValue({
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'draft',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-          document: {
-            id: 'doc-1',
-            typeId: 'quote',
-            status: 'sending',
-            data: baseInput.data,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            number: 3,
-            displayNumber: 'QUOTE-2026-0003',
-          },
-          numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+        mockFound();
+        mockNumbered({
+          number: 3,
+          displayNumber: 'QUOTE-2026-0003',
         });
       }
 
@@ -363,13 +346,8 @@ describe('runAsyncSendAction', () => {
       });
 
       it('is never called for a "send_failed" retry that keeps its existing number — nothing was won', async () => {
-        (persistence.findOwnedDocument as Mock).mockResolvedValue({
-          id: 'doc-1',
-          typeId: 'quote',
+        mockFound({
           status: 'send_failed',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
           number: 3,
           displayNumber: 'QUOTE-2026-0003',
         });
@@ -396,13 +374,8 @@ describe('runAsyncSendAction', () => {
       });
 
       it('is never called when `numberOnEnqueue` is false - a type with no numbering at all (expense)', async () => {
-        (persistence.findOwnedDocument as Mock).mockResolvedValue({
-          id: 'doc-1',
+        mockFound({
           typeId: 'expense',
-          status: 'draft',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
         });
         (persistence.upsertDocument as Mock).mockResolvedValue({
           id: 'doc-1',
@@ -438,13 +411,8 @@ describe('runAsyncSendAction', () => {
       // guard the "send_failed retry" test above already exercises for the OTHER way `numbered` ends
       // up unset (the eligibility check itself skipping this transition entirely).
       it('is never called when the transaction itself won no number - a stale caller\'s own snapshot said "null", the row disagreed', async () => {
-        (persistence.findOwnedDocument as Mock).mockResolvedValue({
-          id: 'doc-1',
-          typeId: 'quote',
+        mockFound({
           status: 'send_failed',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
           // The STALE in-memory view: this snapshot still shows no number, so
           // `eligibleForAtomicNumbering` computes true and this call DOES reach
           // `takeDocumentNumberForTransitionWithStatus` below - unlike the "send_failed retry" test
@@ -493,13 +461,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('runs an optional preflight BEFORE persisting, numbering, or enqueueing anything — a thrown preflight blocks all three', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       const deliver = vi.fn();
@@ -516,26 +479,13 @@ describe('runAsyncSendAction', () => {
     });
 
     it('a SUCCESSFUL preflight lets phase 1 proceed exactly as without one', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'invoice',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'INV-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+      mockNumbered({
+        typeId: 'invoice',
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(undefined);
@@ -557,27 +507,15 @@ describe('runAsyncSendAction', () => {
     // `data` for the "sending" write AND the enqueued job payload, never just for a synchronous
     // check that then throws its own answer away. See `RunAsyncSendInput.preflight`'s own header.
     it('a preflight that RETURNS resolved data persists (and enqueues) THAT data — never the raw one it was called with', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       const resolvedData = { client: 'client-1', lines: [{ vatRate: '0', __crossBorderCategory: 'AE' }] };
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'invoice',
-          status: 'sending',
-          data: resolvedData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'INV-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+      mockNumbered({
+        typeId: 'invoice',
+        data: resolvedData,
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(resolvedData);
@@ -604,26 +542,10 @@ describe('runAsyncSendAction', () => {
     });
 
     it("a preflight returning `undefined` (the quote's, the credit note's — every existing caller) still persists the RAW data untouched", async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'QUOTE-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
+      mockFound();
+      mockNumbered({
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const preflight = vi.fn().mockResolvedValue(undefined);
@@ -700,13 +622,9 @@ describe('runAsyncSendAction', () => {
     // `transports/pdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
     // sweep (`conformity/`) later reads to know which channel this document actually went through.
     it('threads a deliver() `reference`/`providerId` through to updateDocumentStatus as `transportRef`/`channelProviderId`', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
@@ -745,13 +663,8 @@ describe('runAsyncSendAction', () => {
     // already succeeded.
     it('archives the artifacts deliver() returned, right after confirming delivery, BEFORE "sent" is persisted', async () => {
       const callOrder: string[] = [];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
@@ -786,13 +699,10 @@ describe('runAsyncSendAction', () => {
     });
 
     it('still calls archiveDeliveredArtifactsIfAny (with artifacts: undefined) for a deliver() with nothing to archive', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      mockFound({
         id: 'cn-1',
         typeId: 'credit-note',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'CN-2026-0001',
       });
@@ -822,13 +732,9 @@ describe('runAsyncSendAction', () => {
     // obligation decision itself (that is `reporting/report-on-send.spec.ts`'s job).
     it('calls reportOnSendIfObligated AFTER "sent" is persisted, with the right (companyId, typeId, documentId)', async () => {
       const callOrder: string[] = [];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
@@ -870,13 +776,9 @@ describe('runAsyncSendAction', () => {
     // different outcome — a mutation removing that "never throws" guarantee (or awaiting it before
     // the "sent" write) is exactly what this test would catch.
     it('never lets a reportOnSendIfObligated failure change the returned result — the document stays "sent"', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
@@ -917,13 +819,8 @@ describe('runAsyncSendAction', () => {
     // into "send_failed" (or anything else) by `runAsyncSendAction` itself, so BullMQ's own retry
     // gets a real chance to run first.
     it('a deliver() failure propagates UNCAUGHT — never persisted as "sent", never turned into "send_failed" here', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
@@ -1224,7 +1121,7 @@ describe('runAsyncSendAction', () => {
       vi.resetModules();
       const { runAsyncSendAction: runOnFreshProcess } = await import('./async-send.js');
 
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      mockFound({
         ...sendingInvoice(documentId),
         deliveryConfirmedAt: new Date(),
         transportRef: 'ref-1',
@@ -1335,7 +1232,7 @@ describe('runAsyncSendAction', () => {
       // `deliver()`, with a record that carries the durable mark from a past, genuinely successful
       // delivery (see schema.prisma's own comment: never cleared by a later "send_failed"/"sending"
       // cycle).
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      mockFound({
         ...sendingInvoice(),
         deliveryConfirmedAt: new Date('2026-01-01T00:00:00Z'),
         transportRef: 'ref-old',
@@ -1377,14 +1274,7 @@ describe('runAsyncSendAction', () => {
   // failed write.
   describe('events — the SSE status nudge', () => {
     it('phase 1: publishes "sending" AFTER the atomic status+number write persists it, with the record\'s own id', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      mockFound();
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const events = { publish: vi.fn().mockResolvedValue(undefined) };
       const callOrder: string[] = [];
@@ -1419,14 +1309,7 @@ describe('runAsyncSendAction', () => {
     });
 
     it('phase 1: never publishes at all when the atomic status+number write itself throws - an unacquired fact is never announced (PR #473 review point 1)', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      mockFound();
       (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockRejectedValue(
         new Error('DB unreachable'),
       );
@@ -1441,13 +1324,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('phase 1: never publishes when a preflight rejects — nothing was ever acquired', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       const events = { publish: vi.fn() };
@@ -1470,13 +1348,8 @@ describe('runAsyncSendAction', () => {
 
     it('phase 2: archives BEFORE updateDocumentStatus, then publishes "sent" right after the status write', async () => {
       const callOrder: string[] = [];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
@@ -1509,13 +1382,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('phase 2: never publishes when deliver() throws — an unacquired "sent" is never announced', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
@@ -1531,26 +1399,10 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never touches events at all when absent — every pre-existing caller keeps working unchanged', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'QUOTE-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
+      mockFound();
+      mockNumbered({
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
 
@@ -1570,13 +1422,9 @@ describe('runAsyncSendAction', () => {
   describe('webhooks — the generic "sent" webhook', () => {
     it('dispatches DOCUMENT_SENT AFTER updateDocumentStatus persists "sent" and AFTER the SSE publish (archiving already happened, earlier)', async () => {
       const callOrder: string[] = [];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 7,
         displayNumber: 'INV-2026-0007',
       });
@@ -1636,13 +1484,9 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never dispatches when deliver() throws — an unacquired "sent" is never announced', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
@@ -1658,26 +1502,13 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never dispatches at phase 1 (enqueue) — only "sent" (phase 2) fires it', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'invoice',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'INV-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+      mockNumbered({
+        typeId: 'invoice',
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
       const queueDispatcher = { enqueueAction: vi.fn().mockResolvedValue(undefined) };
       const webhooks = { dispatch: vi.fn() };
@@ -1700,13 +1531,9 @@ describe('runAsyncSendAction', () => {
     // is that catcher for ITS OWN call, never letting the rejection reach BullMQ (which would
     // otherwise retry a job whose document was already, genuinely sent).
     it('a dispatch failure NEVER propagates — the document stays "sent", the result is unaffected', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'INV-2026-0001',
       });
@@ -1736,13 +1563,8 @@ describe('runAsyncSendAction', () => {
     });
 
     it('never touches the webhook emitter at all when absent — every pre-existing caller keeps working unchanged', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 1,
         displayNumber: 'QUOTE-2026-0001',
       });
@@ -1767,29 +1589,13 @@ describe('runAsyncSendAction', () => {
   // delivers it, correctly numbered.
   describe('PR #473 review point 1 - a document can never leave "sending" for "sent" without a number', () => {
     it('a failure AFTER the atomic status+number write (the SSE publish here) leaves the record numbered, only un-enqueued - never delivered unnumbered', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      mockFound();
       // The number IS taken here - this call is what "the status write and the numbering are one
       // atomic transaction" means: by the time this resolves, Postgres already durably holds BOTH
       // the "sending" status AND the number, together, whatever happens next.
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: baseInput.data,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 42,
-          displayNumber: 'QUOTE-2026-0042',
-        },
-        numbered: { number: 42, displayNumber: 'QUOTE-2026-0042' },
+      mockNumbered({
+        number: 42,
+        displayNumber: 'QUOTE-2026-0042',
       });
       const queueDispatcher = { enqueueAction: vi.fn() };
       // Simulates the exact failure review point 1 named: an SSE bus hiccup right after the record
@@ -1810,13 +1616,8 @@ describe('runAsyncSendAction', () => {
       // --- The retry (phase 2 - "sending" is itself a valid `from` status for "send", reached by
       // the worker's own replay or a later manual retry) - proves the record is NOT stuck forever,
       // and, critically, is delivered WITH its number, never without it.
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: 42,
         displayNumber: 'QUOTE-2026-0042',
       });
@@ -1849,11 +1650,8 @@ describe('runAsyncSendAction', () => {
     // action ever leaves "sending"). This proves the fix: ONE retry takes the number through the same
     // atomic path phase 1 uses, then delivers - never refuses.
     it('recovers a "sending" record with no number for a type with no `numberingOnlyFrom` - one retry ends numbered and delivered', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
         createdAt: new Date('2026-01-01T00:00:00Z'),
         updatedAt: new Date('2026-01-01T00:00:00Z'),
         number: null,
@@ -1909,13 +1707,8 @@ describe('runAsyncSendAction', () => {
     // but never re-bumping the sequence - this call must still deliver, using whatever the row now
     // holds, never throw and never number a second time.
     it('a concurrent winner already numbered the record - this call still delivers, without renumbering', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: null,
         displayNumber: null,
       });
@@ -1956,13 +1749,10 @@ describe('runAsyncSendAction', () => {
     // the belt-and-braces guard above - a pre-#471 credit note legitimately reaches "sending" from
     // "send_failed" with no number, forever, and must keep delivering.
     it('does NOT refuse an unnumbered "sending" record for a type declaring `numberingOnlyFrom` - the credit note grandfather case', async () => {
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      mockFound({
         id: 'cn-legacy',
         typeId: 'credit-note',
         status: 'sending',
-        data: baseInput.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: null,
         displayNumber: null,
       });
@@ -1992,26 +1782,15 @@ describe('runAsyncSendAction', () => {
 
     it('phase 1 (primary enqueue path): decrements stock exactly once when `decrementsStock: true` and this call WINS the number', async () => {
       const lines = [{ articleId: 'article-1', quantity: 3 }];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
-        status: 'draft',
         data: { ...baseInput.data, lines },
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'invoice',
-          status: 'sending',
-          data: { ...baseInput.data, lines },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'INV-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'INV-2026-0001' },
+      mockNumbered({
+        typeId: 'invoice',
+        data: { ...baseInput.data, lines },
+        number: 1,
+        displayNumber: 'INV-2026-0001',
       });
 
       await runAsyncSendAction({
@@ -2032,26 +1811,13 @@ describe('runAsyncSendAction', () => {
 
     it("phase 1 (primary enqueue path): never decrements when `decrementsStock` is omitted (the quote's/credit note's own default), even though this call WINS the number", async () => {
       const lines = [{ articleId: 'article-1', quantity: 3 }];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
-        status: 'draft',
+      mockFound({
         data: { ...baseInput.data, lines },
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: { ...baseInput.data, lines },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 1,
-          displayNumber: 'QUOTE-2026-0001',
-        },
-        numbered: { number: 1, displayNumber: 'QUOTE-2026-0001' },
+      mockNumbered({
+        data: { ...baseInput.data, lines },
+        number: 1,
+        displayNumber: 'QUOTE-2026-0001',
       });
 
       await runAsyncSendAction({
@@ -2068,28 +1834,18 @@ describe('runAsyncSendAction', () => {
 
     it('phase 2 recovery (a numberless "sending" record, no `numberingOnlyFrom`): decrements stock exactly once when `decrementsStock: true`', async () => {
       const lines = [{ articleId: 'article-1', quantity: 5 }];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
+      mockFound({
         typeId: 'invoice',
         status: 'sending',
         data: { ...baseInput.data, lines },
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: null,
         displayNumber: null,
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'invoice',
-          status: 'sending',
-          data: { ...baseInput.data, lines },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 9,
-          displayNumber: 'INV-2026-0009',
-        },
-        numbered: { number: 9, displayNumber: 'INV-2026-0009' },
+      mockNumbered({
+        typeId: 'invoice',
+        data: { ...baseInput.data, lines },
+        number: 9,
+        displayNumber: 'INV-2026-0009',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',
@@ -2116,28 +1872,16 @@ describe('runAsyncSendAction', () => {
 
     it('phase 2 recovery: never decrements when `decrementsStock` is false, even though this call recovers the number', async () => {
       const lines = [{ articleId: 'article-1', quantity: 5 }];
-      (persistence.findOwnedDocument as Mock).mockResolvedValue({
-        id: 'doc-1',
-        typeId: 'quote',
+      mockFound({
         status: 'sending',
         data: { ...baseInput.data, lines },
-        createdAt: new Date(),
-        updatedAt: new Date(),
         number: null,
         displayNumber: null,
       });
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-        document: {
-          id: 'doc-1',
-          typeId: 'quote',
-          status: 'sending',
-          data: { ...baseInput.data, lines },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          number: 9,
-          displayNumber: 'QUOTE-2026-0009',
-        },
-        numbered: { number: 9, displayNumber: 'QUOTE-2026-0009' },
+      mockNumbered({
+        data: { ...baseInput.data, lines },
+        number: 9,
+        displayNumber: 'QUOTE-2026-0009',
       });
       (persistence.updateDocumentStatus as Mock).mockResolvedValue({
         id: 'doc-1',

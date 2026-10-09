@@ -10,19 +10,21 @@
  * `DocumentsService.runAction`'s own gates entirely — the exact same style `send-divergence.spec.ts`
  * already established for this module.
  */
-import { vi, type Mock } from 'vitest';
+import { vi } from 'vitest';
 import { NotImplementedException } from '@nestjs/common';
 
 import * as persistence from '../persistence';
-import * as takeNumber from '../numbering/take-number';
-import * as countryPolicy from '../country-policy/country-policy';
-import * as mandate from '../transports/channel-policy/mandate';
-import * as b2gRouting from '../b2g-routing/b2g-routing';
 import { TransportRegistry } from '../transports/transport-registry';
-import * as companyTransport from '../transports/company-transport';
-import { ActionRegistry } from './action-registry';
-import { registerInvoiceActions } from './invoice-actions';
-import * as taxLoadAndResolve from '../tax/load-and-resolve';
+import {
+  FR_MANDATE,
+  NUMBERED,
+  invoiceData,
+  invoiceRow,
+  mockAtomicNumbering,
+  mockCompany,
+  mockNeutralIssuanceContext,
+  runInvoiceAction,
+} from '../__tests__/invoice-action-fixtures';
 
 vi.mock('../persistence');
 vi.mock('../transports/company-transport');
@@ -44,99 +46,25 @@ vi.mock('../numbering/take-number');
 // VAT.
 vi.mock('../tax/load-and-resolve');
 
-const FR_MANDATE = {
-  providerId: 'pdp',
-  mandatedFrom: '2026-09-01',
-  provenance: {
-    kind: 'legal' as const,
-    sourceText: 'Seule une plateforme agréée est habilitée à assurer toutes les fonctionnalités prévues.',
-    sourceCheckedAt: '2026-08-27',
-  },
-};
+const documentData = invoiceData('2026-09-01');
 
-const documentData = {
-  client: 'client-1',
-  issueDate: '2026-09-01',
-  dueDate: '2026-09-30',
-  currency: 'EUR',
-  lines: [{ description: 'Consulting', quantity: 1, unit: 'unit', unitPrice: 100, vatRate: '20' }],
-};
+const draftDocument = () => invoiceRow(documentData, 'draft');
 
-function draftDocument() {
-  return {
-    id: 'doc-1',
-    typeId: 'invoice',
-    status: 'draft',
-    data: documentData,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-}
-
-function sendingDocument() {
-  return {
-    id: 'doc-1',
-    typeId: 'invoice',
-    status: 'sending',
-    data: documentData,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    // Already numbered - PR #473 review point 1's own belt-and-braces guard (async-send.ts): invoice
-    // has no `numbering.onlyFrom`, so a genuine "sending" invoice always carries a number.
-    number: 1,
-    displayNumber: 'INV-2026-0001',
-  };
-}
-
-/** PR #473 review point 1: invoice has no `numbering.onlyFrom`, so "send" from "draft" is eligible
- *  for the ATOMIC status+number write (async-send.ts) - replaces `persistence.upsertDocument`. */
-function mockAtomicNumbering() {
-  (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockResolvedValue({
-    document: sendingDocument(),
-    numbered: { number: 1, displayNumber: 'INV-2026-0001' },
-  });
-}
-
-function buildRegistry(transportRegistry = new TransportRegistry()) {
-  const registry = new ActionRegistry();
-  registerInvoiceActions(registry, { transportRegistry, queueDispatcher: { enqueueAction: vi.fn() } });
-  return registry;
-}
+// A genuine "sending" invoice always carries a number: invoice has no `numbering.onlyFrom`.
+const sendingDocument = () => invoiceRow(documentData, 'sending', NUMBERED);
 
 describe('invoice "send" — a country channel mandate overrides the company\'s free choice', () => {
   afterEach(() => vi.resetAllMocks());
-  // Cross-border VAT — see `send-divergence.spec.ts`'s own comment on this exact mock and why it is
-  // re-installed here, in `beforeEach`, rather than relying on the module factory alone.
-  beforeEach(() => {
-    (taxLoadAndResolve.resolveInvoiceCrossBorderTaxForCompany as Mock).mockImplementation(
-      (_companyId: string, data: Record<string, unknown>) =>
-        Promise.resolve({ data, crossBorder: false, warnings: [] }),
-    );
-    // No B2G client in any of this file's own fixtures — see `invoice-b2g-routing.spec.ts` for the
-    // dedicated suite that exercises `applies: true`.
-    (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
-      applies: false,
-      missingIdentifierSchemes: [],
-    });
-  });
+  // Cross-border VAT and B2G routing (see `send-divergence.spec.ts` and `invoice-b2g-routing.spec.ts`)
+  // are re-installed here, in `beforeEach`, rather than relying on the module factories alone.
+  beforeEach(() => mockNeutralIssuanceContext());
 
   it('BLOCKS at the preflight when the company is configured for a DIFFERENT transport — never persisted, message names channel + source', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    mockCompany({ countryCode: 'FR', mandate: FR_MANDATE, transportId: 'email', document: draftDocument() });
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });
-    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
-
-    const action = handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const action = runInvoiceAction('send', documentData, {}, transportRegistry);
 
     await expect(action).rejects.toBeInstanceOf(NotImplementedException);
     await expect(action).rejects.toThrow(/FR requires invoices issued on or after 2026-09-01/);
@@ -147,19 +75,9 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('BLOCKS the same way when NO transport is configured at all — names the mandate, not the generic "no transport" message', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue(null);
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    mockCompany({ countryCode: 'FR', mandate: FR_MANDATE, transportId: null, document: draftDocument() });
 
-    const handler = buildRegistry().resolve('invoice', 'send');
-    const action = handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const action = runInvoiceAction('send', documentData);
 
     await expect(action).rejects.toBeInstanceOf(NotImplementedException);
     await expect(action).rejects.toThrow(/"pdp" channel/);
@@ -168,10 +86,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('BLOCKS, naming both the mandate AND the underlying reason, when the mandated channel IS chosen but its own preflight refuses (not connected)', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
+    mockCompany({ countryCode: 'FR', mandate: FR_MANDATE, transportId: 'pdp', document: draftDocument() });
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('pdp', 'PDP', {
@@ -180,15 +95,7 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
         .fn()
         .mockRejectedValue(new NotImplementedException('The PDP channel is not connected for this company.')),
     });
-    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
-
-    const action = handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const action = runInvoiceAction('send', documentData, {}, transportRegistry);
 
     await expect(action).rejects.toBeInstanceOf(NotImplementedException);
     await expect(action).rejects.toThrow(/FR requires invoices issued on or after 2026-09-01/);
@@ -199,24 +106,14 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('ALLOWS the send once the mandated channel is chosen AND ready — the mandate does not block what it requires', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('pdp');
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    mockAtomicNumbering();
+    mockCompany({ countryCode: 'FR', mandate: FR_MANDATE, transportId: 'pdp', document: draftDocument() });
+    mockAtomicNumbering(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
     const fakePreflight = vi.fn().mockResolvedValue(undefined);
     transportRegistry.register('pdp', 'PDP', { send: vi.fn(), preflight: fakePreflight });
-    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
-    const result = await handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const result = await runInvoiceAction('send', documentData, {}, transportRegistry);
 
     expect(fakePreflight).toHaveBeenCalledWith('company-1');
     expect(result.changed).toBe(true);
@@ -224,23 +121,13 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   });
 
   it('a country with NO active mandate leaves the company entirely free to choose — unaffected by the mandate machinery', async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('DE');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(undefined);
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-    mockAtomicNumbering();
+    mockCompany({ countryCode: 'DE', mandate: undefined, transportId: 'email', document: draftDocument() });
+    mockAtomicNumbering(sendingDocument());
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });
-    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
-    const result = await handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const result = await runInvoiceAction('send', documentData, {}, transportRegistry);
 
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'sending' });
@@ -251,34 +138,29 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
       'chose "sdi-pec", the SAME legal channel over a different sub-channel (see ' +
       'channel-policy/schema.ts\'s own "equivalentProviderIds" header)',
     async () => {
-      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('IT');
-      (mandate.activeChannelMandateForOperation as Mock).mockReturnValue({
-        providerId: 'sdi',
-        mandatedFrom: '2019-01-01',
-        equivalentProviderIds: ['sdi-pec'],
-        provenance: {
-          kind: 'legal' as const,
-          sourceText:
-            'Sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio.',
-          sourceCheckedAt: '2026-09-13',
+      mockCompany({
+        countryCode: 'IT',
+        mandate: {
+          providerId: 'sdi',
+          mandatedFrom: '2019-01-01',
+          equivalentProviderIds: ['sdi-pec'],
+          provenance: {
+            kind: 'legal' as const,
+            sourceText:
+              'Sono emesse esclusivamente fatture elettroniche utilizzando il Sistema di Interscambio.',
+            sourceCheckedAt: '2026-09-13',
+          },
         },
+        transportId: 'sdi-pec',
+        document: draftDocument(),
       });
-      (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('sdi-pec');
-      (persistence.findOwnedDocument as Mock).mockResolvedValue(draftDocument());
-      mockAtomicNumbering();
+      mockAtomicNumbering(sendingDocument());
 
       const transportRegistry = new TransportRegistry();
       const fakePreflight = vi.fn().mockResolvedValue(undefined);
       transportRegistry.register('sdi-pec', 'SdI via PEC', { send: vi.fn(), preflight: fakePreflight });
-      const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
 
-      const result = await handler!({
-        companyId: 'company-1',
-        typeId: 'invoice',
-        documentId: 'doc-1',
-        data: documentData,
-        params: {},
-      });
+      const result = await runInvoiceAction('send', documentData, {}, transportRegistry);
 
       expect(fakePreflight).toHaveBeenCalledWith('company-1');
       expect(result.changed).toBe(true);
@@ -287,24 +169,18 @@ describe('invoice "send" — a country channel mandate overrides the company\'s 
   );
 
   it("deliver() (the worker's replay, phase 2) ALSO respects the mandate — a mismatch is refused even if the preflight somehow let it through", async () => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    (mandate.activeChannelMandateForOperation as Mock).mockReturnValue(FR_MANDATE);
     // The company switched its transport to "email" AFTER the job was enqueued — deliver() must
     // still honor the mandate at the moment it actually runs, not trust whatever preflight decided.
-    (companyTransport.getCompanyInvoiceTransportId as Mock).mockResolvedValue('email');
-    (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
+    mockCompany({
+      countryCode: 'FR',
+      mandate: FR_MANDATE,
+      transportId: 'email',
+      document: sendingDocument(),
+    });
 
     const transportRegistry = new TransportRegistry();
     transportRegistry.register('email', 'Email', { send: vi.fn() });
-    const handler = buildRegistry(transportRegistry).resolve('invoice', 'send');
-
-    const action = handler!({
-      companyId: 'company-1',
-      typeId: 'invoice',
-      documentId: 'doc-1',
-      data: documentData,
-      params: {},
-    });
+    const action = runInvoiceAction('send', documentData, {}, transportRegistry);
 
     await expect(action).rejects.toBeInstanceOf(NotImplementedException);
     await expect(action).rejects.toThrow(/"pdp" channel/);
