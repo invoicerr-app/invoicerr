@@ -76,6 +76,26 @@ export interface IdentifierSchemeFact {
   provenance: IdentifierProvenance;
   /** Free-form caveats — same convention as country-policy/schema.ts's own per-rule `notes`. */
   notes?: string;
+  /** How the demo seed fills this scheme; a scheme without one is left empty on demo parties. */
+  demoGenerator?: DemoIdentifierGeneratorSpec;
+}
+
+/** Names an algorithm in `demo/generators/identifiers.ts`'s registry, plus the parameters it reads. */
+export interface DemoIdentifierGeneratorSpec {
+  id: string;
+  /** Another scheme of the same party whose generated value this one is derived from. */
+  source?: string;
+  prefix?: string;
+  /** `{digits:N}`, `{<variable>}` or `{<variable>:lastN}` tokens around literal text. */
+  template?: string;
+}
+
+/** A random integer drawn once per demo party, before any scheme, and shared by every template. */
+export interface DemoIdentifierVariable {
+  name: string;
+  min: number;
+  max: number;
+  padTo?: number;
 }
 
 export interface CountryIdentifierRequirementsFile {
@@ -84,6 +104,7 @@ export interface CountryIdentifierRequirementsFile {
   schemes: IdentifierSchemeFact[];
   /** Free-form, file-level caveats. */
   notes?: string;
+  demoVariables?: DemoIdentifierVariable[];
 }
 
 export class InvalidIdentifierProvenanceError extends Error {}

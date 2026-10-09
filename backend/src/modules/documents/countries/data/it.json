@@ -481,6 +481,7 @@
         "appliesTo": "COMPANY",
         "label": "Partita IVA",
         "required": false,
+        "demoGenerator": { "id": "it-partita-iva" },
         "provenance": {
           "kind": "legal",
           "sourceText": "«2. La fattura contiene le seguenti indicazioni: [...] d) numero di partita IVA del soggetto cedente o prestatore».",

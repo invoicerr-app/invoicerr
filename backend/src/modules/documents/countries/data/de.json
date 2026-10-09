@@ -440,6 +440,7 @@
         "appliesTo": "BOTH",
         "label": "Umsatzsteuer-Identifikationsnummer (USt-IdNr.)",
         "required": false,
+        "demoGenerator": { "id": "de-ust-idnr" },
         "pattern": "^DE\\d{9}$",
         "helpText": "DE followed by 9 digits, for example DE123456789",
         "helpTextKey": "settings.identifiers.help.DE.VAT",
