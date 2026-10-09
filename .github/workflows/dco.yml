@@ -22,8 +22,17 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
+
+          # dev to main only promotes commits each checked by their own pull request into dev.
+          if [ "$HEAD_REPO" = "$REPO" ] && [ "$HEAD_REF" = "dev" ] && [ "$BASE_REF" = "main" ]; then
+            echo "dev to main promotion: commits were checked when they entered dev."
+            exit 0
+          fi
 
           # A queue entry's ref is refs/heads/gh-readonly-queue/<base>/pr-<number>-<sha>.
           if [ -z "$PR_NUMBER" ]; then
