@@ -3,6 +3,7 @@
 // ***********************************************************
 
 import './commands'
+import './test-time-limit'
 
 Cypress.on('fail', (error) => {
     console.error('Test failed:', error.message);
