@@ -15,6 +15,8 @@
  * `userError: MS_MAX_CONCURRENT_REQ` when a MS is saturated — treated as an error
  * (retryable) rather than as "not found".
  */
+import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
+import { defaultLookupCoverage } from '../coverage/registry';
 import { fetchJson, stripVatPrefix } from '../http';
 import {
   CompanyLookupCompany,
@@ -25,44 +27,6 @@ import {
 } from '../types';
 
 const VIES_BASE = 'https://ec.europa.eu/taxation_customs/vies/rest-api/ms';
-
-/** EU member states + XI (Northern Ireland, post-Brexit protocol). */
-export const VIES_COUNTRIES = [
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'IT',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-  'XI',
-] as const;
-
-/** VIES addresses the member state as EL for Greece, XI for Northern Ireland. */
-function viesMemberState(countryCode: string): string {
-  const cc = countryCode.toUpperCase();
-  return cc === 'GR' ? 'EL' : cc;
-}
 
 /** "---" is the VIES sentinel for "this member state does not disclose the field". */
 function disclosed(value: unknown): string | undefined {
@@ -117,7 +81,6 @@ interface ViesResponse {
 export class ViesProvider implements CompanyRegistryProvider {
   readonly id = 'eu-vies';
   readonly label = 'VIES (EU VAT validation)';
-  readonly countries = VIES_COUNTRIES;
   readonly schemes: readonly LookupScheme[] = ['VAT'];
   readonly identifierLabel = 'EU VAT number';
   readonly docsUrl = 'https://ec.europa.eu/taxation_customs/vies/';
@@ -131,12 +94,12 @@ export class ViesProvider implements CompanyRegistryProvider {
 
   supports(query: CompanyLookupQuery): boolean {
     if (query.scheme !== 'VAT') return false;
-    if (!this.countries.includes(query.countryCode.toUpperCase() as any)) return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return stripVatPrefix(query.value, query.countryCode).length >= 4;
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const ms = viesMemberState(query.countryCode);
+    const ms = defaultTaxUnionRegistry.vatPrefixFor(query.countryCode);
     const number = stripVatPrefix(query.value, query.countryCode);
     const data = await fetchJson<ViesResponse>(`${VIES_BASE}/${ms}/vat/${encodeURIComponent(number)}`, {
       timeoutMs: this.timeoutMs,

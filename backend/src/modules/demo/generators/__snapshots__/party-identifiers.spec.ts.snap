@@ -1,0 +1,610 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed 42 1`] = `
+{
+  "DE": {
+    "nextDraw": 0.2669559868518263,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE648615263",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE842873154",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE660480507",
+        },
+      ],
+    ],
+  },
+  "DZ": {
+    "nextDraw": 0.7859425814822316,
+    "parties": [
+      [
+        {
+          "scheme": "RC",
+          "value": "35/00-8615268B20",
+        },
+        {
+          "scheme": "NIS",
+          "value": "354287315660480",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000355020175018",
+        },
+        {
+          "scheme": "AI",
+          "value": "35/2020",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "29/00-3400552B24",
+        },
+        {
+          "scheme": "NIS",
+          "value": "296237852220666",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000299094911034",
+        },
+        {
+          "scheme": "AI",
+          "value": "29/2024",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "36/00-0792715B25",
+        },
+        {
+          "scheme": "NIS",
+          "value": "368195945353724",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000368698452163",
+        },
+        {
+          "scheme": "AI",
+          "value": "36/2025",
+        },
+      ],
+    ],
+  },
+  "FR": {
+    "nextDraw": 0.5967295127920806,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "64861526842875",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR14648615268",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "31566048050200",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR37315660480",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "17501848340053",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR87175018483",
+        },
+      ],
+    ],
+  },
+  "IT": {
+    "nextDraw": 0.17300523445010185,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "64861526842",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "28731566049",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "80502017504",
+        },
+      ],
+    ],
+  },
+  "PL": {
+    "nextDraw": 0.7835472931619734,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "6486152687",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "4287315660",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "0480502019",
+        },
+      ],
+    ],
+  },
+  "PT": {
+    "nextDraw": 0.05120926629751921,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "564861529",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT564861529",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "568428730",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT568428730",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "515660485",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT515660485",
+        },
+      ],
+    ],
+  },
+}
+`;
+
+exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed a-very-different-seed 1`] = `
+{
+  "DE": {
+    "nextDraw": 0.7340478585101664,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE714696046",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE507277695",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE122879826",
+        },
+      ],
+    ],
+  },
+  "DZ": {
+    "nextDraw": 0.02706705080345273,
+    "parties": [
+      [
+        {
+          "scheme": "RC",
+          "value": "42/00-4696045B16",
+        },
+        {
+          "scheme": "NIS",
+          "value": "420727769122879",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000428277519805",
+        },
+        {
+          "scheme": "AI",
+          "value": "42/2016",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "40/00-5689567B20",
+        },
+        {
+          "scheme": "NIS",
+          "value": "406976425818748",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000404459513198",
+        },
+        {
+          "scheme": "AI",
+          "value": "40/2020",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "08/00-3049483B23",
+        },
+        {
+          "scheme": "NIS",
+          "value": "081233746993213",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000085389864368",
+        },
+        {
+          "scheme": "AI",
+          "value": "08/2023",
+        },
+      ],
+    ],
+  },
+  "FR": {
+    "nextDraw": 0.6037709924858063,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "71469604507278",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR50714696045",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "76912287982776",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR64769122879",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "51980564568955",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR36519805645",
+        },
+      ],
+    ],
+  },
+  "IT": {
+    "nextDraw": 0.04631284228526056,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "71469604509",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "72776912288",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "79827751987",
+        },
+      ],
+    ],
+  },
+  "PL": {
+    "nextDraw": 0.4787502675317228,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "0727769128",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "1980564567",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "8956769766",
+        },
+      ],
+    ],
+  },
+  "PT": {
+    "nextDraw": 0.9953778060153127,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "571469604",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT571469604",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "545072778",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT545072778",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "569122872",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT569122872",
+        },
+      ],
+    ],
+  },
+}
+`;
+
+exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed demo-seed-1 1`] = `
+{
+  "DE": {
+    "nextDraw": 0.9541775558609515,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE042920208",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE337606360",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE810820477",
+        },
+      ],
+    ],
+  },
+  "DZ": {
+    "nextDraw": 0.6429465911351144,
+    "parties": [
+      [
+        {
+          "scheme": "RC",
+          "value": "01/00-2920203B20",
+        },
+        {
+          "scheme": "NIS",
+          "value": "013760636810820",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000014795820115",
+        },
+        {
+          "scheme": "AI",
+          "value": "01/2020",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "04/00-9443360B20",
+        },
+        {
+          "scheme": "NIS",
+          "value": "047988047262468",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000041487480361",
+        },
+        {
+          "scheme": "AI",
+          "value": "04/2020",
+        },
+      ],
+      [
+        {
+          "scheme": "RC",
+          "value": "54/00-1791342B16",
+        },
+        {
+          "scheme": "NIS",
+          "value": "546053348224203",
+        },
+        {
+          "scheme": "NIF",
+          "value": "000548736613694",
+        },
+        {
+          "scheme": "AI",
+          "value": "54/2016",
+        },
+      ],
+    ],
+  },
+  "FR": {
+    "nextDraw": 0.6614221450872719,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "04292020337605",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR08042920203",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "63681082047953",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR12636810820",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "82011504944339",
+        },
+        {
+          "scheme": "VAT",
+          "value": "FR08820115049",
+        },
+      ],
+    ],
+  },
+  "IT": {
+    "nextDraw": 0.11579948221333325,
+    "parties": [
+      [
+        {
+          "scheme": "VAT",
+          "value": "04292020338",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "76063681084",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "20479582015",
+        },
+      ],
+    ],
+  },
+  "PL": {
+    "nextDraw": 0.20294676953926682,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "0429202031",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "3760636811",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "0820479585",
+        },
+      ],
+    ],
+  },
+  "PT": {
+    "nextDraw": 0.03663903148844838,
+    "parties": [
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "504292021",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT504292021",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "503376060",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT503376060",
+        },
+      ],
+      [
+        {
+          "scheme": "LEGAL_ID",
+          "value": "536810826",
+        },
+        {
+          "scheme": "VAT",
+          "value": "PT536810826",
+        },
+      ],
+    ],
+  },
+}
+`;

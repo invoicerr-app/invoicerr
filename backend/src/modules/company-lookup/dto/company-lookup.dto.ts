@@ -63,5 +63,9 @@ export class CountryLookupCapabilityDto {
   @ApiProperty({ type: [ProviderCapabilityDto] }) providers: ProviderCapabilityDto[];
   @ApiProperty({ isArray: true, enum: ['LEGAL_ID', 'VAT'] }) schemes: LookupScheme[];
   @ApiPropertyOptional() identifierLabel?: string;
-  @ApiPropertyOptional() note?: string;
+  @ApiProperty({
+    type: [String],
+    description: 'Frontend i18n keys of the note shown with this country, to translate and join with a space',
+  })
+  noteKeys: string[];
 }

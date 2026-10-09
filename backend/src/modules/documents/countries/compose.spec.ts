@@ -55,6 +55,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'domesticReverseCharge',
         'countryFields',
         'b2gRouting',
+        'companyLookup',
       ],
       DZ: [
         'policy',
@@ -81,6 +82,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'countryFields',
         'contentRequirements',
         'b2gRouting',
+        'companyLookup',
         'paymentTerms',
       ],
       IT: [
@@ -95,6 +97,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'domesticReverseCharge',
         'countryFields',
         'b2gRouting',
+        'companyLookup',
       ],
       PL: [
         'policy',
@@ -108,6 +111,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'localizedMentions',
         'countryFields',
         'b2gRouting',
+        'companyLookup',
       ],
       PT: [
         'policy',
@@ -123,6 +127,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'domesticReverseCharge',
         'countryFields',
         'b2gRouting',
+        'companyLookup',
       ],
     });
   });

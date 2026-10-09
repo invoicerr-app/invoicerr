@@ -33,6 +33,7 @@ import { CountryDomesticReverseChargeFile } from '../domestic-reverse-charge/sch
 import { CountryFieldOverlayFile } from '../country-fields/schema';
 import { CountryContentRequirementsFile } from '../content-requirements/schema';
 import { B2gRoutingRuleFact } from '../b2g-routing/schema';
+import { CountryCompanyLookupSection } from '../../company-lookup/coverage/schema';
 import { CountryPaymentTermsFile } from '../payment-terms/schema';
 
 /** One composed view per country, one optional field per existing catalog: see this module's own
@@ -55,6 +56,7 @@ export interface ComposedCountryView {
   countryFields?: CountryFieldOverlayFile;
   contentRequirements?: CountryContentRequirementsFile;
   b2gRouting?: B2gRoutingRuleFact;
+  companyLookup?: CountryCompanyLookupSection;
   paymentTerms?: CountryPaymentTermsFile;
 }
 
@@ -77,6 +79,7 @@ export const COMPOSED_COUNTRY_SECTION_KEYS: ReadonlyArray<keyof Omit<ComposedCou
   'countryFields',
   'contentRequirements',
   'b2gRouting',
+  'companyLookup',
   'paymentTerms',
 ];
 

@@ -51,6 +51,7 @@ import { assertValidDomesticReverseChargeCategory } from '../../domestic-reverse
 import { assertValidCountryFields } from '../../country-fields/schema';
 import { assertValidContentRequirementFact } from '../../content-requirements/schema';
 import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
+import { assertValidCompanyLookupFacts } from '../../../company-lookup/coverage/schema';
 import { assertValidPaymentTerms } from '../../payment-terms/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
@@ -291,6 +292,16 @@ function validateB2gRoutingSection(
   assertValidB2gRoutingFact(b2gRouting, `${filePath}#b2gRouting`);
 }
 
+function validateCompanyLookupSection(
+  companyLookup: ComposedCountryView['companyLookup'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!companyLookup) return;
+  assertSectionCountryCode(companyLookup, 'companyLookup', ctx);
+  assertValidCompanyLookupFacts(companyLookup, `${filePath}#companyLookup`);
+}
+
 function validatePaymentTermsSection(
   paymentTerms: ComposedCountryView['paymentTerms'],
   ctx: LoadContext,
@@ -328,6 +339,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateCountryFieldsSection(parsed.countryFields, ctx, filePath);
   validateContentRequirementsSection(parsed.contentRequirements, ctx, filePath);
   validateB2gRoutingSection(parsed.b2gRouting, ctx, filePath);
+  validateCompanyLookupSection(parsed.companyLookup, ctx, filePath);
   validatePaymentTermsSection(parsed.paymentTerms, ctx, filePath);
 
   return parsed;

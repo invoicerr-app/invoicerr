@@ -1,3 +1,4 @@
+import { noteText } from './note-text.test-fixtures';
 import { CompanyLookupRegistry, defaultLookupRegistry } from './registry';
 
 describe('CompanyLookupRegistry', () => {
@@ -6,7 +7,7 @@ describe('CompanyLookupRegistry', () => {
   it('always explains itself: partial coverage carries a note', () => {
     for (const capability of registry.capabilities()) {
       if (capability.coverage === 'PARTIAL' || capability.status === 'UNAVAILABLE') {
-        expect(capability.note).toBeTruthy();
+        expect(noteText(capability)).toBeTruthy();
       }
     }
   });
@@ -87,15 +88,15 @@ describe('CompanyLookupRegistry', () => {
   it('keeps explaining what a country without its own register can and cannot find', () => {
     const us = registry.capability('US');
     expect(us.coverage).toBe('PARTIAL');
-    expect(us.note).toMatch(/federal business register/i);
-    expect(us.note).toMatch(/GLEIF|Peppol/);
+    expect(noteText(us)).toMatch(/federal business register/i);
+    expect(noteText(us)).toMatch(/GLEIF|Peppol/);
     // A malformed code resolves to nothing at all.
     expect(registry.capability('XYZ').status).toBe('UNAVAILABLE');
   });
 
   it('flags VIES-only countries so the UI can temper expectations', () => {
-    expect(registry.capability('SE').note).toMatch(/VIES/);
-    expect(registry.capability('DE').note).toMatch(/does not disclose names/i);
+    expect(noteText(registry.capability('SE'))).toMatch(/VIES/);
+    expect(noteText(registry.capability('DE'))).toMatch(/does not disclose names/i);
   });
 
   it('exposes the identifier prompt of the first usable provider', () => {
@@ -120,7 +121,7 @@ describe('CompanyLookupRegistry', () => {
     expect(tuvalu.status).toBe('AVAILABLE');
     expect(tuvalu.coverage).toBe('PARTIAL');
     expect(tuvalu.providers.map((p) => p.id)).toEqual(['gleif', 'peppol-directory']);
-    expect(tuvalu.note).toMatch(/GLEIF LEI index, Peppol Directory/);
+    expect(noteText(tuvalu)).toMatch(/GLEIF LEI index, Peppol Directory/);
   });
 
   it('can be built with a custom provider set', () => {

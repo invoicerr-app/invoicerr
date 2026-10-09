@@ -425,12 +425,17 @@
   },
   "identifiers": {
     "countryCode": "DZ",
+    "demoVariables": [
+      { "name": "wilaya", "min": 1, "max": 58, "padTo": 2 },
+      { "name": "year", "min": 2015, "max": 2026 }
+    ],
     "schemes": [
       {
         "scheme": "RC",
         "appliesTo": "COMPANY",
         "label": "RC (Registre du Commerce)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}/00-{digits:7}B{year:last2}" },
         "helpTextKey": "settings.identifiers.help.DZ.RC",
         "provenance": {
           "kind": "legal",
@@ -444,6 +449,7 @@
         "appliesTo": "COMPANY",
         "label": "NIS (Numero d'Identification Statistique)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}{digits:13}" },
         "pattern": "^\\d{15}(\\d{3})?$",
         "helpText": "15 digits, or 18 for a secondary establishment",
         "helpTextKey": "settings.identifiers.help.DZ.NIS",
@@ -459,6 +465,7 @@
         "appliesTo": "COMPANY",
         "label": "NIF (Numero d'Identification Fiscale)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "000{wilaya}{digits:10}" },
         "pattern": "^\\d{15}(\\d{5})?$",
         "helpText": "15 digits, or 20 for a secondary establishment",
         "helpTextKey": "settings.identifiers.help.DZ.NIF",
@@ -473,6 +480,7 @@
         "appliesTo": "COMPANY",
         "label": "AI (Article d'Imposition)",
         "required": true,
+        "demoGenerator": { "id": "template", "template": "{wilaya}/{year}" },
         "helpTextKey": "settings.identifiers.help.DZ.AI",
         "provenance": {
           "kind": "unverified",

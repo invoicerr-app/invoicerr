@@ -9,6 +9,7 @@
  * Companies House holds no VAT data — HMRC's VAT checker is a separate service —
  * so this provider only answers on the company number.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -18,7 +19,6 @@ const COMPANIES_HOUSE_URL = 'https://api.company-information.service.gov.uk/comp
 export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
   readonly id = 'gb-companies-house';
   readonly label = 'Companies House';
-  readonly countries = ['GB'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID'];
   readonly identifierLabel = 'Company number (8 characters)';
   readonly docsUrl = 'https://developer.company-information.service.gov.uk/';
@@ -31,7 +31,7 @@ export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'GB') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return /^[A-Z0-9]{6,8}$/.test(this.normalize(query.value));
   }
 
@@ -60,7 +60,7 @@ export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
       city: addr.locality,
       state: addr.region,
       country: addr.country ?? 'United Kingdom',
-      countryCode: 'GB',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.date_of_creation),
       status: data.company_status === 'active' ? 'ACTIVE' : 'INACTIVE',
     };

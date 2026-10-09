@@ -24,7 +24,7 @@ const DIRECTORY_URL = 'https://directory.peppol.eu/search/1.0/json';
 export class PeppolDirectoryProvider implements CompanyRegistryProvider {
   readonly id = 'peppol-directory';
   readonly label = 'Peppol Directory';
-  readonly countries = 'ALL' as const;
+  readonly worldwide = true;
   readonly coverage: ProviderCoverage = 'PARTIAL';
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'Registration or VAT number';

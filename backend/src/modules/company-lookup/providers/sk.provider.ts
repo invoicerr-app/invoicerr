@@ -8,6 +8,7 @@
  * The RPO answers with the entity's full history (every name, every seat, each with
  * a validity range), so every field has to be narrowed to the entry in force today.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -25,7 +26,6 @@ export function currentEntry(list: any[] | undefined): any | undefined {
 export class SlovakRpoProvider implements CompanyRegistryProvider {
   readonly id = 'sk-rpo';
   readonly label = 'RPO (Štatistický úrad SR)';
-  readonly countries = ['SK'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'IČO (8 digits) or IČ DPH';
   readonly docsUrl = 'https://susrrpo.docs.apiary.io/';
@@ -38,13 +38,13 @@ export class SlovakRpoProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'SK') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     // SK VAT is SK + 10 digits; the register itself is keyed on the 8-digit IČO.
-    return digits(stripVatPrefix(query.value, 'SK')).length >= 6;
+    return digits(stripVatPrefix(query.value, query.countryCode)).length >= 6;
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const ico = digits(stripVatPrefix(query.value, 'SK')).padStart(8, '0').slice(-8);
+    const ico = digits(stripVatPrefix(query.value, query.countryCode)).padStart(8, '0').slice(-8);
     const data = await fetchJson<any>(`${RPO_URL}?identifier=${ico}`, { timeoutMs: this.timeoutMs });
     const entity = data?.results?.[0];
     if (!entity) return null;
@@ -59,7 +59,7 @@ export class SlovakRpoProvider implements CompanyRegistryProvider {
       postalCode: addr?.postalCodes?.[0],
       city: addr?.municipality?.value,
       country: addr?.country?.value ?? 'Slovenská republika',
-      countryCode: 'SK',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(entity.establishment?.validFrom ?? currentEntry(entity.identifiers)?.validFrom),
       status: entity.termination ? 'INACTIVE' : 'ACTIVE',
     };

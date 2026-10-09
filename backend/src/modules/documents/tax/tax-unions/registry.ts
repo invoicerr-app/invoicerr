@@ -94,6 +94,12 @@ export class TaxUnionRegistry {
     return this.peppolEasByPrefix[prefix.toUpperCase()];
   }
 
+  /** The prefix this country's VAT numbers carry: its `vatPrefix` when it has one, else the code itself. */
+  vatPrefixFor(countryCode: string): string {
+    const code = (countryCode ?? '').toUpperCase();
+    return this.byCode[code]?.vatPrefix ?? code;
+  }
+
   /** Every 2-letter token the OCR upload-screen heuristic should treat as VAT-id-shaped - see
    *  `buildOcrRecognizedPrefixes`'s own header. */
   ocrRecognizedPrefixes(): ReadonlySet<string> {

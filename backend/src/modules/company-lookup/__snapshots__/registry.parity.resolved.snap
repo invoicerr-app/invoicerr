@@ -1,0 +1,4365 @@
+[
+  {
+    "code": "AD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AT",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Austria validates through VIES; Firmenbuch extracts are sold per query. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Austria validates through VIES; Firmenbuch extracts are sold per query. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "AU",
+    "providers": [
+      "au-abr",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "AW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AX",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "AZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BB",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BE",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Belgium validates through VIES; the KBO/BCE publishes bulk open data but no per-company API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Belgium validates through VIES; the KBO/BCE publishes bulk open data but no per-company API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "BF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BG",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Bulgaria validates through VIES; the Търговски регистър has no free JSON API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Bulgaria validates through VIES; the Търговски регистър has no free JSON API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "BH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BJ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BR",
+    "providers": [
+      "br-cnpj",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "BS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BT",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BV",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "BZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CH",
+    "providers": [
+      "ch-zefix",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "CI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The national enterprise credit system (GSXT) has no public API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The national enterprise credit system (GSXT) has no public API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CO",
+    "providers": [
+      "co-rues",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "CR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CV",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CX",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "CY",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Cyprus validates through VIES; the Registrar of Companies has no public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Cyprus validates through VIES; the Registrar of Companies has no public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "CZ",
+    "providers": [
+      "cz-ares",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "DE",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "DJ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "DK",
+    "providers": [
+      "dk-cvr",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "DM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "DO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "DZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "EC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "EE",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Estonia validates through VIES; the Äriregister API requires an X-Road/paid contract. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Estonia validates through VIES; the Äriregister API requires an X-Road/paid contract. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "EG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "EH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ER",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ES",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Spain validates the VAT number through VIES but does not disclose the name or address; the Registro Mercantil has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Spain validates the VAT number through VIES but does not disclose the name or address; the Registro Mercantil has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "ET",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "FI",
+    "providers": [
+      "fi-prh",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "FJ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "FK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "FM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "FO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "FR",
+    "providers": [
+      "fr-recherche-entreprises",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "GA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GB",
+    "providers": [
+      "gb-companies-house",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "GD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GP",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GR",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Greece validates through VIES; GEMI has no free public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Greece validates through VIES; GEMI has no free public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "GS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GT",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "GY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "HK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "HM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "HN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "HR",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Croatia validates through VIES; sudreg requires a registered API key. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Croatia validates through VIES; sudreg requires a registered API key. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "HT",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "HU",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Hungary validates through VIES; the NAV taxpayer query requires credentials. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Hungary validates through VIES; the NAV taxpayer query requires credentials. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "ID",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IE",
+    "providers": [
+      "ie-cro",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "IL",
+    "providers": [
+      "il-registrar",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "IM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "GSTIN lookup is only available through a paid GSP subscription. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "GSTIN lookup is only available through a paid GSP subscription. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "IT",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Italy discloses the name and address through VIES; the Registro Imprese itself has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Italy discloses the name and address through VIES; the Registro Imprese itself has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "JE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "JM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "JO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "JP",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The National Tax Agency corporate number API requires a registered application id. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The National Tax Agency corporate number API requires a registered application id. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KP",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "KZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LB",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LI",
+    "providers": [
+      "ch-zefix",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "LK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "LT",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Lithuania validates through VIES; Registrų centras charges for its API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Lithuania validates through VIES; Registrų centras charges for its API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "LU",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Luxembourg validates through VIES; RCS extracts require an account. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Luxembourg validates through VIES; RCS extracts require an account. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "LV",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Latvia validates through VIES; the Uzņēmumu reģistrs publishes bulk open data but no per-company API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Latvia validates through VIES; the Uzņēmumu reģistrs publishes bulk open data but no per-company API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "LY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ME",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ML",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MP",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MT",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Malta validates through VIES; the MBR has no public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Malta validates through VIES; the MBR has no public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "MU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MV",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MX",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The SAT publishes no company lookup service; the RFC is validated offline instead. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "The SAT publishes no company lookup service; the RFC is validated offline instead. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "MZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NL",
+    "providers": [
+      "nl-kvk",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "NO",
+    "providers": [
+      "no-brreg",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "NP",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "NZ",
+    "providers": [
+      "nz-nzbn",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "OM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PE",
+    "providers": [
+      "pe-sunat",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "PF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PL",
+    "providers": [
+      "pl-wykaz-vat",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "PM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PT",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Portugal validates through VIES; the Registo Comercial has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Portugal validates through VIES; the Registo Comercial has no free API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "PW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "PY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "QA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "RE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "RO",
+    "providers": [
+      "ro-anaf",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "RS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "RU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "RW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SB",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SE",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Sweden validates through VIES; Bolagsverket sells its API per query. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Sweden validates through VIES; Bolagsverket sells its API per query. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "SG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "ACRA data is published through data.gov.sg datasets that require an account. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "ACRA data is published through data.gov.sg datasets that require an account. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SI",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Slovenia validates through VIES; AJPES charges for register access. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Slovenia validates through VIES; AJPES charges for register access. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "SJ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SK",
+    "providers": [
+      "sk-rpo",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "SL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ST",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SV",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SX",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "SZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TD",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TH",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TJ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TK",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TL",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TN",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TO",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TR",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TT",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TV",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "TW",
+    "providers": [
+      "tw-gcis",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "TZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "UA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "UG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "UM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "US",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "UY",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "UZ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VC",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VG",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VI",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "VN",
+    "providers": [
+      "vn-tax-code",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance."
+    }
+  },
+  {
+    "code": "VU",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "WF",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "WS",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "YE",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "YT",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ZA",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "CIPC enterprise enquiries require a paid customer account. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "CIPC enterprise enquiries require a paid customer account. This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ZM",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "ZW",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "XI",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "QQ",
+    "providers": [
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    }
+  },
+  {
+    "code": "",
+    "providers": [],
+    "withoutCredentials": {
+      "status": "UNAVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "No public business-register API is available for this country. Company details are entered manually."
+    },
+    "withCredentials": {
+      "status": "UNAVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "No public business-register API is available for this country. Company details are entered manually."
+    }
+  },
+  {
+    "code": "fr",
+    "providers": [
+      "fr-recherche-entreprises",
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "gr",
+    "providers": [
+      "eu-vies",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Greece validates through VIES; GEMI has no free public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER",
+      "note": "Greece validates through VIES; GEMI has no free public API. Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them."
+    }
+  },
+  {
+    "code": "gb",
+    "providers": [
+      "gb-companies-house",
+      "gleif",
+      "peppol-directory"
+    ],
+    "withoutCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not."
+    },
+    "withCredentials": {
+      "status": "AVAILABLE",
+      "coverage": "REGISTER"
+    }
+  },
+  {
+    "code": "XYZ",
+    "providers": [],
+    "withoutCredentials": {
+      "status": "UNAVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "No public business-register API is available for this country. Company details are entered manually."
+    },
+    "withCredentials": {
+      "status": "UNAVAILABLE",
+      "coverage": "PARTIAL",
+      "note": "No public business-register API is available for this country. Company details are entered manually."
+    }
+  }
+]
