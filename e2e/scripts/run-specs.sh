@@ -17,15 +17,15 @@ for spec in "${list[@]}"; do
   timeout --kill-after=30 "${limit_min}m" $cypress_bin run "$@" --spec "$spec"
   status=$?
   echo "::endgroup::"
-  if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
-    echo "::error::$spec exceeded ${limit_min} minutes and was killed"
+  if [[ "$status" -eq 124 || "$status" -eq 137 ]]; then
+    echo "::error::$spec exceeded ${limit_min} minutes and was killed" >&2
     failed+=("$spec (timed out)")
-  elif [ "$status" -ne 0 ]; then
+  elif [[ "$status" -ne 0 ]]; then
     failed+=("$spec")
   fi
 done
 
-if [ "${#failed[@]}" -gt 0 ]; then
+if [[ "${#failed[@]}" -gt 0 ]]; then
   echo "Failed specs:"
   printf '  %s\n' "${failed[@]}"
   exit 1
