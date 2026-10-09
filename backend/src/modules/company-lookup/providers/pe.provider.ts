@@ -5,6 +5,7 @@
  * Docs     : https://apis.net.pe/api-consulta-ruc
  * Credentials: none — PE_APISNET_TOKEN lifts the anonymous quota when set.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -25,7 +26,6 @@ export function isValidRuc(value: string): boolean {
 export class PeruSunatProvider implements CompanyRegistryProvider {
   readonly id = 'pe-sunat';
   readonly label = 'SUNAT (registro de contribuyentes)';
-  readonly countries = ['PE'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'RUC (11 digits)';
   readonly docsUrl = 'https://apis.net.pe/api-consulta-ruc';
@@ -38,7 +38,7 @@ export class PeruSunatProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'PE') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return isValidRuc(query.value);
   }
 
@@ -60,7 +60,7 @@ export class PeruSunatProvider implements CompanyRegistryProvider {
       city: data.distrito ?? data.provincia,
       state: data.departamento,
       country: 'Perú',
-      countryCode: 'PE',
+      countryCode: query.countryCode.toUpperCase(),
       status: /ACTIVO/i.test(data.estado ?? '') ? 'ACTIVE' : 'INACTIVE',
     };
   }

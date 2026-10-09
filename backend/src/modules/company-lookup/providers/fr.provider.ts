@@ -11,6 +11,7 @@
  * what the invoicing forms need — the legal unit's identity, not the branch's.
  */
 import { calculateFrenchVAT, isValidSiret } from '@/modules/sirene/sirene.utils';
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
@@ -35,7 +36,7 @@ export function isValidSiren(value: string): boolean {
 /** Extracts the searchable SIREN/SIRET from whatever the user typed. */
 export function toFrenchQueryKey(query: CompanyLookupQuery): string | null {
   if (query.scheme === 'VAT') {
-    const clean = stripVatPrefix(query.value, 'FR'); // 2 key chars + 9 digit SIREN
+    const clean = stripVatPrefix(query.value, query.countryCode); // 2 key chars + 9 digit SIREN
     const siren = clean.slice(-9);
     return isValidSiren(siren) ? siren : null;
   }
@@ -48,7 +49,6 @@ export function toFrenchQueryKey(query: CompanyLookupQuery): string | null {
 export class FranceProvider implements CompanyRegistryProvider {
   readonly id = 'fr-recherche-entreprises';
   readonly label = 'Annuaire des Entreprises (INSEE SIRENE)';
-  readonly countries = ['FR'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'SIRET (14 digits), SIREN (9 digits) or VAT number';
   readonly docsUrl = 'https://recherche-entreprises.api.gouv.fr/docs/';
@@ -61,7 +61,7 @@ export class FranceProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'FR') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return toFrenchQueryKey(query) !== null;
   }
 
@@ -89,7 +89,7 @@ export class FranceProvider implements CompanyRegistryProvider {
       postalCode: siege.code_postal,
       city: siege.libelle_commune,
       country: 'France',
-      countryCode: 'FR',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(result.date_creation),
       status: result.etat_administratif === 'C' ? 'INACTIVE' : 'ACTIVE',
     };

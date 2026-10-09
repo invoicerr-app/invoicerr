@@ -6,6 +6,9 @@ country**. One port, one provider per country, one normalized result.
 - Code: `backend/src/modules/company-lookup/`
 - One file per country in `providers/` (`fr.provider.ts`, `cz.provider.ts`, …), plus
   `vies.provider.ts` for the cross-border EU VAT check.
+- Which providers serve which country, and the note shown for it, are data: the `companyLookup`
+  section of a country's `documents/countries/data/<cc>.json` when it has one, otherwise
+  `company-lookup/data/coverage.json` (see "Adding a country" below).
 - API: `GET /api/company-lookup?country=FR&value=…[&scheme=LEGAL_ID|VAT]`
 - Capabilities: `GET /api/company-lookup/capabilities[/:countryCode]` (public — the
   onboarding form reads it before a session is fully settled)
@@ -77,9 +80,12 @@ the capability endpoint reports `coverage: PARTIAL`.
 
 `GET /api/company-lookup/capabilities` returns an entry for **every** ISO country this module
 knows about, all of them `AVAILABLE`. Those without an open register
-API report `coverage: PARTIAL` and a `note` explaining the situation (no federal register
+API report `coverage: PARTIAL` and `noteKeys` explaining the situation (no federal register
 in the US, Handelsregister has no API in Germany, GSTIN needs a paid GSP subscription in
-India…) — see `COUNTRY_LOOKUP_NOTES` in `registry.ts`.
+India...). `noteKeys` are frontend i18n keys under `companyLookup.notes` in
+`frontend/src/locales/en/translation.json`; the frontend translates each one and joins them with a
+space. A country's own key comes from its lookup data, followed by a generic key when the
+coverage calls for one (`generic`, `partialOnly`, `viesOnly`).
 
 VIES is honest about its limits: it always validates the number, but the name and
 address are only returned by the member states that disclose them (Italy does, Germany
@@ -89,22 +95,32 @@ registration.
 ## Adding a country
 
 1. Create `providers/xx.provider.ts` implementing `CompanyRegistryProvider` (or set
-   `countries: 'ALL'` for a worldwide source, with `coverage: 'PARTIAL'`):
-   `supports()` does the structural/checksum check offline, `lookup()` maps the payload
-   onto `CompanyLookupCompany`, credentials (if any) are read from `process.env` inside
+   `worldwide: true` for a worldwide source, with `coverage: 'PARTIAL'`). The provider names no
+   country: `supports()` asks `defaultLookupCoverage.serves(this.id, query.countryCode)`, then does
+   the structural or checksum check offline; `lookup()` maps the payload onto
+   `CompanyLookupCompany`; credentials (if any) are read from `process.env` inside
    `isConfigured()`.
 2. Register it in `buildDefaultProviders()` in `registry.ts`.
-3. Add a case to `providers.spec.ts` with a payload captured from the real register, and
+3. List its `id` under `providers` for each country it serves: in the `companyLookup` section of
+   `documents/countries/data/<cc>.json` when that file exists, otherwise in
+   `data/coverage.json`. The loader refuses a `coverage.json` entry for a country that has its own
+   file. A country without a register of its own can still get a note: add only a `noteKey`,
+   and its English text under `companyLookup.notes` in `frontend/src/locales/en/translation.json`.
+4. Add a case to `providers.spec.ts` with a payload captured from the real register, and
    an entry in `company-lookup.live.spec.ts` if the register is keyless.
+
+`registry.parity.spec.ts` pins, for every country, the providers resolved and the note shown. A
+change to the lookup data updates its snapshot under `__snapshots__/` on purpose, in the same pull
+request.
 
 No change to the service, the controller or the frontend is needed.
 
 ## Testing
 
 ```bash
-# Unit (mocked HTTP) — runs in CI
-npx jest src/modules/company-lookup --no-coverage
+# Unit (mocked HTTP), runs in CI
+npx vitest run src/modules/company-lookup
 
 # Live, opt-in, no credentials required: hits the real registers
-COMPANY_LOOKUP_LIVE=1 npx jest company-lookup.live --no-coverage --runInBand
+COMPANY_LOOKUP_LIVE=1 npx vitest run src/modules/company-lookup/company-lookup.live.spec.ts
 ```

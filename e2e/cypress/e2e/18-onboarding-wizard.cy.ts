@@ -219,11 +219,16 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 
 				// The note shown is exactly the backend's own explanation for this country —
 				// not a string this spec invents.
-				cy.get('[data-cy="onboarding-identifier-no-lookup-note"]', {
-					timeout: 10000,
-				})
-					.should("be.visible")
-					.and("contain.text", capability.note);
+				cy.readFile("../frontend/src/locales/en/translation.json").then((en) => {
+					const note = (capability.noteKeys as string[])
+						.map((key) => key.split(".").reduce((node, part) => node[part], en))
+						.join(" ");
+					cy.get('[data-cy="onboarding-identifier-no-lookup-note"]', {
+						timeout: 10000,
+					})
+						.should("be.visible")
+						.and("contain.text", note);
+				});
 
 				cy.get('[data-cy="onboarding-legalid-input"]')
 					.clear({ force: true })

@@ -89,6 +89,12 @@ describe('TaxUnionRegistry', () => {
     expect(registry.peppolEasForPrefix(null)).toBeUndefined();
   });
 
+  it('vatPrefixFor: the declared VAT prefix, else the code itself, for any code', () => {
+    expect(registry.vatPrefixFor('gr')).toBe('EL');
+    expect(registry.vatPrefixFor('FR')).toBe('FR');
+    expect(registry.vatPrefixFor('US')).toBe('US');
+  });
+
   it('ocrRecognizedPrefixes: carries both GR and EL for Greece, the non-EU neighbours, and XI', () => {
     const prefixes = registry.ocrRecognizedPrefixes();
     expect(prefixes.has('GR')).toBe(true);

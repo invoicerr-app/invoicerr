@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next"
 import type { FieldValues, UseFormReturn } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { fromCalendarDate } from "@/lib/calendar-date"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { toast } from "sonner"
@@ -68,7 +70,13 @@ export interface CountryLookupCapability {
   providers: ProviderCapability[]
   schemes: LookupScheme[]
   identifierLabel?: string
-  note?: string
+  /** i18n keys of the note shown with this country, in display order. */
+  noteKeys: string[]
+}
+
+/** The capability's note in the active language: each key translated, joined with a space. */
+export function lookupNote(capability: Pick<CountryLookupCapability, "noteKeys"> | undefined, t: TFunction) {
+  return capability?.noteKeys.map((key) => t(key)).join(" ") || undefined
 }
 
 /** Which registry (if any) can autofill a form for this country. */
@@ -108,7 +116,9 @@ export function useCompanyLookup<T extends FieldValues>(
   { countryCode, messages }: UseCompanyLookupOptions,
 ) {
   const [isLoading, setIsLoading] = useState(false)
+  const { t } = useTranslation()
   const { data: capability } = useCompanyLookupCapability(countryCode)
+  const note = lookupNote(capability, t)
 
   const isAvailable = capability?.status === "AVAILABLE"
 
@@ -120,7 +130,7 @@ export function useCompanyLookup<T extends FieldValues>(
       return
     }
     if (!isAvailable) {
-      toast.error(capability?.note || messages.unavailable)
+      toast.error(note || messages.unavailable)
       return
     }
 
@@ -138,8 +148,8 @@ export function useCompanyLookup<T extends FieldValues>(
         if (result.error === "INVALID_IDENTIFIER") toast.error(result.message || messages.invalid)
         else if (result.error === "PROVIDER_ERROR") toast.error(messages.error)
         else if (result.error) toast.error(result.message || messages.unavailable)
-        else if (capability?.coverage === "PARTIAL" && capability.note)
-          toast.error(messages.notFound, { description: capability.note })
+        else if (capability?.coverage === "PARTIAL" && note)
+          toast.error(messages.notFound, { description: note })
         else toast.error(messages.notFound)
         return
       }
@@ -182,6 +192,8 @@ export function useCompanyLookup<T extends FieldValues>(
     lookup,
     isLoading,
     capability,
+    /** Why nothing is available here, or what the lookup is limited to, translated. */
+    note,
     /** True when this country has a configured registry provider. */
     isAvailable,
     /** Identifier schemes the country's registers accept — drives which field gets the button. */

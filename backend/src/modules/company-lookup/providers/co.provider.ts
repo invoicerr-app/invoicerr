@@ -9,6 +9,7 @@
  * The dataset carries the legal name, the chamber of commerce, the registration date
  * and the standing of the registration — but no address, which stays manual.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
@@ -30,7 +31,6 @@ function parseRuesDate(value: unknown): Date | undefined {
 export class ColombiaRuesProvider implements CompanyRegistryProvider {
   readonly id = 'co-rues';
   readonly label = 'RUES (Confecámaras · datos.gov.co)';
-  readonly countries = ['CO'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'NIT (without the verification digit)';
   readonly docsUrl = 'https://www.datos.gov.co/d/c82u-588k';
@@ -43,7 +43,7 @@ export class ColombiaRuesProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'CO') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return isValidNit(query.value);
   }
 
@@ -63,7 +63,7 @@ export class ColombiaRuesProvider implements CompanyRegistryProvider {
       // The chamber of commerce is the closest thing to a locality in this dataset.
       state: record.camara_comercio,
       country: 'Colombia',
-      countryCode: 'CO',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: parseRuesDate(record.fecha_matricula),
       status: /ACTIVA/i.test(record.estado_matricula ?? '') ? 'ACTIVE' : 'INACTIVE',
     };
