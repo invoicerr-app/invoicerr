@@ -8,6 +8,7 @@ import { ALL_VAT_RATE_FILES } from '@/modules/documents/vat-rates/data/all';
 import { ALL_CHANNEL_POLICY_FILES } from '@/modules/documents/transports/channel-policy/data/all';
 import { ALL_MENTIONS_FILES } from '@/modules/documents/mentions/data/all';
 import { CountryMentionsFile, TemporalValue } from '@/modules/documents/mentions/schema';
+import { byCodeUnit } from '@/lib/compare';
 
 /**
  * The six CŒUR mechanisms a country needs to be "complete" — a business decision, NOT something
@@ -286,7 +287,7 @@ export class CountryReadinessService {
     const [first, ...rest] = CORE_MECHANISMS.map((m) => m.countryCodes);
     if (!first) return [];
     const fullySupported = [...first].filter((code) => rest.every((codes) => codes.has(code)));
-    return fullySupported.sort();
+    return fullySupported.sort(byCodeUnit);
   }
 
   /** Thin DI-friendly wrapper — see the free `computeMentionWindowAlerts` function's own header for the

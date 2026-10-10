@@ -1,5 +1,6 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { B2gRoutingRuleFact } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(files: B2gRoutingRuleFact[]): Record<string, B2gRoutingRuleFact> {
   const index: Record<string, B2gRoutingRuleFact> = {};
@@ -53,7 +54,7 @@ export class B2gRoutingCatalog {
 
   /** Every country this catalog has a rule for — sorted, for stable boot-upsert/test iteration order. */
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   ruleFor(countryCode: string): B2gRoutingRuleFact | undefined {

@@ -9,6 +9,7 @@ import {
   InvoiceValidationFact,
   RevenueBasisDefaultFact,
 } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(files: CountryDocumentPolicyFile[]): Record<string, CountryDocumentPolicyFile> {
   const index: Record<string, CountryDocumentPolicyFile> = {};
@@ -66,7 +67,7 @@ export class CountryPolicyCatalog {
 
   /** Country codes that have a policy file — sorted, for stable test/seed iteration order. */
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   /** Every rule declared for a country, in file order. Empty for a country with no file at all. */

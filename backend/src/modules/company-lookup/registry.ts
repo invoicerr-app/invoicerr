@@ -38,6 +38,7 @@ import {
   ProviderCapability,
   ProviderCoverage,
 } from './types';
+import { byCodeUnit } from '@/lib/compare';
 
 const VIES_PROVIDER_ID = 'eu-vies';
 
@@ -152,7 +153,7 @@ export class CompanyLookupRegistry {
   /** Capabilities for every ISO 3166-1 country, plus any other code the lookup data names. */
   capabilities(): CountryLookupCapability[] {
     const countries = new Set<string>([...ISO_COUNTRY_CODES, ...this.coverage.countries()]);
-    return [...countries].sort().map((cc) => this.capability(cc));
+    return [...countries].sort(byCodeUnit).map((cc) => this.capability(cc));
   }
 }
 

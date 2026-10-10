@@ -13,6 +13,8 @@
  */
 import { rowFor, DocumentCountryActionRuleRow } from './seed';
 import { CountryPolicyCatalog } from './registry';
+import { byCodeUnit } from '@/lib/compare';
+import { classifyCountryDrift } from '../countries/country-drift';
 
 export interface CountryPolicyDriftReport {
   /** true when the DB already matches `data/*.json` exactly for every country — nothing to reseed. */
@@ -49,7 +51,7 @@ function rowContentKey(row: DocumentCountryActionRuleRow): string {
     sourceText: row.sourceText,
     sourceCheckedAt: row.sourceCheckedAt ? row.sourceCheckedAt.toISOString() : null,
     resolutionNote: row.resolutionNote,
-    statuses: [...row.statuses].sort(),
+    statuses: [...row.statuses].sort(byCodeUnit),
     notes: row.notes,
   });
 }
@@ -57,7 +59,7 @@ function rowContentKey(row: DocumentCountryActionRuleRow): string {
 /** Order-independent content signature for a whole country's rows — sorting before joining means a
  *  different DB read order or a different file iteration order never reads as drift on its own. */
 function countrySignature(rows: DocumentCountryActionRuleRow[]): string {
-  return rows.map(rowContentKey).sort().join('\n');
+  return rows.map(rowContentKey).sort(byCodeUnit).join('\n');
 }
 
 export function detectCountryPolicyDrift(
@@ -72,38 +74,5 @@ export function detectCountryPolicyDrift(
     ]),
   );
 
-  const actualByCountry = new Map<string, DocumentCountryActionRuleRow[]>();
-  for (const row of existingRows) {
-    const bucket = actualByCountry.get(row.countryCode);
-    if (bucket) bucket.push(row);
-    else actualByCountry.set(row.countryCode, [row]);
-  }
-
-  const added: string[] = [];
-  const changed: string[] = [];
-  const removed: string[] = [];
-
-  for (const countryCode of new Set([...expectedByCountry.keys(), ...actualByCountry.keys()])) {
-    const expected = expectedByCountry.get(countryCode);
-    const actual = actualByCountry.get(countryCode);
-
-    if (expected && !actual) {
-      added.push(countryCode);
-    } else if (!expected && actual) {
-      removed.push(countryCode);
-    } else if (expected && actual && countrySignature(expected) !== countrySignature(actual)) {
-      changed.push(countryCode);
-    }
-  }
-
-  added.sort();
-  changed.sort();
-  removed.sort();
-
-  return {
-    inSync: added.length === 0 && changed.length === 0 && removed.length === 0,
-    addedCountries: added,
-    changedCountries: changed,
-    removedCountries: removed,
-  };
+  return classifyCountryDrift(expectedByCountry, existingRows, countrySignature);
 }

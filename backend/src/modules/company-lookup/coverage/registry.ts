@@ -10,6 +10,7 @@ import {
   defaultComposedCountryCatalog,
 } from '@/modules/documents/countries/registry';
 import { assertValidCompanyLookupFacts, CompanyLookupFacts, InvalidCompanyLookupFactsError } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 export interface CompanyLookupCoverageFile {
   countries: Record<string, CompanyLookupFacts>;
@@ -73,7 +74,7 @@ export class CompanyLookupCoverage {
 
   /** Every country with at least one fact, sorted. */
   countries(): string[] {
-    return Object.keys(this.facts).sort((a, b) => a.localeCompare(b));
+    return Object.keys(this.facts).sort(byCodeUnit);
   }
 
   factsFor(countryCode: string): CompanyLookupFacts | undefined {

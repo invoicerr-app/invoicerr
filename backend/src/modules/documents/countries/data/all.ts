@@ -52,6 +52,7 @@ import { assertValidCountryFields } from '../../country-fields/schema';
 import { assertValidContentRequirementFact } from '../../content-requirements/schema';
 import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
 import { assertValidCompanyLookupFacts } from '../../../company-lookup/coverage/schema';
+import { byCodeUnit } from '@/lib/compare';
 import { assertValidPaymentTerms } from '../../payment-terms/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
@@ -64,7 +65,7 @@ function discoverCountryCodes(dir: string): string[] {
   return readdirSync(dir)
     .filter((name) => COUNTRY_FILE_PATTERN.test(name))
     .map((name) => name.slice(0, -'.json'.length))
-    .sort();
+    .sort(byCodeUnit);
 }
 
 interface LoadContext {

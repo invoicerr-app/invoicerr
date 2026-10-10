@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { assertValidOperatorFact, OperatorFact } from '../schema';
+import { byCodeUnit } from '@/lib/compare';
 
 const OPERATOR_FILE_PATTERN = /^[a-z0-9-]+\.json$/;
 
@@ -21,7 +22,7 @@ function discoverOperatorIds(): string[] {
   return readdirSync(__dirname)
     .filter((name) => OPERATOR_FILE_PATTERN.test(name))
     .map((name) => name.slice(0, -'.json'.length))
-    .sort();
+    .sort(byCodeUnit);
 }
 
 function loadOperatorFile(id: string): OperatorFact {

@@ -16,6 +16,7 @@ import { ReportableDocumentType } from '@/modules/documents/reporting/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../../prisma/generated/prisma/client';
+import { byCodeUnit } from '@/lib/compare';
 
 /** What a TRANSPORT (`documents/transports/pdp-transport.ts`) gets back once credentials are
  *  resolved — REPRISED verbatim (shape-for-shape) from `avant-refonte-documents`'s own
@@ -626,7 +627,7 @@ export class ChannelCredentialsService {
       automaticElsewhereByChannel.set(rule.transportId, list);
     }
 
-    const channels: LegalChannelStatus[] = [...legalChannelIds].sort().map((id) => {
+    const channels: LegalChannelStatus[] = [...legalChannelIds].sort(byCodeUnit).map((id) => {
       const ownFact: ChannelPolicyFact | undefined = ownFactByChannel.get(id);
       const automatic = b2gRule?.transportId === id;
       const mandatedElsewhere = elsewhereByChannel.get(id) ?? [];

@@ -129,6 +129,12 @@ const valueLabel = (key: FacetKey, value: string): string => {
   return value;
 };
 
+function byCodeUnit(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 const facetValues = (meta: CountryMeta | undefined, key: FacetKey): string[] => {
   if (!meta) return [];
   if (key === 'formats') return meta.formats ?? [];
@@ -158,7 +164,7 @@ function CountryExplorer(): ReactNode {
     }
     return FACET_ORDER.map((key) => ({
       key,
-      values: [...acc[key]].sort(),
+      values: [...acc[key]].sort(byCodeUnit),
     })).filter((f) => f.values.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,5 +1,6 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryFieldOverlayFile, FieldOverlayOperation } from './schema';
+import { byCodeUnit } from '@/lib/compare';
 
 function buildIndex(files: CountryFieldOverlayFile[]): Record<string, CountryFieldOverlayFile> {
   const index: Record<string, CountryFieldOverlayFile> = {};
@@ -52,7 +53,7 @@ export class CountryFieldOverlayCatalog {
 
   /** Country codes that have a field-overlay file — sorted, for stable test/iteration order. */
   countries(): string[] {
-    return Object.keys(this.files).sort();
+    return Object.keys(this.files).sort(byCodeUnit);
   }
 
   /**

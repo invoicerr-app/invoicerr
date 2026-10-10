@@ -60,7 +60,7 @@ export function collect(dir) {
       steps: Object.keys(k6)
         .filter((n) => n.startsWith('http_req_duration{name:'))
         .map((n) => n.slice('http_req_duration{name:'.length, -1))
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map((name) => ({
           name,
           count: step(name, 'count') ?? 0,
@@ -134,7 +134,7 @@ export function compare(beforeDir, afterDir) {
   const a = collect(beforeDir);
   const b = collect(afterDir);
   const L = ['# Load test comparison', '', `Before: \`${beforeDir}\` · After: \`${afterDir}\``, ''];
-  const names = [...new Set(a.stages.flatMap((s) => s.steps.map((x) => x.name)))].sort();
+  const names = [...new Set(a.stages.flatMap((s) => s.steps.map((x) => x.name)))].sort((x, y) => x.localeCompare(y));
   for (const stage of b.stages) {
     const other = a.stages.find((s) => s.vus === stage.vus);
     if (!other) continue;
