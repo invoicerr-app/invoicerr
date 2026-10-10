@@ -337,8 +337,14 @@ describe('PadesSigningProvider', () => {
     // signature is a binary string; non-zero length confirms extraction succeeded
     expect(extracted.signature.length).toBeGreaterThan(10);
 
-    // signature from extractSignature is a binary string (DER bytes)
-    const asn1 = forge.asn1.fromDer(extracted.signature);
+    // extractSignature trims trailing zeros from the hex, which truncates a DER ending in a 0 nibble
+    const [start, length, end] = extracted.ByteRange;
+    const contentsHex = Buffer.from(signed.bytes)
+      .subarray(start + length + 1, end - 1)
+      .toString('latin1');
+    const asn1 = forge.asn1.fromDer(Buffer.from(contentsHex, 'hex').toString('binary'), {
+      parseAllBytes: false,
+    });
     const p7 = forge.pkcs7.messageFromAsn1(asn1) as any;
     expect(p7.rawCapture.signerInfos).toHaveLength(1);
     expect(p7.certificates).toHaveLength(1);
