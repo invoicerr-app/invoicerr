@@ -195,13 +195,32 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     expect(journaled.every((e) => e.rawPayload !== null)).toBe(true); // the raw platform payload was kept, verbatim
     expect(journaled.some((e) => e.statusCode === 'fr:213')).toBe(false); // never both accepted AND rejected
 
+    // The platform keeps appending statuses after fr:202 (fr:203 "Mise à disposition" arrives later),
+    // so first wait, bounded, until a poll finds nothing new: only then is the event list stable.
+    let stable = false;
+    let known = journaled.map((e) => e.statusCode);
+    for (let attempt = 0; attempt < 10 && !stable; attempt++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const { journaled: added } = await runner.runPoll(job);
+      const current = (await listAuthorityEvents(companyId, documentId)).map((e) => e.statusCode);
+      if (added > 0)
+        console.log(
+          'Later platform status journaled:',
+          current.filter((c) => !known.includes(c)),
+        );
+      known = current;
+      stable = added === 0;
+    }
+    if (!stable)
+      throw new Error('superpdp kept adding statuses for 10s; the dedup proof needs a stable list');
+
     // THE LIVE DEDUP PROOF — the exact same real events polled again journal ZERO new rows.
-    const before = journaled.length;
+    const before = (await listAuthorityEvents(companyId, documentId)).length;
     const secondPoll = await runner.runPoll(job);
     expect(secondPoll.journaled).toBe(0);
     const after = await listAuthorityEvents(companyId, documentId);
     expect(after.length).toBe(before); // not one extra row from re-polling the identical events
-  }, 30_000);
+  }, 45_000);
 
   it('a NON-COMPLIANT deposit (mentions/BT-23 deliberately skipped): does the platform answer fr:213?', async () => {
     const timestamp = Date.now();
