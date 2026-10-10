@@ -468,7 +468,7 @@ export class PdpClient {
    *
    * `format` mirrors `getInvoice`'s own enum (`?format=` query param), same endpoint
    * (`GET /v1.beta/invoices/{id}`), the ONE difference being how the response body is read. LIVE
-   * VERIFIED, 2026-09-16 (see `pdp-reception.live.spec.ts`): there is NO separate `/file`
+   * VERIFIED, 2026-09-16 (see `superpdp-reception.live.spec.ts`): there is NO separate `/file`
    * sub-resource — an earlier version of this method guessed one and got a real, live 404 against the
    * sandbox for every deposit tried (fresh and old alike). `GET /v1.beta/invoices/{id}?format=original`
    * is the SAME endpoint `getInvoice()` already calls, except the sandbox answers it with
@@ -519,9 +519,12 @@ export class PdpClient {
     date?: string;
     limit?: number;
     startingAfterId?: number;
+    /** The platform sorts by id, ascending unless told otherwise. */
+    order?: 'asc' | 'desc';
   }): Promise<SuperPdpInvoiceList> {
     const params = new URLSearchParams();
     if (opts?.direction) params.set('direction', opts.direction);
+    if (opts?.order) params.set('order', opts.order);
     if (opts?.date) params.set('date', opts.date);
     if (opts?.limit) params.set('limit', String(opts.limit));
     if (opts?.startingAfterId) params.set('starting_after_id', String(opts.startingAfterId));
@@ -617,7 +620,7 @@ export class PdpClient {
    * POST /v1.beta/invoices/{id}/lifecycle_events, body `{ code: "fr:211" }` (XP Z12-012 lifecycle
    * code, e.g. fr:211 = payment sent, fr:212 = payment received, fr:205 = accepted by buyer).
    *
-   * LIVE PROOF, 2026-09-16 (`pdp-reception.live.spec.ts`): this endpoint answers a real, generic
+   * LIVE PROOF, 2026-09-16 (`superpdp-reception.live.spec.ts`): this endpoint answers a real, generic
    * `404 {"http_status_code":404}` on the current superpdp sandbox — tried against a freshly deposited
    * invoice (both its "out" id AND its "in" twin, see `pdp-reception.ts`'s own header on why a
    * self-addressed deposit yields two distinct ids), and against every plausible path variant

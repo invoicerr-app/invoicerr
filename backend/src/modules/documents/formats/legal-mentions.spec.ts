@@ -3,7 +3,7 @@
  * providers (`cii-provider.ts`/`ubl-provider.ts`) and the REAL vendored EN 16931 Schematron, the
  * same discipline `providers.spec.ts` (the master proof) already holds. This is precisely
  * what changes the verdict a real superpdp deposit gets back — see
- * `../transports/pdp/pdp.live.spec.ts`'s own header for the fr:213 rejection ("BR-FR-05/BT-22 : La
+ * `../transports/pdp/superpdp.live.spec.ts`'s own header for the fr:213 rejection ("BR-FR-05/BT-22 : La
  * mention relative aux frais de recouvrement (code PMT) est absente") this data exists to fix.
  */
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';

@@ -1,7 +1,7 @@
 /**
  * `buildPdpStatusPoller` in isolation — `PdpClient` is mocked (the real HTTP round-trip is
- * `pdp-conformity.live.spec.ts`'s job, gated on real sandbox credentials). The fixtures below are the
- * ACTUAL raw payloads captured LIVE (`pdp-conformity.live.spec.ts`, 2026-09-01) — deposit
+ * `superpdp-conformity.live.spec.ts`'s job, gated on real sandbox credentials). The fixtures below are the
+ * ACTUAL raw payloads captured LIVE (`superpdp-conformity.live.spec.ts`, 2026-09-01) — deposit
  * 397536 (accepted, fr:200→201→202) and deposit 397548 (rejected, fr:213, real BR-FR-05/BT-22 reason)
  * — pasted verbatim, not invented.
  *

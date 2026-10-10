@@ -6,7 +6,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * that does not exist (a closed port locally), we pick `pdp` as the invoicing transport, and we
  * observe the queue's real failure (BullMQ retry then "send_failed", the error naming the channel).
  * The REAL PDP deposit (superpdp sandbox) is proven elsewhere, for real, by
- * `backend/src/modules/documents/transports/pdp/pdp.live.spec.ts` (jest, `PDP_LIVE=1`) — never by
+ * `backend/src/modules/documents/transports/pdp/superpdp.live.spec.ts` (jest, `SUPERPDP_LIVE=1`) — never by
  * this spec, which never talks to any real server FOR PDP.
  *
  * Wave 2 (KSeF/PL, SdI/IT) extends this file with the SAME pattern — country suggestion → connect

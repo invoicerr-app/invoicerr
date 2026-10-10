@@ -13,7 +13,7 @@
  * once and then debugged as a phantom authentication bug. Quote the password in SINGLE quotes: it
  * legitimately contains `#`, which an unquoted shell assignment silently truncates at.
  *
- * DB-FREE ON PURPOSE, the same choice `pdp/pdp.live.spec.ts` makes and for the same reason: the
+ * DB-FREE ON PURPOSE, the same choice `pdp/superpdp.live.spec.ts` makes and for the same reason: the
  * command above never sets `DATABASE_URL`, so this spec never touches Prisma. It does not call
  * `acube-transport.ts#send()` (which reads `Company`/`Client` rows); it calls the SAME building
  * blocks that function composes, by hand:

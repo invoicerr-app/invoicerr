@@ -2576,7 +2576,7 @@ model PendingStorageErasure {
 // A platform's OWN lifecycle is itself an append-only sequence of facts (fr:200 does not stop being
 // true the moment fr:201 arrives); recording it any other way (e.g. one row per document, overwritten
 // on every poll) would throw away the very history a rejection's own root cause needs ("was BT-23
-// ever cited before the final verdict flipped?" — see `pdp/pdp.live.spec.ts`'s own header for exactly
+// ever cited before the final verdict flipped?" — see `pdp/superpdp.live.spec.ts`'s own header for exactly
 // that kind of question, asked for real during this branch's own work).
 //
 // ## Why the document's own `status` NEVER changes because of a row here

@@ -869,7 +869,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // content correctness, never element ORDERING — could not catch, but a real platform's own
       // structural validation does (superpdp: "ApplicableHeaderTradeSettlement... not expected.
       // Expected is ApplicableHeaderTradeDelivery", found running the REAL round-trip against the
-      // sandbox — `pdp/pdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
+      // sandbox — `pdp/superpdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
       // the invoice's own issue date (a conventional stand-in for "delivered on issuance" when no
       // separate delivery date is tracked, same category of technical default `vatCategoryFor`
       // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what

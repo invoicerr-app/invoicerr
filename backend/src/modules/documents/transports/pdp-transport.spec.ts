@@ -1,6 +1,6 @@
 /**
  * The "pdp" transport in isolation. `PdpClient` and `@/prisma/
- * prisma.service` are mocked wholesale (the real HTTP round-trip is `pdp-live.spec.ts`'s job, gated
+ * prisma.service` are mocked wholesale (the real HTTP round-trip is `pdp/superpdp.live.spec.ts`'s job, gated
  * on real sandbox credentials — see that file's own header); this proves the ORCHESTRATION: the
  * preflight gate, the payload build, and the two facts that matter most — that an
  * empty deposit id is NEVER a success and that a disconnected channel blocks BEFORE any network call.

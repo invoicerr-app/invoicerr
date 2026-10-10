@@ -24,7 +24,7 @@
  *
  * Env vars summary (see documentation/docs/developer-guide/live-testing.md for full list):
  *   KSEF_LIVE=1         KSeF (PL) round-trip
- *   PDP_LIVE=1          PDP superpdp (FR) round-trip
+ *   SUPERPDP_LIVE=1          PDP superpdp (FR) round-trip
  *   PDP_AFNOR_LIVE=1    PDP AFNOR-style flow (FR) round-trip
  *   IOPOLE_LIVE=1       Iopole (FR) round-trip
  *   EMAIL_LIVE=1        Email SMTP round-trip (Ethereal — no creds needed)

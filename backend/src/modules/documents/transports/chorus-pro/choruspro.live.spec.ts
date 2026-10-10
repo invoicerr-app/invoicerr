@@ -63,7 +63,7 @@
  * different one. See the SELLER/BUYER constants below for exactly which entities these are and, for
  * the buyer, why THIS one and not one of the other six.
  *
- * Recipe (mirrors `../pdp/pdp.live.spec.ts`'s own DB-free approach — the exact bridge
+ * Recipe (mirrors `../pdp/superpdp.live.spec.ts`'s own DB-free approach — the exact bridge
  * `chorus-pro-transport.ts#send()` composes, called here by hand so this spec never needs a live DB):
  *   buildInvoiceDescriptor + computeDocumentTotals → buildSemanticInvoice → newEuInvoiceService()
  *     .generate(..., 'CII') → splitCiiIncludedNotes → validateStructural + validateSchematron (the

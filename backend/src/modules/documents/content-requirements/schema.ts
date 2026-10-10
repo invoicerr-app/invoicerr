@@ -19,7 +19,7 @@
  * mentions/'s own text-interpolation machinery. Lowest cost: a new file of the same MOLD.
  *
  * A real superpdp deposit's conformity POLL (never the deposit
- * ACCEPTANCE gate itself — see `../transports/pdp/pdp.live.spec.ts`'s own header on why that
+ * ACCEPTANCE gate itself — see `../transports/pdp/superpdp.live.spec.ts`'s own header on why that
  * distinction matters) kept citing exactly one cause after the initial mandatory-mentions work
  * landed —
  *

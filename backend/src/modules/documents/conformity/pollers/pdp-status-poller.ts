@@ -2,7 +2,7 @@
  * The FIRST `AuthorityStatusPoller` — France's PDP. Proven LIVE: a real deposit reaches
  * `fr:202` ("Reçue par la plateforme") within ~1s of upload, past `fr:200` ("Déposée (validée)") and
  * `fr:201` ("Émise par la plateforme"), reproduced five times against the superpdp sandbox (see
- * `pdp/pdp-conformity.live.spec.ts`). A rejection surfaces as `fr:213`, carrying `data.reason` on the
+ * `pdp/superpdp-conformity.live.spec.ts`). A rejection surfaces as `fr:213`, carrying `data.reason` on the
  * event itself — also reproduced live (see that same live spec for how, since a
  * deliberately non-compliant deposit had become hard to produce once the content
  * requirements matured — this file's own poll/journal MECHANICS are proven against the real fr:213
