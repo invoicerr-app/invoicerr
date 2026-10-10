@@ -362,6 +362,7 @@ jobs:
   # testing the product.
   cypress-run:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       # Same shape, and the same reason, as scenarios.yml's own six-leg matrix: one shard going red
       # must not cancel the other five, or a single failure hides every finding the rest would have
@@ -554,7 +555,11 @@ jobs:
           # command line, and which of them wins is a yargs detail no CI job should depend on.
           # `e2e:run` stays the whole-suite command a developer types; this job selects its own slice,
           # on the SAME `--browser firefox` scenarios.yml's leg and the SaaS lane below already use.
-          (cd $GITHUB_WORKSPACE/e2e && npx cypress run --browser firefox --spec "${{ steps.shard.outputs.spec }}")
+          #
+          # One Cypress process per spec, each under a wall-clock limit (e2e/scripts/run-specs.sh): a
+          # hung browser is killed and reported red after minutes instead of holding the shard until the
+          # merge queue gives up on it.
+          (cd $GITHUB_WORKSPACE/e2e && scripts/run-specs.sh "${{ steps.shard.outputs.spec }}" --browser firefox)
 
       # Artifact names carry the shard: `actions/upload-artifact@v4` REFUSES a name another job in the
       # same run already uploaded (v3 merged them silently), so six shards uploading `backend-logs`
@@ -594,6 +599,7 @@ jobs:
   # vars are non-blank at boot; nothing in either spec's path calls the real Polar API.
   cypress-run-saas:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       REDIS_URL: redis://localhost:6379
       WARNING__ENABLE_BILLING_FOR_USERS__WARNING: "true"
@@ -715,6 +721,7 @@ jobs:
   # copy of the raw script placed next to the compiled output it now runs from.
   cypress-run-demo:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       REDIS_URL: redis://localhost:6379
       DEMO_MODE: "true"

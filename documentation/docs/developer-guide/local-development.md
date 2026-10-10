@@ -68,6 +68,17 @@ sidebar_position: 0
 
 In CI, the GitHub Actions workflow runs these steps automatically.
 
+### Time limits
+
+Cypress has no per-test timeout of its own, so the suite adds two:
+
+- A test that runs longer than 180 seconds fails at its next command with a "time limit" error
+  (`e2e/cypress/support/test-time-limit.ts`).
+- In CI, `e2e/scripts/run-specs.sh` runs each spec in its own Cypress process under a hard limit of
+  15 minutes (`SPEC_TIMEOUT_MIN` to change it). A spec whose browser stops answering is killed and
+  reported as failed, and the remaining specs still run. You can use it locally too:
+  `scripts/run-specs.sh cypress/e2e/05-clients.cy.ts,cypress/e2e/09-settings.cy.ts --browser firefox`.
+
 ## Right-to-left (RTL) layout
 
 The frontend mirrors its layout for right-to-left locales instead of only translating the text.
