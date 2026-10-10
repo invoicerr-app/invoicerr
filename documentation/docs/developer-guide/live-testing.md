@@ -134,6 +134,13 @@ Hard-success contract (enforced per-spec):
 > shell" split), and two new received-invoice actions (`reject` now takes a REQUIRED `reason`;
 > `record-payment` mirrors the invoice's own, minus cross-currency conversion).
 >
+> Each sweep pass reads a company's inbox in ascending id order (`order=asc`), starting after the
+> highest `pdpInboundId` that company already imported (`starting_after_id`), at most ten pages of
+> 100. A deposit that fails to import stops that company's pass, so the next pass retries it before
+> anything newer; a long backlog is drained over several passes without skipping any deposit. The
+> live spec records the deposit just before its own twin as already imported, so the sweep reaches
+> the twin without importing this long-lived sandbox inbox from the start.
+>
 > **Only ONE PDP account is available to this session** — `.env.test.local` carries a single
 > `client_id`/`client_secret` pair, not a separate seller+buyer pair (`credentials-guide.md`'s own
 > PDP section). A real cross-company B2B reception therefore could not be tested; a SELF-ADDRESSED

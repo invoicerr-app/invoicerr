@@ -24,10 +24,9 @@
  * `received-invoice.descriptor.ts`'s own header) — a fresh migration for one more scalar column would
  * be disproportionate. The dedup check used to be a bounded linear scan of the last `500` received
  * invoices (`listDocuments(...).some(...)`) — a company whose received-invoice history grows past that
- * window would silently stop recognizing an OLDER
- * deposit as already-imported the moment `listInbound`'s own pagination (never documented as newest-
- * first — `pollers/pdp-reception-poller.ts`'s own header) happened to hand it back again, reimporting
- * it and re-pushing `pushTakenInCharge` a second time. `isAlreadyImported` below now queries the EXACT
+ * window would silently stop recognizing an OLDER deposit as already-imported the moment
+ * `listInbound`'s own pagination happened to hand it back again, reimporting it and re-pushing
+ * `pushTakenInCharge` a second time. `isAlreadyImported` below now queries the EXACT
  * `pdpInboundId` value directly (a targeted `WHERE data->>'pdpInboundId' = ...`, backed by a raw-SQL
  * migration, `prisma/migrations/20260917150000_pdp_inbound_id_unique_index` — a PARTIAL UNIQUE INDEX
  * on `(companyId, data->>'pdpInboundId')` scoped to this type, never a Prisma-declared `@@unique` on a
@@ -115,8 +114,12 @@ export class PdpReceptionSweepRunner {
         // calls straight into `DocumentsService.runAction` (whose own `Log` writes, and every
         // downstream action handler's, need a company to be scoped correctly).
         await runWithCompanyId(config.companyId, async () => {
-          const inbound = await this.poller.listInbound(config.companyId);
-          for (const deposit of inbound) {
+          // Resumes after the highest deposit already imported and walks the rest in ascending id
+          // order: a failure aborts this company's pass below, so the cursor never moves past a
+          // deposit that was not imported, however many arrived since the last pass.
+          const afterId = await this.highestImportedInboundId(config.companyId);
+          const inbound = await this.poller.listInbound(config.companyId, afterId);
+          for (const deposit of [...inbound].sort((a, b) => a.id - b.id)) {
             const pdpInboundId = String(deposit.id);
             const alreadyImported = await this.isAlreadyImported(config.companyId, pdpInboundId);
             if (alreadyImported) {
@@ -176,6 +179,17 @@ export class PdpReceptionSweepRunner {
    * declares, so the planner can actually use it — a `col = $1` predicate is recognized as implying
    * `col IS NOT NULL`, so this does not need to restate the index's own null-exclusion clause.
    */
+  private async highestImportedInboundId(companyId: string): Promise<number | undefined> {
+    const rows = await prisma.$queryRaw<{ maxId: bigint | number | null }[]>`
+      SELECT MAX(("data"->>'pdpInboundId')::bigint) AS "maxId" FROM "DocumentInstance"
+      WHERE "companyId" = ${companyId}
+        AND "typeId" = ${TYPE_ID}
+        AND ("data"->>'pdpInboundId') ~ '^[0-9]+$'
+    `;
+    const maxId = rows[0]?.maxId;
+    return maxId === null || maxId === undefined ? undefined : Number(maxId);
+  }
+
   private async isAlreadyImported(companyId: string, pdpInboundId: string): Promise<boolean> {
     const rows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "DocumentInstance"

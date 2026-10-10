@@ -8,7 +8,7 @@ import { vi } from 'vitest';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { buildPdpReceptionPoller } from './pdp-reception-poller';
+import { buildPdpReceptionPoller, RECEPTION_MAX_PAGES, RECEPTION_PAGE_SIZE } from './pdp-reception-poller';
 
 const mockListInvoices = vi.fn();
 const mockDownloadInvoiceFile = vi.fn();
@@ -73,8 +73,54 @@ describe('buildPdpReceptionPoller', () => {
 
       const inbound = await poller.listInbound('company-1');
 
-      expect(mockListInvoices).toHaveBeenCalledWith({ direction: 'in', limit: 50 });
+      expect(mockListInvoices).toHaveBeenCalledWith({
+        direction: 'in',
+        order: 'asc',
+        limit: 100,
+        startingAfterId: undefined,
+      });
       expect(inbound).toEqual(INBOUND_LIST_RESPONSE.data);
+    });
+
+    // Answers like the real endpoint: ascending ids, `limit` per page, `starting_after_id` cursor.
+    function fakeInbox(total: number) {
+      const ids = Array.from({ length: total }, (_, i) => i + 1);
+      mockListInvoices.mockImplementation(
+        async (opts: { order?: string; limit?: number; startingAfterId?: number }) => {
+          const sorted = opts.order === 'desc' ? [...ids].reverse() : ids;
+          const after = sorted.filter(
+            (id) => opts.startingAfterId === undefined || id > opts.startingAfterId,
+          );
+          const page = after.slice(0, opts.limit ?? 100);
+          return {
+            data: page.map((id) => ({ id, direction: 'in' })),
+            count: total,
+            has_before: false,
+            has_after: after.length > page.length,
+          };
+        },
+      );
+    }
+
+    it('returns a new deposit that sits beyond the first page of a long inbox', async () => {
+      fakeInbox(120);
+      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+
+      const inbound = await poller.listInbound('company-1', 110);
+
+      expect(inbound.map((d) => d.id)).toEqual([111, 112, 113, 114, 115, 116, 117, 118, 119, 120]);
+    });
+
+    it('walks every page when nothing was imported yet, up to its per-pass bound', async () => {
+      fakeInbox(250);
+      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+
+      const all = await poller.listInbound('company-1');
+      expect(all.map((d) => d.id)).toEqual(Array.from({ length: 250 }, (_, i) => i + 1));
+
+      fakeInbox(RECEPTION_PAGE_SIZE * RECEPTION_MAX_PAGES + 5);
+      const bounded = await poller.listInbound('company-1');
+      expect(bounded).toHaveLength(RECEPTION_PAGE_SIZE * RECEPTION_MAX_PAGES);
     });
 
     it('returns an EMPTY array (never throws) when PDP is not connected for this company', async () => {

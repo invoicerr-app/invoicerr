@@ -519,9 +519,12 @@ export class PdpClient {
     date?: string;
     limit?: number;
     startingAfterId?: number;
+    /** The platform sorts by id, ascending unless told otherwise. */
+    order?: 'asc' | 'desc';
   }): Promise<SuperPdpInvoiceList> {
     const params = new URLSearchParams();
     if (opts?.direction) params.set('direction', opts.direction);
+    if (opts?.order) params.set('order', opts.order);
     if (opts?.date) params.set('date', opts.date);
     if (opts?.limit) params.set('limit', String(opts.limit));
     if (opts?.startingAfterId) params.set('starting_after_id', String(opts.startingAfterId));

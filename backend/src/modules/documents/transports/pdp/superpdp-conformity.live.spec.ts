@@ -55,7 +55,7 @@ import { AuthorityStatusPollerRegistry } from '../../conformity/authority-status
 import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner';
 import { buildPdpStatusPoller } from '../../conformity/pollers/pdp-status-poller';
 import { liveDescribe } from '../live-gate';
-import { PdpClient } from './pdp-client';
+import { PdpApiError, PdpClient } from './pdp-client';
 import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -208,9 +208,20 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     const client = superpdpLiveClient();
     await client.authenticate();
     const facturxPdf = await buildFacturxBytes(client, false, timestamp);
-    const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
-      externalId: `INV-CONFORMITY-REJECT-${timestamp}`,
-    });
+    let invoice: Awaited<ReturnType<PdpClient['sendInvoice']>>;
+    try {
+      invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
+        externalId: `INV-CONFORMITY-REJECT-${timestamp}`,
+      });
+    } catch (error) {
+      // The platform may refuse this artifact at upload, before any conformity verdict: that refusal
+      // must itself be the schema error the unsplit BG-1 notes cause.
+      if (!(error instanceof PdpApiError)) throw error;
+      console.log('NON-COMPLIANT DEPOSIT REFUSED AT UPLOAD:', error.message);
+      expect(error.status).toBe(400);
+      expect(`${error.message} ${JSON.stringify(error.body)}`).toMatch(/IncludedNote|\}Content'/);
+      return;
+    }
     const depositId = String(invoice?.id ?? '');
     if (!depositId) {
       console.warn('superpdp refused the upload outright (pre-check) — nothing to poll.');

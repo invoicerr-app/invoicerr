@@ -161,12 +161,11 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     await depositLiveFacturx(client, facturxPdf, `INV-RECEPTION-${timestamp}`);
 
     // The inbound TWIN's own id is DIFFERENT — see this file's own header, point 2. Poll `direction=in`
-    // for a few seconds (the twin appears within ~1s per prior live observation) and pick the one
-    // created most recently, since this same sandbox account may carry earlier inbound deposits from
-    // previous runs of this exact spec.
+    // newest first for a few seconds (the twin appears within ~1s per prior live observation) and
+    // pick the one created most recently: this sandbox account carries every earlier inbound deposit.
     let inboundId: number | undefined;
     for (let attempt = 0; attempt < 10 && !inboundId; attempt++) {
-      const { data } = await client.listInvoices({ direction: 'in', limit: 10 });
+      const { data } = await client.listInvoices({ direction: 'in', order: 'desc', limit: 10 });
       const newest = [...data].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )[0];
@@ -198,6 +197,17 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     });
     const companyId = company.id;
     cleanupCompanyId = companyId;
+    // The sweep resumes after the highest deposit a company already imported. A brand-new company
+    // would start from the oldest deposit of this long-lived sandbox inbox, so record the one just
+    // before the twin as already imported, as a company that has been receiving all along would have.
+    await prisma.documentInstance.create({
+      data: {
+        companyId,
+        typeId: 'received-invoice',
+        status: 'received',
+        data: { pdpInboundId: String(inboundId - 1) },
+      },
+    });
 
     const credentialsStub = buildRealCredentialsStub(companyId);
     const pdpStatusPusher = buildPdpReceptionStatusPusher(credentialsStub);
@@ -207,18 +217,12 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     const sweepResult = await runner.runSweep();
     console.log('REAL sweep result:', JSON.stringify(sweepResult));
     expect(sweepResult.companies).toBe(1);
-    // >= 1, never a hard `=== 1`: this sandbox account may carry earlier inbound deposits from
-    // previous runs of this exact spec that were never cleaned up (a superpdp-side artifact, not
-    // this codebase's own state) — the HARD assertion is on THIS run's own deposit, checked next.
+    // >= 1, never a hard `=== 1`: another deposit may have reached this shared sandbox inbox after
+    // the twin; the HARD assertion is on THIS run's own deposit, checked next.
     expect(sweepResult.imported).toBeGreaterThanOrEqual(1);
 
-    // This same sandbox superpdp account accumulates every self-addressed deposit any past run of
-    // this spec ever made (superpdp itself has no cleanup — only the freshly-created Company row
-    // above is ever deleted, in `afterEach`) — `listInbound` above (`limit: 50`) can therefore
-    // legitimately return MORE than just THIS run's own deposit, and since `companyId` is BRAND NEW
-    // every run, dedup finds none of them already known and imports every one it sees. The hard
-    // assertion is on THIS run's own deposit specifically — matched by `data.pdpInboundId`, never
-    // "whichever row happened to be created first".
+    // Another deposit can land on this shared sandbox inbox after the twin, so the hard assertion is
+    // on THIS run's own deposit specifically, matched by `data.pdpInboundId`.
     const createdForThisRun = await prisma.documentInstance.findFirst({
       where: {
         companyId,

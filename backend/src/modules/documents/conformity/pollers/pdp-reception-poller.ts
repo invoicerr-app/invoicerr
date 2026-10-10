@@ -30,12 +30,11 @@ export interface PdpInboundFile {
 
 export interface ReceptionPoller {
   readonly providerId: string;
-  /** Every inbound deposit THIS company's own connected account currently holds — an EMPTY array,
-   *  never a throw, when the channel isn't connected for this company (the sweep runner treats that
-   *  identically to "nothing to import this pass", the same posture `AuthorityStatusPollerRegistry`'s
-   *  own header describes for "sdi"'s permanent absence — a company simply not using this channel is
-   *  not an error). */
-  listInbound(companyId: string): Promise<SuperPdpInvoice[]>;
+  /** The inbound deposits with an id strictly greater than `afterId` (every one when it is
+   *  undefined), oldest first, at most `RECEPTION_PAGE_SIZE * RECEPTION_MAX_PAGES` per call. An EMPTY
+   *  array, never a throw, when the channel isn't connected for this company: the sweep runner treats
+   *  that as "nothing to import this pass". */
+  listInbound(companyId: string, afterId?: number): Promise<SuperPdpInvoice[]>;
   /** The one deposit's own original file bytes, downloaded, and run through the SAME structural
    *  extraction the manual upload screen uses (`received-invoices/extraction.ts`) — reused verbatim,
    *  never a second, PDP-specific field mapper: a PDP-sourced received-invoice and a manually-uploaded
@@ -62,21 +61,34 @@ async function resolveClient(
   return new PdpClient({ ...credentials, apiStyle: 'superpdp' });
 }
 
+export const RECEPTION_PAGE_SIZE = 100;
+// Bounds one pass; the runner resumes after the highest imported id, so a longer backlog is
+// drained over the following passes without skipping anything.
+export const RECEPTION_MAX_PAGES = 10;
+
 export function buildPdpReceptionPoller(deps: PdpReceptionPollerDeps): ReceptionPoller {
   return {
     providerId: PDP_RECEPTION_PROVIDER_ID,
 
-    async listInbound(companyId: string): Promise<SuperPdpInvoice[]> {
+    async listInbound(companyId: string, afterId?: number): Promise<SuperPdpInvoice[]> {
       const client = await resolveClient(deps.channelCredentials, companyId);
       if (!client) return [];
-      // `limit: 50` — the sweep's own dedup (reception-sweep-runner.ts) scans this company's already-
-      // imported received-invoices up to the SAME 500-row budget `received-invoices.service.ts`'s own
-      // upload-dedup check already uses; a page of 50 fresh inbound deposits per pass, at the sweep's
-      // own repeat interval, comfortably drains any realistic backlog without a bespoke pagination
-      // loop, the same "bounded, honest linear check, not a hot path" reasoning that file's own header
-      // gives for its own limit.
-      const { data } = await client.listInvoices({ direction: 'in', limit: 50 });
-      return data;
+      // Ascending from a cursor, never "the first page": the platform sorts by id ascending, so an
+      // uncursored page is the OLDEST deposits and a company past one page would never see a new one.
+      const inbound: SuperPdpInvoice[] = [];
+      let cursor = afterId;
+      for (let page = 0; page < RECEPTION_MAX_PAGES; page++) {
+        const { data, has_after } = await client.listInvoices({
+          direction: 'in',
+          order: 'asc',
+          limit: RECEPTION_PAGE_SIZE,
+          startingAfterId: cursor,
+        });
+        inbound.push(...data);
+        if (!has_after || data.length === 0) break;
+        cursor = data[data.length - 1].id;
+      }
+      return inbound;
     },
 
     async downloadAndExtract(companyId: string, pdpInboundId: number): Promise<PdpInboundFile> {

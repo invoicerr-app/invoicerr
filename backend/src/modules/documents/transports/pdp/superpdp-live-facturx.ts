@@ -94,9 +94,8 @@ export async function buildLiveFacturx(opts: LiveFacturxOptions): Promise<Uint8A
   if (!structural.valid) throw new Error(`structural gate rejected the CII: ${structural.errors.join('; ')}`);
   const schematron = validateSchematron(cii, EN16931_CII_SCH);
   if (!schematron.valid) {
-    throw new Error(
-      `EN 16931 Schematron gate rejected the CII: ${schematron.errors.map((e) => `${e.id}: ${e.message}`).join('; ')}`,
-    );
+    const reasons = schematron.errors.map((e) => `${e.id}: ${e.message}`).join('; ');
+    throw new Error(`EN 16931 Schematron gate rejected the CII: ${reasons}`);
   }
   console.log(`${opts.displayNumber}: TypeCode`, /<ram:TypeCode>(\d+)<\/ram:TypeCode>/.exec(cii)?.[1]);
 
@@ -115,10 +114,11 @@ export async function buildLiveFacturx(opts: LiveFacturxOptions): Promise<Uint8A
     postProcessor:
       opts.fixEmbedded === false
         ? undefined
-        : async (embedded) => {
+        : (embedded) => {
             const embeddedCii = embedded as Record<string, unknown>;
             splitCiiIncludedNotesInObject(embeddedCii);
             if (businessProcessCode) applyFrenchBusinessProcessInObject(embeddedCii, businessProcessCode);
+            return Promise.resolve();
           },
   })) as Uint8Array;
 }
