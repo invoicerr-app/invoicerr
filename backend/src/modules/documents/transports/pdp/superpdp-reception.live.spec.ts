@@ -1,12 +1,12 @@
 /**
- * REAL round-trip proof of PDP RECEPTION — gated the same way `pdp.live.spec.ts`/
- * `pdp-conformity.live.spec.ts` already are (`PDP_LIVE=1` + the same three credential env vars,
+ * REAL round-trip proof of PDP RECEPTION — gated the same way `superpdp.live.spec.ts`/
+ * `superpdp-conformity.live.spec.ts` already are (`SUPERPDP_LIVE=1` + the same three credential env vars,
  * `live-gate.ts`, REPRISED verbatim), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   PDP_LIVE=1 npx jest pdp-reception.live --no-coverage --runInBand
+ *   SUPERPDP_LIVE=1 npx vitest run superpdp-reception.live --no-file-parallelism
  *
- * DB-CONNECTED, deliberately — same reasoning `pdp-conformity.live.spec.ts`'s own header gives for
+ * DB-CONNECTED, deliberately — same reasoning `superpdp-conformity.live.spec.ts`'s own header gives for
  * ITS OWN choice: this spec's whole point is that a REAL `received-invoice` `DocumentInstance` genuinely
  * gets created from a REAL PDP inbound deposit, not merely that a poller function returns a
  * plausible-looking array in memory.
@@ -17,10 +17,9 @@
  *  1. ONLY ONE PDP account is available to this session (`.env.test.local` carries ONE client_id/
  *     secret pair, not a separate seller+buyer pair — see `credentials-guide.md`'s own PDP section).
  *     A real cross-company B2B deposit therefore cannot be tested here; a SELF-ADDRESSED one can —
- *     this company depositing an invoice to its OWN connected identifiers (VAT `FR18000000002`,
- *     SIREN-ish `000000002`, routing `315143296_1422` — the exact identity `GET /v1.beta/companies/me`
- *     resolves for these credentials, confirmed live) — exactly the "envoi vers notre propre SIREN"
- *     self-test the task named as the fallback when a true second party isn't available.
+ *     this company depositing an invoice to its OWN identifiers: name and SIREN as
+ *     `GET /v1.beta/companies/me` answers them for these credentials, addressed at
+ *     `SUPERPDP_SELLER_ROUTING`.
  *  2. `PdpClient.listInvoices({direction:'in'})` genuinely lists the deposit's own INBOUND twin — a
  *     DIFFERENT id from the outbound deposit's own, proven live (`pdp-reception.ts`'s own header).
  *  3. THE POLLER AND THE RUNNER ARE REAL PRODUCTION CODE — `buildPdpReceptionPoller`
@@ -36,7 +35,7 @@
  *     `./received-invoices/supplier-reconciliation`, so every write is a REAL Prisma write.
  *  5. The ONE substitution: `ChannelCredentialsService` is a plain stub object handing back the SAME
  *     real credentials this file reads from `process.env` — identical reasoning
- *     `pdp-conformity.live.spec.ts`'s own header already gives for its own stub.
+ *     `superpdp-conformity.live.spec.ts`'s own header already gives for its own stub.
  *
  * ## The lifecycle-status PUSH — LIVE-VERIFIED NEGATIVE, not re-asserted here
  *
@@ -77,27 +76,16 @@ import prisma from '@/prisma/prisma.service';
 import { detectAndReseedCountryPolicyDrift } from '../../country-policy/boot-reseed';
 import { liveDescribe } from '../live-gate';
 import { buildPdpReceptionStatusPusher } from './pdp-reception';
-import { PdpClient } from './pdp-client';
+import {
+  resolveSandboxCompany,
+  SUPERPDP_BASE_URL,
+  SUPERPDP_LIVE_ENV,
+  superpdpLiveClient,
+} from './superpdp-live-parties';
 
-const describeLive = liveDescribe('PDP_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
+const describeLive = liveDescribe('SUPERPDP_LIVE', SUPERPDP_LIVE_ENV);
 
-// The exact identity `GET /v1.beta/companies/me` resolves for these credentials — see this file's own
-// header, point 1. Seller AND buyer, deliberately: the self-addressed deposit.
-const SELF: SemanticPartyInput = {
-  name: 'Burger Queen',
-  address: '809 avenue du Languedoc',
-  city: 'Millau',
-  postalCode: '12100',
-  country: 'France',
-  email: 'seller@example.fr',
-  partyIdentifiers: [
-    { scheme: 'VAT', value: 'FR18000000002' },
-    { scheme: 'LEGAL_ID', value: '000000002' },
-    { scheme: 'PEPPOL_ENDPOINT', value: '0225:315143296_1422' },
-  ],
-};
-
-/** Same stub reasoning `pdp-conformity.live.spec.ts`'s own header documents for ITS OWN stub — hands
+/** Same stub reasoning `superpdp-conformity.live.spec.ts`'s own header documents for ITS OWN stub — hands
  *  the REAL credentials straight from `process.env` to the REAL poller/pusher/runner, without needing
  *  a real encrypted `CompanyChannelConfig` row. Both `resolveActive` (the poller/pusher's own call)
  *  AND `listActiveByProvider` (the sweep's own "which companies have PDP connected" call) resolve to
@@ -109,9 +97,9 @@ function buildRealCredentialsStub(companyId: string): ChannelCredentialsService 
     environment: 'TEST',
     isActive: true,
     config: {
-      baseUrl: process.env.PDP_BASE_URL,
-      clientId: process.env.PDP_CLIENT_ID,
-      clientSecret: process.env.PDP_CLIENT_SECRET,
+      baseUrl: SUPERPDP_BASE_URL,
+      clientId: process.env.SUPERPDP_CLIENT_ID,
+      clientSecret: process.env.SUPERPDP_CLIENT_SECRET,
     },
   };
   return {
@@ -143,9 +131,12 @@ function buildRealDocumentsService(pdpStatusPusher: ReturnType<typeof buildPdpRe
 }
 
 /** Builds and Schematron-validates a real Factur-X PDF, self-addressed — same recipe
- *  `pdp.live.spec.ts`/`pdp-conformity.live.spec.ts` already use (buildInvoiceDescriptor is imported
+ *  `superpdp.live.spec.ts`/`superpdp-conformity.live.spec.ts` already use (buildInvoiceDescriptor is imported
  *  only to feed `computeDocumentTotals`, exactly like those two files). */
-async function buildSelfAddressedFacturxBytes(timestamp: number): Promise<Uint8Array> {
+async function buildSelfAddressedFacturxBytes(
+  timestamp: number,
+  self: SemanticPartyInput,
+): Promise<Uint8Array> {
   const descriptor = buildInvoiceDescriptor();
   const data = {
     client: 'live-client',
@@ -167,8 +158,8 @@ async function buildSelfAddressedFacturxBytes(timestamp: number): Promise<Uint8A
   const euInvoice = buildSemanticInvoice({
     displayNumber: `INV-RECEPTION-${timestamp}`,
     issueDate: data.issueDate,
-    seller: SELF,
-    buyer: SELF,
+    seller: self,
+    buyer: self,
     lines: data.lines.map((l) => ({
       description: l.description,
       quantity: l.quantity,
@@ -231,15 +222,10 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
   it('deposit (self-addressed) -> direction=in lists it -> real sweep creates a real received-invoice ' +
     '-> approve -> record-payment, all through REAL production code', async () => {
     const timestamp = Date.now();
-    const facturxPdf = await buildSelfAddressedFacturxBytes(timestamp);
-
-    const client = new PdpClient({
-      baseUrl: process.env.PDP_BASE_URL!,
-      clientId: process.env.PDP_CLIENT_ID!,
-      clientSecret: process.env.PDP_CLIENT_SECRET!,
-      apiStyle: 'superpdp',
-    });
+    const client = superpdpLiveClient();
     await client.authenticate();
+    const self = await resolveSandboxCompany(client);
+    const facturxPdf = await buildSelfAddressedFacturxBytes(timestamp, self);
     const outbound = await client.sendInvoice(Buffer.from(facturxPdf), {
       externalId: `INV-RECEPTION-${timestamp}`,
     });
@@ -269,7 +255,7 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     }
     console.log('INBOUND twin id:', inboundId);
 
-    // A real Company, exactly the shape `pdp-conformity.live.spec.ts` already creates directly via
+    // A real Company, exactly the shape `superpdp-conformity.live.spec.ts` already creates directly via
     // Prisma (never through the HTTP API) — this spec's own point is reception, not company signup.
     const company = await prisma.company.create({
       data: {
@@ -333,7 +319,7 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     // The self-addressed identity's own name, structurally extracted from the REAL downloaded
     // Factur-X (never invented) — see `pdp-reception-poller.ts`'s own header on why this reuses the
     // SAME extraction the manual upload screen uses.
-    expect(data.supplier).toBe('Burger Queen');
+    expect(data.supplier).toBe(self.name);
     expect(data.currency).toBe('EUR');
 
     // "approve" — real production code, real Prisma write, real (best-effort, documented-404) push.

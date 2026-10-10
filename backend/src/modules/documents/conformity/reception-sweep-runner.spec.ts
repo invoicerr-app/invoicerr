@@ -2,7 +2,7 @@
  * `PdpReceptionSweepRunner` in isolation — `pollers/pdp-reception-poller.ts` and
  * `transports/pdp/pdp-reception.ts` (the poller/pusher this runner builds internally, see its own
  * header) are BOTH mocked wholesale: the real PDP round-trip is those two files' own specs
- * (`pdp-reception-poller.spec.ts`, `pdp-reception.spec.ts`) plus `pdp-reception.live.spec.ts`. This
+ * (`pdp-reception-poller.spec.ts`, `pdp-reception.spec.ts`) plus `superpdp-reception.live.spec.ts`. This
  * file's own concern is the SWEEP's wiring: which companies it visits, the dedup-by-`pdpInboundId`
  * check, and that `DocumentsService.runAction('receive')` is called with the right shape — the SAME
  * "mock the leaf, prove the orchestration" split every OTHER sweep runner spec in this directory

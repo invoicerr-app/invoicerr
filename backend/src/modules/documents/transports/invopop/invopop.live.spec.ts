@@ -6,7 +6,7 @@
  *   cd backend && set -a; . .env.test.local; set +a
  *   INVOPOP_LIVE=1 npx vitest run src/modules/documents/transports/invopop/invopop.live.spec.ts
  *
- * DB-FREE ON PURPOSE, the same choice `pdp/pdp.live.spec.ts` makes and for the same reason: that
+ * DB-FREE ON PURPOSE, the same choice `pdp/superpdp.live.spec.ts` makes and for the same reason: that
  * command never sets `DATABASE_URL`, so this spec never touches Prisma. It does not call
  * `invopop-transport.ts`'s exported `send()` (which reads `Company`/`Client` rows); it calls the SAME
  * DB-free building blocks that function composes, by hand:

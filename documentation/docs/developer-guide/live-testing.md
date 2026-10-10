@@ -33,9 +33,9 @@ Hard-success contract (enforced per-spec):
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef.live.spec.ts` | 🟡 Credentials present, round-trip unverified — `KSEF_AUTH_TOKEN`/`KSEF_NIP` **do** exist as CI secrets today (confirmed by name via `gh secret list`, not by value). The same secrets authenticated successfully against `ksef-test.mf.gov.pl` as recently as 2026-07-14 (a CI run of the pre-refactor `compliance/providers/transmission/ksef/ksef-live.spec.ts`: real submission, a semantic `REJECTED` — code 450 — not an auth failure). No live run has exercised the current, post-refactor spec, and `compliance-live.yml` has not been triggered since the 2026-08-29 engine refactor — so whether the same credentials are still valid today is **unverified**, not proven expired. |
-| PDP superpdp (FR) | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` | `pdp/pdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
-| PDP superpdp (FR) - credit note (issue #472) | `PDP_LIVE=1` | same as the row above | `pdp/pdp-credit-note.live.spec.ts` | ✅ **Accepted live 2026-09-27** - an invoice (TypeCode 380, deposit 766462) then a credit note correcting it (TypeCode 381, BG-3 naming that invoice, deposit 766465), both `fr:200 → fr:201`, no rejection. Proves the 381 + BG-3 CII shape; the fr:202 step was not awaited. |
-| PDP reception (FR) — inbound e-invoices | `PDP_LIVE=1` | `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (same credentials as the row above — one PDP account only, see below) | `pdp/pdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡/🔴 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) is proven NOT reachable on this sandbox** — every code tried (`fr:203`/`fr:205`/`fr:206`/`fr:211`/`fr:212`) and every plausible path variant answered a generic 404 — see the dedicated section below |
+| PDP superpdp (FR) | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` | `pdp/superpdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
+| PDP superpdp (FR) - credit note (issue #472) | `SUPERPDP_LIVE=1` | same as the row above | `pdp/superpdp-credit-note.live.spec.ts` | ✅ **Accepted live 2026-09-27** - an invoice (TypeCode 380, deposit 766462) then a credit note correcting it (TypeCode 381, BG-3 naming that invoice, deposit 766465), both `fr:200 → fr:201`, no rejection. Proves the 381 + BG-3 CII shape; the fr:202 step was not awaited. |
+| PDP reception (FR) — inbound e-invoices | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING` (same credentials as the row above — one PDP account only, see below) | `pdp/superpdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡/🔴 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) is proven NOT reachable on this sandbox** — every code tried (`fr:203`/`fr:205`/`fr:206`/`fr:211`/`fr:212`) and every plausible path variant answered a generic 404 — see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | Iopole (FR) | `IOPOLE_LIVE=1` | `PDP_IOPOLE_CLIENT_ID`, `PDP_IOPOLE_CLIENT_SECRET`, `PDP_IOPOLE_CUSTOMER_ID` (`PDP_IOPOLE_API_BASE` / `PDP_IOPOLE_TOKEN_URL` optional - the hosts are fixed constants in `iopole-transport.ts#IOPOLE_URLS`) | `iopole/iopole.live.spec.ts` | ✅ **Round-trip proven 2026-09-24** - real Factur-X deposit accepted (`201 {"type":"INVOICE","id":"01a0d29b-37d0-750d-9f8f-5d35664fca90"}`) and a real positive verdict read back from the platform: `SUBMITTED` (destType `PPF` and `OPERATOR`) → `RECEIVED` (networkCode 202) → `ISSUED`, no rejection. Reproduced on a second, independent deposit before the assertion was tightened. See the dedicated section below. |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
@@ -140,7 +140,7 @@ Hard-success contract (enforced per-spec):
 > deposit was used instead — this company (`GET /v1.beta/companies/me` resolves to "Burger Queen",
 > VAT `FR18000000002`, SIREN-ish `000000002`, routing `315143296_1422`) depositing an invoice to its
 > OWN identifiers. Proven live, in one continuous run
-> (`pdp/pdp-reception.live.spec.ts`):
+> (`pdp/superpdp-reception.live.spec.ts`):
 >
 > 1. `POST /v1.beta/invoices` (multipart Factur-X) — a real deposit, e.g. id `604994`.
 > 2. `GET /v1.beta/invoices?direction=in&limit=…` — lists the deposit's own INBOUND TWIN, a
@@ -263,7 +263,7 @@ Hard-success contract (enforced per-spec):
 >   reading the directory, but not declaring a webhook or adding a participant. Neither was attempted
 >   and neither is worked around.
 > - **Nothing ran through `iopole-transport.ts#send()` itself.** The live spec is DB-free by design
->   (the same choice `pdp.live.spec.ts` makes) and composes the same DB-free building blocks by hand;
+>   (the same choice `superpdp.live.spec.ts` makes) and composes the same DB-free building blocks by hand;
 >   the orchestration around them is covered by `iopole-transport.spec.ts`, with mocks.
 
 ## Running a single live spec
@@ -275,10 +275,12 @@ KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> [KSEF_NIP=<nip>] \
   npx vitest run ksef.live --no-file-parallelism
 
 # PDP superpdp (FR) — round-trip proven: deposited, validated, issued, received (see the box above)
+# SUPERPDP_SELLER_ROUTING is the routing id of the company the OAuth client belongs to,
+# SUPERPDP_BUYER_ROUTING the other sandbox company's (see credentials-guide.md)
 set -a; . .env.pdp.local; set +a
-PDP_LIVE=1 npx vitest run pdp.live --no-file-parallelism
+SUPERPDP_LIVE=1 npx vitest run superpdp.live --no-file-parallelism
 # ... and a credit note correcting a freshly deposited invoice (issue #472)
-PDP_LIVE=1 npx vitest run pdp-credit-note.live --no-file-parallelism
+SUPERPDP_LIVE=1 npx vitest run superpdp-credit-note.live --no-file-parallelism
 
 # Iopole (FR) - round-trip proven 2026-09-24: Factur-X deposited, accepted, and followed to a real
 # positive verdict (SUBMITTED -> RECEIVED/202 -> ISSUED). See the dedicated section above.
@@ -289,10 +291,10 @@ IOPOLE_LIVE=1 npx vitest run iopole.live --no-file-parallelism
 
 # PDP reception (FR) — inbound e-invoices: self-addressed deposit -> direction=in -> download ->
 # extract -> real received-invoice -> approve -> record-payment (see the dedicated section above).
-# DB-CONNECTED (like pdp-conformity.live.spec.ts) — reads backend/.env's own DATABASE_URL, creates
+# DB-CONNECTED (like superpdp-conformity.live.spec.ts) — reads backend/.env's own DATABASE_URL, creates
 # and cleans up one throwaway Company.
 set -a; . .env.test.local; set +a
-PDP_LIVE=1 npx vitest run pdp-reception.live --no-file-parallelism
+SUPERPDP_LIVE=1 npx vitest run superpdp-reception.live --no-file-parallelism
 
 # Email (document "send" SMTP delivery to the local Mailpit container — no external creds needed,
 # but needs Mailpit running on :1025/:8025 and a DATABASE_URL for one throwaway Company row)
@@ -380,7 +382,7 @@ cd backend
 npx vitest run ksef.live
 # Expected: Test Files  1 skipped | Tests  1 skipped
 
-npx vitest run pdp.live pdp-reception.live send-quote.live sdicoop.live tsa.live choruspro.live
+npx vitest run superpdp.live superpdp-reception.live send-quote.live sdicoop.live tsa.live choruspro.live
 # Expected: all suites skipped
 ```
 
@@ -416,7 +418,7 @@ No `*_LIVE=1` flag is set in CI. All gated suites remain skipped.
 - Never commit secrets to the repository.
 - Suggested local file layout:
   - `.env.ksef.local` — `KSEF_AUTH_TOKEN`, `KSEF_NIP`
-  - `.env.pdp.local` — `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`
+  - `.env.pdp.local`: `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING`
   - `.env.billit.local` - `BILLIT_API_BASE`, `BILLIT_API_KEY`, `BILLIT_PARTY_ID`
   - `.env.sdi.local` — `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD`
   - `.env.invopop.local` - `INVOPOP_API_KEY`, `INVOPOP_WORKFLOW_ID`
@@ -839,7 +841,7 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
 | Secret(s) | Channel | Where to obtain |
 |---|---|---|
 | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | PL KSeF | KSeF app **ksef.mf.gov.pl** (test: ksef-test.mf.gov.pl) → log in (NIP + trusted profile/qualified sig) → *Tokens*. Prod also needs the MF prod public PEM keys. |
-| `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET` (+ optional `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING`) | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
+| `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` | FR PDP | PDP developer portal. Sandbox = **superpdp**. Real PDP list (annuaire): **impots.gouv.fr**. |
 | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE` (b64 PFX), `SDI_CERT_PASSWORD` | IT SdI | **Agenzia delle Entrate** intermediary accreditation (fatturapa.gov.it) — `SDI_ENDPOINT` (the accredited `SdIRiceviFile` URL) and the PFX are both assigned/issued during that accreditation, never a fixed constant (see [Credentials Guide](./credentials-guide.md) §4). Code side: implemented-awaiting-accreditation (`sdicoop-client.ts`), never yet run against the real endpoint. |
 | `CHORUSPRO_CLIENT_ID`, `CHORUSPRO_CLIENT_SECRET`, `CHORUSPRO_TECH_LOGIN`, `CHORUSPRO_TECH_PASSWORD` | FR Chorus Pro B2G | **PISTE developer portal** (piste.gouv.fr) — subscribe to "API Dépôt flux G2B", then create a Chorus Pro "compte technique" in the sandbox. |
 | `PDP_ACUBE_EMAIL`, `PDP_ACUBE_PASSWORD` | A-Cube (also a Peppol access point) | **acubeapi.com/sandbox** - a work e-mail, an activation link, a password. Nothing to sign, no purchase obligation. These are ACCOUNT credentials, not a per-integration key, so use a dedicated generated password (see the A-Cube section above). ✅ round-trip proven 2026-09-24. |

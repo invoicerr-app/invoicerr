@@ -1,10 +1,9 @@
 /**
- * REAL round-trip against the superpdp sandbox. Gated the same way the
- * reference's own `pdp-live.spec.ts` was (`PDP_LIVE=1` + credential env vars — `live-gate.ts`, REPRISED
- * verbatim), and run the same way:
+ * REAL round-trip against the superpdp sandbox. Gated through `live-gate.ts` (`SUPERPDP_LIVE=1` + credential
+ * env vars), the same gate the reference's own `pdp-live.spec.ts` used, and run like this:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   PDP_LIVE=1 npx jest pdp-live --no-coverage --runInBand
+ *   SUPERPDP_LIVE=1 npx vitest run superpdp.live --no-file-parallelism
  *
  * DB-FREE ON PURPOSE, same choice the reference's own spec made (see its own "(DB-free)" comment): that
  * exact command above never sets DATABASE_URL, so this spec never touches Prisma — it does not call
@@ -68,56 +67,27 @@ import { validateStructural } from '../../formats/structural-check';
 import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { liveDescribe } from '../live-gate';
-import { PdpClient } from './pdp-client';
+import {
+  resolveSandboxCompany,
+  SUPERPDP_LIVE_ENV,
+  SUPERPDP_BUYER_ENV,
+  sandboxBuyer,
+  superpdpLiveClient,
+} from './superpdp-live-parties';
 
-const describeLive = liveDescribe('PDP_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
+const describeLive = liveDescribe('SUPERPDP_LIVE', [...SUPERPDP_LIVE_ENV, ...SUPERPDP_BUYER_ENV]);
 
 describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accepted', () => {
   it('buildEuInvoice → real EN16931 Schematron gate → real Factur-X embed → real superpdp deposit', async () => {
-    const baseUrl = process.env.PDP_BASE_URL ?? '';
-    const clientId = process.env.PDP_CLIENT_ID ?? '';
-    const clientSecret = process.env.PDP_CLIENT_SECRET ?? '';
-
-    // Same sandbox tenant the reference's own live spec identified the hard way (its own header
-    // explains why: 315143296/415143296 — the numbers on the original brief — are refused by
-    // superpdp for this OAuth client; 000000002/000000001 are what `GET /v1.beta/companies/me`
-    // actually answers for these credentials). VAT keys are computed, not invented: key = (12 + 3 ×
-    // SIREN mod 97) mod 97 — FR18000000002 and FR15000000001 both satisfy it.
-    const SELLER: SemanticPartyInput = {
-      name: 'Burger Queen',
-      address: '809 avenue du Languedoc',
-      city: 'Millau',
-      postalCode: '12100',
-      country: 'France',
-      email: 'seller@example.fr',
-      partyIdentifiers: [
-        { scheme: 'VAT', value: 'FR18000000002' },
-        { scheme: 'LEGAL_ID', value: '000000002' },
-        // BT-34 (Seller electronic address) — see `build-semantic-invoice.ts#explicitEndpointFor`'s
-        // own header: the SAME `PEPPOL_ENDPOINT` identifier `company.settings.tsx` already collects,
-        // now actually READ by the bridge. Without it, `endpointFor` falls back to the seller's own
-        // SIREN as the routing address, which superpdp's sandbox annuaire does not recognise for this
-        // tenant — found running THIS live spec for real (see this file's own header, no invented
-        // fixture data): its own routing convention is `{pdp_siren}_{account_id}`, not the SIREN.
-        { scheme: 'PEPPOL_ENDPOINT', value: '0225:315143296_1422' },
-      ],
-    };
-    const BUYER: SemanticPartyInput = {
-      name: 'Tricatel',
-      address: '1 rue de Tricatel',
-      city: 'Paris',
-      postalCode: '75001',
-      country: 'France',
-      email: 'buyer@example.fr',
-      partyIdentifiers: [
-        { scheme: 'VAT', value: 'FR15000000001' },
-        { scheme: 'LEGAL_ID', value: '000000001' },
-        // BT-49 (Buyer electronic address) — same reasoning as the seller's own above; without it
-        // superpdp refused the pre-check outright ("receiver address <0225:000000001> does not
-        // accept this document").
-        { scheme: 'PEPPOL_ENDPOINT', value: '0225:315143296_1421' },
-      ],
-    };
+    // The seller is whatever company the OAuth client belongs to, as `GET /v1.beta/companies/me`
+    // describes it, addressed at its routing id. superpdp's routing convention is
+    // `{pdp_siren}_{account_id}`, not the SIREN: without an explicit BT-34/BT-49 electronic address the
+    // pre-check refuses the deposit ("receiver address <0225:...> does not accept this document").
+    const client = superpdpLiveClient();
+    await client.authenticate();
+    const SELLER: SemanticPartyInput = await resolveSandboxCompany(client);
+    const BUYER: SemanticPartyInput = sandboxBuyer();
+    console.log('Authenticated as', SELLER.name);
 
     const descriptor = buildInvoiceDescriptor();
     const timestamp = Date.now();
@@ -228,9 +198,6 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     console.log('Factur-X PDF built, bytes:', facturxPdf.length);
 
     // ── 3) The REAL round-trip — the exact client `pdp-transport.ts` uses in production. ──
-    const client = new PdpClient({ baseUrl, clientId, clientSecret, apiStyle: 'superpdp' });
-    await client.authenticate();
-    console.log('Authenticated against', baseUrl);
 
     const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
       externalId: `INV-LIVE-${timestamp}`,

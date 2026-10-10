@@ -17,7 +17,7 @@
  * the verdict (the platform's own SUBMITTED → ISSUED → RECEIVED lifecycle, or a REJECTED /
  * UNACCEPTABLE) needs a poller in `conformity/pollers/`, which is SEPARATE work and is deliberately
  * not attempted here: a poller that could only ever answer PENDING is exactly the false green this
- * repository has already been burned by once (see `pdp/pdp.live.spec.ts`'s own header for that
+ * repository has already been burned by once (see `pdp/superpdp.live.spec.ts`'s own header for that
  * history). This transport's contract therefore stops, honestly, at "accepted, here is the id".
  * `providerId` below is still set for the record's own honesty - the sweep simply never selects it,
  * since eligibility is gated on the POLLER REGISTRY knowing the id (see

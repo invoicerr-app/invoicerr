@@ -1,6 +1,6 @@
 /**
  * `buildPdpReceptionPoller` in isolation — `PdpClient` is mocked (the real HTTP round-trip is
- * `pdp-reception.live.spec.ts`'s job). `listInvoices({direction:'in'})`'s own response shape below is
+ * `superpdp-reception.live.spec.ts`'s job). `listInvoices({direction:'in'})`'s own response shape below is
  * the ACTUAL raw payload captured LIVE (2026-09-16, self-addressed sandbox deposit — see
  * `pdp-reception.ts`'s own header), pasted verbatim.
  */

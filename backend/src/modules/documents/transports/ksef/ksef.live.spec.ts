@@ -15,7 +15,7 @@
  * proven expired. `liveDescribe` will actually RUN (not skip) if `KSEF_LIVE=1` is set — this file does
  * NOT invent a sandbox, a mock server, or a fabricated token to force a green run.
  *
- * DB-FREE ON PURPOSE, same choice `pdp/pdp.live.spec.ts` makes for the identical reason: this spec
+ * DB-FREE ON PURPOSE, same choice `pdp/superpdp.live.spec.ts` makes for the identical reason: this spec
  * calls `fa3FormatProvider.build()` directly (descriptor + plain party objects, no Prisma — unlike
  * `facturx-provider.ts`, FA(3) needs no companyId/PDF render step) rather than `ksef-transport.ts`'s
  * exported `send()` (which reads `Company`/`Client` rows).

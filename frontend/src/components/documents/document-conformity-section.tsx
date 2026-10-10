@@ -26,7 +26,7 @@ import type { DocumentAuthorityEvent } from "./types"
 
 export type ConformityVerdict = "accepted" | "rejected" | "gaveUp" | "pending" | "declarationIssue"
 
-/** The two REAL PDP codes proved live (`pdp-conformity.live.spec.ts`, 2026-09-01):
+/** The two REAL PDP codes proved live (`superpdp-conformity.live.spec.ts`, 2026-09-01):
  *  fr:202 ("Received by the platform") is the platform's own final ACCEPTANCE; fr:213 ("Rejected") is
  *  its own final refusal. `pl:200`/any `pl:4xx`/`pl:5xx` mirror the SAME `{code}` convention the
  *  backend's own `ksef-status-poller.ts` borrows (gated — see that file's own honesty note). A new

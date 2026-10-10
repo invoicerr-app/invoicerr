@@ -185,7 +185,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 	// spec already drives now also carries the three C. com. art. L441-9 I al. 5 mentions in BG-1.
 	// This is precisely what makes a real superpdp deposit's conformity check stop citing
 	// "BR-FR-05/BT-22 : La mention relative aux frais de recouvrement (code PMT) est absente" — see
-	// `pdp/pdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
+	// `pdp/superpdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
 	// through the SCREEN, by intercepting the exact request the download button triggers, never by
 	// asserting on the screen alone.
 	it("a sent French invoice's downloaded XML carries the mandatory mentions — recovery fee + the rate actually in force", () => {

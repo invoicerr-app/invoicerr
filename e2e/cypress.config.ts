@@ -82,7 +82,7 @@ function startWebhookReceiver(): Promise<string> {
  *
  * Answers the exact THREE endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
  * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
- * (`backend/src/modules/documents/transports/pdp/pdp-reception.live.spec.ts`'s own header has the
+ * (`backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`'s own header has the
  * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
  * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
  * own `contentType`). `POST /v1.beta/invoices/{id}/lifecycle_events` answers 200 — never re-proving

@@ -17,7 +17,7 @@ export const RECEPTION_SWEEP_JOB_ID = 'document-pdp-reception-sweep-singleton';
 
 /** Default 5 minutes — reception has no legal SLA this codebase found requiring a shorter cadence
  *  (contrast the conformity sweep's own default 60s, chasing a fr:200→202 verdict that superpdp's
- *  sandbox answers in under a second — see `pdp.live.spec.ts`'s own header); a supplier's invoice
+ *  sandbox answers in under a second — see `superpdp.live.spec.ts`'s own header); a supplier's invoice
  *  sitting a few extra minutes before it appears as a `received-invoice` costs nothing a human would
  *  notice, and polling less often is kinder to the platform's own rate limits. */
 export function readReceptionSweepIntervalMs(): number {

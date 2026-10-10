@@ -6,7 +6,7 @@
  *   cd backend && set -a; . .env.billit.local; set +a
  *   BILLIT_LIVE=1 npx vitest run billit.live --no-file-parallelism
  *
- * DB-FREE ON PURPOSE, the same choice `pdp/pdp.live.spec.ts` already makes and for the same reason:
+ * DB-FREE ON PURPOSE, the same choice `pdp/superpdp.live.spec.ts` already makes and for the same reason:
  * the command above never sets `DATABASE_URL`. This spec therefore does not call
  * `billit-transport.ts`'s `send()` (which reads `Company`/`Client` rows), it composes the exact same
  * DB-free building blocks that function composes, by hand:
@@ -18,7 +18,7 @@
  *                                         companyId and touches neither Prisma nor Puppeteer)
  *     -> BillitClient (REAL, `billit/billit-client.ts`) .getParticipantInformation() + .sendPeppolXml()
  *
- * Nothing is mocked. The single substitution `pdp.live.spec.ts` has to make (a stand-in PDF, because
+ * Nothing is mocked. The single substitution `superpdp.live.spec.ts` has to make (a stand-in PDF, because
  * Factur-X embeds one) does not exist here at all: Billit's `/peppol/sendxml` takes the UBL itself,
  * so the artifact this spec deposits is byte-for-byte the artifact `billit-transport.ts` builds in
  * production.

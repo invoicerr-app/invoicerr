@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     # Optional: a GitHub Environment named "live-tests" lets you require a reviewer before each run.
     environment: live-tests
-    # Real Postgres only. pdp-conformity.live.spec.ts, sequence.live.spec.ts and send-quote.live.spec.ts
+    # Real Postgres only. superpdp-conformity.live.spec.ts, sequence.live.spec.ts and send-quote.live.spec.ts
     # create real Company/DocumentInstance rows through the `prisma` singleton (never a mocked client) —
     # every other spec in this job is provider-level (no DB) and simply ignores this service. No Redis
     # service: none of the 31 `*.live.spec.ts` files the run step below matches instantiates a
@@ -64,7 +64,7 @@ jobs:
       # *_LIVE / *_ENV / *_CHANNEL are constants set here, NOT secrets — only credentials are secrets.
       # Flags ON — the per-spec credential gate decides what actually runs.
       KSEF_LIVE: '1'
-      PDP_LIVE: '1'
+      SUPERPDP_LIVE: '1'
       IOPOLE_LIVE: '1'        # FR - Iopole, see its own block below
       SDI_LIVE: '1'
       TSA_LIVE: '1'           # RFC 3161 -T timestamping (e.g. FreeTSA)
@@ -94,9 +94,13 @@ jobs:
       KSEF_NIP:          ${{ secrets.KSEF_NIP }}
 
       # --- FR PDP (superpdp) ---
-      PDP_BASE_URL:      ${{ secrets.PDP_BASE_URL }}
-      PDP_CLIENT_ID:     ${{ secrets.PDP_CLIENT_ID }}
-      PDP_CLIENT_SECRET: ${{ secrets.PDP_CLIENT_SECRET }}
+      # One host serves sandbox and production; the credential pair decides which. Not a secret.
+      SUPERPDP_BASE_URL:       https://api.superpdp.tech
+      SUPERPDP_CLIENT_ID:      ${{ secrets.SUPERPDP_CLIENT_ID }}
+      SUPERPDP_CLIENT_SECRET:  ${{ secrets.SUPERPDP_CLIENT_SECRET }}
+      # Routing ids of the sandbox company the OAuth client belongs to, and of the other one.
+      SUPERPDP_SELLER_ROUTING: ${{ secrets.SUPERPDP_SELLER_ROUTING }}
+      SUPERPDP_BUYER_ROUTING:  ${{ secrets.SUPERPDP_BUYER_ROUTING }}
 
       # --- FR Iopole ---
       # The round trip is PROVEN against the `ppd` sandbox (2026-09-24, see live-testing.md's own
@@ -177,7 +181,7 @@ jobs:
         run: cd backend && npx prisma generate
 
       # Apply the full migration chain to the empty CI Postgres — same as cypress.yml's
-      # queue-integration job. pdp-conformity.live.spec.ts, sequence.live.spec.ts and
+      # queue-integration job. superpdp-conformity.live.spec.ts, sequence.live.spec.ts and
       # send-quote.live.spec.ts create their own Company/DocumentInstance fixtures against this
       # schema and clean them up themselves (afterAll, or inline once done with them).
       - name: Apply migrations (empty dev DB)

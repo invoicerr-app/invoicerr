@@ -12,7 +12,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * make a real conformity event land on this suite. The timeline with real events
  * (fr:200→202 accepted, fr:213 rejected with a reason) is proven:
  *  - LIVE, with the REAL production poller, by
- *    `backend/src/modules/documents/transports/pdp/pdp-conformity.live.spec.ts` (jest, `PDP_LIVE=1`);
+ *    `backend/src/modules/documents/transports/pdp/superpdp-conformity.live.spec.ts` (jest, `SUPERPDP_LIVE=1`);
  *  - at the RENDERING level, by a vitest component test with HARDCODED events
  *    (`frontend/src/components/documents/document-conformity-section.spec.tsx`, the same pattern as
  *    `descriptor-i18n.spec.ts`) — never reachable here, in this Cypress suite, honestly.

@@ -1,12 +1,12 @@
 /**
  * REAL round-trip proof of the post-deposit conformity POLLER — gated the same way
- * `pdp.live.spec.ts` already is (`PDP_LIVE=1` + the same three
+ * `superpdp.live.spec.ts` already is (`SUPERPDP_LIVE=1` + the same three
  * credential env vars, `live-gate.ts`, REPRISED verbatim), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   PDP_LIVE=1 npx jest pdp-conformity --no-coverage --runInBand
+ *   SUPERPDP_LIVE=1 npx vitest run superpdp-conformity.live --no-file-parallelism
  *
- * DB-CONNECTED, deliberately — the ONE difference from `pdp.live.spec.ts`'s own DB-free choice (see
+ * DB-CONNECTED, deliberately — the ONE difference from `superpdp.live.spec.ts`'s own DB-free choice (see
  * that file's own header for why IT stays DB-free): this spec's entire point is to prove the journal
  * itself (`DocumentAuthorityEvent`) genuinely fills with REAL events, not merely that a poller
  * function returns a plausible-looking array in memory. `@/prisma/prisma.service` does `import
@@ -15,12 +15,12 @@
  * priority — this spec runs against `invoicerr_dev`, and cleans up after itself (deletes the
  * throwaway Company, cascading to its DocumentInstance/DocumentAuthorityEvent rows).
  *
- * ## What is genuinely REAL here, and what is substituted (documented, same discipline as pdp.live.spec.ts)
+ * ## What is genuinely REAL here, and what is substituted (documented, same discipline as superpdp.live.spec.ts)
  *
  *  - The Factur-X build recipe (descriptor → totals → semantic bridge → CII → real EN 16931
- *    Schematron gate → real Factur-X PDF/A-3 embed) is REPRISED from `pdp.live.spec.ts` — the exact
+ *    Schematron gate → real Factur-X PDF/A-3 embed) is REPRISED from `superpdp.live.spec.ts` — the exact
  *    same pure, DB-free building blocks, not a copy of PRODUCTION CODE (`facturx-provider.ts`) since
- *    that needs a companyId to render a human PDF via Puppeteer — same substitution `pdp.live.spec.ts`
+ *    that needs a companyId to render a human PDF via Puppeteer — same substitution `superpdp.live.spec.ts`
  *    already documents (a minimal `pdf-lib` PDF stands in for the human-readable page).
  *  - The DEPOSIT is a REAL `PdpClient.sendInvoice()` call against the real superpdp sandbox.
  *  - THE POLLER IS THE REAL PRODUCTION CODE — `buildPdpStatusPoller` (`../../conformity/pollers/
@@ -28,7 +28,7 @@
  *    conformity-sweep-runner.ts`), imported and called exactly as `document-action.processor.ts`
  *    would when a real poll job runs. NOT a copy, NOT a hand-rolled re-implementation.
  *  - The ONE substitution: `ChannelCredentialsService` is a plain stub object handing back the SAME
- *    real credentials `pdp.live.spec.ts` reads from `process.env` — this spec has no interest in
+ *    real credentials `superpdp.live.spec.ts` reads from `process.env` — this spec has no interest in
  *    proving `CompanyChannelConfig` AES-256-GCM storage (that is `channels.service.spec.ts`'s job);
  *    it exists purely so the REAL poller can resolve REAL credentials without a full encrypted-config
  *    row. The poller's own `poll()` method, the journal write, and the read-back are 100% real.
@@ -70,39 +70,19 @@ import { AuthorityStatusPollerRegistry } from '../../conformity/authority-status
 import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner';
 import { buildPdpStatusPoller } from '../../conformity/pollers/pdp-status-poller';
 import { liveDescribe } from '../live-gate';
-import { PdpClient } from './pdp-client';
+import {
+  resolveSandboxCompany,
+  SUPERPDP_BASE_URL,
+  SUPERPDP_LIVE_ENV,
+  SUPERPDP_BUYER_ENV,
+  sandboxBuyer,
+  superpdpLiveClient,
+} from './superpdp-live-parties';
 
-const describeLive = liveDescribe('PDP_LIVE', ['PDP_BASE_URL', 'PDP_CLIENT_ID', 'PDP_CLIENT_SECRET']);
-
-const SELLER: SemanticPartyInput = {
-  name: 'Burger Queen',
-  address: '809 avenue du Languedoc',
-  city: 'Millau',
-  postalCode: '12100',
-  country: 'France',
-  email: 'seller@example.fr',
-  partyIdentifiers: [
-    { scheme: 'VAT', value: 'FR18000000002' },
-    { scheme: 'LEGAL_ID', value: '000000002' },
-    { scheme: 'PEPPOL_ENDPOINT', value: '0225:315143296_1422' },
-  ],
-};
-const BUYER: SemanticPartyInput = {
-  name: 'Tricatel',
-  address: '1 rue de Tricatel',
-  city: 'Paris',
-  postalCode: '75001',
-  country: 'France',
-  email: 'buyer@example.fr',
-  partyIdentifiers: [
-    { scheme: 'VAT', value: 'FR15000000001' },
-    { scheme: 'LEGAL_ID', value: '000000001' },
-    { scheme: 'PEPPOL_ENDPOINT', value: '0225:315143296_1421' },
-  ],
-};
+const describeLive = liveDescribe('SUPERPDP_LIVE', [...SUPERPDP_LIVE_ENV, ...SUPERPDP_BUYER_ENV]);
 
 /** Same stub `ChannelCredentialsService` reasoning as this file's own header — hands the REAL
- *  credentials straight from `process.env` (exactly what `pdp.live.spec.ts` itself reads) to the
+ *  credentials straight from `process.env` (exactly what `superpdp.live.spec.ts` itself reads) to the
  *  REAL `buildPdpStatusPoller`, without needing a real encrypted `CompanyChannelConfig` row. */
 function buildRealCredentialsStub(): ChannelCredentialsService {
   const resolved: ResolvedChannelConfig = {
@@ -111,9 +91,9 @@ function buildRealCredentialsStub(): ChannelCredentialsService {
     environment: 'TEST',
     isActive: true,
     config: {
-      baseUrl: process.env.PDP_BASE_URL,
-      clientId: process.env.PDP_CLIENT_ID,
-      clientSecret: process.env.PDP_CLIENT_SECRET,
+      baseUrl: SUPERPDP_BASE_URL,
+      clientId: process.env.SUPERPDP_CLIENT_ID,
+      clientSecret: process.env.SUPERPDP_CLIENT_SECRET,
     },
   };
   return { resolveActive: async () => resolved } as unknown as ChannelCredentialsService;
@@ -121,7 +101,12 @@ function buildRealCredentialsStub(): ChannelCredentialsService {
 
 /** Builds and Schematron-validates a plain CII — always used only for the VALID-path assertions
  *  below; the rejection path builds its own, deliberately divergent, embedded object. */
-async function buildFacturxBytes(opts: { includeMentions: boolean; timestamp: number }): Promise<Uint8Array> {
+async function buildFacturxBytes(opts: {
+  includeMentions: boolean;
+  timestamp: number;
+  seller: SemanticPartyInput;
+  buyer: SemanticPartyInput;
+}): Promise<Uint8Array> {
   const descriptor = buildInvoiceDescriptor();
   const data = {
     client: 'live-client',
@@ -143,8 +128,8 @@ async function buildFacturxBytes(opts: { includeMentions: boolean; timestamp: nu
   const euInvoice = buildSemanticInvoice({
     displayNumber: `INV-CONFORMITY-${opts.timestamp}`,
     issueDate: data.issueDate,
-    seller: SELLER,
-    buyer: BUYER,
+    seller: opts.seller,
+    buyer: opts.buyer,
     lines: data.lines.map((l) => ({
       description: l.description,
       quantity: l.quantity,
@@ -189,7 +174,7 @@ async function buildFacturxBytes(opts: { includeMentions: boolean; timestamp: nu
     // THE DELIBERATE DIVERGENCE for the rejection path (`opts.includeMentions: false`): the plain CII
     // just validated ABOVE was fixed via `splitCiiIncludedNotes`/a resolved BT-23 code — the EMBEDDED
     // artifact actually sent skips both fixes entirely when `includeMentions` is false, reproducing
-    // this codebase's own documented historical rejection cause (`pdp.live.spec.ts`'s own header:
+    // this codebase's own documented historical rejection cause (`superpdp.live.spec.ts`'s own header:
     // "Element 'ram:Content' must occur exactly 1 times", BT-23 absent). `facturx-provider.ts`'s own
     // PRODUCTION code never has this gap — it always applies both, unconditionally — this divergence
     // exists ONLY in this deliberately-crafted test artifact.
@@ -224,15 +209,14 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
 
   it('a compliant deposit: the REAL poller journals real fr:200/201/202 events, and re-polling dedups to zero', async () => {
     const timestamp = Date.now();
-    const facturxPdf = await buildFacturxBytes({ includeMentions: true, timestamp });
-
-    const client = new PdpClient({
-      baseUrl: process.env.PDP_BASE_URL!,
-      clientId: process.env.PDP_CLIENT_ID!,
-      clientSecret: process.env.PDP_CLIENT_SECRET!,
-      apiStyle: 'superpdp',
-    });
+    const client = superpdpLiveClient();
     await client.authenticate();
+    const facturxPdf = await buildFacturxBytes({
+      includeMentions: true,
+      timestamp,
+      seller: await resolveSandboxCompany(client),
+      buyer: sandboxBuyer(),
+    });
     const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
       externalId: `INV-CONFORMITY-${timestamp}`,
     });
@@ -245,7 +229,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     // A throwaway Company + DocumentInstance, exactly the shape the real "send" flow leaves behind
     // (status "sent", transportRef the deposit id, channelProviderId "pdp") — created directly via
     // Prisma (never through the HTTP API) since this spec's own point is the POLLER, not the send
-    // action itself (already proven by `pdp.live.spec.ts`).
+    // action itself (already proven by `superpdp.live.spec.ts`).
     const company = await prisma.company.create({
       data: {
         name: 'Conformity Live Test Co',
@@ -278,7 +262,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     registry.register(buildPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
     const runner = new ConformitySweepRunner(registry, {} as never); // runPoll never touches the queue
 
-    // superpdp's own verdict lands in well under a second (`pdp.live.spec.ts`'s own observed
+    // superpdp's own verdict lands in well under a second (`superpdp.live.spec.ts`'s own observed
     // timestamps) — poll every 500ms, up to 5s, calling the REAL runPoll each time (exactly what
     // successive real sweep passes would do).
     let sawTerminal = false;
@@ -324,15 +308,14 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
 
   it('a NON-COMPLIANT deposit (mentions/BT-23 deliberately skipped): does the platform answer fr:213?', async () => {
     const timestamp = Date.now();
-    const facturxPdf = await buildFacturxBytes({ includeMentions: false, timestamp });
-
-    const client = new PdpClient({
-      baseUrl: process.env.PDP_BASE_URL!,
-      clientId: process.env.PDP_CLIENT_ID!,
-      clientSecret: process.env.PDP_CLIENT_SECRET!,
-      apiStyle: 'superpdp',
-    });
+    const client = superpdpLiveClient();
     await client.authenticate();
+    const facturxPdf = await buildFacturxBytes({
+      includeMentions: false,
+      timestamp,
+      seller: await resolveSandboxCompany(client),
+      buyer: sandboxBuyer(),
+    });
     const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
       externalId: `INV-CONFORMITY-REJECT-${timestamp}`,
     });

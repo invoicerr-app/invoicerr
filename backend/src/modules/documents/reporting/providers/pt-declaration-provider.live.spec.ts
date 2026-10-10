@@ -61,7 +61,7 @@ describeLive('AT comunicação de faturas — live round-trip (test environment)
 
     // A minimal, deliberately fixture-shaped request — no real subutilizador is held here to test
     // a genuinely accepted invoice against; a HARD SUCCESS spec (the model `sdicoop.live.spec.ts`/
-    // `pdp.live.spec.ts` set) would assert a real, accepted CodigoResposta 0 — never written here,
+    // `superpdp.live.spec.ts` set) would assert a real, accepted CodigoResposta 0 — never written here,
     // since this block is not expected to ever actually run (see this file's own header), and — per
     // `pt-at-client.ts`'s own header — this client's mTLS is not wired, so this call would fail the
     // TLS handshake before ever reaching AT's own WS-Security/business validation regardless.
