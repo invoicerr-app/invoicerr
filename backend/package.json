@@ -63,7 +63,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "fontoxpath": "^3.34.0",
-    "handlebars": "^4.7.9",
+    "handlebars": "^4.7.10",
     "i18next": "^25.10.10",
     "imapflow": "^2.0.2",
     "ioredis": "^5.11.1",
