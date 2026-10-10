@@ -19,6 +19,8 @@ name: Business Scenarios
 # in the same commit.
 on:
   pull_request:
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
     paths:
@@ -47,7 +49,7 @@ jobs:
         scenario: [fr-pl, de-fr, it-it, pt-de, it-pt, pl-de]
     services:
       postgres-test:
-        image: postgres:16
+        image: postgres:16@sha256:65b16a8b326e0cfbdf33fa7e783f2a0cb352a61448616ccccfd616ef42aa0f65
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_PASSWORD: invoicerr
@@ -59,7 +61,7 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit
+        image: axllent/mailpit@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
         ports:
           - "8025:8025"
           - "1025:1025"
@@ -72,7 +74,7 @@ jobs:
       # running a single assertion. cypress.yml never hit this because its own job sets REDIS_URL
       # explicitly; this job inherited the file's value instead. Hence the job-level override below.
       redis:
-        image: redis:7
+        image: redis:7@sha256:4fa24486b8bcca8eec45ee0eb166edc674795e53a2b53d1a9ef263eecebaac85
         ports:
           - "6379:6379"
         options: >-
@@ -86,12 +88,12 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install backend dependencies
         run: |
@@ -111,7 +113,7 @@ jobs:
       # path for either, and `chromium` is commonly a snap on newer Ubuntu), so this provisions
       # playwright-core's own matched browser explicitly rather than relying on that convention holding.
       - name: Cache Playwright Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
@@ -156,14 +158,14 @@ jobs:
 
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-${{ matrix.scenario }}
           path: ${{ github.workspace }}/logs/backend-${{ matrix.scenario }}.log
 
       - name: Upload Cypress videos and screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: scenario-${{ matrix.scenario }}-artifacts
           path: |

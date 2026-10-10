@@ -1,0 +1,17 @@
+{
+  "provenance": {
+    "kind": "legal",
+    "source": "Peppol BIS Billing 3.0 Schematron, vendored at backend/src/modules/documents/formats/vendored/peppol/PEPPOL-EN16931-UBL.sch, rule NL-R-003",
+    "sourceText": "[NL-R-003] For suppliers in the Netherlands, the legal entity identifier MUST be either a KVK or OIN number (schemeID 0106 or 0190)",
+    "sourceCheckedAt": "2026-10-06"
+  },
+  "countries": [
+    {
+      "countryCode": "NL",
+      "scheme": "LEGAL_ID",
+      "iso6523Scheme": "0106",
+      "register": "Kamer van Koophandel (KVK)",
+      "notes": "LEGAL_ID is read as a KVK number. An OIN (0190) is a separate identifier this product does not collect."
+    }
+  ]
+}

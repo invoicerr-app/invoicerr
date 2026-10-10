@@ -2,7 +2,7 @@
  * `PdpReceptionSweepRunner` in isolation — `pollers/pdp-reception-poller.ts` and
  * `transports/pdp/pdp-reception.ts` (the poller/pusher this runner builds internally, see its own
  * header) are BOTH mocked wholesale: the real PDP round-trip is those two files' own specs
- * (`pdp-reception-poller.spec.ts`, `pdp-reception.spec.ts`) plus `pdp-reception.live.spec.ts`. This
+ * (`pdp-reception-poller.spec.ts`, `pdp-reception.spec.ts`) plus `superpdp-reception.live.spec.ts`. This
  * file's own concern is the SWEEP's wiring: which companies it visits, the dedup-by-`pdpInboundId`
  * check, and that `DocumentsService.runAction('receive')` is called with the right shape — the SAME
  * "mock the leaf, prove the orchestration" split every OTHER sweep runner spec in this directory
@@ -38,6 +38,12 @@ const mockedBuildPusher = buildPdpReceptionStatusPusher as Mock;
 // mocked as a plain function, called with the template's own interpolated values as its rest args,
 // matching how `prisma.$queryRaw` itself is invoked under the hood.
 const mockedQueryRaw = (prisma as unknown as { $queryRaw: Mock }).$queryRaw;
+/** The `isAlreadyImported` call, told apart from the cursor query by its `LIMIT 1`. */
+function dedupQueryCall(): unknown[] {
+  const call = mockedQueryRaw.mock.calls.find(([sql]) => (sql as string[]).join('').includes('LIMIT 1'));
+  if (!call) throw new Error('isAlreadyImported was never queried');
+  return call;
+}
 const mockedPersistInboundFile = storage.persistInboundFile as Mock;
 const mockedReconcile = supplierReconciliation.reconcileSupplierClient as Mock;
 
@@ -95,8 +101,8 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
 
     const result = await runner.runSweep();
 
-    expect(listInbound).toHaveBeenCalledWith('company-a');
-    expect(listInbound).toHaveBeenCalledWith('company-b');
+    expect(listInbound).toHaveBeenCalledWith('company-a', undefined);
+    expect(listInbound).toHaveBeenCalledWith('company-b', undefined);
     expect(result).toEqual({ companies: 2, imported: 0, skipped: 0, failed: 0 });
   });
 
@@ -182,7 +188,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     // The tagged-template call's own rest args are exactly its interpolated values, in order — see
     // `isAlreadyImported`'s own header for why this is a hand-written `->>'pdpInboundId'` query, never
     // Prisma's own JSON-path filter.
-    const [, ...values] = mockedQueryRaw.mock.calls[0];
+    const [, ...values] = dedupQueryCall();
     expect(values).toEqual(['company-a', 'received-invoice', '604667']);
     expect(runAction).not.toHaveBeenCalled();
     expect(downloadAndExtract).not.toHaveBeenCalled();
@@ -203,7 +209,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
 
     const result = await runner.runSweep();
 
-    const [sql, ...values] = mockedQueryRaw.mock.calls[0];
+    const [sql, ...values] = dedupQueryCall() as [string[], ...unknown[]];
     expect(sql.join('')).not.toMatch(/OFFSET/i);
     expect(values).toEqual(['company-a', 'received-invoice', '1']);
     expect(result).toEqual({ companies: 1, imported: 0, skipped: 1, failed: 0 });
@@ -233,7 +239,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
 
     await runner.runSweep();
 
-    const [sql] = mockedQueryRaw.mock.calls[0];
+    const [sql] = dedupQueryCall() as [string[]];
     expect(sql.join('')).toContain(`"data"->>'pdpInboundId'`);
     expect(sql.join('')).not.toContain('#>');
   });
@@ -289,7 +295,56 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
 
     const result = await runner.runSweep();
 
-    expect(listInbound).toHaveBeenCalledWith('company-b'); // still visited
+    expect(listInbound).toHaveBeenCalledWith('company-b', undefined); // still visited
     expect(result).toEqual({ companies: 2, imported: 0, skipped: 0, failed: 1 });
+  });
+  it('lists only the deposits after the highest one already imported, and imports them oldest first', async () => {
+    const channelCredentials = buildChannelCredentials(vi.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    mockedQueryRaw.mockImplementation(async (sql: string[]) =>
+      sql.join('').includes('MAX(') ? [{ maxId: BigInt(604666) }] : [],
+    );
+    listInbound.mockResolvedValue([
+      { id: 604668, direction: 'in' },
+      { id: 604667, direction: 'in' },
+    ]);
+    downloadAndExtract.mockResolvedValue({
+      bytes: Buffer.from('%PDF-1.4 fake'),
+      mime: 'application/pdf',
+      fileName: 'pdp-inbound.pdf',
+      extraction: { syntax: 'FACTURX_CII', fields: {} },
+    });
+    const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri' }, changed: true });
+    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+
+    const result = await runner.runSweep();
+
+    expect(listInbound).toHaveBeenCalledWith('company-a', 604666);
+    expect(downloadAndExtract.mock.calls.map(([, id]) => id)).toEqual([604667, 604668]);
+    expect(result).toEqual({ companies: 1, imported: 2, skipped: 0, failed: 0 });
+  });
+
+  it('stops at the first deposit that fails, so the next pass resumes from it', async () => {
+    const channelCredentials = buildChannelCredentials(vi.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
+    listInbound.mockResolvedValue([
+      { id: 3, direction: 'in' },
+      { id: 1, direction: 'in' },
+      { id: 2, direction: 'in' },
+    ]);
+    downloadAndExtract.mockImplementation(async (_companyId: string, id: number) => {
+      if (id === 2) throw new Error('PDP download timed out');
+      return {
+        bytes: Buffer.from('pdf'),
+        mime: 'application/pdf',
+        fileName: 'f.pdf',
+        extraction: { fields: {} },
+      };
+    });
+    const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri' }, changed: true });
+    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+
+    const result = await runner.runSweep();
+
+    expect(downloadAndExtract.mock.calls.map(([, id]) => id)).toEqual([1, 2]);
+    expect(result).toEqual({ companies: 1, imported: 1, skipped: 0, failed: 1 });
   });
 });

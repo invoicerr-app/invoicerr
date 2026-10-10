@@ -27,6 +27,7 @@ const TRANSLATIONS: Record<string, string> = {
   "documents.descriptors.invoice.label": "Facture",
   "documents.descriptors.invoice.fields.notes.label": "Remarques",
   "documents.descriptors.invoice.fields.lines.fields.description.label": "Désignation",
+  "documents.descriptors.invoice.fields.lines.fields.unit.suggestedValues.DAY": "Jour",
   "documents.descriptors.invoice.actions.send.label": "Envoyer",
   "documents.descriptors.invoice.actions.record-payment.params.method.label": "Moyen",
   "documents.descriptors.invoice.actions.record-payment.params.method.options.card": "Carte",
@@ -130,6 +131,15 @@ describe("descriptor-i18n", () => {
           fields: [
             { key: "description", kind: "text", label: "Designation" },
             {
+              key: "unit",
+              kind: "text",
+              label: "Unit",
+              suggestedValues: [
+                { value: "DAY", label: "Day" },
+                { value: "HUR", label: "Hour" },
+              ],
+            },
+            {
               key: "currency",
               kind: "select",
               label: "Currency",
@@ -164,6 +174,14 @@ describe("descriptor-i18n", () => {
 
     const translated = translateDocumentTypeDescriptor(fakeT, descriptor)
 
+    it("translates a suggested value's label and keeps the untranslated one as fallback", () => {
+      const unit = translated.fields[1].fields?.find((field) => field.key === "unit")
+      expect(unit?.suggestedValues).toEqual([
+        { value: "DAY", label: "Jour" },
+        { value: "HUR", label: "Hour" },
+      ])
+    })
+
     it("translates the type's own label", () => {
       expect(translated.label).toBe("Facture")
     })
@@ -175,7 +193,7 @@ describe("descriptor-i18n", () => {
     })
 
     it("falls back per-field when no key matches (currency's option here)", () => {
-      const currencyField = translated.fields[1].fields?.[1]
+      const currencyField = translated.fields[1].fields?.find((field) => field.key === "currency")
       expect(currencyField?.label).toBe("Currency") // no key for this field itself either
       expect(currencyField?.options?.[0]).toEqual({ value: "EUR", label: "EUR" })
     })

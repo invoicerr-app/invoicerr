@@ -70,7 +70,7 @@ export interface DocumentTransportContext {
    * contract `text` above already holds — and EVERY transport registered today does exactly that: a
    * fixed-format transport builds its one format regardless of what this names, with NO change in
    * behavior and NO error. The one transport that used to understand this concept, "peppol"
-   * (`b2g-routing/data/de.json` named it with `formatSyntax: "xrechnung"` — Germany's federal portal
+   * (`countries/data/de.json (section "b2gRouting")` named it with `formatSyntax: "xrechnung"` — Germany's federal portal
    * accepted Peppol as a content-agnostic CHANNEL but § 4 Abs. 1 ERechV requires XRechnung, not generic
    * Peppol BIS, as CONTENT), was removed from the product on 2026-09-15 — see that JSON file's own
    * `notes` for the full, dated history. This field is left in place, dormant, for a future transport

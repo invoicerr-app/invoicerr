@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import { MailService } from '@/mail/mail.service';
 import { resolveCompanyMailSettings } from '@/modules/company/mail-settings/company-mail-settings.resolver';
 
+import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import * as takeNumber from '../numbering/take-number';
@@ -15,11 +16,11 @@ import { sendDocumentInstanceEmail } from './send-document-email';
 
 vi.mock('../numbering/take-number');
 vi.mock('../rendering/render-instance-pdf');
-// PARTIAL mock (PR #473 round 3, point 2b) - only `applyStockOnIssuance` (the DB-touching half) is
-// mocked; the module's OWN `declaresArticleReference` predicate stays REAL, so the gate this file's
-// own call site now applies is checked against `buildQuoteDescriptor()`'s REAL declared fields below,
-// never against an auto-mocked stub that would return `undefined` (falsy) regardless of what the
-// quote actually declares.
+// PARTIAL mock (issue #579) - only `applyStockOnIssuance` (the DB-touching half) is mocked; the
+// module's OWN `decrementsStockOnIssuance` predicate stays REAL, so the gate this file's own call
+// site now applies is checked against the REAL registered descriptors below (`buildQuoteDescriptor()`/
+// `buildInvoiceDescriptor()`), never against an auto-mocked stub that would return `undefined`
+// (falsy) regardless of what either type actually declares.
 vi.mock('../stock/apply-stock-on-issuance', async () => {
   const actual = await vi.importActual('../stock/apply-stock-on-issuance');
   return { ...actual, applyStockOnIssuance: vi.fn() };
@@ -60,6 +61,10 @@ const mockedResolveCompanyMailSettings = resolveCompanyMailSettings as Mock;
 function buildDeps() {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildQuoteDescriptor());
+  // Issue #579: the invoice's own descriptor, registered too so the stock-effect tests further down
+  // can exercise the REAL `decrementsStockOnIssuance(descriptor)` gate for the ONE type that actually
+  // sets `stockEffect: 'decrement'`, not just the quote's (which never does).
+  typeRegistry.register(buildInvoiceDescriptor());
   const mailService = {
     sendForCompany: vi.fn().mockResolvedValue({ message: 'Email sent successfully' }),
   };
@@ -261,8 +266,52 @@ describe('sendDocumentInstanceEmail', () => {
 
   // Stock effect — this is the PRIMARY issuance path for a sent document: it is numbered
   // HERE (the worker), not in documents.service.ts's runAction epilogue, so the stock decrement must
-  // fire HERE, tied to actually TAKING the number.
-  it('decrements stock when it TAKES the number at issuance (the real async-send path)', async () => {
+  // fire HERE, tied to actually TAKING the number. Uses the INVOICE (never the quote - issue #579's
+  // own fix): the invoice's own descriptor is the only one that sets `stockEffect: 'decrement'`, so
+  // it is the one type this gate must actually let through.
+  it('decrements stock for an INVOICE when it TAKES the number at issuance (the real async-send path)', async () => {
+    mockSuccessfulRender();
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
+      number: 7,
+      displayNumber: 'INV-2026-0007',
+    });
+
+    const { typeRegistry, referenceRegistry, mailService } = buildDeps();
+    const lines = [{ articleId: 'article-1', quantity: 8 }];
+
+    await sendDocumentInstanceEmail(
+      { mailService: mailService as never, typeRegistry, referenceRegistry },
+      {
+        companyId: 'company-1',
+        typeId: 'invoice',
+        document: {
+          id: 'doc-1',
+          typeId: 'invoice',
+          status: 'sending', // invoice.descriptor.ts: numbering.onEnterStatus === 'sending'
+          data: { lines },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          number: null,
+          displayNumber: null,
+        },
+        recipient: 'client@example.com',
+        label: 'Invoice',
+      },
+    );
+
+    expect(stock.applyStockOnIssuance).toHaveBeenCalledTimes(1);
+    expect(stock.applyStockOnIssuance).toHaveBeenCalledWith(
+      'company-1',
+      expect.objectContaining({ id: 'doc-1', data: { lines } }),
+    );
+  });
+
+  // THE #579 REGRESSION TEST: a QUOTE reaching this exact same code path (its own unconditional
+  // "send", quote-actions.ts) must NEVER decrement stock, even though it TAKES a number here and its
+  // lines carry a real `articleId` - the quote's own descriptor never sets `stockEffect: 'decrement'`.
+  // Before the fix, this was indistinguishable from the invoice test above and decremented stock.
+  it('never decrements stock for a QUOTE, even when it TAKES the number at issuance (issue #579)', async () => {
     mockSuccessfulRender();
     (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
     (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
@@ -293,11 +342,9 @@ describe('sendDocumentInstanceEmail', () => {
       },
     );
 
-    expect(stock.applyStockOnIssuance).toHaveBeenCalledTimes(1);
-    expect(stock.applyStockOnIssuance).toHaveBeenCalledWith(
-      'company-1',
-      expect.objectContaining({ id: 'doc-1', data: { lines } }),
-    );
+    // The number IS taken (the quote is still numbered on send), only the stock effect must differ.
+    expect(takeNumber.takeDocumentNumberForTransition).toHaveBeenCalledTimes(1);
+    expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
   });
 
   it('does NOT decrement stock when the document is ALREADY numbered (a re-send is a stock no-op)', async () => {
@@ -310,19 +357,19 @@ describe('sendDocumentInstanceEmail', () => {
       { mailService: mailService as never, typeRegistry, referenceRegistry },
       {
         companyId: 'company-1',
-        typeId: 'quote',
+        typeId: 'invoice',
         document: {
           id: 'doc-1',
-          typeId: 'quote',
+          typeId: 'invoice',
           status: 'sent',
           data: { lines: [{ articleId: 'article-1', quantity: 8 }] },
           createdAt: new Date(),
           updatedAt: new Date(),
           number: 1,
-          displayNumber: 'QUOTE-2026-0001',
+          displayNumber: 'INV-2026-0001',
         },
         recipient: 'client@example.com',
-        label: 'Quote',
+        label: 'Invoice',
       },
     );
 

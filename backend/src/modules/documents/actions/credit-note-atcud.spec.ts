@@ -101,7 +101,7 @@ describe('credit-note "send" - Portugal\'s ATCUD preflight and numbering-time at
   });
 
   // Issue #496: a Portuguese company with no running credit-note series is numbered in Portugal's own
-  // NC format ("NC A/{number}", country-policy/data/pt.json), so what blocks it before its first credit
+  // NC format ("NC A/{number}", countries/data/pt.json (section "policy")), so what blocks it before its first credit
   // note is the missing AT code for series "NC A" - never a format it has to configure.
   it('BLOCKS a Portuguese credit note until series "NC A" (Portugal\'s own format) has a code, before it is persisted or numbered', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('PT');

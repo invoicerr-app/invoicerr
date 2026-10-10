@@ -1,0 +1,871 @@
+{
+  "countryCode": "DE",
+  "policy": {
+    "countryCode": "DE",
+    "documentTypes": [
+      "quote",
+      "invoice",
+      "credit-note",
+      "expense",
+      "received-invoice",
+      "purchase-order",
+      "goods-receipt"
+    ],
+    "rules": [
+      {
+        "typeId": "quote",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a quote draft is an internal product operation, not a legal act — same reasoning as fr.json/us.json for this same action: no text identified that would specifically govern this act under German law. To be revisited if the product were ever to give legal effect to the very fact of saving a draft."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1. Read directly on 2026-09-03 on eur-lex.europa.eu (consolidated version). This is a European REGULATION, directly applicable in all member states WITHOUT national transposition (unlike a directive) — the same legal basis therefore applies, verbatim and without national variation, to Germany, Italy, Poland, and Spain (see their own quote.send below and in it.json/pl.json/es.json). A quote is not an invoice (see invoice.send further below, based on German tax law specific to the invoice): it is this general regime of non-discrimination of electronic writing, not a VAT text, that grounds sending a quote electronically — same architecture as fr.json's own quote.send (code civil art. 1366, a general text on evidence, not a tax text)."
+      },
+      {
+        "typeId": "quote",
+        "actionId": "convert-to-invoice",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Converting an accepted quote into an invoice is a product convenience; no text identified imposes or prohibits this precise mechanism under German law (the only legal constraint would bear on the resulting invoice, not on the act of conversion). To be confirmed by a dedicated review if a specific traceability rule were ever to attach to it."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-deposit",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Requesting a deposit on a quote, in the form of a draft deposit invoice, is a product convenience of the same nature as 'convert-to-invoice' above; no text identified governs this precise mechanism under German law (the only legal constraint would bear on the deposit invoice itself once issued, not on the creation of this draft). To be confirmed by a dedicated review if a specific rule were ever to attach to the deposit request itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-installments",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a billing schedule from an accepted quote (several draft invoices, one per installment) is a product convenience of the same nature as 'request-deposit' above; no text identified governs this precise mechanism under German law (the only legal constraint would bear on the invoices that result once issued, not on the creation of these drafts). To be confirmed by a dedicated review if a specific rule were ever to attach to the generation of a schedule itself."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating a quote into a new draft is a pure product convenience; no text identified governs it under German law. To be confirmed by a dedicated review before extending this mechanism to a document type whose duplication would carry a legal stake."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a public, unauthenticated link to a quote's PDF is a product convenience — a quote is not even a tax document (see invoice.send below, specific to the invoice). No text identified that would specifically govern the act of SHARING a link to a document already communicated to its recipient; the link itself remains subject to the token security discipline (share-links/share-links.service.ts). To be confirmed by a dedicated review if a text specific to electronic invoicing were ever to govern this sharing."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "request-signature",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Asking a customer to electronically sign a quote (link + OTP code by email — signatures/signatures.service.ts) is a product convenience of the same order as 'duplicate' above — signing a quote is not a legally governed act (unlike the invoice, see invoice.send above), it is a mark of commercial acceptance. The mechanism stays at the lowest eIDAS level (SIMPLE electronic signature), never a certificate, so no German text on the advanced/qualified electronic signature (Vertrauensdienstegesetz/eIDAS) applies here. To be confirmed by a dedicated review if a specific text were ever to specifically govern the electronic acceptance of a quote."
+        }
+      },
+      {
+        "typeId": "quote",
+        "actionId": "accept-manually",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "NO legal research was performed for this entry - unlike this rule's neighbors above, this note does not claim any text was read. Allowed because this action records an ISSUER-SIDE FACT ONLY - who marked a sent quote accepted, when, and by what means - and changes no fiscal fact and produces no document a third party ever receives, the same kind of internal record quote.duplicate above already sits on. WHAT WOULD SETTLE THIS: a text conditioning the evidentiary value, or the validity, of a quote's acceptance on the channel through which it was obtained - to be confirmed by a dedicated review before this record is relied on as a substitute for a legally regulated acceptance mechanism."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "save-draft",
+        "allowed": true,
+        "statuses": ["draft"],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Die Berichtigung muss durch ein Dokument erfolgen, das SPEZIFISCH UND EINDEUTIG AUF DIE RECHNUNG BEZOGEN ist [...] EINE NEUE RECHNUNGSNUMMER FÜR DIESES DOKUMENT IST NICHT ERFORDERLICH.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "REUSES the citation already read by correction-routes/data/de.json (route CORRECTIVE_INVOICE, required) — § 31 Abs. 5 UStDV; UStAE 14.11 Abs. 1 S. 2, 4, 5, 11 and Abs. 2 S. 1, checked on 2026-08-29 (date preserved as-is: this text was not re-verified by THIS task, only reused where it settles exactly the same fact). This text settles exactly the question asked here: a German invoice already issued is NEVER corrected by rewriting it — the correction is made through a SEPARATE DOCUMENT that specifically refers to it (and does not even need its own invoice number) — never through a new draft save on the same document. The `statuses: [\"draft\"]` field applies this principle by refusing to re-save as a draft an invoice already 'sent' — same mechanics as fr.json's own invoice.save-draft (CGI art. 289 I.5) and pl.json/it.json/es.json/mx.json below, each sourced to its own national text but settling the SAME fact: the immutability of the ISSUED invoice."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Eine Rechnung kann als elektronische Rechnung oder vorbehaltlich des Absatzes 2 als sonstige Rechnung übermittelt werden. [...] Die Übermittlung einer elektronischen Rechnung oder einer sonstigen Rechnung in einem elektronischen Format bedarf der Zustimmung des Empfängers, soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "§ 14 Abs. 1 Satz 2 and Satz 5 UStG. Read directly on 2026-09-03 on gesetze-im-internet.de (the official portal of the federal Ministry of Justice, consolidated text) — reconfirmed by a second, independent reading of the entirety of Absatz 1 the same day. This text explicitly authorizes the ELECTRONIC transmission of a German invoice, exactly the equivalent of section VI of art. 289 CGI for France. NUANCE NOT MODELED HERE, to be aware of (same limitation as fr.json's own invoice.send): Satz 5 conditions electronic transmission on the RECIPIENT'S CONSENT, except where a structured electronic invoicing obligation already applies (Absatz 2 Satz 2 Nummer 1 — the German B2B mandate for structured electronic invoicing, being rolled out since 2025-01-01, Wachstumschancengesetz); this rule verifies neither that consent nor the applicability of the mandate, it only authorizes the ACT of sending within the tool. What would settle the exact timetable and thresholds of the structured mandate: follow the Wachstumschancengesetz and the implementing BMF-Schreiben — out of scope for this rule, which covers only the general admissibility of electronic sending."
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "validate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "SOURCED ABSENCE, same corpus as invoice.duplicate below: no text read for § 14 UStG (see invoice.send above) names a distinct \"validate\" act separate from the invoice's own issuance (numbering, locking) - the statute addresses the invoice as the thing issued, never the product action that numbers and locks it a step before sending. Germany carries no active channel mandate today (transports/channel-policy/data/ ships only FR/IT), so this rule, unlike FR's own, is a plain unblock with no further branching for the acting mechanism to decide at runtime (actions/invoice-actions.ts's \"validate\" handler, issue #581) - a German invoice is always just numbered and locked, never routed to a real send, by this action. WHAT WOULD SETTLE THIS: the same research § 14 UStG's own structured-mandate timetable (Wachstumschancengesetz) would need once that mandate activates - see invoice.send's own notes above."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "duplicate",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Duplicating an invoice into a new draft (the root of the recurrence mechanism) is the same pure product convenience as quote.duplicate above — the new document is born 'draft' and re-enters the normal issuance circuit in full, so no text identified governs the act of duplication itself under German law. The tax question (UStG § 14 et seq.) bears on the ISSUED INVOICE that will result, not on this initial draft. To be confirmed by a dedicated review if a specific rule were ever to attach to the automated creation of invoice drafts."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording a payment is an internal accounting entry; no specific text identified that would govern the very fact of declaring it in this tool (German accounting obligations — GoBD — bear on the keeping of the accounts themselves, not on this mechanism). The resulting balance is a PROJECTION displayed on screen, never a document status — see invoice.descriptor.ts."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "EN 16931 is a European TECHNICAL STANDARD (directive 2014/55/EU) — this is not in itself a German legal obligation for THIS company to produce it. The format actually mandated nationally in Germany (XRechnung/ZUGFeRD, under the B2B mandate being rolled out since 2025-01-01 — see the invoice.send note above) is a DISTINCT subject (imposed channel/format), out of scope for this rule which only builds the voluntary standardized FORMAT, same distinction as fr.json/us.json for the same action. This rule therefore authorizes the voluntary DOWNLOAD of an EN 16931 export (a product convenience) without asserting that it is legally required IN THIS PRECISE FORM. What would settle the structured mandate itself: follow the Wachstumschancengesetz and the implementing BMF-Schreiben."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "export-accounting",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Exporting an invoice to an accounting tool is a product convenience; no specific text identified that would govern the very fact of offering this export. This action has in any case no registered implementation to date (see invoice-actions.ts) — the actual blocking comes from the 501, not from this rule."
+        }
+      },
+      {
+        "typeId": "invoice",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Generating a public, unauthenticated link to an invoice's PDF is a product convenience of the same order as 'download-xml' just above: no text identified imposes or prohibits specifically the sharing of a link to an invoice already communicated to its legitimate recipient. Link security is a technical guarantee documented in share-links/share-links.service.ts, not a distinct legal requirement to source here. To be confirmed by a dedicated review if the structured B2B mandate (see invoice.send above) were ever to specifically govern this mode of making available."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a credit-note draft is an internal product operation. The legal regime of a German credit note (see credit-note.send below) concerns the CONTENT and tax status of the document, not the act of saving a draft — same distinction as fr.json/us.json for this same action."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Ein Belegaustausch ist NUR für die in § 17 Abs. 4 UStG bezeichneten Fälle vorgeschrieben. Ein Beleg [...] KANN, MUSS ABER NICHT als umsatzsteuerliche Rechnung ausgestellt werden.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "REUSES the citation already read by correction-routes/data/de.json (route CREDIT_NOTE, allowed) — UStAE 14.11 Abs. 4 S. 1; UStAE 17.1 Abs. 3a S. 4-5, checked on 2026-08-29 (date preserved: reused, not re-verified by this task). Unlike fr.json/us.json (which leave credit-note.send unverified, judging that the tool's SEND — an internal status change, without transmission — is not in itself the legal act of issuing a credit note), this rule is here promoted to 'legal' because the precise fact needed — France/the US did not yet have a citation specific to the credit note at the time fr.json/us.json were written, Germany has one via correction-routes — is EXACTLY the one this citation settles: issuing a document that reduces the amount of a German invoice (a credit note/Gutschrift in the broad sense, NOT the self-billing Gutschrift of § 14 Abs. 2 Satz 6, which is a distinct mechanism) is an open OPTION, never a general obligation, except for the narrow case of § 17 Abs. 4 UStG (allocation of consideration across transactions at different rates) which this product mechanism does not model."
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "share-link",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Same reasoning as invoice.share-link above, applied to the credit note: no text identified specifically governs the sharing of a public link to a credit note already communicated to its recipient. To be confirmed by the same dedicated review."
+        }
+      },
+      {
+        "typeId": "credit-note",
+        "actionId": "download-xml",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "(5) Eine Rechnung kann berichtigt werden, wenn a) sie nicht alle Angaben nach § 14 Abs. 4 oder § 14a des Gesetzes enthält oder b) Angaben in der Rechnung unzutreffend sind. Es müssen nur die fehlenden oder unzutreffenden Angaben durch ein Dokument, das spezifisch und eindeutig auf die Rechnung bezogen ist, übermittelt werden. Es gelten die gleichen Anforderungen an Form und Inhalt wie in § 14 des Gesetzes.",
+          "sourceCheckedAt": "2026-09-27"
+        },
+        "notes": "Issue #472. § 31 Abs. 5 UStDV, read verbatim on gesetze-im-internet.de (ustdv_1980/__31.html) on 2026-09-27. Read with § 14 Abs. 1 Satz 3 UStG, read on the same page set the same day: « Eine elektronische Rechnung ist eine Rechnung, die in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen wird und eine elektronische Verarbeitung ermöglicht. » A correcting document takes the same FORM as the invoice it corrects, so where the invoice is a structured e-invoice the correction is one too. NO DISTINCT GERMAN DOCUMENT TYPE IS NEEDED BEYOND EN 16931's own: the KoSIT XRechnung delta this repository vendors (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch, itplr-kosit/xrechnung-schematron v2.5.0) lists the credit note among the codes BT-3 may carry, rule BR-DE-17: « 326 (Partial invoice), 380 (Commercial invoice), 384 (Corrected invoice), 389 (Self-billed invoice) und 381 (Credit note) [...] », and the credit-note export passes that delta with 0 error (formats/credit-note-formats.spec.ts). TERMINOLOGY TRAP, same page: the German « Gutschrift » of § 14 Abs. 2 Satz 5 UStG is a document issued by the RECIPIENT of the supply (self-billing, UNTDID 389), not a seller's credit note; this action never emits 389, and nothing in this product should translate this document type as « Gutschrift » in a tax sense. Whether a German credit note needs a number of its own stays the open question this file's own credit-note `numbering` fact records - unchanged by this rule."
+      },
+      {
+        "typeId": "expense",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording an expense is a management entry internal to the tool. German accounting obligations (GoBD, retention of supporting documents) bear on the company's own bookkeeping, not on this recording mechanism within the tool. To be confirmed by a dedicated review if this core were ever to produce enforceable accounting documents from this data."
+        }
+      },
+      {
+        "typeId": "expense",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a wrongly entered expense; no text identified specifically governs the deletion of such an entry before any accounting closing. To be confirmed by a dedicated review if this core were ever to distinguish a \"closed\" state for an expense."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "receive",
+        "allowed": true,
+        "statuses": ["received"],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording (or correcting) the fields of a received invoice is an internal management operation — this tool only records a fact that has already occurred, never issues anything. The `statuses` field restricts re-writing the fields to the 'received' status only: once approved or rejected, the review decision must no longer be silently undoable (same mechanics as `invoice.save-draft` above). Not researched here (out of scope): Germany has its own timetable for the mandate on the RECEIPT of structured B2B electronic invoices (Wachstumschancengesetz, 2025-01-01) — this mandate bears on the receiving channel/format, not on this internal approval workflow, and was not verified by this task against its primary source."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "approve",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as approved is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "reject",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Marking a received invoice as rejected (dispute, supplier error) is an internal company review decision; no text identified specifically governs this act."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "record-payment",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Recording that this company paid a supplier is an internal bookkeeping entry, the mirror of `invoice.record-payment` above but on the buyer side of a purchase — no text identified specifically governs the ACT of recording it in this tool (as opposed to the underlying payment/input-VAT-deduction facts, which exist and produce their own legal effects regardless of whether this screen tracks them). Not independently researched for Germany beyond the reasoning already applied to `received-invoice.approve`/`reject` above (2026-09-16)."
+        }
+      },
+      {
+        "typeId": "received-invoice",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Deleting a received-invoice record before any approval/rejection decision is a product convenience, of the same nature as `expense.delete` above; no text identified governs it. The descriptor already restricts this action to the 'received' status alone."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a purchase-order draft is an internal product operation, unrelated to VAT or invoicing — same reasoning as quote.save-draft above (see its own note for the research conducted on the applicable codes): no text identified that would specifically govern the saving of such a draft. A purchase order moreover commits less than a quote (it does not constitute an offer of sale, only a purchase intent of the issuing company itself), which makes the existence of a text targeting it all the less likely. Research not specifically conducted for this type/action (2026-09-15) — to be revisited if a real need requires it."
+        }
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "send",
+        "allowed": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "An electronic signature shall not be denied legal effect and admissibility as evidence in legal proceedings solely on the grounds that it is in an electronic form or that it does not meet the requirements for qualified electronic signatures.",
+          "sourceCheckedAt": "2026-09-03"
+        },
+        "notes": "Regulation (EU) No 910/2014 (eIDAS), art. 25 § 1 — the SAME text, at the same verification date, as quote.send above (see its own note: a European REGULATION applies directly, without national variation, in all member states). A purchase order is neither an invoice nor a quote, but an electronic document like any other with regard to this text: it is this same general regime of non-discrimination of electronic writing that grounds its sending by email, never a text specific to invoicing or VAT (none exists for this type — see purchase-order.descriptor.ts's own header)."
+      },
+      {
+        "typeId": "purchase-order",
+        "actionId": "cancel-order",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Canceling a purchase order sent to a supplier is a purely commercial act (the company withdraws its own order), never the correction of a tax document already transmitted — this is NOT a correction route within the meaning of correction-routes/ (CANCEL_AND_REPLACE and the other routes of that module concern only a tax document ALREADY ISSUED to a third party whose correction the law governs, which a purchase order is not — see purchase-order-actions.ts's own header). The contractual consequences of such a cancellation toward the supplier fall under general contract law, outside the scope of this rule (which only says whether THIS TOOL can record the entry, never whether the cancellation is enforceable against the supplier). No dedicated research conducted for this type/action (2026-09-15) — to be revisited if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "save-draft",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Saving a goods-receipt draft is an internal, purely documentary operation (what this company's warehouse has recorded as received) — same reasoning as purchase-order.save-draft above: no text identified that would specifically govern the saving of such a draft, this document not being transmitted to anyone (see goods-receipt.descriptor.ts's own header). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "record",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Finalizing a goods receipt (status 'recorded') is an internal management act — closing out what the warehouse has recorded as received against a purchase order, to feed a 3-way matching check itself internal to the tool, never transmitted to a third party nor declared to any authority. No text identified that would target this act specifically. Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+        }
+      },
+      {
+        "typeId": "goods-receipt",
+        "actionId": "delete",
+        "allowed": true,
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Restricted by the descriptor itself to the 'draft' status (goods-receipt.descriptor.ts): once recorded ('recorded'), a goods receipt is part of the matching trail that a received invoice may already have been compared against, and its deletion is in any case no longer offered by the screen. Before that, deleting a wrongly entered draft is the same internal operation, without a recipient, as purchase-order.save-draft/received-invoice.delete above (see their own notes for the tension, not settled here either, over the obligations to retain a supporting document — LPF art. L. 102 B and L. 102 C, C. com. art. L. 123-22 — which target the RECEIVED INVOICE, never by name an internal goods receipt). Research not specifically conducted for this type/action, newly created (2026-09-15) — to be revisited if a real need requires it."
+        }
+      }
+    ],
+    "notes": "Germany - research from 2026-09-03. The internal-to-the-product acts follow the same reasoning already held by fr.json/us.json for the same actions (no distinct research required, same categories of facts). The heavy legal lifting rests on two sources: (1) a FRESH, DIRECT reading from 2026-09-03 on gesetze-im-internet.de (the official portal of the German federal Ministry of Justice) for § 14 Abs. 1 UStG (invoice.send) and on eur-lex.europa.eu for the eIDAS regulation (quote.send); (2) the REUSE, dated and not re-verified, of the citations already read on 2026-08-29 by correction-routes/data/de.json for the immutability of the issued invoice (invoice.save-draft, CORRECTIVE_INVOICE) and for the credit note (credit-note.send, CREDIT_NOTE) - each valid only for the exact fact it settles in this file, never stretched beyond that.",
+    "numbering": [
+      {
+        "typeId": "credit-note",
+        "requirement": "sequential-number-required",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Read verbatim on gesetze-im-internet.de, 2026-09-26: § 14 Abs. 4 Satz 1 Nr. 4 UStG requires of an invoice « eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer) », and § 31 Abs. 5 UStDV says of a correcting document « Es gelten die gleichen Anforderungen an Form und Inhalt wie in § 14 des Gesetzes. » Against that, UStAE 14.11 Abs. 1, as TRANSCRIBED (not read first-hand here) in correction-routes/data/de.json, says « Eine neue Rechnungsnummer für dieses Dokument ist nicht erforderlich », and UStAE 17.1 Abs. 3a says a price-reduction document « kann, muss aber nicht » be issued as an invoice at all - so whether a German credit note needs a number OF ITS OWN is not settled by a text read here. What would settle it: UStAE 14.11 and 17.1 read first-hand in the current BMF consolidated version."
+        },
+        "notes": "Numbering it anyway is never contrary to either text read here - a unique identifier is exactly what § 14 Abs. 4 Nr. 4 asks of an invoice, and § 31 Abs. 5 UStDV's own « gleiche Anforderungen » points the same direction - which is why the product numbers German credit notes too, pending the first-hand read that would turn this into a `legal` entry."
+      }
+    ],
+    "numberFormats": {
+      "constraints": [
+        {
+          "id": "de-ustg-14-4-4",
+          "appliesTo": ["invoice", "credit-note"],
+          "summary": "German law requires a sequential number, in one or more series, assigned once, that identifies the invoice. It constrains no character and no length.",
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "Read first-hand on gesetze-im-internet.de/ustg_1980/__14.html on 2026-09-28. Bound to the credit note too because the product numbers German credit notes (this file's credit-note `numbering` fact, still `unverified` on whether a credit note needs a number of its own). Neither format checked here adds a limit: EN 16931 gives BT-1 no length, and the vendored KoSIT XRechnung Schematron (formats/vendored/de/XRechnung-UBL-validation-preprocessed.sch) holds no assertion on BT-1's length or characters (its one string-length test, BR-DEX-13, is about decimals of an amount), checked on 2026-09-28."
+        }
+      ],
+      "formats": [
+        {
+          "typeId": "quote",
+          "pattern": "QUOTE-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A quote (Angebot) is not an invoice: § 14 Abs. 4 UStG governs the Rechnung. No German text read in this pass constrains the number of a quote.",
+          "rationale": "Unchanged from the product's previous shared default, so every company already running a quote series keeps reading the same shape.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no German text governs the numbering of a quote at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "invoice",
+          "pattern": "INVOICE-{year}-{number:4}",
+          "constrainedBy": ["de-ustg-14-4-4"],
+          "rationale": "Unchanged from the product's previous shared default, so a German company already running it keeps it as it is. No German rule limits its length or characters.",
+          "reset": "yearly",
+          "resetProvenance": {
+            "kind": "legal",
+            "sourceText": "(10) ¹Durch die fortlaufende Nummer (Rechnungsnummer) soll sichergestellt werden, dass die vom Unternehmer erstellte Rechnung einmalig ist. [...] ⁴Eine lückenlose Abfolge der ausgestellten Rechnungsnummern ist nicht zwingend. (11) ¹Bei der Erstellung der Rechnungsnummer bleibt es dem Rechnungsaussteller überlassen, wie viele und welche separaten Nummernkreise geschaffen werden, in denen eine Rechnungsnummer jeweils einmalig vergeben wird. ²Dabei sind Nummernkreise für zeitlich, geographisch oder organisatorisch abgegrenzte Bereiche zulässig, z. B. für Zeiträume (Monate, Wochen, Tage) [...] ⁴Es muss jedoch gewährleistet sein [...], dass die jeweilige Rechnung leicht und eindeutig dem jeweiligen Nummernkreis zugeordnet werden kann und die Rechnungsnummer einmalig ist.",
+            "sourceCheckedAt": "2026-09-28"
+          },
+          "notes": "UStAE 14.5 Abs. (10)-(11), read first-hand from the BMF's own current consolidated PDF (bundesfinanzministerium.de, \"Umsatzsteuer-Anwendungserlass-aktuell.pdf\", header \"BMF-Schreiben vom 9. April 2026 - III C 3 - S 7157-a/00005/001/052\", extracted with pdftotext) on 2026-09-28. Abs. 11 lets the issuer define its own Nummernkreise for \"zeitlich [...] abgegrenzte Bereiche\" (temporally delimited ranges) - the stated examples are months, weeks and days (\"z. B.\", non-exhaustive), but a calendar YEAR is the same kind of temporally delimited range, conditioned only on unambiguous assignment to the right range and uniqueness of the resulting number (sentence 4) - exactly what a {year}-{number} pattern guarantees. Abs. 10 sentence 4 additionally confirms no gapless sequence is required, which a fresh per-year counter does not provide either. NOT READ as an official-text sentence (secondary commentary only, Haufe): the specific worked example \"2016001...2016750; erste Rechnung 2017 = 2017001\" some secondary sources attribute to this provision."
+        },
+        {
+          "typeId": "credit-note",
+          "pattern": "CN-{year}-{number:4}",
+          "constrainedBy": ["de-ustg-14-4-4"],
+          "rationale": "No German rule needs a shorter credit-note number. The same short form as the other countries is used so a company working across them reads one convention, in a series of its own, distinct from the invoice series.",
+          "reset": "yearly",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "UStAE 14.5 Abs. (10)-(11) (this file's own invoice `resetProvenance`, read first-hand 2026-09-28) permits a yearly Nummernkreis for the Rechnung. Whether a German credit note (Gutschrift) needs a number OF ITS OWN at all is itself still unverified (this file's own credit-note `numbering` fact above), and § 31 Abs. 5 UStDV's \"gleiche Anforderungen an Form und Inhalt wie in § 14\" - the SAME cross-reference that fact and the de-ustg-14-4-4 constraint already lean on to number a German credit note at all - extends Abs. 10-11's yearly-Nummernkreis permission to it by the identical logic, not by a fresh Gutschrift-specific sentence. Kept `unverified` rather than `legal` for that reason: this is one inference away from a text actually read about the credit note itself. What would settle it: UStAE 17.1 (Gutschrift/kaufmännische Rechnungskorrektur), read first-hand, on whether it says anything of its own about numbering."
+          }
+        },
+        {
+          "typeId": "purchase-order",
+          "pattern": "PURCHASE-ORDER-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A purchase order is a document this company sends to its own supplier; it is not an invoice, and no German text read in this pass constrains its number. The supplier's own invoice may quote it (EN 16931 BT-13), which is that supplier's concern, not this number's format.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no German text governs the numbering of a purchase order at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        },
+        {
+          "typeId": "goods-receipt",
+          "pattern": "GOODS-RECEIPT-{year}-{number:4}",
+          "constrainedBy": [],
+          "unconstrained": "A goods receipt is an internal record of what arrived; it is never sent to a tax authority or a buyer, and no German text read in this pass constrains its number.",
+          "rationale": "Unchanged from the product's previous shared default.",
+          "reset": "never",
+          "resetProvenance": {
+            "kind": "unverified",
+            "resolutionNote": "Issue #515: no German text governs the numbering of a goods receipt at all (see this format's own \"unconstrained\" statement above) - there is no numbering-continuity obligation to read a yearly-restart permission FROM. Stays the safe default: one continuous counter, {year} printing only the moment of issuance."
+          }
+        }
+      ],
+      "runningSeries": {
+        "summary": "A series this company already started is kept as it is: German law asks for one sequential number assigned once, and switching a running series to another format is never required by it.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« 4. eine fortlaufende Nummer mit einer oder mehreren Zahlenreihen, die zur Identifizierung der Rechnung vom Rechnungsaussteller einmalig vergeben wird (Rechnungsnummer), » (§ 14 Abs. 4 Satz 1 Nr. 4 UStG)",
+          "sourceCheckedAt": "2026-09-28"
+        },
+        "onViolation": "No German constraint limits the characters or the length of the number, so a running series can only fall back when its own pattern cannot be rendered at all. The country format then applies from the next number; the counter is not reset and no number is reused."
+      }
+    }
+  },
+  "identifiers": {
+    "countryCode": "DE",
+    "schemes": [
+      {
+        "scheme": "VAT",
+        "appliesTo": "BOTH",
+        "label": "Umsatzsteuer-Identifikationsnummer (USt-IdNr.)",
+        "required": false,
+        "demoGenerator": { "id": "de-ust-idnr" },
+        "pattern": "^DE\\d{9}$",
+        "helpText": "DE followed by 9 digits, for example DE123456789",
+        "helpTextKey": "settings.identifiers.help.DE.VAT",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This scheme's `appliesTo: 'COMPANY'` value was originally set with no UStG text read at all (see this scheme's own git history). This task read §14 Abs. 4 UStG and §14a UStG directly at gesetze-im-internet.de (https://www.gesetze-im-internet.de/ustg_1980/__14.html and .../__14a.html, fetched 2026-09-01) and can now quote the exact provisions: § 14 Abs. 4 Satz 1 Nr. 2 UStG — 'Eine Rechnung muss folgende Angaben enthalten: ... 2. die dem leistenden Unternehmer vom Finanzamt erteilte Steuernummer oder die ihm vom Bundeszentralamt für Steuern erteilte Umsatzsteuer-Identifikationsnummer'. § 14a Abs. 3 Satz 2 UStG (innergemeinschaftliche Lieferung) — 'In der Rechnung sind auch die Umsatzsteuer-Identifikationsnummer des Unternehmers und die des Leistungsempfängers anzugeben.' § 14a Abs. 1 Satz 3 UStG (grenzüberschreitende sonstige Leistung nach § 3a Abs. 2 mit Steuerschuldnerschaft des Leistungsempfängers im Ausland) states the identical sentence for that other cross-border case. `appliesTo` was changed from 'COMPANY' back to 'BOTH' (matching the removed compliance engine's own choice at git tag avant-refonte-documents, backend/src/compliance/profiles/data/de.ts) because § 14 Abs. 4 Nr. 2 binds 'der leistende Unternehmer' — any business person issuing an invoice, whether organized as a company or as an individual registered/unregistered trader (Einzelunternehmer) — not companies specifically; German law does not gate this on legal form. `required` stays false for TWO independently sourced reasons, not one: (1) § 14 Abs. 4 Nr. 2 itself offers Steuernummer OR Umsatzsteuer-Identifikationsnummer — either satisfies the law, so a USt-IdNr specifically is never itself a flat mandate, and this catalog has no separate 'Steuernummer' scheme (schema.ts's own header: 'LEGAL_ID' and 'VAT' are the only two schemes any shipped file uses today, a third would render with no dedicated data-cy) so a Steuernummer-holding, USt-IdNr-less business cannot be told apart from one that has neither; (2) § 14a's dual-VAT-number rule only fires for specific cross-border scenarios (intra-Community supply, or a cross-border B2B service under reverse charge), not every invoice, and a private consumer or a Kleinunternehmer (§19 UStG small-business exemption) has no USt-IdNr to give at all — the exact same 'no per-company VAT-regime input to condition on' reasoning `data/fr.json`'s own VAT entry in this same catalog already gives. What remains genuinely unsourced is the `pattern` itself: the DE + 9-digit format (ISO 7064 Mod 11,10 checksum) is well documented (https://en.wikipedia.org/wiki/VAT_identification_number#Germany, cross-checked against this codebase's own `documents/tax/vat-syntax.ts#validateDeVat`, which cites the same Wikipedia page) but neither §14 nor §14a UStG states a format, and an attempt today (2026-09-01) to reach the issuing authority's own page (https://www.bzst.de/DE/Unternehmen/Identifikationsnummern/Umsatzsteuer_Identifikationsnummer/umsatzsteuer_identifikationsnummer_node.html) returned HTTP 404. Since schema.ts's own header treats `pattern` as a legal CLAIM covered by this fact's provenance exactly like `required`, and the pattern is the one piece not sourced to a primary/official text, the whole fact stays 'unverified' rather than being split — same all-or-nothing grading US EIN's entry in data/us.json already uses when a read text settles most, but not all, of a fact's claim. What would settle the pattern specifically: a BZSt or EU publication describing the USt-IdNr format directly."
+        }
+      },
+      {
+        "scheme": "LEGAL_ID",
+        "appliesTo": "COMPANY",
+        "label": "Handelsregisternummer",
+        "required": false,
+        "helpTextKey": "settings.identifiers.help.DE.LEGAL_ID",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This scheme did not exist in the shipped file before (only inherited as a candidate from the removed compliance engine's own DE profile, git tag avant-refonte-documents, backend/src/compliance/profiles/data/de.ts's requiredIdentifiers: scheme LEGAL_ID, label Handelsregisternummer, appliesTo COMPANY, no pattern — that profile carried NO provenance field at all, so its choice was never sourced there either). This task read § 37a HGB directly at gesetze-im-internet.de (https://www.gesetze-im-internet.de/hgb/__37a.html, fetched 2026-09-01): 'Auf allen Geschäftsbriefen des Kaufmanns gleichviel welcher Form, die an einen bestimmten Empfänger gerichtet werden, müssen seine Firma, die Bezeichnung nach § 19 Abs. 1 Nr. 1, der Ort seiner Handelsniederlassung, das Registergericht und die Nummer, unter der die Firma in das Handelsregister eingetragen ist, angegeben werden.' (§ 37a Abs. 1 HGB). Two things this text does NOT settle: (1) it governs 'Geschäftsbriefe' (business letters/correspondence) addressed to a specific recipient — the word 'Rechnung' (invoice) never appears in § 37a HGB at all, so whether an invoice counts as a Geschäftsbrief for this purpose is an interpretive question this task did not chase down to a further primary source (case law or an official commentary would settle it — none was read); (2) § 37a HGB binds a 'Kaufmann' (a merchant registered in the Handelsregister — GmbH, AG, OHG, KG, eingetragener Kaufmann/e.K.), not every company: a company that never registered as a Kaufmann (e.g. a small GbR) has no Handelsregisternummer to give at all, which is the reasoning behind `required: false`. Corroborating evidence the number is NOT a tax-invoice-law requirement: § 14 Abs. 4 UStG's own exhaustive list of the ten mandatory invoice particulars (read in this same research pass, see this file's VAT entry above) does not mention a Handelsregisternummer anywhere. `appliesTo` stays 'COMPANY' as in the removed profile — an individual German Kaufmann (e.K.) could in principle also hold a Handelsregisternummer, but that nuance was not chased further here. What would settle this: case law or an official commentary establishing whether a Rechnung is a Geschäftsbrief under § 37a HGB, and whether an individually-registered Kaufmann (as opposed to a corporate form) should also carry this requirement in this catalog's `appliesTo`."
+        }
+      }
+    ]
+  },
+  "correctionRoutes": {
+    "countryCode": "DE",
+    "routes": [
+      {
+        "routeId": "CREDIT_NOTE",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Nature : ouverte, jamais requise, pour la réduction de la base imposable (Skonti, Nachlässe, Rückgängigmachung). « Ein Belegaustausch ist NUR für die in § 17 Abs. 4 UStG bezeichneten Fälle vorgeschrieben. Ein Beleg… KANN, MUSS ABER NICHT als umsatzsteuerliche Rechnung ausgestellt werden. » Source : UStAE 14.11 Abs. 4 S. 1 ; UStAE 17.1 Abs. 3a S. 4-5.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "See also the YAML's own CREDIT_NOTE_ALLOCATION sub-rule (outside the eleven canonical routes): REQUIRED when the consideration is jointly adjusted across operations taxed at different rates (Jahresboni), § 17 Abs. 4 UStG."
+      },
+      {
+        "routeId": "DEBIT_NOTE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "No distinct German category found — the operative route is § 17 Abs. 1 S. 1 (neutral: « geändert ») plus a Rechnungsberichtigung (CORRECTIVE_INVOICE below). settled_by proposed by the YAML: UStAE Abschnitt 17.1 in its entirety, or a BMF-Schreiben on Entgelterhöhungen."
+        },
+        "notes": "Worth noting on the buyer's side (outside the status itself): with tax stated too low, the buyer can only deduct the difference once it HOLDS an invoice bearing the correct amount (UStAE 15.2a Abs. 7 S. 16)."
+      },
+      {
+        "routeId": "CORRECTIVE_INVOICE",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "C'EST la voie allemande. Applicable à une facture à laquelle manquent les mentions des § 14 Abs. 4 / § 14a, ou dont les mentions sont « unzutreffend ». Seuls les éléments manquants ou faux doivent être envoyés : « Die Berichtigung muss durch ein Dokument erfolgen, das SPEZIFISCH UND EINDEUTIG AUF DIE RECHNUNG BEZOGEN ist » et « EINE NEUE RECHNUNGSNUMMER FÜR DIESES DOKUMENT IST NICHT ERFORDERLICH ». Le renvoi de l'original n'est pas exigé ; seul l'émetteur peut corriger. Source : § 31 Abs. 5 UStDV ; UStAE 14.11 Abs. 1 S. 2, 4, 5, 11 et Abs. 2 S. 1.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "MANDATORY RETROACTIVITY (a lifecycle fact, not a matter of form): « Sind diese Anforderungen erfüllt, entfaltet die Rechnungsberichtigung IMMER Rückwirkung » (UStAE 15.2a Abs. 7 S. 4/8, exceptions BFH 07/07/2022 V R 33/20 and BFH 17/07/2024 XI R 35/22) — but § 14 Abs. 4 Satz 4 UStG says the OPPOSITE for the tax PROCEDURE: « Die Berichtigung einer Rechnung… ist KEIN RÜCKWIRKENDES EREIGNIS » in the sense of reopening an assessment and interest. FORMAT LOCK: correcting an electronic invoice must itself be electronic, in the same document type (UStAE 14.11 Abs. 1 S. 7-9, BMF-Schreiben 15/10/2025) — symmetric to the Polish lock in art. 106j ust. 4."
+      },
+      {
+        "routeId": "CANCEL_AND_REPLACE",
+        "status": "allowed",
+        "locallyImplementable": true,
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Ouverte, et rétroactive : « Auch der Stornierung einer Rechnung nebst Neuausstellung einer sie ersetzenden Rechnung kann eine Rückwirkung beim Vorsteuerabzug zukommen » (BFH 22/01/2020 - XI R 10/17). LIMITE : plusieurs factures pour une même opération non marquées « Duplikat » ou « Kopie » entraînent la responsabilité § 14c sur CHACUNE. Source : UStAE 15.2a Abs. 7 S. 5 ; UStAE 14c.1 Abs. 4 S. 5.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "INTERNAL_CREDIT_NOTE",
+        "status": "forbidden",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Applicable à la correction § 14c, lorsque la taxe a été mentionnée et la facture délivrée. La correction « erfolgt durch Berichtigungserklärung GEGENÜBER DEM LEISTUNGSEMPFÄNGER » et « Dem Leistungsempfänger muss eine hinreichend bestimmte, schriftliche Berichtigung TATSÄCHLICH ZUGEHEN » — une correction qui ne parvient pas au destinataire ne vaut rien. Source : UStAE 14c.1 Abs. 7 S. 1-2.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "AUTHORITY_ANNULMENT",
+        "status": "required",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "LA SURPRISE ALLEMANDE — un cas étroit, mais une vraie autorisation préalable. Applicable au « Unberechtigter Steuerausweis » (§ 14c Abs. 1 S. 3), également § 1 Abs. 1a et révocation de l'option § 9. Le montant dû « kann berichtigt werden, soweit die GEFÄHRDUNG DES STEUERAUFKOMMENS BESEITIGT worden ist », et « Die Berichtigung… ist beim FINANZAMT GESONDERT SCHRIFTLICH ZU BEANTRAGEN UND NACH DESSEN ZUSTIMMUNG… vorzunehmen ». Elle annule la TAXE, pas la facture — mais c'est bien une autorisation d'autorité qui conditionne le cycle de correction. Source : § 14c Abs. 2 S. 3-5 UStG ; UStAE 14c.1 Abs. 11.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Germany was thought to be the country with no authority-side correction — that is false for this specific case. Open question from the YAML: § 14c Abs. 2 S. 5 sets the requirement for approval without fixing a deadline or providing for tacit approval (unverified, settled_by: UStAE Abschnitt 14c.2 Abs. 5 and following)."
+      },
+      {
+        "routeId": "RESUBMIT_SAME_IDENTITY",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "« Es ist unschädlich, wenn die Datei zu einer E-Rechnung MEHRFACH ÜBERSANDT wird, solange es sich um dieselbe Rechnung handelt und die Übermittlung nur als inhaltlich identisches Mehrstück erfolgt. » Source : UStAE 14c.1 Abs. 4 S. 7 ; S. 6 pour les Mehrstücke identiques.",
+          "sourceCheckedAt": "2026-08-29"
+        }
+      },
+      {
+        "routeId": "NO_DOCUMENT_BY_LAW",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "C'est la voie PAR DÉFAUT en Allemagne, pas un cas marginal — applicable aux remises, rabais, créances irrécouvrables, annulations (tout changement de base imposable). § 17 Abs. 1 UStG ajuste la taxe DE PLEIN DROIT, et l'UStAE dit expressément qu'aucune correction de facture n'est requise : rien n'est émis, rien n'est transmis, et la position TVA bouge quand même. Source : § 17 Abs. 1 UStG ; UStAE 14.11 Abs. 4 ; UStAE 17.1 Abs. 3a.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Found outside the plan's initial list (discovered_by: DE research, 2026-08-29). Modeling this route as CREDIT_NOTE would be wrong — that is exactly the flaw of the OLD, demolished engine (out of scope for C1)."
+      },
+      {
+        "routeId": "COUNTERPARTY_OBJECTION",
+        "status": "allowed",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Applicable à la Gutschrift (auto-facturation) : le FOURNISSEUR peut détruire une facture auto-émise en s'y opposant, elle « verliert die Wirkung einer Rechnung ». Effet à réception par l'émetteur de la Gutschrift, ex nunc pour la déduction, et « grundsätzlich UNBEFRISTET möglich » — sans limite de temps. Source : § 14 Abs. 2 Satz 6 UStG ; UStAE 14.3 Abs. 4 S. 7, 8, 9.",
+          "sourceCheckedAt": "2026-08-29"
+        },
+        "notes": "Found outside the plan's initial list (discovered_by: DE research, 2026-08-29). No analogue in the other countries' vocabulary: it is not the issuer who corrects, it is the counterparty who unilaterally destroys."
+      },
+      {
+        "routeId": "LEDGER_ANNOTATION",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Not researched for Germany: nobody has yet verified, against a primary German legal text, whether a correction can be made by a simple register annotation, without issuing any document. In practice, the NO_DOCUMENT_BY_LAW route (the tax adjustment applying by operation of law, without any document) already covers the bulk of the relevant cases under German law."
+        }
+      },
+      {
+        "routeId": "ANNOTATED_DUPLICATE",
+        "status": "unverified",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "This route is not even mentioned in the YAML's countries.DE.routes (it was discovered during the French research, discovered_by: FR research, 2026-08-29) — no research was conducted for Germany, never promoted for lack of a declared status."
+        }
+      }
+    ],
+    "notes": "Germany — HEADLINE: the OLD, demolished engine's profile (de.ts:57, out of scope for C1) declared CREDIT_NOTE, wrong on two counts — the German route is the Rechnungsberichtigung (CORRECTIVE_INVOICE, required), which references the original without even needing its own number, and for a plain change to the taxable base NO document at all is required (NO_DOCUMENT_BY_LAW). The YAML's own « Gutschrift trap » (the word's two senses, one fiscal, one commercial) is carried in COUNTERPARTY_OBJECTION above, not in a separate route."
+  },
+  "vatRates": {
+    "countryCode": "DE",
+    "rates": [
+      {
+        "id": "de-standard",
+        "rate": 19,
+        "label": "Regelsteuersatz",
+        "category": "STANDARD",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "(1) Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage (§§ 10, 11, 25 Abs. 3 und § 25a Abs. 3 und 4).",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "UStG § 12 Abs. 1. Read directly on 2026-09-13 on https://www.gesetze-im-internet.de/ustg_1980/__12.html (an unofficial consolidated text from the Bundesministerium der Justiz — its Last-Modified header dated the very day of the reading, so a continuously regenerated mirror, not a fixed snapshot), direct curl then iso-8859-1 decoding (the site serves Latin-1, not UTF-8) and HTML parsing by a Python script. § 28 UStG (the temporary rate derogations) was also read directly: every derogation it lists (COVID cut to 16%, 2020-07-01 to 2020-12-31; the former wording for passenger transport by boat until 2011-12-31; the 7% energy-crisis rate on gas/district heating, 2022-10-01 to 2024-03-31) is EXPIRED as of 2026-09-13, none is in force today and no future change to the standard rate was found announced or scheduled."
+      },
+      {
+        "id": "de-reduced",
+        "rate": 7,
+        "label": "Ermäßigter Steuersatz",
+        "category": "REDUCED",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "(2) Die Steuer ermäßigt sich auf sieben Prozent für die folgenden Umsätze: 1. die Lieferungen, die Einfuhr und der innergemeinschaftliche Erwerb der in Anlage 2 bezeichneten Gegenstände; [...] 11. die Vermietung von Wohn- und Schlafräumen, die ein Unternehmer zur kurzfristigen Beherbergung von Fremden bereithält, sowie die kurzfristige Vermietung von Campingflächen. [...] 15. die Restaurant- und Verpflegungsdienstleistungen, mit Ausnahme der Abgabe von Getränken.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "UStG § 12 Abs. 2 (Nr. 1 for the goods listed in Anlage 2; Nr. 11 for short-term hotel/camping accommodation; Nr. 15 for restaurant/catering services excluding beverages — the full Nr. 1 to 15 list also covers cultural admissions (Nr. 7), services of charitable organizations (Nr. 8), local/short-distance passenger transport (Nr. 10), digital books/periodicals (Nr. 14), etc., not reproduced here). Same direct reading and same method as the de-standard entry above, same URL (https://www.gesetze-im-internet.de/ustg_1980/__12.html), same date. Anlage 2 itself (the list of goods covered by Nr. 1), also read directly the same day at https://www.gesetze-im-internet.de/ustg_1980/anlage_2.html, carries the following heading: « Anlage 2 (zu § 12 Absatz 2 Nummer 1, 2 und 14) Liste der dem ermäßigten Steuersatz unterliegenden Gegenstände », followed by a list of goods identified by customs code (live animals, meat, fish, dairy products, vegetables, fruit, cereals, books/newspapers, etc. — not reproduced in full here). Anlage 1 (the former pre-2007 list) is now formally empty, its page returning only « (weggefallen) » (literally: \"lapsed\"/\"no longer applicable\") — only Anlage 2 is actually referenced by the current § 12. NOTABLE RECENT CHANGE: Nr. 15 (restaurant/catering at 7%, excluding beverages) was a temporary COVID measure until 2023-12-31, made PERMANENT from 2024-01-01 by the Wachstumschancengesetz (Growth Opportunities Act) — the current consolidated text carries it with no sunset clause, which is consistent with that; the exact date this law itself came into force was not independently verified in this research (general knowledge, not re-derived from a primary text of this specific law)."
+      },
+      {
+        "id": "de-zero-pv",
+        "rate": 0,
+        "label": "Nullsteuersatz (Photovoltaikanlagen)",
+        "category": "ZERO",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "(3) Die Steuer ermäßigt sich auf 0 Prozent für die folgenden Umsätze: 1. die Lieferungen von Solarmodulen an den Betreiber einer Photovoltaikanlage, einschließlich der für den Betrieb einer Photovoltaikanlage wesentlichen Komponenten und der Speicher, die dazu dienen, den mit Solarmodulen erzeugten Strom zu speichern, wenn die Photovoltaikanlage auf oder in der Nähe von Privatwohnungen, Wohnungen sowie öffentlichen und anderen Gebäuden, die für dem Gemeinwohl dienende Tätigkeiten genutzt werden, installiert wird. Die Voraussetzungen des Satzes 1 gelten als erfüllt, wenn die installierte Bruttoleistung der Photovoltaikanlage laut Marktstammdatenregister nicht mehr als 30 Kilowatt (peak) beträgt oder betragen wird[.]",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "UStG § 12 Abs. 3 Nr. 1 (Nr. 2 to 4, not reproduced here, extend the same 0% rate to the intra-Community acquisition, importation and installation of the same systems/storage units — the same rule repeated, not transcribed). Same direct reading, same URL, same date as de-standard above. THIS IS NOT AN EXEMPTION but a genuine ZERO RATE in the EN 16931 sense (category ZERO, not EXEMPT): this provision sits in § 12, titled « Steuersätze » (tax rates), worded exactly like the 19%/7% subsections (« Die Steuer ermäßigt sich auf … Prozent »), and NOT in § 4 UStG (« Steuerbefreiungen », the exemptions) — a taxable person selling under this regime still invoices VAT (at 0%) and keeps full input-VAT deduction rights, which is the EN 16931 zero-rate behavior, not that of an exemption. This conclusion rests on the structure and title of § 12 itself (read directly above); the text of § 4 UStG was NOT independently read to contrast the wording in this research. NARROW scope: limited to solar modules and associated equipment for a photovoltaic installation installed on or near homes/buildings serving the public interest, with an installed gross capacity (Marktstammdatenregister) not exceeding 30 kilowatts-peak — not a general zero rate. Effective date (understood as 2023-01-01, via the Jahressteuergesetz 2022) NOT independently verified in this research: § 28 UStG, which is where the UStG's own transitional rules live, is silent on Abs. 3 — its effective date lives in the enacting law itself, not read here."
+      }
+    ],
+    "notes": "Germany (2026-09-13). Three rates, all 'legal', SOURCED FROM THE PRIMARY LEGAL TEXT as served by the Bundesministerium der Justiz on gesetze-im-internet.de (an unofficial but continuously regenerated consolidated text), direct curl + HTML parsing, never a fetch-summary: UStG § 12 Abs. 1 — 19% (Regelsteuersatz), Abs. 2 — 7% (ermäßigter Steuersatz), Abs. 3 Nr. 1 — 0% (Nullsteuersatz, residential/public-interest-building photovoltaics, narrow scope detailed on the de-zero-pv entry). NO SUPER_REDUCED TIER exists for Germany (only these two ordinary tiers plus the narrow zero rate) — do not invent one. A CAVEAT ON THE LABELS: unlike France (where « taux normal » appears literally in CGI art. 278) or Portugal (« taxa normal »/« taxa reduzida » on the AT's own page), the UStG NEVER NAMES its own rates in § 12 — it only gives numbers (« ermäßigt sich auf sieben Prozent », « ermäßigt sich auf 0 Prozent »). « Regelsteuersatz » / « ermäßigter Steuersatz » / « Nullsteuersatz » are the usual administrative/doctrinal terms (BMF, UStAE) and not words quoted from § 12 itself — this `label` field therefore carries a convention, not a literal official term from the statutory text (verified by confirming that none of these labels appears in the citations themselves above). This catalog still does not model the temporality of rates (no validFrom/validTo in schema.ts): only the rates CURRENTLY in force are listed. No EXEMPT entry is added for Germany: the small-business regime (Kleinunternehmerregelung, § 19 UStG) was not read at its primary text by this research and is therefore not encoded here, following the same discipline as the rest of this file."
+  },
+  "taxSystem": {
+    "countryCode": "DE",
+    "kind": "VAT",
+    "standardRate": 19,
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "(1) Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage (§§ 10, 11, 25 Abs. 3 und § 25a Abs. 3 und 4).",
+      "sourceCheckedAt": "2026-09-13"
+    },
+    "notes": "PROVENANCE REPLACED (2026-09-13), rate unchanged (19%): this entry used to cite the HTTP JSON response body of the European Commission's Taxes in Europe Database (TEDB, DG TAXUD) — an official but non-statutory source, consulted 2026-09-01. The repository now holds the statute itself, quoted verbatim by vat-rates/data/de.json's own 'de-standard' entry: UStG § 12 Abs. 1, read live on 2026-09-13 at https://www.gesetze-im-internet.de/ustg_1980/__12.html (see that file's entry and its own notes for the full retrieval method — curl + iso-8859-1 decoding, not a fetch-summary). The `sourceText` and `sourceCheckedAt` above are copied byte-for-byte from that entry, never retyped or translated. Both citations agree on the same figure (19%); nothing about the rate changed, only which source is cited — a statute a reader can check beats a reproduced JSON payload. Consumer note (unchanged from the prior citation): this table exists to unblock `documents/tax/tax-engine.ts#ossDestinationVat` (per `resolve-invoice-tax.ts`'s own header, \"OSS with no destination rate table\"), which reads only `dest.standardRate` — never `reducedRates` — and `DocumentLine` (`documents/tax/types.ts`) carries no per-line product category a reduced rate could even be selected against; that is why reducedRates are still deliberately not modeled here."
+  },
+  "vatCurrency": {
+    "countryCode": "DE",
+    "rule": {
+      "nationalCurrency": "EUR",
+      "requiredOnInvoice": false,
+      "taxableAmountRequiredOnInvoice": false,
+      "rateSource": "none",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "§16 Abs. 6 UStG: \"Werte in fremder Währung sind zur Berechnung der Steuer und der abziehbaren Vorsteuerbeträge auf Euro nach den Durchschnittskursen umzurechnen, die das Bundesministerium der Finanzen für den Monat öffentlich bekanntgibt, in dem die Leistung ausgeführt oder das Entgelt […] vereinnahmt wird.\" This provision converts foreign-currency amounts for computing the TAX (the periodic VAT RETURN), never for the invoice document itself; §14 Abs. 4 UStG (the invoice's own mandatory-content list) names no currency-conversion requirement at all.",
+        "sourceCheckedAt": "2026-09-28"
+      },
+      "notes": "Researched conclusion, not a gap: §16 Abs. 6 UStG's own conversion rule (BMF monthly average rate, for the month of supply) reaches only the periodic VAT declaration a company files, never a value printed on the invoice document a buyer receives. Nothing in §14 UStG's own mandatory-content enumeration requires a converted VAT or taxable-amount line on a foreign-currency invoice. `rateSource: 'none'` reflects that this codebase never needs a German rate for THIS feature. The BMF monthly rate would be a real, separate input for a German company's own periodic-return computation, which is out of scope for #517 (an invoice-printing concern). Citation reused verbatim from `~/Projects/invoicerr-app/RECHERCHE_192_MULTIDEVISE.md` (2026-09-28), sourced there from gesetze-im-internet.de."
+    }
+  },
+  "channelPolicy": {
+    "countryCode": "DE",
+    "facts": [],
+    "notes": "NO TRANSMISSION CHANNEL is imposed by German law for B2B invoicing — German law imposes a FORMAT, never a channel, unlike France (PDP) or Italy (SdI). Established by direct reading of the consolidated text of the UStG (Umsatzsteuergesetz) on gesetze-im-internet.de (official site of the Bundesministerium der Justiz), §§ 14 and 27, checked on 2026-09-13 (direct curl, no anti-bot block encountered).\n\n§ 14 Abs. 1 UStG distinguishes two notions, never a channel: « Eine elektronische Rechnung ist eine Rechnung, die in einem strukturierten elektronischen Format ausgestellt, übermittelt und empfangen wird und eine elektronische Verarbeitung ermöglicht. Eine sonstige Rechnung ist eine Rechnung, die in einem anderen elektronischen Format oder auf Papier übermittelt wird. Die Übermittlung einer elektronischen Rechnung oder einer sonstigen Rechnung in einem elektronischen Format bedarf der Zustimmung des Empfängers, soweit keine Verpflichtung nach Absatz 2 Satz 2 Nummer 1 besteht. » — translation: an electronic invoice is an invoice issued, transmitted AND received in a structured electronic format enabling automated processing; any other invoice (another electronic format, or paper) is a « sonstige Rechnung ». The last sentence quoted conditions the recipient's consent to the transmission, never a channel: no word in this paragraph names a platform, a network, or an intermediary.\n\nThe obligation itself (Abs. 2) concerns only the FORMAT, never the channel: « Führt der Unternehmer eine Lieferung oder eine sonstige Leistung nach § 1 Absatz 1 Nummer 1 aus, ist er berechtigt, eine Rechnung auszustellen. In den folgenden Fällen ist er zur Ausstellung einer Rechnung innerhalb von sechs Monaten nach Ausführung der Leistung verpflichtet, wenn der Umsatz nicht nach § 4 Nummer 8 bis 29 steuerfrei ist: » then, at point 1 of that list (Abs. 2 Satz 1 Nr. 1, the domestic B2B case): « für eine Leistung an einen anderen Unternehmer für dessen Unternehmen; die Rechnung ist als elektronische Rechnung nach Absatz 1 Satz 3 und 6 auszustellen, wenn der leistende Unternehmer und der Leistungsempfänger im Inland oder in einem der in § 1 Absatz 3 bezeichneten Gebiete ansässig sind; » — translation: for a supply to another business for that business's own use, the invoice MUST be issued as an electronic invoice (structured format defined in Abs. 1) when both the supplier AND the recipient are established in Germany (or in the assimilated territories of art. 1 Abs. 3). That is the entirety of the German B2B obligation: a structured format (XRechnung, or a ZUGFeRD-type hybrid compliant with the EN 16931 standard), never a channel — the business remains free to send that file by e-mail, by upload to a private portal, by direct EDI, or by any other means: nothing in this text names, or imposes, a transmission intermediary.\n\nThis format obligation is not immediately enforceable against all businesses: the transitional regime of § 27 Abs. 38 UStG (same consolidated text, same reading) postpones its effective application — « Abweichend von § 14 Absatz 1 und 2 kann eine Rechnung » then, in three points: « 1. bis zum 31. Dezember 2026 für einen nach dem 31. Dezember 2024 und vor dem 1. Januar 2027 ausgeführten Umsatz auf Papier oder vorbehaltlich der Zustimmung des Empfängers in einem elektronischen Format, das nicht § 14 Absatz 1 Satz 6 entspricht, übermittelt werden; », « 2. bis zum 31. Dezember 2027 für einen nach dem 31. Dezember 2026 und vor dem 1. Januar 2028 ausgeführten Umsatz auf Papier oder vorbehaltlich der Zustimmung des Empfängers in einem elektronischen Format, das nicht § 14 Absatz 1 Satz 6 entspricht, übermittelt werden, wenn der Gesamtumsatz (§ 19 Absatz 2) des die Rechnung ausstellenden Unternehmers im vorangegangenen Kalenderjahr nicht mehr als 800 000 Euro betragen hat; », « 3. bis zum 31. Dezember 2027 für einen nach dem 31. Dezember 2026 und vor dem 1. Januar 2028 ausgeführten Umsatz vorbehaltlich der Zustimmung des Empfängers in einem elektronischen Format, das nicht § 14 Absatz 1 Satz 6 entspricht, ausgestellt werden, wenn diese mittels elektronischem Datenaustausch (EDI) nach Artikel 2 der Empfehlung 94/820/EG der Kommission vom 19. Oktober 1994 über die rechtlichen Aspekte des elektronischen Datenaustausches (ABl. L 338 vom 28.12.1994, S. 98) übermittelt wird. » — in plain terms: (1) ANY business may still issue on paper or in an unstructured electronic format (PDF included), with the recipient's agreement, for any transaction carried out up to and including 31 December 2026, with no turnover condition at all; (2) businesses whose total turnover (§ 19 Abs. 2) for the preceding calendar year did not exceed €800,000 keep this same freedom for one more year, until 31 December 2027, for transactions carried out in 2027; (3) any business transmitting via electronic data interchange (EDI) also keeps this freedom until 31 December 2027 for 2027 transactions, regardless of its turnover. It is therefore only from 1 January 2028 that the structured-format obligation applies, with no transitional exception left, to every business covered by Abs. 2 Satz 1 Nr. 1.\n\nWHAT THIS FILE DOES NOT ENCODE, AND WHY: `mandate.ts#activeChannelMandateFor` only knows a pair (providerId, mandatedFrom) — one channel and a single date. German law supplies neither in the sense this mechanism expects them: (a) there is structurally NO channel to name — even once the format obligation is fully in force on 1 January 2028, the law still only requires a format, never a drop-off point; inventing a `providerId` here (\"email\", \"peppol\" or otherwise) would assert a channel requirement the text never makes; (b) even granting, mistakenly, that this file should cover a FORMAT obligation rather than a channel one, a single date would not be enough to represent the two-speed timetable (universal until 31/12/2026, businesses ≤ €800,000 or EDI users until 31/12/2027, everyone from 1 January 2028) without knowing each company's prior-year (N-1) turnover or whether it uses EDI — two pieces of data this product neither computes nor stores today. This file therefore stays at `facts: []`: neither `mandated` (there is no channel to mandate) nor `suggested` (no source lets us claim any particular channel is \"the custom\" — unlike Poland, where the text explicitly names KSeF as THE legal system, even though it is not yet armed today for similar threshold reasons).\n\nWHAT IS ALREADY COVERED ELSEWHERE, DELIBERATELY NOT REPEATED HERE: German B2G (invoices to federal public buyers, a separate obligation grounded in the ERechV rather than the UStG) does impose a channel — the merged ZRE/OZG-RE federal platform — fully sourced in `b2g-routing/data/de.json`, whose `transportId` names this channel (`zre-ozgre`) even though no transport in this repository implements it today: between 2026-09-02 and 2026-09-15 this repository wired and proved in real conditions an access route via Peppol (accepted by the merged platform as a channel, carrying XRechnung content), but this transport was removed from the product on 2026-09-15 (see the dated ADDENDUM in `b2g-routing/data/de.json`'s own `notes` for the reason and what it would take to restore it) — a German B2G send therefore now returns a named refusal rather than a real send. This file (`channel-policy`) covers only the general B2B question; it is neither contradicted by, nor a duplicate of, that B2G rule.\n\nWHAT THIS READING DID NOT ESTABLISH, HONESTLY: (1) a possible separate, non-transitional RECEPTION obligation (being able to receive a structured electronic invoice from 1 January 2025, independently of the issuance tolerance in Abs. 38) was not specifically researched beyond what the last sentence of Abs. 1 quoted above suggests (the recipient's consent is no longer required once an Abs. 2 Satz 2 Nr. 1 obligation exists) — this nuance changes nothing about the conclusion \"no channel\", so it was not dug into further; (2) the scope of Abs. 2 Satz 1 Nr. 1 is strictly domestic (supplier AND recipient both established in Germany) — cross-border transactions from Germany fall under other provisions (§ 14 Abs. 7, § 14a) not read here in detail; this reading therefore does not cover them."
+  },
+  "retention": {
+    "countryCode": "DE",
+    "rules": [
+      {
+        "label": "umsatzsteuerlich",
+        "years": 8,
+        "origin": "issueDateYearEnd",
+        "legalRef": "UStG § 14b Abs. 1 Satz 1 und 3",
+        "notes": "Raw text retrieved on 2026-09-13 via curl -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__14b.html (HTTP 200). Satz 1: « Der Unternehmer hat ein Doppel der Rechnung, die er selbst oder ein Dritter in seinem Namen und für seine Rechnung ausgestellt hat, sowie alle Rechnungen, die er erhalten oder die ein Leistungsempfänger oder in dessen Namen und für dessen Rechnung ein Dritter ausgestellt hat, acht Jahre aufzubewahren. » — EIGHT years, not ten (the reduction from ten to eight years is in force; do not \"correct\" it back to the old ten-year duration some older sources still cite). Satz 3, the origin: « Die Aufbewahrungsfrist beginnt mit dem Schluss des Kalenderjahres, in dem die Rechnung ausgestellt worden ist; § 147 Abs. 3 der Abgabenordnung bleibt unberührt. » — the end of the CALENDAR year of issuance, never the moment of archiving. The last clause (« § 147 Abs. 3 ... bleibt unberührt » = \"remains unaffected\") is the text itself stating that the Abgabenordnung's own obligation (see the \"abgabenrechtlich\" rule below) applies IN ADDITION, not instead — the same simultaneity compute-retention.ts already documents for France."
+      },
+      {
+        "label": "abgabenrechtlich",
+        "years": 8,
+        "origin": "issueDateYearEnd",
+        "legalRef": "AO § 147 Abs. 3 Satz 1 (facture = Buchungsbeleg, Abs. 1 Nr. 4), Abs. 4",
+        "notes": "Raw text retrieved on 2026-09-13 via curl -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ao_1977/__147.html (HTTP 200). Abs. 1 lists the categories: Nr. 1 (books/inventories/annual accounts...), Nr. 2/3 (Handels- oder Geschäftsbriefe received/sent — general business correspondence), Nr. 4 (Buchungsbelege — accounting vouchers), Nr. 4a (customs documents), Nr. 5 (other records relevant for taxation). Abs. 3 Satz 1: « Die in Absatz 1 Nummer 1 und 4a aufgeführten Unterlagen sind zehn Jahre, die in Absatz 1 Nummer 4 aufgeführten Unterlagen acht Jahre und die sonstigen in Absatz 1 aufgeführten Unterlagen sechs Jahre aufzubewahren... » — an invoice is an ACCOUNTING VOUCHER (Buchungsbeleg, Nr. 4: it documents a transaction and underlies a ledger entry), not a mere business letter (Nr. 2/3) nor a customs document (Nr. 4a): it therefore falls under the EIGHT-year tier, not ten — picking ten years because it is the largest number in the sentence would be exactly the mistake this module exists to avoid. Abs. 4, the origin: « Die Aufbewahrungsfrist beginnt mit dem Schluss des Kalenderjahrs, in dem ... der Buchungsbeleg entstanden ist... » — the end of the calendar year in which the accounting voucher was drawn up, so the same origin (end of the year of issuance) as the UStG rule above. The two rules above yield the SAME duration (8 years) via two distinct texts that the text itself declares simultaneous (« § 147 Abs. 3 ... bleibt unberührt » in the UStG rule) — declared here as two separate rules rather than merged, to stay faithful to what each text actually says rather than assuming they will always coincide."
+      }
+    ],
+    "notes": "Two distinct texts (UStG § 14b and AO § 147) each impose EIGHT years from the end of the calendar year of issuance — see the per-rule notes above for the demonstration that an invoice does fall under the AO's eight-year tier (Buchungsbeleg, Abs. 1 Nr. 4) and not the ten-year tier (Nr. 1/4a, reserved for books/annual accounts/customs documents). Sources consulted as RAW TEXT on 2026-09-13: gesetze-im-internet.de/ustg_1980/__14b.html and gesetze-im-internet.de/ao_1977/__147.html (both HTTP 200)."
+  },
+  "localizedMentions": {
+    "countryCode": "DE",
+    "situations": {
+      "reverseCharge": {
+        "code": "DE_STEUERSCHULDNERSCHAFT",
+        "text": "Steuerschuldnerschaft des Leistungsempfängers",
+        "source": "UStG § 14a Abs. 1: \"[...] Rechnung mit der Angabe „Steuerschuldnerschaft des Leistungsempfängers“ [...]\"."
+      }
+    }
+  },
+  "domesticReverseCharge": {
+    "countryCode": "DE",
+    "categories": [
+      {
+        "key": "de-secured-goods-transfer",
+        "label": "Transfer of goods held as security, outside insolvency proceedings",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 2",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "2. Lieferungen sicherungsübereigneter Gegenstände durch den Sicherungsgeber an den Sicherungsnehmer außerhalb des Insolvenzverfahrens;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200). Narrow and idiosyncratic to German insolvency/security law; no equivalent found in FR/IT/PT's own retrieved text — kept as a Germany-only key."
+      },
+      {
+        "key": "de-real-estate-transfer-tax-transactions",
+        "label": "Transactions falling under the Real Estate Transfer Tax Act",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 3",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "3. Umsätze, die unter das Grunderwerbsteuergesetz fallen;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. No equivalent found in FR/IT/PT's own retrieved text; Germany-only key."
+      },
+      {
+        "key": "construction-subcontracting",
+        "label": "Construction work (Bauleistungen)",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 4",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "4. Bauleistungen, einschließlich Werklieferungen und sonstigen Leistungen im Zusammenhang mit Grundstücken, die der Herstellung, Instandsetzung, Instandhaltung, Änderung oder Beseitigung von Bauwerken dienen, mit Ausnahme von Planungs- und Überwachungsleistungen. Als Grundstücke gelten insbesondere auch Sachen, Ausstattungsgegenstände und Maschinen, die auf Dauer in einem Gebäude oder Bauwerk installiert sind und die nicht bewegt werden können, ohne das Gebäude oder Bauwerk zu zerstören oder zu verändern. Nummer 1 bleibt unberührt;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the BUYER to be a business that sustainably performs construction work itself (evidenced by a tax-office certificate) for this to bind by default outside the parties' own good-faith agreement — a buyer-status test this catalog does not evaluate. Shares the `construction-subcontracting` key with IT (DPR 633/1972 art. 17 comma 6 lett. a), FR (CGI art. 283, 2 nonies) and PT (CIVA art. 2.º n.º 1 alínea j))."
+      },
+      {
+        "key": "gas-and-electricity-to-reseller",
+        "label": "Supply of gas via the natural-gas network, or electricity, other than under Buchst. a)",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 5 Buchst. b)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "b) von Gas über das Erdgasnetz und von Elektrizität, die nicht unter Buchstabe a fallen;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. § 13b Abs. 5 further conditions this on the BUYER itself being a reseller of gas/electricity within the meaning of § 3g — a buyer-status test this catalog does not evaluate. Shares the `gas-and-electricity-to-reseller` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-quater) and FR (CGI art. 283, 2 quinquies, second sentence)."
+      },
+      {
+        "key": "greenhouse-gas-and-energy-certificates",
+        "label": "Transfer of greenhouse-gas emission allowances and gas/electricity certificates",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 6",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "6. Übertragung von Berechtigungen nach § 3 Nummer 3 des Treibhausgas-Emissionshandelsgesetzes, Emissionsreduktionseinheiten nach § 2 Nummer 20 des Projekt-Mechanismen-Gesetzes, zertifizierten Emissionsreduktionen nach § 2 Nummer 21 des Projekt-Mechanismen-Gesetzes, Emissionszertifikaten nach § 3 Nummer 2 des Brennstoffemissionshandelsgesetzes sowie von Gas- und Elektrizitätszertifikaten;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Shares the `greenhouse-gas-and-energy-certificates` key with IT (DPR 633/1972 art. 17 comma 6 lett. d-bis/d-ter), FR (CGI art. 283, 2 septies) and PT (CIVA art. 2.º n.º 1 alínea l) — PT's own scope is narrower, GHG allowances only; see PT's own fact)."
+      },
+      {
+        "key": "waste-and-scrap-materials",
+        "label": "Goods listed in Anlage 3 to the UStG",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 7",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "7. Lieferungen der in der Anlage 3 bezeichneten Gegenstände;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Anlage 3's own item list (scrap, waste and recyclable-material categories — Schrott, Altmetalle and the like) is NOT reproduced here — only the triggering category itself (Nr. 7) is sourced; enumerating Anlage 3 is its own retrieval, not attempted this wave, same posture as PT's own Anexo E (see `data/pt.json`). Shares the `waste-and-scrap-materials` key with PT (CIVA art. 2.º n.º 1 alínea i)) and FR (CGI art. 283, 2 sexies) — Italy has no equivalent under DPR 633/1972 art. 17 (see `data/it.json`'s own file-level notes)."
+      },
+      {
+        "key": "de-building-cleaning",
+        "label": "Cleaning of buildings and parts of buildings",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 8",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "8. Reinigen von Gebäuden und Gebäudeteilen. Nummer 1 bleibt unberührt;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the buyer to itself sustainably perform building-cleaning services (a certified buyer-status test), or the parties' own good-faith agreement. NOT keyed the same as IT's own `it-building-services` (DPR 633/1972 art. 17 comma 6 lett. a-ter): the Italian lettera additionally covers demolition, plant installation and completion works on buildings, a wider scope than this German Nummer's cleaning-only text — see IT's own file for why that key is kept separate."
+      },
+      {
+        "key": "investment-gold",
+        "label": "Gold of at least 325‰ fineness, raw or semi-finished, and gold-plated goods of the same fineness",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 9",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "9. Lieferungen von Gold mit einem Feingehalt von mindestens 325 Tausendstel, in Rohform oder als Halbzeug (aus Position 7108 des Zolltarifs) und von Goldplattierungen mit einem Goldfeingehalt von mindestens 325 Tausendstel (aus Position 7109);",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Shares the `investment-gold` key with IT (DPR 633/1972 art. 17 comma 5) and FR (CGI art. 283, 2 quater)."
+      },
+      {
+        "key": "consumer-electronics-preretail",
+        "label": "Mobile phones, tablets, laptops, game consoles and integrated circuits before retail installation",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 10",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "10. Lieferungen von Mobilfunkgeräten, Tablet-Computern und Spielekonsolen sowie von integrierten Schaltkreisen vor Einbau in einen zur Lieferung auf der Einzelhandelsstufe geeigneten Gegenstand, wenn die Summe der für sie in Rechnung zu stellenden Entgelte im Rahmen eines wirtschaftlichen Vorgangs mindestens 5 000 Euro beträgt; nachträgliche Minderungen des Entgelts bleiben dabei unberücksichtigt;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Threshold NOT modeled: the quoted text's own EUR 5 000 per-transaction floor is a numeric fact this catalog's category list does not itself evaluate (the brief's own instruction not to model thresholds). Shares the `consumer-electronics-preretail` key with IT's own lettera c) (DPR 633/1972 art. 17 comma 6 lett. c) — but this German Nummer explicitly includes 'Mobilfunkgeräte' (mobile phones), which IT's lettera c) does NOT; Italian mobile-phone terminal equipment sits under IT's own separate `it-mobile-network-terminal-equipment` key (lett. b), an older, narrower provision tied to a telecoms-concession tax cross-reference — see IT's own file for that boundary."
+      },
+      {
+        "key": "de-anlage-4-goods",
+        "label": "Goods listed in Anlage 4 to the UStG",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 11",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "11. Lieferungen der in der Anlage 4 bezeichneten Gegenstände, wenn die Summe der für sie in Rechnung zu stellenden Entgelte im Rahmen eines wirtschaftlichen Vorgangs mindestens 5 000 Euro beträgt; nachträgliche Minderungen des Entgelts bleiben dabei unberücksichtigt;",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Anlage 4's own item list (certain base metals) is NOT reproduced here, same posture as Nr. 7's own Anlage 3 above. Threshold NOT modeled (same EUR 5 000 floor as `consumer-electronics-preretail`). No equivalent found in FR/IT/PT's own retrieved text; Germany-only key."
+      },
+      {
+        "key": "telecommunications-services",
+        "label": "Telecommunications services",
+        "legalRef": "UStG § 13b Abs. 2 Nr. 12",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "12. sonstige Leistungen auf dem Gebiet der Telekommunikation. Nummer 1 bleibt unberührt.",
+          "sourceCheckedAt": "2026-09-13"
+        },
+        "notes": "Same retrieval as `de-secured-goods-transfer` above. Condition NOT modeled: § 13b Abs. 5 further requires the buyer to itself be a business whose main activity in acquiring these services consists of reselling them, with only incidental own consumption (a certified buyer-status test). Shares the `telecommunications-services` key with FR (CGI art. 283, 2 octies)."
+      }
+    ],
+    "notes": "Retrieved curl -sL -A \"Mozilla/5.0\" https://www.gesetze-im-internet.de/ustg_1980/__13b.html (HTTP 200), 2026-09-13, the same host and article family already used for `localizedMentions.situations.reverseCharge` in this file (§ 14a Abs. 1/Abs. 5). DELIBERATELY EXCLUDED, whole: § 13b Abs. 2 Nr. 1 ('Werklieferungen und nicht unter Absatz 1 fallende sonstige Leistungen eines im Ausland ansässigen Unternehmers') and Nr. 5 Buchst. a) ('der in § 3g Absatz 1 Satz 1 genannten Gegenstände eines im Ausland ansässigen Unternehmers unter den Bedingungen des § 3g') are NOT declared as categories at all, even though both are part of the same Abs. 2 list every other fact in this file is drawn from: both explicitly hinge on the SUPPLIER being established ABROAD ('im Ausland ansässiger Unternehmer'), which is a cross-border fact this product's own seller-country/buyer-country model already routes through `resolve-invoice-tax.ts`'s CROSS-BORDER branch, declaring them here would double-cover a case the engine already handles differently under a DOMESTIC-only catalog. DELIBERATELY NOT MODELED, for every category that IS declared above: the buyer-status tests § 13b Abs. 5 layers onto Abs. 2's own list (an 'Unternehmer' test, a sustained-activity test evidenced by a tax-office certificate for Nr. 4/8/12, a reseller test for Nr. 5 Buchst. b, a juristische-Person-des-öffentlichen-Rechts exclusion for several), Abs. 5 is a single long paragraph conditioning ALL of Abs. 2's Nummern on facts (the buyer's own status, sometimes evidenced by a certificate) this catalog's flat category list has no field for; and the EUR 5 000 per-transaction threshold on Nr. 10/11. Anlage 3 (Nr. 7) and Anlage 4 (Nr. 11)'s own item lists are not reproduced, see each fact's own notes."
+  },
+  "countryFields": {
+    "countryCode": "DE",
+    "overlays": [
+      {
+        "typeId": "invoice",
+        "operations": [
+          {
+            "op": "add",
+            "path": "",
+            "field": {
+              "key": "buyerReference",
+              "kind": "text",
+              "label": "Buyer reference (Leitweg-ID)",
+              "required": false,
+              "helpText": "The buyer's own reference — for a German public-sector buyer this is usually a Leitweg-ID. Used as BT-10 (\"Buyer reference\") on an EN 16931 export; XRechnung's own BR-DE-15 refuses the document when this is missing (`formats/xrechnung-provider.ts`)."
+            }
+          },
+          {
+            "op": "add",
+            "path": "lines",
+            "field": {
+              "key": "supplyType",
+              "kind": "select",
+              "label": "Supply type",
+              "required": false,
+              "options": [
+                {
+                  "value": "GOODS",
+                  "label": "Goods"
+                },
+                {
+                  "value": "SERVICES",
+                  "label": "Services"
+                }
+              ],
+              "helpText": "Whether this line is a delivery of goods or a supply of services — it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
+            }
+          }
+        ]
+      }
+    ],
+    "notes": "Germany's FIRST field-overlay file — same mechanism and shape as France's own `fr.json` (`lines[].supplyType`), applied here at the DOCUMENT level instead of a line: BT-10 (\"Buyer reference\") is a document-wide fact, not a per-line one. Added as an OPTIONAL top-level field (`path: ''` — schema.ts's own top-level convention) rather than a change to the trunk `invoice.descriptor.ts`: BT-10 only becomes MANDATORY under the XRechnung/Peppol deltas (`formats/xrechnung-provider.ts`'s BR-DE-15, `formats/peppol-bis-provider.ts`'s PEPPOL-EN16931-R003), never at the base EN 16931 layer every OTHER seller builds against — the same 'a country's own difference from the trunk is data, never a change forced on everyone' discipline `country-fields/schema.ts`'s own header documents. `formats/shared-build.ts#extractBuyerReference` reads `data.buyerReference` generically, off ANY document regardless of which overlay (if any) put an input for it on screen — see that function's own header: a seller in a country with no overlay for this field (e.g. a French seller invoicing a German public body, the exact case XRechnung exists for) has no SCREEN control for it today, a known, documented UX gap, not a format that refuses to serve them — the underlying JSON value, however it got there, is read the same way for every seller. Labeled directly (no i18n key), matching every other field label already shipped on `fr.json`'s own `supplyType` overlay and `invoice.descriptor.ts` itself — see that file's own comment on `DocumentFieldDescriptor.label` for why the frontend renders it verbatim, never through `t()`. SECOND OPERATION, added later: the SAME `supplyType` line subfield France's own `fr.json` already adds, byte-identical in key, kind, label, options and optionality — a LINE subfield, unlike `buyerReference` above. WHY THE FIELD IS IDENTICAL IN ALL FIVE COUNTRIES RATHER THAN A PER-COUNTRY VARIANT: what reads it — `tax/resolve-invoice-tax.ts`, feeding `tax/tax-engine.ts#determineLineTax` — branches on the goods/services distinction of Directive 2006/112/EC (arts. 32, 33(a) and 59c for an intra-Community distance sale of goods, art. 45 for a service), which binds every member state identically; the same reasoning `tax/types.ts`'s own `DistanceSalesRegime` states for art. 59c ('art. 59c applies identically in all of them'). Germany's transposition defines the two in the directive's own terms — « Lieferungen eines Unternehmers sind Leistungen, durch die er oder in seinem Auftrag ein Dritter den Abnehmer oder in dessen Auftrag einen Dritten befähigt, im eigenen Namen über einen Gegenstand zu verfügen (Verschaffung der Verfügungsmacht) » (UStG § 3 Abs. 1) against « Sonstige Leistungen sind Leistungen, die keine Lieferungen sind. Sie können auch in einem Unterlassen oder im Dulden einer Handlung oder eines Zustands bestehen » (UStG § 3 Abs. 9), the residual definition the directive itself uses. Read in raw text on 2026-09-21 at gesetze-im-internet.de (https://www.gesetze-im-internet.de/ustg_1980/__3.html). WHAT IS DELIBERATELY NOT MIRRORED FROM FRANCE: the French overlay's own `helpText` names BT-23 (« cadre de facturation »), which is a FRENCH obligation — `formats/semantic/business-process.ts#resolveFrenchBusinessProcessCode` derives that code only for a seller whose country has an active BT-23 rule in `content-requirements/`, and France is the only country with one — so a German seller declaring a supply type changes the exported document not at all; it changes the TAX determination, which is what this operation's own help text names instead. NO RETROACTIVE EFFECT ON STORED DOCUMENTS: the field is OPTIONAL and nothing back-fills it. `resolve-invoice-tax.ts` narrows a line's raw `supplyType` to GOODS/SERVICES and treats anything else — including absent — as SERVICES, emitting a named warning; that fallback is untouched here, so every invoice stored before this operation existed resolves exactly as it did before, and only a line a user explicitly marks as goods reaches the distance-sales branch. DIGITAL IS NOT OFFERED, on purpose: `tax/types.ts`'s own `SupplyType` has a third value, but `resolve-invoice-tax.ts` narrows a stored value to GOODS/SERVICES only, so a 'DIGITAL' option would be silently discarded on the way in — offering it would need that narrowing widened first, for all five countries including France."
+  },
+  "b2gRouting": {
+    "countryCode": "DE",
+    "transportId": "zre-ozgre",
+    "formatSyntax": "xrechnung",
+    "requiredDocumentFields": [
+      {
+        "field": "buyerReference",
+        "label": "Buyer reference (Leitweg-ID)",
+        "why": "§ 5 ERechV: \"Die elektronische Rechnung hat neben den umsatzsteuerrechtlichen Rechnungsbestandteilen mindestens folgende Angaben zu enthalten: 1. eine Leitweg-Identifikationsnummer, [...]\" — a Leitweg-ID is a MANDATORY invoice component under federal law, not optional the way France's own \"code service\" is (see fr.json's own entry). Carried generically as `data.buyerReference` (`formats/shared-build.ts#extractBuyerReference`), the SAME field the `country-fields/data/de.json` overlay's own Leitweg-ID input feeds — see that file's own header.",
+        "required": true
+      }
+    ],
+    "provenance": {
+      "kind": "legal",
+      "sourceText": "§ 4 Abs. 1 ERechV (Verordnung über die elektronische Rechnungsstellung im öffentlichen Auftragswesen des Bundes): « Für die Ausstellung von elektronischen Rechnungen haben Rechnungssteller und Rechnungssender grundsätzlich den Datenaustauschstandard XRechnung vom 29. September 2017 (BAnz AT 10.10.2017 B1) in der jeweils aktuellen Fassung zu verwenden. » § 4 Abs. 3 ERechV: « Für die Übermittlung von elektronischen Rechnungen haben Rechnungssteller und Rechnungssender ein Verwaltungsportal des Bundes im Sinne von § 2 Absatz 2 des Onlinezugangsgesetzes zu nutzen. Voraussetzung für die Übermittlung einer elektronischen Rechnung ist, dass der Rechnungssteller oder Rechnungssender sich zuvor mit einem Nutzerkonto im Sinne von § 2 Absatz 5 des Onlinezugangsgesetzes registriert. » § 5 ERechV: « Die elektronische Rechnung hat neben den umsatzsteuerrechtlichen Rechnungsbestandteilen mindestens folgende Angaben zu enthalten: 1. eine Leitweg-Identifikationsnummer, 2. die Bankverbindungsdaten, 3. die Zahlungsbedingungen und 4. die De-Mail-Adresse oder eine E-Mail-Adresse des Rechnungsstellers. »",
+      "sourceCheckedAt": "2026-09-01"
+    },
+    "notes": "READ DIRECTLY on 2026-09-01 at gesetze-im-internet.de (https://www.gesetze-im-internet.de/erechv/__4.html and .../__5.html — verbatim citations above, extracted from the official German text itself). EUROPEAN BASELINE: directive 2014/55/EU, art. 7 (see fr.json's own note for the full citation — the same baseline applies to all three countries in this wave). DECISION ON THE TRANSPORT — SETTLED BY READING, NOT GUESSED: the text read (§ 4 Abs. 3 ERechV) explicitly REQUIRES a deposit via \"ein Verwaltungsportal des Bundes\" (a FEDERAL administrative portal within the meaning of the Onlinezugangsgesetz — the \"OZG\"), with prior registration via a \"Nutzerkonto\" — this is neither a plain e-mail send nor a channel already implemented in this repository (email/pdp/ksef/sdi). `transportId: \"zre-ozgre\"` therefore DELIBERATELY references the two federal platforms actually known under these names (ZRE — Zentrale Rechnungseingangsplattform des Bundes; OZG-RE — the shared OZG platform for the Länder that joined it), which do NOT EXIST in `transports/transport-registry.ts` — the exact same thesis as the French \"chorus-pro\" block (see fr.json's own note and actions/invoice-actions.ts's own header): sending an invoice by e-mail to a German federal public entity does NOT SATISFY the text above (which requires the PORTAL, not merely the XRechnung format), so silently routing to \"email\" would do exactly what this project refuses elsewhere (serve an artifact that LOOKS compliant — the right XML format — without going through the channel the law actually mandates). Sending therefore blocked, by naming it, until a ZRE/OZG-RE channel (or Peppol, if ever adopted as an alternative) was actually implemented — it was PEPPOL that was adopted and wired, see the ADDENDUM 2026-09-02 below for the full resolution. ASSUMED LIMITATION: the ERechV read here is the FEDERAL (Bund) text — each of Germany's 16 Länder has its own e-invoicing ordinance, potentially different (its own portal, or even a less strict channel); this rule covers ONLY what a uniform federal text allows asserting for the whole country, never an average or an assumption about the Länder — settling that would mean reading all 16 regional texts one by one, out of this task's scope. — ADDENDUM 2026-09-02 (wiring the 'peppol' transport — RESOLVED): READ DIRECTLY at https://www.e-rechnung-bund.de/faq/ (official site, operated by the Beschaffungsamt des BMI — the federal Ministry of the Interior's own procurement office): since September 2025, ZRE and OZG-RE have MERGED into a single platform (« Ein Jahr nach der Zusammenführung von ZRE und OZG-RE »), and this merged platform explicitly lists Peppol as ONE of its official deposit channels, alongside web entry, upload, and e-mail: « Die OZG-RE bietet als weiteren Übertragungskanal die Möglichkeit zum Rechnungsversand aus der erstellenden Software mittels Übertragung über das Peppol-Netzwerk an. » (\"OZG-RE offers, as a further transmission channel, the possibility of sending an invoice from the issuing software via the Peppol network.\"). WHAT STILL BLOCKED AS OF THAT DATE: this repository's `peppol` transport (`transports/peppol-transport.ts`) built EXCLUSIVELY a generic Peppol BIS Billing 3.0 artifact (`formats/peppol-bis-provider.ts`), never an XRechnung one (`formats/xrechnung-provider.ts`) — yet § 4 Abs. 1 ERechV cited above explicitly requires XRechnung as the CONTENT, independent of which transmission channel is used; silently routing to `peppol` would have delivered generic Peppol-BIS content over a recognized-compliant channel, with no way for this repository to claim that content itself satisfies XRechnung. RESOLVED BY THIS TASK: `transports/transport-registry.ts#DocumentTransportContext` now carries an optional `formatOverride`; `actions/invoice-actions.ts#resolveB2gInvoiceTransport` sets it to THIS rule's own `formatSyntax` (\"xrechnung\") whenever a B2G rule selects the transport; `transports/peppol-transport.ts#resolveFormatForSend` honors it by building `xrechnungFormatProvider` instead of the default `peppolBisFormatProvider`, and refuses BY NAME (never a silent fallback to Peppol BIS) if an override with no wired provider were ever requested — a fixed-format transport (chorus-pro, sdi, face, anaf, email) ignores this field with no effect, proven by regression on each one's EXISTING tests. Proven by `formats/xrechnung-provider.spec.ts`'s own master proof (the XRechnung CustomizationID, never the Peppol BIS one, in the produced XML) AND, at the full-service level (B2G preflight → worker → Access Point call), by `actions/invoice-b2g-de-peppol-send.spec.ts`: the payload ACTUALLY sent to the Access Point carries `urn:...:xrechnung_3.0`, never `urn:...:poacc:billing:3.0`. `transportId` therefore moves from `zre-ozgre` to `peppol`.\n\nPEPPOL ADDRESSING OF THE GERMAN PUBLIC RECIPIENT (⚖, READ, not guessed): the official Peppol \"Participant Identifier Schemes\" code list v9.7 (https://docs.peppol.eu/edelivery/codelists/, file \"Peppol Code Lists - Participant identifier schemes v9.7.json\", checked 2026-09-02) lists ISO 6523 code `0204` as `schemeid: \"DE:LWID\"`, `scheme-name: \"Peppol-Leitweg-ID\"`, `country: \"DE\"`, `issuing-agency: \"Koordinierungsstelle für IT-Standards (KoSIT)\"`, `state: \"active\"`. The same e-rechnung-bund.de/faq/ page cited above confirms this plainly, verbatim, in the section « Wie hängen die Peppol-Participant-ID und die Leitweg-ID zusammen? »: « Präfix 0204 + Leitweg-ID → 0204:Leitweg-ID », and gives a concrete example for its own test sandbox (section « Wie kann ich Testrechnungen via Peppol an die OZG-RE senden? »): « Peppol-Receiver-ID: 0204:99661-WEBSERVICEOZG-28 ». DECISION ON WHERE THE CLIENT-SIDE PARTICIPANT ID COMES FROM: this repository ALREADY carries a generic mechanism for this fact — the client's own `PEPPOL_ENDPOINT` identifier (`client-upsert.tsx`'s own \"Peppol / Electronic routing\" section, \"{schemeId}:{endpointId}\"), read directly by `transports/peppol-transport.ts#send()` (never guessed) — so the user enters `0204:<their Leitweg-ID>` there for a German public client, exactly the same mechanism a client from any other country uses to enter their own Peppol scheme. DELIBERATELY NOT ADDED to `requiredClientIdentifiers` above (unlike the French SIRET or the Italian Codice Univoco): `PEPPOL_ENDPOINT` has, on the client screen (`client-upsert.tsx`, read during this task), its OWN dedicated section (\"Peppol / Electronic routing\"), distinct from the generic \"country identifiers\" list that `requiredClientIdentifiers` feeds on that screen (that component's own `requiredIdentifiers` merge) — duplicating it there would have produced TWO fields for the same fact (one in the generic list, never filled in by a user who fills in the other dedicated section instead) and a submit-time validation pointing at the wrong field: a concrete screen defect, found by reading this file, not a guess. The NAMED refusal when it is missing therefore stays carried by the EXISTING, already-generic mechanism in `peppol-transport.ts#send()` (\"this client has no Peppol endpoint on file\"), never duplicated here — see `actions/invoice-b2g-de-peppol-send.spec.ts`'s own proof that this refusal does hold for a German GOVERNMENT client routed by THIS rule, not only for an ordinary B2B Peppol send.\n\nLIVE (⚖, attempted and SUCCEEDED on 2026-09-02, raw result): `peppol/peppol-sh-xrechnung.live.spec.ts` reuses the pattern of the already-proven Peppol BIS round-trip (peppol.sh BE company + explicit `peppol_id`, `FR` always rejected with `invalid_country`), but builds and sends an XRechnung (`xrechnungFormatProvider`, German seller WITH an IBAN for BR-DE-1) instead of a Peppol BIS document. Result: `doc_v37PTxYOQGn78bPAnMiI0` → `QUEUED` → `DELIVERED` in a single poll step (~10 s) — see documentation/docs/developer-guide/live-testing.md for the full detail. HONEST LIMIT of this green, read in `peppol-sh-client.ts#ublToPeppolShDocument`'s own header BEFORE over-interpreting it: peppol.sh NEVER accepts raw UBL bytes, it EXTRACTS a handful of generic fields (party/VAT/currency/dates/lines) and RE-SERIALIZES its own document server-side — its extraction reads neither `cbc:CustomizationID` nor any XRechnung-specific element. The `DELIVERED` therefore proves the XRechnung artifact is structurally compatible with the same generic extraction path as Peppol BIS, NOT that peppol.sh judges or retains the content as specifically XRechnung — the properly XRechnung-specific proof (the CustomizationID actually present in the bytes sent) is judged LOCALLY by this same spec, BEFORE sending, never by the network itself.\n\nHONESTLY ACKNOWLEDGED LIMITS, NOT LIFTED BY THIS TASK: (1) the Peppol document-type identifier announced to the Access Point for this content (`PEPPOL_DOC_TYPES.INVOICE_XRECHNUNG_UBL`, `transports/peppol/peppol-client.ts`) MIRRORS the standard Peppol URN construction (the same `<CustomizationID>` actually written into the XML) but has NOT been independently verified against a real SMP record from OZG-RE itself — a point named, not guessed, at its own location (see this file's own header); (2) the Länder limitation from the previous paragraph remains entirely unchanged — nothing in this addendum lifts it.\n\n— ADDENDUM 2026-09-15 (removal of the 'peppol' transport — PRODUCT DECISION, REVERSES THE 2026-09-02 ADDENDUM): the `peppol` transport was removed from the entire product, not just from this rule. Reason: this repository's generic client (`transports/peppol-transport.ts`, `transports/peppol/peppol-client.ts`) sent to `POST /api/v1/send`, a shape that matches NONE of the real Access Point providers this repository's own research identified (`documentation/docs/developer-guide/credentials-guide.md` §5, before its own removal) — this path therefore NEVER talked to a real production server, only to the free peppol.sh sandbox (see LIVE above), and proving it in production would have required a commercial account with an AP provider this project never had. Rather than keep a channel that would fail with the first real customer, the decision was to remove it entirely. CONSEQUENCE FOR THIS RULE: `transportId` reverts to `zre-ozgre` — exactly the value and reasoning of the original entry above, before the 2026-09-02 addendum. `formatSyntax` stays `xrechnung`: the CONTENT obligation (§ 4 Abs. 1 ERechV) is a fact of the world, unchanged by this removal; only the CHANNEL disappears. A B2G send to a German public client therefore again returns the NAMED refusal « channel \"zre-ozgre\" not available in this deployment » (`actions/invoice-actions.ts#b2gTransportNotAvailableMessage`), never a silent send through another channel nor an obscure failure. WHAT IT WOULD TAKE TO RESTORE THIS ROUTE: (a) a real account with a commercial Peppol Access Point provider (a commercial step outside the code, on the operator's own account) with a `send()` that actually talks to it, rather than the `POST /api/v1/send` shape never validated against a real provider; or (b) a dedicated ZRE/OZG-RE client built against that federal platform's own real API. The `formatOverride` mechanism (`transport-registry.ts`'s own header) that carried the XRechnung build instead of Peppol BIS stays in place, dormant, for the day either of those exists."
+  },
+  "companyLookup": {
+    "countryCode": "DE",
+    "providers": ["eu-vies"],
+    "noteKey": "companyLookup.notes.DE"
+  }
+}

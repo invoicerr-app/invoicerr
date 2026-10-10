@@ -222,7 +222,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * instance, for the identical "no reason to couple two registries" argument.
  *
  * "chorus-pro" (`transports/chorus-pro-transport.ts`) is the FIFTH — this makes the channel the B2G
- * FR routing rule (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST (that commit's
+ * FR routing rule (`countries/data/fr.json (section "b2gRouting")`) has named since 3cb39f91 actually EXIST (that commit's
  * own thesis: "a rule may legitimately name a channel not implemented yet" — see this file's own
  * header for the full precedent). Same reasoning as "pdp": its own `facturxFormatProvider` instance,
  * same "stateless, no reason to couple two registries" argument.
@@ -247,7 +247,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * that had never proven a round-trip against a real commercial AP account (only against peppol.sh, a
  * zero-secret sandbox). `formats/peppol-bis-provider.ts` (the Peppol BIS Billing 3.0 FORMAT) survives
  * untouched — it is still registered above for `download-xml`, and Germany's XRechnung obligation
- * (`b2g-routing/data/de.json`) is real regardless of which transport can or can't carry it; see that
+ * (`countries/data/de.json (section "b2gRouting")`) is real regardless of which transport can or can't carry it; see that
  * file's own `notes` for the full, dated history of the format-override mechanism this removal made
  * dormant (no transport in this registry reads `ctx.formatOverride` today — it remains available for
  * a future one that builds more than one format).
@@ -299,7 +299,7 @@ function buildTransportRegistry(
   // "sdi-pec" — the SAME Sistema di Interscambio as "sdi" above, reached over a certified-email (PEC)
   // mailbox instead of the accredited SDICoop web service — see `transports/sdi-pec-transport.ts`'s
   // own header for why this exists (SDICoop needs AdE accreditation this project cannot obtain; PEC
-  // needs none). `channel-policy/data/it.json`'s own "sdi" mandate names this id in its
+  // needs none). `countries/data/it.json (section "channelPolicy")`'s own "sdi" mandate names this id in its
   // `equivalentProviderIds` so choosing THIS transport for Italy is treated as satisfying the SAME
   // legal mandate as "sdi" itself (see `channel-policy/schema.ts`'s own header on that field, and
   // `actions/invoice-actions.ts`'s own mandate-satisfaction check). Own `fatturapaFormatProvider`
@@ -312,7 +312,7 @@ function buildTransportRegistry(
   // "acube" (`transports/acube-transport.ts`) - A-Cube, an Italian e-invoicing provider that is also
   // a Peppol access point. It deposits the SAME FatturaPA "sdi"/"sdi-pec" build, through a REST API
   // instead of SDICoop or PEC, and its sandbox round-trip is proven live (2026-09-24). ITALY IS OUT
-  // OF SCOPE for it nonetheless, by decision: `channel-policy/data/it.json`'s `sdi` mandate names
+  // OF SCOPE for it nonetheless, by decision: `countries/data/it.json (section "channelPolicy")`'s `sdi` mandate names
   // only "sdi-pec" as equivalent, so an Italian company choosing this transport is refused at send -
   // intended, not a defect, and read that transport's own header before touching either file. Own
   // `fatturapaFormatProvider` reference, same "stateless, no reason to couple two registries"
@@ -325,7 +325,7 @@ function buildTransportRegistry(
   // this transport, which builds FatturaPA and nothing else today.
   registry.register('acube', 'A-Cube', buildAcubeTransport({ channelCredentials, fatturapaFormatProvider }));
   // "chorus-pro" (France, B2G) — makes the channel the B2G FR routing rule
-  // (`b2g-routing/data/fr.json`) has named since 3cb39f91 actually EXIST — see
+  // (`countries/data/fr.json (section "b2gRouting")`) has named since 3cb39f91 actually EXIST — see
   // `transports/chorus-pro-transport.ts`'s own header. Own `facturxFormatProvider` instance, same
   // "stateless, no reason to couple two registries" reasoning "pdp" above already holds — and, unlike
   // "pdp"'s own instance, configured with TWO overrides:
@@ -338,7 +338,7 @@ function buildTransportRegistry(
   //    descriptor model ever represents.
   //  - `legalIdOverride: 'full'`: Chorus Pro routes a deposit to a STRUCTURE identified by its FULL
   //    14-digit SIRET (schemeID '0002', AIFE's own S2.13), never the 9-digit SIREN
-  //    `build-semantic-invoice.ts#toSiren` reduces to by default — see
+  //    `build-semantic-invoice.ts#einvoiceLegalId` reduces to by default, see
   //    `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (the NEXT rejection
   //    in the SAME 2026-09-14 sequence, `CPP0011117000000000425899`, both parties truncated).
   // Both scoped to THIS instance alone: "pdp"'s own instance above is untouched, keeping its
@@ -644,8 +644,8 @@ function buildEntityReferenceRegistry(
   // (both entities, one search implementation, two different `options`).
   registry.register('client', buildClientReferenceProvider(clientsService, { excludeSuppliers: true }));
   registry.register('supplier', buildClientReferenceProvider(clientsService));
-  // The catalog article picker (14-articles.cy.ts, quote/invoice line `prefillFrom`) — the only
-  // provider that implements `getFields` today (see article-reference.provider.ts).
+  // The catalog article search on document lines (`prefillFrom`), the only provider that
+  // implements `getFields` today (see article-reference.provider.ts).
   registry.register('article', buildArticleReferenceProvider(articlesService));
   // The invoice's "origin" field (multi-target: quote OR another invoice) and the credit note's
   // "invoice" field are what needed these: a 'reference' field pointing at another document TYPE's

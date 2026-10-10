@@ -17,7 +17,7 @@ export interface DocumentFieldDescriptor {
   /** Mirrors the backend's `DocumentFieldDescriptor.requiredIfPresent` (descriptors/types.ts) — this
    *  field is required only once a named SIBLING field elsewhere in the same document is itself set
    *  (e.g. a Polish correction invoice's own `correctionReason`, required only once `correctsInvoiceId`
-   *  resolves — country-fields/data/pl.json). A SCREEN convenience only (the visible "required"
+   *  resolves — countries/data/pl.json (section "countryFields")). A SCREEN convenience only (the visible "required"
    *  marker, field-renderers/primitive-fields.tsx's `useConditionallyRequired`) — the backend's own
    *  `validateAgainstDescriptor` is what actually enforces it, never trusted from here alone. */
   requiredIfPresent?: string
@@ -43,6 +43,10 @@ export interface DocumentFieldDescriptor {
    *  change is real and unrequested on a type that never asked for it. Set ONLY on the quote's own
    *  `option` line subfield today (issue #373). Absent/false: no datalist, unchanged render. */
   suggestSiblingValues?: true
+  /** Mirrors the backend's `DocumentFieldDescriptor.suggestedValues` (descriptors/types.ts) - 'text'
+   *  only: a fixed list offered through the same `<datalist>`, any other text staying valid. `value`
+   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. */
+  suggestedValues?: DocumentFieldOption[]
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
@@ -93,9 +97,9 @@ export interface DocumentFieldDescriptor {
   fields?: DocumentFieldDescriptor[]
   min?: number
   max?: number
-  /** 'array' only: lets each ROW offer a "fill from catalog" button — see field-renderers/
+  /** 'array' only: makes each ROW's text designation search a catalog, see field-renderers/
    *  array-field.tsx and the backend's `DocumentFieldDescriptor.prefillFrom` (descriptors/types.ts)
-   *  for the full mechanism. `entity` names the EntityReferenceRegistry entry backing the picker
+   *  for the full mechanism. `entity` names the EntityReferenceRegistry entry backing the search
    *  (e.g. "article"); `map` pairs a ROW subfield KEY with a field name on that entity's own raw
    *  record. Opaque to every kind but the array renderer — it never gets interpreted by field kind. */
   prefillFrom?: { entity: string; map: Record<string, string> }
@@ -228,8 +232,21 @@ export interface DocumentTypeDescriptor {
    *  `onlyFrom` (issue #471) mirrors the backend field of the same name - see its own doc comment
    *  there for the full "why" (a legacy, pre-feature credit note must never be numbered
    *  retroactively) - and is what `numberingDisplayState` below reads to tell "still a draft, no
-   *  number yet" apart from "issued before this feature existed, never to be numbered". */
-  numbering?: { onEnterStatus: string; onlyFrom?: string[] }
+   *  number yet" apart from "issued before this feature existed, never to be numbered".
+   *  `onEnterStatus` is `string | string[]` (issue #581) - the invoice now numbers at BOTH "sending"
+   *  (the ordinary async "send") and "validated" (the new "Validate" action). Every reader goes
+   *  through `onEnterStatuses` below rather than comparing to this field directly - see that helper's
+   *  own header. */
+  numbering?: { onEnterStatus: string | string[]; onlyFrom?: string[] }
+}
+
+/** `DocumentTypeDescriptor.numbering.onEnterStatus` normalized to an array - mirrors the backend's own
+ *  `onEnterStatuses` (descriptors/types.ts) exactly, for the identical reason: one place that
+ *  reconciles the bare-string and set shapes so every caller (`action-presentation.ts`'s own
+ *  `actionAssignsNumber`) checks membership the same way. Empty for a type with no `numbering` at all. */
+export function onEnterStatuses(numbering: DocumentTypeDescriptor["numbering"]): string[] {
+  if (!numbering) return []
+  return Array.isArray(numbering.onEnterStatus) ? numbering.onEnterStatus : [numbering.onEnterStatus]
 }
 
 /**
@@ -434,6 +451,17 @@ export interface DocumentSettlementResult {
  *  the server, shown verbatim: see `document-tax-warnings.tsx` for why there is no key to translate. */
 export interface DocumentTaxWarningsResult {
   warnings: string[]
+}
+
+/** Mirrors the backend's `ActionTransmissionPreview` (actions/action-registry.ts) - issue #581's own
+ *  "will confirming this action genuinely transmit the document somewhere, and through what" preview,
+ *  read BEFORE the user confirms a lock-confirmation dialog (document-form.tsx's
+ *  `DocumentActionLockConfirmHost`). `channelLabel` is plain data, not an i18n key, the same
+ *  convention `DocumentActionDescriptor.label` already holds - present only when `transmits` is
+ *  true. */
+export interface ActionTransmissionPreview {
+  transmits: boolean
+  channelLabel?: string
 }
 
 /** One artifact this archive covers, mirrors the backend's

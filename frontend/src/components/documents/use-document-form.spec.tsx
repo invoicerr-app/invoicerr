@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react"
+import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Form } from "@/components/ui/form"
@@ -19,6 +20,8 @@ vi.mock("@/hooks/queries", () => ({
   useRunDocumentAction: vi.fn(),
   useResolveActionParamsDefaults: vi.fn(),
 }))
+
+vi.mock("@/hooks/queries/use-payment-terms", () => ({ usePaymentTerms: vi.fn(() => ({ data: undefined })) }))
 
 import {
   useDocumentType,
@@ -74,7 +77,11 @@ describe("<DocumentFormFields> — an open popover survives the client-aware des
     // page-provided descriptor, exactly as a fresh mount does before any client-aware fetch resolves.
     mockedUseDocumentType.mockReturnValue({ data: undefined } as never)
 
-    const { rerender } = render(<Harness descriptor={pageDescriptor} />)
+    const { rerender } = render(
+      <MemoryRouter>
+        <Harness descriptor={pageDescriptor} />
+      </MemoryRouter>,
+    )
 
     fireEvent.click(screen.getByTestId("document-field-issueDate-input"))
     expect(screen.getByTestId("date-picker-today")).toBeInTheDocument()
@@ -82,7 +89,11 @@ describe("<DocumentFormFields> — an open popover survives the client-aware des
     // The refetch "lands": a brand-new descriptor object, structurally identical to the one already
     // rendered (same field keys, same everything) — the only thing that changed is its IDENTITY.
     mockedUseDocumentType.mockReturnValue({ data: makeDescriptor() } as never)
-    rerender(<Harness descriptor={pageDescriptor} />)
+    rerender(
+      <MemoryRouter>
+        <Harness descriptor={pageDescriptor} />
+      </MemoryRouter>,
+    )
 
     // The popover must still be open: nothing about what this field IS actually changed.
     expect(screen.getByTestId("date-picker-today")).toBeInTheDocument()

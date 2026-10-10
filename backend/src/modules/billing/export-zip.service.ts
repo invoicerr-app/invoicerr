@@ -174,8 +174,20 @@ export class BillingExportService {
       const dir = `${doc.typeId}/${doc.number ?? doc.id}`;
       zip.file(`${dir}.json`, JSON.stringify(doc, null, 2));
       try {
-        const pdf = await this.documentsService.renderInstancePdf(companyId, doc.typeId, doc.id);
-        zip.file(`${dir}.pdf`, pdf);
+        if (doc.status === 'imported') {
+          // Issue #549 - an imported document's real legal copy is its IMPORT_ORIGINAL archive, not
+          // a fresh render: `renderInstancePdf` itself refuses (409) whenever that original is not a
+          // PDF (structured XML/image the previous tool issued), which used to mean this "take your
+          // data away" export silently dropped the invoice's or credit note's ONLY legal copy and
+          // logged it as an ordinary render failure. Reaching for the archive directly instead, the
+          // same way `documents.controller.ts#downloadOriginal` does, means every imported document
+          // always leaves with a file here, whatever format its original was issued in.
+          const original = await this.documentsService.downloadImportOriginal(companyId, doc.typeId, doc.id);
+          zip.file(`${doc.typeId}/${original.filename}`, Buffer.from(original.bytes));
+        } else {
+          const pdf = await this.documentsService.renderInstancePdf(companyId, doc.typeId, doc.id);
+          zip.file(`${dir}.pdf`, pdf);
+        }
       } catch (error) {
         logger.warn('Billing export: one document could not be rendered to PDF — JSON only', {
           category: 'billing',

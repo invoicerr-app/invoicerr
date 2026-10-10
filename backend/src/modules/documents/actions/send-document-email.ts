@@ -2,11 +2,12 @@ import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
+import { onEnterStatuses } from '../descriptors/types';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
-import { applyStockOnIssuance, declaresArticleReference } from '../stock/apply-stock-on-issuance';
+import { applyStockOnIssuance, decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { DocumentInstanceResult } from './action-registry';
@@ -109,7 +110,7 @@ export async function sendDocumentInstanceEmail(
   let document = input.document;
   const descriptor = deps.typeRegistry.resolve(typeId);
 
-  if (descriptor.numbering?.onEnterStatus === document.status && document.number == null) {
+  if (onEnterStatuses(descriptor.numbering).includes(document.status) && document.number == null) {
     const numbered = await takeDocumentNumberForTransition(companyId, typeId, document.id, document.data);
     if (numbered) {
       document = { ...document, ...numbered };
@@ -120,13 +121,14 @@ export async function sendDocumentInstanceEmail(
       // one site that actually issued the number. `applyStockOnIssuance` never throws (see its own
       // header), so a stock-bookkeeping hiccup can never stop a send that already numbered the record.
       //
-      // GATED on `declaresArticleReference(descriptor)` (PR #473 round 3, point 2b) - the SAME
-      // `descriptor` already resolved a few lines up (`deps.typeRegistry.resolve`), never a second
-      // lookup. A credit note reaches this function since issue #499 (its "email" delivery), and the
-      // rule does not rely on it being numbered elsewhere first: "never decrement for a type whose
-      // descriptor declares no article reference" is checked here directly, the same way
-      // `documents.service.ts#runAction`'s own site now is.
-      if (declaresArticleReference(descriptor)) {
+      // GATED on `decrementsStockOnIssuance(descriptor)` (issue #579: the EXPLICIT
+      // `DocumentTypeDescriptor.stockEffect` fact) - the SAME `descriptor` already resolved a few
+      // lines up (`deps.typeRegistry.resolve`), never a second lookup. A credit note reaches this
+      // function since issue #499 (its "email" delivery), and so does a QUOTE (its own unconditional
+      // "send", quote-actions.ts) - neither opts into `stockEffect: 'decrement'`, so neither ever
+      // reaches `applyStockOnIssuance` from here, the same way `documents.service.ts#runAction`'s own
+      // site now is checked.
+      if (decrementsStockOnIssuance(descriptor)) {
         await applyStockOnIssuance(companyId, document);
       }
     }

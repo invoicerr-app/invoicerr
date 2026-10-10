@@ -9,6 +9,7 @@
  * ANAF is also the authority on whether the company is registered for VAT and for
  * RO e-Factura, which the invoicing flow needs before it picks a channel.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join, localDate } from './shared';
@@ -18,7 +19,6 @@ const ANAF_URL = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
 export class RomaniaAnafProvider implements CompanyRegistryProvider {
   readonly id = 'ro-anaf';
   readonly label = 'ANAF (registrul contribuabililor)';
-  readonly countries = ['RO'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'CUI / CIF';
   readonly docsUrl = 'https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt';
@@ -31,13 +31,13 @@ export class RomaniaAnafProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'RO') return false;
-    const cui = digits(stripVatPrefix(query.value, 'RO'));
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
+    const cui = digits(stripVatPrefix(query.value, query.countryCode));
     return cui.length >= 2 && cui.length <= 10;
   }
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
-    const cui = Number(digits(stripVatPrefix(query.value, 'RO')));
+    const cui = Number(digits(stripVatPrefix(query.value, query.countryCode)));
     if (!Number.isFinite(cui) || cui <= 0) return null;
 
     const data = await fetchJson<any>(ANAF_URL, {
@@ -61,7 +61,7 @@ export class RomaniaAnafProvider implements CompanyRegistryProvider {
       city: seat.sdenumire_Localitate,
       state: seat.sdenumire_Judet,
       country: 'România',
-      countryCode: 'RO',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(general.data_inregistrare),
       status: entry.stare_inactiv?.statusInactivi ? 'INACTIVE' : 'ACTIVE',
       vatRegistered,

@@ -107,7 +107,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     // BEFORE any VIES-style verdict is even consulted ("never a silent B2B"), which for a
     // cross-border GOODS line, same EU union, routes through OSS destination VAT
     // (`tax-engine.ts#ossDestinationVat`) at the BUYER's own country's rate — France's, 20%
-    // (`tax-systems/data/fr.json`, derived from `vat-rates/data/fr.json`'s "fr-standard" entry). The
+    // (`countries/data/fr.json (section "taxSystem")`, derived from `countries/data/fr.json (section "vatRates")`'s "fr-standard" entry). The
     // RESOLVED rate (20%) coincides with what is typed below only because France's own standard rate
     // happens to also be 20% — never read this as proof the engine special-cased "standard-rated
     // B2B": `full-lifecycle.cy.ts`'s own de-fr assertions decisively distinguish the two (the buyer's
@@ -124,7 +124,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     company: { name: 'Berlin Tech GmbH', country: 'Germany', legalId: 'DE136695976', currency: 'EUR', currencyLabel: 'Euro (€)', identifierScheme: 'VAT' },
     client: { name: 'Paris Media SAS', email: 'client-de-fr@mailpit.test', country: 'France', type: 'COMPANY', vat: 'FR12345678901', address: '15 Rue de Rivoli', postalCode: '75001', city: 'Paris', currency: 'EUR' },
     // CORRECTED (2026-09-13): this typed 20 — France's standard rate — which the German SELLER's own
-    // screen has never been able to offer and, since `vat-rates/data/de.json` landed, the document
+    // screen has never been able to offer and, since `countries/data/de.json (section "vatRates")` landed, the document
     // validator actively refuses ("VAT rate is not one of the offered choices"): Germany's catalog
     // declares 19, 7 and 0. The leg was red from that commit until this one, unnoticed because the
     // scenario legs only run on a PR and this branch has not opened one.
@@ -145,7 +145,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     // in `documents/descriptors/invoice.descriptor.ts`'s own lifecycle today. `noCiTransmission` is
     // left in place, unused, rather than deleted, so a reader comparing against pre-restoration git
     // history isn't confused by its sudden disappearance.
-    // SdI MANDATE (armed 2026-09-13): `transports/channel-policy/data/it.json` now codes "sdi" as
+    // SdI MANDATE (armed 2026-09-13): `countries/data/it.json (section "channelPolicy")` now codes "sdi" as
     // `mandated`, effective 2019-01-01 (D.Lgs. 127/2015 art. 1 comma 3) — an Italian seller choosing
     // a non-SdI channel is refused. The restored spec proves the block: this leg's main invoice first
     // tries plain "email" and is rejected, then connects a (fake, CI-only) SdI channel and picks it
@@ -178,7 +178,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     // authority-stamped folio) have no equivalent among the kept countries and are dropped, not
     // reassigned to Italy/Portugal on a guess — see this file's own header.
     // SdI MANDATE (armed 2026-09-13): Italy is the SELLER here too, so this leg's own main invoice
-    // hits the SAME `channel-policy/data/it.json` "mandated" SdI fact (effective 2019-01-01,
+    // hits the SAME `countries/data/it.json (section "channelPolicy")` "mandated" SdI fact (effective 2019-01-01,
     // D.Lgs. 127/2015 art. 1 comma 3) as `it-it` above, and needs the same two-step "blocked by
     // email, unblocked by connecting SdI" proof — see `it-it`'s comment above and
     // `full-lifecycle.cy.ts`'s own header.
@@ -206,7 +206,7 @@ export const SCENARIOS: Record<string, Scenario> = {
     //
     // CORRECTED (2026-09-13): `vatRate` used to be the DESTINATION country's own standard rate
     // (Germany, 19%), on the reasoning that "the real tax resolution at issuance recomputes this
-    // regardless of what was typed here". That reasoning was sound until `vat-rates/data/pl.json`
+    // regardless of what was typed here". That reasoning was sound until `countries/data/pl.json (section "vatRates")`
     // landed: the document validator now refuses a rate the SELLER's own catalog does not offer
     // ("VAT rate is not one of the offered choices"), and Poland declares 23, 8, 5 and 0 — never 19.
     // The leg was red from that commit until this one, unnoticed because the scenario legs only run

@@ -22,11 +22,10 @@
  *
  * APPENDED (2026-09-13) — the "localized reverse-charge / intra-Community wording" describe block,
  * plus one test each in the domestic-VAT and export-out-of-the-EU blocks above, cover
- * `tax-engine.ts#LOCALIZED_MENTION`: a member state whose OWN statute names the exact wording an
+ * each country's `localizedMentions` data: a member state whose OWN statute names the exact wording an
  * invoice must carry (PT/IT/PL/DE) gets that text instead of the generic Directive-citing one, and a
  * country with no entry (FR, for this situation) is proven unchanged even though the situation itself
- * now has overrides for other countries — see that constant's own header for the sourcing and for why
- * this is a plain TS table rather than a `data/*.json` catalog.
+ * now has overrides for other countries, see `countries/data/<cc>.json` for the sourcing.
  */
 import { CountryTaxSystemProfile, DocumentLine, PartyTaxProfile, SupplyType, TaxScheme } from './types';
 import { defaultTaxSystemRegistry } from './tax-systems/registry';

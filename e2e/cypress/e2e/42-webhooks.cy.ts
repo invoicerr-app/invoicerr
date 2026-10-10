@@ -18,6 +18,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * `GET /api/webhooks/options` reflects `Object.values(WebhookEvent)` directly — no screen change
  * was needed for that, only this spec.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", () => {
@@ -78,6 +80,7 @@ describe("The DOCUMENT_SENT webhook fires when an invoice is genuinely sent", ()
 					postalCode: "75003",
 					isActive: true,
 					type: "COMPANY",
+					identifiers: FRENCH_BUYER_IDENTIFIERS,
 				},
 				failOnStatusCode: false,
 			}).then((created) => {

@@ -1,5 +1,6 @@
 import { Scale } from "lucide-react"
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -14,8 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCorrectionRoutes, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
+import { type SelectableRowsResult, useCorrectionRoutes, useRunDocumentAction } from "@/hooks/queries"
+import { ApiError, apiFetch } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
@@ -78,10 +79,10 @@ import { cn } from "@/lib/utils"
  * `correction-routes.ts#isImplemented`, country-aware exactly like CANCEL_AND_REPLACE). Choosing it
  * navigates one-click, same as INTERNAL_CREDIT_NOTE, but to the INVOICE creation screen (not the
  * credit-note one — Poland's own law has no separate credit-note instrument, see
- * `correction-routes/data/pl.json`'s own CREDIT_NOTE citation): pre-filled with `correctsInvoiceId:
+ * `countries/data/pl.json (section "correctionRoutes")`'s own CREDIT_NOTE citation): pre-filled with `correctsInvoiceId:
  * instance.id` (`descriptors/invoice.descriptor.ts`'s own trunk field), which is what makes
  * `formats/national/fa3-provider.ts` build `RodzajFaktury = KOR` once this invoice is sent. Poland's
- * own `country-fields/data/pl.json` overlay is what puts the "Correction reason" field on that screen,
+ * own `countries/data/pl.json (section "countryFields")` overlay is what puts the "Correction reason" field on that screen,
  * conditionally required the moment `correctsInvoiceId` resolves — no bespoke wiring needed here for
  * that part either, the generic field-overlay + `requiredIfPresent` mechanism already does it.
  */
@@ -95,7 +96,13 @@ const CORRECTIVE_INVOICE_ROUTE_ID = "CORRECTIVE_INVOICE"
  *  "draft" or a "sending" invoice never even offers the button, rather than offering it and letting
  *  the backend's own gate-4 409 ("still draft") explain why nothing happened. */
 function isIssued(status: string): boolean {
-  return status === "sent" || status === "send_failed"
+  return status === "validated" || status === "sent" || status === "send_failed"
+}
+
+/** The credit note's seed: the invoice linked and every original line pre-checked; the user can
+ *  still uncheck some for a partial credit note. */
+export function creditNoteSeed(invoiceId: string, rows: { id: string }[]): Record<string, unknown> {
+  return { invoice: invoiceId, correctedLines: rows.map((row) => row.id) }
 }
 
 /** Whether the seller's own country PERMITS attempting this route at all — `required`/`allowed`
@@ -221,8 +228,9 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   // `invalidateKeys: [["documents"]]` is what makes the list's own "Cancelled" badge appear the
   // instant this dialogue closes, with no bespoke refetch wired here.
   const cancelAction = useRunDocumentAction()
+  const queryClient = useQueryClient()
 
-  const handleChoose = (route: CorrectionRouteView) => {
+  const handleChoose = async (route: CorrectionRouteView) => {
     if (route.routeId === INTERNAL_CREDIT_NOTE_ROUTE_ID && route.implemented) {
       // THE real mechanism, pre-linked — never a new one built for this screen. `state.initialData`
       // is the SAME generic seed `DocumentCreateDialog` already accepts for a brand-new record (see
@@ -231,8 +239,22 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // opens the create dialog with it already applied. Setting only `invoice` is enough:
       // `lockedFromReference` on the credit note's `currency` field watches that sibling field
       // and locks itself the instant it resolves — no currency value needs to be guessed here.
+      let rows: { id: string }[] = []
+      try {
+        const result = await queryClient.fetchQuery({
+          queryKey: ["document-row-selection", "credit-note", "correctedLines", instance.id],
+          staleTime: 0,
+          queryFn: () =>
+            apiFetch<SelectableRowsResult>(
+              `/api/documents/types/credit-note/fields/correctedLines/rows?sourceId=${encodeURIComponent(instance.id)}`,
+            ),
+        })
+        rows = result.rows
+      } catch {
+        // The screen still opens linked; the lines can be ticked by hand.
+      }
       onClose()
-      navigate("/documents/credit-note", { state: { initialData: { invoice: instance.id } } })
+      navigate("/documents/credit-note", { state: { initialData: creditNoteSeed(instance.id, rows) } })
       return
     }
     if (route.routeId === CANCEL_AND_REPLACE_ROUTE_ID && route.implemented) {

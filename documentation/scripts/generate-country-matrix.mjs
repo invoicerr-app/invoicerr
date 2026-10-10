@@ -76,9 +76,20 @@ const OUT_DIRS = {
 
 // =================================================================================================
 // DATA LOADING — locale-free. Reads exactly what the backend itself would load.
+//
+// Issue #603 step 6 physically moved every mechanism's per-country data into ONE file per country,
+// `documents/countries/data/<cc>.json`, one optional top-level key per mechanism (the same keys the
+// backend's own `ComposedCountryView` declares). This script used to call a `loadDataDir(relPath)`
+// helper once per mechanism, each doing its OWN `readdirSync` over that mechanism's own directory -
+// eleven independent directory scans. There is now only ONE directory to discover countries from,
+// so `loadComposedCountryDir()` reads it once, and `loadSection(key)` below just picks each
+// mechanism's own key back out, country by country, returning EXACTLY the same per-country object
+// `loadDataDir` used to return for that mechanism (b2g-routing's old `{ countryCode, rule }`
+// envelope is gone - the merged file's `b2gRouting` key already holds the rule itself) - so every
+// value this script renders from is unchanged, only where it is read from.
 // =================================================================================================
-function loadDataDir(relPath) {
-  const dir = join(DOCUMENTS_ROOT, relPath);
+function loadComposedCountryDir() {
+  const dir = join(DOCUMENTS_ROOT, 'countries', 'data');
   if (!existsSync(dir)) return {};
   const files = readdirSync(dir)
     .filter((f) => /^[a-z]{2}\.json$/.test(f))
@@ -98,62 +109,34 @@ function loadDataDir(relPath) {
   return out;
 }
 
-const countryPolicy = loadDataDir('country-policy/data');
-// b2g-routing files wrap the fact in a top-level { countryCode, rule } envelope (unlike every
-// sibling mechanism, which is flat) — see b2g-routing/schema.ts's own CountryB2gRoutingFile.
-const b2gRouting = Object.fromEntries(
-  Object.entries(loadDataDir('b2g-routing/data')).map(([cc, file]) => [cc, file.rule]),
-);
-const correctionRoutes = loadDataDir('correction-routes/data');
-const channelPolicy = loadDataDir('transports/channel-policy/data');
-const taxSystems = loadDataDir('tax/tax-systems/data');
-const countryIdentifiers = loadDataDir('country-identifiers/data');
-const mentions = loadDataDir('mentions/data');
-const countryFields = loadDataDir('country-fields/data');
-const contentRequirements = loadDataDir('content-requirements/data');
+const COMPOSED_COUNTRIES = loadComposedCountryDir();
+
+/** Every country that declares `sectionKey` in its merged file, keyed by country code - the same
+ *  shape `loadDataDir(relPath)` used to return for one mechanism's own directory. */
+function loadSection(sectionKey) {
+  const out = {};
+  for (const [cc, file] of Object.entries(COMPOSED_COUNTRIES)) {
+    if (file[sectionKey] !== undefined) out[cc] = file[sectionKey];
+  }
+  return out;
+}
+
+const countryPolicy = loadSection('policy');
+const b2gRouting = loadSection('b2gRouting');
+const correctionRoutes = loadSection('correctionRoutes');
+const channelPolicy = loadSection('channelPolicy');
+const taxSystems = loadSection('taxSystem');
+const countryIdentifiers = loadSection('identifiers');
+const mentions = loadSection('mentions');
+const countryFields = loadSection('countryFields');
+const contentRequirements = loadSection('contentRequirements');
 // How long a document archived for this country must be kept — and, just as much, what that duration
 // is counted FROM. A country may declare several rules at once: they are simultaneous obligations, so
 // the effective date is the latest of them, never a choice between them (see the catalogue's own
 // `compute-retention.ts` header). Read here so the public page can state one of the most practical
 // facts a business needs, instead of leaving it unsaid.
-const archiveRetention = loadDataDir('archive/retention/data');
-const vatRates = loadDataDir('vat-rates/data');
-
-// ---------------------------------------------------------------------------------------------
-// The local-cancellation whitelist lives in TypeScript (`correction-routes/cancel-policy.ts`), a
-// plain data literal extracted here by brace-matching rather than hand-copied (see the previous
-// version of this script, preserved in git history, for the full reasoning — unchanged by this
-// rewrite).
-// ---------------------------------------------------------------------------------------------
-function loadCancelWhitelist() {
-  const path = join(DOCUMENTS_ROOT, 'correction-routes', 'cancel-policy.ts');
-  const src = readFileSync(path, 'utf-8');
-  const marker = 'const CANCEL_LOCAL_AVAILABILITY';
-  const markerIdx = src.indexOf(marker);
-  if (markerIdx === -1) {
-    throw new Error(
-      `generate-country-matrix: "${marker}" not found in ${path} — the cancel-policy.ts shape ` +
-        'changed; update loadCancelWhitelist() in this script to match.',
-    );
-  }
-  const braceStart = src.indexOf('{', markerIdx);
-  let depth = 0;
-  let i = braceStart;
-  for (; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        i++;
-        break;
-      }
-    }
-  }
-  const literal = src.slice(braceStart, i);
-  return new Function(`"use strict"; return (${literal});`)();
-}
-
-const cancelWhitelist = loadCancelWhitelist();
+const archiveRetention = loadSection('retention');
+const vatRates = loadSection('vatRates');
 
 function findCorrectionRoute(file, routeId) {
   return file?.routes?.find((r) => r.routeId === routeId);
@@ -164,13 +147,9 @@ function findCorrectionRoute(file, routeId) {
 function resolveCancelPolicy(cc) {
   const route = findCorrectionRoute(correctionRoutes[cc], 'CANCEL_AND_REPLACE');
   if (!route) return { key: 'NONE' };
-  const whitelisted = cancelWhitelist[cc];
-  if (!whitelisted) return { key: 'NO', routeStatus: route.status };
-  if (route.status !== whitelisted.expectedStatus) {
-    return { key: 'DRIFT', expected: whitelisted.expectedStatus, actual: route.status };
-  }
-  if (whitelisted.restrictedToStatuses) {
-    return { key: 'RESTRICTED', statuses: whitelisted.restrictedToStatuses, routeStatus: route.status };
+  if (!route.locallyImplementable) return { key: 'NO', routeStatus: route.status };
+  if (route.restrictedToStatuses) {
+    return { key: 'RESTRICTED', statuses: route.restrictedToStatuses, routeStatus: route.status };
   }
   return { key: 'YES', routeStatus: route.status };
 }
@@ -256,7 +235,6 @@ const STRINGS = {
     cancel: {
       tagNone: '—',
       tagNo: 'no',
-      tagDrift: '⚠ drift',
       tagRestricted: 'restricted',
       tagYes: 'yes',
       detailNone:
@@ -266,10 +244,6 @@ const STRINGS = {
         'correction-routes data, but no local cancellation mechanism is wired for it (see ' +
         'correction-routes/cancel-policy.ts — the law may allow the route, the channel/mechanism to ' +
         'realize it here does not exist yet).',
-      detailDrift: (expected, actual) =>
-        `cancel-policy.ts's whitelist expected CANCEL_AND_REPLACE status "${expected}" but the data ` +
-        `now says "${actual}" — the whitelist in correction-routes/cancel-policy.ts needs review; ` +
-        'this line is not a reliable fact until it is.',
       detailRestricted: (statuses) =>
         `Available, but only while the invoice is in status ${statuses.join(', ')} — ` +
         'CANCEL_AND_REPLACE narrows to this in this country\'s own data.',
@@ -506,9 +480,6 @@ const STRINGS = {
         'Not through this app yet. The law here may allow it in principle, but no channel or mechanism in ' +
         'this app actually carries it out for this country yet — a known gap, not a silent "no".',
       plainCancelNone: 'Nothing is declared yet for this country — see the details below for what would settle it.',
-      plainCancelDrift:
-        "This app's own records disagree with each other about this — see the details below rather than " +
-        'trusting a plain answer until that is sorted out.',
       plainTaxIntro: (name, kindLabel, rate) =>
         `If you're registered for ${kindLabel} in ${name}, the standard rate is ${rate} — the percentage ` +
         'added on top of most sales.',
@@ -592,7 +563,6 @@ const STRINGS = {
     cancel: {
       tagNone: '—',
       tagNo: 'non',
-      tagDrift: '⚠ dérive',
       tagRestricted: 'restreinte',
       tagYes: 'oui',
       detailNone:
@@ -602,11 +572,6 @@ const STRINGS = {
         "correction-routes propres à ce pays, mais aucun mécanisme d'annulation local n'y est " +
         'câblé (voir correction-routes/cancel-policy.ts — la loi peut permettre la voie, le canal/' +
         "mécanisme pour la réaliser ici n'existe pas encore).",
-      detailDrift: (expected, actual) =>
-        `La liste blanche de cancel-policy.ts attendait le statut « ${expected} » pour ` +
-        `CANCEL_AND_REPLACE, mais la donnée dit maintenant « ${actual} » — la liste blanche dans ` +
-        "correction-routes/cancel-policy.ts doit être revue ; cette ligne n'est pas un fait fiable " +
-        "tant que ce n'est pas fait.",
       detailRestricted: (statuses) =>
         `Disponible, mais seulement tant que la facture est au statut ${statuses.join(', ')} — ` +
         "CANCEL_AND_REPLACE se restreint à cela dans les données propres à ce pays.",
@@ -854,9 +819,6 @@ const STRINGS = {
         "mécanisme de cette application ne le réalise encore pour ce pays — un manque connu, jamais un " +
         '« non » silencieux.',
       plainCancelNone: 'Rien n\'est encore déclaré pour ce pays — voir les détails ci-dessous pour ce qui trancherait.',
-      plainCancelDrift:
-        "Les propres données de cette application se contredisent sur ce point — voir les détails " +
-        "ci-dessous plutôt qu'une réponse simple, tant que ce n'est pas réglé.",
       plainTaxIntro: (name, kindLabel, rate) =>
         `Si vous êtes assujetti à la ${kindLabel} en ${name}, le taux normal est de ${rate} — le ` +
         'pourcentage ajouté au-dessus de la plupart des ventes.',
@@ -1169,8 +1131,8 @@ const DOC_TYPE_PLURAL_PLAIN_LABELS = {
 };
 /** Every `DocumentInstance.status` value a country-policy `rules[].statuses` narrowing has ever
  *  named, across all five shipped countries — see country-policy/data/*.json's own `invoice.save-
- *  draft` (`["draft"]`) and `received-invoice.receive` (`["received"]"`), and correction-routes/
- *  cancel-policy.ts's own Italian `restrictedToStatuses: ["send_failed"]`. */
+ *  draft` (`["draft"]`) and `received-invoice.receive` (`["received"]"`), and the CANCEL_AND_REPLACE
+ *  route's own `restrictedToStatuses`. */
 const STATUS_PLAIN_LABELS = {
   en: { draft: 'draft', sent: 'sent', send_failed: 'failed to send', received: 'received' },
   fr: { draft: 'brouillon', sent: 'envoyée', send_failed: "en échec d'envoi", received: 'reçue' },
@@ -1225,6 +1187,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovakia',
     SI: 'Slovenia',
     GB: 'United Kingdom',
+    DZ: 'Algeria',
   },
   fr: {
     FR: 'France',
@@ -1261,6 +1224,7 @@ const COUNTRY_NAMES = {
     SK: 'Slovaquie',
     SI: 'Slovénie',
     GB: 'Royaume-Uni',
+    DZ: 'Algérie',
   },
 };
 assertSameShape(COUNTRY_NAMES.en, COUNTRY_NAMES.fr, 'COUNTRY_NAMES');
@@ -1296,13 +1260,12 @@ function transportWithModel(id, locale) {
   return `${label} (${STRINGS[locale].transportModel[model]})`;
 }
 
-// The 5 countries this product covers today (2026-09-10 prune — every other country's data files
-// were removed; see the root git log for that change). Every one of these gets
-// a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details"); `unionCountries`
-// below is, as a direct consequence, ALSO exactly this set — there is no country left with data in
-// only some mechanisms and no page at all, unlike the pre-prune matrix, which had rows with no
-// detail page (a thin row for a country nobody had written a narrative for yet).
-const DETAIL_PAGES = ['DE', 'FR', 'IT', 'PL', 'PT'];
+// The 5 countries kept by the 2026-09-10 prune, plus Algeria (DZ, issue #558). Every one of these
+// gets a full two-part narrative page (Part 1 "In plain words" + Part 2 "The details");
+// `unionCountries` below is, as a direct consequence, ALSO exactly this set: there is no country
+// left with data in only some mechanisms and no page at all, unlike the pre-prune matrix, which had
+// rows with no detail page (a thin row for a country nobody had written a narrative for yet).
+const DETAIL_PAGES = ['DE', 'DZ', 'FR', 'IT', 'PL', 'PT'];
 
 // =================================================================================================
 // TEXT / MDX HELPERS
@@ -1675,7 +1638,7 @@ function buildMatrixPage(locale) {
       : S.common.dash;
 
     const cancelResult = resolveCancelPolicy(cc);
-    const cancelCell = { NONE: S.cancel.tagNone, NO: S.cancel.tagNo, DRIFT: S.cancel.tagDrift, RESTRICTED: S.cancel.tagRestricted, YES: S.cancel.tagYes }[cancelResult.key];
+    const cancelCell = { NONE: S.cancel.tagNone, NO: S.cancel.tagNo, RESTRICTED: S.cancel.tagRestricted, YES: S.cancel.tagYes }[cancelResult.key];
 
     const tax = taxSummary(cc, locale);
 
@@ -1823,17 +1786,15 @@ function renderCorrectionRoutesSection(cc, locale, mark) {
 function renderCancelSection(cc, locale) {
   const S = STRINGS[locale].cancel;
   const result = resolveCancelPolicy(cc);
-  const tag = { NONE: S.tagNone, NO: S.tagNo, DRIFT: S.tagDrift, RESTRICTED: S.tagRestricted, YES: S.tagYes }[result.key];
+  const tag = { NONE: S.tagNone, NO: S.tagNo, RESTRICTED: S.tagRestricted, YES: S.tagYes }[result.key];
   const detail =
     result.key === 'NONE'
       ? S.detailNone
       : result.key === 'NO'
         ? S.detailNo(result.routeStatus)
-        : result.key === 'DRIFT'
-          ? S.detailDrift(result.expected, result.actual)
-          : result.key === 'RESTRICTED'
-            ? S.detailRestricted(result.statuses)
-            : S.detailYes;
+        : result.key === 'RESTRICTED'
+          ? S.detailRestricted(result.statuses)
+          : S.detailYes;
   return `**${tag}** — ${detail}\n`;
 }
 
@@ -2111,7 +2072,7 @@ function renderPlainCorrection(cc, locale, name, mark) {
   return out.join('\n');
 }
 
-/** The local-cancel derived fact, in plain words — same YES/RESTRICTED/NO/DRIFT/NONE outcomes
+/** The local-cancel derived fact, in plain words: same YES/RESTRICTED/NO/NONE outcomes
  *  `resolveCancelPolicy` already computes for the matrix and for Part 2's own `renderCancelSection`,
  *  just without the internal `CANCEL_AND_REPLACE` identifier in the reader-facing sentence. */
 function renderPlainCancel(cc, locale) {
@@ -2122,8 +2083,6 @@ function renderPlainCancel(cc, locale) {
       return S.plainCancelNone;
     case 'NO':
       return S.plainCancelNo;
-    case 'DRIFT':
-      return S.plainCancelDrift;
     case 'RESTRICTED':
       return S.plainCancelRestricted(result.statuses.map((s) => plainStatusLabel(s, locale)).join(', '));
     default:

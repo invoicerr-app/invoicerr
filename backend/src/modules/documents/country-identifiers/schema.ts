@@ -24,7 +24,7 @@
  *    data/fr.json and data/de.json in this same directory for how far a real research pass got
  *    before hitting a real access limit (legifrance.gouv.fr, economie.gouv.fr and
  *    impots.gouv.fr all refused automated requests on 2026-08-30 — the same wall
- *    country-policy/data/fr.json already documents for Légifrance specifically).
+ *    countries/data/fr.json (section "policy") already documents for Légifrance specifically).
  */
 
 export type PartyType = 'COMPANY' | 'INDIVIDUAL';
@@ -67,10 +67,45 @@ export interface IdentifierSchemeFact {
   /** Optional validation regex. Declared here for a future consumer; no frontend code enforces it
    *  today (checked 2026-08-30 — see the country-identifiers.spec.ts assertion on this). */
   pattern?: string;
+  /** The expected shape in a few English words, for the API's refusal of a value that fails
+   *  `pattern` (`validate-identifier-value.ts`). Never shown in a form: see `helpTextKey`. */
   helpText?: string;
+  /** ISO 6523 ICD of the register this identifier belongs to, emitted as the schemeID of a party's
+   *  legal registration identifier (BT-30, BT-47) in an EN 16931 invoice. */
+  iso6523Scheme?: string;
+  /** When the SELLER is established in this country, both parties' identifiers of this scheme double
+   *  as their electronic address (BT-34, BT-49) under this ISO 6523 ICD, and the seller's is also its
+   *  party identifier (BT-29). */
+  electronicAddressScheme?: string;
+  /** When the SELLER is established in this country, a party identifier of this scheme made of exactly
+   *  `whenDigits` digits is emitted as its first `keepDigits` digits. */
+  einvoiceReduction?: { whenDigits: number; keepDigits: number };
+  /** Key of this field's help text in the frontend's locale catalog
+   *  (`frontend/src/locales/en/translation.json`), the single, translated source a form shows. */
+  helpTextKey?: string;
   provenance: IdentifierProvenance;
   /** Free-form caveats — same convention as country-policy/schema.ts's own per-rule `notes`. */
   notes?: string;
+  /** How the demo seed fills this scheme; a scheme without one is left empty on demo parties. */
+  demoGenerator?: DemoIdentifierGeneratorSpec;
+}
+
+/** Names an algorithm in `demo/generators/identifiers.ts`'s registry, plus the parameters it reads. */
+export interface DemoIdentifierGeneratorSpec {
+  id: string;
+  /** Another scheme of the same party whose generated value this one is derived from. */
+  source?: string;
+  prefix?: string;
+  /** `{digits:N}`, `{<variable>}` or `{<variable>:lastN}` tokens around literal text. */
+  template?: string;
+}
+
+/** A random integer drawn once per demo party, before any scheme, and shared by every template. */
+export interface DemoIdentifierVariable {
+  name: string;
+  min: number;
+  max: number;
+  padTo?: number;
 }
 
 export interface CountryIdentifierRequirementsFile {
@@ -79,6 +114,7 @@ export interface CountryIdentifierRequirementsFile {
   schemes: IdentifierSchemeFact[];
   /** Free-form, file-level caveats. */
   notes?: string;
+  demoVariables?: DemoIdentifierVariable[];
 }
 
 export class InvalidIdentifierProvenanceError extends Error {}
@@ -94,6 +130,12 @@ export class InvalidIdentifierPatternError extends Error {}
  * seed.ts again right before writing), for the same reason that header gives for doing so twice.
  */
 export function assertPatternIsExplainable(fact: IdentifierSchemeFact, context: string): void {
+  if (fact.pattern && !fact.helpTextKey?.trim()) {
+    throw new InvalidIdentifierPatternError(
+      `${context}: identifier scheme "${fact.scheme}" declares a pattern ("${fact.pattern}") but no ` +
+        'helpTextKey, so a form would show the field with no words on the shape it expects.',
+    );
+  }
   if (fact.pattern && !fact.helpText?.trim()) {
     throw new InvalidIdentifierPatternError(
       `${context}: identifier scheme "${fact.scheme}" declares a pattern ("${fact.pattern}") but no ` +
@@ -133,6 +175,37 @@ export function assertValidProvenance(fact: IdentifierSchemeFact, context: strin
     throw new InvalidIdentifierProvenanceError(
       `${context}: identifier scheme "${fact.scheme}" is "unverified" but has no resolutionNote — ` +
         'an unverified fact must say what would settle it.',
+    );
+  }
+}
+
+export class InvalidEinvoiceIdentifierFactError extends Error {}
+
+const ISO_6523_ICD = /^\d{4}$/;
+
+/** The three e-invoice facts above, checked at load time like `assertPatternIsExplainable`. */
+export function assertValidEinvoiceFacts(fact: IdentifierSchemeFact, context: string): void {
+  for (const key of ['iso6523Scheme', 'electronicAddressScheme'] as const) {
+    const value = fact[key];
+    if (value !== undefined && !ISO_6523_ICD.test(value)) {
+      throw new InvalidEinvoiceIdentifierFactError(
+        `${context}: identifier scheme "${fact.scheme}" declares ${key} "${value}", not a 4-digit ISO 6523 ICD.`,
+      );
+    }
+  }
+  const reduction = fact.einvoiceReduction;
+  if (
+    reduction &&
+    !(
+      Number.isInteger(reduction.whenDigits) &&
+      Number.isInteger(reduction.keepDigits) &&
+      reduction.keepDigits > 0 &&
+      reduction.keepDigits < reduction.whenDigits
+    )
+  ) {
+    throw new InvalidEinvoiceIdentifierFactError(
+      `${context}: identifier scheme "${fact.scheme}" declares an einvoiceReduction that does not keep ` +
+        'a positive number of digits smaller than the number it applies to.',
     );
   }
 }

@@ -63,7 +63,7 @@
  * different one. See the SELLER/BUYER constants below for exactly which entities these are and, for
  * the buyer, why THIS one and not one of the other six.
  *
- * Recipe (mirrors `../pdp/pdp.live.spec.ts`'s own DB-free approach — the exact bridge
+ * Recipe (mirrors `../pdp/superpdp.live.spec.ts`'s own DB-free approach — the exact bridge
  * `chorus-pro-transport.ts#send()` composes, called here by hand so this spec never needs a live DB):
  *   buildInvoiceDescriptor + computeDocumentTotals → buildSemanticInvoice → newEuInvoiceService()
  *     .generate(..., 'CII') → splitCiiIncludedNotes → validateStructural + validateSchematron (the
@@ -130,9 +130,9 @@ describeLive('Chorus Pro PISTE live round-trip', () => {
     //
     // Both SIRETs come from the owner's Chorus Pro qualification "matelas de données" (generated
     // 2026-09-14, type "Plateforme agréée") — see `credentials-guide.md` §3 for how that mattress is
-    // obtained. `scheme: 'LEGAL_ID'` is correct for a French SIRET: `country-identifiers/data/fr.json`
+    // obtained. `scheme: 'LEGAL_ID'` is correct for a French SIRET: `countries/data/fr.json (section "identifiers")`
     // declares FR's ONLY `LEGAL_ID` scheme as "SIREN / SIRET", pattern `^\d{9}(\d{5})?$` (accepts
-    // either length). `build-semantic-invoice.ts#toSiren()` reduces a 14-digit SIRET to its first 9
+    // either length). `build-semantic-invoice.ts#einvoiceLegalId()` reduces a 14-digit SIRET to its first 9
     // digits (the SIREN) BY DEFAULT before emitting BT-29/BT-30/BT-46/BT-47 — correct for PDP, WRONG
     // for Chorus Pro (see `legalIdOverride: 'full'` on the `buildSemanticInvoice` call below, and
     // `SemanticInvoiceInput.legalIdOverride`'s own header, for the full sourcing: Chorus Pro routes a

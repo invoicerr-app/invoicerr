@@ -45,11 +45,15 @@ import {
   useReconciliationSettings,
   useSetReconciliationSettings,
 } from "@/hooks/queries"
-import { useCountryToCurrency } from "@/hooks/use-country-to-currency"
+import { currencyForCountry } from "@/lib/reference/countries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
-import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
+import {
+  identifierHelpText,
+  useRequiredIdentifiers,
+  withVatIdentifier,
+} from "@/hooks/use-required-identifiers"
 import type { Company, ResolvedRevenueSettings } from "@/types"
 
 import { NumberFormatsSection } from "./number-formats.section"
@@ -341,7 +345,6 @@ export default function CompanySettings() {
       unavailable: t("clients.upsert.messages.lookupUnavailable"),
     },
   })
-  useCountryToCurrency(form)
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
@@ -629,7 +632,11 @@ export default function CompanySettings() {
                       <CountrySelect
                         value={field.value}
                         onChange={(value) => field.onChange(value)}
-                        onCountryCodeChange={(code) => form.setValue("countryCode", code)}
+                        onCountryCodeChange={(code) => {
+                          form.setValue("countryCode", code)
+                          const currency = currencyForCountry(code)
+                          if (currency) form.setValue("currency", currency)
+                        }}
                         data-cy="company-country-input"
                       />
                     </FormControl>
@@ -670,6 +677,7 @@ export default function CompanySettings() {
                     const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                     if (formIndex < 0) return null
                     const isLegalId = req.scheme === "LEGAL_ID"
+                    const helpText = identifierHelpText(req, requiredIdentifiersResult?.requirements, t)
                     return (
                       <FormField
                         key={req.scheme}
@@ -681,6 +689,7 @@ export default function CompanySettings() {
                             <FormControl>
                               <div className="flex gap-2">
                                 <Input
+                                  dir="ltr"
                                   {...field}
                                   placeholder={req.label}
                                   data-cy={
@@ -715,7 +724,14 @@ export default function CompanySettings() {
                                 )}
                               </div>
                             </FormControl>
-                            {req.helpText && <p className="text-xs text-muted-foreground">{req.helpText}</p>}
+                            {helpText && (
+                              <p
+                                className="text-xs text-muted-foreground"
+                                data-cy={`company-identifier-${req.scheme}-help`}
+                              >
+                                {helpText}
+                              </p>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1048,6 +1064,7 @@ export default function CompanySettings() {
                   <FormLabel>{t("settings.company.form.iban.label")}</FormLabel>
                   <FormControl>
                     <Input
+                      dir="ltr"
                       placeholder={t("settings.company.form.iban.placeholder")}
                       {...field}
                       data-cy="company-iban-input"

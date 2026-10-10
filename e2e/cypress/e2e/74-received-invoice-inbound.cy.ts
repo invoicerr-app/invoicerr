@@ -11,7 +11,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * "record-payment" are all real clicks through the received-invoices list.
  *
  * The ONE thing this spec cannot be: a real network call to superpdp.tech (the real round-trip is
- * `backend/src/modules/documents/transports/pdp/pdp-reception.live.spec.ts`, `PDP_LIVE=1`, which
+ * `backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`, `SUPERPDP_LIVE=1`, which
  * proved this EXACT flow — self-addressed deposit, `direction=in`, download, extract, approve,
  * record-payment — for real, 2026-09-16). Here the backend's own PDP client talks to a REAL local
  * `node:http` server (`cypress.config.ts`'s `startFakePdpServer`) shaped exactly like the sandbox

@@ -39,7 +39,7 @@
  *
  * ## FPA12 vs FPR12 — the two named gaps `3cb39f91` left open, closed here
  *
- * `b2g-routing/data/it.json` already reads, verbatim, the Specifiche tecniche del formato
+ * `countries/data/it.json (section "b2gRouting")` already reads, verbatim, the Specifiche tecniche del formato
  * FatturaPA v1.3.2 par. 1.4 (Allegato B): `FormatoTrasmissione` is `FPA12` ("fattura verso PA") when
  * `CodiceDestinatario` is the recipient's 6-character "Codice Ufficio" from IndicePA, `FPR12`
  * ("fattura verso privati") when it is the 7-character B2B code — see par. 1.1's own text, quoted
@@ -66,7 +66,7 @@
  * consequence of not having a code to put in `CodiceDestinatario` at all, not a mislabel.
  *
  * **The XSD: verified, not assumed, to already judge FPA12 correctly — nothing new to vendor.** The
- * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `b2g-routing/data/it.json`'s own "TROU
+ * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `countries/data/it.json (section "b2gRouting")`'s own "TROU
  * CONNU" note) of being a B2B-only schema that would wrongly reject an `FPA12` document. It is not:
  * its OWN root `xs:documentation` reads "XML schema fatture destinate a PA e privati in forma
  * ordinaria" ("… for PA AND privates …"), its `FormatoTrasmissioneType` enumerates BOTH `FPA12` and
@@ -89,6 +89,7 @@ import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
+import { taxUnionOf } from '../../tax/classification';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
@@ -101,8 +102,11 @@ import {
 import { validateXsd } from '../vendored/validate-xsd';
 import { escapeXmlTree } from './fatturapa-xml-guard';
 import { extractNationalLines, NationalLine } from './national-lines';
+import { nationalFormatCountry } from './format-country';
+import { documentCurrencyOrSellerNational } from './seller-currency';
 
 const FATTURAPA_XSD = 'it/Schema_VFPR12.xsd';
+const fatturapaFormatId = 'fatturapa';
 
 /** Format a number as a string matching the yup SPrezzoSchema regex: /^[-]?\d{1,12}(\.\d{2,8})$/ */
 function fmtAmount(n: number, decimals = 2): string {
@@ -116,35 +120,23 @@ function fmtRate(n: number): string {
   return n.toFixed(2);
 }
 
-/** Map NaturaType — codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference. */
-const EU_CC = [
-  'AT',
-  'BE',
-  'BG',
-  'HR',
-  'CY',
-  'CZ',
-  'DK',
-  'EE',
-  'FI',
-  'FR',
-  'DE',
-  'GR',
-  'HU',
-  'IE',
-  'LV',
-  'LT',
-  'LU',
-  'MT',
-  'NL',
-  'PL',
-  'PT',
-  'RO',
-  'SK',
-  'SI',
-  'ES',
-  'SE',
-]; // prettier-ignore
+/**
+ * Map NaturaType - codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference,
+ * except two things issue #603 changed:
+ *  - PR A replaced this file's OWN `EU_CC` copy (a 26-country array this file also used for the
+ *    membership check) with the shared `tax/classification.ts#taxUnionOf`, read from the
+ *    `tax/tax-unions/` reference table. The old `EU_CC` had silently DROPPED Italy (compared to the
+ *    canonical 27-member list every other copy carried) - harmless here only because the domestic
+ *    guard below already excludes a domestic sale before the membership check is ever reached (see
+ *    this PR's own report for the before/after proof this made no observable difference).
+ *  - The domestic guard itself took an explicit `sellerCountry` parameter instead of the literal
+ *    `'IT'` this file used to compare the buyer against directly: this provider only ever builds for
+ *    an Italian seller in practice (`country-policy` routes fatturapa to Italy alone), but the
+ *    function itself no longer names a country to express "buyer established in the SELLER's own
+ *    country never gets reverse charge" - every real caller still passes the seller's own resolved
+ *    country (`vatCountry`, `'IT'` by construction here), so behaviour is unchanged (see the before/
+ *    after proof again).
+ */
 
 /**
  * `rawVatRate` — the RAW, as-stored `vatRate` field value (`national-lines.ts#NationalLine
@@ -156,11 +148,12 @@ const EU_CC = [
  * check is needed before trying it: a non-Italian seller's own rate ids (e.g. "fr-standard") simply
  * never match `it-esente`/`it-non-imponibile` and fall through unchanged.
  */
-function mapNatura(
+export function mapNatura(
   vatRate: number,
   rawVatRate: string | undefined,
   clientCountry: string,
   clientVatId: string,
+  sellerCountry: string,
 ): string | undefined {
   if (vatRate > 0) return undefined;
 
@@ -169,7 +162,11 @@ function mapNatura(
   if (catalogRate?.id === 'it-esente') return 'N4';
 
   const cc = (clientCountry || '').slice(0, 2).toUpperCase();
-  if (cc !== 'IT' && EU_CC.includes(cc) && clientVatId) return 'N6';
+  const sellerCc = (sellerCountry || '').slice(0, 2).toUpperCase();
+  // Domestic (buyer established in this SAME seller's own country, never a named literal - this
+  // provider only ever builds for an Italian seller in practice, but the check itself names no
+  // country) never gets N6: reverse charge requires a cross-border EU supply.
+  if (cc !== sellerCc && taxUnionOf(cc) === 'EU' && clientVatId) return 'N6';
   return 'N2';
 }
 
@@ -193,9 +190,10 @@ function buildDettaglioLinea(
   currency: string,
   clienteVatCountry: string,
   clienteVatId: string,
+  sellerCountry: string,
 ) {
   const rate = line.vatRatePercent ?? 0;
-  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId);
+  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId, sellerCountry);
   return {
     NumeroLinea: line.index + 1,
     Descrizione: line.description,
@@ -229,7 +227,7 @@ async function build(
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
-  const currency = totals.currency || 'EUR';
+  const currency = documentCurrencyOrSellerNational(totals.currency, company);
 
   const issueDate = toDateOnly(data.issueDate);
   // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
@@ -238,7 +236,8 @@ async function build(
 
   // ── identifiers ──────────────────────────────────────────────────
   const vatId = getIdentifier(company, 'VAT') || '';
-  const vatCountry = (company.country || 'IT').slice(0, 2).toUpperCase();
+  const formatCountry = nationalFormatCountry(fatturapaFormatId);
+  const vatCountry = (company.country || formatCountry).slice(0, 2).toUpperCase();
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
@@ -274,7 +273,7 @@ async function build(
     formatoTrasmissione = 'FPR12';
     codiceDestinatario = '0000000';
     pecDestinatario = clientePec;
-  } else if (clienteVatCountry && clienteVatCountry !== 'IT') {
+  } else if (clienteVatCountry && clienteVatCountry !== formatCountry) {
     formatoTrasmissione = 'FPR12';
     codiceDestinatario = 'XXXXXXX';
   } else {
@@ -301,6 +300,7 @@ async function build(
       representativeLine?.rawVatRate,
       clienteVatCountry,
       clienteVatId,
+      vatCountry,
     );
     return {
       AliquotaIVA: fmtRate(entry.ratePercent),
@@ -369,9 +369,9 @@ async function build(
             Indirizzo: client.address || 'N/A',
             CAP: client.postalCode || '00000',
             Comune: client.city || 'N/A',
-            Nazione: clienteVatCountry || 'IT',
+            Nazione: clienteVatCountry || formatCountry,
           },
-          ...(clienteVatCountry && clienteVatCountry !== 'IT'
+          ...(clienteVatCountry && clienteVatCountry !== formatCountry
             ? {
                 StabileOrganizzazione: {
                   Indirizzo: client.address || 'N/A',
@@ -403,7 +403,7 @@ async function build(
         },
         DatiBeniServizi: {
           DettaglioLinee: lines.map((line) =>
-            buildDettaglioLinea(line, currency, clienteVatCountry, clienteVatId),
+            buildDettaglioLinea(line, currency, clienteVatCountry, clienteVatId, vatCountry),
           ),
           DatiRiepilogo: riepilogoList,
         },
@@ -435,7 +435,7 @@ async function build(
 }
 
 export const fatturapaFormatProvider: DocumentFormatProvider = {
-  id: 'fatturapa',
+  id: fatturapaFormatId,
   syntax: 'FATTURAPA',
   mime: 'application/xml',
   build,

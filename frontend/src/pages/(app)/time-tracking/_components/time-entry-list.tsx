@@ -94,7 +94,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
           {project.name} — {project.client.name}
         </CardTitle>
         <Button onClick={() => setCreateOpen(true)} dataCy="time-entry-add-button">
-          <Plus className="h-4 w-4 mr-0 md:mr-2" />
+          <Plus className="h-4 w-4 me-0 md:me-2" />
           <span className="hidden md:inline-flex">{t("timeTracking.entries.list.add")}</span>
         </Button>
       </CardHeader>
@@ -149,14 +149,14 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="tabular-nums">
+                      <TableCell dir="ltr" className="tabular-nums">
                         {new Date(entry.date).toLocaleDateString()}
                       </TableCell>
                       <TableCell>{entry.description || "—"}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">
+                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
                         {(entry.durationMinutes / 60).toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">
+                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
                         {amountFor(entry).toFixed(2)}
                         {currencySymbol}
                       </TableCell>
@@ -220,7 +220,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
             disabled={selectedEntries.length === 0}
             dataCy="generate-invoice-button"
           >
-            <Receipt className="h-4 w-4 mr-2" />
+            <Receipt className="h-4 w-4 me-2" />
             {t("timeTracking.generateInvoice.trigger")}
           </Button>
         </div>

@@ -37,23 +37,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Nigeria.
+the contract each section has to satisfy; this is only the shopping list of sections Nigeria would need in
+`countries/data/ng.json`.
 
-- `country-policy/data/ng.json` — which document actions Nigeria allows. Start here: without this
-  file every action is refused with a 403, naming the country.
-- `country-identifiers/data/ng.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/ng.json` and `vat-rates/data/ng.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Nigeria allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/ng.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/ng.json` — the channel and format a Nigerian public buyer requires.
-- `transports/channel-policy/data/ng.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Nigerian public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Nigeria, and from what date.
-- `archive/retention/data/ng.json` — how long an archived document is kept, and what the duration is
+- `retention` - how long an archived document is kept, and what the duration is
   counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Data alone will not finish the job here: the FIRS e-Invoice System is a transmission channel this
 repository does not implement, and the FIRS e-Invoice format has no format provider. Both are code,

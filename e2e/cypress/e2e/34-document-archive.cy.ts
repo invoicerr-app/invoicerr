@@ -8,7 +8,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * The seed company (cy.resetAndSeed()) is French (Acme Corp, countryCode FR) — exactly the case
  * where the legal retention has a sourced fact: max(tax 6 years LPF L102 B, commercial 10 years
- * C. com. L123-22) = 10 years, see backend/src/modules/documents/archive/retention/data/fr.json.
+ * C. com. L123-22) = 10 years, see countries/data/fr.json (section "retention").
  * An invoice is sent by email (the simplest transport to make succeed in CI): the only artifact
  * actually delivered is the PDF — signed if it was — never a structured format invented for a
  * transport that doesn't produce one.

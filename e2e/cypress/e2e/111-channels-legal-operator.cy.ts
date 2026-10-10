@@ -129,7 +129,7 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 			.and("contain.text", "Not accepted domestically");
 
 		// Declarations - pt-at is never seeded for a French company, but France's OWN reporting
-		// obligations (pdp / fr-ereporting, reporting/data/fr.json) still render, apart from the
+		// obligations (pdp / fr-ereporting, countries/data/fr.json (section "reporting")) still render, apart from the
 		// delivery-channel nav above (never inside `[data-cy^="channel-nav-"]`).
 		cy.get('[data-cy="channels-declarations"]').should("exist");
 		cy.get('[data-cy="declaration-pdp"]').should("exist");

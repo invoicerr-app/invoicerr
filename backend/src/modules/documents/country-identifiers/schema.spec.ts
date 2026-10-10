@@ -1,7 +1,9 @@
 import {
   assertPatternIsExplainable,
+  assertValidEinvoiceFacts,
   assertValidProvenance,
   IdentifierSchemeFact,
+  InvalidEinvoiceIdentifierFactError,
   InvalidIdentifierPatternError,
   InvalidIdentifierProvenanceError,
 } from './schema';
@@ -92,6 +94,7 @@ describe('assertValidProvenance', () => {
 
 describe('assertPatternIsExplainable', () => {
   const legal = { kind: 'legal', sourceText: 'Text.', sourceCheckedAt: '2026-08-30' } as const;
+  const helpTextKey = 'settings.identifiers.help.FR.LEGAL_ID';
 
   it('accepts a fact with no pattern at all — nothing to explain', () => {
     expect(() => assertPatternIsExplainable({ ...base, provenance: legal }, 'test')).not.toThrow();
@@ -100,7 +103,7 @@ describe('assertPatternIsExplainable', () => {
   it('accepts a fact whose pattern carries its own helpText', () => {
     expect(() =>
       assertPatternIsExplainable(
-        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', provenance: legal },
+        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', helpTextKey, provenance: legal },
         'test',
       ),
     ).not.toThrow();
@@ -108,22 +111,56 @@ describe('assertPatternIsExplainable', () => {
 
   it('rejects a pattern with no helpText — a refusal at write time would have no words to explain it', () => {
     expect(() =>
-      assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', provenance: legal }, 'test'),
-    ).toThrow(InvalidIdentifierPatternError);
+      assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', helpTextKey, provenance: legal }, 'test'),
+    ).toThrow(/no helpText(?!Key)/);
   });
 
   it('rejects a pattern with a blank helpText the same way', () => {
     expect(() =>
       assertPatternIsExplainable(
-        { ...base, pattern: '^\\d{9}$', helpText: '   ', provenance: legal },
+        { ...base, pattern: '^\\d{9}$', helpText: '   ', helpTextKey, provenance: legal },
         'test',
       ),
     ).toThrow(InvalidIdentifierPatternError);
+  });
+
+  it('rejects a pattern with no helpTextKey: a form would show the field with nothing to explain it', () => {
+    expect(() =>
+      assertPatternIsExplainable(
+        { ...base, pattern: '^\\d{9}$', helpText: '9 digits.', provenance: legal },
+        'test',
+      ),
+    ).toThrow(/no helpTextKey/);
   });
 
   it('names the scheme, the pattern, and the caller-supplied context', () => {
     expect(() =>
       assertPatternIsExplainable({ ...base, pattern: '^\\d{9}$', provenance: legal }, 'it.json'),
     ).toThrow(/it\.json.*LEGAL_ID.*\^\\d\{9\}\$/);
+  });
+});
+
+describe('assertValidEinvoiceFacts', () => {
+  const legal = { kind: 'legal', sourceText: 'Text.', sourceCheckedAt: '2026-08-30' } as const;
+  const check = (facts: Partial<IdentifierSchemeFact>) => () =>
+    assertValidEinvoiceFacts({ ...base, ...facts, provenance: legal }, 'test');
+
+  it('accepts four-digit schemes and a reduction that keeps fewer digits', () => {
+    expect(
+      check({
+        iso6523Scheme: '0002',
+        electronicAddressScheme: '0225',
+        einvoiceReduction: { whenDigits: 14, keepDigits: 9 },
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    ['an iso6523Scheme that is not four digits', { iso6523Scheme: '2' }],
+    ['an electronicAddressScheme that is not four digits', { electronicAddressScheme: 'FR' }],
+    ['a reduction that keeps every digit', { einvoiceReduction: { whenDigits: 9, keepDigits: 9 } }],
+    ['a reduction that keeps nothing', { einvoiceReduction: { whenDigits: 14, keepDigits: 0 } }],
+  ])('rejects %s', (_label, facts) => {
+    expect(check(facts as Partial<IdentifierSchemeFact>)).toThrow(InvalidEinvoiceIdentifierFactError);
   });
 });

@@ -17,14 +17,37 @@ The **Articles** page is a catalog of reusable line items — services or produc
 
 Click **Add New** and fill in:
 
-- **Name** (required) — shown in the catalog picker
-- **Description** (optional, multi-line) — supports `**bold**` and `*italic*`; copied onto the line item as its description
+- **Name** (required): what the line Designation suggestions match, show and copy
+- **Description** (optional, multi-line): supports `**bold**` and `*italic*`; kept in the catalog, not copied onto a line
 - **Type** — Hour, Day, Deposit, Service, or Product
 - **Unit Price** and **VAT Rate**
+- **Quantity** and **Low stock threshold** (both optional) - see **Stock tracking** below
 
-## Using an article in a quote or invoice
+## Stock tracking
 
-While editing line items on a quote or invoice, use the **Add from catalog...** picker next to **Add Item** and select an article. It adds a new line pre-filled with the article's Name, Description, Type, Unit Price, and VAT Rate — adjust the quantity or any field before saving, the catalog article itself is left untouched.
+Leave **Quantity** blank and an article is not stock-tracked at all: nothing about it is ever
+counted, and picking it on a line never changes anything else. Set a **Quantity** and the article
+starts tracking stock from that number; **Low stock threshold** then controls when it shows up as
+low stock on the Articles page (leave it blank for no alert at all).
+
+:::info[Which documents move stock]
+Only **sending an invoice** decrements stock, by the quantity on every line that references a
+tracked article. Sending a quote, sending a credit note, and sending a purchase order never change
+stock, even when their own lines reference the same article: a quote is not a commitment to
+deliver, and a credit note corrects an invoice without moving goods a second time. Converting an
+accepted quote into an invoice and sending that invoice decrements stock exactly once, at the
+invoice's own send - never at the quote's.
+:::
+
+## Using an article in a line
+
+Each line has a **Designation** field. Start typing in it and the catalog articles whose name matches are listed under the field. Pick one with the mouse, or with the Up and Down arrow keys followed by Enter, and the line is filled with the article's Name, Unit Price and VAT Rate. Escape closes the list. Quantity and every other field stay yours to adjust, and the catalog article itself is left untouched.
+
+You never have to pick anything: if you ignore the list, whatever you typed is kept as a free-text line.
+
+### Received invoices
+
+The lines of a received invoice get the same help: typing in **Designation** and picking a suggestion copies the article's Name, Unit Price and VAT Rate into the line. The line is not linked to the article, so recording a received invoice never changes the article's stock.
 
 ## First use
 

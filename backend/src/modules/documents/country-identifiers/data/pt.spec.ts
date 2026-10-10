@@ -1,7 +1,7 @@
 /**
- * PT — direct-load content spec: reads `pt.json` straight off
- * disk rather than through `data/all.ts` (wiring "pt" in is a product decision), and re-runs the
- * exact load-time gate (`assertValidProvenance`) independently.
+ * PT - direct-load content spec for the `identifiers` section. Issue #603 step 6 moved the data:
+ * this now reads it out of `countries/data/pt.json` (the single merged per-country file), and
+ * re-runs the exact load-time gate (`assertValidProvenance`) independently.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import { assertValidProvenance, CountryIdentifierRequirementsFile } from '../schema';
 
 function loadPt(): CountryIdentifierRequirementsFile {
-  const raw = readFileSync(join(__dirname, 'pt.json'), 'utf-8');
-  return JSON.parse(raw) as CountryIdentifierRequirementsFile;
+  const raw = readFileSync(join(__dirname, '../../countries/data/pt.json'), 'utf-8');
+  return (JSON.parse(raw) as { identifiers: CountryIdentifierRequirementsFile }).identifiers;
 }
 
 describe('PT — country-identifiers/data/pt.json', () => {

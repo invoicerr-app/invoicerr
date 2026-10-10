@@ -20,8 +20,7 @@ describe('Settings E2E', () => {
     describe('Company Settings', () => {
         it('loads company settings page', () => {
             cy.visit('/settings/company');
-            cy.wait(1000);
-            cy.contains(/company|entreprise|société/i, { timeout: 10000 });
+            cy.contains('h1', 'Company Settings', { timeout: 10000 }).should('be.visible');
         });
 
         it('displays company form', () => {
@@ -35,8 +34,7 @@ describe('Settings E2E', () => {
     describe('Invitations Settings', () => {
         it('loads invitations page', () => {
             cy.visit('/settings/invitations');
-            cy.wait(1000);
-            cy.contains(/invitation/i, { timeout: 10000 });
+            cy.contains('h1', 'Invitations', { timeout: 10000 }).should('be.visible');
         });
 
         it('creates a new invitation code', () => {
@@ -71,16 +69,14 @@ describe('Settings E2E', () => {
 
     describe('Danger Zone Settings', () => {
         it('loads danger zone page', () => {
-            cy.visit('/settings/danger-zone');
-            cy.wait(1000);
-            cy.contains(/danger/i, { timeout: 10000 });
+            cy.visit('/settings/danger');
+            cy.contains('h1', 'Danger Zone', { timeout: 10000 }).should('be.visible');
         });
 
         it('shows reset buttons', () => {
-            cy.visit('/settings/danger-zone');
-            cy.wait(1000);
-
-            cy.get('button').should('have.length.at.least', 1);
+            cy.visit('/settings/danger');
+            cy.get('[data-cy="danger-reset-company-data-button"]', { timeout: 10000 }).scrollIntoView().should('be.visible');
+            cy.get('[data-cy="danger-delete-company-button"]').scrollIntoView().should('be.visible');
         });
     });
 
@@ -227,6 +223,37 @@ describe('Settings E2E', () => {
                 cy.url().should('include', '/settings/branding');
                 cy.get('[data-cy="settings-tab-branding"]', { timeout: 10000 }).should('be.visible');
                 cy.get('[data-cy="settings-nav-branding"]').should('have.attr', 'aria-current', 'page');
+            });
+        });
+
+        // #560: the settings content column was capped at `max-w-4xl` (896px), wasting most of a
+        // desktop screen next to the 21-tab sidebar. Widened to `max-w-6xl` (1152px) - the single
+        // `<div className="mx-auto max-w-6xl">` in `-[tab].tsx` that wraps every tab's content.
+        // Guards both ends of that change: the column must actually be wider now on a large
+        // viewport, and the phone layout (a rail-less layout, see the "navigates between sections"
+        // test above) must never grow a horizontal scrollbar regardless of the new cap.
+        describe('Content width (#560)', () => {
+            it('is wider than the old 896px cap at 1920x1080', () => {
+                cy.viewport(1920, 1080);
+                cy.visit('/settings/company');
+                cy.get('[data-cy="settings-tab-company"] > div')
+                    .first()
+                    .should(($column) => {
+                        const width = $column[0].getBoundingClientRect().width;
+                        expect(width, 'settings content column width').to.be.greaterThan(896);
+                    });
+            });
+
+            it('never grows a horizontal scrollbar at phone width', () => {
+                cy.viewport('iphone-x');
+                cy.visit('/settings/company');
+                cy.get('[data-cy="settings-tab-company"]', { timeout: 10000 }).should('be.visible');
+                cy.document().should((doc) => {
+                    const root = doc.documentElement;
+                    expect(root.scrollWidth, 'no horizontal overflow at phone width').to.be.at.most(
+                        root.clientWidth + 1,
+                    );
+                });
             });
         });
     });

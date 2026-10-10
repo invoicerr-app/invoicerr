@@ -9,6 +9,7 @@
  * for entities actually entered in the VAT register — the `registrertIMvaregisteret`
  * flag is what decides, never the number's shape.
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
@@ -17,7 +18,6 @@ const BRREG_URL = 'https://data.brreg.no/enhetsregisteret/api/enheter';
 export class NorwayBrregProvider implements CompanyRegistryProvider {
   readonly id = 'no-brreg';
   readonly label = 'Enhetsregisteret (Brønnøysundregistrene)';
-  readonly countries = ['NO'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'Organisasjonsnummer (9 digits)';
   readonly docsUrl = 'https://data.brreg.no/enhetsregisteret/api/dokumentasjon/';
@@ -30,7 +30,7 @@ export class NorwayBrregProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'NO') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     return digits(query.value).length === 9;
   }
 
@@ -50,7 +50,7 @@ export class NorwayBrregProvider implements CompanyRegistryProvider {
       postalCode: addr.postnummer,
       city: addr.poststed,
       country: addr.land ?? 'Norge',
-      countryCode: 'NO',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(data.stiftelsesdato ?? data.registreringsdatoEnhetsregisteret),
       status: data.konkurs || data.underAvvikling ? 'INACTIVE' : 'ACTIVE',
       vatRegistered: mva,

@@ -98,24 +98,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # linux/arm/v7 dropped: Node 24 ships no linux-armv7l build.
           - platform: linux/amd64
             runner: ubuntu-24.04
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
-          - platform: linux/arm/v7
-            runner: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -134,7 +132,7 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digests-${{ strategy.job-index }}
           path: /tmp/digests/*
@@ -160,18 +158,22 @@ jobs:
     # `github-token` default IS the reason `build` above keeps its own `contents: read`.
     # If that ever stops holding, the symptom is a 403 on repository metadata in this job alone, and
     # the fix is to add the line back here — not to widen the floor for all three.
+    # `security-events: write` was added on top of that reasoning for the Trivy scan at the end of
+    # this job: `github/codeql-action/upload-sarif` needs it to write findings to the Security tab,
+    # and nothing else in the job touches repository metadata because of it.
     permissions:
       packages: write
+      security-events: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: /tmp/digests
           pattern: digests-*
           merge-multiple: true
       
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -191,3 +193,29 @@ jobs:
 
       - run: |
           docker buildx imagetools inspect ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }}
+
+      # Scans the manifest list just created, the same two-run pattern as docker-dev.yml's own
+      # Trivy steps (see that file's comment for why there are two): a full report to the Security
+      # tab, then a gate that only fails on a fixable CRITICAL finding.
+      - name: Trivy scan (report, all severities)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '0'
+
+      - name: Upload Trivy report to the Security tab
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4 (4.38.2)
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-release
+
+      - name: Trivy scan (gate on fixable CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ needs.prepare.outputs.registry-image }}:${{ needs.prepare.outputs.image-tag }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

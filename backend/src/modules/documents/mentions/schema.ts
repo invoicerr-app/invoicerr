@@ -14,7 +14,7 @@
  * sentence -- the early-payment discount terms, the late-payment rate, and the fixed recovery
  * indemnity -- and omitting them is an administrative offence (L441-9 II: up to 75 000 EUR for a
  * natural person, 375 000 EUR for a company). A real PDP sandbox deposit was REJECTED over exactly
- * this (fr:213 -- see `../transports/pdp/pdp.live.spec.ts`'s own header for the round-trip this data
+ * this (fr:213 -- see `../transports/pdp/superpdp.live.spec.ts`'s own header for the round-trip this data
  * exists to fix), not a hypothetical.
  *
  * Declared as DATA, never as a branch on the country: `invoice-notes.ts#resolveInvoiceNotes` renders

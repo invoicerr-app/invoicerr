@@ -1,7 +1,12 @@
 import type { TFunction } from "i18next"
 
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
-import { isActionAvailable, resolveTransitionTarget, statusLabel } from "@/components/documents/types"
+import {
+  isActionAvailable,
+  onEnterStatuses,
+  resolveTransitionTarget,
+  statusLabel,
+} from "@/components/documents/types"
 
 /** The possible resulting status(es) of `action` from `fromStatus`, always as an array — the single-
  *  status and multi-status shapes of `resolveTransitionTarget`'s own return value collapsed into one
@@ -89,7 +94,8 @@ export function actionAssignsNumber(
   currentStatus: string | undefined,
 ): boolean {
   if (!descriptor.numbering) return false
-  return transitionTargets(action, currentStatus).includes(descriptor.numbering.onEnterStatus)
+  const onEnterStatusSet = onEnterStatuses(descriptor.numbering)
+  return transitionTargets(action, currentStatus).some((status) => onEnterStatusSet.includes(status))
 }
 
 /**
@@ -143,7 +149,7 @@ function createTimeActions(
  * first create-time action with no `policyBlockedReason`). When none exists, opening the dialog
  * would only walk someone through every field before refusing to save at the last step (PR #473
  * review, round 2: a Polish credit note stays LISTED, so issued ones remain reachable, while its
- * "save-draft"/"send" are both policy-blocked - see country-policy/data/pl.json's own notes).
+ * "save-draft"/"send" are both policy-blocked - see countries/data/pl.json (section "policy")'s own notes).
  *
  * Generic on purpose, like every predicate in this file: it reads the descriptor's own actions and
  * their `policyBlockedReason`, never a type id or country code.

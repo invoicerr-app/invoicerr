@@ -71,6 +71,12 @@ export interface CorrectionRouteFact {
    *  smell, not an unsafe-to-load fact the way a missing legal citation on `provenance` is).
    */
   notes?: string;
+  /** CANCEL_AND_REPLACE only: true when this app can realize the route locally for this country.
+   *  Absent means not implementable, whatever the legal status says. */
+  locallyImplementable?: boolean;
+  /** CANCEL_AND_REPLACE only, with `locallyImplementable`: the post-issuance invoice statuses the
+   *  local cancel is limited to. Absent means no narrowing beyond the action's own `availableWhen`. */
+  restrictedToStatuses?: string[];
 }
 
 export interface CountryCorrectionRoutesFile {
@@ -120,6 +126,8 @@ export function assertValidCorrectionRouteFact(fact: CorrectionRouteFact, contex
     );
   }
 
+  assertValidLocalAvailability(fact, context);
+
   const provenance = fact.provenance as { kind?: unknown } | null | undefined;
   if (!provenance || (provenance.kind !== 'legal' && provenance.kind !== 'unverified')) {
     throw new InvalidCorrectionRouteProvenanceError(
@@ -158,6 +166,45 @@ export function assertValidCorrectionRouteFact(fact: CorrectionRouteFact, contex
     throw new InvalidCorrectionRouteProvenanceError(
       `${context} (${fact.routeId}): claims "legal" provenance but is missing sourceText and/or ` +
         'sourceCheckedAt.',
+    );
+  }
+}
+
+/** A route the law forbids, or that nobody has researched, can never be realized locally. */
+const LOCALLY_IMPLEMENTABLE_STATUSES: ReadonlyArray<CorrectionRouteStatus> = ['required', 'allowed'];
+
+function assertValidLocalAvailability(fact: CorrectionRouteFact, context: string): void {
+  const where = `${context} (${fact.routeId})`;
+  const declaresAvailability =
+    fact.locallyImplementable !== undefined || fact.restrictedToStatuses !== undefined;
+  if (declaresAvailability && fact.routeId !== 'CANCEL_AND_REPLACE') {
+    throw new InvalidCorrectionRouteProvenanceError(
+      `${where}: "locallyImplementable"/"restrictedToStatuses" are only read on CANCEL_AND_REPLACE.`,
+    );
+  }
+  if (fact.locallyImplementable !== undefined && typeof fact.locallyImplementable !== 'boolean') {
+    throw new InvalidCorrectionRouteProvenanceError(`${where}: "locallyImplementable" must be a boolean.`);
+  }
+  if (fact.locallyImplementable && !LOCALLY_IMPLEMENTABLE_STATUSES.includes(fact.status)) {
+    throw new InvalidCorrectionRouteProvenanceError(
+      `${where}: status "${fact.status}" cannot be locallyImplementable (only ` +
+        `${LOCALLY_IMPLEMENTABLE_STATUSES.join('/')} can).`,
+    );
+  }
+  if (fact.restrictedToStatuses === undefined) return;
+  if (!fact.locallyImplementable) {
+    throw new InvalidCorrectionRouteProvenanceError(
+      `${where}: "restrictedToStatuses" narrows a local cancel, so it requires "locallyImplementable": true.`,
+    );
+  }
+  const statuses = fact.restrictedToStatuses as unknown;
+  if (
+    !Array.isArray(statuses) ||
+    statuses.length === 0 ||
+    !statuses.every((status) => typeof status === 'string' && status.trim() !== '')
+  ) {
+    throw new InvalidCorrectionRouteProvenanceError(
+      `${where}: "restrictedToStatuses" must be a non-empty array of status names.`,
     );
   }
 }

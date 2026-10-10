@@ -83,7 +83,8 @@
         "edit": "Edit client",
         "delete": "Delete client",
         "statement": "Account statement",
-        "portalAccess": "Client portal access"
+        "portalAccess": "Client portal access",
+        "paymentMethods": "Payment methods"
       },
       "filters": {
         "ariaLabel": "Filter clients",
@@ -139,6 +140,20 @@
       "revokeError": "The invite could not be revoked.",
       "close": "Close"
     },
+    "paymentMethods": {
+      "title": "Payment methods",
+      "description": "Restrict which of your enabled payment methods are offered to this client. No restriction means every enabled method, exactly as today.",
+      "restrictLabel": "Restrict payment methods",
+      "restrictDescription": "Only the methods checked below will be offered to this client.",
+      "noCompanyMethods": "No payment method is enabled yet. Enable one in Payment methods first.",
+      "emptySelectionHint": "Pick at least one method, or turn the restriction off.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "messages": {
+        "updateSuccess": "Payment methods updated",
+        "updateError": "Failed to update this client's payment methods"
+      }
+    },
     "upsert": {
       "title": {
         "create": "Add New Client",
@@ -173,7 +188,8 @@
         },
         "foundedAt": {
           "label": "Founded Date",
-          "placeholder": "Select founding date"
+          "placeholder": "Select founding date",
+          "description": "Official registration date, filled automatically by the company lookup."
         },
         "contactEmail": {
           "label": "Email",
@@ -259,6 +275,10 @@
         "portalAccess": {
           "label": "Client portal",
           "description": "Invite this client to sign in and see their own invoices, quotes and balance."
+        },
+        "paymentMethods": {
+          "label": "Payment methods",
+          "description": "Restrict which of your enabled payment methods are offered to this client."
         },
         "contacts": {
           "label": "Contacts",
@@ -360,6 +380,11 @@
       },
       "customFields": {
         "heading": "Custom fields"
+      },
+      "quick": {
+        "title": "New client",
+        "description": "Name and country are enough for now. The rest can be completed later, and is needed before an invoice is validated.",
+        "openFull": "Fill in all the details"
       }
     },
     "view": {
@@ -368,13 +393,15 @@
       "actions": {
         "close": "Close",
         "edit": "Edit",
-        "statement": "View statement"
+        "statement": "View statement",
+        "paymentMethods": "Manage"
       },
       "sections": {
         "contact": "Contact",
         "address": "Address",
         "documents": "Documents",
-        "contacts": "Contacts"
+        "contacts": "Contacts",
+        "paymentMethods": "Payment methods"
       },
       "documents": {
         "empty": "No document yet for this client"
@@ -391,7 +418,9 @@
         "state": "State/Province",
         "country": "Country",
         "primary": "Primary",
-        "noContacts": "No contacts"
+        "noContacts": "No contacts",
+        "paymentMethodsNone": "None enabled",
+        "paymentMethodsRestricted": "restricted"
       }
     },
     "delete": {
@@ -1887,7 +1916,8 @@
       "customFields": "Custom fields",
       "expenseCategories": "Expense categories",
       "branding": "Branding",
-      "billing": "Subscription"
+      "billing": "Subscription",
+      "paymentTerms": "Payment terms"
     },
     "branding": {
       "title": "Branding",
@@ -1966,6 +1996,35 @@
       },
       "messages": {
         "exportError": "Export failed"
+      }
+    },
+    "paymentTerms": {
+      "title": "Payment terms",
+      "description": "The due date a new quote or invoice starts with, counted from its issue date. You can still change it on each document.",
+      "quote": {
+        "title": "Quotes",
+        "description": "Due date proposed on a new quote."
+      },
+      "invoice": {
+        "title": "Invoices",
+        "description": "Due date proposed on a new invoice."
+      },
+      "form": {
+        "days": "Number of days",
+        "daysPlaceholder": "No default",
+        "daysHint": "Leave empty to keep the due date blank.",
+        "daysInvalid": "Enter a whole number of days between 0 and 365.",
+        "mode": "Counted",
+        "modes": {
+          "net": "Net, from the issue date",
+          "endOfMonth": "End of month, from the issue date"
+        }
+      },
+      "capWarning": "This term exceeds the legal maximum in your country ({{maxNetDays}} days net, {{maxEndOfMonthDays}} days end of month). You can still save it.",
+      "save": "Save",
+      "messages": {
+        "saveSuccess": "Payment terms saved",
+        "saveError": "Failed to save the payment terms"
       }
     },
     "dataExport": {
@@ -2094,7 +2153,7 @@
       },
       "currencyRates": {
         "title": "Exchange rates",
-        "description": "Manually-entered rates used to consolidate dashboard totals into your reference currency above. No rate is ever derived automatically — enter both directions if you need them.",
+        "description": "Rates entered here consolidate dashboard totals into your reference currency above and convert a payment recorded in a different currency than its invoice. A daily job also refreshes any pair you have already added, plus every pair your documents, clients and payments actually use, from the European Central Bank or, when it does not quote a currency, from exchangerate-api.com as a fallback. The most recently dated rate for a pair wins, whether it was entered by hand or added automatically.",
         "empty": "No exchange rate entered yet.",
         "form": {
           "from": "From",
@@ -2397,6 +2456,32 @@
       "reconciliation": {
         "title": "Reconciliation",
         "description": "The leeway (as a percent) allowed between a purchase order, its goods receipt(s), and the received invoice before a line is flagged \"to review\" in the 3-way-match panel. 0 means no leeway at all — any difference is flagged."
+      }
+    },
+    "identifiers": {
+      "help": {
+        "DE": {
+          "VAT": "Your German EU VAT number: DE followed by 9 digits, for example DE123456789. Needed to qualify as a business (B2B) for cross-border VAT treatment.",
+          "LEGAL_ID": "Your commercial register number: the registering court (Amtsgericht) plus the register number, for example HRB 12345 München."
+        },
+        "DZ": {
+          "RC": "Your trade register number (Registre du Commerce). Two styles are in use: the older NN/NN-NNNNNNN B NN, for example 16/00-1234567 B 25, and the newer NNBNNNNNNN, for example 16B1234567. A secondary registration uses the same number as the primary one. Required for a business; not required for a private, final consumer.",
+          "NIS": "Your statistical identification number (Numéro d'Identification Statistique): digits only, 15 digits, or 18 for a secondary establishment, for example 160001234567890. Required for a business; not required for a private, final consumer.",
+          "NIF": "Your tax identification number (Numéro d'Identification Fiscale): digits only, 15 digits, or 20 for a secondary establishment, for example 000116000123456.",
+          "AI": "Your tax-office article number (Article d'Imposition): a numeric code, for example 12345678901."
+        },
+        "FR": {
+          "LEGAL_ID": "9 digits (SIREN, the legal-unit number required on every invoice) or 14 digits (SIRET, the establishment number, also accepted since its first 9 digits are the SIREN)."
+        },
+        "IT": {
+          "IT_PA_CODE": "The 6-character Codice Ufficio for a government client (Pubblica Amministrazione), looked up on indicepa.gov.it. Needed so an invoice to a government client routes correctly.",
+          "IT_SDI": "The 7-character Codice Destinatario the Sistema di Interscambio assigns, on request, to a recipient with an accredited receiving channel. Needed so a domestic invoice routes to the right mailbox.",
+          "PEC": "A certified email address (PEC) used to deliver the invoice when the recipient has no Codice Destinatario on file."
+        },
+        "PT": {
+          "LEGAL_ID": "Your NIF (individuals) or NIPC, Número de Identificação de Pessoa Coletiva (companies). Every person and company in Portugal has one, whether or not they are VAT-registered.",
+          "VAT": "In practice, the same as your NIF/NIPC with a PT prefix, for example PT123456789. Used for intra-EU VAT exchanges (VIES)."
+        }
       }
     },
     "dangerZone": {
@@ -3708,6 +3793,9 @@
     "address-autocomplete": {
       "suggestionsLabel": "Address suggestions"
     },
+    "catalog-search": {
+      "suggestionsLabel": "Catalog suggestions"
+    },
     "document-language-select": {
       "automatic": "Automatic",
       "languages": {
@@ -4328,7 +4416,22 @@
                 "label": "Quantity"
               },
               "unit": {
-                "label": "Unit"
+                "label": "Unit",
+                "suggestedValues": {
+                  "C62": "Piece",
+                  "HUR": "Hour",
+                  "DAY": "Day",
+                  "WEE": "Week",
+                  "MON": "Month",
+                  "ANN": "Year",
+                  "KGM": "Kilogram",
+                  "GRM": "Gram",
+                  "LTR": "Litre",
+                  "MTR": "Metre",
+                  "KMT": "Kilometre",
+                  "SET": "Set",
+                  "BX": "Box"
+                }
               },
               "unitPrice": {
                 "label": "Unit price"
@@ -4878,10 +4981,7 @@
       },
       "array": {
         "addRow": "Add row",
-        "removeRow": "Remove row",
-        "prefillButton": "From catalog",
-        "prefillSearchPlaceholder": "Search catalog...",
-        "prefillNoResults": "No matches"
+        "removeRow": "Remove row"
       },
       "select": {
         "lockedFromReference": "Follows the linked record — cannot be edited directly."
@@ -4926,13 +5026,19 @@
         "title": "{{label}}",
         "description": "{{label}} will lock this document: it can no longer be edited afterwards.",
         "descriptionWithNumbering": "{{label}} will lock this document and assign its legal number: it can no longer be edited afterwards.",
+        "transmits": "{{label}} will also send this document to {{channel}}. This cannot be undone.",
         "confirm": "Confirm",
         "cancel": "Cancel"
       },
       "messages": {
         "invalid": "Please fix the highlighted fields before continuing.",
         "actionSuccess": "Done.",
-        "actionError": "Something went wrong running this action."
+        "actionError": "Something went wrong running this action.",
+        "domesticInvoiceCurrencyMismatch": "Invoices between two companies in {{country}} must be in {{currencyName}} ({{currencyCode}}). Change the currency to {{currencyCode}} before sending.",
+        "clientIncomplete": "{{client}} is missing {{fields}}. Complete the client before validating or sending this invoice.",
+        "clientIncompleteAction": "Edit client",
+        "clientIncompleteField_address": "the address",
+        "clientIncompleteField_city": "the city"
       },
       "newTitle": "New: {{label}}",
       "transitionOr": "or",
@@ -4998,6 +5104,9 @@
       },
       "downloadPdf": "Download PDF",
       "downloadPdfError": "The PDF could not be generated.",
+      "downloadPdfNotPdfOriginal": "This document was imported from another tool and its original file is not a PDF. Use \"Download original\" to get the file as issued.",
+      "downloadOriginal": "Download original",
+      "downloadOriginalError": "The original file could not be downloaded.",
       "downloadXml": "Download normalized XML",
       "downloadXmlCii": "CII (UN/CEFACT)",
       "downloadXmlUbl": "UBL 2.1",
@@ -5275,6 +5384,19 @@
           "LEDGER_ANNOTATION": "Whether a correction can be made by a simple internal register entry alone, with no document at all, has not been confirmed for Germany. In practice, most such cases are already covered by the automatic adjustment route above.",
           "ANNOTATED_DUPLICATE": "Whether an invoice can be resent unchanged, with an added note, as a correction has not been researched for Germany."
         },
+        "DZ": {
+          "CREDIT_NOTE": "Decree 05-468 does not define a credit note. Discounts and rebates are folded into the original invoice when it is issued, never corrected afterwards by a separate document. Whether a credit note is used in practice has not been confirmed.",
+          "DEBIT_NOTE": "Decree 05-468 does not define an upward-correction document either. Not researched further.",
+          "CORRECTIVE_INVOICE": "No general rectifying document, separate from cancellation, was found in decree 05-468.",
+          "CANCEL_AND_REPLACE": "Decree 05-468 lets you cancel an invoice by writing \"facture annulée\" diagonally across the original, kept in the booklet, but the decree does not describe reissuing it under a new number. (Décret 05-468, art. 10)",
+          "INTERNAL_CREDIT_NOTE": "No credit note mechanism at all was identified for Algeria, so a purely internal variant could not be checked either.",
+          "AUTHORITY_ANNULMENT": "The one cancellation mechanism found (decree 05-468, art. 10) is carried out by the seller itself, not by the tax authority. Algeria has no real-time invoice clearance platform.",
+          "RESUBMIT_SAME_IDENTITY": "This route assumes a rejection by a real-time clearance platform, which Algeria does not have.",
+          "ANNOTATED_DUPLICATE": "The cancellation mention (decree 05-468, art. 10) is written on the original document itself, not on a reissued duplicate, and concerns a full cancellation rather than a no-tax-effect correction.",
+          "LEDGER_ANNOTATION": "No provision governing a correction made only in the accounting register or a VAT return, with nothing sent to the customer, was identified.",
+          "NO_DOCUMENT_BY_LAW": "No scenario was identified where a correction takes effect automatically, with no document and no accounting entry at all.",
+          "COUNTERPARTY_OBJECTION": "No mechanism was identified for the buyer to unilaterally reject an Algerian invoice."
+        },
         "FR": {
           "CREDIT_NOTE": "For a cancelled or terminated sale, or a discount or rebate, you may correct the invoice by cancelling and replacing it, or by issuing a credit note. This is not available for a simple unpaid debt. (CGI art. 289, I, 5)",
           "DEBIT_NOTE": "French law has no separate debit note instrument: any document that increases the invoiced amount is treated as a corrective invoice. Whether issuing one is mandatory in every case has not been fully confirmed. (CGI art. 289, I, 5)",
@@ -5507,6 +5629,40 @@
         "label": "International Day of Persons with Disabilities",
         "description": "A UN day, observed 3 December, promoting the rights and well-being of persons with disabilities."
       }
+    }
+  },
+  "companyLookup": {
+    "notes": {
+      "generic": "No public business-register API is available for this country. Company details are entered manually.",
+      "partialOnly": "This country has no open register API, so the lookup falls back to the worldwide directories (GLEIF LEI index, Peppol Directory): companies listed there are found, most small businesses are not.",
+      "viesOnly": "Covered by VIES: the VAT number is validated, and the name and address are returned only when the member state discloses them.",
+      "AT": "Austria validates through VIES; Firmenbuch extracts are sold per query.",
+      "BE": "Belgium validates through VIES; the KBO/BCE publishes bulk open data but no per-company API.",
+      "BG": "Bulgaria validates through VIES; the Търговски регистър has no free JSON API.",
+      "CN": "The national enterprise credit system (GSXT) has no public API.",
+      "CY": "Cyprus validates through VIES; the Registrar of Companies has no public API.",
+      "DE": "Germany does not disclose names through VIES and the Handelsregister has no public API: the VAT number can be validated, the rest is entered by hand.",
+      "EE": "Estonia validates through VIES; the Äriregister API requires an X-Road/paid contract.",
+      "ES": "Spain validates the VAT number through VIES but does not disclose the name or address; the Registro Mercantil has no free API.",
+      "GR": "Greece validates through VIES; GEMI has no free public API.",
+      "HR": "Croatia validates through VIES; sudreg requires a registered API key.",
+      "HU": "Hungary validates through VIES; the NAV taxpayer query requires credentials.",
+      "IN": "GSTIN lookup is only available through a paid GSP subscription.",
+      "IT": "Italy discloses the name and address through VIES; the Registro Imprese itself has no free API.",
+      "JP": "The National Tax Agency corporate number API requires a registered application id.",
+      "LT": "Lithuania validates through VIES; Registrų centras charges for its API.",
+      "LU": "Luxembourg validates through VIES; RCS extracts require an account.",
+      "LV": "Latvia validates through VIES; the Uzņēmumu reģistrs publishes bulk open data but no per-company API.",
+      "MC": "Monaco keeps its own Répertoire du Commerce et de l'Industrie, which has no public API. Monegasque numbers are not in the French register either.",
+      "MT": "Malta validates through VIES; the MBR has no public API.",
+      "MX": "The SAT publishes no company lookup service; the RFC is validated offline instead.",
+      "PT": "Portugal validates through VIES; the Registo Comercial has no free API.",
+      "SE": "Sweden validates through VIES; Bolagsverket sells its API per query.",
+      "SG": "ACRA data is published through data.gov.sg datasets that require an account.",
+      "SI": "Slovenia validates through VIES; AJPES charges for register access.",
+      "US": "There is no federal business register: company data sits with each state's Secretary of State, none of which share a common API.",
+      "VN": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance.",
+      "ZA": "CIPC enterprise enquiries require a paid customer account."
     }
   }
 }

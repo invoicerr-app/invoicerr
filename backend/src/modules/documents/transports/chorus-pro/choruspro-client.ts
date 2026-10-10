@@ -9,7 +9,7 @@
  *
  *  1. `deposerFlux` takes a `Buffer` (`fileBytes`), not a UTF-8 `string` — the reference's own signature
  *     assumed a plain XML string (`Buffer.from(xmlContent, 'utf-8')`), which is safe for pure text but
- *     would CORRUPT the actual payload: the B2G FR rule (`b2g-routing/data/fr.json`) names
+ *     would CORRUPT the actual payload: the B2G FR rule (`countries/data/fr.json (section "b2gRouting")`) names
  *     `formatSyntax: "facturx"`, and Factur-X is a PDF/A-3 BINARY with an embedded XML (see
  *     `formats/facturx-provider.ts`) — round-tripping arbitrary binary bytes through a UTF-8 string
  *     first (`Buffer.from(str, 'utf-8')`) is lossy for any byte sequence that isn't valid UTF-8, which
@@ -24,7 +24,7 @@
  * Architecture (unchanged from the reference):
  *  - Platform: PISTE (Plateforme d'Intermédiation de Services pour la Transformation de l'État)
  *  - Authority: AIFE / DGFiP — Chorus Pro is the mandatory B2G invoicing portal (see
- *    `b2g-routing/data/fr.json`'s own sourced legal text: Code de la commande publique L.2192-1/-2/-5).
+ *    `countries/data/fr.json (section "b2gRouting")`'s own sourced legal text: Code de la commande publique L.2192-1/-2/-5).
  *  - Scope: invoices FROM suppliers TO public entities (B2G); B2B goes via PDP (a separate channel,
  *    `transports/pdp-transport.ts`).
  *

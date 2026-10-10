@@ -121,3 +121,14 @@ Secrets are encrypted at rest. The server must have `CREDENTIALS_ENCRYPTION_KEY`
 :::
 
 Click **Connect** at the bottom of the side sheet. Invoicerr will then use these credentials to send and track your e-invoices through the PDP.
+
+## 6. Receiving invoices
+
+Once the channel is connected, Invoicerr checks your SuperPDP inbox every 5 minutes by default and imports each
+invoice you received as a **received invoice**, oldest first. Each check resumes after the last
+invoice already imported, so nothing is skipped, however many invoices arrived in between.
+
+:::info[First connection]
+The first checks also import the invoices already waiting in your SuperPDP inbox, up to 1000 per
+check, until Invoicerr has caught up.
+:::

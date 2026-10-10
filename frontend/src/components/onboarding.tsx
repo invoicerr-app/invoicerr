@@ -29,7 +29,11 @@ import type React from "react"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRequiredIdentifiers, withVatIdentifier } from "@/hooks/use-required-identifiers"
+import {
+  identifierHelpText,
+  useRequiredIdentifiers,
+  withVatIdentifier,
+} from "@/hooks/use-required-identifiers"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 
 /**
@@ -152,6 +156,7 @@ export default function OnBoarding({
     lookup: onCompanyLookup,
     isLoading: companyLookupLoading,
     capability,
+    note: lookupNoteText,
     isAvailable: canLookupCompany,
     coverage: lookupCoverage,
     schemes: lookupSchemes,
@@ -185,6 +190,8 @@ export default function OnBoarding({
     legalIdRequirement?.label ||
     lookupIdentifierLabel ||
     t("settings.company.onboarding.identifierStep.genericLabel", "National company identifier")
+  const legalIdHelpText =
+    legalIdRequirement && identifierHelpText(legalIdRequirement, requiredIdentifiersResult?.requirements, t)
 
   useEffect(() => {
     if (!requiredIdentifiers) return
@@ -455,8 +462,10 @@ export default function OnBoarding({
                         data-cy="onboarding-legalid-input"
                       />
                     </FormControl>
-                    {legalIdRequirement?.helpText && (
-                      <p className="text-xs text-muted-foreground">{legalIdRequirement.helpText}</p>
+                    {legalIdHelpText && (
+                      <p className="text-xs text-muted-foreground" data-cy="onboarding-legalid-help">
+                        {legalIdHelpText}
+                      </p>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -473,7 +482,7 @@ export default function OnBoarding({
                     )}
                   </AlertTitle>
                   <AlertDescription>
-                    {capability?.note ||
+                    {lookupNoteText ||
                       t(
                         "settings.company.onboarding.identifierStep.noAutoSearchFallback",
                         "No automatic company search is available for this country on this instance — enter the details by hand.",
@@ -620,6 +629,7 @@ export default function OnBoarding({
                         const current = form.watch("identifiers") || []
                         const formIndex = current.findIndex((i) => i.scheme === req.scheme)
                         if (formIndex < 0) return null
+                        const helpText = identifierHelpText(req, requiredIdentifiersResult?.requirements, t)
                         return (
                           <FormField
                             key={req.scheme}
@@ -665,8 +675,13 @@ export default function OnBoarding({
                                     )}
                                   </div>
                                 </FormControl>
-                                {req.helpText && (
-                                  <p className="text-xs text-muted-foreground">{req.helpText}</p>
+                                {helpText && (
+                                  <p
+                                    className="text-xs text-muted-foreground"
+                                    data-cy={`onboarding-identifier-${req.scheme}-help`}
+                                  >
+                                    {helpText}
+                                  </p>
                                 )}
                                 <FormMessage />
                               </FormItem>

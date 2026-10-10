@@ -17,7 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     200.00 USD -> 170.00 EUR (200 * 0.85), gross 1200.00 USD.
  *  2. POLAND (the company switched, same shape 105-numbering-formats-per-country.cy.ts already
  *     established for Italy), a 1000.00 USD invoice at 23% (Poland's own standard rate,
- *     vat-rates/data/pl.json): VAT 230.00 USD -> 966.00 PLN (230 * 4.20).
+ *     countries/data/pl.json (section "vatRates")): VAT 230.00 USD -> 966.00 PLN (230 * 4.20).
  *  3. POLAND again, a GBP invoice: the send is REFUSED (400, naming NBP), never silently sent with
  *     no converted VAT, and never silently substituting the ECB fake instead.
  *

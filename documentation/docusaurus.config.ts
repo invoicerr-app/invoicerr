@@ -230,6 +230,16 @@ const config: Config = {
           label: 'GitHub',
           position: 'right',
         },
+        {
+          href: 'https://discord.gg/6sDwqXFqnK',
+          label: 'Discord',
+          position: 'right',
+        },
+        {
+          href: 'https://github.com/sponsors/invoicerr-app',
+          label: 'Sponsor',
+          position: 'right',
+        },
       ],
     },
     footer: {
@@ -263,6 +273,10 @@ const config: Config = {
               label: 'GitHub Issues',
               href: 'https://github.com/invoicerr-app/invoicerr/issues',
             },
+            {
+              label: 'Discord',
+              href: 'https://discord.gg/6sDwqXFqnK',
+            },
           ],
         },
         {
@@ -271,6 +285,10 @@ const config: Config = {
             {
               label: 'GitHub',
               href: 'https://github.com/invoicerr-app/invoicerr',
+            },
+            {
+              label: 'Sponsor',
+              href: 'https://github.com/sponsors/invoicerr-app',
             },
           ],
         },

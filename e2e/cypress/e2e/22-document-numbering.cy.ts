@@ -14,6 +14,12 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     `2`, never `1` again;
  *  3. re-saving the first quote (its "save-draft" stays offered even once "sent" — see
  *     quote.descriptor.ts) then re-reading it changes neither its number nor its display.
+ *
+ * A fourth fact (issue #581), on an INVOICE rather than a quote, its own independent sequence: a
+ * real click on "Validate" numbers it exactly like "Send" would, never twice - the deep
+ * lock/warning/mandate behavior around "Validate" is 118-invoice-validate.cy.ts's own job, this file
+ * only cares that the number itself follows the SAME "never before leaving draft, never twice" rule
+ * a second document action (not just "send") can now assign.
  */
 const api = Cypress.env("apiUrl");
 
@@ -21,6 +27,8 @@ const api = Cypress.env("apiUrl");
 // that assigned the number, not from a date picked for the test.
 const DEFAULT_QUOTE_DISPLAY_NUMBER = (n: number) =>
 	new RegExp(`^QUOTE-\\d{4}-${String(n).padStart(4, "0")}$`);
+const DEFAULT_INVOICE_DISPLAY_NUMBER = (n: number) =>
+	new RegExp(`^INVOICE-\\d{4}-${String(n).padStart(4, "0")}$`);
 
 describe("Document numbering — never before leaving draft, never twice", () => {
 	before(() => {
@@ -162,5 +170,70 @@ describe("Document numbering — never before leaving draft, never twice", () =>
 		cy.request({ url: `${api}/api/documents/${secondQuoteId}?typeId=quote` })
 			.its("body.number")
 			.should("eq", 2);
+	});
+
+	// Issue #581 - a SECOND action, on a SECOND document type, assigns a number the exact same way:
+	// never before "draft", never twice. Its own independent sequence (INVOICE-, not QUOTE-) never
+	// interacts with the quote numbers proven above.
+	it('a real click on "Validate" numbers an invoice exactly like "Send" would, and a re-validate attempt never spends a second number', () => {
+		cy.request({ url: `${api}/api/documents/references/client/search` })
+			.its("body")
+			.then((clients: { id: string }[]) => {
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/invoice/actions/save-draft`,
+					body: {
+						data: {
+							client: clients[0].id,
+							// Before FR's own PDP mandate threshold (2026-09-01, channel-policy/mandate.ts) -
+							// this spec is about NUMBERING, not the mandate branch 118-invoice-validate.cy.ts
+							// already covers in full.
+							issueDate: "2026-08-28",
+							dueDate: "2026-09-30",
+							currency: "EUR",
+							lines: [{ description: "Conseil", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }],
+						},
+					},
+					failOnStatusCode: false,
+				}).then((saved) => {
+					expect(saved.status, "brouillon de facture créé").to.be.oneOf([200, 201]);
+					const invoiceId = saved.body?.document?.id as string;
+					expect(invoiceId, "le brouillon a un identifiant").to.be.a("string");
+					expect(saved.body?.document?.number, "un brouillon n'a pas de numéro").to.be.null;
+
+					cy.visit("/documents/invoice");
+					cy.runDocumentRowAction(invoiceId, "validate");
+
+					cy.get(`[data-cy="document-number-${invoiceId}"]`, { timeout: 15000 })
+						.invoke("text")
+						.should("match", DEFAULT_INVOICE_DISPLAY_NUMBER(1));
+
+					cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+						.its("body")
+						.then((doc) => {
+							expect(doc.status, "réellement validated en base").to.eq("validated");
+							expect(doc.number, "la première facture validée prend le numéro 1").to.eq(1);
+							expect(doc.displayNumber).to.match(DEFAULT_INVOICE_DISPLAY_NUMBER(1));
+						});
+
+					// Never twice: a scripted retry of the same action on the same (now "validated")
+					// record is refused server-side - the number taken above stays the only one ever
+					// spent, whatever a caller tries afterward.
+					cy.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/validate`,
+						body: {
+							documentId: invoiceId,
+							data: { client: clients[0].id, issueDate: "2026-08-28", currency: "EUR", lines: [] },
+						},
+						failOnStatusCode: false,
+					}).then((res) => {
+						expect(res.status, "une seconde validation est refusée").to.be.oneOf([400, 409]);
+					});
+					cy.request({ url: `${api}/api/documents/${invoiceId}?typeId=invoice` })
+						.its("body.number")
+						.should("eq", 1);
+				});
+			});
 	});
 });

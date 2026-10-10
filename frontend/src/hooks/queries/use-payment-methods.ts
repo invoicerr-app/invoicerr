@@ -1,6 +1,6 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 import { queryKeys } from "@/lib/query-keys"
-import type { PaymentMethodConfig } from "@/types/payment-method"
+import type { ClientPaymentMethodRestriction, PaymentMethodConfig } from "@/types/payment-method"
 
 /**
  * A company's own accepted payment methods — its own top-level screen (payment-methods/index.tsx),
@@ -26,5 +26,28 @@ export function useUpdatePaymentMethod() {
     "PATCH",
     ({ methodId }) => `/api/payment-methods/${methodId}`,
     { invalidateKeys: [queryKeys.paymentMethods.list()] },
+  )
+}
+
+/** Issue #416 ("payment methods per client") - one client's own restriction. `enabled` mirrors the
+ *  SAME "only fetch once there is a real client id" guard `usePortalAccess` already holds for the
+ *  identical client-scoped-dialog shape (`client-portal-access.tsx`). */
+export function useClientPaymentMethodRestriction(clientId: string, enabled: boolean) {
+  return useApiQuery<ClientPaymentMethodRestriction>(
+    queryKeys.paymentMethods.clientRestriction(clientId),
+    `/api/payment-methods/clients/${clientId}`,
+    { enabled },
+  )
+}
+
+/** Replaces a client's own restriction wholesale (`methodIds: []` clears it back to unrestricted).
+ * No static `invalidateKeys` here - the query key is per-CLIENT (`queryKeys.paymentMethods.
+ *  clientRestriction(clientId)`), only known from the mutation's own variables, not at hook-build
+ * time - the exact same reason `useCreatePortalAccess`/`useRevokePortalAccess` leave invalidation to
+ *  their own caller (`client-portal-access.tsx#invalidateList`) rather than this option. */
+export function useUpdateClientPaymentMethodRestriction() {
+  return useApiMutation<{ clientId: string; methodIds: string[] }, ClientPaymentMethodRestriction>(
+    "PATCH",
+    ({ clientId }) => `/api/payment-methods/clients/${clientId}`,
   )
 }

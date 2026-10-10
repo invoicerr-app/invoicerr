@@ -200,7 +200,7 @@ function isDomestic(operation: ChannelMandateOperation): boolean {
  * binds only parties established in Italy and puts the reporting of that inbound transaction on the
  * ITALIAN buyer, not on the French supplier. Deciding a mandate from the seller's country and the
  * date alone therefore refused a lawful invoice, which is a product failure of the exact kind
- * `channel-policy/data/pl.json`'s own notes already argue against for Poland's KSeF timetable.
+ * `countries/data/pl.json (section "channelPolicy")`'s own notes already argue against for Poland's KSeF timetable.
  *
  * ## What this function deliberately does NOT do
  *

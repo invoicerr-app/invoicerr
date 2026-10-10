@@ -6,7 +6,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * that does not exist (a closed port locally), we pick `pdp` as the invoicing transport, and we
  * observe the queue's real failure (BullMQ retry then "send_failed", the error naming the channel).
  * The REAL PDP deposit (superpdp sandbox) is proven elsewhere, for real, by
- * `backend/src/modules/documents/transports/pdp/pdp.live.spec.ts` (jest, `PDP_LIVE=1`) — never by
+ * `backend/src/modules/documents/transports/pdp/superpdp.live.spec.ts` (jest, `SUPERPDP_LIVE=1`) — never by
  * this spec, which never talks to any real server FOR PDP.
  *
  * Wave 2 (KSeF/PL, SdI/IT) extends this file with the SAME pattern — country suggestion → connect
@@ -42,9 +42,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * (point 2 above), for the SAME reason: the PISTE OAuth/API hosts are FIXED per environment
  * (`chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`), never a configuration field. The test
  * therefore sends fake PISTE credentials to the REAL public sandbox `sandbox-oauth.piste.gouv.fr`,
- * which really rejects them — verified by hand before writing this test (direct `curl`: `HTTP 400
- * {"error":"invalid_client"}` in well under a second, never a network block — see
- * `choruspro-client.ts`'s own header for the same verification, done the same day). No
+ * which really rejects them (a genuine 4xx auth failure, never a network block). No
  * `country-policy` rule is needed here (France already has one) — this wave picks "chorus-pro" as
  * the company's FREE transport for an ordinary BUSINESS client, never through B2G routing (see
  * `40-b2g-routing.cy.ts` for the FR B2G path itself, with a GOVERNMENT client).
@@ -87,12 +85,12 @@ const FAKE_SDI = {
 	certificatePassword: "e2e-fake-cert-password",
 };
 
-/** Chorus Pro (FR, B2G) — see this file's own header, "Wave 3": both PISTE OAuth2 fields, garbage on
+/** Chorus Pro (FR, B2G) - see this file's own header, "Wave 3": both PISTE OAuth2 fields, garbage on
  *  purpose, sent to the REAL public sandbox (`sandbox-oauth.piste.gouv.fr`), which rejects them for
- *  real (`HTTP 400 invalid_client`) — never a closed port, since these hosts are fixed by environment,
- *  not user-editable (see `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`). The technical-account
- *  pair's own CONTENT is irrelevant (never reached — PISTE auth fails first); only its PRESENCE
- *  matters, exactly like `FAKE_SDI`'s own certificate fields above. */
+ *  real (a 4xx `invalid_client` auth failure), never a closed port - these hosts are fixed by
+ *  environment, not user-editable (see `chorus-pro-transport.ts`'s own `CHORUS_PRO_URLS`). The
+ *  technical-account pair's own CONTENT is irrelevant (never reached - PISTE auth fails first); only
+ *  its PRESENCE matters, exactly like `FAKE_SDI`'s own certificate fields above. */
 const FAKE_CHORUS_PRO = {
 	clientId: "e2e-fake-piste-client-id",
 	clientSecret: "e2e-fake-piste-client-secret",
@@ -182,7 +180,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 	it('connects the PDP channel via the screen with fake credentials - status "Connected" (issue #527 screen: legal channel nav, then operator, connect in a side sheet)', () => {
 		cy.visit("/settings/channels");
 
-		// Level 1 - France's own legal channel (channel-policy/data/fr.json) is PDP, mandated: the
+		// Level 1 - France's own legal channel (countries/data/fr.json (section "channelPolicy")) is PDP, mandated: the
 		// nav badge says so directly (never a separate "suggested" badge once mandated - the mandate
 		// IS this country's own stance, see channels.service.ts#legalChannels's own header).
 		cy.get('[data-cy="channel-nav-pdp"]', { timeout: 15000 }).should("exist").click();
@@ -894,16 +892,12 @@ describe("National transports — the PDP channel, connected/disconnected via th
 						doc.status,
 						'la facture est réellement "send_failed" en base',
 					).to.eq("send_failed");
-					// Same tightening as the KSeF test above — `/Chorus Pro/` alone would also match a
-					// broken `CHORUS_PRO_URLS` entry or a sandboxed runner with no egress at all.
-					// `choruspro-client.ts` names the PISTE sandbox's own real rejection as an HTTP status
-					// (verified by hand — see this file's own header, "Wave 3": a genuine
-					// `HTTP 400 {"error":"invalid_client"}`), which only an actual round-trip to
-					// sandbox-oauth.piste.gouv.fr can produce.
-					expect(
-						doc.lastActionError,
-						"l'erreur enregistrée est le vrai rejet PISTE (HTTP 400), pas un message générique",
-					).to.match(/HTTP 400/);
+					// Any 4xx counts: PISTE's exact status code varies by environment.
+					if (!/Chorus Pro PISTE authentication failed \(HTTP 4\d\d\)/.test(doc.lastActionError)) {
+						throw new Error(
+							"l'erreur enregistrée n'est pas le vrai rejet PISTE (4xx) : " + doc.lastActionError,
+						);
+					}
 					expect(
 						doc.transportRef,
 						"aucun numeroFluxDepot sans dépôt accepté",

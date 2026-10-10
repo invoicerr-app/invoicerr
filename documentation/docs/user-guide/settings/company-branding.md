@@ -19,6 +19,9 @@ Your business identity — this information appears on every document you issue.
 - **Default document language** — the language a document (PDF and email) renders in for any client
   who hasn't set one of their own; see [Document Language](../document-language.md)
 
+Picking a country fills in **Currency** with that country's usual currency. Change it if you invoice
+in another one; opening the settings again never changes it on its own.
+
 Your country matters more than it looks: it decides which identifiers you are asked for, which VAT
 rates you can pick, how an invoice may be corrected, and whether the law forces a particular delivery
 channel. The [country compliance matrix](../../developer-guide/country-support/index.md) shows what is
@@ -79,6 +82,18 @@ Formats card, lets you tell Invoicerr where your previous tool's own numbering l
 invoice or credit note continues from there instead of restarting at 1, usable on its own or together
 with [importing your past invoices](../billing/migrating-from-another-tool.md). It can only be used
 once per document type, before that type's first Invoicerr document.
+
+### Multi-currency
+
+The **Multi-currency** card's **Reference currency** field turns on one consolidated dashboard total, in the currency you pick, alongside your existing per-currency figures. Leave it empty to keep every total grouped by currency, unchanged.
+
+The **Exchange rates** card right below it lists the rates that consolidation, and payment currency conversion, use:
+
+- **Add it yourself**: enter a rate for any currency pair. Correcting one means adding a new rate dated later, since the most recently dated rate for a pair always wins; there is no edit or delete.
+- **Refreshed automatically once a day**: a background job refreshes every pair you have already added, plus every pair your documents, clients and recorded payments actually use against your reference currency and against each other, from the European Central Bank first and, only for a currency the ECB does not quote, from exchangerate-api.com as a fallback (credited on the card when used). A currency neither source quotes stays unconverted until you add it by hand.
+- **Gaps**: a pair neither source has ever been able to refresh is listed separately on the card, so you know its rate is still only whatever you last typed by hand.
+
+The same rates also convert a payment you record in a currency different from its invoice's own; recording it is refused if no rate exists for that pair on the day the payment arrived.
 
 ### Revenue basis
 

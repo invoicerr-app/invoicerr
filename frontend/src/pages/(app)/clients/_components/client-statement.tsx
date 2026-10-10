@@ -113,7 +113,7 @@ export function ClientStatementDialog({ client, onOpenChange }: ClientStatementD
         className="flex max-h-[90vh] w-full flex-col gap-0 p-0 sm:max-w-3xl lg:max-w-5xl"
         data-cy="client-statement"
       >
-        <DialogHeader className="border-b px-6 py-4 pr-12">
+        <DialogHeader className="border-b px-6 py-4 pe-12">
           <DialogTitle>{t("clients.statement.title", { name: clientDisplayName(client) })}</DialogTitle>
           <DialogDescription>{t("clients.statement.description")}</DialogDescription>
         </DialogHeader>
@@ -162,18 +162,22 @@ export function ClientStatementDialog({ client, onOpenChange }: ClientStatementD
                             : "clients.statement.type.creditNote",
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell dir="ltr" className="font-mono text-xs">
                         {row.displayNumber ?? row.id.slice(0, 8)}
                       </TableCell>
-                      <TableCell className="tabular-nums">{row.issueDate ?? "—"}</TableCell>
-                      <TableCell className="tabular-nums">{row.dueDate ?? "—"}</TableCell>
-                      <TableCell className="amount text-right">
+                      <TableCell dir="ltr" className="tabular-nums">
+                        {row.issueDate ?? "—"}
+                      </TableCell>
+                      <TableCell dir="ltr" className="tabular-nums">
+                        {row.dueDate ?? "—"}
+                      </TableCell>
+                      <TableCell dir="ltr" className="amount text-right">
                         {formatMinor(row.amountMinor, row.currency)}
                       </TableCell>
-                      <TableCell className="amount text-right">
+                      <TableCell dir="ltr" className="amount text-right">
                         {formatMinor(row.paidMinor, row.currency)}
                       </TableCell>
-                      <TableCell className="amount text-right font-medium">
+                      <TableCell dir="ltr" className="amount text-right font-medium">
                         {formatMinor(row.outstandingMinor, row.currency)}
                       </TableCell>
                       <TableCell>

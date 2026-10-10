@@ -29,11 +29,11 @@ import { TransportRegistry } from './transports/transport-registry';
 vi.mock('./persistence');
 vi.mock('./country-policy/country-policy');
 vi.mock('./numbering/take-number');
-// PARTIAL mock (PR #473 round 3, point 2b) - only `applyStockOnIssuance` (the DB-touching half) is
-// mocked; the module's OWN `declaresArticleReference` predicate stays REAL, so the gate
+// PARTIAL mock (issue #579) - only `applyStockOnIssuance` (the DB-touching half) is mocked; the
+// module's OWN `decrementsStockOnIssuance` predicate stays REAL, so the gate
 // `documents.service.ts#runAction` now applies before calling it is genuinely exercised against
-// `numberedWidgetDescriptor`'s own declared fields below, never against an auto-mocked stub that
-// would pass every test here for the wrong reason.
+// `numberedWidgetDescriptor`'s own declared `stockEffect` below, never against an auto-mocked stub
+// that would pass every test here for the wrong reason.
 vi.mock('./stock/apply-stock-on-issuance', async () => {
   const actual = await vi.importActual('./stock/apply-stock-on-issuance');
   return { ...actual, applyStockOnIssuance: vi.fn() };
@@ -45,10 +45,11 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: 'se
 /** A "widget" numbered on entering "sent" — mirrors `quote.descriptor.ts`'s/`invoice.descriptor.ts`'s own
  *  `numbering: { onEnterStatus: 'sent' }`, on a synthetic type never named "quote"/"invoice"/
  *  "article" - proving the stock effect never keys off a type name, only off its descriptor's OWN
- *  declared fields. Declares a `lines` array field with a `hiddenReference`/`entity: 'article'` row
- *  field (PR #473 round 3, point 2b) - the SAME structural shape `invoice.descriptor.ts`'s own
- *  `articleId` field has, so `declaresArticleReference` genuinely returns `true` for it, never a mock
- *  return value standing in for the real predicate. */
+ *  declared `stockEffect` (issue #579). Declares BOTH a `lines` array field with a
+ *  `hiddenReference`/`entity: 'article'` row field (the SAME structural shape `invoice.descriptor.ts`'s
+ *  own `articleId` field has, so `declaresArticleReference` genuinely returns `true` for it too) AND
+ *  `stockEffect: 'decrement'` - the invoice's own shape, never a mock return value standing in for
+ *  the real predicate. */
 function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {}): DocumentTypeDescriptor {
   return {
     id: 'widget',
@@ -71,6 +72,7 @@ function numberedWidgetDescriptor(overrides: Partial<DocumentTypeDescriptor> = {
     ],
     initialStatus: 'draft',
     numbering: { onEnterStatus: 'sent' },
+    stockEffect: 'decrement',
     actions: [
       {
         id: 'save-draft',
@@ -98,14 +100,24 @@ function unnumberedWidgetDescriptor(): DocumentTypeDescriptor {
 }
 
 /** Numbered exactly like `numberedWidgetDescriptor`, but its `lines` field declares NO
- *  article-reference sub-field at all (PR #473 round 3, point 2b) - the credit note's own shape
- *  (credit-note.descriptor.ts's "Lines" field has no `articleId`). Proves the hole the reviewer
- *  named: the stock effect used to read `data.lines` type-agnostically REGARDLESS of what the
- *  descriptor itself declares, which would still decrement for a type whose lines merely CARRY an
- *  articleId a client posted (the line validator keeps any undeclared key) even though that type
- *  never declared the field to begin with. */
+ *  article-reference sub-field at all - the credit note's own shape (credit-note.descriptor.ts's
+ *  "Lines" field has no `articleId`) - AND no `stockEffect` either. Proves the stock effect never
+ *  fires for a type whose lines merely CARRY an articleId a client posted (the line validator keeps
+ *  any undeclared key) when that type never even opted into `stockEffect: 'decrement'`. */
 function numberedWidgetDescriptorWithoutArticleReference(): DocumentTypeDescriptor {
-  return { ...numberedWidgetDescriptor(), fields: [] };
+  const { stockEffect: _drop, ...rest } = numberedWidgetDescriptor();
+  return { ...rest, fields: [] };
+}
+
+/** Issue #579's own regression shape: the QUOTE's exact situation - `lines` DOES declare the
+ *  article-reference field (so `declaresArticleReference` is `true`, the catalog-prefill picker still
+ *  works), but the descriptor does NOT set `stockEffect: 'decrement'`. Before this fix, the stock
+ *  effect was gated on `declaresArticleReference` alone, so a type shaped exactly like this one (the
+ *  quote) decremented stock on "send" just like the invoice does. Proves the NEW gate is the explicit
+ *  `stockEffect` fact, never field shape. */
+function numberedWidgetDescriptorWithArticleFieldButNoStockEffect(): DocumentTypeDescriptor {
+  const { stockEffect: _drop, ...rest } = numberedWidgetDescriptor();
+  return rest;
 }
 
 function buildService(descriptor: DocumentTypeDescriptor, actionRegistry: ActionRegistry) {
@@ -282,10 +294,10 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
   });
 
-  // PR #473 round 3, point 2b: gating on `declaresArticleReference(descriptor)`, never on which
-  // action/site happened to reach this code, is what makes "never decrement for a type that never
-  // declared the field" true regardless of what `data.lines` carries.
-  it('a type whose descriptor declares NO article-reference field on its lines is NEVER decremented, even though its lines carry an articleId', async () => {
+  // Issue #579: gating on `decrementsStockOnIssuance(descriptor)`, never on which action/site
+  // happened to reach this code, is what makes "never decrement for a type that never opted into
+  // `stockEffect: 'decrement'`" true regardless of what `data.lines` carries.
+  it('a type whose descriptor declares NO article-reference field and NO stockEffect is NEVER decremented, even though its lines carry an articleId', async () => {
     const actionRegistry = new ActionRegistry();
     const lines = [{ articleId: 'article-1', quantity: 4 }];
     registerSendHandler(actionRegistry, 'sent', null, { lines });
@@ -306,6 +318,39 @@ describe('DocumentsService.runAction — stock-effect wiring', () => {
     });
 
     const service = buildService(numberedWidgetDescriptorWithoutArticleReference(), actionRegistry);
+    await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
+
+    expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();
+  });
+
+  // THE #579 REGRESSION TEST: a type shaped EXACTLY like the quote - its lines DO declare the
+  // article-reference field, so `declaresArticleReference` is `true` - but the descriptor never sets
+  // `stockEffect: 'decrement'`. Before the fix, this exact shape decremented stock on "send"; now it
+  // must not, proving the gate reads the explicit descriptor fact, never field shape alone.
+  it("never decrements for a type whose LINES declare the article-reference field but whose descriptor does not set `stockEffect: 'decrement'` (the quote's own shape)", async () => {
+    const actionRegistry = new ActionRegistry();
+    const lines = [{ articleId: 'article-1', quantity: 4 }];
+    registerSendHandler(actionRegistry, 'sent', null, { lines });
+
+    (persistence.findOwnedDocument as Mock).mockResolvedValue({
+      id: 'doc-1',
+      typeId: 'widget',
+      status: 'draft',
+      number: null,
+      displayNumber: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue({
+      number: 1,
+      displayNumber: 'WIDGET-2026-0001',
+    });
+
+    const descriptor = numberedWidgetDescriptorWithArticleFieldButNoStockEffect();
+    expect(descriptor.fields.some((f) => f.kind === 'array')).toBe(true); // declaresArticleReference stays true
+
+    const service = buildService(descriptor, actionRegistry);
     await service.runAction('company-1', 'widget', 'send', { documentId: 'doc-1', data: {} });
 
     expect(stock.applyStockOnIssuance).not.toHaveBeenCalled();

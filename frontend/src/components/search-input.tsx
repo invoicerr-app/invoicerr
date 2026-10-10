@@ -1,7 +1,7 @@
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Check, ChevronDown, Plus, X } from "lucide-react"
 import { cn, dataCy } from "@/lib/utils"
-import { useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -54,10 +54,33 @@ export default function SearchSelect({
 }: SearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
+  const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const listboxId = useId()
+  const optionId = (index: number) => `${listboxId}-option-${index}`
+  const highlighted = options.length ? Math.min(activeIndex, options.length - 1) : -1
+
+  useEffect(() => {
+    if (!isOpen || highlighted < 0) return
+    listRef.current?.children[highlighted]?.scrollIntoView?.({ block: "nearest" })
+  }, [isOpen, highlighted])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault()
+      if (!options.length) return
+      const step = e.key === "ArrowDown" ? 1 : -1
+      setActiveIndex(Math.max(0, Math.min(options.length - 1, highlighted + step)))
+    } else if (e.key === "Enter" && highlighted >= 0) {
+      e.preventDefault()
+      handleOptionSelect(options[highlighted].value)
+    }
+  }
 
   const handleSearchChange = (search: string) => {
     setSearchValue(search)
+    setActiveIndex(0)
     onSearchChange?.(search)
   }
 
@@ -106,6 +129,7 @@ export default function SearchSelect({
       onOpenChange={(open) => {
         if (disabled) return
         setIsOpen(open)
+        if (open) setActiveIndex(0)
         if (open) setTimeout(() => inputRef.current?.focus(), 0)
       }}
     >
@@ -116,13 +140,13 @@ export default function SearchSelect({
             variant="outline"
             disabled={disabled}
             className={cn(
-              "w-full justify-between text-left font-normal h-9 min-h-8 p-3",
+              "w-full min-w-0 justify-between overflow-hidden text-start font-normal h-9 min-h-8 p-3",
               (!multiple && !value) || (multiple && !(value as string[]).length)
                 ? "text-muted-foreground"
                 : "",
             )}
           >
-            <div className="flex flex-wrap gap-1 flex-1 items-center">
+            <div className="flex flex-wrap gap-1 flex-1 min-w-0 items-center">
               {multiple ? (
                 !(value as string[]).length ? (
                   <span>{placeholder}</span>
@@ -133,7 +157,7 @@ export default function SearchSelect({
                       <button
                         type="button"
                         onClick={(e) => handleRemoveOption(optionValue, e)}
-                        className="ml-1 hover:bg-muted rounded-full p-0.5"
+                        className="ms-1 hover:bg-muted rounded-full p-0.5"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -141,9 +165,11 @@ export default function SearchSelect({
                   ))
                 )
               ) : getOptionLabel(value as string) ? (
-                <span>{getOptionLabel(value as string)}</span>
+                <span className="min-w-0 max-w-full truncate" title={getOptionLabel(value as string)}>
+                  {getOptionLabel(value as string)}
+                </span>
               ) : (
-                <span>{placeholder}</span>
+                <span className="min-w-0 max-w-full truncate">{placeholder}</span>
               )}
             </div>
             <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
@@ -169,23 +195,38 @@ export default function SearchSelect({
                 placeholder={searchPlaceholder}
                 value={searchValue}
                 onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                role="combobox"
+                aria-expanded={isOpen}
+                aria-controls={listboxId}
+                aria-autocomplete="list"
+                aria-activedescendant={highlighted >= 0 ? optionId(highlighted) : undefined}
                 className="h-8"
               />
             </div>
 
             <div
+              ref={listRef}
+              id={listboxId}
+              role="listbox"
+              aria-multiselectable={multiple || undefined}
               className="max-h-60 overflow-auto p-1 flex flex-col gap-1"
               {...(dataCyValue ? dataCy(`${dataCyValue}-options`) : {})}
             >
               {options.length === 0 && renderNoResults()}
-              {options.map((option) => (
+              {options.map((option, index) => (
                 <button
                   key={option.value}
+                  id={optionId(index)}
                   type="button"
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={isSelected(option.value)}
                   onClick={() => handleOptionSelect(option.value)}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground",
                     isSelected(option.value) && "bg-accent",
+                    index === highlighted && "bg-accent text-accent-foreground ring-2 ring-ring ring-inset",
                   )}
                   {...(dataCyValue
                     ? dataCy(`${dataCyValue}-option-${option.label.toLowerCase().replace(/\s+/g, "-")}`)

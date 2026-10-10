@@ -1,10 +1,30 @@
-import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
+import { defaultComposedCountryCatalog } from '../countries/registry';
 import { CountryReportingObligationFile, ReportableDocumentType, ReportingObligationFact } from './schema';
 
 function buildIndex(files: CountryReportingObligationFile[]): Record<string, CountryReportingObligationFile> {
   const index: Record<string, CountryReportingObligationFile> = {};
   for (const f of files) index[f.countryCode.toUpperCase()] = f;
   return index;
+}
+
+/**
+ * The default catalog content (issue #603 step 4): every country's own `reporting` section from the
+ * composed per-country view, instead of this catalog's own `data/all.ts` directly. No import cycle
+ * results, because `countries/compose.ts` reads the RAW loader (`reporting/data/all.ts`'s own
+ * `ALL_REPORTING_OBLIGATION_FILES`), never this registry: see that file's own header. The dependency
+ * direction is therefore one-way: this file depends on `countries/registry.ts`, which depends on
+ * `countries/compose.ts`, which depends on `reporting/data/all.ts`; nothing depends back on this
+ * file from inside that chain. A country with no `reporting` section in the composed view is simply
+ * left out here, the same "no permissive fallback" this catalog already held when it read
+ * `ALL_REPORTING_OBLIGATION_FILES` directly.
+ */
+function reportingObligationsFromComposedCatalog(): CountryReportingObligationFile[] {
+  const files: CountryReportingObligationFile[] = [];
+  for (const countryCode of defaultComposedCountryCatalog.countries()) {
+    const reporting = defaultComposedCountryCatalog.get(countryCode)?.reporting;
+    if (reporting) files.push(reporting);
+  }
+  return files;
 }
 
 /**
@@ -16,11 +36,16 @@ function buildIndex(files: CountryReportingObligationFile[]): Record<string, Cou
  * database mirror (`country-policy/`'s own tradeoff, made for an entirely different reason: a
  * per-(country, type, action) rule table queried far more densely than "does this ONE country have a
  * reporting fact").
+ *
+ * The constructor still takes a plain `CountryReportingObligationFile[]` (never the composed catalog
+ * itself), so an explicit, smaller list still works exactly as before for every existing caller and
+ * test (e.g. `new ReportingObligationCatalog([FR_FILE])`): only the NO-ARGUMENT default changed where
+ * it reads from.
  */
 export class ReportingObligationCatalog {
   private readonly files: Record<string, CountryReportingObligationFile>;
 
-  constructor(files: CountryReportingObligationFile[] = ALL_REPORTING_OBLIGATION_FILES) {
+  constructor(files: CountryReportingObligationFile[] = reportingObligationsFromComposedCatalog()) {
     this.files = buildIndex(files);
   }
 

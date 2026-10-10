@@ -17,7 +17,7 @@
  * korygujących wystawianych do faktur, dla których nie został nadany numer identyfikujący w Krajowym
  * Systemie e-Faktur" — "EXCEPT for corrective invoices issued for invoices which were NOT assigned an
  * identifying number in KSeF" — a real, statutory exception, not a gap this code invented. And KSeF
- * itself is only `requirement: 'suggested'` for Poland today (`transports/channel-policy/data/pl.json`
+ * itself is only `requirement: 'suggested'` for Poland today (`countries/data/pl.json (section "channelPolicy")`
  * — that file's own header: arming it as `mandated` today "WOULD REFUSE invoices that are still
  * perfectly lawful"), so an original invoice legitimately sent by "email" (or any other channel) and
  * carrying no KSeF number at all is a real, LAWFUL case, not a data-quality bug to refuse.

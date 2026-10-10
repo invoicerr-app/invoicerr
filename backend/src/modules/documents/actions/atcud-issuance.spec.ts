@@ -8,6 +8,7 @@ import {
   isAtcudBlockError,
 } from './atcud-issuance';
 import { AtcudFormatIncompatibleError } from '../numbering/atcud';
+import { defaultCountryPolicyCatalog } from '../country-policy/registry';
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -112,6 +113,39 @@ describe('ensureAtcudIssuable — the load-bearing preflight gate, before any nu
         companyId_typeId_seriesId: { companyId: 'company-1', typeId: 'invoice', seriesId: 'FT 2027' },
       },
     });
+  });
+});
+
+// Issue #603 - proves the gate is now driven by the country's own `documentValidationCode` fact
+// (`country-policy/schema.ts`) rather than by the literal 'PT': a `documentValidationCodeFor` spy
+// shows the SAME fact-based decision for a country that is not Portugal, and the opposite decision
+// for Portugal itself when the fact's scheme does not say "ATCUD" - something a bare `=== 'PT'`
+// check could never express.
+describe('ensureAtcudIssuable - driven by the documentValidationCode fact, not a country literal', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('proceeds for a non-Portuguese country whose fact happens to declare scheme "ATCUD"', async () => {
+    mockCompany('Germany', { invoice: 'FT {year}/{number:4}' });
+    vi.spyOn(defaultCountryPolicyCatalog, 'documentValidationCodeFor').mockReturnValue({
+      scheme: 'ATCUD',
+      provenance: { kind: 'unverified', resolutionNote: 'Fixture.' },
+    });
+    mockedPrisma.companyAtcudSeries.findUnique.mockResolvedValue({ validationCode: 'JCVPTS0J' });
+
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
+  });
+
+  it('is a no-op for Portugal itself when the fact declares a DIFFERENT scheme', async () => {
+    mockCompany('Portugal', { invoice: 'FT {year}/{number:4}' });
+    vi.spyOn(defaultCountryPolicyCatalog, 'documentValidationCodeFor').mockReturnValue({
+      scheme: 'SOME-OTHER-CODE',
+      provenance: { kind: 'unverified', resolutionNote: 'Fixture.' },
+    });
+
+    await expect(ensureAtcudIssuable('company-1', 'invoice', PT_DATE)).resolves.toBeUndefined();
+    expect(mockedPrisma.companyAtcudSeries.findUnique).not.toHaveBeenCalled();
   });
 });
 

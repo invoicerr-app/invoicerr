@@ -91,11 +91,14 @@ export function StatementLines({ statementId }: StatementLinesProps) {
             <TableBody>
               {lines.map(({ line, suggestions, reconciledInvoiceLabel }) => (
                 <TableRow key={line.id} data-cy={`bank-reconciliation-line-${line.id}`}>
-                  <TableCell className="tabular-nums">{new Date(line.date).toLocaleDateString()}</TableCell>
+                  <TableCell dir="ltr" className="tabular-nums">
+                    {new Date(line.date).toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="max-w-xs truncate" title={line.label}>
                     {line.label}
                   </TableCell>
                   <TableCell
+                    dir="ltr"
                     className={cn(
                       "text-right font-mono tabular-nums whitespace-nowrap",
                       line.amountMinor < 0 && "text-destructive",

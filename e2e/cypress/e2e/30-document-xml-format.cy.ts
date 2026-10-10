@@ -185,7 +185,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 	// spec already drives now also carries the three C. com. art. L441-9 I al. 5 mentions in BG-1.
 	// This is precisely what makes a real superpdp deposit's conformity check stop citing
 	// "BR-FR-05/BT-22 : La mention relative aux frais de recouvrement (code PMT) est absente" — see
-	// `pdp/pdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
+	// `pdp/superpdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
 	// through the SCREEN, by intercepting the exact request the download button triggers, never by
 	// asserting on the screen alone.
 	it("a sent French invoice's downloaded XML carries the mandatory mentions — recovery fee + the rate actually in force", () => {
@@ -212,7 +212,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 				expect(body).to.contain("frais de recouvrement");
 				expect(body).to.contain("40 €");
 				// PMD (late-payment penalties) — issueDate 2026-08-30 falls in the second half of 2026:
-				// the rate FROZEN at issue, per `mentions/data/fr.json`'s own dated table.
+				// the rate FROZEN at issue, per `countries/data/fr.json (section "mentions")`'s own dated table.
 				expect(body).to.contain("12,40 %");
 				// AAB (early-payment discount) — the prescribed "néant" wording, doctrine F31808.
 				expect(body).to.contain("Escompte pour paiement anticipé");
@@ -540,7 +540,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		// "nothing set yet" state, not a state this spec engineered by clearing a field back out.
 		it("without an IBAN on file, downloading xrechnung through the screen refuses, naming BR-DE-1", () => {
 			// buyerReference (BT-10, Leitweg-ID) IS provided — the seeded FR company has no
-			// country-fields overlay UI for it (that is DE-only, see country-fields/data/de.json's
+			// country-fields overlay UI for it (that is DE-only, see countries/data/de.json (section "countryFields")'s
 			// own header), so it is set directly via the API body, exactly like this file's own
 			// `createAndSendInvoice` already does for every other field. The intent is a clean,
 			// SINGLE-cause refusal: the IBAN, and only the IBAN, is missing.

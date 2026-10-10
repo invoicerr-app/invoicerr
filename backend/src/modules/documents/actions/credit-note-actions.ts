@@ -19,7 +19,7 @@ import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
-import { declaresArticleReference } from '../stock/apply-stock-on-issuance';
+import { decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { TransportFormatSource, TransportRegistry } from '../transports/transport-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
@@ -39,11 +39,12 @@ import {
  *  `checkAndEmitInvoiceSettledFromCreditNote` below). */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 /** The credit note's OWN descriptor - never `INVOICE_DESCRIPTOR` above, which describes a different
- *  type's field shape. PR #473 review point 2: neither of this type's two line shapes (`lines`,
- *  `correctedLines`, credit-note.descriptor.ts) declares an article-reference field, so this is
- *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. */
+ *  type's field shape. Issue #579: this descriptor never sets `stockEffect: 'decrement'`, so this is
+ *  `false` - computed, not hardcoded, so it stays true to the descriptor if that ever changes. A
+ *  credit note never moves stock, whatever either of its two line shapes (`lines`, `correctedLines`,
+ *  credit-note.descriptor.ts) ends up carrying. */
 const CREDIT_NOTE_DESCRIPTOR = buildCreditNoteDescriptor();
-const CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE = declaresArticleReference(CREDIT_NOTE_DESCRIPTOR);
+const CREDIT_NOTE_DECREMENTS_STOCK = decrementsStockOnIssuance(CREDIT_NOTE_DESCRIPTOR);
 
 export interface CreditNoteActionDeps {
   queueDispatcher: DocumentActionQueueDispatcher;
@@ -174,14 +175,14 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  * PR #473 review point 2 (owner decision): a credit note has no legal basis AT ALL for a Polish
  * seller - LINKED or FREE, never mind which. This used to only guard the FREE shape (a "no invoice
  * to reference" gap), on the theory that a LINKED credit note was still a legitimate, if oddly named,
- * way to reduce what an invoice owes. That theory was wrong, and country-policy/data/pl.json's own
+ * way to reduce what an invoice owes. That theory was wrong, and countries/data/pl.json (section "policy")'s own
  * `numbering` fact for this type already said so before the code caught up (`requirement:
  * 'type-not-issuable'`, citing art. 106j ust. 2 pkt 2, "numer kolejny oraz datę jej wystawienia" -
  * a faktura korygująca must carry a sequential number of its own): this document type is not, and
  * cannot become, that KOR invoice - it has no numbering series of its own for a Polish seller at all
  * (credit-note.descriptor.ts's own numbering header). The credit note is refused OUTRIGHT for a
  * Polish seller - the faktura korygująca is already implemented as a `KOR` INVOICE
- * (`correctsInvoiceId`, invoice.descriptor.ts; correction-routes/data/pl.json's own
+ * (`correctsInvoiceId`, invoice.descriptor.ts; countries/data/pl.json (section "correctionRoutes")'s own
  * CORRECTIVE_INVOICE route, 'required'/'implemented'), numbered in the INVOICE's own series, never
  * this type's.
  *
@@ -191,7 +192,7 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  * reads it), never whether it fires - see this function's own name change, from
  * `assertFreeCreditNoteAllowedForCountry` to this.
  *
- * ALSO the belt-and-braces enforcement behind country-policy/data/pl.json's own `save-draft`/`send`
+ * ALSO the belt-and-braces enforcement behind countries/data/pl.json (section "policy")'s own `save-draft`/`send`
  * rules (`allowed: false`, PR #473) - `documents.service.ts#runAction`'s own `evaluateCountryPolicy`
  * gate already refuses both actions with a 403 before this handler is ever reached in the ordinary
  * HTTP path, but this guard is what a scripted/internal caller that bypassed that gate would still
@@ -206,7 +207,7 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
  *
  * Existing Polish credit notes (issued before this decision took effect) are UNAFFECTED going
  * forward: this guard only runs on "save-draft"/"send" (creating or re-editing one), never on a read,
- * a PDF render, or "share-link" - see credit-note.descriptor.ts's own `country-policy/data/pl.json`
+ * a PDF render, or "share-link" - see credit-note.descriptor.ts's own `countries/data/pl.json (section "policy")`
  * rule for `share-link` staying `allowed: true` for exactly that reason.
  */
 async function assertCreditNoteAllowedForCountry(
@@ -538,7 +539,7 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       // note that reached "sending" from "send_failed" while still unnumbered (issued before this
       // feature existed). See that field's own header (descriptors/types.ts) for the full "why".
       numberingOnlyFrom: ['draft'],
-      declaresArticleReference: CREDIT_NOTE_DECLARES_ARTICLE_REFERENCE,
+      decrementsStock: CREDIT_NOTE_DECREMENTS_STOCK,
       // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`
       // call, right after `preflight` runs) — a SEPARATE write path from "save-draft", which

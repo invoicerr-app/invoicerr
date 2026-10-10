@@ -6,11 +6,11 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * CGI art. 289, I, 5 assimilates any document modifying an initial invoice to an invoice itself,
  * which must carry every mandatory particular of CGI ann. II art. 242 nonies A, I, 7° - including a
  * unique number from a continuous chronological sequence, by series distinct from the invoice's own
- * when the activity justifies it (see `backend/src/modules/documents/country-policy/data/fr.json`'s
+ * when the activity justifies it (see `countries/data/fr.json (section "policy")`'s
  * own `numbering` fact for the citation, and `credit-note.descriptor.ts`'s own "Numbering" header for
  * the full "why"). The default seeded company (`cy.resetAndSeed()`) is French, so its credit notes are
  * numbered in France's own credit-note format, "CN-{year}-{number:4}" (issue #496: formats are fixed
- * per country and document type, country-policy/data/fr.json's `numberFormats`).
+ * per country and document type, countries/data/fr.json (section "policy")'s `numberFormats`).
  *
  * Three journeys, all against the real API and the real screen:
  *  a) a DRAFT credit note shows no number; ISSUING it (draft -> sending -> sent) gives it
@@ -24,6 +24,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     starting point) does NOT number it retroactively - `numbering.onlyFrom: ['draft']`'s own
  *     guarantee (descriptors/types.ts) - it stays "Issued without a number" even once "sent" again.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const appOrigin = Cypress.config("baseUrl");
 
@@ -43,6 +45,7 @@ function createClient(name: string, contactEmail: string) {
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

@@ -23,6 +23,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * page, and the error must disappear from the screen while it stays open, not only after a
  * reload.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 describe("A document's asynchronous send goes through the queue — all the way to \"Sent\", with the PDF in Mailpit", () => {
@@ -151,6 +153,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					postalCode: "75002",
 					isActive: true,
 					type: "COMPANY",
+					identifiers: FRENCH_BUYER_IDENTIFIERS,
 				},
 				failOnStatusCode: false,
 			}).then((created) => {
@@ -195,7 +198,7 @@ describe("A document's asynchronous send goes through the queue — all the way 
 					// `refetchInterval` is re-evaluated — and its 60s window restarted — right after
 					// the click, via the invalidation `useRunDocumentAction` already triggers).
 					// This company is FR (resetAndSeed's own default, never overridden above), and FR
-					// restricts "invoice.save-draft" to the "draft" status (country-policy/data/fr.json)
+					// restricts "invoice.save-draft" to the "draft" status (countries/data/fr.json (section "policy"))
 					// — so this very first send opens the row's own lock-confirmation dialog first
 					// (document-list.tsx's DocumentRowActions, `actionLocksDocument` in
 					// action-presentation.ts). `sendClickedAt` is captured on the CONFIRM click, not the

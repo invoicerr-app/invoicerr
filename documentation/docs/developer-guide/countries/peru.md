@@ -40,23 +40,24 @@ against a primary source. Leads, not facts — confirm every line before writing
 ## Which catalogues a contributor would add
 
 Adding a country is data, not code. [Adding a country](../adding-a-country.md) is the procedure and
-the contract each file has to satisfy; this is only the shopping list for Peru.
+the contract each section has to satisfy; this is only the shopping list of sections Peru would need in
+`countries/data/pe.json`.
 
-- `country-policy/data/pe.json` — which document actions Peru allows. Start here: without this file
-  every action is refused with a 403, naming the country.
-- `country-identifiers/data/pe.json` — which national identifier a party must carry.
-- `tax/tax-systems/data/pe.json` and `vat-rates/data/pe.json` — the tax kind, and the rate ladder
+- `policy` - which document actions Peru allows. Start here: without this
+  section every action is refused with a 403, naming the country.
+- `identifiers` - which national identifier a party must carry.
+- `taxSystem` and `vatRates` - the tax kind, and the rate ladder
   offered on an invoice line.
-- `correction-routes/data/pe.json` — all eleven canonical correction routes, `unverified` where
+- `correctionRoutes` - all eleven canonical correction routes, `unverified` where
   unresearched, never omitted.
-- `b2g-routing/data/pe.json` — the channel and format a Peruvian public buyer requires.
-- `transports/channel-policy/data/pe.json` — whether a channel is legally required of a seller
+- `b2gRouting` - the channel and format a Peruvian public buyer requires.
+- `channelPolicy` - whether a channel is legally required of a seller
   established in Peru, and from what date.
-- `archive/retention/data/pe.json` — how long an archived document is kept, and what the duration is
+- `retention` - how long an archived document is kept, and what the duration is
   counted from.
 
-Add `mentions/`, `content-requirements/`, `country-fields/`, `reporting/` and
-`domestic-reverse-charge/` only where the law actually gives them content.
+Add `mentions`, `contentRequirements`, `countryFields`, `reporting` and
+`domesticReverseCharge` sections only where the law actually gives them content.
 
 Data alone will not finish the job here: OSE-mediated submission to SUNAT is a transmission channel
 this repository does not implement, and the CPE schema has no format provider. Both are code, not a

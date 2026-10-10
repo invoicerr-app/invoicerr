@@ -7,7 +7,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * fiscalmente relevantes », and Decreto-Lei n.º 28/2019, art. 2.º c) ii) counts a document correcting
  * an invoice as a « fatura ». Its series is registered with the AT under the SAF-T document type of a
  * credit note, NC (Portaria n.º 195/2020, art. 2.º b); Portaria n.º 302/2016, field 4.1.4.8), never
- * under the invoice's FT series. Sources and their reading dates: `country-policy/data/pt.json`, the
+ * under the invoice's FT series. Sources and their reading dates: `countries/data/pt.json (section "policy")`, the
  * `atcud-required` numbering facts.
  *
  * Two journeys, on a Portuguese seller:
@@ -20,7 +20,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl");
 const YEAR = new Date().getFullYear();
-// Issue #496: Portugal's own formats ("FT A/{number}", "NC A/{number}", country-policy/data/pt.json),
+// Issue #496: Portugal's own formats ("FT A/{number}", "NC A/{number}", countries/data/pt.json (section "policy")),
 // one series each across years.
 const FT_SERIES = "FT A";
 const NC_SERIES = "NC A";

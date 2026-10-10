@@ -243,7 +243,7 @@ export function FileField({ field, name }: FieldRendererProps) {
                     onClick={() => fileInputRef.current?.click()}
                     dataCy={`document-field-${field.key}-input`}
                   >
-                    <Paperclip className="h-4 w-4 mr-2" />
+                    <Paperclip className="h-4 w-4 me-2" />
                     {t("documents.form.file.browse")}
                   </Button>
                   <span className="text-xs text-muted-foreground">{t("documents.form.file.maxSize")}</span>

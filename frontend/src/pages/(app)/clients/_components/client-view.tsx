@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useClientStatement } from "@/hooks/queries"
+import { useClientPaymentMethodRestriction, useClientStatement, usePaymentMethods } from "@/hooks/queries"
 import type { Client } from "@/types"
 
 import { DetailItem, DetailList, DetailSection } from "../../_shared/detail-list"
@@ -19,6 +19,7 @@ interface ClientViewDialogProps {
   onOpenChange: (open: boolean) => void
   onEdit: (client: Client) => void
   onStatement: (client: Client) => void
+  onPaymentMethods: (client: Client) => void
 }
 
 /** The client's own identifiers (SIRET, VAT…) as one compact line under the header — the raw
@@ -66,7 +67,7 @@ function LinkedDocuments({ clientId }: { clientId?: string }) {
           >
             <div className="min-w-0">
               <span className="font-mono">{row.displayNumber ?? row.id.slice(0, 8)}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{row.issueDate ?? "—"}</span>
+              <span className="ms-2 text-xs text-muted-foreground">{row.issueDate ?? "—"}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="font-mono text-sm tabular-nums">
@@ -82,6 +83,51 @@ function LinkedDocuments({ clientId }: { clientId?: string }) {
 }
 
 /**
+ * Issue #416 ("payment methods per client") - a one-line read of this client's own restriction: every
+ * company-enabled method's own label when unrestricted (exactly what the client is actually offered
+ * today, not the bare word "unrestricted"), or the restricted subset's labels when narrowed. Reads
+ * the SAME two queries the management dialog itself does (`usePaymentMethods`/
+ * `useClientPaymentMethodRestriction`) - both already cached under the same query keys, so opening
+ * the dialog right after reading this summary costs no extra round trip.
+ */
+function PaymentMethodsSummary({ clientId }: { clientId?: string }) {
+  const { t } = useTranslation()
+  const { data: companyMethods, isLoading: methodsLoading } = usePaymentMethods()
+  const { data: restriction, isLoading: restrictionLoading } = useClientPaymentMethodRestriction(
+    clientId ?? "",
+    !!clientId,
+  )
+
+  if (methodsLoading || restrictionLoading) {
+    return <Skeleton className="h-4 w-40" />
+  }
+
+  const enabledMethods = (companyMethods ?? []).filter((method) => method.enabled)
+  const restrictedIds = new Set(restriction?.methodIds ?? [])
+  const offered =
+    restrictedIds.size > 0 ? enabledMethods.filter((method) => restrictedIds.has(method.id)) : enabledMethods
+
+  if (offered.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground" data-cy="client-view-payment-methods-none">
+        {t("clients.view.fields.paymentMethodsNone", "None enabled")}
+      </p>
+    )
+  }
+
+  return (
+    <p className="text-sm text-foreground" data-cy="client-view-payment-methods-summary">
+      {offered.map((method) => method.label).join(", ")}
+      {restrictedIds.size > 0 && (
+        <span className="ml-1.5 text-xs text-muted-foreground">
+          ({t("clients.view.fields.paymentMethodsRestricted", "restricted")})
+        </span>
+      )}
+    </p>
+  )
+}
+
+/**
  * A client's own record, read-only — the fiche a row's "view" action opens. Same shell as the
  * create/edit dialog (`FormDialog`, without a `<form>` since nothing here is submitted): a header
  * naming and badging the record exactly like a document's own detail page does, a `DetailList` for
@@ -93,7 +139,13 @@ function LinkedDocuments({ clientId }: { clientId?: string }) {
  * dialog's own closing animation — the same reason its sibling dialogs (delete, statement) guard
  * every field with `client?.` rather than unmounting on a falsy client.
  */
-export function ClientViewDialog({ client, onOpenChange, onEdit, onStatement }: ClientViewDialogProps) {
+export function ClientViewDialog({
+  client,
+  onOpenChange,
+  onEdit,
+  onStatement,
+  onPaymentMethods,
+}: ClientViewDialogProps) {
   const { t } = useTranslation()
 
   const hasAddress =
@@ -202,6 +254,24 @@ export function ClientViewDialog({ client, onOpenChange, onEdit, onStatement }: 
           </DetailList>
         </DetailSection>
       )}
+
+      <DetailSection
+        title={t("clients.view.sections.paymentMethods", "Payment methods")}
+        aside={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!client}
+            onClick={() => client && onPaymentMethods(client)}
+            dataCy="client-view-payment-methods-button"
+          >
+            {t("clients.view.actions.paymentMethods", "Manage")}
+          </Button>
+        }
+      >
+        <PaymentMethodsSummary clientId={client?.id} />
+      </DetailSection>
 
       <DetailSection
         title={t("clients.view.sections.documents")}

@@ -66,11 +66,11 @@ next to the invoice's own currency.
 DPR 633/1972 is repealed 2027-01-01 and replaced by a new Testo Unico IVA; every source checked
 describes this as a reorganisation rather than a substantive change to this rule, but the exact new
 article numbers (reported as 72/73 and 27 by secondary commentary) have not been read directly from
-Normattiva's own text; see `vat-currency/data/it.json`'s own `notes` for the caveat.
+Normattiva's own text; see `countries/data/it.json`'s own `notes` for the caveat.
 
 ## Identifiers
 
-`country-identifiers/data/it.json` declares two schemes: **VAT** (the *partita IVA*, sourced `legal`
+`countries/data/it.json` declares two schemes: **VAT** (the *partita IVA*, sourced `legal`
 to DPR 633/1972 art. 21 comma 2 lettera d) and **LEGAL_ID**, both with `required: false`.
 
 The `required: false` is deliberate and worth understanding, because it is not a statement that the
@@ -105,9 +105,9 @@ what that status represents here, and cancellation stays available only from it.
 
 ## Sources
 
-`backend/src/modules/documents/country-policy/data/it.json`, `correction-routes/data/it.json`,
-`correction-routes/cancel-policy.ts`, `b2g-routing/data/it.json`,
-`transports/channel-policy/data/it.json`, `tax/tax-systems/data/it.json`,
-`vat-currency/data/it.json` (VAT and taxable amount stated in euros), plus
+`backend/src/modules/documents/countries/data/it.json` (one file, all of this country's own
+sections: action policy; correction routes; B2G routing; channel policy; the tax system; and
+VAT-currency conversion, VAT and taxable amount stated in euros), plus
+`correction-routes/cancel-policy.ts`,
 `transports/sdi/sdicoop.live.spec.ts` and `formats/national/fatturapa-provider.ts` for the
 accreditation and FPA12/FPR12 claims above.

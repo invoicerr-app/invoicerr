@@ -41,11 +41,11 @@ const ADMONITION_DEFAULT_TITLE: Record<AdmonitionTone, string> = {
 // `index.css`) — note/tip/info all read as the same neutral "informational" tone, and danger borrows
 // the destructive token. There is no separate "success" reading for an admonition.
 const ADMONITION_TONE_CLASSNAME: Record<AdmonitionTone, string> = {
-  note: "border-l-info bg-info/10",
-  tip: "border-l-info bg-info/10",
-  info: "border-l-info bg-info/10",
-  warning: "border-l-warning bg-warning/10",
-  danger: "border-l-destructive bg-destructive/10",
+  note: "border-s-info bg-info/10",
+  tip: "border-s-info bg-info/10",
+  info: "border-s-info bg-info/10",
+  warning: "border-s-warning bg-warning/10",
+  danger: "border-s-destructive bg-destructive/10",
 }
 
 /**
@@ -124,7 +124,7 @@ export function LegalMarkdown({ content, className }: { content: string; classNa
   const rendered = segments.map((segment, index) => {
     if (segment.kind === "admonition") {
       const toneClassName = cn(
-        "my-4 rounded-r-md border-l-4 px-4 py-3",
+        "my-4 rounded-e-md border-s-4 px-4 py-3",
         ADMONITION_TONE_CLASSNAME[segment.tone],
       )
       return (
@@ -156,8 +156,8 @@ export const LEGAL_CONTENT_CLASSNAME =
   "space-y-4 text-sm leading-relaxed text-foreground " +
   "[&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight " +
   "[&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold " +
-  "[&_p]:mt-2 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mt-1 " +
+  "[&_p]:mt-2 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:ps-5 [&_ol]:mt-2 [&_ol]:list-decimal [&_ol]:ps-5 [&_li]:mt-1 " +
   "[&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a]:hover:decoration-foreground " +
   "[&_hr]:my-6 [&_hr]:border-border [&_strong]:font-semibold " +
-  "[&_table]:mt-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-left [&_table]:text-xs " +
-  "[&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_th]:pr-3 [&_td]:border-b [&_td]:border-border/50 [&_td]:py-1 [&_td]:pr-3"
+  "[&_table]:mt-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-start [&_table]:text-xs " +
+  "[&_th]:border-b [&_th]:border-border [&_th]:pb-1 [&_th]:pe-3 [&_td]:border-b [&_td]:border-border/50 [&_td]:py-1 [&_td]:pe-3"

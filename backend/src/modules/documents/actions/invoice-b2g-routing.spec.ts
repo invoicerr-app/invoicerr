@@ -56,7 +56,7 @@ const IT_RULE_READY = {
 
 // This fixture once again MATCHES the real, shipped DE rule (`b2g-routing/data/all.spec.ts` is the
 // test that reads the REAL file): between 2026-09-02 and 2026-09-15 it briefly routed to a "peppol"
-// transport with a format override instead (see `b2g-routing/data/de.json`'s own `notes` for that
+// transport with a format override instead (see `countries/data/de.json (section "b2gRouting")`'s own `notes` for that
 // history) — but that transport was removed from the product on 2026-09-15, and the rule reverted to
 // naming "zre-ozgre", this repo's own real historical placeholder for a still-unwired federal portal
 // channel. This fixture exercises `resolveB2gInvoiceTransport`'s own "channel not available" branch

@@ -14,13 +14,15 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *
  * Driven through the real stack: the invoice and the credit note are issued through the same
  * "save-draft"/"send" actions the screen calls, the PDF is downloaded from the endpoint the screen's
- * "Download PDF" entry fetches and read with `pdf-parse` (`extractPdfText`), and the figures on screen
+ * "Download PDF" entry fetches and read with `pdfjs-dist` (`extractPdfText`), and the figures on screen
  * are read off the rendered list and detail page.
  *
  * The covering EMAIL is asserted by `106-credit-note-archive-delivery.cy.ts` (issue #499, which added
  * the delivery), and against the real render pipeline in
  * `backend/src/modules/documents/totals/linked-credit-note.spec.ts`.
  */
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 
 /** 2 x 300.00 at 10% off, 20% VAT: net 540.00, VAT 108.00, gross 648.00. */
@@ -43,6 +45,7 @@ function createClient() {
 				postalCode: "69002",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {
@@ -113,7 +116,7 @@ function issueCreditNote(data: Record<string, unknown>) {
 		});
 }
 
-/** The downloaded PDF's text, as `pdf-parse` reads it; the bytes are also kept under
+/** The downloaded PDF's text, as `pdfjs-dist` reads it; the bytes are also kept under
  *  `cypress/downloads/` so the PR's screenshots can show the real first page. */
 function downloadPdfText(id: string, fileName: string): Cypress.Chainable<string> {
 	return cy

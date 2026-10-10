@@ -87,9 +87,10 @@ visitor never has to look for them elsewhere.
 - Every generated document is valid for its country: numbering goes through the real numbering
   service, and every national identifier (SIRET for France, USt-IdNr for Germany, Partita IVA for
   Italy, NIP for Poland, NIF for Portugal) carries a real, checksum-valid value
-  (`backend/src/modules/demo/generators/identifiers.ts`, tested against this codebase's own offline
-  validators; `demo-mode-seed.spec.ts` runs the generator against several seeds and checks every
-  country's identifiers validate).
+  (`backend/src/modules/demo/generators/identifiers.ts`; `identifiers.spec.ts` runs each generator
+  against several seeds and checks the result with this codebase's own offline validators). Which
+  identifiers a demo party gets, and which algorithm fills each one, comes from the `demoGenerator`
+  of each scheme in the country's own file (see [Adding a country](./adding-a-country.md)).
 - Every document is created through the real `DocumentsService.runAction`, never a raw database
   row, so country-policy compliance, field validation and numbering all come from the same code path
   a real user's own action would go through. Reaching "sent" status uses a numbering-only bypass

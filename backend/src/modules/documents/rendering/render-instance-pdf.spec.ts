@@ -22,6 +22,7 @@ import prisma from '@/prisma/prisma.service';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
+import { buildClientReferenceProvider } from '../references/client-reference.provider';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { resolveEnabledPaymentMethodPresentations } from '../payment-methods/persistence';
 import { PaymentMethodPresentation } from '../payment-methods/types';
@@ -273,10 +274,15 @@ describe('sepaPaymentQrFor', () => {
 });
 
 describe('paymentMethodsFor', () => {
+  // Issue #416 ("payment methods per client") - a real 'client' reference field, the SAME shape
+  // `invoice.descriptor.ts` actually declares, so `clientIdFromData` has something to resolve against
+  // in the tests below that care about it. The pre-existing tests in this block (which pass data with
+  // no 'client' key) are unaffected - `clientIdFromData` simply resolves to `undefined` for them, same
+  // as it always implicitly did before this field existed on the fixture.
   const paymentMethodsDescriptor: DocumentTypeDescriptor = {
     id: 'invoice',
     label: 'Invoice',
-    fields: [],
+    fields: [{ key: 'client', kind: 'reference', label: 'Client', entity: 'client' }],
     actions: [],
     usesPaymentMethods: true,
   };
@@ -321,11 +327,11 @@ describe('paymentMethodsFor', () => {
     );
 
     expect(result).toBe(somePresentations);
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: 12000,
-      currency: 'EUR',
-      reference: 'INV-2026-0001',
-    });
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: 12000, currency: 'EUR', reference: 'INV-2026-0001' },
+      undefined, // no 'client' value on this document's own `data`
+    );
   });
 
   it('omits `amountMinor` for a zero/negative total -- never hands a method a nonsensical amount', async () => {
@@ -337,20 +343,67 @@ describe('paymentMethodsFor', () => {
       null,
     );
 
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: undefined,
-      currency: 'EUR',
-      reference: undefined,
-    });
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: undefined, currency: 'EUR', reference: undefined },
+      undefined,
+    );
   });
 
   it('omits `currency` when the document data carries none', async () => {
     await paymentMethodsFor(paymentMethodsDescriptor, 'company-1', positiveEurTotals, {}, null);
 
-    expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', {
-      amountMinor: 12000,
-      currency: undefined,
-      reference: undefined,
+    expect(mockedResolvePresentations).toHaveBeenCalledWith(
+      'company-1',
+      { amountMinor: 12000, currency: undefined, reference: undefined },
+      undefined,
+    );
+  });
+
+  // Issue #416 ("payment methods per client") - the whole point of threading a client id through at
+  // all: a document naming one must have it reach the resolver, so a client-scoped restriction (proven
+  // in persistence.spec.ts) actually gets applied to THIS document's own render.
+  describe('issue #416 - forwards the document’s own client id', () => {
+    it('reads the id straight off the descriptor’s own "client" reference field', async () => {
+      await paymentMethodsFor(
+        paymentMethodsDescriptor,
+        'company-1',
+        positiveEurTotals,
+        { currency: 'EUR', client: 'client-42' },
+        'INV-1',
+      );
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith(
+        'company-1',
+        expect.objectContaining({ currency: 'EUR' }),
+        'client-42',
+      );
+    });
+
+    it('a document type with no "client" field at all forwards `undefined`, never throws', async () => {
+      const noClientFieldDescriptor: DocumentTypeDescriptor = {
+        id: 'expense',
+        label: 'Expense',
+        fields: [],
+        actions: [],
+        usesPaymentMethods: true,
+      };
+
+      await paymentMethodsFor(noClientFieldDescriptor, 'company-1', positiveEurTotals, {}, null);
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', expect.anything(), undefined);
+    });
+
+    it('a present but wrong-typed "client" value forwards `undefined`, never a crash', async () => {
+      await paymentMethodsFor(
+        paymentMethodsDescriptor,
+        'company-1',
+        positiveEurTotals,
+        { currency: 'EUR', client: 12345 },
+        null,
+      );
+
+      expect(mockedResolvePresentations).toHaveBeenCalledWith('company-1', expect.anything(), undefined);
     });
   });
 });
@@ -602,5 +655,62 @@ describe('renderDocumentInstance - the status line follows the render purpose (i
   it('an on-demand render of an issued quote (signed) prints none: it stands in for the delivered copy', async () => {
     const html = await htmlFor('signed', 'on-demand');
     expect(html).not.toContain('>Status:<');
+  });
+});
+
+describe('renderDocumentInstance - a draft for a client with no address, city or postal code', () => {
+  const quoteDescriptor = buildQuoteDescriptor();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedResolveCustomFields.mockResolvedValue([]);
+    mockedRenderPdf.mockResolvedValue(Buffer.from('pdf-bytes'));
+    (prisma.company.findUnique as Mock).mockResolvedValue({
+      name: 'Dupont Consulting',
+      address: '12 Rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      iban: null,
+      language: null,
+      exemptVat: false,
+      brandingAccentColor: null,
+      brandingFont: null,
+      brandingLogoId: null,
+    });
+    (prisma.client.findFirst as Mock).mockResolvedValue({ language: null });
+  });
+
+  it('renders the working copy with the client name and never prints a null', async () => {
+    const referenceRegistry = new EntityReferenceRegistry();
+    const nameOnlyClient = {
+      id: 'client-1',
+      name: 'Name Only SARL',
+      address: null,
+      postalCode: null,
+      city: null,
+    };
+    const clientsService = { getClientById: vi.fn().mockResolvedValue(nameOnlyClient) };
+    referenceRegistry.register('client', buildClientReferenceProvider(clientsService as never));
+
+    await renderDocumentInstance(
+      { referenceRegistry },
+      'company-1',
+      quoteDescriptor,
+      {
+        id: 'quote-1',
+        status: 'draft',
+        data: { client: 'client-1', currency: 'EUR', issueDate: '2026-06-30', lines: [] },
+        createdAt: new Date(),
+        displayNumber: null,
+        atcud: null,
+        acceptedOption: null,
+      },
+      'on-demand',
+    );
+
+    const html = mockedRenderPdf.mock.calls[0][0];
+    expect(html).toContain('Name Only SARL');
+    expect(html).not.toMatch(/\bnull\b/);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * `splitCiiIncludedNotesInObject` — the fix for the gap
  * `facturx-provider.ts`'s header now documents as REACHED (a real superpdp `fr:213` rejection, see
- * `pdp/pdp.live.spec.ts`). The object shape asserted here is the ACTUAL shape
+ * `pdp/superpdp.live.spec.ts`). The object shape asserted here is the ACTUAL shape
  * `@e-invoice-eu/core@`'s own `FormatCIIService` produces before rendering — verified empirically
  * against the vendored dependency (a small probe script, not assumed from reading its source) before
  * writing this function; this spec pins that shape down as a regression guard.

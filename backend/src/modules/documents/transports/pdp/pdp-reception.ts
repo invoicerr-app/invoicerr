@@ -10,7 +10,7 @@
  * confirmed there as a REAL, motivated ("obligatoirement motivé") lifecycle status, distinct from a
  * platform-level format rejection) get reported back to the platform.
  *
- * ## What is LIVE-VERIFIED here, and what is not (2026-09-16, `pdp-reception.live.spec.ts`)
+ * ## What is LIVE-VERIFIED here, and what is not (2026-09-16, `superpdp-reception.live.spec.ts`)
  *
  *  - `PdpClient.listInvoices({ direction: 'in' })` genuinely returns inbound deposits — proven by a
  *    SELF-ADDRESSED deposit (seller and buyer both this same sandbox tenant's own connected
@@ -49,7 +49,7 @@ import { PdpClient } from './pdp-client';
 export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
 
 /** Reçue — emitted BY THE PLATFORM ITSELF the instant an inbound deposit reaches this company's own
- *  account (proven live on the "in" twin's own `events[0]`, `pdp-reception.live.spec.ts`) — this
+ *  account (proven live on the "in" twin's own `events[0]`, `superpdp-reception.live.spec.ts`) — this
  *  code is NEVER pushed by this codebase, only ever read (`pdp-reception-poller.ts`). */
 export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the

@@ -41,6 +41,7 @@ export interface RequiredIdentifierView {
   required: boolean;
   pattern?: string;
   helpText?: string;
+  helpTextKey?: string;
 }
 
 export interface RequiredIdentifiersDecision {
@@ -85,6 +86,7 @@ export async function resolveRequiredIdentifiers(
       required: row.required,
       pattern: row.pattern ?? undefined,
       helpText: row.helpText ?? undefined,
+      helpTextKey: row.helpTextKey ?? undefined,
     }));
 
   return { requirements };

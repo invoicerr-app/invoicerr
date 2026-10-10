@@ -21,6 +21,7 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import prisma from '@/prisma/prisma.service';
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
 import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/registry';
+import { resolveVatCurrencyRule } from '@/modules/documents/vat-currency/registry';
 
 import {
   CountryMeta,
@@ -61,6 +62,20 @@ function baseLine(rng: Rng, meta: CountryMeta, article: { name: string; unitPric
     unitPrice: article.unitPrice,
     vatRate: standardVatRateId(meta.countryCode),
   };
+}
+
+/** The currency of every domestic document below: the country's own domestic invoice currency when it
+ *  declares one, else its national currency. The one cross-border quote stays in EUR on purpose. */
+export function domesticCurrencyFor(meta: Pick<CountryMeta, 'countryCode'>): string {
+  const currency =
+    defaultCountryPolicyCatalog.domesticInvoiceCurrencyFor(meta.countryCode)?.currency ??
+    resolveVatCurrencyRule(meta.countryCode)?.nationalCurrency;
+  if (!currency) {
+    throw new Error(
+      `Demo seed: ${meta.countryCode} declares neither a domestic invoice currency nor a national currency.`,
+    );
+  }
+  return currency;
 }
 
 async function createDomesticAndForeignClients(
@@ -125,6 +140,7 @@ export async function seedCountryCompany(
 ): Promise<SeedCountrySummary> {
   const { userId, userEmail, countryCode, rng, now } = params;
   const meta = countryMeta(countryCode);
+  const domesticCurrency = domesticCurrencyFor(meta);
   const actor = { id: userId, name: 'Demo Account', email: userEmail };
   // Every `runAction` call below goes through this wrapper so `role`/`actor` are never forgotten on
   // one call site: `accept-manually` (quote-manual-acceptance.ts) hard-refuses without a real actor
@@ -184,7 +200,7 @@ export async function seedCountryCompany(
       data: {
         client: clients.domestic,
         issueDate: isoDate(now),
-        currency: 'EUR',
+        currency: domesticCurrency,
         lines: [
           { ...baseLine(rng, meta, articlesInCatalog[0]), option: 'Basic' },
           { ...baseLine(rng, meta, articlesInCatalog[1]), option: 'Premium', quantity: 1 },
@@ -209,7 +225,7 @@ export async function seedCountryCompany(
       data: {
         client: clients.domestic,
         issueDate: isoDate(now),
-        currency: 'EUR',
+        currency: domesticCurrency,
         lines: [baseLine(rng, meta, articlesInCatalog[0])],
       },
     });
@@ -239,7 +255,7 @@ export async function seedCountryCompany(
         client: clients.domestic,
         issueDate: isoDate(now),
         dueDate: isoDate(daysFrom(now, 30)),
-        currency: 'EUR',
+        currency: domesticCurrency,
         lines: [baseLine(rng, meta, articlesInCatalog[0])],
       },
     });
@@ -251,7 +267,7 @@ export async function seedCountryCompany(
           client: clients.domestic,
           issueDate: isoDate(daysFrom(now, -20)),
           dueDate: isoDate(daysFrom(now, dueOffsetDays)),
-          currency: 'EUR',
+          currency: domesticCurrency,
           lines: [baseLine(rng, meta, articlesInCatalog[0]), baseLine(rng, meta, articlesInCatalog[1])],
         },
       });
@@ -275,7 +291,7 @@ export async function seedCountryCompany(
       data: partlyPaid.data as Record<string, unknown>,
       params: {
         amount: Math.round(partlyPaidTotal * 0.4 * 100) / 100,
-        currency: 'EUR',
+        currency: domesticCurrency,
         paidAt: isoDate(now),
         method: 'bank_transfer',
       },
@@ -287,7 +303,12 @@ export async function seedCountryCompany(
     await run('invoice', 'record-payment', {
       documentId: paid.id,
       data: paid.data as Record<string, unknown>,
-      params: { amount: paidTotal, currency: 'EUR', paidAt: isoDate(now), method: 'bank_transfer' },
+      params: {
+        amount: paidTotal,
+        currency: domesticCurrency,
+        paidAt: isoDate(now),
+        method: 'bank_transfer',
+      },
     });
     paidInvoiceForCreditNote = { id: paid.id, data: paid.data };
   }
@@ -307,7 +328,7 @@ export async function seedCountryCompany(
       await run('credit-note', 'save-draft', {
         data: {
           issueDate: isoDate(now),
-          currency: 'EUR',
+          currency: domesticCurrency,
           reason: 'Pricing correction agreed with the client.',
           lines: [{ ...baseLine(rng, meta, articlesInCatalog[0]), quantity: 1 }],
         },
@@ -331,7 +352,7 @@ export async function seedCountryCompany(
             invoice: paidInvoiceForCreditNote.id,
             correctedLines,
             issueDate: isoDate(now),
-            currency: 'EUR',
+            currency: domesticCurrency,
             reason: 'Partial refund agreed with the client.',
           },
         });
@@ -360,7 +381,7 @@ export async function seedCountryCompany(
         data: {
           description: i === 0 ? 'Office supplies' : 'Business travel',
           amount: floatBetween(rng, 20, 400, 2),
-          currency: 'EUR',
+          currency: domesticCurrency,
           date: isoDate(daysFrom(now, -intBetween(rng, 1, 60))),
         },
       });
@@ -376,7 +397,7 @@ export async function seedCountryCompany(
         supplierClient: clients.supplier,
         issueDate: isoDate(daysFrom(now, -15)),
         dueDate: isoDate(daysFrom(now, 15)),
-        currency: 'EUR',
+        currency: domesticCurrency,
         netAmount,
         vatAmount: Math.round(netAmount * 0.2 * 100) / 100,
         grossAmount: Math.round(netAmount * 1.2 * 100) / 100,
@@ -397,7 +418,7 @@ export async function seedCountryCompany(
       data: {
         supplierClient: clients.supplier,
         issueDate: isoDate(daysFrom(now, -5)),
-        currency: 'EUR',
+        currency: domesticCurrency,
         netAmount: netAmount2,
         vatAmount: Math.round(netAmount2 * 0.2 * 100) / 100,
         grossAmount: Math.round(netAmount2 * 1.2 * 100) / 100,
@@ -420,7 +441,7 @@ export async function seedCountryCompany(
       data: {
         supplier: clients.supplier,
         issueDate: isoDate(now),
-        currency: 'EUR',
+        currency: domesticCurrency,
         lines: [{ description: 'Raw materials', quantity: 10, unitPrice: floatBetween(rng, 5, 80, 2) }],
       },
     });
@@ -431,7 +452,7 @@ export async function seedCountryCompany(
       data: {
         supplier: clients.supplier,
         issueDate: isoDate(daysFrom(now, -5)),
-        currency: 'EUR',
+        currency: domesticCurrency,
         lines: [{ description: 'Office equipment', quantity: 3, unitPrice: floatBetween(rng, 50, 300, 2) }],
       },
     });

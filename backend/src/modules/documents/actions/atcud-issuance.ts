@@ -20,8 +20,11 @@
  *    re-predicts one) and persists `DocumentInstance.atcud`. A pure re-check of what
  *    `ensureAtcudIssuable` already approved - see its own header for why it therefore never throws.
  *
- * Both are no-ops for every company whose resolved country is not Portugal - a single
- * `resolveCompanyCountryCode` call, no further reads, no further writes. This is what
+ * Both are no-ops for every company whose resolved country has no "ATCUD" `documentValidationCode`
+ * fact declared (issue #603 - `country-policy/schema.ts`'s own header, `countries/data/pt.json
+ * (section "policy")`) - a `resolveCompanyCountryCode` call plus one in-memory catalog lookup, no
+ * further reads, no further writes. Today only Portugal declares that fact, so this is behaviourally
+ * identical to the `countryCode !== 'PT'` check it replaces. This is what
  * `documents.service.invoice.spec.ts`'s "a non-Portuguese invoice's output is byte-for-byte unchanged"
  * coverage actually rests on: neither function does anything else before that check.
  */
@@ -31,6 +34,7 @@ import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
+import { defaultCountryPolicyCatalog } from '../country-policy/registry';
 import { resolveCompanyNumberFormat } from '../numbering/company-number-format';
 import {
   AtcudFormatIncompatibleError,
@@ -50,7 +54,7 @@ const ATCUD_TYPE_LABEL: Record<AtcudTypeId, string> = {
 };
 
 /** Thrown by `ensureAtcudIssuable` when the predicted series has no AT validation code registered yet
- *  (company settings) - AT FAQ 4308/4312, quoted verbatim in country-policy/data/pt.json: a code must
+ *  (company settings) - AT FAQ 4308/4312, quoted verbatim in countries/data/pt.json (section "policy"): a code must
  *  be associated with a series BEFORE any document in it is issued. */
 export class AtcudValidationCodeMissingError extends Error {}
 
@@ -73,10 +77,11 @@ export async function ensureAtcudIssuable(
   now: Date = new Date(),
 ): Promise<void> {
   const countryCode = await resolveCompanyCountryCode(companyId);
-  if (countryCode !== 'PT') return;
+  const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode ?? '');
+  if (documentValidationCode?.scheme !== 'ATCUD') return;
 
   const label = ATCUD_TYPE_LABEL[typeId];
-  // Issue #496: the format is Portugal's own (`country-policy/data/pt.json`: "FT A/{number}" for an
+  // Issue #496: the format is Portugal's own (`countries/data/pt.json (section "policy")`: "FT A/{number}" for an
   // invoice, "NC A/{number}" for a credit note), or a series the company already started, which
   // `company-number-format.ts` keeps only while it satisfies pt.json's own "TYPE SERIES/NUMBER"
   // constraint - so the shape check below can only fail on a catalog error, never on a user choice.
@@ -89,7 +94,7 @@ export async function ensureAtcudIssuable(
         'lawful ATCUD sequential number - Portaria n.º 195/2020, art. 3.º n.º 3 requires the document ' +
         'number to end in a literal "/" immediately followed by the sequential digits (a "{number}" or ' +
         '"{number:N}" token), with nothing after them. Number formats are defined per country ' +
-        '(country-policy/data/pt.json), not by the company: this is a catalog error to report.',
+        '(countries/data/pt.json (section "policy")), not by the company: this is a catalog error to report.',
     );
   }
 
@@ -145,7 +150,8 @@ export async function attachAtcudToNumberedDocument(
 ): Promise<void> {
   try {
     const countryCode = await resolveCompanyCountryCode(companyId);
-    if (countryCode !== 'PT') return;
+    const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode ?? '');
+    if (documentValidationCode?.scheme !== 'ATCUD') return;
 
     const { pattern } = await resolveCompanyNumberFormat(companyId, typeId);
     const { seriesId, sequentialNumber } = splitAtcudDisplayNumber(numbered.displayNumber, pattern);

@@ -164,14 +164,19 @@ matter for the country whose live leg you actually run.
 
 ## 2. PDP — France (Plateforme de Dématérialisation Partenaire, B2B reform)
 
-> **GitHub secrets:** `PDP_BASE_URL`, `PDP_CLIENT_ID`, `PDP_CLIENT_SECRET`, `PDP_SELLER_ROUTING`, `PDP_BUYER_ROUTING` &nbsp;•&nbsp; **Live flag:** `PDP_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (superpdp) &nbsp;•&nbsp; **Repo status:** ✅ mostly set (routing optional)
+> **GitHub secrets:** `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` &nbsp;•&nbsp; **Live flag:** `SUPERPDP_LIVE=1` &nbsp;•&nbsp; **Sandbox:** yes (superpdp)
 
 **What each secret is / where it comes from**
-- `PDP_BASE_URL` — the PDP's API root, e.g. `https://api.superpdp.tech` (SuperPDP's sandbox/prod endpoint; other PA vendors each publish their own).
-- `PDP_CLIENT_ID` / `PDP_CLIENT_SECRET` — an OAuth2 client-credentials pair. On SuperPDP these are created per test *enterprise* under **Applications → New Application**, are enterprise-scoped (a `seller_client_id`/`seller_client_secret` pair and a separate `buyer_client_id`/`buyer_client_secret` pair when testing both sides of a flow), and are shown **only once** at creation time. Token endpoint: `https://api.superpdp.tech/oauth2/token`.
+- `SUPERPDP_BASE_URL`: not a secret, and optional. `https://api.superpdp.tech` serves both sandbox and production (the credential pair decides which); the live specs default to it and the workflow sets it as a constant.
+- `SUPERPDP_CLIENT_ID` / `SUPERPDP_CLIENT_SECRET` — an OAuth2 client-credentials pair. On SuperPDP these are created per test *enterprise* under **Applications → New Application**, are enterprise-scoped (a `seller_client_id`/`seller_client_secret` pair and a separate `buyer_client_id`/`buyer_client_secret` pair when testing both sides of a flow), and are shown **only once** at creation time. Token endpoint: `https://api.superpdp.tech/oauth2/token`.
+- `SUPERPDP_SELLER_ROUTING`: the routing identifier of the sandbox company the OAuth client belongs to, e.g. `315143296_1422`. superpdp's routing convention is `{pdp_siren}_{account_id}`, not the company's SIREN. The live specs send from this address (`0225:<id>`) and take the company's name, SIREN and address from `GET /v1.beta/companies/me`; the VAT number is computed from the SIREN. The reception spec deposits to this same address.
+- `SUPERPDP_BUYER_ROUTING`: the routing identifier of the other sandbox company, e.g. `315143296_1421`, used as the buyer's electronic address by the deposit, credit-note and conformity specs. The platform only describes the authenticated company, so the buyer is sent with its electronic address only, without a SIREN or VAT number.
 - `PDP_API_STYLE` — the underlying `PdpClient` (`backend/src/modules/documents/transports/pdp/pdp-client.ts`, `PdpApiStyle = 'superpdp' | 'afnor'`) can speak either SuperPDP's proprietary REST "API Flux" or the AFNOR **XP Z12-013** interoperability API (standardized May 2025, meant to work identically across any conformant PA) — but **nothing in this codebase currently reads this env var or wires it from config**: the production transport (`pdp-transport.ts`) and every live spec hardcode `apiStyle: 'superpdp'`. There is no separate AFNOR live test today.
-- `PDP_SELLER_ROUTING` / `PDP_BUYER_ROUTING` — optional routing identifiers used for **annuaire** (directory) lookups, i.e. which PA a given counterparty is registered with. These are SIREN/SIRET-based identifiers of the seller/buyer companies (see `pdp-client.ts` "SuperPDP French Directory (annuaire routing)"); without them the client falls back to direct routing to the configured `PDP_BASE_URL`.
-- `PDP_LIVE=1` — feature-flags the real network round-trip in two Jest specs: `pdp.live.spec.ts` (the deposit itself) and `pdp-conformity.live.spec.ts` (the post-deposit conformity poller, DB-connected); unset, those tests stay mocked.
+- `SUPERPDP_LIVE=1` enables the real network round-trip in four Vitest specs under `backend/src/modules/documents/transports/pdp/`: `superpdp.live.spec.ts` (the deposit itself), `superpdp-credit-note.live.spec.ts` (an invoice then the credit note correcting it), `superpdp-conformity.live.spec.ts` (the post-deposit conformity poller, DB-connected) and `superpdp-reception.live.spec.ts` (inbound listing and download, DB-connected); unset, those specs are skipped.
+
+:::info[Test-only variables]
+The `SUPERPDP_*` variables are read only by these live specs and by the `compliance-live.yml` workflow. A running Invoicerr instance never reads them: each company connects its PDP channel from its own settings, and those credentials are stored encrypted in the database.
+:::
 
 **Prerequisites**
 - A French **SIREN/SIRET** (real or fictional-but-well-formed for sandbox) to register a test "enterprise" on the sandbox PA.
@@ -183,9 +188,12 @@ matter for the country whose live leg you actually run.
 2. Create one or more **test enterprises** (fictional companies with a SIREN-like identifier) inside the sandbox.
 3. Go to **Applications → New Application**, select the enterprise from the dropdown, click **Create**.
 4. Copy the generated `client_id` / `client_secret` immediately — they are shown only once. Repeat for a second enterprise if you need to test both seller and buyer sides of a flow (`seller_client_id`/`seller_client_secret` + `buyer_client_id`/`buyer_client_secret`).
-5. Set `PDP_BASE_URL=https://api.superpdp.tech` and `PDP_CLIENT_ID`/`PDP_CLIENT_SECRET` from step 4 (this codebase always speaks SuperPDP's proprietary "API Flux" — see the `PDP_API_STYLE` note above for why the AFNOR alternative isn't currently reachable through it).
+5. Set `SUPERPDP_CLIENT_ID`/`SUPERPDP_CLIENT_SECRET` from step 4, then `SUPERPDP_SELLER_ROUTING`/`SUPERPDP_BUYER_ROUTING` as described in the box below the steps (this codebase always speaks SuperPDP's proprietary "API Flux" — see the `PDP_API_STYLE` note above for why the AFNOR alternative isn't currently reachable through it).
 6. Full technical/API reference: `https://www.superpdp.tech/documentation/` and `https://www.superpdp.tech/openapi/` (the exact in-page mechanics of the "New Application" flow were confirmed via a third-party forum walkthrough, not directly scraped from superpdp.tech, which renders as a JS app — see note below).
-7. Optional: set `PDP_SELLER_ROUTING` / `PDP_BUYER_ROUTING` to the test enterprises' SIREN-based identifiers to exercise annuaire routing instead of direct base-URL routing.
+
+:::info[Choosing the sandbox companies]
+The superpdp sandbox offers two companies, for example "Burger Queen" (SIREN `000000002`, routing `315143296_1422`) and "Tricatel" (SIREN `000000001`, routing `315143296_1421`). Either one can be the authenticated company: create the OAuth client on it and set `SUPERPDP_SELLER_ROUTING` to its routing identifier. The other one is the buyer: set `SUPERPDP_BUYER_ROUTING` to its routing identifier.
+:::
 
 Note: superpdp.tech's own pages are a client-rendered SPA — automated fetches of `/documentation/` and `/openapi/` returned only page titles, no body HTML. The signup-flow specifics above come from a third-party (Ubuntu-fr forum) walkthrough that quotes the documentation's step text; verify against the live site during actual onboarding.
 

@@ -162,9 +162,9 @@ export function TableFilterBar({
         size="sm"
         onClick={onExport}
         disabled={exportDisabled}
-        className="ml-auto"
+        className="ms-auto"
       >
-        <Download className="h-4 w-4 mr-2" />
+        <Download className="h-4 w-4 me-2" />
         {t(`${translationPrefix}.table.actions.export`)}
       </Button>
     </div>

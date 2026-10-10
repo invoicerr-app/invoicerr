@@ -164,6 +164,32 @@ export type ActionHandler = (ctx: ActionContext) => Promise<ActionResult>;
 export type ActionParamsDefaultsResolver = (ctx: ActionContext) => Promise<Record<string, unknown>>;
 
 /**
+ * What `GET /documents/:id/actions/:actionId/transmission-preview` hands back - issue #581's own
+ * "will confirming this action genuinely transmit the document somewhere, and through what" preview,
+ * read by the frontend's lock-confirmation dialog BEFORE the user confirms (never after: the whole
+ * point is to warn before an irreversible transmission, not report one that already happened).
+ * Generic in SHAPE (any action of any type could register one), today only
+ * `invoice-actions.ts`'s "validate" does.
+ */
+export interface ActionTransmissionPreview {
+  transmits: boolean;
+  /** Plain-English channel name, e.g. "the accredited platform (PDP)" - present only when `transmits`
+   *  is true. Plain data, not an i18n key, the same convention every other descriptor/fact label in
+   *  this codebase already holds. */
+  channelLabel?: string;
+}
+
+/**
+ * Resolves an `ActionTransmissionPreview` for ONE (typeId, actionId), given the document's CURRENT
+ * (persisted) data - see `DocumentsService.getActionTransmissionPreview`'s own header for why this
+ * reads the saved record rather than live, unsaved form edits (the same "known, accepted staleness"
+ * `getTaxWarnings` already lives with). Optional, like `ActionParamsDefaultsResolver`: an action with
+ * nothing to preview simply never registers one, and the generic read endpoint answers
+ * `{ transmits: false }` for it, never an error.
+ */
+export type ActionTransmissionPreviewResolver = (ctx: ActionContext) => Promise<ActionTransmissionPreview>;
+
+/**
  * Registry mapping (typeId, actionId) -> implementation. This is deliberately separate from
  * DocumentTypeRegistry: a descriptor DECLARES an action (id, label, when it is offered, its params);
  * this registry is where CODE gets attached to that id — both the handler that actually runs it, and
@@ -175,6 +201,7 @@ export type ActionParamsDefaultsResolver = (ctx: ActionContext) => Promise<Recor
 export class ActionRegistry {
   private readonly handlers = new Map<string, ActionHandler>();
   private readonly paramsDefaultsResolvers = new Map<string, ActionParamsDefaultsResolver>();
+  private readonly transmissionPreviewResolvers = new Map<string, ActionTransmissionPreviewResolver>();
 
   private key(typeId: string, actionId: string): string {
     return `${typeId}::${actionId}`;
@@ -207,5 +234,29 @@ export class ActionRegistry {
    *  action's params form just opens empty. */
   resolveParamsDefaults(typeId: string, actionId: string): ActionParamsDefaultsResolver | undefined {
     return this.paramsDefaultsResolvers.get(this.key(typeId, actionId));
+  }
+
+  registerTransmissionPreview(
+    typeId: string,
+    actionId: string,
+    resolver: ActionTransmissionPreviewResolver,
+  ): void {
+    const key = this.key(typeId, actionId);
+    if (this.transmissionPreviewResolvers.has(key)) {
+      throw new Error(
+        `Transmission-preview resolver for "${actionId}" is already registered for type "${typeId}".`,
+      );
+    }
+    this.transmissionPreviewResolvers.set(key, resolver);
+  }
+
+  /** Undefined means "no transmission-preview resolver registered" - a perfectly normal state, not an
+   *  error: the generic read endpoint answers `{ transmits: false }` for it, the same "capability
+   *  absent, no effect" posture `resolveParamsDefaults` above already holds. */
+  resolveTransmissionPreview(
+    typeId: string,
+    actionId: string,
+  ): ActionTransmissionPreviewResolver | undefined {
+    return this.transmissionPreviewResolvers.get(this.key(typeId, actionId));
   }
 }

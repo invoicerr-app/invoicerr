@@ -1,4 +1,4 @@
-import { FileText, Pencil, Plus, SearchX, Trash2, UserRoundCheck, Users } from "lucide-react"
+import { CreditCard, FileText, Pencil, Plus, SearchX, Trash2, UserRoundCheck, Users } from "lucide-react"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router"
@@ -25,6 +25,7 @@ import { ClientBadges } from "./_components/client-badges"
 import { ClientDeleteDialog } from "./_components/client-delete"
 import { clientDisplayName } from "./_components/client-display"
 import { ClientImportDialog } from "./_components/client-import-dialog"
+import { ClientPaymentMethodsDialog } from "./_components/client-payment-methods"
 import { ClientPortalAccessDialog } from "./_components/client-portal-access"
 import { ClientStatementDialog } from "./_components/client-statement"
 import { ClientUpsert } from "./_components/client-upsert"
@@ -41,6 +42,7 @@ interface ClientRowProps {
   onEdit: (client: Client) => void
   onStatement: (client: Client) => void
   onPortalAccess: (client: Client) => void
+  onPaymentMethods: (client: Client) => void
   onDelete: (client: Client) => void
 }
 
@@ -50,7 +52,15 @@ interface ClientRowProps {
  * access, delete — sits in the "more" menu, delete last and in the destructive tone. The old row
  * showed five icon buttons at equal weight, delete included, with hover colours invented per icon.
  */
-function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDelete }: ClientRowProps) {
+function ClientRow({
+  client,
+  onView,
+  onEdit,
+  onStatement,
+  onPortalAccess,
+  onPaymentMethods,
+  onDelete,
+}: ClientRowProps) {
   const { t } = useTranslation()
   const email = client.contactEmail
   // `data-cy` selectors below key off the email for readability in specs — but the email is optional
@@ -77,7 +87,7 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
                   the record (the row's own onClick is invisible to both). */}
               <button
                 type="button"
-                className="rounded-sm text-left outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="rounded-sm text-start outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 onClick={(event) => {
                   event.stopPropagation()
                   onView(client)
@@ -133,6 +143,13 @@ function ClientRow({ client, onView, onEdit, onStatement, onPortalAccess, onDele
             <UserRoundCheck aria-hidden="true" />
             {t("clients.list.tooltips.portalAccess")}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onPaymentMethods(client)}
+            data-cy={`payment-methods-client-button-${rowKey}`}
+          >
+            <CreditCard aria-hidden="true" />
+            {t("clients.list.tooltips.paymentMethods")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
@@ -160,6 +177,7 @@ export default function Clients() {
   const [deleteClientDialog, setDeleteClientDialog] = useState<Client | null>(null)
   const [statementClientDialog, setStatementClientDialog] = useState<Client | null>(null)
   const [portalAccessClientDialog, setPortalAccessClientDialog] = useState<Client | null>(null)
+  const [paymentMethodsClientDialog, setPaymentMethodsClientDialog] = useState<Client | null>(null)
 
   // "?view=<id>" — the duplicate-detection wizard's own "view existing client" link
   // (client-upsert.tsx's DuplicateWarning), opened in a fresh tab that has no local state to hand the
@@ -180,6 +198,22 @@ export default function Clients() {
       { replace: true },
     )
   }, [viewParamId, viewParamClient, setSearchParams])
+
+  // "?edit=<id>" - the link an invoice refusal gives to a client that still needs completing.
+  const editParamId = searchParams.get("edit") || undefined
+  const { data: editParamClient } = useClient(editParamId)
+  useEffect(() => {
+    if (!editParamId || !editParamClient) return
+    setEditClientDialog(editParamClient)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("edit")
+        return next
+      },
+      { replace: true },
+    )
+  }, [editParamId, editParamClient, setSearchParams])
 
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(undefined)
@@ -228,6 +262,10 @@ export default function Clients() {
     setViewClientDialog(null)
     setStatementClientDialog(client)
   }
+  const paymentMethodsFromView = (client: Client) => {
+    setViewClientDialog(null)
+    setPaymentMethodsClientDialog(client)
+  }
 
   let body: ReactNode
   if (isLoading) {
@@ -271,6 +309,7 @@ export default function Clients() {
             onEdit={setEditClientDialog}
             onStatement={setStatementClientDialog}
             onPortalAccess={setPortalAccessClientDialog}
+            onPaymentMethods={setPaymentMethodsClientDialog}
             onDelete={setDeleteClientDialog}
           />
         ))}
@@ -290,7 +329,7 @@ export default function Clients() {
               dataCy="clients-search"
               className="flex-1 sm:max-w-xs"
             />
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ms-auto flex items-center gap-2">
               <ClientImportDialog />
               <Button
                 onClick={() => setCreateClientDialog(true)}
@@ -371,6 +410,7 @@ export default function Clients() {
         }}
         onEdit={editFromView}
         onStatement={statementFromView}
+        onPaymentMethods={paymentMethodsFromView}
       />
 
       <ClientDeleteDialog
@@ -391,6 +431,13 @@ export default function Clients() {
         client={portalAccessClientDialog}
         onOpenChange={(open) => {
           if (!open) setPortalAccessClientDialog(null)
+        }}
+      />
+
+      <ClientPaymentMethodsDialog
+        client={paymentMethodsClientDialog}
+        onOpenChange={(open) => {
+          if (!open) setPaymentMethodsClientDialog(null)
         }}
       />
     </div>

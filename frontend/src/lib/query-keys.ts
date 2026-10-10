@@ -40,6 +40,8 @@ export const queryKeys = {
   },
   paymentMethods: {
     list: () => ["paymentMethods", "list"] as const,
+    // Issue #416 - one client's own restriction.
+    clientRestriction: (clientId: string) => ["paymentMethods", "clientRestriction", clientId] as const,
   },
   articles: {
     list: () => ["articles", "list"] as const,
@@ -61,6 +63,7 @@ export const queryKeys = {
   },
   company: {
     info: () => ["company", "info"] as const,
+    paymentTerms: () => ["company", "paymentTerms"] as const,
   },
   billing: {
     status: () => ["billing", "status"] as const,

@@ -191,7 +191,9 @@ nothing stood between writing it into a file and pushing it.
    `cypress-run-saas`; the **Business Scenarios** workflow runs the per-country `scenario` matrix;
    **CodeQL Advanced** runs its `analyze` job for JavaScript/TypeScript and GitHub Actions. A red job
    is not merged around — fix it or explain why it's a false positive and let a maintainer confirm.
-6. A maintainer reviews every pull request; nothing merges without that review.
+6. A maintainer reviews every pull request; nothing merges without that review. Approved pull
+   requests are merged through the merge queue, which reruns the required checks against the latest
+   `dev` before merging.
 7. Once a review has started, don't force-push over it — push new commits instead, so the reviewer
    can see what changed since their last pass. Rebase and force-push are fine before review begins.
 
@@ -262,6 +264,9 @@ By making a contribution to this project, I certify that:
 The full, canonical text lives at [developercertificate.org](https://developercertificate.org/). A
 pull request with an unsigned commit will be asked to amend and force-push before review — `git commit
 --amend -s`, or `git rebase --signoff HEAD~N` for several commits at once.
+
+A `DCO Check` workflow enforces this on every pull request and fails with the exact commits
+missing a sign-off; fix a red check with `git rebase --signoff <base-branch>` then a force-push.
 
 ## Security
 

@@ -38,8 +38,8 @@
  * rather than emit anything. Polish law has no seller-issued credit-note instrument distinct from the
  * faktura korygująca: art. 106j ust. 1 ustawy o VAT covers every post-issue change (a reduction
  * included) with that ONE corrective invoice, and the FA(3) `RodzajFaktury` enumeration has `KOR` for
- * it and no "nota kredytowa" type at all (`correction-routes/data/pl.json`'s own CREDIT_NOTE fact,
- * `forbidden`, and `country-policy/data/pl.json`'s `credit-note` rules, both sourced). The Polish path
+ * it and no "nota kredytowa" type at all (`countries/data/pl.json (section "correctionRoutes")`'s own CREDIT_NOTE fact,
+ * `forbidden`, and `countries/data/pl.json (section "policy")`'s `credit-note` rules, both sourced). The Polish path
  * is therefore the INVOICE carrying `correctsInvoiceId` (below), and a credit-note document must never
  * be dressed up as one: it would be numbered in the credit-note series, not the invoice series art.
  * 106j ust. 2 pkt 2 requires. The credit note's own `download-xml` action does not offer `fa3`
@@ -52,7 +52,7 @@
  * used at the reference, re-verified directly against THIS file's own vendored `schemat_FA3.xsd`
  * (`DaneFaKorygowanej`'s `xsd:choice` between `NrKSeF`+`NrKSeFFaKorygowanej` and `NrKSeFN` — see
  * `fa3-kor.ts`'s own header for which branch applies and why). `PrzyczynaKorekty` reads
- * `data.correctionReason` (`country-fields/data/pl.json`) when set, or else a generic, honest fallback
+ * `data.correctionReason` (`countries/data/pl.json (section "countryFields")`) when set, or else a generic, honest fallback
  * naming the corrected invoice — never an empty element (the schema allows omitting it entirely, but a
  * KOR that names no reason at all when a human COULD have typed one is a worse document than a
  * generic one). `TZnakowy`'s own `maxLength` is 240 (verified against `ElementarneTypyDanych_v10-0E.xsd`
@@ -79,15 +79,17 @@ import { SemanticBuildError } from '../semantic/build-semantic-invoice';
 import { validateXsd } from '../vendored/validate-xsd';
 import { FaVatKorContext, resolveFaVatKorContext } from './fa3-kor';
 import { extractNationalLines, NationalLine } from './national-lines';
+import { nationalFormatCountry } from './format-country';
+import { documentCurrencyOrSellerNational } from './seller-currency';
 
+const fa3FormatId = 'fa3';
 const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/';
 const FA3_XSD = 'pl/schemat_FA3.xsd';
 
-/** Same "not applicable" address builder fa-vat.ts used — `guessCountryCode` resolves the party's
- *  free-text `country`, defaulting to 'PL' the same way `build-semantic-invoice.ts`'s own EN 16931
- *  bridge defaults unresolved countries to this product's primary market (see that file's header). */
-function buildAddress(party: DocumentFormatParty) {
-  const cc = guessCountryCode(party.country) ?? 'PL';
+/** Same "not applicable" address builder fa-vat.ts used: an unresolvable country falls back to the
+ *  format's own country. */
+function buildAddress(party: DocumentFormatParty, formatCountry: string) {
+  const cc = guessCountryCode(party.country) ?? formatCountry;
   const street = party.address || '';
   const cityLine = [party.postalCode, party.city].filter(Boolean).join(' ') || '';
   const addr: Record<string, string> = { KodKraju: cc, AdresL1: street || cityLine || '-' };
@@ -155,7 +157,8 @@ async function build(
   const data = (document.data ?? {}) as Record<string, unknown>;
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractNationalLines(data, totals);
-  const currency = totals.currency || 'PLN';
+  const currency = documentCurrencyOrSellerNational(totals.currency, company);
+  const formatCountry = nationalFormatCountry(fa3FormatId);
 
   // ── KOR (faktura korygująca) — see this file's own header and fa3-kor.ts's for the full design. ──
   const correctsInvoiceId =
@@ -220,7 +223,7 @@ async function build(
     DaneIdentyfikacyjne: clientNip
       ? { NIP: clientNip, Nazwa: client.name }
       : { BrakID: '1', Nazwa: client.name },
-    Adres: buildAddress(client),
+    Adres: buildAddress(client, formatCountry),
     ...(client.email || client.phone
       ? {
           DaneKontaktowe: {
@@ -274,9 +277,9 @@ async function build(
         SystemInfo: 'invoicerr',
       },
       Podmiot1: {
-        PrefiksPodatnika: 'PL',
+        PrefiksPodatnika: formatCountry,
         DaneIdentyfikacyjne: { NIP: sellerNip, Nazwa: company.name },
-        Adres: buildAddress(company),
+        Adres: buildAddress(company, formatCountry),
         ...(company.email || company.phone
           ? {
               DaneKontaktowe: {
@@ -322,7 +325,7 @@ async function build(
 }
 
 export const fa3FormatProvider: DocumentFormatProvider = {
-  id: 'fa3',
+  id: fa3FormatId,
   syntax: 'FA_VAT_3',
   mime: 'application/xml',
   build,

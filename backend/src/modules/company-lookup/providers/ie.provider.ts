@@ -6,6 +6,7 @@
  * Docs     : https://services.cro.ie/
  * Credentials: CRO_API_USER + CRO_API_KEY (free registration).
  */
+import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 import { join } from './shared';
@@ -15,7 +16,6 @@ const CRO_URL = 'https://services.cro.ie/cws/companies';
 export class IrelandCroProvider implements CompanyRegistryProvider {
   readonly id = 'ie-cro';
   readonly label = 'CRO (Companies Registration Office)';
-  readonly countries = ['IE'] as const;
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID'];
   readonly identifierLabel = 'CRO company number';
   readonly docsUrl = 'https://services.cro.ie/';
@@ -28,7 +28,7 @@ export class IrelandCroProvider implements CompanyRegistryProvider {
   }
 
   supports(query: CompanyLookupQuery): boolean {
-    if (query.countryCode.toUpperCase() !== 'IE') return false;
+    if (!defaultLookupCoverage.serves(this.id, query.countryCode)) return false;
     const n = digits(query.value).length;
     return n >= 4 && n <= 7;
   }
@@ -51,7 +51,7 @@ export class IrelandCroProvider implements CompanyRegistryProvider {
       postalCode: company.eircode,
       city: company.company_addr_4,
       country: 'Ireland',
-      countryCode: 'IE',
+      countryCode: query.countryCode.toUpperCase(),
       foundedAt: toDate(company.company_reg_date),
       status: /dissolved|struck/i.test(company.company_status_desc ?? '') ? 'INACTIVE' : 'ACTIVE',
     };

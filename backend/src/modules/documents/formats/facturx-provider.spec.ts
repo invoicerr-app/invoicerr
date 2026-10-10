@@ -27,7 +27,7 @@ vi.mock('../rendering/render-instance-pdf');
  * REACHED-and-FIXED (`splitCiiIncludedNotesInObject`, wired via `@e-invoice-eu/core`'s own
  * `postProcessor` option): pulls the ACTUAL embedded CII back out of the PDF/A-3
  * `buildFacturxFormatProvider` produces, so a future regression here fails OFFLINE, in this spec,
- * rather than only live against a real superpdp deposit (`pdp/pdp.live.spec.ts`) the way this
+ * rather than only live against a real superpdp deposit (`pdp/superpdp.live.spec.ts`) the way this
  * exact bug first surfaced. `pdf-lib` (already a dependency here) has no public "read attachments"
  * API — `decodePDFRawStream` is its own internal stream-decoding primitive (used the same way
  * `@e-invoice-eu/core` itself decodes streams internally), reached through the package's `cjs/core`

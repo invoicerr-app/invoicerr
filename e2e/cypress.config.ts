@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { defineConfig } from "cypress";
 import { Queue } from "bullmq";
 import { Client } from "pg";
-import pdfParse from "pdf-parse";
 import jsQR from "jsqr";
 import { PDFDict, PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from "pdf-lib";
 import { extractSignature } from "@signpdf/utils";
@@ -24,6 +23,13 @@ import { webcrypto } from "node:crypto";
 // side of this exact feature. Needed once, at MODULE load (not per-task-call): `pkijs.setEngine`
 // sets library-wide state.
 pkijs.setEngine("native", new pkijs.CryptoEngine({ crypto: webcrypto as unknown as Crypto }));
+
+// pdfjs-dist's Node ("legacy") build is ESM-only; this file compiles to CommonJS, so it is loaded
+// via a dynamic import (Node caches the module after the first call) instead of a static one.
+async function getPdfDocument(params: { data: Uint8Array; isEvalSupported: boolean }) {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  return getDocument(params);
+}
 
 /**
  * The "receiver" side for `42-webhooks.cy.ts`. A vanilla
@@ -76,7 +82,7 @@ function startWebhookReceiver(): Promise<string> {
  *
  * Answers the exact THREE endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
  * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
- * (`backend/src/modules/documents/transports/pdp/pdp-reception.live.spec.ts`'s own header has the
+ * (`backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`'s own header has the
  * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
  * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
  * own `contentType`). `POST /v1.beta/invoices/{id}/lifecycle_events` answers 200 — never re-proving
@@ -203,7 +209,8 @@ function startFakePdpServer(): Promise<string> {
  * `109-address-autocomplete.cy.ts` itself starts this server (`cy.task('startFakePhotonServer')`),
  * so only that spec ever sees a populated dropdown.
  */
-const FAKE_PHOTON_PORT = 41976;
+// Below the Linux ephemeral range (32768-60999) so no outgoing connection on the runner can hold it.
+const FAKE_PHOTON_PORT = 19876;
 interface FakePhotonFeature {
   properties: {
     housenumber?: string;
@@ -356,6 +363,40 @@ async function triggerPdpReceptionSweep(): Promise<null> {
       "document-pdp-reception-sweep",
       {},
       { jobId: `e2e-reception-sweep-${Date.now()}`, attempts: 1, removeOnComplete: true, removeOnFail: true },
+    );
+  } finally {
+    await queue.close();
+  }
+  return null;
+}
+
+/**
+ * Issue #574 - enqueues ONE REAL `currency-rate-sweep` job on the SAME BullMQ queue
+ * (`document-action`) the backend's own repeatable uses (`document-queue.dispatcher.ts`'s own
+ * `registerCurrencyRateSweepRepeatable`) - the backend under test's own, already-running
+ * `DocumentActionProcessor` picks it up and runs the REAL `CurrencyRateSweepRunner.runSweep()`,
+ * exactly as `triggerPdpReceptionSweep` above does for its own sweep, and for the same reason
+ * (triggered on demand instead of waiting on an interval).
+ *
+ * There is an EXTRA reason to prefer this over lowering `CURRENCY_RATE_SWEEP_INTERVAL_MS` the way
+ * `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS`/`DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS` are already lowered,
+ * globally, in `backend/.env.test`: this sweep scans EVERY company's data at once
+ * (`findActiveCurrencyRatePairs`/`findUsedCurrenciesByCompany`/`findPaymentDocumentCurrencyPairs`,
+ * currency-rate-sweep-runner.ts), so a short interval applied to the WHOLE numbered suite would risk
+ * inserting a `CurrencyRate` row for some OTHER spec's own company mid-run, silently changing its
+ * behaviour. Triggering it on demand, only from the one spec that needs it, keeps the production
+ * default (24h) in effect everywhere else - nothing else in this suite ever calls this task, so
+ * nothing else is affected. A fixed, timestamp-suffixed jobId avoids colliding with the real
+ * repeatable's own `currency-rate-sweep-singleton` id.
+ */
+async function triggerCurrencyRateSweep(): Promise<null> {
+  const connection = { url: process.env.REDIS_URL || "redis://localhost:6399" };
+  const queue = new Queue("document-action", { connection });
+  try {
+    await queue.add(
+      "currency-rate-sweep",
+      {},
+      { jobId: `e2e-currency-rate-sweep-${Date.now()}`, attempts: 1, removeOnComplete: true, removeOnFail: true },
     );
   } finally {
     await queue.close();
@@ -725,6 +766,10 @@ export default defineConfig({
           return triggerPdpReceptionSweep();
         },
 
+        triggerCurrencyRateSweep() {
+          return triggerCurrencyRateSweep();
+        },
+
         // See `startFakeAt`'s own header (issue #501): the Portuguese AT webservice, faked over real
         // HTTPS so the backend's `pt-at` provider can reach it and the declared payload can be read.
         startFakeAt() {
@@ -915,16 +960,34 @@ export default defineConfig({
          * FlateDecode-compressed (Chromium's own PDF writer), so the string "Totals" almost never
          * appears verbatim in the raw bytes — a spec that fell back to "the file got bigger" on a miss
          * stayed green whether the totals block rendered the right numbers, the wrong numbers, or (bar
-         * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdf-parse`
-         * (built on Mozilla's own `pdf.js`) needs a real filesystem/zlib-capable Node, which a Cypress
-         * spec running inside Electron/Firefox is not — the same reason `resetDatabase`/`pg` above run
-         * here rather than in the spec. Cypress tasks only accept JSON-serializable arguments, so the
-         * caller sends the PDF as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
+         * a length coincidence) no numbers at all. Runs in THIS process, not the browser: `pdfjs-dist`
+         * needs a real filesystem/zlib-capable Node, which a Cypress spec running inside
+         * Electron/Firefox is not, the same reason `resetDatabase`/`pg` above run here rather than in
+         * the spec. Cypress tasks only accept JSON-serializable arguments, so the caller sends the PDF
+         * as base64 (`Cypress.Buffer` on its side) rather than a raw Buffer.
          */
+        // `pdf-parse` (removed) bundles pdfjs-dist builds from 2018-2019 with no Node-version
+        // guarantee at all; under Node 24 it intermittently threw ("bad XRef entry") or silently
+        // returned truncated text on byte-identical, correctly-formed input (confirmed: dumping the
+        // exact buffer handed to it and re-parsing standalone always succeeded -- the bytes were never
+        // wrong, the old bundled parser was just unreliable in this long-lived process). Parsing
+        // directly with current `pdfjs-dist` (6.x, which lists Node 24 in its own `engines`) instead
+        // removed the flakiness entirely: 300 sequential parses of the same buffer, zero failures.
         async extractPdfText(base64: string): Promise<string> {
           const buffer = Buffer.from(base64, "base64");
-          const parsed = await pdfParse(buffer);
-          return parsed.text;
+          const task = await getPdfDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
+          try {
+            const doc = await task.promise;
+            const pages: string[] = [];
+            for (let i = 1; i <= doc.numPages; i++) {
+              const page = await doc.getPage(i);
+              const content = await page.getTextContent();
+              pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+            }
+            return pages.join("\n\n");
+          } finally {
+            await task.destroy();
+          }
         },
 
         // See this file's own header just above ("SEPA/EPC069-12 QR content proof") for why this

@@ -60,7 +60,7 @@ const DOCUMENT_DATA = {
   // BT-10 — a plausible Leitweg-ID SHAPE (region-participant-appendix), never asserted as a real,
   // registered one: the same "pattern-valid but clearly a fixture" discipline `providers.spec.ts`'s
   // own 'FR12345678901' already holds. Wired via the DE country-fields overlay's own `buyerReference`
-  // field (`country-fields/data/de.json`) when a real DE company fills it in on screen; set directly
+  // field (`countries/data/de.json (section "countryFields")`) when a real DE company fills it in on screen; set directly
   // here because this spec builds `data` by hand, exactly like every other master-proof fixture in
   // this directory does for `notes`/`supplyType`.
   buyerReference: '04011000-1234512345-06',

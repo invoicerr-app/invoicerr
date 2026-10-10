@@ -43,7 +43,8 @@ the account e-mail.
 
 - **No adding or removing methods.** The set of six is fixed; a method you don't use simply stays off.
 - **No per-document choice.** A quote or invoice doesn't ask "which payment method" — every method
-  you've turned on appears on every document that shows payment methods (invoices).
+  you've turned on appears on every document that shows payment methods (invoices). You can still
+ narrow this per **client** - see [Restricting payment methods for a client](../clients.md#restricting-payment-methods-for-a-client).
 - **No search or filter.** There are only ever six cards.
 
 ## First use

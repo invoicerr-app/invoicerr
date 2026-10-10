@@ -47,13 +47,25 @@ function createExpiredInvitationCode(): Cypress.Chainable<string> {
         .its('body.code');
 }
 
+function expectErrorToast(message: string): void {
+    cy.get('[data-sonner-toast][data-type="error"]', { timeout: 10000 }).should('contain.text', message);
+}
+
+function expectSignInRejected(email: string, password: string, message: string): void {
+    cy.visit('/auth/sign-in');
+    if (email) {
+        cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).type(email);
+    }
+    cy.get('[data-cy="auth-password-input"]', { timeout: 5000 }).type(password);
+    cy.get('[data-cy="auth-submit-btn"]').click();
+    expectErrorToast(message);
+    cy.url().should('include', '/auth/sign-in');
+}
+
 describe('Authentication E2E', () => {
     describe('Login Validation', () => {
         it('shows error with empty email', () => {
-            cy.visit('/auth/sign-in');
-            cy.get('[data-cy="auth-password-input"]', { timeout: 5000 }).type('SomePassword123!');
-            cy.get('[data-cy="auth-submit-btn"]').click();
-            cy.contains(/invalid|error|email/i, { timeout: 10000 });
+            expectSignInRejected('', 'SomePassword123!', 'Invalid email');
         });
 
         it('shows error with invalid email format', () => {
@@ -65,19 +77,11 @@ describe('Authentication E2E', () => {
         });
 
         it('shows error with wrong credentials', () => {
-            cy.visit('/auth/sign-in');
-            cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).type('wrong@example.com');
-            cy.get('[data-cy="auth-password-input"]').type('WrongPassword123!');
-            cy.get('[data-cy="auth-submit-btn"]').click();
-            cy.contains(/invalid|error|incorrect/i, { timeout: 10000 });
+            expectSignInRejected('wrong@example.com', 'WrongPassword123!', 'Invalid email or password');
         });
 
         it('shows error with correct email but wrong password', () => {
-            cy.visit('/auth/sign-in');
-            cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).type('john.doe@acme.org');
-            cy.get('[data-cy="auth-password-input"]').type('WrongPassword123!');
-            cy.get('[data-cy="auth-submit-btn"]').click();
-            cy.contains(/invalid|error|incorrect/i, { timeout: 10000 });
+            expectSignInRejected('john.doe@acme.org', 'WrongPassword123!', 'Invalid email or password');
         });
 
         it('has a link to sign up page', () => {
@@ -158,7 +162,8 @@ describe('Authentication E2E', () => {
                 cy.get('[data-cy="auth-email-input"]').type(EXPIRED_CODE_EMAIL);
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
                 cy.get('[data-cy="auth-submit-btn"]').click();
-                cy.contains(/expired/i, { timeout: 10000 });
+                expectErrorToast('This invitation code has expired');
+                cy.url().should('include', '/auth/sign-up');
             });
         });
 
@@ -335,7 +340,8 @@ describe('Authentication E2E', () => {
                 cy.get('[data-cy="auth-email-input"]').type('john.doe@acme.org');
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
                 cy.get('[data-cy="auth-submit-btn"]').click();
-                cy.contains(/already|exists|duplicate/i, { timeout: 10000 });
+                expectErrorToast('User already exists');
+                cy.url().should('include', '/auth/sign-up');
             });
         });
     });

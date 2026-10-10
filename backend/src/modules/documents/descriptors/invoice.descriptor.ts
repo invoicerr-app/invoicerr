@@ -1,6 +1,7 @@
 import { Currency } from '../../../../prisma/generated/prisma/client';
 import { BUILT_IN_PAYMENT_METHODS } from '../payment-methods/built-in';
 import { transitionsAvailableWhen } from './lifecycle';
+import { SUGGESTED_UNIT_CODES, SUGGESTED_UNIT_LABELS } from '../formats/semantic/unit-code';
 import { standardDocumentEmailTranslations } from './standard-email-translations';
 import { DocumentActionTransition, DocumentFieldDescriptor, DocumentTypeDescriptor } from './types';
 
@@ -60,12 +61,9 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    next to the quantity itself (BT-129) — confirmed by the old canonical model's own fixtures at
  *    git tag `avant-refonte-documents` (e.g. `unitCode="C62"` on every BilledQuantity/
  *    InvoicedQuantity in compliance/schemas/en16931/* and compliance/providers/format/__fixtures__/*
- *    — "C62" being the UN/ECE Recommendation 20 code for "one/piece"). Declared here as free `text`,
- *    deliberately NOT a closed list of UN/ECE codes: nothing downstream in this branch renders or
- *    transmits an EN16931 XML today (the compliance engine that used to do that was removed
- *    entirely), so enforcing that exact vocabulary now would model for a consumer that does not
- *    exist — a future format-emitting consumer can tighten this into a closed `options` list (or a
- *    dedicated field kind) without needing to move the field out of the trunk. EN 16931 is a European
+ *    ("C62" being the UN/ECE Recommendation 20 code for "one/piece"). Declared as free `text` that
+ *    suggests Rec20 codes (`suggestedValues`), deliberately NOT a closed list: `formats/semantic/unit-code.ts`
+ *    maps any stored value to a code and falls back to C62. EN 16931 is a European
  *    norm, not a France-specific one, so this field is NOT flagged as suspected-French.
  *
  *  - `vatRate` (kind: 'select') — `options` is intentionally EMPTY in this trunk descriptor:
@@ -133,8 +131,8 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  *    then has nothing to attribute that line's quantity to, which is the correct, honest outcome for
  *    a business that keeps no catalog record of what it just sold.
  *
- * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }` — lets a row's UI offer a
- * "from catalog" button (field-renderers/array-field.tsx, frontend) that fills `description`/
+ * `lines` also declares `prefillFrom: { entity: 'article', map: {...} }`, which lets a row's designation
+ * search the catalog (field-renderers/array-field.tsx, frontend) and fill `description`/
  * `unitPrice`/`vatRate`/`articleId` from a picked Article (articles/articles.service.ts — the ONE
  * module that survived the pre-refactor architecture unchanged). See types.ts's own comment on
  * `prefillFrom` for the full, entity-agnostic mechanism; this descriptor only ever supplies the map,
@@ -185,7 +183,7 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * delivery is even attempted, deliberately still at ISSUANCE rather than at creation, exactly like
  * the old, removed engine. What this does NOT claim: sequential, GAPLESS, per-country invoice
  * numbering is a LEGAL property some jurisdictions attach to an issued invoice (see this file's own
- * `invoice.save-draft` note in country-policy/data/fr.json, and that file's top-level `notes`) —
+ * `invoice.save-draft` note in countries/data/fr.json (section "policy"), and that file's top-level `notes`) —
  * numbering/sequence.ts's own mechanism never wastes a number, which reduces gap risk without
  * asserting the legal claim itself.
  *
@@ -231,13 +229,17 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * STRUCTURAL fact (there is a unit; there is a VAT-rate choice) is not itself a legal rule and needs
  * none — the modeling is free. What DOES need a citation is any claim about WHICH rates exist and
  * what they are worth for a given country, and that citation lives where the claim actually is: the
- * VAT rate catalog (vat-rates/data/fr.json), never repeated here.
+ * VAT rate catalog (countries/data/fr.json (section "vatRates")), never repeated here.
  *
- * Lifecycle: FIVE statuses — "draft", "sending", "sent", "send_failed", and "cancelled"
- * — the first four grown from the original two by the async-send mechanism, on the exact same
+ * Lifecycle: SIX statuses - "draft", "validated", "sending", "sent", "send_failed", and "cancelled"
+ * - the middle four grown from the original two by the async-send mechanism, on the exact same
  * model as the quote's own (see quote.descriptor.ts's lifecycle paragraph for the full design,
  * actions/async-send.ts for the shared mechanism, and the "sent before delivery
- * actually succeeded" limit this replaces).
+ * actually succeeded" limit this replaces). "validated" is the newest (issue #581): a SIBLING
+ * terminus to "sending", reached by a DIFFERENT action ("validate", never "send") that numbers and
+ * locks the document the exact same way "sending" does, but never attempts delivery - see
+ * VALIDATE_TRANSITIONS's own header below for the full design, including why a mandated-channel
+ * invoice (today: French or Italian domestic B2B) reaches "sending" (not "validated") when validated.
  *
  * "cancelled" is TERMINAL — nothing transitions OUT of it, on purpose: nothing in the eleven-route
  * correction-routes vocabulary (`correction-routes/schema.ts`'s own `CORRECTION_ROUTE_IDS`) that grounds this action
@@ -255,8 +257,10 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * BLOCK that can fire before that persist ever happens for a re-edited non-draft record, never the
  * declared transition itself. "send" (invoice-actions.ts) now has the same two transition entries
  * the quote's own
- * does: "draft"/"send_failed" -> "sending" (the API's synchronous call — a fresh send or a retry),
- * then "sending" -> "sent" OR "send_failed" (the worker's replay). `availableWhen` is DERIVED from
+ * does, plus "validated" (issue #581, SEND_TRANSITIONS's own header below) on the first one:
+ * "draft"/"send_failed"/"validated" -> "sending" (the API's synchronous call - a fresh send, a
+ * retry, or sending an invoice already numbered by "Validate"), then "sending" -> "sent" OR
+ * "send_failed" (the worker's replay). `availableWhen` is DERIVED from
  * BOTH (lifecycle.ts's header), so it includes "sending" too — necessary for the worker's own replay
  * to pass `documents.service.ts#runAction`'s status gate at all, since that gate has no notion of
  * "this call came from the queue, not a browser". This is NOT merely "an invitation for a human to
@@ -308,11 +312,44 @@ const PAYMENT_METHOD_OPTIONS = BUILT_IN_PAYMENT_METHODS.map((method) => ({
  * country" discipline every other action here already holds.
  */
 const SAVE_DRAFT_TRANSITIONS: DocumentActionTransition[] = [{ from: 'always', to: 'draft' }];
+/**
+ * "validated" (issue #581) joined "draft"/"send_failed" as a valid STARTING point for "send" the
+ * moment "Validate" could put a record there: "Send stays available separately, before and after
+ * validation" is the owner's own decision, and a validated-but-unsent invoice is exactly as
+ * send-ready as a draft one - ALREADY numbered (so the async-send engine's own atomic-numbering
+ * branch never re-numbers it, see `actions/async-send.ts`'s own `additionalFromStatuses` header),
+ * never yet delivered. Omitting it here would have made "Validate" a one-way trap: numbered, locked,
+ * and then permanently un-sendable, the exact opposite of what this whole feature is for.
+ */
 const SEND_TRANSITIONS: DocumentActionTransition[] = [
-  { from: ['draft', 'send_failed'], to: 'sending' },
+  { from: ['draft', 'send_failed', 'validated'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
 const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
+/**
+ * "validate" (issue #581) - numbers and locks a draft invoice WITHOUT sending it. `from: ['draft']`
+ * only: there is nothing to validate on a record that already left "draft" (the type's own
+ * `lockedStatuses` on "save-draft" already treats every other status as issued, and this action's own
+ * `invoice-actions.ts` handler is the one place that can STILL number a never-before-numbered record,
+ * so a second validate attempt on an already-"validated" record has nothing left to do - excluded here
+ * by construction, not merely by a handler check).
+ *
+ * TWO honest outcomes, exactly like "send"'s own two-phase shape right above, for the SAME reason: the
+ * owner's decision (2026-10-01, issue #581, revised after PR #602's own review) is that validating
+ * PERFORMS the real send (`performInvoiceSend`, actions/invoice-actions.ts - the exact same function
+ * "send" itself calls, landing on "sending" as a plain "send" would) whenever BOTH an EXPLICIT
+ * per-country fact (`country-policy/data/<cc>.json`'s own `invoiceValidation` -
+ * `country-policy/schema.ts`'s header has the full "why this is a declared fact, never inferred from
+ * the channel mandate alone") AND an ACTIVE channel mandate for this exact operation
+ * (`channel-policy/mandate.ts#activeChannelMandateForOperation`, the SAME country-blind mechanism
+ * "send" itself already uses) both hold - see
+ * `country-policy/invoice-validation-transmission.ts#resolveInvoiceValidationTransmission` for the
+ * combined decision. Declared today for France (CGI art. 289 bis I) and Italy (DPR 633/1972 art. 21,
+ * the 2019 SdI mandate); DE/PL/PT/DZ carry no such fact, so an invoice from one of those sellers is
+ * ALWAYS only numbered and locked, landing on "validated", whatever any future channel mandate of
+ * theirs might read - "send" stays its own, separate action for it.
+ */
+const VALIDATE_TRANSITIONS: DocumentActionTransition[] = [{ from: ['draft'], to: ['validated', 'sending'] }];
 
 /** This type's own declared statuses - pulled out to a named constant (rather than inlined once in
  *  `statuses:` below) so `SAVE_DRAFT_LOCKED_STATUSES` can be DERIVED from it instead of hand-typed a
@@ -323,6 +360,10 @@ const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_f
  *  the way a hand-typed list would leave it until someone remembers to update it too. */
 const INVOICE_STATUSES = [
   { id: 'draft', label: 'Draft' },
+  // Issue #581 - "Validate": numbered and locked, like "sent", but never delivered to anyone. NOT
+  // `clientVisible` - see that flag's own header (types.ts): nothing has left this company's hands
+  // yet, the exact same reason "sending"/"send_failed" below aren't flagged either.
+  { id: 'validated', label: 'Validated' },
   { id: 'sending', label: 'Sending' },
   // `clientVisible` - see `DocumentStatusDescriptor`'s own header: this is the ONE status the
   // client portal (`client-portal/`) ever shows for an invoice. "cancelled" below is deliberately
@@ -415,7 +456,17 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
     label: 'Invoice',
     statuses: INVOICE_STATUSES,
     initialStatus: 'draft',
-    numbering: { onEnterStatus: 'sending' },
+    // Issue #581 widened this from a bare 'sending' to a SET: "validate" can now also be the first
+    // transition that numbers a record (see VALIDATE_TRANSITIONS's own header above and
+    // `descriptors/types.ts`'s `onEnterStatuses` for why every reader already goes through that helper
+    // rather than comparing to this field directly).
+    numbering: { onEnterStatus: ['sending', 'validated'] },
+    // Issue #579 - see types.ts's own comment on `DocumentTypeDescriptor.stockEffect` for the full
+    // "why": the invoice is the ONE type that actually delivers goods, so it is the only type that
+    // declares this. The quote's own `lines` declares the same `articleId` field a few sections down
+    // this file's sibling (quote.descriptor.ts) also declares, for the catalog-prefill picker alone.
+    // That must never decrement stock, and does not, because it never sets this field.
+    stockEffect: 'decrement',
     // See types.ts's own comment on `DocumentTypeDescriptor.email`, and quote.descriptor.ts for the
     // same call on the sibling type — sober, plain-English default, overridable per company.
     email: {
@@ -474,7 +525,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
       // covers TWO different cases ("a corrective re-issue, a follow-up on a partial one") without
       // judging which one applies — exactly the ambiguity a LEGAL correction cannot afford. This field
       // means one thing only: this invoice IS a correction of the one it names, in the sense
-      // `correction-routes/data/pl.json`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
+      // `countries/data/pl.json (section "correctionRoutes")`'s own `CORRECTIVE_INVOICE` route describes (Poland's post-
       // clearance `faktura korygująca`, art. 106j ustawy o VAT — today the ONLY country whose format
       // provider reads it, `formats/national/fa3-provider.ts`'s KOR mode; the field itself is trunk-
       // level, structural, and country-blind, the same "an invoice can point at another invoice" fact
@@ -574,13 +625,17 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
             min: 0,
           },
           {
-            // STRUCTURAL, not legal — EN 16931's BT-130 (mandatory unit-of-measure code). See this
-            // file's header for the full reasoning on why this is free text, not a closed code list.
+            // STRUCTURAL, not legal: EN 16931's BT-130 (mandatory unit-of-measure code). Free text
+            // with suggested Rec20 codes, never a closed list; see this file's header.
             key: 'unit',
             kind: 'text',
             label: 'Unit',
             required: true,
             helpText: 'How the quantity is counted — e.g. "hour", "day", "kg", "unit".',
+            suggestedValues: SUGGESTED_UNIT_CODES.map((value) => ({
+              value,
+              label: SUGGESTED_UNIT_LABELS[value],
+            })),
           },
           {
             key: 'unitPrice',
@@ -645,6 +700,28 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
         // No params — see this file's header comment: which transport runs, and what it needs to
         // address the delivery, is read from the company's own configuration, not typed here.
+      },
+      {
+        id: 'validate',
+        label: 'Validate',
+        transitions: VALIDATE_TRANSITIONS,
+        availableWhen: transitionsAvailableWhen(VALIDATE_TRANSITIONS),
+        // No params - a plain, number-and-lock status flip for the ordinary case (the handler decides
+        // on its own, from the invoice's own data, whether this country's own declared
+        // `invoiceValidation` fact AND an active channel mandate together route this through the real
+        // send instead - see VALIDATE_TRANSITIONS's own header and actions/invoice-actions.ts's
+        // "validate" registration).
+        //
+        // Declared AFTER "send", deliberately: `pickPrimaryAction` (frontend's action-presentation.ts)
+        // picks the FIRST non-save action with no policy block as THE primary button, descriptor order
+        // being "the type's own statement of what matters most". Putting "validate" first would have
+        // made it silently replace "Send" as a draft invoice's own default/primary action - a real UX
+        // change (which button a user sees first) the issue/spec never asked for and no screenshot in
+        // this PR shows. "Validate" stays reachable from the SAME "Actions" menu "Send" always was
+        // offered alongside (document-detail.tsx) - exactly what issue #581's own "Captures attendues"
+        // section describes ("Menu Actions avant/apres (ajout de 'Valider')"), never a new top-level
+        // button. Existing specs that find "Send" as a draft invoice's own plain, un-menued button
+        // (100-demo-mode.cy.ts) stay correct unchanged.
       },
       {
         id: 'cancel',
@@ -734,7 +811,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
         // professional-secrecy posture on "give an unauthenticated third party a link to this
         // document" is a real, distinct question from "may this action run on this type at all" —
         // even though every shipped policy file today answers it the same permissive, `unverified`
-        // way "download-xml" already does — see country-policy/data/fr.json's own new entry). This
+        // way "download-xml" already does — see countries/data/fr.json (section "policy")'s own new entry). This
         // is NOT registered as an `ActionRegistry` handler (documents-core.module.ts) — unlike
         // "download-xml" it does not need the bypass for a BINARY-payload reason (creating a share
         // link returns plain JSON, which fits `ActionResult` fine) but for a ROUTE-SHAPE reason

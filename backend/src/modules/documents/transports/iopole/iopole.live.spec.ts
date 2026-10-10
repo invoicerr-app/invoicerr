@@ -1,12 +1,12 @@
 /**
  * REAL round-trip against the Iopole sandbox (`api.ppd.iopole.fr`). Gated exactly the way
- * `pdp/pdp.live.spec.ts` is (`live-gate.ts`: an explicit flag AND every credential var present), and
+ * `pdp/superpdp.live.spec.ts` is (`live-gate.ts`: an explicit flag AND every credential var present), and
  * run the same way:
  *
  *   cd backend && set -a; . /path/to/pdp-sandbox.env; set +a
  *   IOPOLE_LIVE=1 npx vitest run src/modules/documents/transports/iopole/iopole.live.spec.ts
  *
- * DB-FREE ON PURPOSE, the same choice `pdp.live.spec.ts` makes and for the same reason: that command
+ * DB-FREE ON PURPOSE, the same choice `superpdp.live.spec.ts` makes and for the same reason: that command
  * never sets `DATABASE_URL`, so this spec never touches Prisma. It does not call
  * `iopole-transport.ts`'s exported `send()` (which reads `Company`/`Client` rows); it calls the SAME
  * DB-free building blocks that function composes, by hand:
@@ -48,7 +48,7 @@
  * at the end of this test polls for the history rather than sleeping a fixed time, then asserts a
  * real positive outcome - never a transient state, never "it was accepted so it must be fine". A
  * REJECTED / UNACCEPTABLE / REFUSED code anywhere in the history fails this test outright. That
- * discipline, and the reason for it, is `pdp.live.spec.ts`'s own header: this repository has paid
+ * discipline, and the reason for it, is `superpdp.live.spec.ts`'s own header: this repository has paid
  * twice for a live test that asserted something which had not happened yet.
  */
 import { PDFDocument } from 'pdf-lib';
@@ -82,7 +82,7 @@ const describeLive = liveDescribe('IOPOLE_LIVE', [
 
 /** Iopole's own status vocabulary for "this did not go through" - see
  *  `iopole-client.ts#IopoleInvoiceStatus`. Either one present in the history is a real rejection and
- *  must fail this test, the same discipline `pdp.live.spec.ts` holds for its own `fr:213`. */
+ *  must fail this test, the same discipline `superpdp.live.spec.ts` holds for its own `fr:213`. */
 const IOPOLE_REJECTION_CODES = new Set(['REJECTED', 'UNACCEPTABLE', 'REFUSED']);
 
 /** The positive codes that mean the platform has actually decided something about this deposit, as
@@ -159,8 +159,8 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
       totals,
     });
 
-    // BT-23 through the REAL temporal gate - no bypass here, unlike `pdp.live.spec.ts`, which needed
-    // one only because it ran a day before `content-requirements/data/fr.json`'s own `mandatedFrom`
+    // BT-23 through the REAL temporal gate - no bypass here, unlike `superpdp.live.spec.ts`, which needed
+    // one only because it ran a day before `countries/data/fr.json (section "contentRequirements")`'s own `mandatedFrom`
     // (2026-09-01). This spec's `issueDate` is today, well past it, so whatever the gate resolves is
     // what goes out: the production behaviour, unmodified.
     const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
@@ -185,7 +185,7 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
     }
 
     // 2) Embed into a REAL Factur-X PDF/A-3 - same recipe `facturx-provider.ts` runs, including the
-    // `postProcessor` chain (see `pdp.live.spec.ts`'s own header for why both steps are required).
+    // `postProcessor` chain (see `superpdp.live.spec.ts`'s own header for why both steps are required).
     const hostPdf = await PDFDocument.create();
     hostPdf.addPage([595, 842]); // A4
     const hostPdfBytes = Buffer.from(await hostPdf.save());
@@ -241,7 +241,7 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
     // paid for on its second run: SUBMITTED lands ~0.4s after the 201 and the rest ~0.2s later, so a
     // loop that stopped at "the history is no longer empty" read only SUBMITTED, which says the
     // request went out and nothing about whether it was accepted. Asserting a transient state is the
-    // FIRST of the two false greens `pdp.live.spec.ts`'s own header records, reproduced here
+    // FIRST of the two false greens `superpdp.live.spec.ts`'s own header records, reproduced here
     // verbatim before it was fixed. Polling every 500ms for up to 15s is ample margin for a verdict
     // that has landed in well under a second on every deposit measured.
     const isVerdict = (entries: typeof history) =>

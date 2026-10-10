@@ -20,7 +20,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, React.ComponentP
 
     return (
       <div className="relative">
-        <Input ref={ref} type={visible ? "text" : "password"} className={cn("pr-10", className)} {...props} />
+        <Input ref={ref} type={visible ? "text" : "password"} className={cn("pe-10", className)} {...props} />
         <Button
           type="button"
           variant="ghost"
@@ -30,7 +30,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, React.ComponentP
           aria-pressed={visible}
           disabled={props.disabled}
           onClick={() => setVisible((v) => !v)}
-          className="absolute inset-y-0 right-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          className="absolute inset-y-0 end-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
         >
           {visible ? <EyeOff /> : <Eye />}
         </Button>

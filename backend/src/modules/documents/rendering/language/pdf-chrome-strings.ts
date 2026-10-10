@@ -1,3 +1,4 @@
+import { SUGGESTED_UNIT_CODES, SUGGESTED_UNIT_LABELS } from '../../formats/semantic/unit-code';
 import { RenderLanguage } from './supported-languages';
 
 /**
@@ -13,8 +14,8 @@ import { RenderLanguage } from './supported-languages';
  * This is a THIRD place, distinct from both:
  *  - the per-locale `translation.json` files under `frontend/src/locales` (`t()`), which only ever
  *    reach the SPA screen — no code path from a PDF/email render ever imports i18next or reads them;
- *  - the country-mandated wordings in `mentions/data/*.json` and `tax/tax-engine.ts`'s own
- *    `LOCALIZED_MENTION` table, which are statutory text selected by COUNTRY, never by this recipient
+ *  - the country-mandated wordings in `mentions/data/*.json` and each country's `localizedMentions`
+ *    section in `countries/data/*.json`, which are statutory text selected by COUNTRY, never by this recipient
  *    language (see those files' own headers — this dictionary must never be reached for by anything
  *    that resolves a mention).
  *
@@ -39,6 +40,8 @@ export interface PdfChromeStrings {
   total: string;
   yes: string;
   no: string;
+  /** Display text, in this language, of each stored value a field's `suggestedValues` offers. */
+  suggestedValueLabels: Readonly<Record<string, string>>;
   draftNoNumberYet: string;
   /** Shown INSTEAD of `draftNoNumberYet` for a numbered document that has none - issue #471: a
    *  document issued before its type declared `numbering` at all (a legacy credit note) must never
@@ -96,6 +99,10 @@ export interface PdfChromeStrings {
   exchangeRate(rate: string, date: string): string;
 }
 
+/** Labels listed in `SUGGESTED_UNIT_CODES` order. */
+const unitLabels = (labels: readonly string[]): Record<string, string> =>
+  Object.fromEntries(SUGGESTED_UNIT_CODES.map((code, index) => [code, labels[index]]));
+
 const EN: PdfChromeStrings = {
   status: 'Status',
   date: 'Date',
@@ -105,6 +112,7 @@ const EN: PdfChromeStrings = {
   total: 'Total',
   yes: 'Yes',
   no: 'No',
+  suggestedValueLabels: SUGGESTED_UNIT_LABELS,
   draftNoNumberYet: 'Draft — no number yet',
   issuedWithoutNumber: 'Issued without a number',
   scanToPaySepa: 'Scan to pay (SEPA)',
@@ -128,6 +136,21 @@ const FR: PdfChromeStrings = {
   total: 'Total',
   yes: 'Oui',
   no: 'Non',
+  suggestedValueLabels: unitLabels([
+    'Pièce',
+    'Heure',
+    'Jour',
+    'Semaine',
+    'Mois',
+    'Année',
+    'Kilogramme',
+    'Gramme',
+    'Litre',
+    'Mètre',
+    'Kilomètre',
+    'Lot',
+    'Boîte',
+  ]),
   draftNoNumberYet: 'Brouillon — pas encore de numéro',
   issuedWithoutNumber: 'Émis sans numéro',
   scanToPaySepa: 'Scannez pour payer (SEPA)',
@@ -151,6 +174,21 @@ const IT: PdfChromeStrings = {
   total: 'Totale',
   yes: 'Sì',
   no: 'No',
+  suggestedValueLabels: unitLabels([
+    'Pezzo',
+    'Ora',
+    'Giorno',
+    'Settimana',
+    'Mese',
+    'Anno',
+    'Chilogrammo',
+    'Grammo',
+    'Litro',
+    'Metro',
+    'Chilometro',
+    'Set',
+    'Scatola',
+  ]),
   draftNoNumberYet: 'Bozza — numero non ancora assegnato',
   issuedWithoutNumber: 'Emesso senza numero',
   scanToPaySepa: 'Scansiona per pagare (SEPA)',
@@ -174,6 +212,21 @@ const PL: PdfChromeStrings = {
   total: 'Razem',
   yes: 'Tak',
   no: 'Nie',
+  suggestedValueLabels: unitLabels([
+    'Sztuka',
+    'Godzina',
+    'Dzień',
+    'Tydzień',
+    'Miesiąc',
+    'Rok',
+    'Kilogram',
+    'Gram',
+    'Litr',
+    'Metr',
+    'Kilometr',
+    'Zestaw',
+    'Pudełko',
+  ]),
   draftNoNumberYet: 'Wersja robocza — brak numeru',
   issuedWithoutNumber: 'Wystawiono bez numeru',
   scanToPaySepa: 'Zeskanuj, aby zapłacić (SEPA)',
@@ -197,6 +250,21 @@ const DE: PdfChromeStrings = {
   total: 'Gesamt',
   yes: 'Ja',
   no: 'Nein',
+  suggestedValueLabels: unitLabels([
+    'Stück',
+    'Stunde',
+    'Tag',
+    'Woche',
+    'Monat',
+    'Jahr',
+    'Kilogramm',
+    'Gramm',
+    'Liter',
+    'Meter',
+    'Kilometer',
+    'Set',
+    'Karton',
+  ]),
   draftNoNumberYet: 'Entwurf — noch keine Nummer',
   issuedWithoutNumber: 'Ohne Nummer ausgestellt',
   scanToPaySepa: 'Zum Bezahlen scannen (SEPA)',
@@ -220,6 +288,21 @@ const PT: PdfChromeStrings = {
   total: 'Total',
   yes: 'Sim',
   no: 'Não',
+  suggestedValueLabels: unitLabels([
+    'Peça',
+    'Hora',
+    'Dia',
+    'Semana',
+    'Mês',
+    'Ano',
+    'Quilograma',
+    'Grama',
+    'Litro',
+    'Metro',
+    'Quilómetro',
+    'Conjunto',
+    'Caixa',
+  ]),
   draftNoNumberYet: 'Rascunho — sem número ainda',
   issuedWithoutNumber: 'Emitido sem número',
   scanToPaySepa: 'Digitalize para pagar (SEPA)',

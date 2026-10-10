@@ -31,7 +31,7 @@ export function WaitingForSeatScreen({ ownerName }: { ownerName: string | null }
         <Armchair className="size-6" strokeWidth={1.75} aria-hidden="true" />
       </div>
 
-      <Card className="max-w-md text-left">
+      <Card className="max-w-md text-start">
         <CardHeader>
           <CardTitle className="text-balance">{t("seatGate.title", "Waiting for a seat")}</CardTitle>
         </CardHeader>

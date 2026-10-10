@@ -84,6 +84,28 @@ export interface Company {
   revenueBasis?: string | null
   /** "monthly" or "quarterly" - see backend's Company.revenuePeriod schema.prisma comment. */
   revenuePeriod?: string | null
+  /** Default due date for new quotes and invoices: a day count and "net" or "endOfMonth". Null/unset
+   *  means no default (the due date stays blank). `GET /api/company/payment-terms` reports the
+   *  resolved terms and the country's legal cap. */
+  quoteDueDays?: number | null
+  quoteDueMode?: string | null
+  invoiceDueDays?: number | null
+  invoiceDueMode?: string | null
+  /** Issue #603 - whether this company's country requires a validation-code scheme on its own
+   *  documents (e.g. Portugal's ATCUD, Decreto-Lei n.º 28/2019 art. 7.º n.º 3 / Portaria n.º
+   *  195/2020) - computed backend-side from the country's own `documentValidationCode` fact
+   *  (backend's `country-policy/schema.ts`), never decided here from `country`/`countryCode`. Null
+   *  for a country with no such scheme declared (every shipped country but Portugal today). */
+  documentValidationCode?: { scheme: string } | null
+}
+
+/** `GET /api/company/payment-terms`. Mirrors the backend's
+ *  `payment-terms/resolve-payment-terms.ts#ResolvedPaymentTerms`. */
+export interface ResolvedPaymentTerms {
+  quote: { days: number; mode: "net" | "endOfMonth" } | null
+  invoice: { days: number; mode: "net" | "endOfMonth" } | null
+  cap: { maxNetDays: number; maxEndOfMonthDays: number } | null
+  exceedsCap: { quote: boolean; invoice: boolean }
 }
 
 /** `GET /api/company/revenue-settings` - the RESOLVED basis/period (explicit choice, or the computed

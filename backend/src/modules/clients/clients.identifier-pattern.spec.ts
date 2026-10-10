@@ -3,7 +3,7 @@
  * `clients.vat-validation.spec.ts`'s own header (`ClientsModule` cannot be imported under ts-jest;
  * see that file's header for the full reasoning).
  *
- * Reproduces the measured defect from a cold start: `country-identifiers/data/it.json` declares
+ * Reproduces the measured defect from a cold start: `countries/data/it.json (section "identifiers")` declares
  * `IT_SDI` with `pattern: "^[A-Za-z0-9]{7}$"`, but nothing enforced it — a 3-character value was
  * accepted and stored, and `formats/national/fatturapa-provider.ts`'s own, independent
  * `/^[A-Za-z0-9]{7}$/` check would then fail it at send time, falling through to
@@ -108,7 +108,7 @@ describe('ClientsService — country-identifiers pattern enforcement', () => {
     } catch (err) {
       const message = (err as Error).message;
       expect(message).toContain('IT_SDI');
-      expect(message).toMatch(/7-character/); // the shape, in words (this fact's own helpText)
+      expect(message).toMatch(/7 letters or digits/); // the shape, in words (this fact's own helpText)
       expect(message).not.toContain('[A-Za-z0-9]'); // never the raw regex
       expect(message).toContain('"ABC"');
     }

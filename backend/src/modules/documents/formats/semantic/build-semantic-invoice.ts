@@ -42,7 +42,7 @@
  *    (`cbc:ID` BT-25, `cbc:IssueDate` BT-26) - the corrected invoice's own number and issue date, set
  *    only for a credit note (`input.creditNote.correctedInvoice`). CGI art. 289, I, 5 is why it is not
  *    optional in practice for a French seller: a correcting document must refer to the initial
- *    invoice "de façon spécifique et non équivoque" (see `country-policy/data/fr.json`).
+ *    invoice "de façon spécifique et non équivoque" (see `countries/data/fr.json (section "policy")`).
  *  - BT-5  Invoice currency code       → `cbc:DocumentCurrencyCode`        (`totals.currency`)
  *  - BT-9  Payment due date            → `cbc:PaymentDueDate` — OMITTED. No `dueDate` is threaded
  *    into this bridge's input today: adding it is a one-line change once a caller has a reason to
@@ -72,20 +72,12 @@
  *    this bridge builds EXACTLY the base EN 16931 profile, never Peppol BIS or XRechnung)
  *  - BT-27 Seller name                 → `cac:AccountingSupplierParty/.../cbc:RegistrationName`
  *  - BT-29/BT-30 Seller identifier / legal registration id → `cac:PartyIdentification`/`cac:PartyLegalEntity/cbc:CompanyID`,
- *    from the `LEGAL_ID` party identifier (see `entity-identifiers.ts`) when present — the France-first
- *    SIRET→SIREN derivation (schemeID '0002') is REPRISED VERBATIM from the old code's own
- *    `toSiren`: FR is this product's primary market (see `documentation`'s own priority notes) and
- *    this exact derivation was proven against a real PDP deposit. `LEGAL_ID_SCHEME_BY_COUNTRY` below
- *    extends the SAME "country is data" mapping to NL's own KVK-nummer (ISO 6523 '0106') — never a
- *    derived/reshaped value the way SIRET→SIREN is, since a KVK number is already the exact 8-digit
- *    form the GENERIC Peppol BIS delta's own `NL-R-003`/`NL-R-005`
- *    (`formats/vendored/peppol/PEPPOL-EN16931-UBL.sch:880-894`) expects. A `LEGAL_ID` for
- *    any OTHER country is still emitted as a bare `cbc:CompanyID` with NO schemeID — asserting a
- *    registry membership (French SIREN, Dutch KVK, or otherwise) nobody claimed would be inventing one.
- *    `input.legalIdOverride === 'full'` DISABLES the SIREN reduction for BOTH parties — see that
- *    field's own doc comment below for the sourcing (a real Chorus Pro rejection, AIFE's own annex,
- *    and the 24 official Factur-X examples) and why this is scoped to Chorus Pro's own dedicated
- *    instance only, never the default.
+ *    from the `LEGAL_ID` party identifier (see `entity-identifiers.ts`) when present. How it is written
+ *    is country data, read through `country-identifiers/iso6523/registry.ts`: the party's own country
+ *    gives the ISO 6523 schemeID of its `cbc:CompanyID` (none declared: a bare `cbc:CompanyID`, never
+ *    a guessed registry), and the SELLER's country may declare a digit reduction and an electronic
+ *    address scheme that apply to both parties' `LEGAL_ID`. `input.legalIdOverride === 'full'`
+ *    disables the reduction for both parties, see that field's own doc comment.
  *  - BT-31 Seller VAT identifier       → `cac:PartyTaxScheme/cbc:CompanyID` + `cac:TaxScheme/cbc:ID`='VAT',
  *    from the `VAT` party identifier when present. ABSENT when the seller has none on file — BR-S-02/
  *    BR-Z-02 (see below) then correctly refuse the document, which is the STANDARD's own
@@ -171,6 +163,11 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { DocumentTotals } from '../../totals/compute-totals';
 import type { CorrectedInvoiceReference } from '../format-provider';
 import { TaxCategoryCode } from '../../tax/types';
+import { defaultTaxUnionRegistry } from '../../tax/tax-unions/registry';
+import {
+  defaultEinvoiceIdentifierCatalog,
+  EinvoiceIdentifierFacts,
+} from '../../country-identifiers/iso6523/registry';
 import {
   resolveInvoiceNotes,
   toUblNote,
@@ -185,10 +182,10 @@ export class SemanticBuildError extends Error {}
 
 export interface SemanticPartyInput {
   name: string;
-  address: string;
+  address: string | null;
   addressLine2?: string | null;
-  city: string;
-  postalCode: string;
+  city: string | null;
+  postalCode: string | null;
   /** Free text, as stored on Company/Client — resolved via `guessCountryCode`. */
   country: string | null;
   email?: string | null;
@@ -323,11 +320,10 @@ export interface SemanticInvoiceInput {
    */
   businessProcessCodeOverride?: string;
   /**
-   * BT-29/BT-30/BT-46/BT-47 (Seller/Buyer identifier, legal registration id) override — bypasses
-   * `toSiren`'s FR-only SIRET→SIREN reduction entirely for BOTH parties when set to `'full'`, so
-   * `sellerLegalId`/`buyerLegalId` below carry the RAW `LEGAL_ID` party identifier verbatim (still
-   * under schemeID '0002' — `LEGAL_ID_SCHEME_BY_COUNTRY` is UNCHANGED by this override, only the
-   * VALUE truncation is). Exists for EXACTLY one caller today: `facturx-provider.ts`'s Chorus
+   * BT-29/BT-30/BT-46/BT-47 (Seller/Buyer identifier, legal registration id) override: bypasses the
+   * seller country's `einvoiceReduction` (SIRET to SIREN for France) for BOTH parties when set to
+   * `'full'`, so `sellerLegalId`/`buyerLegalId` below carry the RAW `LEGAL_ID` party identifier
+   * verbatim, still under its country's ISO 6523 schemeID: only the value reduction is skipped. Exists for EXACTLY one caller today: `facturx-provider.ts`'s Chorus
    * Pro-specific instance (wired via `FacturxProviderDeps.legalIdOverride`, `documents-core.module.ts`
    * — the SAME per-instance-config pattern `businessProcessCodeOverride` above already established).
    *
@@ -336,7 +332,7 @@ export interface SemanticInvoiceInput {
    * cited `SupplyChainTradeTransaction.ApplicableHeaderTradeAgreement.BuyerTradeParty` while
    * `identifiantDestinataire`/`identifiantFournisseur` in the SAME error body were both 9 digits — the
    * exact first 9 digits of the real 14-digit SIRETs on file (`33254021516357`→`332540215`,
-   * `12345678200051`→`123456782`), i.e. `toSiren`'s own reduction, confirmed as the cause by matching
+   * `12345678200051`→`123456782`), i.e. the SIREN reduction, confirmed as the cause by matching
    * the numbers, not inferred. AIFE's own "Dossier de spécifications externes de Chorus Pro — Annexe
    * relative au raccordement EDI", V4.20:
    *   - S2.13 (§9.2, p.171): "Les codes de type identifiant valide sont définis par la liste ISO6523.
@@ -393,77 +389,42 @@ export interface SemanticInvoiceInput {
 
 /**
  * Map a VAT identifier's 2-letter country prefix → the OpenPeppol Electronic Address Scheme (EAS,
- * ISO 6523 ICD) code for THAT country's own national VAT scheme. REPRISED VERBATIM from
- * `invoice-rendering.service.ts` at the reference — see that file's own comment for the sourcing
- * (cross-checked against the vendored `PEPPOL-EN16931-UBL.sch`'s own eaid enumeration) this table
- * carries. Peppol transmission itself is not wired here (see `format-registry.ts`'s own
- * header) — this table is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
+ * ISO 6523 ICD) code for THAT country's own national VAT scheme. Issue #603 (PR A): this used to be
+ * this file's OWN `VAT_PREFIX_TO_PEPPOL_EAS` copy (23 EU countries) - now reads the shared
+ * `tax/tax-unions/` reference table instead, proven byte-for-byte unchanged for every VAT prefix (see
+ * this PR's own report). Peppol transmission itself is not wired here (see `format-registry.ts`'s own
+ * header) - this lookup is used here only to give a VAT-registered party SOME `cbc:EndpointID` scheme
  * more specific than a bare email placeholder, satisfying `@e-invoice-eu/core`'s own mandatory field
  * without asserting a Peppol registration that was never verified.
  */
-const VAT_PREFIX_TO_PEPPOL_EAS: Readonly<Record<string, string>> = {
-  AT: '9914',
-  BE: '9925',
-  BG: '9926',
-  CY: '9928',
-  CZ: '9929',
-  DE: '9930',
-  EE: '9931',
-  EL: '9933',
-  ES: '9920',
-  FR: '9957',
-  HR: '9934',
-  HU: '9910',
-  IE: '9935',
-  IT: '0211',
-  LT: '9937',
-  LU: '9938',
-  LV: '9939',
-  MT: '9943',
-  NL: '9944',
-  PL: '9945',
-  PT: '9946',
-  RO: '9947',
-  SI: '9949',
-};
-
-function peppolEasForVat(vat: string | null | undefined): string | undefined {
+export function peppolEasForVat(vat: string | null | undefined): string | undefined {
   if (!vat) return undefined;
   const prefix = vat.trim().slice(0, 2).toUpperCase();
-  return VAT_PREFIX_TO_PEPPOL_EAS[prefix];
+  return defaultTaxUnionRegistry.peppolEasForPrefix(prefix);
 }
 
-/** France-first SIRET (14 digits) → SIREN (its own first 9 digits) derivation — see this file's own
- *  header for why this stays FR-specific rather than a generic transform, and
- *  `SemanticInvoiceInput.legalIdOverride`'s own header for the ONE caller (Chorus Pro) that disables
- *  the reduction entirely via `override === 'full'`. */
-function toSiren(
+/** A `LEGAL_ID` as the seller's country writes it into an e-invoice: reduced to its leading digits
+ *  when that country declares an `einvoiceReduction`, unless the caller asked for the full value. */
+function einvoiceLegalId(
   legalId: string | undefined,
-  isFrenchSeller: boolean,
+  reduction: EinvoiceIdentifierFacts['einvoiceReduction'],
   override: 'full' | undefined,
 ): string | undefined {
   if (!legalId) return undefined;
-  if (override === 'full') return legalId;
-  if (!isFrenchSeller) return legalId;
+  if (override === 'full' || !reduction) return legalId;
   const digits = legalId.replace(/\D/g, '');
-  return digits.length === 14 ? digits.slice(0, 9) : legalId;
+  return digits.length === reduction.whenDigits ? digits.slice(0, reduction.keepDigits) : legalId;
 }
 
-/**
- * ISO 6523 scheme for a party's OWN `cac:PartyLegalEntity/cbc:CompanyID` — keyed by that SAME
- * party's OWN country ("country is data", the same discipline `toSiren`'s FR-only SIRET→SIREN
- * derivation above already holds — see this file's own header, "BT-29/BT-30", for the full
- * reasoning). `'FR': '0002'` is the PRE-EXISTING mapping, unchanged (this map's value for 'FR' is
- * exactly the literal `isFrenchSeller ? '0002' : undefined` branch it replaces below — verified by
- * every EXISTING French-seller test, none of which changes). `'NL': '0106'` is NEW:
- * NL's only `LEGAL_ID` scheme is the KVK-nummer, so `0106` (KVK) is the only value this map
- * ever emits for NL — a Dutch OIN
- * (schemeID `0190`, the alternative both `BR-NL-1`/`BR-NL-10` and Peppol's own `NL-R-003`/`NL-R-005`
- * also accept) is a SEPARATE identifier this catalog does not collect, and is not modeled here.
- * A country absent from this map (every other one) keeps the pre-existing behaviour: a bare
- * `cbc:CompanyID`, no schemeID — never a guessed registry membership.
- */
-const LEGAL_ID_SCHEME_BY_COUNTRY: Record<string, string> = { FR: '0002', NL: '0106' };
+/** `cac:PartyLegalEntity` with the party's ISO 6523 schemeID when its country declares one. */
+function partyLegalEntity(name: string, legalId: string | undefined, iso6523Scheme: string | undefined) {
+  if (!legalId) return { 'cbc:RegistrationName': name };
+  return {
+    'cbc:RegistrationName': name,
+    'cbc:CompanyID': legalId,
+    ...(iso6523Scheme ? { 'cbc:CompanyID@schemeID': iso6523Scheme } : {}),
+  };
+}
 
 /**
  * BT-34/BT-49 (Seller/Buyer electronic address) — read from a `PEPPOL_ENDPOINT` party identifier
@@ -486,17 +447,22 @@ function explicitEndpointFor(party: SemanticPartyInput): { id: string; scheme: s
 
 function endpointFor(
   party: SemanticPartyInput,
-  legalId: string | undefined,
+  legalAddress: { id: string; scheme: string } | undefined,
   fallbackEmail: string | null | undefined,
 ) {
   const explicit = explicitEndpointFor(party);
   if (explicit) return explicit;
+  if (legalAddress) return legalAddress;
 
   const vat = getIdentifier({ partyIdentifiers: party.partyIdentifiers }, 'VAT');
   const vatEas = peppolEasForVat(vat);
-  const id = legalId ?? (vatEas ? vat : undefined) ?? fallbackEmail?.trim() ?? 'unknown@local.invalid';
-  const scheme = legalId ? '0225' : (vatEas ?? 'EM');
-  return { id, scheme };
+  const id = (vatEas ? vat : undefined) ?? fallbackEmail?.trim() ?? 'unknown@local.invalid';
+  return { id, scheme: vatEas ?? 'EM' };
+}
+
+/** The legal identifier as an electronic address, when the seller's country declares that scheme. */
+function legalIdAddress(legalId: string | undefined, scheme: string | undefined) {
+  return legalId && scheme ? { id: legalId, scheme } : undefined;
 }
 
 /** EN 16931's own BR-DEC-* family caps every amount at a MAXIMUM of 2 decimal digits, regardless of
@@ -640,7 +606,11 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         "this invoice's client before exporting.",
     );
   }
-  const isFrenchSeller = sellerCountryCode === 'FR';
+  const sellerLegalIdFacts = defaultEinvoiceIdentifierCatalog.factsFor(sellerCountryCode, 'LEGAL_ID');
+  const buyerIso6523Scheme = defaultEinvoiceIdentifierCatalog.factsFor(
+    buyerCountryCode,
+    'LEGAL_ID',
+  ).iso6523Scheme;
 
   // Legal mentions — resolved against the SAME `sellerCountryCode` the
   // rest of this bridge already uses (including its own documented fallback-to-FR for an
@@ -694,27 +664,29 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     input.businessProcessCodeOverride ??
     resolveFrenchBusinessProcessCode(sellerCountryCode, input.issueDate, supplyTypes);
 
-  const sellerLegalId = toSiren(
+  // Both parties follow the SELLER's country here: it is the seller's e-invoicing scheme that is used.
+  const sellerLegalId = einvoiceLegalId(
     getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'LEGAL_ID'),
-    isFrenchSeller,
+    sellerLegalIdFacts.einvoiceReduction,
     input.legalIdOverride,
   );
-  const buyerLegalId = toSiren(
+  const buyerLegalId = einvoiceLegalId(
     getIdentifier({ partyIdentifiers: input.buyer.partyIdentifiers }, 'LEGAL_ID'),
-    isFrenchSeller,
+    sellerLegalIdFacts.einvoiceReduction,
     input.legalIdOverride,
   );
+  const addressScheme = sellerLegalIdFacts.electronicAddressScheme;
   const sellerVat = getIdentifier({ partyIdentifiers: input.seller.partyIdentifiers }, 'VAT');
   const buyerVat = getIdentifier({ partyIdentifiers: input.buyer.partyIdentifiers }, 'VAT');
 
   const sellerEndpoint = endpointFor(
     input.seller,
-    isFrenchSeller ? sellerLegalId : undefined,
+    legalIdAddress(sellerLegalId, addressScheme),
     input.seller.email,
   );
   const buyerEndpoint = endpointFor(
     input.buyer,
-    isFrenchSeller ? buyerLegalId : undefined,
+    legalIdAddress(buyerLegalId, addressScheme),
     input.buyer.email,
   );
 
@@ -729,22 +701,18 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     );
   }
 
-  const sellerLegalIdScheme = LEGAL_ID_SCHEME_BY_COUNTRY[sellerCountryCode];
   const sellerParty: Record<string, unknown> = {
     'cbc:EndpointID': sellerEndpoint.id,
     'cbc:EndpointID@schemeID': sellerEndpoint.scheme,
     'cac:PostalAddress': postalAddress(input.seller, sellerCountryCode),
-    'cac:PartyLegalEntity': {
-      'cbc:RegistrationName': input.seller.name,
-      ...(sellerLegalId
-        ? sellerLegalIdScheme
-          ? { 'cbc:CompanyID': sellerLegalId, 'cbc:CompanyID@schemeID': sellerLegalIdScheme }
-          : { 'cbc:CompanyID': sellerLegalId }
-        : {}),
-    },
+    'cac:PartyLegalEntity': partyLegalEntity(
+      input.seller.name,
+      sellerLegalId,
+      sellerLegalIdFacts.iso6523Scheme,
+    ),
   };
-  if (isFrenchSeller && sellerLegalId) {
-    sellerParty['cac:PartyIdentification'] = [{ 'cbc:ID': sellerLegalId, 'cbc:ID@schemeID': '0225' }];
+  if (addressScheme && sellerLegalId) {
+    sellerParty['cac:PartyIdentification'] = [{ 'cbc:ID': sellerLegalId, 'cbc:ID@schemeID': addressScheme }];
   }
   const contact = sellerContact(input.seller);
   if (contact) {
@@ -756,25 +724,12 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
     ];
   }
 
-  // Gated on the BUYER's OWN country, never the seller's — this is a fix, not just NL's own addition:
-  // the previous `isFrenchSeller` gate would have stamped ANY buyer's `LEGAL_ID` (e.g. a German
-  // buyer's HRB number) with the French SIREN scheme ('0002') whenever the SELLER happened to be
-  // French, which was never correct — no existing test exercised a buyer `LEGAL_ID` at all (verified
-  // across every `providers.spec.ts`/`facturx-provider.spec.ts`/`legal-mentions.spec.ts` fixture
-  // before this change), so this was a latent, never-observed defect, not a documented behaviour.
-  const buyerLegalIdScheme = LEGAL_ID_SCHEME_BY_COUNTRY[buyerCountryCode];
   const buyerParty: Record<string, unknown> = {
     'cbc:EndpointID': buyerEndpoint.id,
     'cbc:EndpointID@schemeID': buyerEndpoint.scheme,
     'cac:PostalAddress': postalAddress(input.buyer, buyerCountryCode),
-    'cac:PartyLegalEntity': {
-      'cbc:RegistrationName': input.buyer.name,
-      ...(buyerLegalId
-        ? buyerLegalIdScheme
-          ? { 'cbc:CompanyID': buyerLegalId, 'cbc:CompanyID@schemeID': buyerLegalIdScheme }
-          : { 'cbc:CompanyID': buyerLegalId }
-        : {}),
-    },
+    // The schemeID follows the buyer's own country: a German buyer's register number is not a SIREN.
+    'cac:PartyLegalEntity': partyLegalEntity(input.buyer.name, buyerLegalId, buyerIso6523Scheme),
   };
   if (buyerVat) {
     buyerParty['cac:PartyTaxScheme'] = { 'cbc:CompanyID': buyerVat, 'cac:TaxScheme': { 'cbc:ID': 'VAT' } };
@@ -914,7 +869,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // content correctness, never element ORDERING — could not catch, but a real platform's own
       // structural validation does (superpdp: "ApplicableHeaderTradeSettlement... not expected.
       // Expected is ApplicableHeaderTradeDelivery", found running the REAL round-trip against the
-      // sandbox — `pdp/pdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
+      // sandbox — `pdp/superpdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
       // the invoice's own issue date (a conventional stand-in for "delivered on issuance" when no
       // separate delivery date is tracked, same category of technical default `vatCategoryFor`
       // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what

@@ -12,14 +12,25 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter**: toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
+- **Filter**: toggle the status chips: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
-- **Download** — a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**
-- **Send** — deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…)
+- **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
+- **Validate** - assign the invoice's legal number and lock it, without sending anything. A warning
+  appears first: this is final, correct a mistake with a credit note afterwards, the same as for a sent
+  invoice. For a French or Italian domestic B2B invoice, validating also transmits it through your
+  accredited channel (PDP for France, SdI for Italy), since each country's own law treats the invoice
+  as not genuinely issued until it reaches that channel - the warning dialog says so explicitly in
+  that case, naming the channel and stating it cannot be undone; see
+  [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
+  [Italy](../../developer-guide/countries/italy.md#validate-and-the-sdi-mandate). For every other
+  invoice, **Send** stays a separate, later step. Validating is refused while the client has no
+  address, no city, or lacks an identifier required for its country; the message names what is missing
+  and links to the client
+- **Send**: deliver the invoice through email or, once connected, a country's e-invoicing channel (KSeF, SdI, PDP…). Available both before and after validating; sending an already-validated invoice never re-assigns its number, it only delivers it
 - **Mark as paid** — record payment manually, or use [Bank Reconciliation](bank-reconciliation.md)
   to confirm one from an imported bank statement
 - **Edit** — available only while the invoice is still a **Draft**; once sent, a mistake is fixed with a correction, not a re-edit
-- **Correct** (scale icon, appears once an invoice is **Sent** or **Send failed**): opens the correction routes for this invoice; see below. This is also where **cancelling** an invoice lives: an invoice that reached "Sent" is never removed, only cancelled, and only where this country's law allows it
+- **Correct** (scale icon, appears once an invoice is **Validated**, **Sent** or **Send failed**): opens the correction routes for this invoice; see below. This is also where **cancelling** an invoice lives: an invoice that reached "Sent" is never removed, only cancelled, and only where this country's law allows it
 - **Issue credit note** - start a [credit note](credit-notes.md) correcting this invoice's own lines
 - **Create receipt** (receipt icon) — generate a [receipt](receipts.md) from this invoice
 
@@ -27,15 +38,19 @@ The **Invoices** page is where you bill your clients. You can create invoices fr
 
 Click **Add New** and fill in:
 
-- **Client** (required)
-- **Date** and **Due date** (both required)
+- **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
+  with just a name and a country. The client must be complete before the invoice is validated or sent;
+  see [Clients](../clients.md#completing-a-client-before-invoicing)
+- **Date** and **Due date** (both required). The due date is filled in as soon as you pick the date, from your [payment terms](../settings/payment-terms.md); you can still change it
 - **Currency** (required)
 - **Origin document** and **Corrects invoice** (optional) — links back to the quote/invoice this one was raised from, or the invoice it corrects
 - **Client reference / PO number** (optional) — the buyer's own reference, shown only once you fill it in
 - **Line items** — Designation, Quantity, Unit, Unit price, VAT rate, and a per-line **Discount %**; drag to reorder, or add a line straight from your [article catalog](../articles.md)
 - **Notes** (optional)
 
-There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically, and the one actually used is only recorded afterwards, when you mark the invoice as paid.
+The **Unit** field suggests common units (piece, hour, day, week, month, year, kilogram, gram, litre, metre, kilometre, set, box) in your language, and you can still type any other value. A suggested unit is exported in e-invoices as its standard UN/ECE Recommendation 20 code (for example `DAY`), and a unit you type yourself is exported as the generic `C62` code unless it is a known unit name or code.
+
+There is no per-document "Payment Method" field: every enabled [payment method](../billing/payment-methods.md) your company has turned on is printed on the invoice automatically - unless the client has its own [restriction](../clients.md#restricting-payment-methods-for-a-client), in which case only the methods you allowed for that client are printed. The one actually used is only recorded afterwards, when you mark the invoice as paid.
 
 ### Creating from a quote
 
@@ -49,9 +64,9 @@ There is no "recurring" choice at creation time. Once an invoice exists, its row
 
 ## Correcting an invoice
 
-Click the scale icon on a **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed. Each route carries a short, plain-language explanation of what it means for you and, where the law provides one, a short legal reference (for example "Art. 106j ust. 1, VAT Act"), never the raw legal research notes behind the app's own country data.
+Click the scale icon on a **Validated**, **Sent** or **Send failed** invoice to see the correction routes your seller country's law allows for it. Only routes you can actually consider are listed. Each route carries a short, plain-language explanation of what it means for you and, where the law provides one, a short legal reference (for example "Art. 106j ust. 1, VAT Act"), never the raw legal research notes behind the app's own country data.
 
-- **Required** or **Allowed** routes are choosable. Picking one that this app implements (an internal credit note, a local cancellation, or, for Poland, a corrective invoice) takes you straight to the pre-linked screen; picking one your country's law permits but this app doesn't implement yet shows an honest "not implemented" message instead of pretending to run something.
+- **Required** or **Allowed** routes are choosable. Picking one that this app implements (an internal credit note, a local cancellation, or, for Poland, a corrective invoice) takes you straight to the pre-linked screen (for a credit note, with all of the invoice's lines already checked); picking one your country's law permits but this app doesn't implement yet shows an honest "not implemented" message instead of pretending to run something.
 - **Not established** routes are shown but not choosable: the law hasn't settled whether this country allows them.
 - Routes your country's law forbids outright are never shown. If every route for this country is forbidden, the dialog says so in one sentence instead of leaving an empty list.
 

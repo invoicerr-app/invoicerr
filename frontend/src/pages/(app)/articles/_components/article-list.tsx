@@ -149,7 +149,7 @@ export function ArticlesList() {
               dataCy="articles-search"
               className="flex-1 sm:max-w-xs"
             />
-            <Button onClick={() => setCreateDialog(true)} className="ml-auto" dataCy="article-add-button">
+            <Button onClick={() => setCreateDialog(true)} className="ms-auto" dataCy="article-add-button">
               <Plus aria-hidden="true" />
               <span className="hidden md:inline">{t("articles.list.add")}</span>
             </Button>

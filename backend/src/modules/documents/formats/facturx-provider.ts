@@ -25,7 +25,7 @@
  * mentions PLUS the user's own note. A real superpdp deposit surfaced this exactly as it would in
  * production: `fr:213`, still citing every mention "absente", with the platform's own XML-schema
  * error underneath ("Element 'ram:Content' must occur exactly 1 times") — see
- * `pdp/pdp.live.spec.ts`'s own header for the full round-trip. FIXED by passing
+ * `pdp/superpdp.live.spec.ts`'s own header for the full round-trip. FIXED by passing
  * `splitCiiIncludedNotesInObject` as `postProcessor` on the embed call below — `@e-invoice-eu/core`'s
  * own, PUBLIC extension point (`InvoiceServiceOptions.postProcessor`, called on the intermediate JS
  * object right before XML rendering), which is exactly what closes this without a second, divergent
@@ -54,7 +54,7 @@
  *
  * `FacturxProviderDeps.legalIdOverride` — a FOURTH, unrelated concern (BT-29/BT-30/BT-46/BT-47), same
  * SAME Chorus Pro-only instance, same "replaces a derived value outright" shape: `build-semantic-
- * invoice.ts#toSiren` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
+ * invoice.ts#einvoiceLegalId` reduces a French SIRET to its own SIREN by default (proven correct for PDP),
  * but Chorus Pro routes a deposit to a STRUCTURE identified by the FULL SIRET, not the company-level
  * SIREN — see `SemanticInvoiceInput.legalIdOverride`'s own header for the full sourcing (another slice
  * of the SAME 2026-09-14 rejection this businessProcessCodeOverride paragraph already closes, just

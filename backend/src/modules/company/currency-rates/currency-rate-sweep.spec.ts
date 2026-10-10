@@ -3,6 +3,7 @@ import {
   ECB_SOURCE,
   EXCHANGERATE_API_SOURCE,
   computeCrossRate,
+  deriveNeededCurrencyPairs,
   readCurrencyRateSweepIntervalMs,
 } from './currency-rate-sweep';
 
@@ -74,5 +75,107 @@ describe('source constants', () => {
     expect(AUTOMATIC_RATE_SOURCES.has(ECB_SOURCE)).toBe(true);
     expect(AUTOMATIC_RATE_SOURCES.has(EXCHANGERATE_API_SOURCE)).toBe(true);
     expect(AUTOMATIC_RATE_SOURCES.has('manual')).toBe(false);
+  });
+});
+
+// Issue #574 - "refresh the pairs a company actually uses". Every case here is pure, hand-built
+// fixtures: no Prisma, no HTTP - `currency-rate-sweep-runner.spec.ts`'s own "scope (b)" tests prove
+// the SAME rules through the runner's mocked grouped queries instead.
+describe('deriveNeededCurrencyPairs', () => {
+  const QUOTABLE = new Set(['EUR', 'USD', 'GBP']);
+
+  it('a company with an invoice in USD and EUR as reference gets USD/EUR, without ever typing a rate', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
+      [{ companyId: 'company-1', currency: 'USD' }],
+      [],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([{ companyId: 'company-1', from: 'USD', to: 'EUR' }]);
+  });
+
+  it('a payment in GBP against a EUR invoice adds that pair, regardless of the reference currency', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: null }], // never opted into consolidation
+      [],
+      [{ companyId: 'company-1', paymentCurrency: 'GBP', documentCurrency: 'EUR' }],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([{ companyId: 'company-1', from: 'GBP', to: 'EUR' }]);
+  });
+
+  it('no duplicate pair - a currency used by both a document and a client collapses to ONE pair', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
+      [
+        { companyId: 'company-1', currency: 'USD' }, // from a document
+        { companyId: 'company-1', currency: 'USD' }, // from a client
+      ],
+      [],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([{ companyId: 'company-1', from: 'USD', to: 'EUR' }]);
+  });
+
+  it('no duplicate pair - the SAME pair reachable from usage AND a payment/document pair still collapses to one', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
+      [{ companyId: 'company-1', currency: 'USD' }],
+      [{ companyId: 'company-1', paymentCurrency: 'USD', documentCurrency: 'EUR' }],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([{ companyId: 'company-1', from: 'USD', to: 'EUR' }]);
+  });
+
+  it('no pair for a currency neither provider quotes', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
+      [{ companyId: 'company-1', currency: 'ZZZ' }], // not in QUOTABLE
+      [{ companyId: 'company-1', paymentCurrency: 'ZZZ', documentCurrency: 'USD' }],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([]);
+  });
+
+  it('no pair for an identity conversion - a currency already equal to the reference currency needs no rate', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: 'EUR' }],
+      [{ companyId: 'company-1', currency: 'EUR' }],
+      [{ companyId: 'company-1', paymentCurrency: 'EUR', documentCurrency: 'EUR' }],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([]);
+  });
+
+  it('no pair at all for a company with no referenceCurrency and no recorded payment', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [{ companyId: 'company-1', referenceCurrency: null }],
+      [{ companyId: 'company-1', currency: 'USD' }],
+      [],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual([]);
+  });
+
+  it('keeps pairs from two different companies apart', () => {
+    const pairs = deriveNeededCurrencyPairs(
+      [
+        { companyId: 'company-1', referenceCurrency: 'EUR' },
+        { companyId: 'company-2', referenceCurrency: 'USD' },
+      ],
+      [
+        { companyId: 'company-1', currency: 'USD' },
+        { companyId: 'company-2', currency: 'GBP' },
+      ],
+      [],
+      QUOTABLE,
+    );
+    expect(pairs).toEqual(
+      expect.arrayContaining([
+        { companyId: 'company-1', from: 'USD', to: 'EUR' },
+        { companyId: 'company-2', from: 'GBP', to: 'USD' },
+      ]),
+    );
+    expect(pairs).toHaveLength(2);
   });
 });

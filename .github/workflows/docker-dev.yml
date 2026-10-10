@@ -43,12 +43,14 @@ jobs:
     # rather than adding to it, so it has to be restated here. `packages: write` for the push:
     # `docker/login-action` authenticates to ghcr.io with GITHUB_TOKEN, and a token without this
     # scope logs in successfully and then fails at the first layer upload -- see docker-pr.yml's
-    # own `build` job, this mirrors it.
+    # own `build` job, this mirrors it. `security-events: write` for the Trivy scan at the end of
+    # this job: `github/codeql-action/upload-sarif` needs it to write findings to the Security tab.
     permissions:
       contents: read
       packages: write
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set image and tag
         id: vars
@@ -59,8 +61,8 @@ jobs:
           TAG="dev-$(date -u +%Y%m%d%H%M%S)-$(echo "${GITHUB_SHA}" | cut -c1-7)"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -79,7 +81,7 @@ jobs:
           fi
 
       - id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
           platforms: linux/amd64
@@ -104,3 +106,31 @@ jobs:
             echo "docker pull $IMAGE"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Trivy scans the exact tag just pushed, pulling it back from ghcr.io using the registry
+      # login already set up above. Two runs on purpose: the first reports every severity to the
+      # Security tab (so the full picture is visible there even for things we do not gate on yet),
+      # the second is the only one that can fail the job, scoped to fixable CRITICAL findings --
+      # issue #612 says to start narrow and widen the gate later once the baseline is known.
+      - name: Trivy scan (report, all severities)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '0'
+
+      - name: Upload Trivy report to the Security tab
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4 (4.38.2)
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-dev
+
+      - name: Trivy scan (gate on fixable CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

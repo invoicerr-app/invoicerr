@@ -72,7 +72,7 @@ function ButtonWithoutTooltip({
   // `<button>` path (`asChild` false) is untouched, `Slottable` being a no-op wrapper there.
   return (
     <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props}>
-      {loading && <Loader2Icon className="mr-2 animate-spin" />}
+      {loading && <Loader2Icon className="me-2 animate-spin" />}
       {asChild ? <Slottable>{props.children}</Slottable> : props.children}
     </Comp>
   )

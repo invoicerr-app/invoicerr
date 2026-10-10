@@ -3,7 +3,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
 /**
  * The country-mandated channel — France now mandates
  * PDP for invoices whose ISSUE date (issueDate) is 2026-09-01 or later
- * (`backend/.../transports/channel-policy/data/fr.json`, source carried over from the git
+ * (`backend/.../transports/countries/data/fr.json (section "channelPolicy")`, source carried over from the git
  * landmark `avant-refonte-documents`, see that file). This spec proves, via the screen, the three
  * effects of the mechanism described in the TODO:
  *
@@ -18,7 +18,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * This spec is the DOMESTIC proof, and only works because it is domestic: the seeded company is
  * French and the seeded baseline client is French too (`cy.resetAndSeed`, country "FR"). A national
  * channel mandate binds only an operation between parties established in the same country - CGI art.
- * 289 bis I, now carried as `scope: { "parties": "domestic" }` in `channel-policy/data/fr.json` - so
+ * 289 bis I, now carried as `scope: { "parties": "domestic" }` in `countries/data/fr.json (section "channelPolicy")` - so
  * every block below depends on that pairing. Changing the seeded client's country would silently turn
  * this whole file green for the wrong reason. The CROSS-BORDER direction (a French seller invoicing a
  * Polish client, NOT blocked) is proven by `scenarios/full-lifecycle.cy.ts`'s own `fr-pl` leg.

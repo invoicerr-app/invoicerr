@@ -84,6 +84,24 @@ requires, and never deletable. That retention period is counted from the documen
 issue date**, never from the day you imported it: importing a five-year-old invoice today does not
 reset its five-year clock.
 
+### Downloading the original
+
+An imported document's actions menu offers two separate downloads:
+
+- **Download PDF** renders the document only when the original you attached was itself a PDF. When it
+  was not (the XML your previous tool produced), this action refuses and points you to **Download
+  original** instead.
+- **Download original** serves the exact file you attached at import time, byte for byte, with its own
+  file name and content type, whatever format it was issued in (PDF, XML, or an image). This is the
+  only way to retrieve a non-PDF original, and it only ever appears on an imported document.
+
+:::info[Your data export and the client portal]
+The account data export (Settings → the "take your data away" zip) includes each imported document's
+original file the same way, alongside its JSON record. Imported documents are never shown in the
+client portal: it only ever lists what Invoicerr itself sent to a client, and an imported document was
+never sent by Invoicerr.
+:::
+
 ### Transmission evidence, and the warning when you have none
 
 Some countries require an invoice to be transmitted through a specific channel to be legally issued at

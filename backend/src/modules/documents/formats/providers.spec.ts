@@ -250,11 +250,11 @@ describe('providers.spec — the master proof (fixture computed by hand)', () =>
 
 /**
  * USER DECISION —
- * `country-identifiers/data/fr.json`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
+ * `countries/data/fr.json (section "identifiers")`'s LEGAL_ID field now accepts EITHER a 9-digit SIREN or a
  * 14-digit SIRET (see that file's own `notes`). This is the proof the DECISION actually holds where
  * it matters — the exported BT-29/BT-30 (`cac:PartyLegalEntity/cbc:CompanyID`, ISO 6523 scheme
  * '0002') — not just that the catalog's own `pattern` string was edited: a 9-digit SIREN typed
- * directly must reach the SAME XML as a 14-digit SIRET, because `build-semantic-invoice.ts#toSiren`
+ * directly must reach the SAME XML as a 14-digit SIRET, because `build-semantic-invoice.ts#einvoiceLegalId`
  * only ever SLICES a 14-digit value and passes anything else through unchanged (see that function's
  * own header) — so a 9-digit input was already, structurally, never re-derived. Judged by the REAL
  * vendored EN 16931 Schematron, exactly like the master proof above, never a hand-asserted opinion.

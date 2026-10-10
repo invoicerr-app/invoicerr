@@ -18,6 +18,8 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * under the same rule, evaluated against its OWN issue date, which the last test below pins.
  */
 // Both from `cypress.config.ts` (VITE_BACKEND_URL, MAILPIT_URL): never a literal port (issue #502).
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+
 const api = Cypress.env("apiUrl");
 const mailpit = Cypress.env("mailpitUrl");
 const RUN = Date.now();
@@ -32,7 +34,7 @@ const PRE_MANDATE = "2026-08-31";
 const CREDITED_GROSS = "144.00 EUR";
 const INVOICE_GROSS = "240.00 EUR";
 
-/** France's fixed credit-note format (issue #496, `country-policy/data/fr.json`): "CN-{year}-{number:4}",
+/** France's fixed credit-note format (issue #496, `countries/data/fr.json (section "policy")`): "CN-{year}-{number:4}",
  *  its own series, counted from 1 after `resetAndSeed`. The linked note is issued first, the free one
  *  second; the refused one consumes no number. */
 const FIRST_CREDIT_NOTE = "CN-2026-0001";
@@ -62,6 +64,7 @@ function createClient(name: string, contactEmail: string): Cypress.Chainable<str
 				postalCode: "75001",
 				isActive: true,
 				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 			},
 		})
 		.then((res) => {

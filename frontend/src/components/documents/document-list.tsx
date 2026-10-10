@@ -2,6 +2,7 @@ import {
   Download,
   Ellipsis,
   FileCode,
+  FileDown,
   FileStack,
   Link2,
   Plus,
@@ -37,6 +38,7 @@ import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence
 import { getDocumentCustomComponents } from "@/components/documents/custom-slots"
 import {
   DOCUMENT_XML_SYNTAXES,
+  downloadDocumentOriginal,
   downloadDocumentPdf,
   downloadDocumentXml,
 } from "@/components/documents/document-downloads"
@@ -46,6 +48,7 @@ import { DocumentConformityListIndicator } from "@/components/documents/document
 import { DocumentSettlementBadge } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { formatTotal } from "@/components/documents/document-totals"
+import { LtrValue } from "@/components/ui/ltr-value"
 import { type RowAmount, resolveRowAmount } from "@/components/documents/list-amount"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
 import { findCurrencyField } from "@/components/documents/totals-shape"
@@ -427,13 +430,25 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
             {t("documents.list.downloadPdf")}
           </DropdownMenuItem>
 
+          {/* Issue #549 - only an "imported" document ever has an IMPORT_ORIGINAL archive to serve;
+              see document-detail.tsx's identical menu entry for the same reasoning. */}
+          {instance.status === "imported" && (
+            <DropdownMenuItem
+              onSelect={() => void downloadDocumentOriginal(descriptor.id, instance.id, t)}
+              data-cy={`document-original-button-${instance.id}`}
+            >
+              <FileDown aria-hidden="true" />
+              {t("documents.list.downloadOriginal")}
+            </DropdownMenuItem>
+          )}
+
           {gates.downloadXml && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger
                 disabled={!!gates.downloadXml.policyBlockedReason}
                 data-cy={`document-xml-button-${instance.id}`}
               >
-                <FileCode aria-hidden="true" className="mr-2 text-muted-foreground" />
+                <FileCode aria-hidden="true" className="me-2 text-muted-foreground" />
                 {t("documents.list.downloadXml")}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
@@ -624,7 +639,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               )}
               data-cy={amount ? `document-row-amount-${instance.id}` : undefined}
             >
-              {amount && formatTotal(amount.minor, amount.currency)}
+              {amount && <LtrValue>{formatTotal(amount.minor, amount.currency)}</LtrValue>}
             </div>
             <div
               className={cn("order-4 flex justify-end sm:order-3", !primary && "hidden sm:flex")}
@@ -1068,7 +1083,7 @@ export function DocumentList({
           <div className="flex items-center gap-2 sm:contents">
             <div className="relative min-w-0 flex-1 sm:order-1 sm:max-w-xs">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
               <Input
@@ -1077,12 +1092,12 @@ export function DocumentList({
                 aria-label={t("documents.list.searchPlaceholder")}
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                className="w-full pl-9"
+                className="w-full ps-9"
                 data-cy="document-list-search"
               />
             </div>
 
-            <div className="flex items-center gap-2 sm:order-4 sm:ml-auto">
+            <div className="flex items-center gap-2 sm:order-4 sm:ms-auto">
               {/* See the "list-row-extra" map above for why this keys by function name, not index. */}
               {headerExtras.map((HeaderExtra) => (
                 <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
@@ -1143,7 +1158,7 @@ export function DocumentList({
           <div className="flex items-center gap-2">
             <Badge
               variant="secondary"
-              className="gap-1 py-1 pl-2.5 pr-1"
+              className="gap-1 py-1 ps-2.5 pe-1"
               data-cy="document-list-settlement-filter"
             >
               {settlement === "overdue"
@@ -1154,7 +1169,7 @@ export function DocumentList({
                 onClick={onSettlementChange}
                 aria-label={t("documents.list.filters.clear")}
                 data-cy="document-list-settlement-filter-clear"
-                className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
+                className="ms-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
               >
                 <X className="size-3" aria-hidden="true" />
               </button>
