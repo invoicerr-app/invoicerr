@@ -13,30 +13,17 @@
  * HARD-SUCCESS CONTRACT, same as the invoice spec: an empty deposit id, or any event whose text reads as a
  * rejection, throws.
  */
-import { PDFDocument } from 'pdf-lib';
-
-import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
-import { CorrectedInvoiceReference } from '../../formats/format-provider';
-import { buildSemanticInvoice, SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
-import {
-  applyFrenchBusinessProcess,
-  applyFrenchBusinessProcessInObject,
-  frenchBusinessProcessCode,
-} from '../../formats/semantic/business-process';
-import {
-  splitCiiIncludedNotes,
-  splitCiiIncludedNotesInObject,
-} from '../../formats/semantic/cii-post-process';
-import { newEuInvoiceService } from '../../formats/shared-build';
-import { validateStructural } from '../../formats/structural-check';
-import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
-import { computeDocumentTotals } from '../../totals/compute-totals';
 import { liveDescribe } from '../live-gate';
-import { SuperPdpInvoice } from './pdp-client';
+import {
+  awaitLiveVerdict,
+  buildLiveFacturx,
+  depositLiveFacturx,
+  findRejection,
+} from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
-  SUPERPDP_LIVE_ENV,
   SUPERPDP_BUYER_ENV,
+  SUPERPDP_LIVE_ENV,
   sandboxBuyer,
   superpdpLiveClient,
 } from './superpdp-live-parties';
@@ -47,92 +34,26 @@ describeLive('PDP live round-trip (superpdp sandbox) - a credit note (381 + BG-3
   it('deposits an invoice, then a credit note correcting it; both reach a non-rejected fr:2xx verdict', async () => {
     const client = superpdpLiveClient();
     await client.authenticate();
-
-    const SELLER: SemanticPartyInput = await resolveSandboxCompany(client);
-    const BUYER: SemanticPartyInput = sandboxBuyer();
-
-    const descriptor = buildInvoiceDescriptor();
+    const seller = await resolveSandboxCompany(client);
+    const buyer = sandboxBuyer();
     const today = new Date().toISOString().slice(0, 10);
     const timestamp = Date.now();
-    const lines = [
-      {
-        description: 'Prestation de test (issue #472)',
-        quantity: 1,
-        unit: 'unit',
-        unitPrice: 100,
-        vatRate: '20',
-        supplyType: 'SERVICES' as const,
-      },
-    ];
-    const totals = computeDocumentTotals(descriptor, { issueDate: today, currency: 'EUR', lines });
 
     async function deposit(
       displayNumber: string,
-      creditNote?: { correctedInvoice: CorrectedInvoiceReference },
+      correctedInvoice?: { displayNumber: string; issueDate: string },
     ) {
-      const euInvoice = buildSemanticInvoice({
+      const facturx = await buildLiveFacturx({
         displayNumber,
-        issueDate: today,
-        seller: SELLER,
-        buyer: BUYER,
-        lines: lines.map((l) => ({ ...l })),
-        totals,
-        creditNote,
+        seller,
+        buyer,
+        description: 'Prestation de test (issue #472)',
+        creditNote: correctedInvoice ? { correctedInvoice } : undefined,
+        businessProcess: 'profile',
       });
-      // Same documented BT-23 bypass as `superpdp.live.spec.ts` (see its own comment): the content
-      // requirement's own temporal gate decides in production.
-      const businessProcessCode =
-        euInvoice['ubl:Invoice']['cbc:ProfileID'] ?? frenchBusinessProcessCode(['SERVICES']);
-      euInvoice['ubl:Invoice']['cbc:ProfileID'] = businessProcessCode;
-
-      const service = newEuInvoiceService();
-      const cii = applyFrenchBusinessProcess(
-        splitCiiIncludedNotes((await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string),
-        businessProcessCode,
-      );
-      const structural = validateStructural(cii, 'cii');
-      if (!structural.valid) throw new Error(`structural gate: ${structural.errors.join('; ')}`);
-      const schematron = validateSchematron(cii, EN16931_CII_SCH);
-      if (!schematron.valid) {
-        throw new Error(
-          `Schematron gate: ${schematron.errors.map((e) => `${e.id}: ${e.message}`).join('; ')}`,
-        );
-      }
-      console.log(`${displayNumber}: TypeCode`, /<ram:TypeCode>(\d+)<\/ram:TypeCode>/.exec(cii)?.[1]);
-
-      const hostPdf = await PDFDocument.create();
-      hostPdf.addPage([595, 842]);
-      const facturx = (await service.generate(euInvoice, {
-        format: 'Factur-X-EN16931',
-        pdf: {
-          buffer: Buffer.from(await hostPdf.save()),
-          filename: `${displayNumber}.pdf`,
-          mimetype: 'application/pdf',
-        },
-        lang: 'en',
-        postProcessor: async (data) => {
-          const embedded = data as Record<string, unknown>;
-          splitCiiIncludedNotesInObject(embedded);
-          applyFrenchBusinessProcessInObject(embedded, businessProcessCode);
-        },
-      })) as Uint8Array;
-
-      const sent = await client.sendInvoice(Buffer.from(facturx), { externalId: displayNumber });
-      if (!sent || String(sent.id ?? '') === '') {
-        throw new Error(`superpdp returned no deposit id for ${displayNumber}: ${JSON.stringify(sent)}`);
-      }
-      let refetched: SuperPdpInvoice = await client.getInvoice(Number(sent.id));
-      for (let attempt = 0; attempt < 10; attempt++) {
-        if ((refetched.events ?? []).some((e) => e.status_code?.startsWith('fr:2'))) break;
-        await new Promise((r) => setTimeout(r, 500));
-        refetched = await client.getInvoice(Number(sent.id));
-      }
-      console.log(
-        `${displayNumber}: deposit id ${sent.id}, events:`,
-        JSON.stringify(refetched.events, null, 2),
-      );
-      const events = refetched.events ?? [];
-      const rejected = events.find((e) => /rejet|reject|ko\b/i.test(e.status_text ?? ''));
+      const sent = await depositLiveFacturx(client, facturx, displayNumber);
+      const events = await awaitLiveVerdict(client, Number(sent.id));
+      const rejected = findRejection(events);
       if (rejected) throw new Error(`superpdp rejected ${displayNumber}: ${JSON.stringify(rejected)}`);
       expect(events.some((e) => e.status_code?.startsWith('fr:2'))).toBe(true);
       return sent;
@@ -140,8 +61,6 @@ describeLive('PDP live round-trip (superpdp sandbox) - a credit note (381 + BG-3
 
     const invoiceNumber = `INV-LIVE-472-${timestamp}`;
     await deposit(invoiceNumber);
-    await deposit(`CN-LIVE-472-${timestamp}`, {
-      correctedInvoice: { displayNumber: invoiceNumber, issueDate: today },
-    });
+    await deposit(`CN-LIVE-472-${timestamp}`, { displayNumber: invoiceNumber, issueDate: today });
   }, 90_000);
 });

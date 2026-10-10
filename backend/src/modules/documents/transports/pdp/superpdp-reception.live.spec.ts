@@ -45,7 +45,6 @@
  * (through the REAL `pdpStatusPusher`) — proving it does not crash the action, never re-asserting the
  * already-documented 404 itself (that would just slow this spec down for no new information).
  */
-import { PDFDocument } from 'pdf-lib';
 
 import { ActionExtensionRegistry } from '../../actions/action-extensions';
 import { ActionRegistry } from '../../actions/action-registry';
@@ -57,25 +56,16 @@ import {
 import { ContributionRegistry } from '../../contributions/contribution-registry';
 import { PdpReceptionSweepRunner } from '../../conformity/reception-sweep-runner';
 import { DocumentsService } from '../../documents.service';
-import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
 import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
 import { FieldKindRegistry, registerCoreFieldKinds } from '../../descriptors/field-kinds';
 import { DocumentTypeRegistry } from '../../descriptors/type-registry';
-import { buildSemanticInvoice, SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
-import {
-  splitCiiIncludedNotes,
-  splitCiiIncludedNotesInObject,
-} from '../../formats/semantic/cii-post-process';
-import { newEuInvoiceService } from '../../formats/shared-build';
-import { validateStructural } from '../../formats/structural-check';
-import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
-import { computeDocumentTotals } from '../../totals/compute-totals';
 import { EntityReferenceRegistry } from '../../references/reference-registry';
 import { TransportRegistry } from '../../transports/transport-registry';
 import prisma from '@/prisma/prisma.service';
 import { detectAndReseedCountryPolicyDrift } from '../../country-policy/boot-reseed';
 import { liveDescribe } from '../live-gate';
 import { buildPdpReceptionStatusPusher } from './pdp-reception';
+import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
   SUPERPDP_BASE_URL,
@@ -130,71 +120,6 @@ function buildRealDocumentsService(pdpStatusPusher: ReturnType<typeof buildPdpRe
   );
 }
 
-/** Builds and Schematron-validates a real Factur-X PDF, self-addressed — same recipe
- *  `superpdp.live.spec.ts`/`superpdp-conformity.live.spec.ts` already use (buildInvoiceDescriptor is imported
- *  only to feed `computeDocumentTotals`, exactly like those two files). */
-async function buildSelfAddressedFacturxBytes(
-  timestamp: number,
-  self: SemanticPartyInput,
-): Promise<Uint8Array> {
-  const descriptor = buildInvoiceDescriptor();
-  const data = {
-    client: 'live-client',
-    issueDate: new Date().toISOString().slice(0, 10),
-    dueDate: new Date().toISOString().slice(0, 10),
-    currency: 'EUR',
-    lines: [
-      {
-        description: 'Reception live proof',
-        quantity: 1,
-        unit: 'unit',
-        unitPrice: 42,
-        vatRate: '20',
-        supplyType: 'SERVICES' as const,
-      },
-    ],
-  };
-  const totals = computeDocumentTotals(descriptor, data);
-  const euInvoice = buildSemanticInvoice({
-    displayNumber: `INV-RECEPTION-${timestamp}`,
-    issueDate: data.issueDate,
-    seller: self,
-    buyer: self,
-    lines: data.lines.map((l) => ({
-      description: l.description,
-      quantity: l.quantity,
-      unit: l.unit,
-      unitPrice: l.unitPrice,
-      supplyType: l.supplyType,
-    })),
-    totals,
-  });
-
-  const service = newEuInvoiceService();
-  const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
-  const cii = splitCiiIncludedNotes(rawCii);
-  const structural = validateStructural(cii, 'cii');
-  if (!structural.valid) throw new Error(`structural gate rejected the CII: ${structural.errors.join('; ')}`);
-  const schematron = validateSchematron(cii, EN16931_CII_SCH);
-  if (!schematron.valid) {
-    throw new Error(
-      `EN 16931 Schematron gate rejected the CII: ${schematron.errors.map((e) => e.message).join('; ')}`,
-    );
-  }
-
-  const hostPdf = await PDFDocument.create();
-  hostPdf.addPage([595, 842]);
-  const hostPdfBytes = Buffer.from(await hostPdf.save());
-  return (await service.generate(euInvoice, {
-    format: 'Factur-X-EN16931',
-    pdf: { buffer: hostPdfBytes, filename: `INV-RECEPTION-${timestamp}.pdf`, mimetype: 'application/pdf' },
-    lang: 'en',
-    postProcessor: async (embedded) => {
-      splitCiiIncludedNotesInObject(embedded as Record<string, unknown>);
-    },
-  })) as Uint8Array;
-}
-
 describeLive('PDP reception — REAL self-addressed deposit becomes a REAL received-invoice', () => {
   let cleanupCompanyId: string | undefined;
 
@@ -225,14 +150,15 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     const client = superpdpLiveClient();
     await client.authenticate();
     const self = await resolveSandboxCompany(client);
-    const facturxPdf = await buildSelfAddressedFacturxBytes(timestamp, self);
-    const outbound = await client.sendInvoice(Buffer.from(facturxPdf), {
-      externalId: `INV-RECEPTION-${timestamp}`,
+    const facturxPdf = await buildLiveFacturx({
+      displayNumber: `INV-RECEPTION-${timestamp}`,
+      seller: self,
+      buyer: self,
+      description: 'Reception live proof',
+      unitPrice: 42,
+      businessProcess: 'none',
     });
-    if (!outbound || String(outbound.id ?? '') === '') {
-      throw new Error(`superpdp did not return a usable deposit id: ${JSON.stringify(outbound)}`);
-    }
-    console.log('OUTBOUND deposit accepted — id:', outbound.id);
+    await depositLiveFacturx(client, facturxPdf, `INV-RECEPTION-${timestamp}`);
 
     // The inbound TWIN's own id is DIFFERENT — see this file's own header, point 2. Poll `direction=in`
     // for a few seconds (the twin appears within ~1s per prior live observation) and pick the one

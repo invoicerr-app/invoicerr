@@ -43,7 +43,6 @@
  * rejection this codebase's own comments describe ("Element 'ram:Content' must occur exactly 1
  * times", BT-23 absent) — see the test itself for whether superpdp's sandbox still rejects it today.
  */
-import { PDFDocument } from 'pdf-lib';
 
 import {
   ChannelCredentialsService,
@@ -51,25 +50,13 @@ import {
 } from '@/modules/company/channels/channels.service';
 import prisma from '@/prisma/prisma.service';
 
-import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
-import { buildSemanticInvoice, SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
-import {
-  applyFrenchBusinessProcessInObject,
-  frenchBusinessProcessCode,
-} from '../../formats/semantic/business-process';
-import {
-  splitCiiIncludedNotes,
-  splitCiiIncludedNotesInObject,
-} from '../../formats/semantic/cii-post-process';
-import { newEuInvoiceService } from '../../formats/shared-build';
-import { validateStructural } from '../../formats/structural-check';
-import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
-import { computeDocumentTotals } from '../../totals/compute-totals';
 import { listAuthorityEvents } from '../../conformity/authority-events.persistence';
 import { AuthorityStatusPollerRegistry } from '../../conformity/authority-status-poller';
 import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner';
 import { buildPdpStatusPoller } from '../../conformity/pollers/pdp-status-poller';
 import { liveDescribe } from '../live-gate';
+import { PdpClient } from './pdp-client';
+import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
   SUPERPDP_BASE_URL,
@@ -99,95 +86,75 @@ function buildRealCredentialsStub(): ChannelCredentialsService {
   return { resolveActive: async () => resolved } as unknown as ChannelCredentialsService;
 }
 
-/** Builds and Schematron-validates a plain CII — always used only for the VALID-path assertions
- *  below; the rejection path builds its own, deliberately divergent, embedded object. */
-async function buildFacturxBytes(opts: {
-  includeMentions: boolean;
-  timestamp: number;
-  seller: SemanticPartyInput;
-  buyer: SemanticPartyInput;
-}): Promise<Uint8Array> {
-  const descriptor = buildInvoiceDescriptor();
-  const data = {
-    client: 'live-client',
-    issueDate: new Date().toISOString().slice(0, 10),
-    dueDate: new Date().toISOString().slice(0, 10),
-    currency: 'EUR',
-    lines: [
-      {
-        description: 'Prestation de test (conformity poller live proof)',
-        quantity: 1,
-        unit: 'unit',
-        unitPrice: 100,
-        vatRate: '20',
-        supplyType: 'SERVICES' as const,
-      },
-    ],
-  };
-  const totals = computeDocumentTotals(descriptor, data);
-  const euInvoice = buildSemanticInvoice({
-    displayNumber: `INV-CONFORMITY-${opts.timestamp}`,
-    issueDate: data.issueDate,
-    seller: opts.seller,
-    buyer: opts.buyer,
-    lines: data.lines.map((l) => ({
-      description: l.description,
-      quantity: l.quantity,
-      unit: l.unit,
-      unitPrice: l.unitPrice,
-      supplyType: l.supplyType,
-    })),
-    totals,
-  });
-  const businessProcessCode =
-    (euInvoice['ubl:Invoice']['cbc:ProfileID'] as string | undefined) ??
-    frenchBusinessProcessCode(['SERVICES']);
-
-  const service = newEuInvoiceService();
-
-  // The plain CII — ALWAYS gated (structural + Schematron), exactly like `facturx-provider.ts`'s own
-  // production path — this is what proves the descriptor/totals/semantic bridge themselves are sound
-  // regardless of which embedded artifact this test then chooses to build below.
-  const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
-  const cii = splitCiiIncludedNotes(rawCii);
-  const structural = validateStructural(cii, 'cii');
-  if (!structural.valid) throw new Error(`structural gate rejected the CII: ${structural.errors.join('; ')}`);
-  const schematron = validateSchematron(cii, EN16931_CII_SCH);
-  if (!schematron.valid) {
-    throw new Error(
-      `EN 16931 Schematron gate rejected the CII: ${schematron.errors.map((e) => e.message).join('; ')}`,
-    );
-  }
-
-  const hostPdf = await PDFDocument.create();
-  hostPdf.addPage([595, 842]);
-  const hostPdfBytes = Buffer.from(await hostPdf.save());
-
-  const facturxPdf = (await service.generate(euInvoice, {
-    format: 'Factur-X-EN16931',
-    pdf: {
-      buffer: hostPdfBytes,
-      filename: `INV-CONFORMITY-${opts.timestamp}.pdf`,
-      mimetype: 'application/pdf',
+/** A throwaway Company + DocumentInstance, exactly the shape the real "send" flow leaves behind
+ *  (status "sent", transportRef the deposit id, channelProviderId "pdp"), created directly via Prisma
+ *  since this spec's point is the POLLER, not the send action itself (`superpdp.live.spec.ts`). */
+async function createSentDocument(name: string, email: string, depositId: string) {
+  const company = await prisma.company.create({
+    data: {
+      name,
+      foundedAt: new Date('2020-01-01'),
+      address: '1 Conformity Street',
+      postalCode: '00000',
+      city: 'Testville',
+      country: 'France',
+      countryCode: 'FR',
+      phone: '+33000000000',
+      email,
     },
-    lang: 'en',
-    // THE DELIBERATE DIVERGENCE for the rejection path (`opts.includeMentions: false`): the plain CII
-    // just validated ABOVE was fixed via `splitCiiIncludedNotes`/a resolved BT-23 code — the EMBEDDED
-    // artifact actually sent skips both fixes entirely when `includeMentions` is false, reproducing
-    // this codebase's own documented historical rejection cause (`superpdp.live.spec.ts`'s own header:
-    // "Element 'ram:Content' must occur exactly 1 times", BT-23 absent). `facturx-provider.ts`'s own
-    // PRODUCTION code never has this gap — it always applies both, unconditionally — this divergence
-    // exists ONLY in this deliberately-crafted test artifact.
-    postProcessor: opts.includeMentions
-      ? async (embedded) => {
-          const embeddedCii = embedded as Record<string, unknown>;
-          splitCiiIncludedNotesInObject(embeddedCii);
-          applyFrenchBusinessProcessInObject(embeddedCii, businessProcessCode);
-        }
-      : undefined,
-  })) as Uint8Array;
+  });
+  const document = await prisma.documentInstance.create({
+    data: {
+      companyId: company.id,
+      typeId: 'invoice',
+      status: 'sent',
+      data: { client: 'live-client' },
+      transportRef: depositId,
+      channelProviderId: 'pdp',
+    },
+  });
+  return { companyId: company.id, documentId: document.id };
+}
 
-  return facturxPdf;
+/** THE REAL PRODUCTION CODE, not a copy: the only substitution is the credentials stub above.
+ *  superpdp's verdict lands in well under a second, so the REAL runPoll is called every 500ms, up to
+ *  5s, exactly what successive sweep passes would do. */
+async function pollUntilTerminal(companyId: string, documentId: string, depositId: string) {
+  const registry = new AuthorityStatusPollerRegistry();
+  registry.register(buildPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
+  const runner = new ConformitySweepRunner(registry, {} as never); // runPoll never touches the queue
+  const job = { companyId, documentId, providerId: 'pdp', transportRef: depositId };
+  let sawTerminal = false;
+  for (let attempt = 0; attempt < 10 && !sawTerminal; attempt++) {
+    await runner.runPoll(job);
+    const events = await listAuthorityEvents(companyId, documentId);
+    sawTerminal = events.some((e) => e.statusCode === 'fr:202' || e.statusCode === 'fr:213');
+    if (!sawTerminal) await new Promise((r) => setTimeout(r, 500));
+  }
+  const journaled = await listAuthorityEvents(companyId, documentId);
+  console.log(
+    'REAL journal contents (DocumentAuthorityEvent rows):',
+    JSON.stringify(
+      journaled.map((e) => ({ statusCode: e.statusCode, statusText: e.statusText, reason: e.reason })),
+      null,
+      2,
+    ),
+  );
+  return { runner, job, journaled };
+}
+
+/** The gated plain CII is always fixed; with `includeMentions: false` the EMBEDDED artifact actually
+ *  sent skips the BG-1 note split and BT-23, reproducing the documented historical rejection cause.
+ *  `facturx-provider.ts` never has this gap; it exists only in this test artifact. */
+async function buildFacturxBytes(client: PdpClient, includeMentions: boolean, timestamp: number) {
+  return buildLiveFacturx({
+    displayNumber: `INV-CONFORMITY-${timestamp}`,
+    seller: await resolveSandboxCompany(client),
+    buyer: sandboxBuyer(),
+    description: 'Prestation de test (conformity poller live proof)',
+    businessProcess: 'embedded',
+    fixEmbedded: includeMentions,
+  });
 }
 
 describeLive('PDP conformity poller — REAL sweep code journals a REAL platform verdict', () => {
@@ -211,82 +178,17 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     const timestamp = Date.now();
     const client = superpdpLiveClient();
     await client.authenticate();
-    const facturxPdf = await buildFacturxBytes({
-      includeMentions: true,
-      timestamp,
-      seller: await resolveSandboxCompany(client),
-      buyer: sandboxBuyer(),
-    });
-    const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
-      externalId: `INV-CONFORMITY-${timestamp}`,
-    });
-    if (!invoice || String(invoice.id ?? '') === '') {
-      throw new Error(`superpdp did not return a usable deposit id: ${JSON.stringify(invoice)}`);
-    }
+    const facturxPdf = await buildFacturxBytes(client, true, timestamp);
+    const invoice = await depositLiveFacturx(client, facturxPdf, `INV-CONFORMITY-${timestamp}`);
     const depositId = String(invoice.id);
-    console.log('DEPOSIT ACCEPTED — id:', depositId);
 
-    // A throwaway Company + DocumentInstance, exactly the shape the real "send" flow leaves behind
-    // (status "sent", transportRef the deposit id, channelProviderId "pdp") — created directly via
-    // Prisma (never through the HTTP API) since this spec's own point is the POLLER, not the send
-    // action itself (already proven by `superpdp.live.spec.ts`).
-    const company = await prisma.company.create({
-      data: {
-        name: 'Conformity Live Test Co',
-        foundedAt: new Date('2020-01-01'),
-        address: '1 Conformity Street',
-        postalCode: '00000',
-        city: 'Testville',
-        country: 'France',
-        countryCode: 'FR',
-        phone: '+33000000000',
-        email: `conformity-live-${timestamp}@example.com`,
-      },
-    });
-    const companyId = company.id;
-    cleanupCompanyId = companyId;
-    const document = await prisma.documentInstance.create({
-      data: {
-        companyId,
-        typeId: 'invoice',
-        status: 'sent',
-        data: { client: 'live-client' },
-        transportRef: depositId,
-        channelProviderId: 'pdp',
-      },
-    });
-
-    // THE REAL PRODUCTION CODE — not a copy. See this file's own header for the ONE substitution
-    // (credentials resolution only).
-    const registry = new AuthorityStatusPollerRegistry();
-    registry.register(buildPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
-    const runner = new ConformitySweepRunner(registry, {} as never); // runPoll never touches the queue
-
-    // superpdp's own verdict lands in well under a second (`superpdp.live.spec.ts`'s own observed
-    // timestamps) — poll every 500ms, up to 5s, calling the REAL runPoll each time (exactly what
-    // successive real sweep passes would do).
-    let sawTerminal = false;
-    for (let attempt = 0; attempt < 10 && !sawTerminal; attempt++) {
-      await runner.runPoll({
-        companyId,
-        documentId: document.id,
-        providerId: 'pdp',
-        transportRef: depositId,
-      });
-      const events = await listAuthorityEvents(companyId, document.id);
-      sawTerminal = events.some((e) => e.statusCode === 'fr:202' || e.statusCode === 'fr:213');
-      if (!sawTerminal) await new Promise((r) => setTimeout(r, 500));
-    }
-
-    const journaled = await listAuthorityEvents(companyId, document.id);
-    console.log(
-      'REAL journal contents (DocumentAuthorityEvent rows):',
-      JSON.stringify(
-        journaled.map((e) => ({ statusCode: e.statusCode, statusText: e.statusText, reason: e.reason })),
-        null,
-        2,
-      ),
+    const { companyId, documentId } = await createSentDocument(
+      'Conformity Live Test Co',
+      `conformity-live-${timestamp}@example.com`,
+      depositId,
     );
+    cleanupCompanyId = companyId;
+    const { runner, job, journaled } = await pollUntilTerminal(companyId, documentId, depositId);
 
     const codes = journaled.map((e) => e.statusCode);
     expect(codes).toEqual(expect.arrayContaining(['fr:200', 'fr:201', 'fr:202']));
@@ -295,14 +197,9 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
 
     // THE LIVE DEDUP PROOF — the exact same real events polled again journal ZERO new rows.
     const before = journaled.length;
-    const secondPoll = await runner.runPoll({
-      companyId,
-      documentId: document.id,
-      providerId: 'pdp',
-      transportRef: depositId,
-    });
+    const secondPoll = await runner.runPoll(job);
     expect(secondPoll.journaled).toBe(0);
-    const after = await listAuthorityEvents(companyId, document.id);
+    const after = await listAuthorityEvents(companyId, documentId);
     expect(after.length).toBe(before); // not one extra row from re-polling the identical events
   }, 30_000);
 
@@ -310,12 +207,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     const timestamp = Date.now();
     const client = superpdpLiveClient();
     await client.authenticate();
-    const facturxPdf = await buildFacturxBytes({
-      includeMentions: false,
-      timestamp,
-      seller: await resolveSandboxCompany(client),
-      buyer: sandboxBuyer(),
-    });
+    const facturxPdf = await buildFacturxBytes(client, false, timestamp);
     const invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
       externalId: `INV-CONFORMITY-REJECT-${timestamp}`,
     });
@@ -326,58 +218,13 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     }
     console.log('NON-COMPLIANT DEPOSIT ACCEPTED (pending conformity verdict) — id:', depositId);
 
-    const company = await prisma.company.create({
-      data: {
-        name: 'Conformity Live Reject Co',
-        foundedAt: new Date('2020-01-01'),
-        address: '1 Conformity Street',
-        postalCode: '00000',
-        city: 'Testville',
-        country: 'France',
-        countryCode: 'FR',
-        phone: '+33000000000',
-        email: `conformity-live-reject-${timestamp}@example.com`,
-      },
-    });
-    const companyId = company.id;
-    cleanupCompanyId = companyId;
-    const document = await prisma.documentInstance.create({
-      data: {
-        companyId,
-        typeId: 'invoice',
-        status: 'sent',
-        data: { client: 'live-client' },
-        transportRef: depositId,
-        channelProviderId: 'pdp',
-      },
-    });
-
-    const registry = new AuthorityStatusPollerRegistry();
-    registry.register(buildPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
-    const runner = new ConformitySweepRunner(registry, {} as never);
-
-    let sawTerminal = false;
-    for (let attempt = 0; attempt < 10 && !sawTerminal; attempt++) {
-      await runner.runPoll({
-        companyId,
-        documentId: document.id,
-        providerId: 'pdp',
-        transportRef: depositId,
-      });
-      const events = await listAuthorityEvents(companyId, document.id);
-      sawTerminal = events.some((e) => e.statusCode === 'fr:202' || e.statusCode === 'fr:213');
-      if (!sawTerminal) await new Promise((r) => setTimeout(r, 500));
-    }
-
-    const journaled = await listAuthorityEvents(companyId, document.id);
-    console.log(
-      'REAL journal contents for the non-compliant deposit:',
-      JSON.stringify(
-        journaled.map((e) => ({ statusCode: e.statusCode, statusText: e.statusText, reason: e.reason })),
-        null,
-        2,
-      ),
+    const { companyId, documentId } = await createSentDocument(
+      'Conformity Live Reject Co',
+      `conformity-live-reject-${timestamp}@example.com`,
+      depositId,
     );
+    cleanupCompanyId = companyId;
+    const { journaled } = await pollUntilTerminal(companyId, documentId, depositId);
 
     // HARD assertion, not a soft `if` — reproduced live, twice (the raw payload: a real
     // BR-FR-05/BT-22 rejection, "Element
