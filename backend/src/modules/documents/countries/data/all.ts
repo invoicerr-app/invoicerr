@@ -56,6 +56,7 @@ import { assertValidB2gRoutingFact } from '../../b2g-routing/schema';
 import { assertValidCompanyLookupFacts } from '../../../company-lookup/coverage/schema';
 import { byCodeUnit } from '@/lib/compare';
 import { assertValidPaymentTerms } from '../../payment-terms/schema';
+import { assertValidEinvoiceCodes } from '../../einvoice-codes/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -319,6 +320,16 @@ function validatePaymentTermsSection(
   assertValidPaymentTerms(paymentTerms, `${filePath}#paymentTerms`);
 }
 
+function validateEinvoiceCodesSection(
+  einvoiceCodes: ComposedCountryView['einvoiceCodes'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!einvoiceCodes) return;
+  assertSectionCountryCode(einvoiceCodes, 'einvoiceCodes', ctx);
+  assertValidEinvoiceCodes(einvoiceCodes, `${filePath}#einvoiceCodes`);
+}
+
 function loadCountryFile(dir: string, code: string): ComposedCountryView {
   const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
@@ -348,6 +359,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateB2gRoutingSection(parsed.b2gRouting, ctx, filePath);
   validateCompanyLookupSection(parsed.companyLookup, ctx, filePath);
   validatePaymentTermsSection(parsed.paymentTerms, ctx, filePath);
+  validateEinvoiceCodesSection(parsed.einvoiceCodes, ctx, filePath);
 
   return parsed;
 }

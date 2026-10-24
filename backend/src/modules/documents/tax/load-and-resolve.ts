@@ -12,6 +12,7 @@
 import prisma from '@/prisma/prisma.service';
 
 import {
+  companyTaxScheme,
   parseDistanceSalesRegime,
   resolveInvoiceCrossBorderTax,
   ResolveInvoiceCrossBorderTaxResult,
@@ -68,7 +69,7 @@ export async function resolveInvoiceCrossBorderTaxForCompany(
       // persisted and read by the DTO/frontend, but no backend code ever read it back — see this
       // file's own header, "the ONE Prisma-aware entry point", for why here is where that has to
       // happen.
-      taxScheme: company?.exemptVat ? 'FRANCHISE_BASE' : undefined,
+      taxScheme: company ? companyTaxScheme(company) : undefined,
       // `Company.distanceSalesRegime` (`schema.prisma`) — the seller's own declaration of where its
       // intra-Community distance sales to consumers are taxed, narrowed through the ONE shared parser
       // so a NULL (every company that has never declared), a blank, or any unrecognized value means

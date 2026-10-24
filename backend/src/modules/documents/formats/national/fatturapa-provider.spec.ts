@@ -6,15 +6,22 @@
  * the SAME schema reject it) — plus the CodiceDestinatario/PECDestinatario routing REPRISED from
  * `fattura-pa.spec.ts` at the reference.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { create } from 'xmlbuilder2';
 
 import { ALL_COUNTRY_IDENTIFIER_FILES } from '@/modules/documents/country-identifiers/data/all';
 
 import { buildInvoiceDescriptor } from '../../descriptors/invoice.descriptor';
+import { einvoiceCodesFor } from '../../einvoice-codes/registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
+import { resolveInvoiceCrossBorderTax } from '../../tax/resolve-invoice-tax';
+import { TaxScheme } from '../../tax/types';
 import { DocumentFormatParty } from '../format-provider';
 import { validateXsd } from '../vendored/validate-xsd';
-import { fatturapaFormatProvider, mapNatura } from './fatturapa-provider';
+import { fatturapaFormatProvider } from './fatturapa-provider';
+import { nationalFormatCountry } from './format-country';
 
 const descriptor: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
@@ -130,18 +137,6 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(result.validation.valid).toBe(true);
   });
 
-  it('4. domestic IT, neither code nor PEC on file → XXXXXXX (never 0000000 without a PEC)', async () => {
-    const buyer: DocumentFormatParty = {
-      ...BUYER,
-      partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
-    };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
-    expect(extractTag(xml, 'CodiceDestinatario')).toBe('XXXXXXX');
-    expect(xml).not.toContain('PECDestinatario');
-    expect(result.validation.valid).toBe(true);
-  });
-
   // ── FPA12 (government recipient) — the two named gaps `3cb39f91` left open, closed here ──
   // See fatturapa-provider.ts's own header ("FPA12 vs FPR12") for the discriminant chosen (a valid
   // 6-char `IT_PA_CODE` party identifier, never `Client.kind`) and the XSD verification.
@@ -183,7 +178,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(result.validation.valid).toBe(true);
   });
 
-  it('an IT_PA_CODE that is NOT exactly 6 characters never fires the PA branch — falls through to the ordinary B2B routing, FPR12 unchanged (regression: same fallback "4." already proves)', async () => {
+  it('an IT_PA_CODE that is NOT exactly 6 characters never fires the PA branch: falls through to the ordinary B2B routing, FPR12 unchanged', async () => {
     const buyer: DocumentFormatParty = {
       ...BUYER,
       partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_PA_CODE', value: 'TOOLONG7' }],
@@ -191,7 +186,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
     const xml = new TextDecoder().decode(result.bytes);
     expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPR12');
-    expect(extractTag(xml, 'CodiceDestinatario')).toBe('XXXXXXX');
+    expect(extractTag(xml, 'CodiceDestinatario')).toBe('0000000');
   });
 
   it('MUTATION-STYLE PROOF: stripping a mandatory field (Data, the document date) from an otherwise-valid document makes the SAME schema reject it', async () => {
@@ -331,100 +326,6 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       expect(result.validation.valid).toBe(true);
     });
   });
-
-  // THE MUTATION TARGET: `mapNatura` used to decide N2 vs. N6 purely from the CLIENT's own country —
-  // it had no way to tell `it-esente` (DPR 633/72 art. 10, no input-VAT deduction right) apart from
-  // `it-non-imponibile` (art. 8, deduction right preserved), since both resolve to the exact same 0%.
-  // A domestic Italian invoice choosing either regime now carries the CORRECT Natura on both the
-  // per-line DettaglioLinee AND the aggregated DatiRiepilogo — still judged by the real vendored XSD.
-  describe('Natura is derived from the CATALOG entry actually chosen, not guessed from the bare 0% rate', () => {
-    function domesticZeroRateData(vatRate: string) {
-      return {
-        client: 'client-1',
-        issueDate: '2026-09-15',
-        dueDate: '2026-10-15',
-        currency: 'EUR',
-        lines: [{ description: 'Prestazione', quantity: 1, unit: 'unit', unitPrice: 500, vatRate }],
-      };
-    }
-
-    it('it-esente (art. 10 DPR 633/72, EXEMPT) → Natura N4, on both DettaglioLinee and DatiRiepilogo', async () => {
-      const result = await fatturapaFormatProvider.build(
-        descriptor,
-        document(domesticZeroRateData('it-esente')),
-        SELLER,
-        BUYER,
-      );
-
-      expect(result.validation.valid).toBe(true);
-      expect(result.validation.errors).toEqual([]);
-      const xml = flatten(new TextDecoder().decode(result.bytes));
-
-      // DettaglioLinee — the per-line detail. `RiferimentoNormativo` is NOT a valid child of
-      // DettaglioLinee at all (the vendored `Schema_VFPR12.xsd`'s own `DettaglioLineeType`) — `Natura`
-      // is the line's own last element here.
-      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N4</Natura></DettaglioLinee>');
-      // DatiRiepilogo — the aggregated summary. Schema order: AliquotaIVA, Natura?, ImponibileImporto,
-      // Imposta, EsigibilitaIVA?, RiferimentoNormativo? (`DatiRiepilogoType`) — Natura right after the
-      // rate, RiferimentoNormativo LAST, never grouped together at the end.
-      expect(xml).toContain(
-        '<AliquotaIVA>0.00</AliquotaIVA><Natura>N4</Natura><ImponibileImporto>500.00</ImponibileImporto><Imposta>0.00</Imposta><EsigibilitaIVA>I</EsigibilitaIVA><RiferimentoNormativo>Esente art. 10 DPR 633/72</RiferimentoNormativo>',
-      );
-    });
-
-    it("it-non-imponibile (art. 8 DPR 633/72, ZERO) → Natura N3 — DISTINCT from it-esente's N4, even though both are 0%", async () => {
-      const result = await fatturapaFormatProvider.build(
-        descriptor,
-        document(domesticZeroRateData('it-non-imponibile')),
-        SELLER,
-        BUYER,
-      );
-
-      expect(result.validation.valid).toBe(true);
-      expect(result.validation.errors).toEqual([]);
-      const xml = flatten(new TextDecoder().decode(result.bytes));
-
-      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N3</Natura>');
-      expect(xml).toContain('<RiferimentoNormativo>Non imponibile art. 8 DPR 633/72</RiferimentoNormativo>');
-      expect(xml).not.toContain('<Natura>N4</Natura>');
-    });
-
-    it('a plain legacy "0" (no catalog id at all) falls back to the pre-existing client-based heuristic (N2, domestic Italian buyer) — never N3/N4 invented from nothing', async () => {
-      const result = await fatturapaFormatProvider.build(
-        descriptor,
-        document(domesticZeroRateData('0')),
-        SELLER,
-        BUYER,
-      );
-
-      const xml = flatten(new TextDecoder().decode(result.bytes));
-      expect(xml).toContain('<AliquotaIVA>0.00</AliquotaIVA><Natura>N2</Natura>');
-    });
-  });
-
-  // Issue #603 (owner review round): `mapNatura`'s domestic guard used to compare the buyer against
-  // the literal `'IT'` - this provider only ever builds for an Italian seller in practice, but the
-  // function itself named no country any more once it took `sellerCountry` as its own parameter
-  // instead. These three cases exercise the exported function directly, proving it is genuinely
-  // parameterized (not just IT re-spelled as a variable) - a seller established somewhere other than
-  // Italy would get the exact same domestic/cross-border logic.
-  describe('mapNatura - the domestic guard is parameterized by sellerCountry, never a literal', () => {
-    it('buyer established in the SAME country as the seller - domestic, never N6, regardless of EU membership', () => {
-      expect(mapNatura(0, undefined, 'IT', 'IT12345678901', 'IT')).toBe('N2');
-      expect(mapNatura(0, undefined, 'FR', 'FR12345678901', 'FR')).toBe('N2');
-    });
-
-    it('buyer in a DIFFERENT EU country than the seller, with a VAT id - cross-border reverse charge, N6', () => {
-      expect(mapNatura(0, undefined, 'DE', 'DE123456789', 'IT')).toBe('N6');
-      // Symmetric: an Italian buyer is cross-border for a FRENCH seller too - the guard names no
-      // country, so this works in both directions.
-      expect(mapNatura(0, undefined, 'IT', 'IT12345678901', 'FR')).toBe('N6');
-    });
-
-    it('buyer in a non-EU/GCC country - never N6, regardless of the seller', () => {
-      expect(mapNatura(0, undefined, 'US', 'US123456789', 'IT')).toBe('N2');
-    });
-  });
 });
 
 describe('fatturapa-provider - currency fallback', () => {
@@ -442,5 +343,222 @@ describe('fatturapa-provider - currency fallback', () => {
     expect(currency).toBe('EUR');
     expect(extractTag(flatten(xml), 'Divisa')).toBe('EUR');
     expect(xml).toBe(new TextDecoder().decode(withCurrency.bytes));
+  });
+});
+
+const FORMAT_COUNTRY = nationalFormatCountry(fatturapaFormatProvider.id);
+
+// The SdI controls the XSD cannot express, as the SdI technical specifications 1.9.1 word them:
+// 00445 refuses the generic N2, N3 and N6 Natura codes, 00313 accepts XXXXXXX only for a recipient
+// with an IdFiscaleIVA whose IdPaese is not IT.
+function sdiRejections(xml: string): string[] {
+  const rejections: string[] = [];
+  const naturas = [...xml.matchAll(/<Natura>([^<]*)<\/Natura>/g)].map((m) => m[1]);
+  if (naturas.some((code) => ['N2', 'N3', 'N6'].includes(code))) rejections.push('00445');
+  const recipient = xml.match(/<CessionarioCommittente>([\s\S]*?)<\/CessionarioCommittente>/)?.[1] ?? '';
+  const recipientCountry = recipient.match(/<IdFiscaleIVA><IdPaese>([^<]*)<\/IdPaese>/)?.[1];
+  if (
+    extractTag(xml, 'CodiceDestinatario') === 'XXXXXXX' &&
+    (!recipientCountry || recipientCountry === FORMAT_COUNTRY)
+  ) {
+    rejections.push('00313');
+  }
+  return rejections;
+}
+
+const ITALIAN_BUYER_NO_CHANNEL: DocumentFormatParty = {
+  ...BUYER,
+  partyIdentifiers: [{ scheme: 'VAT', value: 'IT98765432109' }],
+};
+
+function lineAt(vatRate: string, supplyType?: 'GOODS' | 'SERVICES') {
+  return { description: 'Prestazione', quantity: 1, unit: 'unit', unitPrice: 500, vatRate, supplyType };
+}
+
+// The data as the send path hands it to the builder: resolved by the tax engine first.
+function sentData(
+  line: Record<string, unknown>,
+  seller: { taxScheme?: TaxScheme },
+  buyer: { country: string; vat?: string },
+) {
+  return resolveInvoiceCrossBorderTax({
+    seller: { country: 'Italy', taxScheme: seller.taxScheme },
+    buyer: { country: buyer.country },
+    buyerVat: buyer.vat ? { value: buyer.vat, validationStatus: 'VALID' } : undefined,
+    data: { client: 'client-1', issueDate: '2026-10-24', currency: 'EUR', lines: [line] },
+  }).data;
+}
+
+async function buildSent(
+  data: Record<string, unknown>,
+  seller: DocumentFormatParty,
+  buyer: DocumentFormatParty,
+) {
+  const result = await fatturapaFormatProvider.build(descriptor, document(data), seller, buyer);
+  return { result, xml: flatten(new TextDecoder().decode(result.bytes)) };
+}
+
+describe('fatturapa-provider - accepted by the SdI, not only by the XSD', () => {
+  const FORFETTARIO: DocumentFormatParty = { ...SELLER, taxScheme: 'FRANCHISE_BASE' };
+  const GERMAN_BUSINESS: DocumentFormatParty = {
+    ...BUYER,
+    name: 'Schmidt GmbH',
+    country: 'Germany',
+    partyIdentifiers: [{ scheme: 'VAT', value: 'DE136695976' }],
+  };
+  const US_BUSINESS: DocumentFormatParty = {
+    ...BUYER,
+    name: 'Smith Inc',
+    country: 'United States',
+    partyIdentifiers: [{ scheme: 'VAT', value: 'US123456789' }],
+  };
+  const ITALIAN_BUYER_WITH_CODE: DocumentFormatParty = {
+    ...BUYER,
+    partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_SDI', value: 'ABCDEFG' }],
+  };
+
+  describe('Natura is a detailed code declared in the country data, with its legal reference', () => {
+    async function expectNatura(
+      data: Record<string, unknown>,
+      seller: DocumentFormatParty,
+      buyer: DocumentFormatParty,
+      natura: string,
+      reference: string,
+    ) {
+      const { result, xml } = await buildSent(data, seller, buyer);
+
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
+      expect(sdiRejections(xml)).toEqual([]);
+      expect(xml).toContain(`<AliquotaIVA>0.00</AliquotaIVA><Natura>${natura}</Natura></DettaglioLinee>`);
+      expect(xml).toContain(
+        `<AliquotaIVA>0.00</AliquotaIVA><Natura>${natura}</Natura><ImponibileImporto>500.00</ImponibileImporto>`,
+      );
+      expect(extractTag(xml, 'RiferimentoNormativo')).toBe(reference);
+    }
+
+    it('a forfettario line is N2.2', async () => {
+      const data = sentData(lineAt('it-standard'), { taxScheme: 'FRANCHISE_BASE' }, { country: 'Italy' });
+      await expectNatura(
+        data,
+        FORFETTARIO,
+        ITALIAN_BUYER_WITH_CODE,
+        'N2.2',
+        'Regime forfettario art. 1 c. 54-89 L. 190/2014',
+      );
+    });
+
+    it('it-esente is N4', async () => {
+      const data = sentData(lineAt('it-esente'), {}, { country: 'Italy' });
+      await expectNatura(data, SELLER, ITALIAN_BUYER_WITH_CODE, 'N4', 'Esente art. 10 DPR 633/72');
+    });
+
+    it('it-non-imponibile is N3.1, never the generic N3', async () => {
+      const data = sentData(lineAt('it-non-imponibile'), {}, { country: 'Italy' });
+      await expectNatura(data, SELLER, ITALIAN_BUYER_WITH_CODE, 'N3.1', 'Non imponibile art. 8 DPR 633/72');
+    });
+
+    it('a service to an EU business (reverse charge) is N2.1, never N6', async () => {
+      const data = sentData(
+        lineAt('it-standard', 'SERVICES'),
+        {},
+        { country: 'Germany', vat: 'DE136695976' },
+      );
+      await expectNatura(
+        data,
+        SELLER,
+        GERMAN_BUSINESS,
+        'N2.1',
+        'Non soggette artt. da 7 a 7-septies DPR 633/72',
+      );
+    });
+
+    it('a service to a buyer outside the EU is N2.1', async () => {
+      const data = sentData(
+        lineAt('it-standard', 'SERVICES'),
+        {},
+        { country: 'United States', vat: 'US123456789' },
+      );
+      await expectNatura(data, SELLER, US_BUSINESS, 'N2.1', 'Non soggette artt. da 7 a 7-septies DPR 633/72');
+    });
+
+    it('goods to an EU business (intra-Community supply) are N3.2', async () => {
+      const data = sentData(lineAt('it-standard', 'GOODS'), {}, { country: 'Germany', vat: 'DE136695976' });
+      await expectNatura(data, SELLER, GERMAN_BUSINESS, 'N3.2', 'Non imponibile art. 41 DL 331/93');
+    });
+
+    it('goods to a buyer outside the EU (export) are N3.1', async () => {
+      const data = sentData(
+        lineAt('it-standard', 'GOODS'),
+        {},
+        { country: 'United States', vat: 'US123456789' },
+      );
+      await expectNatura(data, SELLER, US_BUSINESS, 'N3.1', 'Non imponibile art. 8 DPR 633/72');
+    });
+
+    it('an untaxed line no declared code matches is refused, never sent with a guessed Natura', async () => {
+      const data = sentData(lineAt('0'), {}, { country: 'Italy' });
+      const { result, xml } = await buildSent(data, SELLER, ITALIAN_BUYER_WITH_CODE);
+
+      expect(result.validation.valid).toBe(false);
+      expect(result.validation.errors).toEqual([
+        'Line 1 carries no VAT and no Natura code is declared for it: pick a VAT exemption rate from ' +
+          'the list, or check the company VAT exemption setting.',
+      ]);
+      expect(xml).not.toContain('<Natura>');
+    });
+
+    it('every declared code is one the official schema accepts and none is a generic code the SdI refuses', async () => {
+      const xsd = readFileSync(join(__dirname, '../vendored/it/Schema_VFPR12.xsd'), 'utf-8');
+      const naturaType = xsd.match(/<xs:simpleType name="NaturaType">([\s\S]*?)<\/xs:simpleType>/)?.[1] ?? '';
+      const accepted = [...naturaType.matchAll(/<xs:enumeration value="([^"]+)"/g)].map((m) => m[1]);
+      const declared = einvoiceCodesFor(FORMAT_COUNTRY).exemptionCodes.map((fact) => fact.code);
+
+      expect(accepted).toContain('N2.2');
+      expect(declared.filter((code) => !accepted.includes(code))).toEqual([]);
+      expect(declared.filter((code) => ['N2', 'N3', 'N6'].includes(code))).toEqual([]);
+    });
+  });
+
+  describe('CodiceDestinatario when the buyer has neither an SdI code nor a PEC address', () => {
+    it('an Italian buyer gets 0000000 and no PECDestinatario, so the SdI files it in their reserved area', async () => {
+      const { result, xml } = await buildSent(VALID_DATA, SELLER, ITALIAN_BUYER_NO_CHANNEL);
+
+      expect(extractTag(xml, 'CodiceDestinatario')).toBe('0000000');
+      expect(xml).not.toContain('PECDestinatario');
+      expect(sdiRejections(xml)).toEqual([]);
+      expect(result.validation.errors).toEqual([]);
+    });
+
+    it('a buyer established abroad gets XXXXXXX, with its own country as IdPaese', async () => {
+      const data = sentData(
+        lineAt('it-standard', 'SERVICES'),
+        {},
+        { country: 'Germany', vat: 'DE136695976' },
+      );
+      const { result, xml } = await buildSent(data, SELLER, GERMAN_BUSINESS);
+
+      expect(extractTag(xml, 'CodiceDestinatario')).toBe('XXXXXXX');
+      expect(xml).toContain('<CessionarioCommittente><DatiAnagrafici><IdFiscaleIVA><IdPaese>DE</IdPaese>');
+      expect(sdiRejections(xml)).toEqual([]);
+      expect(result.validation.errors).toEqual([]);
+    });
+  });
+
+  describe('RegimeFiscale comes from the seller tax scheme', () => {
+    it('a seller under the small-business scheme (forfettario) is RF19', async () => {
+      const data = sentData(lineAt('it-standard'), { taxScheme: 'FRANCHISE_BASE' }, { country: 'Italy' });
+      const { result, xml } = await buildSent(data, FORFETTARIO, ITALIAN_BUYER_NO_CHANNEL);
+
+      expect(extractTag(xml, 'RegimeFiscale')).toBe('RF19');
+      expect(result.validation.errors).toEqual([]);
+    });
+
+    it('an ordinary seller is RF01', async () => {
+      const { result, xml } = await buildSent(VALID_DATA, SELLER, BUYER);
+
+      expect(extractTag(xml, 'RegimeFiscale')).toBe('RF01');
+      expect(result.validation.errors).toEqual([]);
+    });
   });
 });

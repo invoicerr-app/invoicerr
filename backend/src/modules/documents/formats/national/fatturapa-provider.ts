@@ -1,5 +1,5 @@
 /**
- * FatturaPA 1.2 (IT/SM) format provider. REPRISED from
+ * FatturaPA format provider. REPRISED from
  * `invoice-rendering/national/fattura-pa.ts` at git tag `avant-refonte-documents`, ADAPTED to the
  * current generic document model the same way `fa3-provider.ts` is (see that file's own header for
  * the shared reasoning): amounts come from `totals/compute-totals.ts` (via `national-lines.ts`),
@@ -7,21 +7,19 @@
  * so reusing its arithmetic verbatim would silently drop this branch's `discountPercent` field.
  *
  * `@digitalia/fatturapa`'s `fpa2xml` (JSON → XML) is REUSED verbatim — already a dependency (see
- * package.json), no new one added. The CodiceDestinatario/PECDestinatario routing (F-16/M-8 at the
- * reference) is REPRISED VERBATIM: it reads the client's `IT_SDI`/`PEC` party identifiers exactly the
- * way `entity-identifiers.ts#getIdentifier` already lets any format provider read ANY scheme, with
- * no registry check that the scheme is "known" — the same latitude `party-snapshot.ts`'s own
- * `partyIdentifiers: { scheme: string; value: string }[]` already gives every caller.
+ * package.json), no new one added. The CodiceDestinatario/PECDestinatario routing reads the client's
+ * `IT_SDI`/`PEC` party identifiers exactly the way `entity-identifiers.ts#getIdentifier` already lets
+ * any format provider read ANY scheme.
  *
- * NOT wired through the EN 16931 Schematron gate — FatturaPA is an ITALIAN NATIONAL schema with its
- * own official XSD (`vendored/it/Schema_VFPR12.xsd`, vendored byte-for-byte from the reference), judged
- * by THAT XSD alone, exactly the same reasoning `fa3-provider.ts`'s own header gives.
+ * NOT wired through the EN 16931 Schematron gate: FatturaPA is a national schema judged by its own
+ * official XSD alone (`vendored/it/Schema_VFPR12.xsd`, version 1.2.3 as published on fatturapa.gov.it,
+ * its xmldsig import pointed at the local copy), the same reasoning `fa3-provider.ts`'s header gives.
+ * The XSD does not carry the SdI's own controls (a generic Natura code, a misused XXXXXXX): those are
+ * met by the codes below, not by the schema.
  *
  * ## Provenance
- * The Natura/RiferimentoNormativo mapping and the 4-branch CodiceDestinatario routing are REPRISED,
- * not invented — see `fattura-pa.ts`'s own header at the reference and its `fattura-pa.spec.ts` (kept,
- * `fatturapa-provider.spec.ts`, adapted to this module's own fixture shape) for the sourcing already
- * established there. Nothing here asserts a NEW tax rule.
+ * Natura with its RiferimentoNormativo, RegimeFiscale and the two fallback CodiceDestinatario values
+ * are read from the country data (`einvoiceCodes` in `countries/data/it.json`), each with its source.
  *
  * ## TD04 - the nota di credito (issue #472)
  *
@@ -55,43 +53,32 @@
  * interface lie for one party and not the other. The identifier, by contrast, is EXACTLY the fact the
  * SdI specification itself keys off — a `CodiceDestinatario` IS a 6-character IndicePA code or it
  * ISN'T, independent of any internal `kind` label — and it slots into the SAME
- * `getIdentifier(client, scheme)` mechanism the CodiceDestinatario/PEC 4-branch routing below already
+ * `getIdentifier(client, scheme)` mechanism the CodiceDestinatario/PEC routing below already
  * uses for `IT_SDI`/`PEC`, no new plumbing. It is also the ONLY signal `b2g-routing`'s own preflight
  * (`actions/invoice-actions.ts`'s B2G block) actually guarantees is present by the time a send reaches
  * this builder: a GOVERNMENT client's invoice is hard-blocked before this code ever runs unless
  * `IT_PA_CODE` is already on file (`resolveClientB2gRouting`'s `requiredClientIdentifiers`), so "does
  * the client carry a valid 6-char code" and "is this recipient the government body the B2G rule is
  * routing to" agree in every case this repo can actually reach send with. A `download` on a
- * GOVERNMENT client that has not yet filled in its code degrades to FPR12/XXXXXXX — the honest
+ * GOVERNMENT client that has not yet filled in its code degrades to FPR12 and the code for a recipient
+ * without one, the honest
  * consequence of not having a code to put in `CodiceDestinatario` at all, not a mislabel.
  *
- * **The XSD: verified, not assumed, to already judge FPA12 correctly — nothing new to vendor.** The
- * vendored `vendored/it/Schema_VFPR12.xsd` was suspected (see `countries/data/it.json (section "b2gRouting")`'s own "TROU
- * CONNU" note) of being a B2B-only schema that would wrongly reject an `FPA12` document. It is not:
- * its OWN root `xs:documentation` reads "XML schema fatture destinate a PA e privati in forma
- * ordinaria" ("… for PA AND privates …"), its `FormatoTrasmissioneType` enumerates BOTH `FPA12` and
- * `FPR12`, and its `CodiceDestinatarioType` is `[A-Z0-9]{6,7}` — 6 OR 7 characters, exactly the two
- * lengths the Specifiche distinguish. Fetched directly from fatturapa.gov.it on 2026-09-01 to make
- * sure this was not a reference-era approximation: the tax agency in fact publishes this SAME schema
- * (identical `FormatoTrasmissioneType`/`CodiceDestinatarioType`/root element/targetNamespace) under
- * TWO different file names for its current 1.2.3 revision —
- * `https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPA12_V1.2.3.xsd` (linked
- * under "FatturaPA", i.e. the PA-facing page) and
- * `.../Schema_VFPR12_v1.2.3.xsd` (linked under "Fattura Ordinaria", the private-facing page) — one
- * schema, two download links for two audiences, not two different rule sets. The vendored 1.2 copy
- * predates that 1.2.3 renumbering but carries the identical two type definitions, so it judges an
- * `FPA12` document exactly as correctly as it judges an `FPR12` one; nothing to vendor twice. (Not
- * independently diffed byte-for-byte beyond those two types across the FULL 1.2 → 1.2.3 schema — a
- * pre-existing version gap that applies equally to the B2B path already, unrelated to this fix.)
+ * **The XSD judges FPA12 and FPR12 alike.** fatturapa.gov.it publishes the same 1.2.3 schema under two
+ * names, `Schema_VFPA12_V1.2.3.xsd` (FatturaPA page) and `Schema_VFPR12_v1.2.3.xsd` (Fattura Ordinaria
+ * page), byte for byte identical: its `FormatoTrasmissioneType` enumerates both values and its
+ * `CodiceDestinatarioType` is `[A-Z0-9]{6,7}`.
  */
+import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
-import { taxUnionOf } from '../../tax/classification';
+import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
-import { defaultVatRateCatalog, findVatRateById } from '../../vat-rates/registry';
+import { einvoiceCodesFor, exemptionCodeFor, taxRegimeCodeFor } from '../../einvoice-codes/registry';
+import { CountryEinvoiceCodesFile, ExemptionCodeFact } from '../../einvoice-codes/schema';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
 import {
   DocumentFormatBuildOptions,
@@ -120,80 +107,23 @@ function fmtRate(n: number): string {
   return n.toFixed(2);
 }
 
-/**
- * Map NaturaType - codes N1-N7 per FatturaPA spec. VERBATIM from fattura-pa.ts at the reference,
- * except two things issue #603 changed:
- *  - PR A replaced this file's OWN `EU_CC` copy (a 26-country array this file also used for the
- *    membership check) with the shared `tax/classification.ts#taxUnionOf`, read from the
- *    `tax/tax-unions/` reference table. The old `EU_CC` had silently DROPPED Italy (compared to the
- *    canonical 27-member list every other copy carried) - harmless here only because the domestic
- *    guard below already excludes a domestic sale before the membership check is ever reached (see
- *    this PR's own report for the before/after proof this made no observable difference).
- *  - The domestic guard itself took an explicit `sellerCountry` parameter instead of the literal
- *    `'IT'` this file used to compare the buyer against directly: this provider only ever builds for
- *    an Italian seller in practice (`country-policy` routes fatturapa to Italy alone), but the
- *    function itself no longer names a country to express "buyer established in the SELLER's own
- *    country never gets reverse charge" - every real caller still passes the seller's own resolved
- *    country (`vatCountry`, `'IT'` by construction here), so behaviour is unchanged (see the before/
- *    after proof again).
- */
-
-/**
- * `rawVatRate` — the RAW, as-stored `vatRate` field value (`national-lines.ts#NationalLine
- * .rawVatRate`'s own header) — is checked FIRST, before falling back to the pre-existing
- * client-country heuristic: two Italian catalog entries share the exact SAME 0% (`vat-rates/data/
- * it.json`'s own `it-esente`/`it-non-imponibile`), and only the rate's own `id` can tell them apart —
- * the bare `vatRate` NUMBER this function used to receive alone genuinely cannot. `findVatRateById`
- * is country-independent (every shipped id is globally unique), so no extra "is this seller Italian"
- * check is needed before trying it: a non-Italian seller's own rate ids (e.g. "fr-standard") simply
- * never match `it-esente`/`it-non-imponibile` and fall through unchanged.
- */
-export function mapNatura(
-  vatRate: number,
-  rawVatRate: string | undefined,
-  clientCountry: string,
-  clientVatId: string,
-  sellerCountry: string,
-): string | undefined {
-  if (vatRate > 0) return undefined;
-
-  const catalogRate = rawVatRate ? findVatRateById(defaultVatRateCatalog, rawVatRate) : undefined;
-  if (catalogRate?.id === 'it-non-imponibile') return 'N3';
-  if (catalogRate?.id === 'it-esente') return 'N4';
-
-  const cc = (clientCountry || '').slice(0, 2).toUpperCase();
-  const sellerCc = (sellerCountry || '').slice(0, 2).toUpperCase();
-  // Domestic (buyer established in this SAME seller's own country, never a named literal - this
-  // provider only ever builds for an Italian seller in practice, but the check itself names no
-  // country) never gets N6: reverse charge requires a cross-border EU supply.
-  if (cc !== sellerCc && taxUnionOf(cc) === 'EU' && clientVatId) return 'N6';
-  return 'N2';
+/** The Natura of an untaxed line, read from the country data; `undefined` for a taxed line. */
+function naturaFor(
+  codes: CountryEinvoiceCodesFile,
+  line: NationalLine | undefined,
+  ratePercent: number,
+  sellerTaxScheme: TaxScheme | undefined,
+): ExemptionCodeFact | undefined {
+  if (ratePercent > 0 || !line) return undefined;
+  return exemptionCodeFor(
+    codes,
+    { exemptionReason: line.exemptionReason, vatRateId: line.rawVatRate },
+    sellerTaxScheme,
+  );
 }
 
-function riferimentoNormativo(natura: string): string {
-  switch (natura) {
-    case 'N6':
-      return 'Reverse charge art. 17 DPR 633/72';
-    case 'N4':
-      return 'Esente art. 10 DPR 633/72';
-    case 'N3':
-      return 'Non imponibile art. 8 DPR 633/72';
-    case 'N2':
-      return 'Operazione non soggetta';
-    default:
-      return 'Art. 1 DPR 633/72';
-  }
-}
-
-function buildDettaglioLinea(
-  line: NationalLine,
-  currency: string,
-  clienteVatCountry: string,
-  clienteVatId: string,
-  sellerCountry: string,
-) {
+function buildDettaglioLinea(line: NationalLine, currency: string, natura: ExemptionCodeFact | undefined) {
   const rate = line.vatRatePercent ?? 0;
-  const natura = mapNatura(rate, line.rawVatRate, clienteVatCountry, clienteVatId, sellerCountry);
   return {
     NumeroLinea: line.index + 1,
     Descrizione: line.description,
@@ -204,13 +134,8 @@ function buildDettaglioLinea(
     // close — see this file's own header).
     PrezzoTotale: fmtAmount(fromMinor(line.netMinor, currency), 8),
     AliquotaIVA: fmtRate(rate),
-    // `RiferimentoNormativo` is DELIBERATELY absent here — `DettaglioLineeType` (the vendored
-    // `Schema_VFPR12.xsd`, `AliquotaIVA, Ritenuta?, Natura?, RiferimentoAmministrazione?,
-    // AltriDatiGestionali*`) has NO such element at all; only `DatiRiepilogoType` (the summary,
-    // `riepilogoList` below) does. Emitting it here was a LATENT bug this file carried since it was
-    // reprised — never caught because no fixture before this Natura-driving change ever exercised a
-    // 0%-rate line at all (see this file's own header, "Provenance").
-    ...(natura ? { Natura: natura } : {}),
+    // `DettaglioLineeType` has no `RiferimentoNormativo`; only `DatiRiepilogoType` does.
+    ...(natura ? { Natura: natura.code } : {}),
   };
 }
 
@@ -237,11 +162,12 @@ async function build(
   // ── identifiers ──────────────────────────────────────────────────
   const vatId = getIdentifier(company, 'VAT') || '';
   const formatCountry = nationalFormatCountry(fatturapaFormatId);
-  const vatCountry = (company.country || formatCountry).slice(0, 2).toUpperCase();
+  const codes = einvoiceCodesFor(formatCountry);
+  const vatCountry = guessCountryCode(company.country) ?? formatCountry;
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
-  const clienteVatCountry = (client.country || '').slice(0, 2).toUpperCase();
+  const clienteVatCountry = guessCountryCode(client.country) ?? '';
   const clienteCf = getIdentifier(client, 'LEGAL_ID') || '';
 
   // ── ProgressivoInvio: unique per invoice ─────────────────────────
@@ -250,9 +176,8 @@ async function build(
   // ── FormatoTrasmissione / CodiceDestinatario / PECDestinatario ──────────────────────────────────
   // The PA discriminant is checked FIRST and, when it fires, decides BOTH fields outright — see this
   // file's own header ("FPA12 vs FPR12") for why a valid 6-char `IT_PA_CODE` identifier is the signal
-  // used, not `Client.kind`. Only once it does NOT fire does the ORIGINAL 4-branch B2B/private routing
-  // (VERBATIM from the reference) run unchanged — same outcomes as before for every client that
-  // has no `IT_PA_CODE` on file, which is every test/fixture that predates it.
+  // used, not `Client.kind`. Otherwise the B2B/private routing runs, its two fallback codes read from
+  // the country data.
   const clientePaCode = getIdentifier(client, 'IT_PA_CODE') || '';
   const isValidPaCode = /^[A-Za-z0-9]{6}$/.test(clientePaCode);
 
@@ -271,37 +196,37 @@ async function build(
     codiceDestinatario = clienteSdiCode.toUpperCase();
   } else if (clientePec) {
     formatoTrasmissione = 'FPR12';
-    codiceDestinatario = '0000000';
+    codiceDestinatario = codes.recipientCodes.withoutCode;
     pecDestinatario = clientePec;
   } else if (clienteVatCountry && clienteVatCountry !== formatCountry) {
     formatoTrasmissione = 'FPR12';
-    codiceDestinatario = 'XXXXXXX';
+    codiceDestinatario = codes.recipientCodes.establishedAbroad;
   } else {
-    // Domestic IT, neither code nor PEC on file — '0000000' would fail @digitalia/fatturapa's own
-    // yup business-rule gate (PECDestinatario required whenever CodiceDestinatario is '0000000');
-    // 'XXXXXXX' is the least-wrong fallback that needs no data we don't have. See fattura-pa.ts's
-    // own header for the same call, reprised verbatim.
     formatoTrasmissione = 'FPR12';
-    codiceDestinatario = 'XXXXXXX';
+    codiceDestinatario = codes.recipientCodes.withoutCode;
   }
+
+  // ── Natura: an untaxed line with no code declared for it is refused, never guessed ─────────────
+  const lineNaturas = lines.map((line) =>
+    naturaFor(codes, line, line.vatRatePercent ?? 0, company.taxScheme),
+  );
+  const naturaErrors = lines
+    .filter((line, i) => (line.vatRatePercent ?? 0) <= 0 && !lineNaturas[i])
+    .map(
+      (line) =>
+        `Line ${line.index + 1} carries no VAT and no Natura code is declared for it: pick a VAT ` +
+        'exemption rate from the list, or check the company VAT exemption setting.',
+    );
 
   // ── DatiRiepilogo: grouped by VAT rate, from totals.vatBreakdown (never recomputed) ───────────
   // `vatBreakdown` groups strictly by NUMERIC percentage, never by catalog id — a seller mixing
   // `it-esente` AND `it-non-imponibile` lines (both 0%) on the SAME invoice would fold them into ONE
-  // bucket here, which cannot honestly carry two different Natura codes at once. Picking the FIRST
-  // contributing line's own `rawVatRate` for this bucket is exactly right for the overwhelmingly
-  // common case (a whole invoice uses ONE regime, not a mix) and never worse than the pre-existing
-  // client-only heuristic `mapNatura` falls back to when no line matches or the value is not a
-  // catalog id at all.
+  // bucket here, which cannot honestly carry two different Natura codes at once. The FIRST
+  // contributing line's Natura stands for the bucket: right for the common case of a whole invoice
+  // under ONE regime, not a mix.
   const riepilogoList = totals.vatBreakdown.map((entry) => {
     const representativeLine = lines.find((line) => line.vatRatePercent === entry.ratePercent);
-    const natura = mapNatura(
-      entry.ratePercent,
-      representativeLine?.rawVatRate,
-      clienteVatCountry,
-      clienteVatId,
-      vatCountry,
-    );
+    const natura = naturaFor(codes, representativeLine, entry.ratePercent, company.taxScheme);
     return {
       AliquotaIVA: fmtRate(entry.ratePercent),
       // `DatiRiepilogoType` (the vendored `Schema_VFPR12.xsd`) declares its own element sequence as
@@ -310,11 +235,11 @@ async function build(
       // `RiferimentoNormativo` is the VERY LAST element, after `EsigibilitaIVA`, never grouped
       // together with `Natura` at the end the way this object used to place them (a second half of
       // the SAME latent element-order bug `buildDettaglioLinea` above carried).
-      ...(natura ? { Natura: natura } : {}),
+      ...(natura ? { Natura: natura.code } : {}),
       ImponibileImporto: fmtAmount(fromMinor(entry.baseMinor, currency), 2),
       Imposta: fmtAmount(fromMinor(entry.vatMinor, currency), 2),
       EsigibilitaIVA: 'I' as const,
-      ...(natura ? { RiferimentoNormativo: riferimentoNormativo(natura) } : {}),
+      ...(natura ? { RiferimentoNormativo: natura.legalReference } : {}),
     };
   });
 
@@ -349,7 +274,7 @@ async function build(
           DatiAnagrafici: {
             IdFiscaleIVA: { IdPaese: vatCountry, IdCodice: vatId },
             Anagrafica: { Denominazione: company.name },
-            RegimeFiscale: 'RF01',
+            RegimeFiscale: taxRegimeCodeFor(codes, company.taxScheme),
           },
           Sede: {
             Indirizzo: company.address || 'N/A',
@@ -402,9 +327,7 @@ async function build(
             : {}),
         },
         DatiBeniServizi: {
-          DettaglioLinee: lines.map((line) =>
-            buildDettaglioLinea(line, currency, clienteVatCountry, clienteVatId, vatCountry),
-          ),
+          DettaglioLinee: lines.map((line, i) => buildDettaglioLinea(line, currency, lineNaturas[i])),
           DatiRiepilogo: riepilogoList,
         },
         // Omitted for TD04 - see this file's own header, "TD04".
@@ -431,7 +354,8 @@ async function build(
   const xml: string = await fpa2xml(escapeXmlTree(fattura) as Record<string, unknown>);
 
   const xsd = await validateXsd(xml, FATTURAPA_XSD);
-  return { bytes: new TextEncoder().encode(xml), validation: { valid: xsd.valid, errors: xsd.errors } };
+  const errors = [...naturaErrors, ...xsd.errors];
+  return { bytes: new TextEncoder().encode(xml), validation: { valid: errors.length === 0, errors } };
 }
 
 export const fatturapaFormatProvider: DocumentFormatProvider = {

@@ -162,7 +162,7 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 
 import { DocumentTotals } from '../../totals/compute-totals';
 import type { CorrectedInvoiceReference } from '../format-provider';
-import { TaxCategoryCode } from '../../tax/types';
+import { TaxCategoryCode, TaxScheme } from '../../tax/types';
 import { defaultTaxUnionRegistry } from '../../tax/tax-unions/registry';
 import {
   defaultEinvoiceIdentifierCatalog,
@@ -195,6 +195,8 @@ export interface SemanticPartyInput {
    *  such column) and for a Company that never set one. */
   iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
+  /** SELLER side only: the company's own VAT scheme. Absent means the ordinary scheme. */
+  taxScheme?: TaxScheme;
 }
 
 /** One line's DESCRIPTIVE facts — the ARITHMETIC facts (net/VAT/gross) come from `totals.lines`,

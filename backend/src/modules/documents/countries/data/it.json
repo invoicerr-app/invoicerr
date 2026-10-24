@@ -1154,5 +1154,269 @@
       },
       "notes": "Read at normattiva.it (text in force since 2020-01-01). The statute caps the payment period at thirty days from the debtor's receipt of the invoice, save where the parties agree otherwise under its commi 3 to 5; it sets no term of its own. The application uses those 30 days as its fallback and counts them from the invoice date, not from receipt."
     }
+  },
+  "einvoiceCodes": {
+    "countryCode": "IT",
+    "exemptionCodes": [
+      {
+        "code": "N1",
+        "legalReference": "Escluse art. 15 DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Escluse ex. art. 15 del D.P.R. 633/1972",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Official FatturaPA schema 1.2.3, NaturaType enumeration (xs:documentation of the value): https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPR12_v1.2.3.xsd"
+      },
+      {
+        "code": "N2.1",
+        "legalReference": "Non soggette artt. da 7 a 7-septies DPR 633/72",
+        "appliesTo": {
+          "exemptionReasons": ["VATEX-EU-AE", "VATEX-EU-O"]
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N2.1 deve essere inserito, in luogo dell'imposta, per le operazioni non soggette ad imposta per carenza del requisito di territorialità di cui agli articoli da 7 a 7-septies, del d.P.R. n. 633 del 1972 per le quali è stata emessa la relativa fattura ai sensi dell'articolo 21, comma 6-bis, del medesimo decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Selected for a service the tax engine places outside Italy: reverse charge to an EU business (VATEX-EU-AE) or a service to a buyer outside the EU (VATEX-EU-O). The same guide, under N6.9, excludes N6 for services to an EU customer: \"Tale codice NON deve essere adoperato per le prestazioni a committente UE per le quali occorre adoperare il codice N2.1.\""
+      },
+      {
+        "code": "N2.2",
+        "legalReference": "Regime forfettario art. 1 c. 54-89 L. 190/2014",
+        "appliesTo": {
+          "sellerTaxSchemes": ["FRANCHISE_BASE"]
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N2.2 deve essere adoperato anche dall'operatore in regime forfettario o di vantaggio che emette fattura elettronica via SDI utilizzando il formato XML.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Selected for every line a seller under the small-business scheme leaves untaxed in Italy. The legal reference is the forfettario's own statute, as RF19 cites it."
+      },
+      {
+        "code": "N3.1",
+        "legalReference": "Non imponibile art. 8 DPR 633/72",
+        "appliesTo": {
+          "exemptionReasons": ["VATEX-EU-G"],
+          "vatRateIds": ["it-non-imponibile"]
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.1 va adoperato nel caso di fattura trasmessa via SDI per esportazioni di beni effettuate nell'anno di cui all'articolo 8, primo comma, lettere a), b) e b-bis), del d.P.R. n. 633 del 1972",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Selected for an export of goods resolved by the tax engine (VATEX-EU-G) and for the it-non-imponibile rate, whose own entry in vatRates cites art. 8."
+      },
+      {
+        "code": "N3.2",
+        "legalReference": "Non imponibile art. 41 DL 331/93",
+        "appliesTo": {
+          "exemptionReasons": ["VATEX-EU-IC"]
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.2 va adoperato nel caso di fattura trasmessa via SDI per documentare i corrispettivi delle cessioni intracomunitarie di cui all'articolo 41 del D.L. n. 331 del 1993",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Selected for an intra-Community supply of goods resolved by the tax engine (VATEX-EU-IC)."
+      },
+      {
+        "code": "N3.3",
+        "legalReference": "Non imponibili - cessioni verso San Marino",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.3 va adoperato nel caso di fattura trasmessa via SDI per cessioni di beni effettuate nei confronti di operatori sammarinesi.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Nothing on an invoice selects it yet: San Marino is not a buyer country the tax engine treats apart."
+      },
+      {
+        "code": "N3.4",
+        "legalReference": "Non imponibile artt. 8-bis e 9 DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.4 va adoperato nel caso di fattura trasmessa via SDI per le operazioni assimilate alle cessioni all'esportazione quali quelle di cui all'articolo 8-bis del decreto IVA (p.e. cessioni di navi adibite alla navigazione in alto mare e destinate all'esercizio dell'attività commerciale o di pesca), per i servizi internazionali o connessi agli scambi internazionali di cui all'articolo 9 del decreto IVA",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Nothing on an invoice selects it yet."
+      },
+      {
+        "code": "N3.5",
+        "legalReference": "Non imponibili - a seguito di dichiarazioni d'intento",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.5 va adoperato nel caso di fattura trasmessa via SDI per operazioni non imponibili effettuate nei confronti di esportatori che abbiano rilasciato la dichiarazione di intento.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Nothing on an invoice selects it yet: a buyer's declaration of intent is not recorded."
+      },
+      {
+        "code": "N3.6",
+        "legalReference": "Non imponibili - altre operazioni che non concorrono al plafond",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N3.6 va adoperato nel caso di fattura trasmessa via SDI per: le cessioni relative a beni in transito o depositati in luoghi soggetti a vigilanza doganale; le cessioni a soggetti domiciliati o residenti fuori dall'Unione europea di cui all'articolo 38-quater, primo comma;",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025 (the list continues with VAT warehouse operations). Nothing on an invoice selects it yet."
+      },
+      {
+        "code": "N4",
+        "legalReference": "Esente art. 10 DPR 633/72",
+        "appliesTo": {
+          "vatRateIds": ["it-esente"]
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Esenti",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Official FatturaPA schema 1.2.3, NaturaType enumeration (xs:documentation of the value): https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPR12_v1.2.3.xsd. Selected for the it-esente rate, whose own entry in vatRates cites art. 10 DPR 633/1972."
+      },
+      {
+        "code": "N5",
+        "legalReference": "Regime del margine/IVA non esposta in fattura",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Regime del margine/IVA non esposta in fattura",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Official FatturaPA schema 1.2.3, NaturaType enumeration (xs:documentation of the value): https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPR12_v1.2.3.xsd. Nothing on an invoice selects it yet: no margin scheme is modelled."
+      },
+      {
+        "code": "N6.1",
+        "legalReference": "Inversione contabile art. 74 c. 7 e 8 DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.1 va adoperato nel caso di fattura trasmessa via SDI per cessioni all'interno dello Stato di rottami ed altri materiali di recupero di cui all'articolo 74, commi 7 e 8, del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Nothing on an invoice selects the N6 codes yet: the domestic reverse charge categories in domesticReverseCharge are not read by the tax engine."
+      },
+      {
+        "code": "N6.2",
+        "legalReference": "Inversione contabile L. 7/2000",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.2 va adoperato nel caso di fattura trasmessa via SDI per cessioni di oro e argento ai sensi della legge 17 gennaio 2000, n. 7, nonché di oreficeria usata ad operatori professionali in oro.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.3",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. a) DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.3 va adoperato nel caso di fattura trasmessa via SDI per prestazioni di servizi rese nel settore edile da subappaltatori senza addebito d'imposta ai sensi dell'articolo 17, sesto comma, lettera a), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.4",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. a-bis) DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.4 va adoperato nel caso di fattura trasmessa via SDI per cessioni di fabbricati o porzioni di fabbricato per le quali l'imposta è dovuta dal cessionario, ai sensi dell'articolo 17, sesto comma, lettera a-bis), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.5",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. b) DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.5 va adoperato nel caso di fattura trasmessa via SDI per cessioni di telefoni cellulari per le quali l'imposta è dovuta dal cessionario, ai sensi dell'articolo 17, sesto comma, lettera b), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.6",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. c) DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.6 va adoperato nel caso di fattura trasmessa via SDI per cessioni di console da gioco, tablet, PC e laptop, nonché di dispositivi a circuito integrato, quali microprocessori e unità centrali di elaborazione prima della loro installazione in prodotti destinati a consumatori finali per le quali l'imposta è dovuta dal cessionario, ai sensi dell'articolo 17, sesto comma, lettera c), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.7",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. a-ter) DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.7 va adoperato nel caso di fattura trasmessa via SDI per prestazioni di servizi di pulizia, di demolizione, di installazione di impianti e di completamento relative a edifici per le quali l'imposta è dovuta dal cessionario, ai sensi dell'articolo 17, sesto comma, lettera a-ter), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.8",
+        "legalReference": "Inversione contabile art. 17 c. 6 lett. d-bis), d-ter), d-quater)",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.8 va adoperato nel caso di fattura trasmessa via SDI per operazioni del settore energetico per le quali l'imposta è dovuta dal cessionario, ai sensi dell'articolo 17, sesto comma, lettere d-bis), d-ter) e d-quater), del decreto IVA.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N6.9",
+        "legalReference": "Inversione contabile - altri casi",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Il codice N6.9 va adoperato nel caso di fattura trasmessa via SDI per eventuali nuove tipologie di operazioni, rispetto a quelle elencate negli altri N6, per le quali è previsto il regime dell'inversione contabile.",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Guida alla compilazione delle fatture elettroniche e dell'esterometro\", version 1.10 of 2025-04-01, section \"Corretto utilizzo dei codici natura IVA\": https://www.agenziaentrate.gov.it/portale/documents/d/guest/guida_compilazione-fe-esterometro-v1-10_aprile_2025. Not selected yet, see N6.1."
+      },
+      {
+        "code": "N7",
+        "legalReference": "IVA assolta in altro stato UE artt. 7-octies e 74-sexies DPR 633/72",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "IVA assolta in altro stato UE (prestazione di servizi di telecomunicazioni, tele-radiodiffusione ed elettronici ex art. 7-octies lett. a, b, art. 74-sexies DPR 633/72)",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Official FatturaPA schema 1.2.3, NaturaType enumeration (xs:documentation of the value): https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPR12_v1.2.3.xsd. Nothing on an invoice selects it yet: an OSS line is taxed at the destination rate, not left untaxed."
+      }
+    ],
+    "taxRegimeCodes": [
+      {
+        "taxScheme": "STANDARD",
+        "code": "RF01",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "RegimeFiscale (Rif. par. 1.2.1): formato alfanumerico; lunghezza di 4 caratteri; i valori ammessi sono i seguenti: RF01 Ordinario;",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Specifiche tecniche operative del formato della fattura del Sistema di Interscambio\", version 1.4: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf, RegimeFiscale."
+      },
+      {
+        "taxScheme": "FRANCHISE_BASE",
+        "code": "RF19",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "RF19 Regime forfettario (art.1, c. 54-89, L. 190/2014)",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "notes": "Agenzia delle Entrate, \"Specifiche tecniche operative del formato della fattura del Sistema di Interscambio\", version 1.4: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf, RegimeFiscale. The company's VAT exemption setting is the small-business scheme; RF02 (contribuenti minimi, L. 244/2007) is not offered."
+      }
+    ],
+    "recipientCodes": {
+      "withoutCode": "0000000",
+      "establishedAbroad": "XXXXXXX",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "'0000000', nei casi di fattura destinata ad un soggetto che riceve tramite PEC e questa sia indicata nel campo PECDestinatario; '0000000', nei casi di fattura destinata ad un soggetto per il quale non si conosce il canale telematico (PEC o altro) sul quale recapitare il file; 'XXXXXXX', nei casi di fattura emessa verso soggetti non residenti, non stabiliti, non identificati in Italia, e inviata al Sistema di Interscambio al fine di trasmettere i dati di tali fatture.",
+        "sourceCheckedAt": "2026-10-24"
+      },
+      "notes": "Agenzia delle Entrate, \"Specifiche tecniche operative del formato della fattura del Sistema di Interscambio\", version 1.4: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf, CodiceDestinatario. The SdI rejects XXXXXXX with error 00313 unless the buyer's IdFiscaleIVA carries an IdPaese other than IT (Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1). With 0000000 and no PECDestinatario, the SdI makes the invoice available in the buyer's reserved area."
+    },
+    "notes": "FatturaPA codes for an Italian seller. Since 2021-01-01 the SdI refuses the generic Natura codes N2, N3 and N6 (error 00445, Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1), so only the detailed codes are declared. Every code accepted by the official schema 1.2.3 is listed; the ones without appliesTo cannot be selected from an invoice yet."
   }
 }

@@ -47,6 +47,7 @@ describe('extractNationalLines — the FA(3)/FatturaPA line whitelist', () => {
       'netMinor',
       'vatRatePercent',
       'rawVatRate',
+      'exemptionReason',
       'vatMinor',
       'grossMinor',
     ]);

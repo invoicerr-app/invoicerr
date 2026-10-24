@@ -7,6 +7,7 @@
  */
 import { ContactLike, derivePrimaryContactFields } from '@/modules/clients/primary-contact';
 
+import { companyTaxScheme } from '../tax/resolve-invoice-tax';
 import { DocumentFormatParty } from './format-provider';
 
 export interface CompanyRowForFormat {
@@ -23,6 +24,7 @@ export interface CompanyRowForFormat {
    *  an invoice), so `clientToFormatParty` below never reads an equivalent column. */
   iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
+  exemptVat: boolean;
 }
 
 export interface ClientRowForFormat {
@@ -51,6 +53,7 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
     phone: company.phone,
     iban: company.iban,
     partyIdentifiers: company.partyIdentifiers,
+    taxScheme: companyTaxScheme(company),
   };
 }
 

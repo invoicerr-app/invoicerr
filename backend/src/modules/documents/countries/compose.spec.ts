@@ -100,6 +100,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'b2gRouting',
         'companyLookup',
         'paymentTerms',
+        'einvoiceCodes',
       ],
       PL: [
         'policy',

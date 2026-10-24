@@ -34,6 +34,8 @@ export interface NationalLine {
    *  #mapNatura`, Italy's `it-esente` vs. `it-non-imponibile`, both 0%). `undefined` for a row with
    *  no usable value at all, same condition `vatRatePercent` itself being `null` already covers. */
   rawVatRate: string | undefined;
+  /** The exemption reason the tax engine resolved for this line (a VATEX code), when it resolved it. */
+  exemptionReason: string | undefined;
   vatMinor: number;
   grossMinor: number;
 }
@@ -51,6 +53,8 @@ export function extractNationalLines(data: Record<string, unknown>, totals: Docu
       netMinor: lineTotal.netMinor,
       vatRatePercent: lineTotal.vatRatePercent,
       rawVatRate: typeof row.vatRate === 'string' ? row.vatRate : undefined,
+      exemptionReason:
+        typeof row.__crossBorderExemptionReason === 'string' ? row.__crossBorderExemptionReason : undefined,
       vatMinor: lineTotal.vatMinor,
       grossMinor: lineTotal.grossMinor,
     };

@@ -1,14 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
 	xmlns:ds="http://www.w3.org/2000/09/xmldsig#" 
 	xmlns="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" 
 	targetNamespace="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" 
-	version="1.2">
-  <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
-
+	version="1.2.3">
+  
+  <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd" />
+    
   <xs:element name="FatturaElettronica" type="FatturaElettronicaType">
     <xs:annotation>
-      <xs:documentation>XML schema fatture destinate a PA e privati in forma ordinaria 1.2</xs:documentation>
+      <xs:documentation>XML schema fatture destinate a PA e privati in forma ordinaria 1.2.3</xs:documentation>
     </xs:annotation>
   </xs:element>
   
@@ -19,6 +20,7 @@
       <xs:element ref="ds:Signature"                                                  minOccurs="0"         />
     </xs:sequence>
     <xs:attribute name="versione" type="FormatoTrasmissioneType" use="required" />
+    <xs:attribute name="SistemaEmittente" type="String10Type" use="optional" />
   </xs:complexType>
   <xs:complexType name="FatturaElettronicaHeaderType">
     <xs:sequence>
@@ -87,7 +89,7 @@
   <xs:complexType name="ContattiTrasmittenteType">
     <xs:sequence>
       <xs:element name="Telefono" type="TelFaxType" minOccurs="0" />
-      <xs:element name="Email"    type="EmailType"  minOccurs="0" />      
+      <xs:element name="Email"    type="EmailContattiType"  minOccurs="0" />      
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="DatiGeneraliType">
@@ -115,7 +117,7 @@
       <xs:element name="Divisa"                 type="DivisaType"                                                     />
       <xs:element name="Data"                   type="DataFatturaType"                                                />
       <xs:element name="Numero"                 type="String20Type"                                                   />
-      <xs:element name="DatiRitenuta"           type="DatiRitenutaType"           minOccurs="0"                       />
+      <xs:element name="DatiRitenuta"           type="DatiRitenutaType"           minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="DatiBollo"              type="DatiBolloType"              minOccurs="0"                       />
       <xs:element name="DatiCassaPrevidenziale" type="DatiCassaPrevidenzialeType" minOccurs="0" maxOccurs="unbounded" />
       <xs:element name="ScontoMaggiorazione"    type="ScontoMaggiorazioneType"    minOccurs="0" maxOccurs="unbounded" />
@@ -136,7 +138,7 @@
   <xs:complexType name="DatiBolloType">
     <xs:sequence>
       <xs:element name="BolloVirtuale" type="BolloVirtualeType"  />
-      <xs:element name="ImportoBollo"  type="Amount2DecimalType" />
+      <xs:element name="ImportoBollo"  type="Amount2DecimalType"  minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="DatiCassaPrevidenzialeType">
@@ -155,11 +157,12 @@
     <xs:sequence>
       <xs:element name="Tipo"        type="TipoScontoMaggiorazioneType"               />
       <xs:element name="Percentuale" type="RateType"                    minOccurs="0" />
-      <xs:element name="Importo"     type="Amount2DecimalType"          minOccurs="0" />
+      <xs:element name="Importo"     type="Amount8DecimalType"          minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:simpleType name="CausalePagamentoType">
     <xs:restriction base="xs:string">
+      <!--I CODICI SEGUENTI FANNO RIFERIMENTO A QUELLI PREVISTI NEL MOD. CU-->
       <xs:enumeration value="A" />
       <xs:enumeration value="B" />
       <xs:enumeration value="C" />
@@ -182,12 +185,14 @@
       <xs:enumeration value="W" />
       <xs:enumeration value="X" />
       <xs:enumeration value="Y" />
+<!-- IL CODICE SEGUENTE (Z) NON SARA' PIU' VALIDO PER LE FATTURE EMESSE A PARTIRE DAL PRIMO GENNAIO 2021-->
       <xs:enumeration value="Z" />
-	  <xs:enumeration value="L1" />
-	  <xs:enumeration value="M1" />
-	  <xs:enumeration value="O1" />
-	  <xs:enumeration value="V1" />
-      <!--I CODICI SEGUENTI FANNO RIFERIMENTO A QUELLI PREVISTI NEL MOD. 770S-->
+      <xs:enumeration value="L1" />
+      <xs:enumeration value="M1" />
+      <xs:enumeration value="M2" />
+      <xs:enumeration value="O1" />
+      <xs:enumeration value="V1" />
+      <xs:enumeration value="ZO" />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="TipoScontoMaggiorazioneType">
@@ -195,16 +200,12 @@
       <xs:length value="2" />
       <xs:enumeration value="SC">
         <xs:annotation>
-          <xs:documentation>
-						SC = Sconto
-					</xs:documentation>
+          <xs:documentation>SC = Sconto</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="MG">
         <xs:annotation>
-          <xs:documentation>
-						MG = Maggiorazione
-					</xs:documentation>
+          <xs:documentation>MG = Maggiorazione</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -214,9 +215,7 @@
       <xs:length value="2" />
       <xs:enumeration value="SI">
         <xs:annotation>
-          <xs:documentation>
-						SI = Documento emesso secondo modalità e termini stabiliti con DM ai sensi dell'art. 73 DPR 633/72
-					</xs:documentation>
+          <xs:documentation>SI = Documento emesso secondo modalità e termini stabiliti con DM ai sensi dell'art. 73 DPR 633/72</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -226,156 +225,112 @@
       <xs:length value="4" />
       <xs:enumeration value="TC01">
         <xs:annotation>
-          <xs:documentation>
-						Cassa nazionale previdenza e assistenza avvocati e procuratori legali
-					</xs:documentation>
+          <xs:documentation>Cassa nazionale previdenza e assistenza avvocati e procuratori legali</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC02">
         <xs:annotation>
-          <xs:documentation>
-						Cassa previdenza dottori commercialisti
-					</xs:documentation>
+          <xs:documentation>Cassa previdenza dottori commercialisti</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC03">
         <xs:annotation>
-          <xs:documentation>
-						Cassa previdenza e assistenza geometri
-					</xs:documentation>
+          <xs:documentation>Cassa previdenza e assistenza geometri</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC04">
         <xs:annotation>
-          <xs:documentation>
-						Cassa nazionale previdenza e assistenza ingegneri e architetti liberi professionisti
-					</xs:documentation>
+          <xs:documentation>Cassa nazionale previdenza e assistenza ingegneri e architetti liberi professionisti</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC05">
         <xs:annotation>
-          <xs:documentation>
-						Cassa nazionale del notariato
-					</xs:documentation>
+          <xs:documentation>Cassa nazionale del notariato</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC06">
         <xs:annotation>
-          <xs:documentation>
-						Cassa nazionale previdenza e assistenza ragionieri e periti commerciali
-					</xs:documentation>
+          <xs:documentation>Cassa nazionale previdenza e assistenza ragionieri e periti commerciali</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC07">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale assistenza agenti e rappresentanti di commercio (ENASARCO)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale assistenza agenti e rappresentanti di commercio (ENASARCO)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC08">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza consulenti del lavoro (ENPACL)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza consulenti del lavoro (ENPACL)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC09">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza medici (ENPAM)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza medici (ENPAM)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC10">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza farmacisti (ENPAF)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza farmacisti (ENPAF)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC11">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza veterinari (ENPAV)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza veterinari (ENPAV)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC12">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza impiegati dell'agricoltura (ENPAIA)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza impiegati dell'agricoltura (ENPAIA)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC13">
         <xs:annotation>
-          <xs:documentation>
-						Fondo previdenza impiegati imprese di spedizione e agenzie marittime
-					</xs:documentation>
+          <xs:documentation>Fondo previdenza impiegati imprese di spedizione e agenzie marittime</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC14">
         <xs:annotation>
-          <xs:documentation>
-						Istituto nazionale previdenza giornalisti italiani (INPGI)
-					</xs:documentation>
+          <xs:documentation>Istituto nazionale previdenza giornalisti italiani (INPGI)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC15">
         <xs:annotation>
-          <xs:documentation>
-						Opera nazionale assistenza orfani sanitari italiani (ONAOSI)
-					</xs:documentation>
+          <xs:documentation>Opera nazionale assistenza orfani sanitari italiani (ONAOSI)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC16">
         <xs:annotation>
-          <xs:documentation>
-						Cassa autonoma assistenza integrativa giornalisti italiani (CASAGIT)
-					</xs:documentation>
+          <xs:documentation>Cassa autonoma assistenza integrativa giornalisti italiani (CASAGIT)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC17">
         <xs:annotation>
-          <xs:documentation>
-						Ente previdenza periti industriali e periti industriali laureati (EPPI)
-					</xs:documentation>
+          <xs:documentation>Ente previdenza periti industriali e periti industriali laureati (EPPI)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC18">
         <xs:annotation>
-          <xs:documentation>
-						Ente previdenza e assistenza pluricategoriale (EPAP)
-					</xs:documentation>
+          <xs:documentation>Ente previdenza e assistenza pluricategoriale (EPAP)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC19">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza biologi (ENPAB)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza biologi (ENPAB)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC20">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza professione infermieristica (ENPAPI)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza professione infermieristica (ENPAPI)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC21">
         <xs:annotation>
-          <xs:documentation>
-						Ente nazionale previdenza e assistenza psicologi (ENPAP)
-					</xs:documentation>
+          <xs:documentation>Ente nazionale previdenza e assistenza psicologi (ENPAP)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="TC22">
         <xs:annotation>
-          <xs:documentation>
-						INPS
-					</xs:documentation>
+          <xs:documentation>INPS</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -413,6 +368,76 @@
           <xs:documentation>Parcella</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+      <xs:enumeration value="TD16">
+        <xs:annotation>
+          <xs:documentation>Integrazione fattura reverse charge interno</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD17">
+        <xs:annotation>
+          <xs:documentation>Integrazione/autofattura per acquisto servizi dall'estero</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD18">
+        <xs:annotation>
+          <xs:documentation>Integrazione per acquisto di beni intracomunitari</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD19">
+        <xs:annotation>
+          <xs:documentation>Integrazione/autofattura per acquisto di beni ex art.17 c.2 DPR 633/72</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD20">
+        <xs:annotation>
+          <xs:documentation>Autofattura per regolarizzazione e integrazione delle fatture (ex art. 6 c.9-bis d.lgs. 471/97 o art.46 c.5 D.L. 331/93)</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD21">
+        <xs:annotation>
+          <xs:documentation>Autofattura per splafonamento</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD22">
+        <xs:annotation>
+          <xs:documentation>Estrazione benida Deposito IVA</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD23">
+        <xs:annotation>
+          <xs:documentation>Estrazione beni da Deposito IVA con versamento dell'IVA</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD24">
+        <xs:annotation>
+          <xs:documentation>Fattura differita di cui all'art.21, comma 4, terzo periodo lett. a) DPR 633/72</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD25">
+        <xs:annotation>
+          <xs:documentation>Fattura differita di cui all'art.21, comma 4, terzo periodo lett. b) DPR 633/72</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD26">
+        <xs:annotation>
+          <xs:documentation>Cessione di beni ammortizzabili e per passaggi interni (ex art.36 DPR 633/72)</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD27">
+        <xs:annotation>
+          <xs:documentation>Fattura per autoconsumo o per cessioni gratuite senza rivalsa</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD28">
+        <xs:annotation>
+          <xs:documentation>Acquisti da San Marino con IVA (fattura cartacea)</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="TD29">
+        <xs:annotation>
+          <xs:documentation>Comunicazione per omessa o irregolare fatturazione da parte del cedente/prestatore italiano (art. 6, comma 8, D.Lgs. 471/97)</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="TipoRitenutaType">
@@ -426,6 +451,26 @@
       <xs:enumeration value="RT02">
         <xs:annotation>
           <xs:documentation>Ritenuta di acconto persone giuridiche</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="RT03">
+        <xs:annotation>
+          <xs:documentation>Contributo INPS</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="RT04">
+        <xs:annotation>
+          <xs:documentation>Contributo ENASARCO</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="RT05">
+        <xs:annotation>
+          <xs:documentation>Contributo ENPAM</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="RT06">
+        <xs:annotation>
+          <xs:documentation>Altro contributo previdenziale</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -509,9 +554,7 @@
   </xs:simpleType>
   <xs:complexType name="CedentePrestatoreType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati del Cedente / Prestatore
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati del Cedente / Prestatore</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="DatiAnagrafici"             type="DatiAnagraficiCedenteType"               />
@@ -579,8 +622,7 @@
       </xs:enumeration>
       <xs:enumeration value="RF10">
         <xs:annotation>
-          <xs:documentation>Intrattenimenti, giochi e altre attività	di cui alla tariffa allegata al D.P.R. 640/72 (art. 74, c.6, D.P.R. 633/1972)
-					</xs:documentation>
+          <xs:documentation>Intrattenimenti, giochi e altre attività	di cui alla tariffa allegata al D.P.R. 640/72 (art. 74, c.6, D.P.R. 633/1972)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="RF11">
@@ -618,23 +660,26 @@
           <xs:documentation>IVA per cassa (art. 32-bis, D.L. 83/2012)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+      <xs:enumeration value="RF18">
+        <xs:annotation>
+          <xs:documentation>Altro</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
 	  <xs:enumeration value="RF19">
         <xs:annotation>
           <xs:documentation>Regime forfettario</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
-      <xs:enumeration value="RF18">
+	  <xs:enumeration value="RF20">
         <xs:annotation>
-          <xs:documentation>Altro</xs:documentation>
+          <xs:documentation>Regime transfrontaliero di Franchigia IVA (Direttiva UE 2020/285)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
   </xs:simpleType>
   <xs:complexType name="AnagraficaType">
     <xs:annotation>
-      <xs:documentation>
-				Il campo Denominazione è in alternativa ai campi Nome e Cognome
-			</xs:documentation>
+      <xs:documentation>Il campo Denominazione è in alternativa ai campi Nome e Cognome</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:choice>
@@ -671,14 +716,12 @@
     <xs:sequence>
       <xs:element name="Telefono" type="TelFaxType" minOccurs="0" />
       <xs:element name="Fax"      type="TelFaxType" minOccurs="0" />
-      <xs:element name="Email"    type="EmailType"  minOccurs="0" />
+      <xs:element name="Email"    type="EmailContattiType"  minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="RappresentanteFiscaleType">
     <xs:annotation>
-      	<xs:documentation>
-			Blocco relativo ai dati del Rappresentante Fiscale
-		</xs:documentation>
+      	<xs:documentation>Blocco relativo ai dati del Rappresentante Fiscale</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="DatiAnagrafici" type="DatiAnagraficiRappresentanteType" />
@@ -725,9 +768,7 @@
   </xs:complexType>
   <xs:complexType name="DatiBeniServiziType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati di Beni Servizi della Fattura	Elettronica
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati di Beni Servizi della Fattura	Elettronica</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="DettaglioLinee" type="DettaglioLineeType" maxOccurs="unbounded" />
@@ -736,12 +777,8 @@
   </xs:complexType>
   <xs:complexType name="DatiVeicoliType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati dei Veicoli della Fattura
-				Elettronica (da indicare nei casi di cessioni tra Paesi
-				membri di mezzi di trasporto nuovi, in base all'art. 38,
-				comma 4 del dl 331 del 1993)
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati dei Veicoli della Fattura Elettronica (da indicare nei casi di cessioni tra Paesi
+			membri di mezzi di trasporto nuovi, in base all'art. 38, comma 4 del dl 331 del 1993)</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="Data"           type="xs:date"      />
@@ -750,9 +787,7 @@
   </xs:complexType>
   <xs:complexType name="DatiPagamentoType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati di Pagamento della Fattura	Elettronica
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati di Pagamento della Fattura Elettronica</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="CondizioniPagamento" type="CondizioniPagamentoType"                       />
@@ -918,6 +953,11 @@
           <xs:documentation>Trattenuta su somme già riscosse</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+      <xs:enumeration value="MP23">
+        <xs:annotation>
+          <xs:documentation>PagoPA</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="IBANType">
@@ -932,11 +972,7 @@
   </xs:simpleType>
   <xs:complexType name="TerzoIntermediarioSoggettoEmittenteType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati del Terzo Intermediario che
-				emette fattura elettronica per conto del
-				Cedente/Prestatore
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati del Terzo Intermediario che emette fattura elettronica per conto del Cedente/Prestatore</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="DatiAnagrafici" type="DatiAnagraficiTerzoIntermediarioType" />
@@ -951,9 +987,7 @@
   </xs:complexType>
   <xs:complexType name="AllegatiType">
     <xs:annotation>
-      <xs:documentation>
-				Blocco relativo ai dati di eventuali allegati
-			</xs:documentation>
+      <xs:documentation>Blocco relativo ai dati di eventuali allegati</xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:element name="NomeAttachment"        type="String60LatinType"                />
@@ -986,7 +1020,7 @@
   <xs:complexType name="CodiceArticoloType">
     <xs:sequence>
       <xs:element name="CodiceTipo"   type="String35Type" />
-      <xs:element name="CodiceValore" type="String35Type" />
+      <xs:element name="CodiceValore" type="String35LatinExtType" />
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="AltriDatiGestionaliType">
@@ -1002,9 +1036,7 @@
       <xs:length value="2" />
       <xs:enumeration value="SI">
         <xs:annotation>
-          <xs:documentation>
-						SI = Cessione / Prestazione soggetta a ritenuta
-					</xs:documentation>
+          <xs:documentation>SI = Cessione / Prestazione soggetta a ritenuta</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -1046,17 +1078,59 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="N1">
         <xs:annotation>
-          <xs:documentation>Escluse ex. art. 15</xs:documentation>
+          <xs:documentation>Escluse ex. art. 15 del D.P.R. 633/1972</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+<!-- IL CODICE SEGUENTE (N2) NON SARA' PIU' VALIDO PER LE FATTURE EMESSE A PARTIRE DAL PRIMO GENNAIO 2021-->
       <xs:enumeration value="N2">
         <xs:annotation>
           <xs:documentation>Non soggette</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+      <xs:enumeration value="N2.1">
+        <xs:annotation>
+          <xs:documentation>Non soggette ad IVA ai sensi degli artt. da 7 a 7-septies del DPR 633/72</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N2.2">
+        <xs:annotation>
+          <xs:documentation>Non soggette - altri casi</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+<!-- IL CODICE SEGUENTE (N3) NON SARA' PIU' VALIDO PER LE FATTURE EMESSE A PARTIRE DAL PRIMO GENNAIO 2021-->
       <xs:enumeration value="N3">
         <xs:annotation>
-          <xs:documentation>Non Imponibili</xs:documentation>
+          <xs:documentation>Non imponibili</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.1">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - esportazioni</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.2">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - cessioni intracomunitarie</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.3">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - cessioni verso San Marino</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.4">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - operazioni assimilate alle cessioni all'esportazione</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.5">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - a seguito di dichiarazioni d'intento</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N3.6">
+        <xs:annotation>
+          <xs:documentation>Non Imponibili - altre operazioni che non concorrono alla formazione del plafond</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="N4">
@@ -1066,17 +1140,63 @@
       </xs:enumeration>
       <xs:enumeration value="N5">
         <xs:annotation>
-          <xs:documentation>Regime del margine</xs:documentation>
+          <xs:documentation>Regime del margine/IVA non esposta in fattura</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
+<!-- IL CODICE SEGUENTE (N6) NON SARA' PIU' VALIDO PER LE FATTURE EMESSE A PARTIRE DAL PRIMO GENNAIO 2021-->
       <xs:enumeration value="N6">
         <xs:annotation>
-          <xs:documentation>Inversione contabile (reverse charge)</xs:documentation>
+          <xs:documentation>Inversione contabile (per le operazioni in reverse charge ovvero nei casi di autofatturazione per acquisti extra UE di servizi ovvero per importazioni di beni nei soli casi previsti)</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.1">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - cessione di rottami e altri materiali di recupero</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.2">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - cessione di oro e argento ai sensi della legge 7/2000 nonché di oreficeria usata ad OPO</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.3">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - subappalto nel settore edile</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.4">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - cessione di fabbricati</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.5">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - cessione di telefoni cellulari</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.6">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - cessione di prodotti elettronici</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.7">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - prestazioni comparto edile e settori connessi</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.8">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - operazioni settore energetico</xs:documentation>
+        </xs:annotation>
+      </xs:enumeration>
+      <xs:enumeration value="N6.9">
+        <xs:annotation>
+          <xs:documentation>Inversione contabile - altri casi</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
       <xs:enumeration value="N7">
         <xs:annotation>
-          <xs:documentation>IVA assolta in altro stato UE (vendite a distanza ex art. 40 commi 3 e 4 e art. 41 comma 1 lett. b, DL 331/93; prestazione di servizi di telecomunicazioni, tele-radiodiffusione ed elettronici ex art. 7-sexies lett. f, g, DPR 633/72 e art. 74-sexies, DPR 633/72)</xs:documentation>
+          <xs:documentation>IVA assolta in altro stato UE (prestazione di servizi di telecomunicazioni, tele-radiodiffusione ed elettronici ex art. 7-octies lett. a, b, art. 74-sexies DPR 633/72)</xs:documentation>
         </xs:annotation>
       </xs:enumeration>
     </xs:restriction>
@@ -1176,6 +1296,12 @@
       <xs:pattern value="(\p{IsBasicLatin}{1,35})" />
     </xs:restriction>
   </xs:simpleType>
+  <xs:simpleType name="String35LatinExtType">
+    <xs:restriction base="xs:normalizedString">
+      <xs:minLength value="1" />
+      <xs:maxLength value="35" />
+    </xs:restriction>
+  </xs:simpleType>
   <xs:simpleType name="String60Type">
     <xs:restriction base="xs:normalizedString">
       <xs:pattern value="(\p{IsBasicLatin}{1,60})" />
@@ -1252,6 +1378,12 @@
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="EmailType">
+    <xs:restriction base="xs:token">
+      <xs:maxLength value="256" />
+      <xs:pattern value="([!#-'*+/-9=?A-Z^-~-]+(\.[!#-'*+/-9=?A-Z^-~-]+)*|&quot;(\[\]!#-[^-~ \t]|(\\[\t -~]))+&quot;)@([!#-'*+/-9=?A-Z^-~-]+(\.[!#-'*+/-9=?A-Z^-~-]+)*|\[[\t -Z^-~]*\])" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="EmailContattiType">
     <xs:restriction base="xs:string">
       <xs:minLength value="7" />
       <xs:maxLength value="256" />

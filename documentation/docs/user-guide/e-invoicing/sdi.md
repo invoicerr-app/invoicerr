@@ -99,20 +99,26 @@ Invoicerr will use these credentials to authenticate with the SDI system and tra
 
 ---
 
-## Known limitation — the recipient's routing code
+## How the recipient is addressed
 
 SDI routes an invoice to its recipient using a **Codice Destinatario**: seven characters for an
 ordinary business, six for a public administration (the *Codice Univoco Ufficio*, looked up from
-IndicePA), or a **PEC** address instead.
+IndicePA), or a **PEC** address instead. Record whichever the client gave you on the client's page.
 
-Invoicerr can record that code for a client marked as a **government** buyer, because the Italian B2G
-routing rule asks for it. It currently offers **no field to record it for an ordinary business
-client**. An invoice to such a client is therefore sent with the placeholder reserved for recipients
-without an Italian routing code, which is not what a domestic Italian recipient should receive.
+When the client has none of them:
 
-Until that field exists, an Italian seller invoicing another Italian business should expect SDI
-delivery to that recipient to be unreliable, and should not rely on this path for production
-invoicing.
+- an Italian client gets `0000000`, and SDI makes the invoice available in the client's own reserved
+  area on the Revenue Agency's portal;
+- a client established abroad gets `XXXXXXX`, the code SDI keeps for transmitting the data of an
+  invoice to a foreign buyer.
+
+---
+
+## Regime forfettario
+
+If your company is under the regime forfettario, turn on the VAT exemption toggle in **Settings →
+Company**. Your invoices then carry no VAT, and the FatturaPA file declares the forfettario regime
+(`RF19`) with the nature code `N2.2` on every line, as the Revenue Agency requires.
 
 ---
 

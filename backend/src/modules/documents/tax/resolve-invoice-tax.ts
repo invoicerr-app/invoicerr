@@ -167,6 +167,11 @@ export function parseDistanceSalesRegime(value: unknown): DistanceSalesRegime | 
   return value === 'ORIGIN' || value === 'DESTINATION' ? value : undefined;
 }
 
+/** `Company.exemptVat` is the small-business VAT exemption, never the stronger `EXEMPT` scheme. */
+export function companyTaxScheme(company: { exemptVat: boolean }): TaxScheme | undefined {
+  return company.exemptVat ? 'FRANCHISE_BASE' : undefined;
+}
+
 export interface InvoiceTaxPartyInput {
   /** Explicit ISO override, same field/priority as `country-policy.ts#resolveCompanyCountryCode`. */
   countryCode?: string | null;
