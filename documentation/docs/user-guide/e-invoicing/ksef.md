@@ -5,7 +5,7 @@ sidebar_label: "🇵🇱 KSeF"
 
 # KSeF Setup Guide
 
-**KSeF** (Krajowy System e-Faktur) is the Polish mandatory national e-invoicing system. It requires all invoices issued in Poland to be transmitted and stored electronically through the government-run platform.
+**KSeF** (Krajowy System e-Faktur) is the Polish mandatory national e-invoicing system. It requires invoices issued in Poland to be transmitted and stored electronically through the government-run platform, except, among others, invoices to a private person not carrying on a business (art. 106ga ust. 2 pkt 4 of the VAT act).
 
 Follow the steps below to obtain the credentials needed to connect Invoicerr to KSeF.
 

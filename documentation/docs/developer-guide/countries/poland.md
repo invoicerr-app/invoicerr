@@ -28,6 +28,15 @@ To widen that coverage, or to add a country of your own, see [Adding a
 country](../adding-a-country.md): the catalogue files listed on every other page in this directory
 are the ones Poland already has.
 
+## KSeF and private buyers
+
+Art. 106ga ust. 2 pkt 4 of the VAT act lifts the KSeF obligation for an invoice « na rzecz nabywcy
+towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej », a natural
+person not carrying on a business. The `ksef` fact in the `channelPolicy` section of
+`countries/data/pl.json` records it with `scope.buyerType: ["COMPANY"]`. The fact is `suggested`,
+so the scope has no effect today; it keeps an invoice to a private client outside KSeF if the fact
+is ever made `mandated`.
+
 ## Fallback payment term
 
 The `paymentTerms.fallbackTerm` entry of `countries/data/pl.json` is the 30 days an invoice's due

@@ -44,6 +44,12 @@ validating a domestic Italian B2B invoice shows a dedicated alert naming SdI and
 cannot be undone, a separate block from the generic "numbering and locking are final" warning every
 other locking action already shows.
 
+The SdI mandate binds a private buyer too. D.Lgs. 127/2015 art. 1 comma 3 covers supplies « tra
+soggetti residenti o stabiliti nel territorio dello Stato », not only between taxable persons, and
+the same comma provides for e-invoices issued to final consumers. The `sdi` fact therefore carries
+no `scope.buyerType`: an Italian invoice to a client of type Individual still goes through SdI, and
+Validate still transmits it.
+
 This page is a pointer by design. Everything Invoicerr knows about Italy lives in its own data
 files, and two pages already say it without anyone retyping it:
 

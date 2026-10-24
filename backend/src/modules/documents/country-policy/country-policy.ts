@@ -18,6 +18,7 @@
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
+import { PartyType } from '../country-identifiers/schema';
 import { defaultCountryPolicyCatalog } from './registry';
 
 export interface CountryPolicyDecision {
@@ -106,6 +107,18 @@ export async function resolveClientCountryCode(
     .toUpperCase();
 
   return resolvedCode || undefined;
+}
+
+export async function resolveClientType(
+  companyId: string,
+  clientId: string | undefined | null,
+): Promise<PartyType | undefined> {
+  if (!clientId) return undefined;
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId },
+    select: { type: true },
+  });
+  return client?.type;
 }
 
 type DocumentCountryActionRuleRow = Awaited<

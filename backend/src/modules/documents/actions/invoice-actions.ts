@@ -10,7 +10,11 @@ import {
   resolveClientB2gRouting,
 } from '../b2g-routing/b2g-routing';
 import { loadRatesSafely } from '../../company/currency-rates/currency-rates.store';
-import { resolveClientCountryCode, resolveCompanyCountryCode } from '../country-policy/country-policy';
+import {
+  resolveClientCountryCode,
+  resolveClientType,
+  resolveCompanyCountryCode,
+} from '../country-policy/country-policy';
 import { resolveInvoiceValidationTransmission } from '../country-policy/invoice-validation-transmission';
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -97,9 +101,11 @@ async function resolveActiveInvoiceMandate(
   const countryCode = await resolveCompanyCountryCode(companyId);
   if (!countryCode) return undefined;
   const buyerCountryCode = await resolveClientCountryCode(companyId, clientId);
+  const buyerType = await resolveClientType(companyId, clientId);
   const mandate = activeChannelMandateForOperation({
     sellerCountryCode: countryCode,
     buyerCountryCode,
+    buyerType,
     issueDate,
   });
   return mandate ? { countryCode, mandate } : undefined;

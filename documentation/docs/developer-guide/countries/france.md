@@ -48,11 +48,29 @@ which `invoiceRequirements` requires of a domestic business client only. A priva
 therefore be saved, and invoiced, without a SIREN. A sole trader entered as an individual may still
 enter one, and it is printed.
 
+## Private clients and the PDP mandate
+
+CGI art. 289 bis, I binds emission through an accredited platform only « lorsque l'émetteur de la
+facture et son destinataire sont des assujettis ». A private person is not an assujetti, so an
+invoice to a client of type Individual is outside the PDP mandate. The `pdp` fact in the
+`channelPolicy` section of `countries/data/fr.json` says so with `scope.buyerType: ["COMPANY"]`,
+next to `scope.parties: "domestic"`. Such an invoice is validated and sent like an invoice from a
+country with no mandate: no PDP is needed, and Validate only numbers and locks it.
+
+:::info[E-reporting is not transmitted]
+A sale to a private person falls under e-reporting (CGI art. 290 A), a separate obligation to
+declare the transaction data. Invoicerr records it in the `reporting` section of `fr.json` but does
+not transmit it.
+:::
+
+A client recorded as a company is treated as an assujetti. An association or a public body outside
+the scope of VAT may not be one; the data cannot tell them apart today.
+
 ## Validate and the PDP mandate
 
 Invoicerr's **Validate** action normally only assigns an invoice's legal number and locks it, with
 no email or transmission of any kind (see the [user guide](../../user-guide/billing/invoices.md)).
-For a domestic French B2B invoice, that is not enough: CGI art. 289 bis I requires emission,
+For a domestic French invoice to a business client, that is not enough: CGI art. 289 bis I requires emission,
 transmission and reception to go through an accredited platform, so a numbered-and-locked invoice
 that never went through one is not yet lawfully issued. The owner's decision (2026-10-01, issue
 #581, revised after the pull request's own review) is that validating one of these invoices performs

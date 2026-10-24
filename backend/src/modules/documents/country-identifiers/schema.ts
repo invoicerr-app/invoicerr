@@ -215,7 +215,7 @@ export function assertValidProvenance(
 
 export class InvalidRequiredForError extends Error {}
 
-const PARTY_TYPES: readonly PartyType[] = ['COMPANY', 'INDIVIDUAL'];
+export const PARTY_TYPES: readonly PartyType[] = ['COMPANY', 'INDIVIDUAL'];
 
 /** The party types a scheme's `required` binds. */
 export function requiredPartyTypes(

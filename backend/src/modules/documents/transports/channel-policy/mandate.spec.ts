@@ -212,7 +212,7 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
       issueDate: '2026-09-15',
     });
     expect(mandate?.providerId).toBe('pdp');
-    expect(mandate?.scope).toEqual({ parties: 'domestic' });
+    expect(mandate?.scope).toMatchObject({ parties: 'domestic' });
   });
 
   it('FR seller -> IT buyer, same date: NO mandate - the French obligation does not reach a buyer established abroad', () => {
@@ -265,6 +265,32 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
         buyerCountryCode: 'FR',
         issueDate: '2026-08-31',
       }),
+    ).toBeUndefined();
+  });
+
+  it('a mandate scoped to business buyers binds a business buyer and an unknown buyer type, never a private one', () => {
+    const businessOnly = new ChannelPolicyCatalog([
+      {
+        countryCode: 'ZZ',
+        facts: [
+          {
+            providerId: 'fixture-channel',
+            requirement: 'mandated',
+            mandatedFrom: '2030-06-15',
+            scope: { buyerType: ['COMPANY'] },
+            provenance: { kind: 'legal', sourceText: 'Fixture legal text.', sourceCheckedAt: '2026-08-27' },
+          },
+        ],
+      },
+    ]);
+    const operation = { sellerCountryCode: 'ZZ', buyerCountryCode: 'ZZ', issueDate: '2030-06-15' };
+
+    expect(
+      activeChannelMandateForOperation({ ...operation, buyerType: 'COMPANY' }, businessOnly)?.providerId,
+    ).toBe('fixture-channel');
+    expect(activeChannelMandateForOperation(operation, businessOnly)?.providerId).toBe('fixture-channel');
+    expect(
+      activeChannelMandateForOperation({ ...operation, buyerType: 'INDIVIDUAL' }, businessOnly),
     ).toBeUndefined();
   });
 
