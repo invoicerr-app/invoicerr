@@ -196,6 +196,36 @@ describe('channel policy files — loaded, not hard-coded', () => {
     ).toThrow(/empty "scope"/);
   });
 
+  it('a "scope.buyerType" naming an unknown party type is REJECTED at load', () => {
+    expect(() =>
+      assertValidChannelPolicyFact(
+        {
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          scope: { buyerType: ['BUSINESS'] } as never,
+          provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-08-27' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/unknown "scope.buyerType" party type "BUSINESS"/);
+  });
+
+  it('an empty "scope.buyerType" is REJECTED at load', () => {
+    expect(() =>
+      assertValidChannelPolicyFact(
+        {
+          providerId: 'pdp',
+          requirement: 'mandated',
+          mandatedFrom: '2026-09-01',
+          scope: { buyerType: [] },
+          provenance: { kind: 'legal', sourceText: 'Some exact legal text.', sourceCheckedAt: '2026-08-27' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/empty "scope.buyerType"/);
+  });
+
   it('the two shipped mandates both declare `scope.parties: "domestic"` - the statutory restriction each one quotes', () => {
     // Not a style assertion: `fr.json`'s own `sourceText` is about the plateforme agréée between
     // parties established in France, and `it.json`'s quotes "tra soggetti residenti o stabiliti nel
@@ -206,7 +236,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
     );
     expect(mandatesWithScope.length).toBeGreaterThan(0);
     for (const fact of mandatesWithScope) {
-      expect(fact.scope).toEqual({ parties: 'domestic' });
+      expect(fact.scope).toMatchObject({ parties: 'domestic' });
     }
   });
 

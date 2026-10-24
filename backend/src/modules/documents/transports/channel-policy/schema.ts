@@ -35,6 +35,7 @@
  * file loader (a test, a future caller) must be refused too, never trusted just because it constructed
  * fine as an object literal.
  */
+import { PARTY_TYPES, PartyType } from '../../country-identifiers/schema';
 import { PolicyProvenance } from '../../country-policy/schema';
 
 export type ChannelRequirement = 'suggested' | 'mandated';
@@ -48,7 +49,11 @@ export type ChannelPolicyParties = 'domestic';
  *  key, because an ignored key here would silently mean "this narrowing does not apply". */
 export interface ChannelPolicyScope {
   parties?: ChannelPolicyParties;
+  /** The buyer types the fact binds; a buyer of another type is outside it. */
+  buyerType?: PartyType[];
 }
+
+const SCOPE_KEYS = ['parties', 'buyerType'];
 
 export interface ChannelPolicyFact {
   /** A `documents/transports/transport-registry.ts` id — e.g. "pdp". Deliberately NOT validated
@@ -167,12 +172,13 @@ export function assertValidChannelPolicyFact(fact: ChannelPolicyFact, context: s
         `${context}: fact "${fact.providerId}" declares a "scope" that is not an object.`,
       );
     }
-    const unknownKey = Object.keys(scope).find((key) => key !== 'parties');
+    const unknownKey = Object.keys(scope).find((key) => !SCOPE_KEYS.includes(key));
     if (unknownKey) {
       throw new InvalidChannelPolicyProvenanceError(
         `${context}: fact "${fact.providerId}" declares an unknown "scope" key "${unknownKey}" - ` +
-          'the only key this format understands today is "parties". An unrecognized key would be ' +
-          'read by nothing and silently change nothing, so it is refused rather than ignored.',
+          `the keys this format understands are ${SCOPE_KEYS.map((key) => `"${key}"`).join(', ')}. ` +
+          'An unrecognized key would be read by nothing and silently change nothing, so it is ' +
+          'refused rather than ignored.',
       );
     }
     if (scope.parties !== undefined && scope.parties !== 'domestic') {
@@ -180,6 +186,21 @@ export function assertValidChannelPolicyFact(fact: ChannelPolicyFact, context: s
         `${context}: fact "${fact.providerId}" declares "scope.parties" as ` +
           `"${String(scope.parties)}" - the only value this format understands today is "domestic".`,
       );
+    }
+    if (scope.buyerType !== undefined) {
+      if (!Array.isArray(scope.buyerType) || scope.buyerType.length === 0) {
+        throw new InvalidChannelPolicyProvenanceError(
+          `${context}: fact "${fact.providerId}" declares an empty "scope.buyerType" - omit it to ` +
+            'bind every buyer type.',
+        );
+      }
+      const unknownType = scope.buyerType.find((type) => !PARTY_TYPES.includes(type as PartyType));
+      if (unknownType !== undefined) {
+        throw new InvalidChannelPolicyProvenanceError(
+          `${context}: fact "${fact.providerId}" declares an unknown "scope.buyerType" party type ` +
+            `"${String(unknownType)}" - expected one of ${PARTY_TYPES.join(', ')}.`,
+        );
+      }
     }
     if (Object.keys(scope).length === 0) {
       throw new InvalidChannelPolicyProvenanceError(

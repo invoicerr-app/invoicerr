@@ -37,6 +37,7 @@
  * `actions/convert-to-invoice.ts`). `isOnOrAfter` below compares both the same way (as calendar
  * instants), so it makes no difference which shape a given caller happens to have on hand.
  */
+import { PartyType } from '../../country-identifiers/schema';
 import { LegalProvenance } from '../../country-policy/schema';
 import { ChannelPolicyCatalog, defaultChannelPolicyCatalog } from './registry';
 import { ChannelPolicyFact, ChannelPolicyScope } from './schema';
@@ -167,6 +168,8 @@ export interface ChannelMandateOperation {
   buyerCountryCode?: string;
   /** The INVOICE's own `issueDate`, never the server's clock - see this file's header. */
   issueDate?: string;
+  /** The buyer's party type, `undefined` when unknown (the mandate then binds). */
+  buyerType?: PartyType;
 }
 
 function isDomestic(operation: ChannelMandateOperation): boolean {
@@ -222,6 +225,9 @@ export function activeChannelMandateForOperation(
     // A fact with no `scope` binds unconditionally - the behaviour every fact had before `scope` was
     // read at all (schema.ts's own header on that field).
     if (fact.scope?.parties === 'domestic' && !isDomestic(operation)) continue;
+    if (operation.buyerType && fact.scope?.buyerType && !fact.scope.buyerType.includes(operation.buyerType)) {
+      continue;
+    }
     return toActiveMandate(fact);
   }
   return undefined;

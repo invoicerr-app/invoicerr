@@ -26,7 +26,7 @@
  * honestly disagree about whether a mandate is active - only about what each one's own caller goes
  * on to do with that fact (actually send, versus merely preview whether Validate would).
  */
-import { resolveClientCountryCode, resolveCompanyCountryCode } from './country-policy';
+import { resolveClientCountryCode, resolveClientType, resolveCompanyCountryCode } from './country-policy';
 import { CountryPolicyCatalog, defaultCountryPolicyCatalog } from './registry';
 import {
   activeChannelMandateForOperation,
@@ -73,7 +73,8 @@ export async function resolveInvoiceValidationTransmission(
   // Condition 2 - the SAME "is this operation bound by an active mandate right now" question "send"
   // itself asks, never a second, possibly-drifting definition of "active".
   const buyerCountryCode = await resolveClientCountryCode(companyId, clientId);
-  const operation: ChannelMandateOperation = { sellerCountryCode, buyerCountryCode, issueDate };
+  const buyerType = await resolveClientType(companyId, clientId);
+  const operation: ChannelMandateOperation = { sellerCountryCode, buyerCountryCode, buyerType, issueDate };
   const mandate = activeChannelMandateForOperation(operation, channelCatalog);
   if (!mandate) return { transmits: false, sellerCountryCode };
 

@@ -20,8 +20,9 @@ before any payment or credit note. What is still owed on it is in its settlement
 - **Download** - a plain **PDF** is always available; once the invoice has been numbered, **Download normalized XML** adds **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
 - **Validate** - assign the invoice's legal number and lock it, without sending anything. A warning
   appears first: this is final, correct a mistake with a credit note afterwards, the same as for a sent
-  invoice. For a French or Italian domestic B2B invoice, validating also transmits it through your
-  accredited channel (PDP for France, SdI for Italy), since each country's own law treats the invoice
+  invoice. For a French domestic invoice to a business client, or any Italian domestic invoice,
+  validating also transmits it through your accredited channel (PDP for France, SdI for Italy). A
+  French invoice to a private client needs no PDP and is only numbered and locked. Each country's own law treats the invoice
   as not genuinely issued until it reaches that channel - the warning dialog says so explicitly in
   that case, naming the channel and stating it cannot be undone; see
   [France](../../developer-guide/countries/france.md#validate-and-the-pdp-mandate) and
