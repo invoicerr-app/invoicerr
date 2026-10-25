@@ -391,10 +391,10 @@ données.
 
 **Sous-traitant(s)**
 
-- **Nom**: Roméo Chevrier, entrepreneur individuel, SIREN 982 187 676 (SIRET 982 187 676 00019),
-  exploitant du Service Invoicerr hébergé.
-- **Adresse**: 4 rue du Puits, 26120 Montélier, France.
-- **Nom, fonction et coordonnées de la personne de contact**: Roméo Chevrier, exploitant du Service,
+- **Nom**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) au capital de 1 euro, RCS
+  Lyon `[à compléter à l'immatriculation]`, exploitant du Service Invoicerr hébergé.
+- **Adresse**: 63 avenue Jules Guesde, 69200 Vénissieux, France.
+- **Nom, fonction et coordonnées de la personne de contact**: Roméo Chevrier, président,
   contact@invoicerr.app. Aucun délégué à la protection des données n'a été désigné (Politique de
   Confidentialité, Section 1).
 - **Signature et date d’adhésion**: Accepté par le Sous-traitant en mettant le Service à disposition
@@ -447,15 +447,15 @@ d'abonnement pour une Société qui n'a jamais eu d'abonnement payant, et au plu
 (180) jours après cet envoi pour une Société qui en a eu un.
 
 Renvoi des données à caractère personnel au terme de la prestation de services (clause 10, point d)) :
-cette archive, envoyée par e-mail au Propriétaire de la Société (Conditions Générales d'Utilisation,
-Section 13.2), et l'export en libre-service disponible à tout moment auparavant (Conditions Générales
-d'Utilisation, Section 8.2).
+cette archive, que le Propriétaire de la Société télécharge au moyen d'un lien envoyé par e-mail
+(Conditions Générales d'Utilisation, Section 13.2), et l'export en libre-service disponible à tout
+moment auparavant (Conditions Générales d'Utilisation, Section 8.2).
 
-Conservation légale (clause 10, point d) : « à moins que le droit de l'Union ou le droit de l'État
-membre n'exige la conservation des données à caractère personnel ») : un document archivé dont la durée
-légale de conservation court encore est conservé jusqu'à l'expiration de cette durée, enregistrée avec
-le document ainsi que le texte qui l'impose, puis effacé. La Politique de Confidentialité, Section 6,
-énumère les pays, durées et textes concernés.
+Suppression après renvoi (clause 10, point d)) : une fois les données renvoyées, le Sous-traitant les
+supprime toutes, y compris les copies archivées des documents envoyés par le Client, et n'en conserve
+aucune copie au titre d'une durée légale de conservation : le Client conserve seul ses factures
+(Conditions Générales d'Utilisation, Section 13.4). Les copies de sauvegarde chiffrées expirent
+trente-cinq (35) jours après leur création.
 
 **Pour le traitement par les sous-traitants (ultérieurs), préciser également l’objet, la nature et la
 durée du traitement.**
@@ -468,10 +468,9 @@ Voir l'annexe IV.
 
 Les identifiants et jetons que le Service conserve pour connecter une Société à un canal ou une
 plateforme tiers sont chiffrés au repos en AES-256-GCM. Les sauvegardes des documents et fichiers
-conservés par le Service sont chiffrées en AES-256-GCM au sein de l'infrastructure du Sous-traitant
-avant d'être écrites sur le stockage de sauvegarde, avec une clé que seul le Sous-traitant détient et
-que le prestataire de stockage ne reçoit jamais ; une clé manquante fait échouer la sauvegarde au lieu
-d'écrire quoi que ce soit en clair. Cela n'établit pas, à soi seul, l'exemption de communication prévue
+conservés par le Service sont chiffrées en AES-256-GCM au sein de l'infrastructure du Service avant
+d'être écrites sur le stockage de sauvegarde, avec une clé qui n'est jamais écrite sur ce stockage ;
+une clé manquante fait échouer la sauvegarde au lieu d'écrire quoi que ce soit en clair. Cela n'établit pas, à soi seul, l'exemption de communication prévue
 à l'article 34, paragraphe 3, point a), du règlement (UE) 2016/679 ; son application s'apprécie au cas
 par cas.
 
@@ -493,16 +492,15 @@ Client lui accorde.
 **Mesures de protection des données pendant la transmission**
 
 Tout le trafic vers et depuis le Service est chiffré en TLS, terminé à l'entrée du cluster avec un
-certificat émis et renouvelé automatiquement.
+certificat émis et renouvelé automatiquement. Tant que le proxy de Cloudflare est activé devant le
+Service, le TLS est aussi terminé chez Cloudflare, qui rechiffre le trafic vers le Service (annexe IV).
 
 **Mesures de protection des données pendant le stockage**
 
-L'environnement de production, y compris sa base de données PostgreSQL managée et le stockage objet qui
-contient les documents archivés, est hébergé par Scaleway SAS dans sa région de Paris (France) ; la base
-de données est accessible par le réseau privé de Scaleway, et non par l'internet public. L'environnement
-de recette, utilisé pour valider une version et, pendant le programme bêta, par les participants à ce
-programme, fonctionne sur une infrastructure que le Sous-traitant exploite lui-même, en France. Aucun
-des deux environnements n'est hébergé, répliqué ou sauvegardé hors de l'Union européenne.
+Le Service, y compris sa base de données PostgreSQL managée (deux nœuds) et le stockage objet qui
+contient les documents, est hébergé par OVH SAS (OVHcloud) en France. Les sauvegardes sont stockées sur
+OVHcloud Object Storage, en France, et expirent après trente-cinq (35) jours. Rien n'est hébergé,
+répliqué ou sauvegardé hors de l'Union européenne.
 
 **Mesures visant à garantir l’enregistrement des événements**
 
@@ -510,8 +508,10 @@ Les journaux applicatifs sont conservés quatre-vingt-dix (90) jours, puis suppr
 
 **Mesures visant à garantir la minimisation des données**
 
-La reconnaissance optique de caractères s'exécute sur une infrastructure exploitée par le Sous-traitant
-; aucun document n'est envoyé à un prestataire d'OCR tiers.
+La reconnaissance optique de caractères s'exécute au sein de l'infrastructure propre du Service ; aucun
+document n'est envoyé à un prestataire d'OCR tiers. Les e-mails envoyés par le Service ne portent que
+leur texte : un document n'est jamais joint et il est accessible par un lien de téléchargement servi par
+le Service.
 
 **Mesures visant à garantir une conservation limitée des données**
 
@@ -544,15 +544,16 @@ au moins 30 jours à l'avance.
 
 **1.**
 
-- **Nom**: Scaleway SAS
-- **Adresse**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Nom, fonction et coordonnées de la personne de contact**: privacy@scaleway.com
+- **Nom**: OVH SAS (OVHcloud)
+- **Adresse**: 2 rue Kellermann, 59100 Roubaix, France
+- **Nom, fonction et coordonnées de la personne de contact**: Celles publiées par OVH SAS dans ses
+  propres conditions de traitement des données.
 - **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
-  plusieurs sous-traitants ultérieurs sont autorisés)**: Hébergement de l'environnement de production du
-  Service : le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée qui
+  plusieurs sous-traitants ultérieurs sont autorisés)**: Hébergement du Service, en France : le cluster
+  Kubernetes managé sur lequel il fonctionne, la base de données PostgreSQL managée (deux nœuds) qui
   conserve les documents créés par le Client (et les données à caractère personnel qu'ils contiennent),
-  et le stockage objet qui contient les documents archivés. Région de Paris (France) ; la base de
-  données est accessible par le réseau privé de Scaleway, et non par l'internet public.
+  le stockage objet qui contient ces documents, et les sauvegardes, conservées sur OVHcloud Object
+  Storage pendant trente-cinq (35) jours.
 
 **2.**
 
@@ -560,8 +561,10 @@ au moins 30 jours à l'avance.
 - **Adresse**: 2261 Market Street #5039, San Francisco, CA 94114, USA
 - **Nom, fonction et coordonnées de la personne de contact**: privacy@resend.com
 - **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
-  plusieurs sous-traitants ultérieurs sont autorisés)**: Envoi des e-mails transactionnels pouvant
-  contenir un document, ou un lien vers celui-ci, sur instruction du Client.
+  plusieurs sous-traitants ultérieurs sont autorisés)**: Envoi des e-mails transactionnels sur
+  instruction du Client. Le texte de l'e-mail seulement : un document n'est jamais joint et il est
+  accessible par un lien de téléchargement servi par le Service. Aucun suivi des ouvertures ni des
+  clics.
 
 **3.**
 
@@ -570,44 +573,29 @@ au moins 30 jours à l'avance.
 - **Nom, fonction et coordonnées de la personne de contact**: Data Protection Officer,
   legal@cloudflare.com
 - **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
-  plusieurs sous-traitants ultérieurs sont autorisés)**: Routage des e-mails entrants adressés à
-  contact@invoicerr.app. Correspondance d'assistance uniquement ; jamais les données à caractère
-  personnel contenues dans les documents créés avec le Service.
-
-**4.**
-
-- **Nom**: Google LLC (Gmail)
-- **Adresse**: 1600 Amphitheatre Parkway, Mountain View, California 94043, USA
-- **Nom, fonction et coordonnées de la personne de contact**: Celles publiées par Google LLC dans ses
-  propres conditions de protection des données.
-- **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
-  plusieurs sous-traitants ultérieurs sont autorisés)**: La boîte de réception où arrive la
-  correspondance d'assistance adressée à contact@invoicerr.app. Correspondance d'assistance uniquement ;
-  jamais les données à caractère personnel contenues dans les documents créés avec le Service.
-
-**5.**
-
-- **Nom**: Les plateformes nationales de facturation électronique et plateformes publiques que le Client
-  choisit de connecter : la PDP française, le KSeF polonais, le SdI italien (et, pour son canal de
-  courrier électronique certifié, le fournisseur de boîte PEC auquel le Client est abonné), l'AT
-  portugaise, et Chorus Pro en France pour la facturation B2G.
-- **Adresse**: Celle de l'opérateur de chaque plateforme.
-- **Nom, fonction et coordonnées de la personne de contact**: Celles publiées par l'opérateur de chaque
-  plateforme.
-- **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
-  plusieurs sous-traitants ultérieurs sont autorisés)**: Transmission des documents que le Client envoie
-  par cette plateforme, sur instruction explicite du Client et avec les identifiants et mandats que le
-  Client fournit.
+  plusieurs sous-traitants ultérieurs sont autorisés)**: DNS des domaines du Service. Tant que son proxy
+  est activé devant le Service, relais de tout le trafic entre les navigateurs des utilisateurs et le
+  Service : Cloudflare termine le TLS, de sorte que les données à caractère personnel portées par ce
+  trafic traversent son réseau en clair avant d'être rechiffrées vers le Service.
 
 ### Notes relatives à l'annexe IV
 
-**Ne sont pas des sous-traitants ultérieurs au titre du présent ATD.** Polar Software, Inc. vend
-l'abonnement au Client en tant que revendeur (merchant of record) et traite les données d'achat qu'elle
-collecte en tant que responsable du traitement indépendant (Politique de Confidentialité, Sections 3 et
-4), jamais les données à caractère personnel contenues dans les documents du Client. GitHub, Inc.
-héberge le site public de documentation et le dépôt du code source, qui ne reçoivent jamais de données
-du Client (Politique de Confidentialité, Section 10). L'environnement de recette est exploité par le
-Sous-traitant lui-même, sur sa propre infrastructure, en France : aucun tiers ne l'héberge.
+**Ne sont pas des sous-traitants ultérieurs au titre du présent ATD.** Stripe traite le paiement de
+l'abonnement, à partir des propres données de facturation du Client (Politique de Confidentialité,
+Sections 3 et 4), jamais des données à caractère personnel contenues dans les documents du Client.
+GitHub, Inc. héberge le site public de documentation, le dépôt du code source et son suivi des issues,
+et Weblate la traduction de l'interface ; aucun des deux ne reçoit de données du Client (Politique de
+Confidentialité, Sections 4 et 10). OVH SAS héberge aussi la boîte aux lettres du support, qui reçoit la
+correspondance du Client avec le Sous-traitant, et non les données à caractère personnel contenues dans
+les documents du Client.
+
+**Plateformes de facturation électronique choisies par le Client.** Les plateformes nationales de
+facturation électronique et plateformes publiques, ainsi que toute plateforme de facturation
+électronique agréée (la PDP française, le KSeF polonais, le SdI italien et, pour son canal de courrier
+électronique certifié, le fournisseur de boîte PEC auquel le Client est abonné, l'AT portugaise, et
+Chorus Pro en France pour la facturation B2G), sont choisies et contractées par le Client, avec son
+propre compte. Le Sous-traitant ne les engage pas ; il ne transmet un document par une telle plateforme
+que sur instruction explicite du Client, avec les identifiants et mandats que le Client fournit.
 
 **Assistant d'IA choisi par le Client.** Le Service expose un point d'accès Model Context Protocol
 (`POST /api/mcp`) auquel le Client peut connecter un assistant d'IA de son choix, au moyen d'une clé
@@ -618,10 +606,10 @@ tout transfert hors de l'EEE. L'un des outils de ce point d'accès, `get_documen
 public, sans authentification, vers le PDF d'un document, valable 30 jours et révocable depuis le
 Service.
 
-**Transferts internationaux (clause 7.8).** Resend, Cloudflare et Google LLC peuvent traiter des données
-hors de l'Espace économique européen, notamment aux États-Unis. Un tel transfert repose sur les
-garanties propres à ce prestataire au titre du chapitre V du règlement (UE) 2016/679 (Politique de
-Confidentialité, Section 5). Scaleway SAS traite les données en France.
+**Transferts internationaux (clause 7.8).** Resend et Cloudflare peuvent traiter des données hors de
+l'Espace économique européen, notamment aux États-Unis. Un tel transfert repose sur les garanties
+propres à ce prestataire au titre du chapitre V du règlement (UE) 2016/679 (Politique de
+Confidentialité, Section 5). OVH SAS traite les données en France.
 
 ## Dispositions complémentaires
 

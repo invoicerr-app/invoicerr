@@ -19,77 +19,82 @@ référence. Elle ne s'applique pas au logiciel auto-hébergé, qui ne nous envo
 
 ## 1. Juridictions
 
-L'infrastructure qui traite les propres données du Service — les données de compte de votre Société et
-Vos Données (les documents, données commerciales et paramètres que vous créez au moyen du Service) —
-est située exclusivement en **France**, répartie sur deux environnements :
+L'infrastructure qui héberge les propres données du Service, les données de compte de votre Société et
+Vos Données (les documents, données commerciales et paramètres que vous créez au moyen du Service), est
+située exclusivement en **France**. Un prestataire se place devant elle, pour le seul transit, tant que
+son proxy est activé :
 
-| Environnement | Composant | Hébergeur | Juridiction |
+| Rôle | Composant | Prestataire | Juridiction |
 | --- | --- | --- | --- |
-| Production | Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | Scaleway SAS | France (région de Paris) |
-| Recette | Infrastructure applicative, base de données et stockage des documents — utilisés pour valider une version avant son passage en production et, pendant le programme bêta, par les participants à ce programme | Le Prestataire lui-même — aucun hébergeur tiers | France |
+| Hébergement | Infrastructure Kubernetes managée, base de données PostgreSQL managée (deux nœuds), stockage objet des documents, et sauvegardes (OVHcloud Object Storage, conservées 35 jours) | OVH SAS (OVHcloud) | France |
+| Transit, tant que le proxy est activé | DNS et proxy inverse : tout le trafic entre votre navigateur et le Service traverse le réseau de Cloudflare, où le TLS est terminé | Cloudflare, Inc. | États-Unis (le réseau de Cloudflare peut traiter le trafic hors de France) |
 
-La ligne « Production » relève d'un fournisseur unique, dans une région unique, accessible via le
-réseau privé propre de Scaleway plutôt que par l'internet public — la base de données n'est plus un
-maillon distinct chez un autre fournisseur ou dans un autre pays. La ligne « Recette » ne comporte, au
-sens propre, aucun fournisseur : elle fonctionne sur une infrastructure que le Prestataire exploite
-lui-même, en France, de sorte qu'aucun tiers n'intervient dans cette chaîne auprès de qui une autorité
-étrangère pourrait notifier une demande — une position plus solide au regard du présent article que
-celle de la ligne « Production », et non plus faible. Le Prestataire lui-même demeure bien entendu
-soumis au droit français et de l'Union européenne, comme tout exploitant du Service. Ni l'un ni l'autre
-environnement, ni Vos Données sur l'un ou l'autre, ne sont hébergés, dupliqués ou sauvegardés en dehors
-de la France/de l'UE. Lorsqu'un sous-traitant nommé dans la
-[Politique de Confidentialité](./privacy-policy.md), Section 4, et l'
-[Accord de Traitement des Données](./data-processing-agreement.md), annexe IV (Polar pour la
-facturation de l'abonnement, Resend pour les e-mails transactionnels, Cloudflare et Google LLC pour la
-correspondance de support entrante) est une entité non-UE ou peut traiter des données en dehors de
-l'EEE, ce traitement se limite aux données de compte/facturation ou à la correspondance de support —
-jamais à Vos Données ni aux documents que vous créez au moyen du Service, sur l'un ou l'autre
-environnement — et repose sur les garanties propres à ce prestataire au titre du Chapitre V du RGPD,
-comme décrit dans la Politique de Confidentialité, Section 5.
+**Hébergement.** Vos Données et la base de données du Service sont stockées, traitées et sauvegardées
+uniquement en France, par un seul prestataire français. Aucune n'est hébergée, dupliquée ou sauvegardée
+en dehors de la France.
 
-Deux sites web publics et statiques — le site de présentation (`invoicerr.app`) et ce site de
-documentation (`docs.invoicerr.app`) — sont hébergés sur **GitHub Pages**, exploité par GitHub, Inc.
-(États-Unis, filiale à 100 % de Microsoft Corporation). Aucun des deux sites ne constitue une
-infrastructure TIC traitant les données du Service : comme l'indiquent les
+**Transit.** Tant que le proxy de Cloudflare est activé devant le Service, chaque requête et chaque
+réponse entre votre navigateur et le Service, y compris les documents que vous créez et les données
+personnelles qu'ils contiennent, traverse le réseau de Cloudflare en clair avant d'être rechiffrée vers
+le Service. Cloudflare, Inc. est une société établie aux États-Unis et soumise à leur droit. Le Service
+passera Cloudflare en DNS seul, sans proxy, une fois la production validée, et cette page sera mise à
+jour à ce moment.
+
+Lorsqu'un autre sous-traitant nommé dans la [Politique de Confidentialité](./privacy-policy.md),
+Section 4, et l'[Accord de Traitement des Données](./data-processing-agreement.md), annexe IV, est une
+entité non-UE ou peut traiter des données en dehors de l'EEE (Stripe pour le paiement de l'abonnement,
+Resend pour le texte des e-mails transactionnels), ce traitement se limite aux données de compte et de
+facturation ou au texte d'un e-mail, jamais aux documents que vous créez, accessibles par un lien de
+téléchargement servi depuis la France ; il repose sur les garanties propres à ce prestataire au titre
+du Chapitre V du RGPD, comme décrit dans la Politique de Confidentialité, Section 5.
+
+Deux sites web publics et statiques, le site de présentation (`invoicerr.app`) et ce site de
+documentation (`docs.invoicerr.app`), ainsi que le dépôt du code source, sont hébergés par **GitHub**,
+exploité par GitHub, Inc. (États-Unis, filiale à 100 % de Microsoft Corporation). Aucun d'eux ne
+constitue une infrastructure TIC traitant les données du Service : comme l'indiquent les
 [Mentions Légales](./legal-notice.md), Section 3, et la Politique de Confidentialité, Section 10,
 GitHub ne reçoit ni ne stocke jamais les données de compte, de facturation ou de documents créées au
-moyen du Service — uniquement le trafic des visiteurs normalement nécessaire pour servir une page
+moyen du Service, uniquement le trafic des visiteurs normalement nécessaire pour servir une page
 statique. Ils sont mentionnés ici par souci d'exhaustivité, et non parce qu'ils relèveraient du champ
 visé par l'article 28.
 
 ## 2. Mesures contre l'Accès International Illicite
 
-- **Localisation des données dès la conception.** La base de données et le stockage documentaire
-  propres au Service ne sont hébergés qu'en France, sur les deux environnements décrits à la Section 1
-  ci-dessus — un choix, et non une configuration par défaut, qui à lui seul place les données hors de
-  portée de toute demande d'accès ne passant pas par une voie légale de l'UE ou française. L'environnement
-  de recette va plus loin encore : le Prestataire l'hébergeant lui-même, aucun fournisseur tiers
-  n'intervient dans cette chaîne qu'une autorité étrangère pourrait contraindre.
+- **Localisation des données dès la conception.** La base de données, le stockage documentaire et les
+  sauvegardes du Service ne sont hébergés qu'en France, par un prestataire français : un choix, et non
+  une configuration par défaut, qui place les données stockées hors de portée de toute demande d'accès
+  ne passant pas par une voie légale de l'UE ou française.
+- **Le transit par Cloudflare, dit clairement.** Tant que le proxy de Cloudflare est activé, une
+  société américaine voit le trafic en clair sur son chemin vers le Service (Section 1). Nous ne
+  prétendons pas le contraire, et nous retirons le proxy une fois la production validée.
 - **Chiffrement en transit.** L'ensemble du trafic à destination et en provenance du Service est
-  chiffré de bout en bout via TLS, avec terminaison au niveau de l'ingress au moyen d'un certificat émis
-  et renouvelé automatiquement (cert-manager / Let's Encrypt) — voir
-  `deploy/helm/invoicerr/templates/ingress.yaml`.
+  chiffré via TLS, avec terminaison au niveau de l'ingress au moyen d'un certificat émis et renouvelé
+  automatiquement (cert-manager / Let's Encrypt), voir `deploy/helm/invoicerr/templates/ingress.yaml`,
+  et, tant que le proxy est activé, également chez Cloudflare.
 - **Chiffrement au repos des identifiants de connexion.** Les identifiants et jetons que le Service
   stocke pour connecter votre Société à un canal ou une plateforme tiers (un transport de facturation
   électronique, un fournisseur OIDC, un certificat de signature, un secret de webhook) sont chiffrés au
-  repos avec AES-256-GCM avant d'être écrits en base de données — voir
-  `backend/src/utils/secret-crypto.ts` — de sorte qu'une simple copie de la base de données ne suffit
+  repos avec AES-256-GCM avant d'être écrits en base de données, voir
+  `backend/src/utils/secret-crypto.ts`, de sorte qu'une simple copie de la base de données ne suffit
   pas à les exposer.
 - **Chiffrement des sauvegardes.** Les copies de sauvegarde des documents et fichiers stockés par le
-  Service sont chiffrées (AES-256-GCM) avant de quitter notre infrastructure, au moyen d'une clé que le
-  prestataire de stockage ne détient jamais — voir l'Accord de Traitement des Données, annexe III — de
-  sorte qu'une demande adressée directement à ce prestataire, ou une copie du compartiment de
-  sauvegarde lui-même, n'atteint que du texte chiffré, jamais les documents.
+  Service sont chiffrées (AES-256-GCM) avant d'être écrites sur le stockage de sauvegarde, au moyen
+  d'une clé qui n'est jamais écrite sur ce stockage (voir l'Accord de Traitement des Données, annexe
+  III), de sorte qu'une copie du compartiment de sauvegarde à elle seule n'atteint que du texte
+  chiffré, jamais les documents. Les sauvegardes expirent après trente-cinq (35) jours.
+- **Aucun document dans les e-mails.** Les e-mails envoyés par le Service ne portent que leur texte :
+  un document n'est jamais joint et il est accessible par un lien de téléchargement servi par le
+  Service, de sorte que Resend, prestataire américain, ne reçoit jamais les documents que vous créez.
 - **Contrôle d'accès.** L'accès aux données d'une Société au sein du Service est limité par les rôles
   propres à cette Société (propriétaire/administrateur/membre) ; l'accès à l'infrastructure et aux
   données de production au sein de notre propre organisation est limité à ce qui est nécessaire pour
   exploiter et assurer le support du Service, comme décrit dans la Politique de Confidentialité,
   Section 7, et l'Accord de Traitement des Données, annexe III.
 - **Garanties contractuelles avec les sous-traitants.** Chaque sous-traitant est tenu, par contrat, à
-  des obligations de protection des données substantiellement équivalentes à l'Accord de
-  Traitement des Données (art. 28, § 4, du RGPD) — voir l'Accord de Traitement des Données, clause 7.7 et annexe IV —
-  et, lorsqu'un sous-traitant peut traiter des données en dehors de l'EEE, aux clauses contractuelles
-  types de la Commission européenne ou à une autre garantie prévue au Chapitre V du RGPD.
+  des obligations de protection des données substantiellement équivalentes à l'Accord de Traitement des
+  Données (art. 28, § 4, du RGPD), voir l'Accord de Traitement des Données, clause 7.7 et annexe IV, et,
+  lorsqu'un sous-traitant peut traiter des données en dehors de l'EEE, aux clauses contractuelles types
+  de la Commission européenne ou à une autre garantie prévue au Chapitre V du RGPD.
 - **Absence d'accès permanent ou automatisé pour une autorité étrangère.** Nous n'accordons à aucun
   gouvernement, autorité ou tiers un accès permanent, automatisé ou dérobé à l'infrastructure ou à la
   base de données décrites à la Section 1. Toute demande de Vos Données émanant d'une autorité publique

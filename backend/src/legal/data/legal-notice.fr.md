@@ -15,52 +15,45 @@ infrastructure sous la licence figurant dans le fichier `LICENSE` à la racine d
 
 ## 1. Éditeur
 
-- **Roméo Chevrier**, entrepreneur individuel (micro-entreprise) de droit français.
-- Immatriculé sous le numéro **SIREN 982 187 676 (SIRET 982 187 676 00019)**.
-- Adresse enregistrée : **4 rue du Puits, 26120 Montélier, France**.
-- Contact : **contact@invoicerr.app**.
-- TVA : **TVA non applicable — franchise en base, art. 293 B du Code général des impôts (CGI)** ; voir
-  Conditions Générales d'Utilisation, Section 1.1, pour la même déclaration.
+- **INVOICERR**, société par actions simplifiée unipersonnelle (**SASU**) de droit français, au capital
+  de **1 euro**.
+- Siège social : **63 avenue Jules Guesde, 69200 Vénissieux, France**.
+- Immatriculée au registre du commerce et des sociétés de Lyon (**RCS Lyon**) sous le numéro
+  `[à compléter à l'immatriculation]`.
+- Représentée par son président, **Roméo Chevrier**.
+- Contact : **contact@invoicerr.app**. Téléphone : `[à compléter]`.
+- Numéro de TVA intracommunautaire : `[à compléter]`. TVA : **TVA non applicable, art. 293 B du Code
+  général des impôts (CGI) (franchise en base)** ; voir Conditions Générales d'Utilisation, Section 7.2.
 
 ## 2. Directeur de la Publication
 
-**Roméo Chevrier**, en sa qualité d'entrepreneur individuel éditant et exploitant le Service, est le
-directeur de la publication au sens de l'article 6-III de la LCEN.
+**Roméo Chevrier**, président d'INVOICERR, est le directeur de la publication au sens de l'article
+6-III de la LCEN.
 
-## 3. Hébergeurs
+## 3. Hébergeur
 
-Le Service fonctionne sur deux environnements distincts, chacun avec son propre hébergeur, conformément
-à l'article 6-I-2 de la LCEN.
+Le Service (**my.invoicerr.app**), sa base de données, le stockage de ses documents et ses sauvegardes
+sont hébergés en France par **OVH SAS** (OVHcloud), *société par actions simplifiée* immatriculée au
+registre du commerce et des sociétés de Lille Métropole sous le numéro **424 761 419**, dont le siège
+social est situé **2 rue Kellermann, 59100 Roubaix, France**. Téléphone : `[à compléter]`. OVHcloud
+héberge également la boîte aux lettres qui reçoit la correspondance adressée à
+**contact@invoicerr.app**.
 
-**Production.** **Scaleway SAS** — *société par actions simplifiée* immatriculée sous le numéro SIREN
-**433 115 904** (RCS Paris), dont le siège social est situé **8 rue de la Ville-l'Évêque, 75008 Paris,
-France**. Scaleway exploite le cluster Kubernetes, la base de données PostgreSQL managée et le stockage
-objet sur lesquels fonctionne le Service de production (**my.invoicerr.app**), dans sa région de Paris.
-Contact : même adresse postale ; voir les mentions légales propres de Scaleway (scaleway.com) pour leurs
-canaux de support.
-
-**Environnement de recette.** Un environnement de recette distinct — utilisé pour valider une version
-avant son passage en production et, pendant le programme bêta, utilisé par les participants à ce
-programme — est hébergé par le Prestataire lui-même, sur une infrastructure qu'il exploite, en France :
-**Roméo Chevrier**, entrepreneur individuel (micro-entreprise) de droit français, immatriculé sous le
-numéro **SIREN 982 187 676 (SIRET 982 187 676 00019)**, adresse enregistrée **4 rue du Puits,
-26120 Montélier, France** — la même identité que celle indiquée à la Section 1. Aucun tiers n'héberge
-cet environnement. Pendant le programme bêta, les données des participants au programme — y compris de
-véritables factures et d'autres données commerciales réelles — résident sur cet environnement, et non
-sur l'infrastructure de production de Scaleway ; voir la
-[Politique de Confidentialité](./privacy-policy.md), Section 4, pour le détail.
+Les noms de domaine sont servis par **Cloudflare, Inc.**, 101 Townsend Street, San Francisco,
+CA 94107, États-Unis, qui en assure le DNS et, tant que son proxy est activé devant le Service, relaie
+le trafic entre votre navigateur et OVHcloud ; voir la page
+[Transparence sur l'Accès International](./international-access-transparency.md).
 
 Le **site public** à l'adresse **invoicerr.app**, le **site de documentation** à l'adresse
-**docs.invoicerr.app** — sur lequel les présentes mentions sont elles-mêmes publiées — et le **dépôt de
-code source** à l'adresse **github.com/invoicerr-app/invoicerr** (issues publiques, discussions lorsqu'
-activées, et les workflows GitHub Actions qui construisent et publient les images de conteneur du
-Service sur le GitHub Container Registry) sont hébergés par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
+**docs.invoicerr.app**, sur lequel les présentes mentions sont elles-mêmes publiées, et le **dépôt de
+code source** à l'adresse **github.com/invoicerr-app/invoicerr** (issues publiques, discussions
+lorsqu'activées, et les workflows GitHub Actions qui construisent et publient les images de conteneur
+du Service sur le GitHub Container Registry) sont hébergés par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, États-Unis, filiale à 100 % de Microsoft Corporation, au moyen de ses
-services GitHub Pages, GitHub Actions et GitHub Container Registry. GitHub, Inc. n'héberge ni
-l'environnement de production du Service hébergé (**my.invoicerr.app**, Scaleway SAS, ci-dessus), ni son
-environnement de recette (ci-dessus), et ne reçoit ni ne stocke jamais les données de compte, de
-facturation ou de documents créées au moyen de l'un ou l'autre — voir Politique de Confidentialité,
-Section 10.
+services GitHub Pages, GitHub Actions et GitHub Container Registry. GitHub, Inc. n'héberge pas le
+Service (**my.invoicerr.app**, OVHcloud, ci-dessus) et ne reçoit ni ne stocke jamais les données de
+compte, de facturation ou de documents créées au moyen de celui-ci ; voir la
+[Politique de Confidentialité](./privacy-policy.md), Section 10.
 
 ## 4. Propriété Intellectuelle
 
@@ -80,9 +73,9 @@ Voir la [Cookies et Politique d'Utilisation Acceptable](./cookies-and-acceptable
 ## 7. Droit Applicable et Médiation de la Consommation
 
 Les présentes mentions sont régies par le **droit français**. Tout litige est soumis à la compétence
-exclusive du **Tribunal de commerce de Romans-sur-Isère, tribunal du siège social du Prestataire**, sous
-réserve de toute règle impérative contraire — la même clause qu'aux Conditions Générales d'Utilisation,
-Section 20.2.
+exclusive de **la juridiction commerciale compétente pour le siège social de l'Éditeur à Lyon
+(actuellement le Tribunal des activités économiques de Lyon)**, sous réserve de toute règle impérative
+contraire : la même clause qu'aux Conditions Générales d'Utilisation, Section 20.3.
 
 Le Service est proposé exclusivement dans un cadre interentreprises (Conditions Générales d'Utilisation,
 Section 1.2). En conséquence, le dispositif de médiation de la consommation prévu aux articles

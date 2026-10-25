@@ -1,8 +1,8 @@
 ---
 title: Legal Notice
 sidebar_position: 5
-version: 2026-09-20
-effectiveDate: 2026-09-20
+version: 2026-10-25
+effectiveDate: 2026-10-25
 ---
 
 :::warning[Draft]
@@ -17,48 +17,43 @@ license in the `LICENSE` file at the root of the
 
 ## 1. Publisher
 
-- **Roméo Chevrier**, sole trader (entrepreneur individuel / micro-entreprise) under French law.
-- Registered under **SIREN 982 187 676 (SIRET 982 187 676 00019)**.
-- Registered address: **4 rue du Puits, 26120 Montélier, France**.
-- Contact: **contact@invoicerr.app**.
-- VAT: **VAT not applicable — Art. 293 B of the French General Tax Code (franchise en base)**; see
-  Terms of Service, Section 1.1 for the same representation.
+- **INVOICERR**, a société par actions simplifiée unipersonnelle (**SASU**) under French law, with a
+  share capital of **1 euro**.
+- Registered office: **63 avenue Jules Guesde, 69200 Vénissieux, France**.
+- Registered with the Lyon Trade and Companies Register (**RCS Lyon**) under number
+  `[to be completed at registration]`.
+- Represented by its president, **Roméo Chevrier**.
+- Contact: **contact@invoicerr.app**. Telephone: `[to be completed]`.
+- Intra-EU VAT number: `[to be completed]`. VAT: **VAT not applicable, Art. 293 B of the French
+  General Tax Code (franchise en base)**; see Terms of Service, Section 7.2.
 
 ## 2. Publication Director
 
-**Roméo Chevrier**, in his capacity as the sole trader publishing and operating the Service, is the
-publication director within the meaning of LCEN art. 6-III.
+**Roméo Chevrier**, president of INVOICERR, is the publication director within the meaning of LCEN
+art. 6-III.
 
-## 3. Hosts
+## 3. Host
 
-The Service runs on two distinct environments, each with its own host, as required by LCEN art. 6-I-2.
+The Service (**my.invoicerr.app**), its database, the storage of its documents, and its backups are
+hosted in France by **OVH SAS** (OVHcloud), a *société par actions simplifiée* registered with the
+Lille Métropole Trade and Companies Register under number **424 761 419**, with registered office at
+**2 rue Kellermann, 59100 Roubaix, France**. Telephone: `[to be completed]`. OVHcloud also hosts the
+mailbox that receives correspondence sent to **contact@invoicerr.app**.
 
-**Production.** **Scaleway SAS** — a *société par actions simplifiée* registered under SIREN
-**433 115 904** (RCS Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris,
-France**. Scaleway operates the Kubernetes cluster, the managed PostgreSQL database, and the object
-storage the production Service (**my.invoicerr.app**) runs on, in its Paris region. Contact: same
-postal address; see Scaleway's own published legal notice (scaleway.com) for their support channels.
+The domain names are served by **Cloudflare, Inc.**, 101 Townsend Street, San Francisco, CA 94107, USA,
+which provides their DNS and, while its proxy is enabled in front of the Service, relays the traffic
+between your browser and OVHcloud; see the
+[International Access Transparency](./international-access-transparency.md) page.
 
-**Acceptance environment.** A separate acceptance environment — used to validate a release before it
-reaches production and, during the beta programme, used by that programme's participants — is hosted
-by the Provider himself, on infrastructure he operates, in France: **Roméo Chevrier**, sole trader
-(entrepreneur individuel / micro-entreprise) under French law, registered under **SIREN 982 187 676
-(SIRET 982 187 676 00019)**, registered address **4 rue du Puits, 26120 Montélier, France** — the same
-identity given in Section 1. No third party hosts this environment. During the beta programme, the
-programme's participants' Customer Data — including real invoices and other real business records —
-resides on this environment, not on Scaleway's production infrastructure; see the
-[Privacy Policy](./privacy-policy.md), Section 4, for detail.
-
-The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app** —
-where this notice is itself published — and the **source code repository** at
+The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app**,
+where this notice is itself published, and the **source code repository** at
 **github.com/invoicerr-app/invoicerr** (public issues, discussions where enabled, and the GitHub
 Actions workflows that build and publish the Service's container images to the GitHub Container
 Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
 wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub Actions, and GitHub
-Container Registry services. GitHub, Inc. does not host the hosted Service's production environment
-(**my.invoicerr.app**, Scaleway SAS, above) or its acceptance environment (above), and never receives
-or stores the account, billing, or document data created through either — see Privacy Policy,
-Section 10.
+Container Registry services. GitHub, Inc. does not host the Service (**my.invoicerr.app**, OVHcloud,
+above) and never receives or stores the account, billing, or document data created through it; see
+the [Privacy Policy](./privacy-policy.md), Section 10.
 
 ## 4. Intellectual Property
 
@@ -77,9 +72,9 @@ See the [Cookies & Acceptable Use Policy](./cookies-and-acceptable-use.md).
 ## 7. Governing Law and Consumer Mediation
 
 This notice is governed by **French law**. Any dispute is submitted to the exclusive jurisdiction of
-**the Commercial Court of Romans-sur-Isère (Tribunal de commerce de Romans-sur-Isère), the court of
-the Provider's registered office**, subject to any mandatory rule of law that provides otherwise — the
-same clause as Terms of Service, Section 20.2.
+**the commercial court with jurisdiction over the Publisher's registered office in Lyon (currently the
+Tribunal des activités économiques de Lyon)**, subject to any mandatory rule of law that provides
+otherwise: the same clause as Terms of Service, Section 20.3.
 
 The Service is offered strictly business-to-business (Terms of Service, Section 1.2). Accordingly, the
 consumer mediation scheme of articles **L.616-1 et seq. of the French Consumer Code** does not apply to
@@ -145,3 +140,10 @@ this document; they create no separate or additional rights.
   not a restatement: during the beta programme, participants' Customer Data — real invoices and other
   real business records — resides on the acceptance environment, not on Scaleway's production
   infrastructure — see Privacy Policy, Section 4.
+- **2026-10-25**: The Publisher is now **INVOICERR**, a SASU with a share capital of 1 euro, registered
+  office in Vénissieux, represented by its president, Roméo Chevrier, who is also the publication
+  director. Section 1 gives the RCS Lyon and intra-EU VAT numbers as placeholders until registration.
+  Section 3 is renamed "Host": the Service, its database, its documents and its backups are hosted in
+  France by OVH SAS (OVHcloud), which also hosts the support mailbox; Cloudflare is named for DNS and,
+  while enabled, its proxy. The Scaleway production entry and the separate acceptance environment are
+  removed. Section 7 now names the court of the registered office in Lyon.

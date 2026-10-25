@@ -18,9 +18,11 @@ rien qui vous concerne. Tout ce qui suit ne concerne que le Service hébergé.
 ## 1. Qui Nous Sommes
 
 Le responsable de traitement des données de compte et de facturation décrites à la Section 3 est
-**Roméo Chevrier, entrepreneur individuel**, immatriculé sous le numéro **SIREN 982 187 676
-(SIRET 982 187 676 00019)**, dont l'adresse enregistrée est **4 rue du Puits, 26120 Montélier, France**
-(« **nous** », « **le Prestataire** »). Contact : **contact@invoicerr.app**.
+**INVOICERR**, société par actions simplifiée unipersonnelle (**SASU**) de droit français, au capital
+de 1 euro, dont le siège social est situé **63 avenue Jules Guesde, 69200 Vénissieux, France**,
+immatriculée au registre du commerce et des sociétés de Lyon (RCS Lyon) sous le numéro
+`[à compléter à l'immatriculation]`, représentée par son président, **Roméo Chevrier** (« **nous** »,
+« **le Prestataire** »). Contact : **contact@invoicerr.app**.
 
 Compte tenu de la nature et de l'ampleur de nos traitements, nous ne sommes pas tenus par l'**article 37
 du RGPD** de désigner un délégué à la protection des données. Utilisez le contact ci-dessus pour toute
@@ -50,11 +52,11 @@ tableau), soit automatiquement lorsque vous utilisez le Service (données de con
 | --- | --- | --- | --- |
 | Données de compte | nom, e-mail, mot de passe haché, jetons de session | vous permettre de vous connecter et d'utiliser le Service | Exécution d'un contrat (art. 6, § 1, b)) |
 | Données de la Société | nom de la société, adresse, identifiants nationaux que vous configurez (par exemple SIREN/TVA) | exploiter l'espace de travail de votre Société, renseigner les documents que vous émettez | Exécution d'un contrat (art. 6, § 1, b)) |
-| Données d'abonnement | formule, nombre de sièges, statut de l'abonnement, dates d'essai | gérer votre abonnement ; Polar traite et conserve votre moyen de paiement et votre adresse de facturation en qualité de merchant of record — voir Section 5 | Exécution d'un contrat (art. 6, § 1, b)) |
+| Données d'abonnement | formule, nombre de sièges, statut de l'abonnement, dates d'essai, informations de facturation | gérer et facturer votre abonnement ; Stripe traite votre moyen de paiement (carte, ou coordonnées bancaires d'un mandat de prélèvement SEPA), voir Section 4 | Exécution d'un contrat (art. 6, § 1, b)) |
 | Données de connexion et de sécurité | adresse IP, horodatage des événements d'authentification, journaux applicatifs, le compteur éphémère par adresse IP qui protège le formulaire de liste d'attente | détecter les abus, assurer la sécurité du Service, diagnostiquer les incidents | Intérêt légitime (art. 6, § 1, f)) |
 | Preuve d'acceptation | le document légal et la version que vous avez acceptés, la date, ainsi que l'adresse IP et l'agent utilisateur du navigateur depuis lesquels vous les avez acceptés | démontrer que vous avez accepté le texte en vigueur au moment où vous l'avez accepté | Exécution d'un contrat (art. 6, § 1, b)), et notre intérêt légitime à pouvoir en apporter la preuve (art. 6, § 1, f)) |
 | Communications de support | le contenu des e-mails que vous envoyez à contact@invoicerr.app | répondre à votre demande | Intérêt légitime (art. 6, § 1, f)), ou exécution d'un contrat lorsque la demande concerne votre abonnement |
-| Documents de facturation pour notre propre comptabilité | l'identité de votre Société et les Frais qui lui sont facturés | notre propre obligation légale de tenue de comptabilité | Obligation légale (art. 6, § 1, c)) |
+| Documents de facturation pour notre propre comptabilité | l'identité de votre Société, son numéro de TVA, et les factures que nous lui émettons pour les Frais | nos propres obligations légales de facturation et de tenue de comptabilité | Obligation légale (art. 6, § 1, c)) |
 | Données de liste d'attente | adresse e-mail, pays, taille de l'entreprise, date et heure d'inscription | vous prévenir de l'ouverture de la version hébergée du Service | Consentement (art. 6, § 1, a)), donné en soumettant le formulaire et retirable à tout moment ; la date et l'heure d'inscription constituent la trace de ce consentement (art. 7, § 1) |
 
 Nous n'envoyons aucun e-mail marketing au-delà de ce qui est transactionnel pour votre compte et votre
@@ -87,69 +89,62 @@ faire supprimer ; vous n'avez pas à donner de motif.
 
 ## 4. Sous-traitants
 
-Nous partageons les données de compte et de facturation ci-dessus avec les sous-traitants suivants,
-chacun engagé selon ses propres conditions de traitement des données :
+Nous recourons aux sous-traitants suivants, chacun engagé selon ses propres conditions de traitement des
+données ; chaque entrée indique ce qu'il reçoit :
 
-- **Polar Software Inc.** — traitement des paiements et facturation ; agit en qualité de
-  **merchant of record** pour votre abonnement (Conditions Générales d'Utilisation, Section 7.1) et est
-  lui-même responsable de traitement pour les informations de paiement qu'il collecte directement
-  auprès de vous.
-- **Resend** — envoi des e-mails transactionnels du Service (liens de connexion, notifications), et
-  envoi de la copie de chaque inscription à la liste d'attente adressée à **contact@invoicerr.app**
-  (Section 3).
-- **Cloudflare, Inc.** — routage entrant des e-mails de correspondance envoyés à
-  **contact@invoicerr.app** (correspondance de support uniquement ; Cloudflare ne voit jamais les
-  données contenues dans les documents que vous créez au moyen du Service), ainsi que la liste
-  d'attente décrite à la Section 3 : la page servie à **my.invoicerr.app** fonctionne comme un
+- **OVHcloud (OVH SAS)** : hébergement du Service, en France : le cluster Kubernetes managé sur lequel
+  il fonctionne, la base de données PostgreSQL managée (deux nœuds) qui stocke les données de la Société
+  et de compte décrites à la Section 3 ainsi que les documents que vous créez au moyen du Service, le
+  stockage objet qui conserve ces documents, et les sauvegardes, conservées sur OVHcloud Object Storage
+  pendant trente-cinq (35) jours. OVHcloud héberge aussi la boîte aux lettres où est reçue la
+  correspondance de support envoyée à **contact@invoicerr.app**, et où arrive la copie de chaque
+  inscription à la liste d'attente décrite à la Section 3. **Le Service et les Données Client, y compris
+  la base de données et ses sauvegardes, sont hébergés au sein de l'Union européenne, en France.**
+- **Stripe** : traitement du paiement de votre abonnement, par carte ou par prélèvement SEPA
+  (Conditions Générales d'Utilisation, Section 7.1). Stripe reçoit votre moyen de paiement et les
+  informations de facturation nécessaires pour le prélever, jamais les données contenues dans les
+  documents que vous créez au moyen du Service.
+- **Resend** : envoi des e-mails transactionnels du Service (liens de connexion, notifications,
+  documents envoyés sur votre instruction), et envoi de la copie de chaque inscription à la liste
+  d'attente adressée à **contact@invoicerr.app** (Section 3). Seul le texte d'un e-mail transite par
+  Resend : un document n'est jamais joint, il est accessible par un lien de téléchargement servi par le
+  Service, et aucun suivi des ouvertures ni des clics n'est utilisé.
+- **Cloudflare, Inc.** : DNS de nos domaines ; tant que son proxy est activé devant le Service, relais
+  de tout le trafic entre votre navigateur et le Service, que Cloudflare déchiffre et rechiffre au
+  passage (voir la page [Transparence sur l'Accès International](./international-access-transparency.md)) ;
+  et la liste d'attente décrite à la Section 3 : la page de liste d'attente fonctionne comme un
   Cloudflare Worker, et chaque inscription est stockée dans **Cloudflare Workers KV**.
-- **Google LLC (Gmail)** — la boîte aux lettres où est reçue la correspondance de support envoyée à
-  **contact@invoicerr.app**, et où arrive la copie de chaque inscription à la liste d'attente décrite
-  à la Section 3 (correspondance uniquement ; Google ne voit jamais les données contenues dans les
-  documents que vous créez au moyen du Service).
-- **Scaleway SAS** — hébergement de l'infrastructure de l'**environnement de production** du Service :
-  le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée qui stocke les
-  données de la Société et de compte décrites à la Section 3 ainsi que les documents que vous créez au
-  moyen du Service, et le stockage objet qui conserve les documents archivés. **Le Service et les
-  Données Client, y compris la base de données, sont hébergés au sein de l'Union européenne**, dans la
-  région de Paris (France) de Scaleway, la base de données étant accessible via le réseau privé propre
-  de Scaleway plutôt que par l'internet public.
+- **GitHub, Inc.** : hébergement de notre code source et du suivi public des issues (Section 10). Il ne
+  reçoit jamais les données de compte, de facturation ou de documents du Service.
+- **Weblate** : traduction de l'interface du Service. Il ne reçoit aucune donnée client.
 
-**L'environnement de recette utilisé pour le programme bêta.** Avant qu'une version n'atteigne
-l'infrastructure de production décrite ci-dessus, nous la validons sur un environnement de recette
-distinct, que le Prestataire exploite lui-même, sur sa propre infrastructure, en France — aucun tiers ne
-l'héberge, ce pourquoi il ne figure pas ci-dessus comme sous-traitant. Pendant le programme bêta, les
-participants au programme utilisent le Service sur cet environnement de recette plutôt que sur
-l'infrastructure de production de Scaleway, et leurs Données Client — y compris de véritables factures,
-de véritables clients et d'autres données commerciales réelles — y sont stockées. Lorsque l'environnement
-de recette utilisé pour le programme bêta est retiré, ces données sont transférées vers l'infrastructure
-de production décrite ci-dessus.
-
-**L'OCR (reconnaissance optique de caractères) fonctionne sur une infrastructure que nous exploitons ;
-aucun document n'est envoyé à un fournisseur d'OCR tiers.**
+**L'OCR (reconnaissance optique de caractères) fonctionne au sein de l'infrastructure propre du
+Service ; aucun document n'est envoyé à un fournisseur d'OCR tiers.**
 
 **Ne sont pas nos sous-traitants :** les prestataires de paiement que vous connectez pour permettre à
-**vos propres clients** de payer les factures que **vous** émettez — Stripe, Mollie, PayPal — sont
-**vos propres comptes**, contractés directement entre vous et eux (Conditions Générales d'Utilisation,
+**vos propres clients** de payer les factures que **vous** émettez (Stripe, Mollie, PayPal) sont **vos
+propres comptes**, contractés directement entre vous et eux (Conditions Générales d'Utilisation,
 Section 14.3). Les **plateformes nationales de facturation électronique et plateformes
-gouvernementales** que vous choisissez de connecter (la PDP française, le KSeF polonais, le SdI italien,
-l'AT portugaise, Chorus Pro en France) agissent sur vos propres instructions et mandat pour transmettre
-les documents que vous envoyez ; leur rôle à l'égard des données personnelles figurant sur ces documents
-est traité dans l'Accord de Traitement des Données, et non dans la présente Politique, axée sur notre
-rôle de responsable de traitement.
+gouvernementales**, ainsi que toute plateforme de facturation électronique agréée (la PDP française, le
+KSeF polonais, le SdI italien, l'AT portugaise, Chorus Pro en France), sont choisies et contractées par
+vous, avec votre propre compte, et agissent sur vos propres instructions et mandat pour transmettre les
+documents que vous envoyez ; voir l'[Accord de Traitement des Données](./data-processing-agreement.md),
+notes relatives à l'annexe IV.
 
 ## 5. Transferts Internationaux
 
-Certains des sous-traitants ci-dessus (Polar, Resend, Cloudflare, Google LLC) peuvent traiter des
+Certains des sous-traitants ci-dessus (Stripe, Resend, Cloudflare, GitHub) peuvent traiter des
 données en dehors de l'Espace économique européen, y compris aux États-Unis. Le cas échéant, le
 transfert repose sur les garanties appropriées propres à ce prestataire au titre du Chapitre V du RGPD
 (telles que les clauses contractuelles types de la Commission européenne). La présente section
 constitue une déclaration générale, et non une affirmation sur la certification actuelle d'un prestataire
-donné — écrivez à contact@invoicerr.app pour connaître le mécanisme précis sur lequel repose un
-prestataire donné aujourd'hui. **Scaleway SAS ne figure pas dans cette liste** : il s'agit d'une société
-française qui héberge la base de données PostgreSQL managée de la Société, en plus de l'infrastructure
-Kubernetes et du stockage objet déjà décrits à la Section 4, entièrement au sein de sa région de Paris
-(France) — aucun maillon de la chaîne qui stocke les documents que vous créez, ou les données de compte
-et de base de données de votre Société, n'implique d'entité hors UE.
+donné : écrivez à contact@invoicerr.app pour connaître le mécanisme précis sur lequel repose un
+prestataire donné aujourd'hui. Tant que le proxy de Cloudflare est activé, le trafic entre votre
+navigateur et le Service, y compris les documents que vous créez, transite par le réseau de Cloudflare,
+qui peut le traiter en dehors de la France. **OVHcloud ne figure pas dans cette liste** : OVH SAS est
+une société française et stocke la base de données, les documents et les sauvegardes du Service en
+France ; aucun maillon de la chaîne qui **stocke** les documents que vous créez, ou les données de
+compte et de base de données de votre Société, n'implique d'entité hors UE.
 
 ## 6. Conservation
 
@@ -163,30 +158,20 @@ et de base de données de votre Société, n'implique d'entité hors UE.
   récupération des données qu'exige l'article 25, paragraphe 2, point g), du règlement (UE) 2023/2854
   (le Data Act) avant que nous puissions supprimer Vos Données une fois que vous cessez d'utiliser le
   Service.
-- **Les documents archivés encore soumis à une durée légale de conservation survivent à cette
-  suppression.** Lorsque vous envoyez un document au moyen du Service, nous en archivons une copie et
-  enregistrons, à cet instant, la durée pendant laquelle la loi du pays de votre Société exige qu'il
-  soit conservé ainsi que le texte qui impose cette durée. Lorsque votre Société est supprimée — par
-  vous, depuis les réglages de votre Société, à tout moment et sans que nous fassions obstacle à votre
-  départ, ou au terme du calendrier ci-dessus — tout enregistrement qui lui est rattaché et tout
-  fichier stocké disparaissent, **à l'exception** des documents archivés dont la durée enregistrée
-  n'est pas encore écoulée. Ces fichiers demeurent sur notre stockage, accompagnés d'un enregistrement
-  indiquant, pour chacun, la date d'expiration et la citation applicable, et nous les effaçons une fois
-  cette date passée. Le fondement est l'**article 17, paragraphe 3, point b), du RGPD** : le droit à
-  l'effacement ne s'applique pas dans la mesure où le traitement est nécessaire pour respecter une
-  obligation légale qui requiert le traitement, prévue par le droit de l'Union ou le droit de l'État
-  membre auquel le responsable du traitement est soumis — et une obligation nationale de conservation
-  des factures ne disparaît pas parce qu'un compte a été fermé. Les durées que nous appliquons, chacune
-  tirée du texte qui l'impose : **Allemagne**, 8 ans à compter de la fin de l'année civile d'émission du
-  document (UStG § 14b Abs. 1 ; AO § 147 Abs. 3) ; **France**, la plus longue de 6 ans (LPF art.
-  L102 B) et de 10 ans (C. com. art. L123-22), qui s'imposent simultanément à une société française ;
-  **Pologne**, 5 ans (ustawa o VAT art. 112, qui renvoie au délai de prescription de l'Ordynacja
-  podatkowa art. 70 § 1) ; **Portugal**, 10 ans à compter de la fin de l'année civile d'émission (CIVA
-  art. 52.º n.º 1). Ces quatre pays sont les seuls pour lesquels le Service dispose d'une règle de
-  conservation sourcée : pour une Société établie ailleurs, rien n'est retenu et ses documents archivés
-  sont effacés avec le reste. Dit simplement : **si votre Société est établie dans l'un de ces quatre
-  pays, les documents que vous avez envoyés au moyen du Service demeurent sur notre stockage pendant
-  des années après votre départ**, et nous ne les effacerons pas plus tôt à votre demande.
+- **La suppression de votre Société supprime tout, documents archivés compris.** Lorsque votre
+  Société est supprimée, par vous, depuis les réglages de votre Société, à tout moment et sans que nous
+  fassions obstacle à votre départ, ou au terme du calendrier ci-dessus, tout enregistrement qui lui est
+  rattaché et tout fichier stocké disparaissent, y compris les copies archivées des documents que vous
+  avez envoyés. Nous vous restituons d'abord vos données (Conditions Générales d'Utilisation,
+  Sections 8.2 et 13.2) ; nous ne conservons pas vos factures pour vous ensuite, et leur conservation
+  pendant toute durée légale relève de votre seule responsabilité (Conditions Générales d'Utilisation,
+  Section 13.4).
+- **Les sauvegardes** sont chiffrées et conservées **trente-cinq (35) jours**, puis supprimées
+  automatiquement. Les données supprimées du Service disparaissent donc des sauvegardes dans un délai
+  de trente-cinq jours.
+- **Nos propres factures à votre Société**, et les pièces comptables qui s'y rapportent, sont
+  conservées pendant la durée que le droit français nous impose pour les documents comptables (10 ans,
+  C. com. art. L123-22), y compris après la suppression de votre Société.
 - **Les journaux applicatifs** sont conservés **90 jours**, puis supprimés automatiquement par une
   purge récurrente — assez longtemps pour instruire un incident de sécurité ou une demande de support
   qui ne se manifeste que des semaines plus tard, et pas davantage.
@@ -235,12 +220,6 @@ d'attente décrite à la Section 3, vous pouvez le retirer à tout moment (**art
 **contact@invoicerr.app**. Le retrait est aussi simple que le fait de consentir, et il ne remet pas en
 cause la licéité du traitement effectué avant ce retrait.
 
-Le droit à l'effacement (**art. 17**) connaît une limite que nous appliquons et que vous devez
-connaître avant d'en faire la demande : lorsqu'un texte impose encore la conservation d'un document
-archivé, l'**article 17, paragraphe 3, point b)** écarte ce droit tant que la durée de conservation
-court, et nous conservons le document. La Section 6 précise quels pays, quelles durées et quels textes
-sont concernés, ainsi que ce qui est malgré tout effacé.
-
 Nous ne mettons en œuvre aucun traitement relevant de l'**article 22 du RGPD** — il n'existe aucune
 décision automatisée, y compris de profilage, produisant des effets juridiques ou vous affectant de
 manière significative de façon similaire.
@@ -262,11 +241,11 @@ consentement n'est affiché.
 
 ## 10. Sites Web Que Nous Exploitons
 
-Le Service lui-même fonctionne à l'adresse **my.invoicerr.app**, hébergé par Scaleway comme décrit à la
-Section 4. Jusqu'à l'ouverture de la version hébergée, cette adresse sert la page de liste d'attente
-décrite à la Section 3, servie par Cloudflare et non par Scaleway.
+Le Service lui-même fonctionne à l'adresse **my.invoicerr.app**, hébergé par OVHcloud comme décrit à
+la Section 4. Jusqu'à l'ouverture de la version hébergée, cette adresse sert la page de liste d'attente
+décrite à la Section 3, servie par Cloudflare et non par OVHcloud.
 Séparément du Service, nous publions deux sites web publics et statiques, tous deux servis
-par **GitHub Pages** — un service d'hébergement exploité par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
+par **GitHub Pages**, un service d'hébergement exploité par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, États-Unis, filiale à 100 % de Microsoft Corporation :
 
 - **invoicerr.app** — notre site web public de présentation. Il ne dépose aucun cookie et ne charge

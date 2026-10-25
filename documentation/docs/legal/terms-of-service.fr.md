@@ -18,15 +18,14 @@ s'applique à un déploiement auto-hébergé.
 
 ## 1. Acceptation, Parties et Éligibilité
 
-1.1. Les présentes Conditions constituent un accord contraignant entre **Roméo Chevrier, entrepreneur
-individuel**, un **entrepreneur individuel (micro-entreprise) de droit français**, immatriculé sous le
-numéro **SIREN 982 187 676 (SIRET 982 187 676 00019)**, dont l'adresse enregistrée est **4 rue du
-Puits, 26120 Montélier, France**, TVA : **TVA non applicable — franchise en base, art. 293 B du Code
-général des impôts (CGI)** (ce statut de TVA constitue une déclaration du Prestataire ; le registre
-public Sirene ne renvoie pas lui-même de champ relatif au régime de TVA) (« **nous** », « **le
-Prestataire** »), et l'entité qui utilise le Service (« **vous** », « **le Client** »). En créant un
-compte, en démarrant un essai, ou en souscrivant au Service, vous acceptez les présentes Conditions dans
-leur intégralité.
+1.1. Les présentes Conditions constituent un accord contraignant entre **INVOICERR**, société par
+actions simplifiée unipersonnelle (**SASU**) de droit français, au capital de **1 euro**, dont le siège
+social est situé **63 avenue Jules Guesde, 69200 Vénissieux, France**, immatriculée au registre du
+commerce et des sociétés de Lyon (RCS Lyon) sous le numéro `[à compléter à l'immatriculation]`, numéro
+de TVA intracommunautaire `[à compléter]`, représentée par son président, **Roméo Chevrier**
+(« **nous** », « **le Prestataire** »), et l'entité qui utilise le Service (« **vous** », « **le
+Client** »). En créant un compte, en démarrant un essai, ou en souscrivant au Service, vous acceptez les
+présentes Conditions dans leur intégralité.
 
 1.2. **Le Service est proposé exclusivement dans un cadre interentreprises (B2B).** En concluant le
 présent Contrat, vous déclarez et garantissez que vous agissez à des fins entrant dans le cadre de votre
@@ -38,18 +37,9 @@ légal de rétractation** au titre de votre abonnement.
 1.3. Si vous souscrivez au nom d'une organisation, vous déclarez disposer du pouvoir d'engager cette
 organisation, et le terme « vous » désigne alors cette organisation.
 
-1.4. **Transfert futur à une société.** Le Prestataire est actuellement un entrepreneur individuel. Il
-peut, à sa seule discrétion, transférer le présent Contrat — ainsi que le Service — à une société qu'il
-constituerait pour exploiter le Service, moyennant un préavis d'au moins **trente (30) jours** adressé
-par e-mail. Un tel transfert ne réduit pas les droits dont vous disposez au titre des présentes
-Conditions ; la société bénéficiaire du transfert reprend intégralement les obligations du Prestataire
-au titre du présent Contrat.
-
-1.5. **Qui vend l'abonnement.** L'abonnement payant n'est pas vendu par nous. Il vous est vendu par
-**Polar Software, Inc.** (« **Polar** »), qui agit en qualité de revendeur (*merchant of record*) du
-Service (Section 7.1). Votre achat est un contrat entre vous et Polar, régi par les conditions propres de
-Polar. Les présentes Conditions sont les conditions du Fournisseur (le Prestataire) auxquelles renvoient
-les conditions de Polar : elles régissent votre accès au Service et son utilisation.
+1.4. **Qui vend l'abonnement.** Nous vous vendons nous-mêmes l'abonnement, selon les présentes
+Conditions, et nous en émettons les factures (Section 7). Aucun revendeur ni *merchant of record* ne
+s'interpose entre vous et nous.
 
 ## 2. Définitions
 
@@ -65,7 +55,7 @@ les conditions de Polar : elles régissent votre accès au Service et son utilis
 - **« Siège »** — un emplacement facturable correspondant à un compte utilisateur rattaché à une
   Société ; voir Section 6.2.
 - **« Frais »** : le prix de votre abonnement, tel que publié sur notre page tarifaire et facturé par
-  Polar (Section 7).
+  nous (Section 7).
 - **« Vos Données »** — les documents, données commerciales, éléments de configuration et autres
   contenus que vous ou vos utilisateurs saisissez dans le Service, ou générez au moyen de celui-ci.
 
@@ -121,40 +111,50 @@ acceptée** — une invitation en attente, non acceptée, n'est jamais facturée
 compris les éventuels paliers de volume, est publié sur notre page tarifaire et peut être révisé de
 temps à autre ; le tarif en vigueur au début de chaque période de facturation régit cette période.
 
-6.4. Vous choisissez un cycle de facturation **mensuel** ou **annuel**. Polar facture un abonnement
-annuel en une fois, à l'avance, pour un montant égal à douze (12) fois le tarif mensuel par Siège alors en
-vigueur, multiplié par votre nombre de Sièges au moment de la facturation.
+6.4. Vous choisissez un cycle de facturation **mensuel** ou **annuel**. Chaque période de facturation
+est facturée et prélevée à l'avance, à son début. Un abonnement annuel est prélevé en une fois, au tarif
+annuel par Siège publié sur notre page tarifaire, multiplié par votre nombre de Sièges au moment de la
+facturation.
 
-## 7. Achat auprès de Polar, Paiement, Factures et Taxes
+## 7. Paiement, Factures et Taxes
 
-7.1. **Polar est le vendeur.** Polar Software, Inc. (« Polar ») agit en qualité de revendeur
-(*merchant of record*) du Service. Vous achetez l'abonnement à Polar, via le paiement en ligne de Polar,
-selon les [Buyer Terms and Conditions](https://polar.sh/legal/checkout-buyer-terms) de Polar, qui
-régissent l'achat, le paiement, l'annulation de l'achat, les remboursements et les rétrofacturations
-(*chargebacks*). Les présentes Conditions régissent votre droit d'accéder au Service et de l'utiliser.
-Lorsque les conditions de Polar et les présentes Conditions traitent d'un même sujet, celles de Polar
-régissent l'achat et le paiement, et les présentes Conditions régissent l'utilisation du Service.
+7.1. **Paiement.** Le paiement est traité par **Stripe**, notre prestataire de paiement, par carte ou
+par prélèvement SEPA. En souscrivant, vous nous autorisez à prélever, par l'intermédiaire de Stripe, le
+moyen de paiement que vous enregistrez, pour les Frais de chaque période de facturation à son début, et
+pour toute autre somme due au titre des présentes Conditions.
 
-7.2. **Paiement, factures et taxes.** Polar facture les Frais, en **dollars des États-Unis (USD)**,
-calcule, collecte et reverse toute taxe sur les ventes, TVA ou taxe similaire due, et émet la facture de
-votre abonnement. **Les Frais publiés sur notre page tarifaire s'entendent hors TVA et hors toute taxe
-similaire**, que Polar ajoute lors du paiement lorsqu'elle s'applique. Nous ne vous facturons pas
-l'abonnement et ne vous demandons jamais de nous payer directement.
+7.2. **Factures et taxes.** Nous émettons une facture pour chaque période de facturation. **Les Frais
+sont exprimés et prélevés en euros, hors TVA.** Tant que nous bénéficions de la franchise en base de TVA
+(art. 293 B du Code général des impôts), aucune TVA française n'est facturée, et nos factures portent la
+mention correspondante. Si vous êtes une entreprise établie dans un autre État membre de l'Union
+européenne, le mécanisme d'autoliquidation s'applique : notre facture ne comporte pas de TVA et vous
+acquittez la TVA due dans votre propre État membre ; vous devez nous communiquer à cette fin votre
+numéro de TVA intracommunautaire valide. Si nous cessons de bénéficier de la franchise en base, la TVA
+au taux applicable s'ajoute aux Frais, qui restent exprimés hors TVA.
 
 7.3. Votre nombre de Sièges est maintenu en cohérence avec la composition réelle de votre Société tout
-au long de la période de facturation ; les changements sont répercutés sur les Frais facturés par Polar
-lors du cycle de facturation suivant, sauf si les mécanismes de facturation de Polar appliquent un changement
-plus tôt.
+au long de la période de facturation ; les changements sont répercutés sur les Frais facturés lors du
+cycle de facturation suivant.
 
 7.4. Le présent Contrat ne porte que sur votre abonnement au Service. Il ne couvre **pas** les moyens
 que vous connectez pour encaisser le paiement de **vos propres** clients sur les factures que **vous**
-émettez au moyen du Service (par exemple un compte Stripe, Mollie ou PayPal) — voir Section 14.3.
+émettez au moyen du Service (par exemple un compte Stripe, Mollie ou PayPal qui vous est propre,
+distinct du compte Stripe par lequel nous prélevons votre abonnement) ; voir Section 14.3.
 
 7.5. **Aucun frais de changement de prestataire, communiqué à l'avance.** Avant que vous ne souscriviez,
 nous vous indiquons clairement, dans les présentes Conditions et sur notre page tarifaire : les Frais
 que vous paierez (Section 6.3) ; que nous ne facturons aucune pénalité de résiliation anticipée
 (Section 12.2) ; et que nous ne facturons aucun frais, de quelque nature que ce soit, pour changer de
 prestataire en quittant le Service (Section 9.6).
+
+7.6. **Retard de paiement.** Les Frais sont exigibles à la date indiquée sur la facture. Toute somme non
+payée à cette date porte, à compter du lendemain et sans qu'un rappel soit nécessaire, des pénalités de
+retard au taux appliqué par la Banque centrale européenne à son opération de refinancement la plus
+récente, majoré de dix (10) points de pourcentage, ainsi qu'une indemnité forfaitaire de quarante (40)
+euros pour frais de recouvrement, conformément à l'article L441-10 du Code de commerce. Lorsque les
+frais de recouvrement effectivement exposés dépassent cette indemnité, nous pouvons demander une
+indemnisation complémentaire, sur justification. Un échec de paiement non résolu entraîne en outre la
+suspension décrite à la Section 13.1.
 
 ## 8. Propriété des Données et Portabilité
 
@@ -163,11 +163,12 @@ propriété sur celles-ci et ne les utilisons que pour vous fournir le Service, 
 Section 15.
 
 8.2. Vous pouvez exporter votre journal comptable (factures, avoirs et paiements) au format CSV à tout
-moment depuis le Service. Vous pouvez également générer un export complet de Vos Données — les champs
-enregistrés et, lorsqu'il peut être généré, une copie PDF de chaque document — **en libre-service, à
+moment depuis le Service. Vous pouvez également générer un export complet de Vos Données (les champs
+enregistrés et, lorsqu'il peut être généré, une copie PDF de chaque document) **en libre-service, à
 tout moment pendant votre abonnement**, soit depuis le Service, soit en appelant
-`POST /api/companies/export` (voir Section 10 pour l'API). Le même export est généré automatiquement et
-envoyé à votre Propriétaire lorsque votre Société atteint la fin de son abonnement (Section 13.2). Si
+`POST /api/companies/export` (voir Section 10 pour l'API). Le même export est généré automatiquement
+lorsque votre Société atteint la fin de son abonnement, et votre Propriétaire reçoit un e-mail contenant
+un lien pour le télécharger (Section 13.2). Si
 vous ne pouvez utiliser aucune de ces deux voies, écrivez à **contact@invoicerr.app** et nous vous
 fournirons l'export dans un délai raisonnable.
 
@@ -271,11 +272,11 @@ fins commerciales internes, pour le nombre de Sièges que vous détenez.
 12.1. Votre abonnement court pour le cycle de facturation que vous avez choisi (mensuel ou annuel) et se
 renouvelle automatiquement à la fin de chaque cycle, sauf résiliation.
 
-12.2. **Vous pouvez résilier à tout moment**, depuis le portail client de Polar ou en écrivant à
-**contact@invoicerr.app**. La résiliation prend effet à la **fin de la période déjà payée** (fin du mois
-ou de l'année en cours), et l'accès aux fonctionnalités payantes se poursuit jusqu'à cette date. Nous
-n'appliquons aucun prorata pour la partie non utilisée d'une période résiliée. Tout remboursement relève
-de Polar, en qualité de vendeur, selon ses propres conditions ; voir la
+12.2. **Vous pouvez résilier à tout moment**, depuis Paramètres > Abonnement dans le Service ou en
+écrivant à **contact@invoicerr.app**. La résiliation prend effet à la **fin de la période déjà payée**
+(fin du mois ou de l'année en cours), et l'accès aux fonctionnalités payantes se poursuit jusqu'à cette
+date. Une période de facturation déjà commencée n'est pas remboursée, et nous n'appliquons aucun prorata
+pour sa partie non utilisée ; les seuls remboursements que nous versons sont ceux prévus par la
 [Politique de Remboursement et de Résiliation](./refund-policy.md).
 
 ## 13. Suspension pour Non-Paiement, Fin d'Abonnement, Archivage et Suppression des Données
@@ -288,57 +289,60 @@ stockées mais toute action d'écriture — y compris l'envoi ou l'émission d'u
 
 13.2. **Archive des données.** À l'issue de la suspension en lecture seule de 14 jours, nous générons
 une archive (un fichier zip) contenant, pour chaque document détenu par votre Société, ses données
-enregistrées et, lorsque le document peut être généré, une copie de celui-ci, et nous envoyons cette
-archive par e-mail au **Propriétaire** de la Société. C'est l'occasion pour vous de conserver une copie
-de vos documents avant leur suppression.
+enregistrées et, lorsque le document peut être généré, une copie de celui-ci, et nous envoyons par
+e-mail au **Propriétaire** de la Société un lien pour télécharger cette archive. C'est ainsi que nous
+vous restituons Vos Données, et l'occasion pour vous de conserver une copie de vos documents avant leur
+suppression.
 
 13.3. **Suppression.**
    - Si la Société n'a jamais eu d'abonnement payant (c'est-à-dire que son essai a expiré sans
      conversion), son compte et l'ensemble des données associées sont définitivement supprimés **au plus
-     tôt trente (30) jours calendaires** après l'envoi de l'archive — la même Fenêtre de Récupération
-     minimale dont bénéficie toute Société, payante ou non (Section 9.5).
+     tôt trente (30) jours calendaires** après la mise à disposition de l'archive : la même Fenêtre de
+     Récupération minimale dont bénéficie toute Société, payante ou non (Section 9.5).
    - Si la Société a eu, à un moment quelconque, un abonnement payant actif, son compte et ses données
-     sont définitivement supprimés **au plus tôt cent quatre-vingts (180) jours après l'envoi de
-     l'archive**, vous laissant une fenêtre supplémentaire pour réactiver votre abonnement avant la
-     suppression.
+     sont définitivement supprimés **au plus tôt cent quatre-vingts (180) jours après la mise à
+     disposition de l'archive**, vous laissant une fenêtre supplémentaire pour réactiver votre
+     abonnement avant la suppression.
+   - La suppression porte sur l'ensemble de Vos Données, y compris les copies archivées des documents
+     que vous avez envoyés. Les sauvegardes chiffrées du Service expirent trente-cinq (35) jours après
+     leur création, de sorte qu'aucune copie de Vos Données ne demeure chez nous au-delà.
 
-13.4. **Transfert de la responsabilité de conservation légale.** Une fois l'archive décrite à la
-Section 13.2 envoyée à votre Propriétaire, **la responsabilité de conserver vos factures et documents
-connexes pendant toute durée légale de conservation** (par exemple, dix (10) ans pour les factures en
-droit français, ou toute autre durée applicable en vertu du droit du pays concerné) **vous est
-transférée**. À compter de ce moment, nous ne sommes plus dépositaires de ces documents et n'assumons
-aucune obligation de conserver l'archive, ou les données sous-jacentes, au-delà de la suppression
-décrite à la Section 13.3.
+13.4. **Vous seul conservez vos factures.** **La conservation de vos factures et documents connexes
+pendant toute durée légale de conservation** (par exemple, dix (10) ans pour les factures en droit
+français, ou toute autre durée applicable en vertu du droit du pays concerné) **relève de votre seule
+responsabilité**. Nous vous restituons Vos Données (Sections 8.2 et 13.2) puis les supprimons
+(Section 13.3) ; nous ne conservons pas vos factures pour vous après la suppression de votre Société, et
+nous ne sommes pas dépositaires de ces documents.
 
 ## 14. Hébergement et Sous-traitants
 
 14.1. **Le Service et les Données Client sont hébergés au sein de l'Union européenne, en France.**
-L'environnement de production fonctionne avec **Scaleway SAS** (infrastructure Kubernetes, base de
-données PostgreSQL managée et stockage objet des documents — région de Paris, France). Avant qu'une
-version n'atteigne la production, et pendant le programme bêta, pour les participants à ce programme,
-le Service fonctionne à la place sur un environnement de recette distinct que nous exploitons
-nous-mêmes, sur notre propre infrastructure, en France — voir la
-[Politique de Confidentialité](./privacy-policy.md), Section 4, pour le détail de cet environnement et
-de ce qu'il advient des Données Client d'un participant au programme bêta une fois cet environnement
-retiré.
+Le Service fonctionne chez **OVHcloud** (OVH SAS), en France : infrastructure Kubernetes managée, base de
+données PostgreSQL managée à deux nœuds et stockage objet des documents. Les sauvegardes sont conservées
+sur OVHcloud Object Storage, en France, pendant trente-cinq (35) jours.
 
 14.2. Nous recourons aux sous-traitants suivants dans le cadre du Service :
 
-   - **Scaleway SAS** — infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet
-     pour l'**environnement de production** du Service et ses documents archivés (région de Paris,
-     France), la base de données étant accessible via le réseau privé propre de Scaleway plutôt que par
-     l'internet public.
-   - **Polar Software, Inc.** : vendeur de votre abonnement en qualité de *merchant of record*,
-     traitement des paiements et facturation (Section 7).
-   - **Resend** — envoi des e-mails transactionnels du Service.
-   - Les **plateformes nationales de facturation électronique et plateformes gouvernementales que vous
-     choisissez de connecter** (par exemple la PDP française, le KSeF polonais, le SdI italien, l'AT
-     portugaise, ou Chorus Pro pour la facturation B2G en France) — celles-ci agissent sur vos
-     instructions explicites, au moyen des identifiants et mandats que vous fournissez, pour transmettre
-     les documents que vous envoyez.
+   - **OVHcloud (OVH SAS)** : hébergement du Service, de sa base de données, du stockage de ses
+     documents et de ses sauvegardes, en France, ainsi que de la boîte aux lettres qui reçoit la
+     correspondance adressée à **contact@invoicerr.app**.
+   - **Stripe** : traitement du paiement de votre abonnement, par carte ou par prélèvement SEPA
+     (Section 7.1).
+   - **Resend** : envoi des e-mails transactionnels du Service. Seul le texte d'un e-mail transite par
+     Resend : un document n'est jamais joint, il est accessible par un lien de téléchargement, et aucun
+     suivi des ouvertures ni des clics n'est utilisé.
+   - **Cloudflare, Inc.** : DNS de nos domaines et, tant que son proxy est activé devant le Service,
+     relais du trafic entre votre navigateur et le Service (Section 14.4).
+   - **GitHub, Inc.** : hébergement du code source et du suivi public des issues. Il ne reçoit jamais
+     Vos Données.
+   - **Weblate** : traduction de l'interface du Service. Il ne reçoit jamais Vos Données.
 
-L'environnement de recette décrit à la Section 14.1 est hébergé directement par nous, et non par un
-sous-traitant : nous l'exploitons nous-mêmes, sur notre propre infrastructure, en France.
+Les **plateformes nationales de facturation électronique et plateformes gouvernementales**, ainsi que
+toute plateforme de facturation électronique agréée (par exemple une PDP française, le KSeF polonais, le
+SdI italien, l'AT portugaise, ou Chorus Pro pour la facturation B2G en France), sont choisies et
+contractées par vous, avec votre propre compte : nous ne les engageons pas. Elles agissent sur vos
+instructions explicites, au moyen des identifiants et mandats que vous fournissez, pour transmettre les
+documents que vous envoyez.
 
 14.3. **Stripe, Mollie et PayPal**, lorsque vous les connectez pour permettre à vos propres clients de
 payer les factures que vous émettez, sont **vos propres comptes** — détenus, contrôlés et souscrits par
@@ -348,8 +352,9 @@ faisons que lire le statut de paiement que vous mettez à disposition pour rappr
 14.4. **Transparence sur l'accès international.** Conformément à l'article 28 du règlement
 (UE) 2023/2854, nous publions et tenons à jour, sur la page
 [Transparence sur l'accès international](./international-access-transparency.md), (a) les juridictions
-auxquelles est soumise l'infrastructure TIC utilisée pour traiter les données du Service — aujourd'hui,
-exclusivement la France et l'Union européenne (Section 14.1) — et (b) une description générale des
+auxquelles est soumise l'infrastructure TIC utilisée pour traiter les données du Service (le Service et
+Vos Données sont hébergés exclusivement en France, Section 14.1 ; cette page décrit aussi le proxy
+Cloudflare par lequel transite le trafic tant qu'il est activé) et (b) une description générale des
 mesures techniques, organisationnelles et contractuelles que nous mettons en œuvre pour prévenir tout
 accès international illicite à, ou tout transfert illicite des, données non personnelles que nous
 détenons au sein de l'Union. Cette page est incorporée au présent Contrat par référence.
@@ -402,8 +407,8 @@ droit applicable ne nous permet pas d'exclure.
 indirects, accessoires ou consécutifs, y compris la perte de profit, de revenus ou de données ; et
 (b) notre responsabilité totale **envers vous** découlant du présent Contrat ou s'y rapportant est
 plafonnée au **montant total que vous avez payé au titre de votre abonnement au Service au cours des
-douze (12) mois précédant l'événement à l'origine de la réclamation**, ce montant étant le prix payé à
-Polar, en qualité de vendeur de l'abonnement (Section 7.1).
+douze (12) mois précédant l'événement à l'origine de la réclamation**, ce montant étant les Frais payés
+au Prestataire (Section 7).
 
 17.2. Rien dans le présent Contrat ne limite ou n'exclut la responsabilité de l'une ou l'autre partie au
 titre de sa propre faute lourde, de son dol, d'un décès ou d'une atteinte à l'intégrité physique, ou de
@@ -455,9 +460,9 @@ cours, par exemple parce que vous êtes encore en période d'essai gratuit, que 
 d'abonnement, ou que votre Société est déjà placée dans la suspension décrite à la Section 13.1.
 
 20.3. Les présentes Conditions sont régies par le **droit français**. Tout litige né des présentes
-Conditions ou s'y rapportant sera soumis à la compétence exclusive du **Tribunal de commerce de
-Romans-sur-Isère, tribunal du siège social du Prestataire**, sous réserve de toute règle impérative
-contraire.
+Conditions ou s'y rapportant sera soumis à la compétence exclusive de **la juridiction commerciale
+compétente pour le siège social du Prestataire à Lyon (actuellement le Tribunal des activités
+économiques de Lyon)**, sous réserve de toute règle impérative contraire.
 
 ## 21. Dispositions Diverses
 
@@ -468,17 +473,14 @@ remplacée par une disposition reflétant, aussi fidèlement que possible, l'eff
 21.2. **Intégralité de l'accord.** Le présent Contrat — les présentes Conditions ainsi que la Politique
 de Confidentialité, l'Accord de Traitement des Données et la Cookies et Politique d'Utilisation
 Acceptable — constitue l'intégralité de l'accord entre vous et nous concernant le Service, et prévaut
-sur tout accord ou entente antérieurs portant sur le même objet. Votre achat de l'abonnement auprès de
-Polar est régi par les conditions propres de Polar et ne fait pas partie du présent Contrat
-(Section 7.1).
+sur tout accord ou entente antérieurs portant sur le même objet.
 
 21.3. **Absence de renonciation.** Le fait de ne pas faire respecter une disposition du présent Contrat
 ne constitue pas une renonciation au droit de la faire respecter ultérieurement.
 
 21.4. **Cession.** Vous ne pouvez céder ou transférer le présent Contrat sans notre consentement écrit
-préalable. Nous pouvons céder le présent Contrat sans votre consentement à une société bénéficiaire d'un
-transfert au titre de la Section 1.4, ou dans le cadre d'une fusion, d'une acquisition, ou de la cession
-de la quasi-totalité des actifs du Prestataire liés au Service.
+préalable. Nous pouvons céder le présent Contrat sans votre consentement dans le cadre d'une fusion,
+d'une acquisition, ou de la cession de la quasi-totalité des actifs du Prestataire liés au Service.
 
 21.5. **Notifications.** Nous vous notifions au titre du présent Contrat par e-mail à l'adresse
 enregistrée de votre compte. Vous nous notifiez par écrit à **contact@invoicerr.app**.
