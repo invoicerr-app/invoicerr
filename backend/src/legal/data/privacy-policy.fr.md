@@ -19,7 +19,7 @@ rien qui vous concerne. Tout ce qui suit ne concerne que le Service hébergé.
 
 Le responsable de traitement des données de compte et de facturation décrites à la Section 3 est
 **INVOICERR**, société par actions simplifiée unipersonnelle (**SASU**) de droit français, au capital
-de 1 euro, dont le siège social est situé **63 avenue Jules Guesde, 69200 Vénissieux, France**,
+de 100 euros, dont le siège social est situé **63 avenue Jules Guesde, 69200 Vénissieux, France**,
 immatriculée au registre du commerce et des sociétés de Lyon (RCS Lyon) sous le numéro
 `[à compléter à l'immatriculation]`, représentée par son président, **Roméo Chevrier** (« **nous** »,
 « **le Prestataire** »). Contact : **contact@invoicerr.app**.

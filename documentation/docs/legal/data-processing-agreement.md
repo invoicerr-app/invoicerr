@@ -350,8 +350,8 @@ shall continue to ensure compliance with these Clauses.
 
 **Processor(s)**
 
-- **Name**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) with a share capital of 1
-  euro, RCS Lyon `[to be completed at registration]`, operator of the hosted Invoicerr Service.
+- **Name**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) with a share capital of 100
+  euros, RCS Lyon `[to be completed at registration]`, operator of the hosted Invoicerr Service.
 - **Address**: 63 avenue Jules Guesde, 69200 Vénissieux, France.
 - **Contact person’s name, position and contact details**: Roméo Chevrier, president,
   contact@invoicerr.app. No data protection officer has been appointed (Privacy Policy, Section 1).
@@ -675,7 +675,7 @@ this document; they create no separate or additional rights.
   stated. The former audit frequency limit (once per twelve months) is gone: Clause 7.6 now governs
   audits. The governing-law cross-reference now points to Terms of Service, Section 20.3.
 - **2026-10-25**: The Clauses are unchanged; only the Annexes change. Annex I: the Processor is now
-  **INVOICERR**, a SASU with a share capital of 1 euro, registered office in Vénissieux, represented by
+  **INVOICERR**, a SASU with a share capital of 100 euros, registered office in Vénissieux, represented by
   its president, Roméo Chevrier. Annex II: the archive is downloaded through a link, and after return
   the Processor deletes everything, archived documents included, keeping nothing for a statutory
   retention period; backups expire after 35 days. Annex III: hosting at OVHcloud in France (managed

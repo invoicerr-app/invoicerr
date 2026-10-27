@@ -20,7 +20,7 @@ commitments, fees, or limitations below apply to a self-hosted deployment.
 ## 1. Acceptance, Parties and Eligibility
 
 1.1. These Terms form a binding agreement between **INVOICERR**, a société par actions simplifiée
-unipersonnelle (**SASU**) under French law, with a share capital of **1 euro**, registered office at
+unipersonnelle (**SASU**) under French law, with a share capital of **100 euros**, registered office at
 **63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the Lyon Trade and Companies
 Register (RCS Lyon) under number `[to be completed at registration]`, intra-EU VAT number
 `[to be completed]`, represented by its president, **Roméo Chevrier** ("**we**", "**us**", "**the
@@ -605,7 +605,7 @@ this document; they create no separate or additional rights.
   the same cap and window, now described as the price paid to Polar as seller rather than an amount paid
   to Polar "on our behalf". Definition of "Fees", Sections 6.1, 6.4, 7.3, 14.2 and 21.2 reworded to
   match. No section renumbered.
-- **2026-10-25**: The Provider is now **INVOICERR**, a SASU with a share capital of 1 euro, registered
+- **2026-10-25**: The Provider is now **INVOICERR**, a SASU with a share capital of 100 euros, registered
   office in Vénissieux, represented by its president, Roméo Chevrier (Section 1.1; RCS and intra-EU
   VAT numbers left as placeholders until registration). The former Section 1.4 (future transfer to a
   company) is removed, and Section 1.5 becomes Section 1.4: we sell the subscription ourselves, with no

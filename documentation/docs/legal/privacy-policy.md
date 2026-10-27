@@ -19,8 +19,8 @@ happens to you. Everything below concerns the hosted Service only.
 ## 1. Who We Are
 
 The data controller for the account and billing data described in Section 3 is **INVOICERR**, a
-société par actions simplifiée unipersonnelle (**SASU**) under French law, with a share capital of 1
-euro, registered office at **63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the
+société par actions simplifiée unipersonnelle (**SASU**) under French law, with a share capital of 100
+euros, registered office at **63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the
 Lyon Trade and Companies Register (RCS Lyon) under number `[to be completed at registration]`,
 represented by its president, **Roméo Chevrier** ("**we**", "**us**", "**the Provider**"). Contact:
 **contact@invoicerr.app**.
@@ -414,7 +414,7 @@ this document; they create no separate or additional rights.
   that page, on Cloudflare rather than on Scaleway, until the hosted version opens. This is a new
   fact, not a restatement: it is the first processing this Policy describes of personal data
   belonging to someone who has no account on the Service.
-- **2026-10-25**: The controller is now **INVOICERR**, a SASU with a share capital of 1 euro,
+- **2026-10-25**: The controller is now **INVOICERR**, a SASU with a share capital of 100 euros,
   registered office in Vénissieux, represented by its president, Roméo Chevrier (Section 1). Section 3:
   Stripe processes the means of payment, and our invoicing records now cover the invoices we issue
   ourselves. Section 4 is rewritten: the sub-processors are OVHcloud (hosting, database, documents,

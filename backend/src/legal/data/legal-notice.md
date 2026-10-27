@@ -18,7 +18,7 @@ license in the `LICENSE` file at the root of the
 ## 1. Publisher
 
 - **INVOICERR**, a société par actions simplifiée unipersonnelle (**SASU**) under French law, with a
-  share capital of **1 euro**.
+  share capital of **100 euros**.
 - Registered office: **63 avenue Jules Guesde, 69200 Vénissieux, France**.
 - Registered with the Lyon Trade and Companies Register (**RCS Lyon**) under number
   `[to be completed at registration]`.
@@ -140,7 +140,7 @@ this document; they create no separate or additional rights.
   not a restatement: during the beta programme, participants' Customer Data — real invoices and other
   real business records — resides on the acceptance environment, not on Scaleway's production
   infrastructure — see Privacy Policy, Section 4.
-- **2026-10-25**: The Publisher is now **INVOICERR**, a SASU with a share capital of 1 euro, registered
+- **2026-10-25**: The Publisher is now **INVOICERR**, a SASU with a share capital of 100 euros, registered
   office in Vénissieux, represented by its president, Roméo Chevrier, who is also the publication
   director. Section 1 gives the RCS Lyon and intra-EU VAT numbers as placeholders until registration.
   Section 3 is renamed "Host": the Service, its database, its documents and its backups are hosted in

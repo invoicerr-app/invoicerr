@@ -16,7 +16,7 @@ infrastructure sous la licence figurant dans le fichier `LICENSE` à la racine d
 ## 1. Éditeur
 
 - **INVOICERR**, société par actions simplifiée unipersonnelle (**SASU**) de droit français, au capital
-  de **1 euro**.
+  de **100 euros**.
 - Siège social : **63 avenue Jules Guesde, 69200 Vénissieux, France**.
 - Immatriculée au registre du commerce et des sociétés de Lyon (**RCS Lyon**) sous le numéro
   `[à compléter à l'immatriculation]`.

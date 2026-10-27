@@ -391,7 +391,7 @@ données.
 
 **Sous-traitant(s)**
 
-- **Nom**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) au capital de 1 euro, RCS
+- **Nom**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) au capital de 100 euros, RCS
   Lyon `[à compléter à l'immatriculation]`, exploitant du Service Invoicerr hébergé.
 - **Adresse**: 63 avenue Jules Guesde, 69200 Vénissieux, France.
 - **Nom, fonction et coordonnées de la personne de contact**: Roméo Chevrier, président,

@@ -19,7 +19,7 @@ s'applique à un déploiement auto-hébergé.
 ## 1. Acceptation, Parties et Éligibilité
 
 1.1. Les présentes Conditions constituent un accord contraignant entre **INVOICERR**, société par
-actions simplifiée unipersonnelle (**SASU**) de droit français, au capital de **1 euro**, dont le siège
+actions simplifiée unipersonnelle (**SASU**) de droit français, au capital de **100 euros**, dont le siège
 social est situé **63 avenue Jules Guesde, 69200 Vénissieux, France**, immatriculée au registre du
 commerce et des sociétés de Lyon (RCS Lyon) sous le numéro `[à compléter à l'immatriculation]`, numéro
 de TVA intracommunautaire `[à compléter]`, représentée par son président, **Roméo Chevrier**
