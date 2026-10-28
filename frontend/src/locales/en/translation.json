@@ -2,7 +2,8 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred while rendering this page. You can try reloading the page.",
-    "reload": "Reload page"
+    "reload": "Reload page",
+    "details": "Details"
   },
   "clients": {
     "search": {
