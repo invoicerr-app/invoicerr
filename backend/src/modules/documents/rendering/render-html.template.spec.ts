@@ -29,13 +29,12 @@ const base: RenderDocumentHtmlInput = {
   referenceLabels: {},
 };
 
-/** The text a reader sees: markup and style blocks removed, whitespace collapsed. */
-function visibleText(html: string): string {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+/** The page without the stylesheet a template adds. */
+function withoutTemplateStyle(html: string): string {
+  const start = html.indexOf('<style data-template-style=');
+  if (start === -1) return html;
+  const end = html.indexOf('</style>', start) + '</style>'.length;
+  return html.slice(0, start).trimEnd() + html.slice(end);
 }
 
 describe('renderDocumentHtml, document template', () => {
@@ -49,7 +48,7 @@ describe('renderDocumentHtml, document template', () => {
     const classic = renderDocumentHtml(base);
     const atelier = renderDocumentHtml({ ...base, branding: { template: 'atelier' } });
     expect(atelier).not.toBe(classic);
-    expect(visibleText(atelier)).toBe(visibleText(classic));
+    expect(withoutTemplateStyle(atelier).trim()).toBe(classic.trim());
   });
 
   it('embeds its own title and interface faces with the atelier template', () => {
