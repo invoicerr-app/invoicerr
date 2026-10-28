@@ -46,13 +46,12 @@ export function ClientDeleteDialog({ client, onOpenChange }: ClientDeleteDialogP
           <DialogTitle>{t("clients.delete.title")}</DialogTitle>
           <DialogDescription>{t("clients.delete.description")}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
-          <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)} disabled={loading}>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {t("clients.delete.actions.cancel")}
           </Button>
           <Button
             variant="destructive"
-            className="w-full"
             onClick={handleDelete}
             loading={loading}
             dataCy="confirm-delete-client-button"
