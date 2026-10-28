@@ -1,12 +1,12 @@
-import { FileQuestion } from "lucide-react"
 import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { DocumentList, type SortKey } from "@/components/documents/document-list"
+import { DocumentLoadState } from "@/components/documents/document-load-state"
+import { useOnline } from "@/components/offline-banner"
 import type { DocumentInstance } from "@/components/documents/types"
-import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentInstances, useDocumentType } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -35,6 +35,8 @@ function sortKeyToQuery(sort: SortKey): { sort: "updatedAt" | "number"; order: "
   }
 }
 
+const OFFLINE_ERROR = new Error("offline")
+
 /**
  * The one generic list page: fetches a document type's descriptor and one PAGE of its saved
  * instances — filtered, sorted, and paginated server-side (`GET /documents`, see
@@ -55,7 +57,7 @@ export default function DocumentTypePage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const { data: descriptor, isLoading, error } = useDocumentType(typeId)
+  const { data: descriptor, isLoading, error, refetch: refetchDescriptor } = useDocumentType(typeId)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1)
@@ -162,6 +164,7 @@ export default function DocumentTypePage() {
     void navigate(`/documents/${typeId}/new`, { replace: true, state: { initialData: seed } })
   }, [location.state])
 
+  const online = useOnline()
   usePageHeader(descriptor?.label ?? typeId, <DocumentTypeIcon icon={descriptor?.icon} />)
 
   if (isLoading) {
@@ -176,10 +179,11 @@ export default function DocumentTypePage() {
   if (error || !descriptor) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <EmptyState
-          icon={FileQuestion}
-          title={t("documents.form.unknownType", { typeId })}
-          data-cy="document-type-unknown"
+        <DocumentLoadState
+          error={error}
+          notFoundTitle={t("documents.form.unknownType", { typeId })}
+          notFoundDataCy="document-type-unknown"
+          onRetry={() => void refetchDescriptor()}
         />
       </div>
     )
@@ -208,7 +212,8 @@ export default function DocumentTypePage() {
         pageSize={instancePage?.pageSize ?? PAGE_SIZE}
         onPageChange={(value) => applyParams({ page: String(value) }, false)}
         isLoading={instancesLoading}
-        error={instancesError}
+        // Offline, the list query pauses without failing: say it could not load rather than "no documents".
+        error={instancesError ?? (!online && !instancePage ? OFFLINE_ERROR : undefined)}
         onRetry={() => void refetchInstances()}
         onCreate={() => navigate(`/documents/${typeId}/new`)}
         onOpen={(instance) => navigate(`/documents/${typeId}/${instance.id}`)}

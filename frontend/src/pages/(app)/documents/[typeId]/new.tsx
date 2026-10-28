@@ -1,11 +1,10 @@
-import { FileQuestion } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useLocation, useNavigate, useParams } from "react-router"
 
 import { DocumentCreateDialog } from "@/components/documents/document-create-dialog"
 import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
-import { EmptyState } from "@/components/ui/empty-state"
+import { DocumentLoadState } from "@/components/documents/document-load-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentType } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -20,7 +19,7 @@ export default function NewDocumentPage() {
   const { typeId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { data: descriptor, isLoading, error } = useDocumentType(typeId)
+  const { data: descriptor, isLoading, error, refetch } = useDocumentType(typeId)
   // Read once: the seed belongs to the visit that brought it, not to later re-renders.
   const [initialData] = useState(
     () => (location.state as { initialData?: Record<string, unknown> } | null)?.initialData,
@@ -43,10 +42,11 @@ export default function NewDocumentPage() {
   if (error || !descriptor) {
     return (
       <div className="mx-auto max-w-4xl p-6">
-        <EmptyState
-          icon={FileQuestion}
-          title={t("documents.form.unknownType", { typeId })}
-          data-cy="document-type-unknown"
+        <DocumentLoadState
+          error={error}
+          notFoundTitle={t("documents.form.unknownType", { typeId })}
+          notFoundDataCy="document-type-unknown"
+          onRetry={() => void refetch()}
         />
       </div>
     )
