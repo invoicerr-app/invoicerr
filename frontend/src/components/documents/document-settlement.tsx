@@ -2,7 +2,8 @@ import { Check } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { useDocumentSettlement, usePaymentMethods } from "@/hooks/queries"
-import { Badge } from "@/components/ui/badge"
+import { StatusMark } from "@/components/ui/status-mark"
+import { statusPresentation } from "./status-presentation"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -92,15 +93,15 @@ export function DocumentSettlementBadge({
   const { data } = useDocumentSettlement(typeId, documentId)
   if (!data) return null
 
-  const { tone, labelKey } = settlementBadgeInfo(data.settlement)
+  const { labelKey } = settlementBadgeInfo(data.settlement)
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", TONE_CLASSES[tone], className)}
+    <StatusMark
+      {...statusPresentation(labelKey.split(".").pop() ?? "")}
+      className={className}
       data-cy={dataCySuffix ? `document-settlement-badge-${dataCySuffix}` : "document-settlement-badge"}
     >
       {t(labelKey)}
-    </Badge>
+    </StatusMark>
   )
 }
 
@@ -121,8 +122,7 @@ export function SettledMark({ dataCy, className }: Readonly<{ dataCy: string; cl
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex size-8 shrink-0 items-center justify-center rounded-full",
-        TONE_CLASSES.success,
+        "inline-flex size-8 shrink-0 items-center justify-center text-success-foreground",
         className,
       )}
       data-cy={dataCy}
