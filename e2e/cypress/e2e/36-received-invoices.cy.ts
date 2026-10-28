@@ -568,6 +568,8 @@ describe("Receiving invoices", () => {
 				'[data-cy="document-field-supplierClient-input-option-fournisseur-manuel-sarl"]',
 				{ timeout: 10000 },
 			).click();
+			// The edit makes "receive" the header's primary action; wait for it, scrolled back into view.
+			cy.get('[data-cy="document-action-receive"]', { timeout: 10000 }).scrollIntoView().should("be.visible");
 
 			cy.runDocumentAction("receive");
 			cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");

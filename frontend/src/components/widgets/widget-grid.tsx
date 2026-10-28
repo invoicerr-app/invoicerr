@@ -59,6 +59,8 @@ function CardSkeleton({ height, className }: { height?: number; className?: stri
 const METRICS_GRID =
   "grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sheet sm:grid-cols-2 lg:grid-cols-4"
 const REST_GRID = "grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
+// Shared by the skeleton and the loaded grid so both stack their two grids the same distance apart.
+const STACK = "flex flex-col gap-6"
 
 /** Skeletons in the exact shape last measured at this width, or a generic row of tiles and two cards
  *  the first time. */
@@ -66,7 +68,7 @@ function WidgetGridSkeleton({ layout }: { layout: WidgetLayout | null }) {
   const metrics = layout?.metrics ?? [undefined, undefined, undefined, undefined]
   const rest = layout?.rest ?? [{ kind: "shortList" }, { kind: "timeSeries" }]
   return (
-    <div className="flex flex-col gap-4" aria-hidden="true">
+    <div className={STACK} aria-hidden="true">
       {metrics.length > 0 && (
         <div className={METRICS_GRID}>
           {metrics.map((height, index) => (
@@ -160,7 +162,7 @@ export function WidgetGrid({
         <WidgetGridSkeleton layout={skeletonLayout} />
       ) : (
         <WidgetReloadingProvider value={isRefreshing}>
-          <div className="flex flex-col gap-6">
+          <div className={STACK}>
             {metrics.length > 0 && (
               <div ref={metricsRef} className={METRICS_GRID}>
                 {metrics.map((widget) => (
