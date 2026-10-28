@@ -82,9 +82,9 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
-		// The dialog's title interpolates the translated type label (documents.form.newTitle, already
-		// existing — {{label}} now becomes the derivation's result, not the raw value directly).
-		cy.get('[data-cy="document-create-dialog"]').should("contain.text", "New: Invoice");
+		// The page title interpolates the translated type label (documents.form.newTitle, already
+		// existing; {{label}} now becomes the derivation's result, not the raw value directly).
+		cy.contains("h1", "New: Invoice").should("be.visible");
 
 		// Fields at TWO DEPTHS: top-level (documents.descriptors.invoice.fields.<key>.label)
 		// and a row of the "lines" array (…fields.lines.fields.<key>.label) — the same derivation
