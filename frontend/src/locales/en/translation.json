@@ -5673,7 +5673,7 @@
       }
     },
     "conformity": {
-      "title": "Compliance tracking",
+      "title": "Transmission",
       "badge": {
         "accepted": "Validated by the platform",
         "rejected": "Rejected",
@@ -5682,7 +5682,8 @@
         "declarationIssue": "Declaration issue"
       },
       "timeline": {
-        "reason": "Reason: {{reason}}"
+        "reason": "Reason: {{reason}}",
+        "created": "Created"
       }
     },
     "correction": {

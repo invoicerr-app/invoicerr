@@ -323,6 +323,14 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </div>
 
         <aside className="space-y-6">
+          {/* The transmission history leads the aside: any type or status once the platform has
+              reported at least one event, nothing for a document sent by email or by a channel with
+              no poller. */}
+          <DocumentConformitySection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            createdAt={instance.createdAt}
+          />
           <TotalsCard
             descriptor={descriptor}
             documentId={instance.id}
@@ -369,11 +377,6 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             status={liveInstance.status}
             updatedAt={instance.updatedAt}
           />
-          {/* Conformity tracking — same gate as the archive section right above (any type/status
-              once it has at least one event; renders nothing otherwise, see that component's own
-              header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
-              shows a section here at all. */}
-          <DocumentConformitySection typeId={descriptor.id} documentId={instance.id} />
           {/* The 3-way-match panel — TYPE-gated, unlike the two sections above: see
               document-reconciliation-section.tsx's own header for why. */}
           {descriptor.id === "received-invoice" && <DocumentReconciliationSection documentId={instance.id} />}
