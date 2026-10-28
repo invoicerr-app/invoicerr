@@ -8,6 +8,7 @@ import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
+import { MobileTabBar } from "@/components/mobile-tab-bar"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -130,7 +131,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
-                <section className="h-full overflow-y-auto overflow-x-hidden">
+                <section className="h-full overflow-y-auto overflow-x-hidden pb-20 md:pb-0">
                   <Outlet />
                 </section>
                 {/* Signed-in users had no route back to the terms they accepted (or any other legal
@@ -164,6 +165,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             inside any scrolling section, purely for readability; its positioning doesn't depend on
             where in the tree it sits. */}
         <PwaInstallPrompt />
+        <MobileTabBar />
         {/* A sibling of Sidebar, not a child of it — see useOnboardingDialog's own comment: Sidebar's
             root unmounts entirely while its mobile Sheet is closed, which used to make this dialog
             unreachable on mobile no matter how it was triggered. */}

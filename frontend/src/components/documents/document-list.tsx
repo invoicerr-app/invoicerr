@@ -92,7 +92,7 @@ import { cn } from "@/lib/utils"
 
 /** A row's grid — see DocumentListRow's own comment on why the desktop columns are fixed widths. */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)_8rem_minmax(0,12rem)_auto] sm:gap-x-4"
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(10rem,1fr)_auto_auto_auto_auto] sm:gap-x-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,13rem)_8rem_minmax(0,12rem)_auto]"
 
 /** Mirrors the backend's `list-filters.ts#resolveClientFieldKey` exactly — the ONE field on this
  *  type that references a CLIENT entity, which is what the `clientId` filter (and the search box's
@@ -1189,6 +1189,7 @@ export function DocumentList({
               <Button
                 onClick={onCreate}
                 aria-label={createLabel}
+                className="max-md:fixed max-md:end-4 max-md:bottom-24 max-md:z-30 max-md:h-12 max-md:rounded-full max-md:px-5 max-md:shadow-pop"
                 disabled={!creatable}
                 tooltip={
                   !creatable && createBlockedReason ? t("documents.form.actionBlockedTitle") : undefined
@@ -1196,7 +1197,7 @@ export function DocumentList({
                 dataCy="document-create-button"
               >
                 <Plus aria-hidden="true" />
-                <span className="hidden md:inline">{createLabel}</span>
+                <span>{createLabel}</span>
               </Button>
               {!creatable && createBlockedReason && (
                 <FieldLock
