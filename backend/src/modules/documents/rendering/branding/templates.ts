@@ -106,7 +106,10 @@ export function templateStyleBlock(
     .totals-row { border-bottom: none; padding: 5px 0; }
     .totals-row.summary { border-top: 1px solid #c9d3d9; border-bottom: none; margin-top: 6px; padding-top: 12px; align-items: baseline; }
     .totals-row.summary .totals-amount { font-size: 26px; font-weight: 500; }
-    .payment-qr-section, .payment-methods-section { background: white; border: 1px solid #d9e1e6; border-radius: 10px; padding: 14px 18px; }
+    .payment-section { box-sizing: border-box; width: 100%; align-items: center; gap: 22px; border: 1px solid #d9e1e6; border-radius: 10px; padding: 16px 20px; }
+    .payment-qr-section, .payment-methods-section { background: none; border: none; border-radius: 0; padding: 0; }
+    .payment-qr-section { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .payment-qr-image { width: 96px; height: 96px; }
     .payment-methods-heading { font-size: 12px; font-weight: 600; }
     .legal-mentions, .custom-fields-section { border-top: 1px solid #e3e9ec; }
     .legal-mention-item { color: #4f616c; }
