@@ -1,4 +1,4 @@
-import { LayoutDashboard, Menu, Users } from "lucide-react"
+import { Ellipsis, LayoutDashboard, Users } from "lucide-react"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useLocation } from "react-router"
@@ -92,7 +92,7 @@ export function MobileTabBar() {
       />
       <Tab
         label={t("sidebar.mobile.more")}
-        icon={Menu}
+        icon={Ellipsis}
         active={false}
         onClick={() => setOpenMobile(true)}
         dataCy="mobile-tab-more"
