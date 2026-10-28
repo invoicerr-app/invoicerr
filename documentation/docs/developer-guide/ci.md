@@ -67,6 +67,12 @@ the existing ones:
   an empty country catalogue and fails specs far from the cause. The country loader refuses an empty
   catalogue directory, so if the files are ever missing the backend exits at boot instead of
   reseeding every country away.
+- **A new commit cancels the earlier runs of its pull request.** Every workflow triggered by
+  `pull_request` declares a `concurrency` group keyed on the workflow and the pull request number,
+  with `cancel-in-progress` true only for `pull_request` events. Runs for `push`, `merge_group`,
+  `schedule` and `workflow_dispatch` get a group of their own and are never cancelled, so the merge
+  queue and `dev` are not affected. A workflow added later with a `pull_request` trigger copies the
+  same block.
 - **CI Postgres runs with trust auth.** Service containers set `POSTGRES_HOST_AUTH_METHOD: trust`
   and connection strings carry no password. The database is reachable only from the runner and is
   thrown away with the job.

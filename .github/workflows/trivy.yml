@@ -25,6 +25,11 @@ on:
 permissions:
   contents: read
 
+# A new commit on a pull request makes the earlier runs of that pull request pointless; other events keep every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-scan:
     runs-on: ubuntu-24.04
