@@ -3,10 +3,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
 /**
  * PR #474 follow-up review, round 2, point 1 - #415's own "several contacts per client".
  *
- * DECISION: for an INDIVIDUAL client, the primary contact is ALWAYS the person on the identity step
+ * DECISION: for an INDIVIDUAL client, the primary contact is ALWAYS the person in the Identity section
  * (`contactFirstname`/`contactLastname`) - no other `contacts` row can become primary. Before this
  * fix, flagging a secondary row primary (Marie) silently sent her row to the API as "Jean Dupont"
- * (the identity step's own names overwrote it), losing her real name with no message anywhere, and
+ * (the Identity section's own names overwrote it), losing her real name with no message anywhere, and
  * the Summary step showed the row's own name rather than what would actually be saved.
  *
  * This spec edits an INDIVIDUAL "Jean Dupont" who has two contacts (Jean, primary; Marie, not) and
@@ -67,7 +67,7 @@ describe("INDIVIDUAL client primary contact is the identity person (#474 follow-
 				cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
 
 				// Row 0 is Jean (primary, the identity) - its own name inputs are read-only, showing the
-				// identity step's names, never editable here.
+				// Identity section's names, never editable here.
 				cy.get('[data-cy="client-contact-row-0"]').should("contain.text", "Primary");
 				cy.get('[name="contacts.0.firstName"]').should("be.disabled").and("have.value", "Jean");
 				cy.get('[name="contacts.0.lastName"]').should("be.disabled").and("have.value", "Dupont");
@@ -75,7 +75,7 @@ describe("INDIVIDUAL client primary contact is the identity person (#474 follow-
 				cy.get('[data-cy="client-contact-lastName-0-lock-trigger"]').should("be.visible");
 				cy.get('[data-cy="client-contact-firstName-0-lock"]').should(
 					"contain.text",
-					"Comes from the identity step",
+					"Comes from the Identity section",
 				);
 				// Element screenshot of the WHOLE row card - shows the "Primary" badge and the read-only
 				// firstName/lastName inputs (Jean/Dupont) with the lock on each label, so the locked state
@@ -87,7 +87,7 @@ describe("INDIVIDUAL client primary contact is the identity person (#474 follow-
 				// Row 1 is Marie - her OWN "set primary" control is disabled: no other row can ever
 				// become primary for an INDIVIDUAL client.
 				cy.get('[data-cy="client-contact-primary-radio-1"]').should("be.disabled");
-				cy.get('[data-cy="client-contact-primary-locked-1"]').should("contain.text", "Only the person on the identity step");
+				cy.get('[data-cy="client-contact-primary-locked-1"]').should("contain.text", "Only the person in the Identity section");
 				// Open the reason so it renders into the screenshot alongside the row: a disabled radio's
 				// own visual state can be too subtle to read from a static image on its own.
 				cy.get('[data-cy="client-contact-primary-locked-1-trigger"]').scrollIntoView().click();

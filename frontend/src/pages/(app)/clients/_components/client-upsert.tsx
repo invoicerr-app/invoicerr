@@ -62,11 +62,11 @@ function blankPrimaryContact() {
 }
 
 /**
- * The ONE place the wizard's form values become the exact payload `trigger(...)` sends to the API -
+ * The ONE place the form's form values become the exact payload `trigger(...)` sends to the API -
  * called from BOTH `onSubmit` (below) and `RecapStep` (#415 follow-up review round 2, point 1: "the
  * summary must show exactly what will be saved"), so the two can never again disagree the way the
- * Summary step used to - rendering the CONTACT step's own raw row names while `onSubmit` silently
- * overwrote the primary row's name with the identity step's. A plain function, not a closure over
+ * Summary section used to - rendering the CONTACT section's own raw row names while `onSubmit` silently
+ * overwrote the primary row's name with the Identity section's. A plain function, not a closure over
  * `form`/`trigger`: `RecapStep` only ever has `form.watch()`'s current (not yet submitted) values,
  * never the mutation triggers `onSubmit` needs.
  *
@@ -103,23 +103,23 @@ function buildClientPayload(data: {
       : null
   const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
 
-  // The identity step's contactFirstname/contactLastname are authoritative for an INDIVIDUAL client's
+  // The Identity section's contactFirstname/contactLastname are authoritative for an INDIVIDUAL client's
   // PRIMARY contact name (#415 follow-up review round 2, point 1 DECISION: "the primary contact of an
-  // INDIVIDUAL client is always the person on the identity step") - folded in here, overriding
-  // whatever the contacts step's own primary row carries, so there is never a place where the two
+  // INDIVIDUAL client is always the person in the Identity section") - folded in here, overriding
+  // whatever the contacts section's own primary row carries, so there is never a place where the two
   // could disagree. The form itself already makes this the only possible outcome (the primary row's
   // name inputs are read-only, mirroring these two fields, and no OTHER row's "set primary"/"Remove"
   // control is reachable for an INDIVIDUAL client - see `ContactsSection`), so this override is a
   // belt-and-suspenders restatement of the same rule, never a place a mismatch could survive to. An
   // INDIVIDUAL client always has at least its own identity as a primary contact, even if the contacts
-  // step's own list is empty (the common case: nothing else to add beyond the person's own
-  // name/email/phone, already captured on the identity/contact steps).
+  // section's own list is empty (the common case: nothing else to add beyond the person's own
+  // name/email/phone, already captured on the identity/contact sections).
   const rawContacts =
     data.type === "INDIVIDUAL" && (!data.contacts || data.contacts.length === 0)
       ? [{ isPrimary: true }]
       : data.contacts || []
 
-  // Which raw row the identity override lands on - the row the CONTACT step's own `ContactsSection`
+  // Which raw row the identity override lands on - the row the CONTACT section's own `ContactsSection`
   // treats as "the locked, identity-linked row" (flagged primary, or index 0 when none is - the row
   // an INDIVIDUAL client can never remove or hand "primary" to another row instead, see that
   // component's own `primaryLocked`). Computed on the RAW array, on purpose: this is about which UI
@@ -166,7 +166,7 @@ interface ClientUpsertProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreate?: (client: Client) => void
-  /** Creation opens on a one-screen form (type, name, country) instead of the wizard, which stays
+  /** Creation opens on a one-screen form (type, name, country) instead of the form, which stays
    *  one click away. Ignored when editing. */
   quick?: boolean
 }
@@ -180,7 +180,7 @@ interface ClientUpsertProps {
  * prefix at all): `Client.customFields` is already its own isolated JSON column, so `customFields`
  * being a real, `z.record`-typed field on `clientSchema` is what carries this whole object through
  * `form.handleSubmit` intact. Renders nothing for a company that has defined none. Appended to the
- * CONTACT step (see the wizard's own step-split comment below): an open-ended extension point with
+ * CONTACT section (see the form's own section-split comment below): an open-ended extension point with
  * no inherent home among the other four, and the last thing worth filling in before the summary.
  */
 function CustomFieldsSection() {
@@ -206,7 +206,7 @@ function CustomFieldsSection() {
  * IDENTITY — what makes this client itself: type, its name (company) or first/last name
  * (individual), a free-text description, when it was founded, and whether it is ALSO a supplier to
  * this company (`isSupplier`, a role independent of "kind" below — see that field's own schema
- * comment). None of this depends on the country chosen on the next step.
+ * comment). None of this depends on the country chosen on the next section.
  */
 function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; clientType: string }) {
   const { t } = useTranslation()
@@ -276,8 +276,8 @@ function IdentityStep({ form, clientType }: { form: UseFormReturn<FieldValues>; 
 }
 
 /**
- * ADDRESS — the postal address, country included. Country has to be set here (before the next step)
- * because it drives BOTH the required-identifiers catalog and the currency default the Fiscalité step
+ * ADDRESS — the postal address, country included. Country has to be set here (before the next section)
+ * because it drives BOTH the required-identifiers catalog and the currency default the Fiscalité section
  * shows.
  */
 function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
@@ -376,7 +376,7 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
 /**
  * FISCALITÉ & IDENTIFIANTS — everything the tax/compliance engines need from this client: `kind`
  * (BUSINESS/GOVERNMENT, gating the B2G hint), the billing currency (tied to the country chosen on the
- * previous step, hence kept right next to `kind`), the country's own required identifiers (VAT,
+ * previous section, hence kept right next to `kind`), the country's own required identifiers (VAT,
  * SIRET, Leitweg-ID…) merged with whatever a GOVERNMENT client's own B2G rule additionally requires,
  * and the Peppol electronic-routing pair — every fact a cross-border invoice to this client needs
  * resolved before it can send.
@@ -727,7 +727,7 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
 
   const { data: matches } = useClientDuplicates({ email, name, country, excludeId })
 
-  // #415 regression fix: the warning renders ABOVE the contacts step's own fields, and the
+  // #415 regression fix: the warning renders ABOVE the contacts section's own fields, and the
   // debounced check resolves WHILE the user is still typing in a contact row further down (often
   // the very email field that triggered it), so inserting this banner shifts that row down. The
   // browser's own "keep the focused input in view" scroll can then push the JUST-APPEARED banner
@@ -737,7 +737,7 @@ function DuplicateWarning({ form, excludeId }: { form: UseFormReturn<FieldValues
   // Cypress's own visibility check, could ever see it). Scrolling it into view the moment it
   // appears is the fix a real user needs just as much as the test does: `block: "nearest"` only
   // moves the scroll position when the banner is not ALREADY fully visible, so this never fights a
-  // deliberate scroll elsewhere on the step.
+  // deliberate scroll elsewhere on the section.
   const warningRef = useRef<HTMLDivElement | null>(null)
   const hasMatches = !!matches && matches.length > 0
   useEffect(() => {
@@ -803,7 +803,7 @@ function ContactsSection({ form, clientType }: { form: UseFormReturn<FieldValues
     }[]) || []
 
   // #415 follow-up review round 2, point 1 (DECISION: "the primary contact of an INDIVIDUAL client
-  // is always the person on the identity step") - the identity step's own two fields, read directly
+  // is always the person in the Identity section") - the Identity section's own two fields, read directly
   // rather than passed down, since only THIS section needs them (to show them on the locked primary
   // row) and the parent already has no other reason to know them.
   const isIndividual = clientType === "INDIVIDUAL"
@@ -1011,9 +1011,9 @@ function ContactsSection({ form, clientType }: { form: UseFormReturn<FieldValues
  * CONTACT & PORTAIL — how this client is reached: email, phone, document language, plus (editing
  * only — a not-yet-created client has no id to invite) an entry point into the EXISTING portal-access
  * dialog (`client-portal-access.tsx`), never a re-implementation of it. This company's own custom
- * CLIENT-target fields close out the step (see `CustomFieldsSection`'s own header for why they live
- * here). The duplicate hint (`DuplicateWarning`) sits at the top: by this step, both criteria it can
- * check (email — entered right below; name+country — already set on the earlier steps) have whatever
+ * CLIENT-target fields close out the section (see `CustomFieldsSection`'s own header for why they live
+ * here). The duplicate hint (`DuplicateWarning`) sits at the top: by this section, both criteria it can
+ * check (email — entered right below; name+country — already set on the earlier sections) have whatever
  * they are going to have.
  */
 function ContactStep({
@@ -1034,13 +1034,13 @@ function ContactStep({
   /** Issue #416 - editing only, same reason as `onOpenPortalAccess` just above: a not-yet-created
    *  client has no id to restrict yet. */
   onOpenPaymentMethods: () => void
-  /** True while the value currently in `language` is this wizard's own country-based SUGGESTION
+  /** True while the value currently in `language` is this form's own country-based SUGGESTION
    *  (see the effect that computes it in `ClientUpsert`), never once the user has picked one
    *  themselves — only ever true outside `isEditing`, see that effect's own guard. */
   languageSuggested: boolean
   /** Fired the moment the user picks a value here BY HAND (including explicitly picking back
    *  "Automatic") — the one signal that permanently retires the country-based suggestion for the
-   *  rest of this wizard session (`Client.language` is decided by that country ONLY until a human
+   *  rest of this form session (`Client.language` is decided by that country ONLY until a human
    *  says otherwise). */
   onLanguageManuallyChanged: () => void
 }) {
@@ -1167,7 +1167,7 @@ function RecapStep({
   // Built through the SAME function `onSubmit` calls (#415 follow-up review round 2, point 1: "the
   // summary must show exactly what will be saved") - never a second, hand-rolled read of the raw
   // `contacts` array, which is exactly what let this recap show a row's own name while the actual
-  // save silently replaced it with the identity step's.
+  // save silently replaced it with the Identity section's.
   const payload = buildClientPayload(form.watch() as unknown as Parameters<typeof buildClientPayload>[0])
   const contacts = payload.contacts
   const identifiers = (form.watch("identifiers" as never) as { scheme: string; value: string }[]) || []
@@ -1242,8 +1242,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   const { t } = useTranslation()
   const isEditing = !!client
   const { data: company } = useCompany()
-  const [wizardRequested, setWizardRequested] = useState(false)
-  const quickActive = !!quick && !isEditing && !wizardRequested
+  const [fullFormRequested, setFullFormRequested] = useState(false)
+  const quickActive = !!quick && !isEditing && !fullFormRequested
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false)
@@ -1336,7 +1336,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   }, [open, quick, isEditing, company?.country, company?.countryCode, form])
 
   useEffect(() => {
-    // Every reset below opens a fresh wizard session — the "has the user touched language by
+    // Every reset below opens a fresh form session — the "has the user touched language by
     // hand yet" latch belongs to THIS session only (an editing session never sets it in the first
     // place, see the suggestion effect's own `isEditing` guard, but a stale `true` surviving from a
     // PREVIOUS create session on the same mounted dialog must not silently block the next one).
@@ -1362,12 +1362,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
         contactFirstname: client.contactFirstname || "",
         contactLastname: client.contactLastname || "",
         // The four flat legacy fields still exist on `clientSchema` (the CSV import's own row schema
-        // needs them, see `client-schema.ts`'s own header) but this wizard has no visible input for
-        // `contactPhone`/`contactEmail` any more - the CONTACT step's `ContactsSection` is the only
+        // needs them, see `client-schema.ts`'s own header) but this form has no visible input for
+        // `contactPhone`/`contactEmail` any more - the CONTACT section's `ContactsSection` is the only
         // place a phone or email is edited now. Loading a STORED value that predates today's
         // stricter contact-row validation (e.g. `01.02.03.04.05`, saved through the API/MCP tool/the
         // #415 migration before this form ever checked format) into these hidden fields used to
-        // block the Contact step's "Continue" on an error attached to a field nobody could see or
+        // block the Contact section's save on an error attached to a field nobody could see or
         // fix (#415 follow-up review, point 2). Left blank here instead: `buildClientSchema`'s
         // refine treats a blank value as valid, so these two fields can never again fail validation
         // on their own - the real, VISIBLE contact rows below are what's actually being edited and
@@ -1467,7 +1467,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   )
   // B2G routing (documents/b2g-routing/) — asked for ONLY when this client is GOVERNMENT. `null`
   // (not an error) means no B2G rule is declared for this country yet — rendered as HELP on the
-  // Fiscalité step (an invoice to this client will refuse at send time — never a silent B2B send —
+  // Fiscalité section (an invoice to this client will refuse at send time — never a silent B2B send —
   // but the client itself can still be saved).
   const { data: b2gRule, isLoading: b2gRuleLoading } = useB2gRoutingRule(
     countryCodeValue || undefined,
@@ -1476,7 +1476,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
 
   // The country's OWN identifier requirements (every client of that country, regardless of kind)
   // PLUS whatever the B2G rule additionally requires of a GOVERNMENT client specifically (e.g. Italy's
-  // Codice Univoco Ufficio) — merged into ONE list so the Fiscalité step's "country-specific
+  // Codice Univoco Ufficio) — merged into ONE list so the Fiscalité section's "country-specific
   // identifiers" section (and its own sync effect / schema check above) needs no separate B2G-only
   // code path. A scheme already required by the country's own catalog is never duplicated. Stays
   // `undefined` while the country-identifiers query itself hasn't resolved yet — same "no data yet"
@@ -1567,24 +1567,24 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       // language touched by hand for THIS client would wrongly suppress the suggestion for the
       // NEXT one opened in the same mounted dialog.
       resetLanguageSuggestionState()
-      setWizardRequested(false)
+      setFullFormRequested(false)
     })
   }
 
   // The identifier VALUE paths currently on the form, added alongside the "identifiers" root below so
-  // the Fiscalité step's own "Continue" validates both the array as a whole AND each row directly —
+  // the Fiscalité section's own save validates both the array as a whole AND each row directly —
   // belt-and-suspenders against however react-hook-form's schema-resolver happens to propagate a
   // nested array error up to a `trigger(['identifiers'])` call.
   const identifierValuePaths = ((form.watch("identifiers") as { scheme: string }[]) || []).map(
     (_, i) => `identifiers.${i}.value`,
   )
 
-  // Same belt-and-suspenders reasoning as `identifierValuePaths` above, for the Contact step's own
-  // `contacts` array (#415 follow-up review, points 1/2): "Continue" must validate every row's
+  // Same belt-and-suspenders reasoning as `identifierValuePaths` above, for the Contact section's own
+  // `contacts` array (#415 follow-up review, points 1/2): save must validate every row's
   // `email`/`phone` - the only two fields `buildClientSchema`'s per-row refine can fail - not just
   // the array as a whole, so an invalid value (a freshly typed `bob@`, or one carried over from an
   // edited client whose stored phone predates this validation) surfaces on the SAME row, right where
-  // the user can fix it, instead of only failing much later at the Summary step's silent "Continue".
+  // the user can fix it, instead of only failing much later at the Summary section's silent save.
   const contactValuePaths = ((form.watch("contacts") as { email?: string; phone?: string }[]) || []).flatMap(
     (_, i) => [`contacts.${i}.email`, `contacts.${i}.phone`],
   )
@@ -1593,7 +1593,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
    * The form's sections, on one page. `fields` is what the section holds, used to bring the first
    * invalid field into view on save; the summary holds none.
    */
-  const steps: FormPageSection[] = [
+  const sections: FormPageSection[] = [
     {
       id: "identity",
       label: t("clients.upsert.stepped.steps.identity", "Identity"),
@@ -1639,7 +1639,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       id: "contact",
       label: t("clients.upsert.stepped.steps.contact", "Contact & portal"),
       // `contacts` + each row's own `email`/`phone` path (#415 follow-up review, point 1) - the
-      // legacy `contactEmail`/`contactPhone` this step used to declare have no visible input any
+      // legacy `contactEmail`/`contactPhone` this section used to declare have no visible input any
       // more (see `ContactsSection`) and are never populated by this form either (see the edit-mode
       // `form.reset` above), so validating them here bought nothing but a silent, unfixable block.
       fields: ["contacts", ...contactValuePaths, "language"],
@@ -1684,17 +1684,17 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
             if (!next) {
               form.reset()
               resetLanguageSuggestionState()
-              setWizardRequested(false)
+              setFullFormRequested(false)
             }
             onOpenChange(next)
           }}
           onSubmit={form.handleSubmit(onSubmit)}
-          onOpenFullForm={() => setWizardRequested(true)}
+          onOpenFullForm={() => setFullFormRequested(true)}
         />
       )}
       <FormPageDialog
         ref={dialogRef}
-        sections={steps}
+        sections={sections}
         form={form as unknown as UseFormReturn<FieldValues>}
         // The dialog hands `form.getValues()` directly, never through `form.handleSubmit`, so the
         // values are re-parsed here: the last line of defence if the schema and the resolver ever
@@ -1710,7 +1710,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
               firstErrorField ??= key
             }
             if (firstErrorField) {
-              const sectionId = sectionForField(steps, firstErrorField)
+              const sectionId = sectionForField(sections, firstErrorField)
               if (sectionId) dialogRef.current?.goToSection(sectionId)
             }
             toast.error(t("clients.upsert.messages.validationError"))
@@ -1726,7 +1726,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
           if (!next) {
             form.reset()
             resetLanguageSuggestionState()
-            setWizardRequested(false)
+            setFullFormRequested(false)
           }
           onOpenChange(next)
         }}
