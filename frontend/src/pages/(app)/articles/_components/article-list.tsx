@@ -37,7 +37,9 @@ function ArticleRow({
       identity={
         <>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="min-w-0 break-words font-medium text-foreground">{article.name}</h2>
+            <h2 className="min-w-0 break-words font-sans text-[15px] font-semibold text-foreground">
+              {article.name}
+            </h2>
             <Badge variant="outline" className="text-xs">
               {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
             </Badge>
@@ -56,10 +58,13 @@ function ArticleRow({
         </>
       }
       figures={
-        <div className="font-mono text-sm tabular-nums">
-          <div>
+        <div className="text-end text-sm">
+          <div className="amount text-[15px]">
             {article.unitPrice}
-            {currencySymbol} · {article.vatRate}%
+            {currencySymbol}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {t("articles.fields.vatRate.label")}: {article.vatRate}
           </div>
           {article.quantity != null && (
             <div className="text-xs text-muted-foreground">
