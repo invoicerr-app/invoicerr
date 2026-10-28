@@ -248,13 +248,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		// "kind" now lives on the Tax & identifiers step — walk Identity and Address with minimal
 		// valid data to reach it.
 		cy.get('[name="name"]').clear().type("Regression BUSINESS SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue Test");
 		cy.get('[name="postalCode"]').clear().type("75001");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').should("contain.text", "Business");
 		cy.get('[data-cy="client-b2g-hint"]').should("not.exist");
@@ -300,13 +298,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Mairie de Testville");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Place de la Mairie");
 		cy.get('[name="postalCode"]').clear().type("75001");
 		cy.get('[name="city"]').clear().type("Testville");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
@@ -340,12 +336,10 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("marches-publics@testville.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -422,13 +416,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Stadt Testhausen");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "Germany");
 		cy.get('[name="address"]').clear().type("Rathausplatz 1");
 		cy.get('[name="postalCode"]').clear().type("10117");
 		cy.get('[name="city"]').clear().type("Testhausen");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
@@ -451,12 +443,10 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("rechnungen@testhausen.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -652,13 +642,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Comune di Testopoli");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "Italy");
 		cy.get('[name="address"]').clear().type("Via Roma 1");
 		cy.get('[name="postalCode"]').clear().type("00100");
 		cy.get('[name="city"]').clear().type("Testopoli");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
@@ -690,12 +678,10 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("fatturazione@testopoli.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -769,13 +755,11 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Ministry of Nowhere");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "United States");
 		cy.get('[name="address"]').clear().type("1 Federal Plaza");
 		cy.get('[name="postalCode"]').clear().type("10001");
 		cy.get('[name="city"]').clear().type("Nowhere City");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
@@ -795,10 +779,8 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 		cy.get(
 			'[data-cy="client-currency-select-option-united-states-dollar-($)"]',
 		).click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type("procurement@nowhere.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");

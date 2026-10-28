@@ -59,16 +59,13 @@ describe("COMPANY client's blank default contact row never hides the real primar
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Blank Primary 474r3 SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("2 Rue du Test");
 		cy.get('[name="postalCode"]').clear().type("75001");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("552100554");
-		cy.continueSteppedDialog("client-dialog");
 
 		// Row 0 (the wizard's own default primary row) is left COMPLETELY untouched - the exact
 		// scenario this fix is about. Bob is a SECOND row, added and filled with the colliding email.
@@ -86,7 +83,6 @@ describe("COMPANY client's blank default contact row never hides the real primar
 			.and("contain.text", "Existing Dupe 474r3 SARL");
 		cy.get('[data-cy="client-duplicate-warning"]').screenshot("474r3-after-duplicate-warning-bob");
 
-		cy.continueSteppedDialog("client-dialog");
 		cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
 
 		// The summary shows exactly what will be saved: Bob primary, and no row at all for the blank

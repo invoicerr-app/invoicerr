@@ -40,11 +40,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 
 import { FormSection } from "../../_shared/form-dialog"
 import {
-  SteppedDialog,
-  type SteppedDialogHandle,
-  type SteppedDialogStep,
-  stepForField,
-} from "@/components/ui/stepped-dialog"
+  FormPageDialog,
+  type FormPageDialogHandle,
+  type FormPageSection,
+  sectionForField,
+} from "@/components/ui/form-page-dialog"
 import { ClientCountryField, ClientTypeAndNameFields } from "./client-core-fields"
 import { ClientPaymentMethodsDialog } from "./client-payment-methods"
 import { ClientPortalAccessDialog } from "./client-portal-access"
@@ -1138,11 +1138,7 @@ function ContactStep({
   )
 }
 
-/**
- * SUMMARY — a compact, read-only recap (never re-validated on its own "Continue" click, see the
- * wizard's own step-split comment for why: every fact here was already checked on the step that owns
- * it) plus the primary action (`SteppedDialog`'s own fixed footer).
- */
+/** SUMMARY: a compact, read-only recap of what is about to be saved. */
 function RecapStep({
   form,
   isGovernment,
@@ -1251,9 +1247,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   const queryClient = useQueryClient()
   const [portalAccessOpen, setPortalAccessOpen] = useState(false)
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false)
-  // See `SteppedDialog`'s own `onSubmit` prop comment further down — the escape hatch that lets the
-  // last line of defense below jump to whichever step actually shows the field it just rejected.
-  const dialogRef = useRef<SteppedDialogHandle>(null)
+  // Lets the last line of defence below bring the section of a rejected field into view.
+  const dialogRef = useRef<FormPageDialogHandle>(null)
 
   // Country → `language` suggestion (see the effect that reads it, further down). A plain ref, not state: it must never itself trigger a re-render, only
   // stand as a permanent "the user already decided" latch once the language field is touched by
@@ -1595,18 +1590,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   )
 
   /**
-   * The wizard's own step split (`components/ui/stepped-dialog.tsx`, the shape every "big" dialog in
-   * this app now takes). Unlike `document-create-dialog.tsx`'s split (derived from a runtime
-   * descriptor), a client's fields are fixed and few enough to assign by hand, so this is the one
-   * place that decision lives — see `IdentityStep`/`AddressStep`/`FiscalStep`/`ContactStep`'s own
-   * headers for the per-step rationale. `fields` below is what each step's "Continue" click
-   * validates (`form.trigger(...)`); the Summary step's stays empty on purpose (it renders nothing
-   * that could show an inline error) — everything it recaps was already checked on the step that
-   * owns it, and the backend remains the final gate for the rare "went back, broke it, jumped ahead
-   * via a header chip" case that per-step validation cannot see (see the schema's own superRefine
-   * comment).
+   * The form's sections, on one page. `fields` is what the section holds, used to bring the first
+   * invalid field into view on save; the summary holds none.
    */
-  const steps: SteppedDialogStep[] = [
+  const steps: FormPageSection[] = [
     {
       id: "identity",
       label: t("clients.upsert.stepped.steps.identity", "Identity"),
@@ -1705,30 +1692,13 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
           onOpenFullForm={() => setWizardRequested(true)}
         />
       )}
-      <SteppedDialog
+      <FormPageDialog
         ref={dialogRef}
-        steps={steps}
-        // Concretely typed on this form (unlike document-create-dialog.tsx's runtime-built one) — the
-        // widening cast is the one `stepped-dialog.spec.tsx`'s own harness already documents as the
-        // TEST-only stand-in for dynamism; here it is what lets this static schema fit a component
-        // whose `fields: string[]` is deliberately not `Path<TFieldValues>[]` (see that prop's own
-        // comment) — a real, non-test need for the same cast.
+        sections={steps}
         form={form as unknown as UseFormReturn<FieldValues>}
-        // `SteppedDialog` hands the LAST step's "Continue" click `form.getValues()` directly — never
-        // through `form.handleSubmit`, which is what normally runs the zodResolver and hands `onSubmit`
-        // the SCHEMA-COERCED values instead of the form's raw internal state. This form has no
-        // `z.coerce`/`.transform()` field today (no numeric inputs, unlike a document's line items),
-        // so in practice the two are identical — but re-parsing here is what keeps that true if a
-        // coercing field is ever added, rather than relying on every future field author to remember
-        // this component's own submit path skips the resolver. `safeParse`, not `parse`: `SteppedDialog`
-        // itself already re-validates the WHOLE form (its own `handleContinue`) before ever calling
-        // this, so `!parsed.success` below should be unreachable in practice — this is the LAST line
-        // of defense, not the primary one, for however a future divergence between this schema and the
-        // form's own resolver could still let a stale invalid value through. Never post it anyway: an
-        // invalid payload sent to the backend used to fail with a generic toast and no indication of
-        // which of the 5 steps was at fault (the Summary step that got the user here renders nothing
-        // that could show an inline error) — attach the issues to their fields and jump back to the
-        // first one instead, exactly like `article-upsert.tsx`'s own last-line-of-defense does.
+        // The dialog hands `form.getValues()` directly, never through `form.handleSubmit`, so the
+        // values are re-parsed here: the last line of defence if the schema and the resolver ever
+        // diverge. An invalid payload is never posted; its issues go back onto their fields.
         onSubmit={(values) => {
           const parsed = clientSchema.safeParse(values)
           if (!parsed.success) {
@@ -1740,8 +1710,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
               firstErrorField ??= key
             }
             if (firstErrorField) {
-              const stepIndex = stepForField(steps, firstErrorField)
-              if (stepIndex !== undefined) dialogRef.current?.goToStep(stepIndex)
+              const sectionId = sectionForField(steps, firstErrorField)
+              if (sectionId) dialogRef.current?.goToSection(sectionId)
             }
             toast.error(t("clients.upsert.messages.validationError"))
             return
@@ -1751,9 +1721,8 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
         submitLabel={isEditing ? t("clients.upsert.actions.save") : t("clients.upsert.actions.create")}
         open={open && !quickActive}
         onOpenChange={(next) => {
-          // A safety reset on every CLOSE (never on open, guarded by `!next`) — `SteppedDialog` itself
-          // only calls this once it has decided closing is fine (not dirty, or the user confirmed
-          // discarding), so by the time this runs there is nothing left to protect.
+          // Reset on every close: the dialog only calls this once closing is fine (not dirty, or
+          // the user confirmed discarding).
           if (!next) {
             form.reset()
             resetLanguageSuggestionState()
@@ -1765,10 +1734,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
         submitting={createLoading || updateLoading}
         dataCy="client-dialog"
         submitDataCy="client-submit"
-        // An editing client's values are already valid (they came from a saved record) — every step
-        // opens clickable from the start, rather than gating step 2+ behind walking forward once
-        // first the way a brand-new create run must.
-        initialMaxReached={isEditing ? steps.length - 1 : 0}
       />
 
       <ClientPortalAccessDialog

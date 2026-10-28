@@ -64,8 +64,6 @@ describe("INDIVIDUAL client primary contact is the identity person (#474 follow-
 				cy.get('[data-cy="edit-client-button-jean.dupont@example.com"]').click();
 				cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
-				// Editing opens every step clickable from the start - jump straight to Contact.
-				cy.get('[data-cy="client-dialog-step-contact"]').click();
 				cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
 
 				// Row 0 is Jean (primary, the identity) - its own name inputs are read-only, showing the
@@ -102,7 +100,6 @@ describe("INDIVIDUAL client primary contact is the identity person (#474 follow-
 				cy.get('[name="contacts.1.firstName"]').should("not.be.disabled").and("have.value", "Marie");
 				cy.get('[name="contacts.1.lastName"]').should("not.be.disabled").and("have.value", "Curie");
 
-				cy.continueSteppedDialog("client-dialog");
 				cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
 
 				// The summary shows exactly what will be saved: Jean Dupont as the client's own name

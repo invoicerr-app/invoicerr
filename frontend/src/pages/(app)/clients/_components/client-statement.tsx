@@ -83,7 +83,7 @@ function CurrencyStatementCard({
   return (
     <div className="rounded-lg border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-sm font-semibold text-foreground">
           {t("clients.statement.totalOutstanding")}
           {allTotals.length > 1 && ` · ${totals.currency}`}
         </span>
