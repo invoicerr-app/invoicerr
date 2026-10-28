@@ -3680,7 +3680,8 @@
         "line1": "Brand identity redesign",
         "line2": "Print materials",
         "line3": "Brand book, five copies",
-        "approved": "Approved by the client"
+        "approved": "Approved by the client",
+        "currency": "EUR"
       }
     },
     "serverUnavailable": {
@@ -3953,7 +3954,8 @@
     "formPage": {
       "edit": "Edit",
       "preview": "Preview"
-    }
+    },
+    "save": "Save"
   },
   "payments": {
     "breakdown": {
