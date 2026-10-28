@@ -3942,6 +3942,7 @@
     "finish": "Finish",
     "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
+    "close": "Close",
     "previous": "Previous",
     "next": "Continue",
     "back": "Back",
@@ -5327,6 +5328,7 @@
       "array": {
         "addRow": "Add row",
         "removeRow": "Remove row",
+        "foldRow": "Done",
         "readOnlyFromSource": "These lines come from the supplier's e-invoice and cannot be edited."
       },
       "select": {

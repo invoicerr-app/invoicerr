@@ -1,5 +1,5 @@
-import { useId } from "react"
-import { Plus, Trash2 } from "lucide-react"
+import { useId, useState } from "react"
+import { ChevronDown, Plus, Trash2 } from "lucide-react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
@@ -12,6 +12,7 @@ import { formatTotal } from "@/components/documents/document-totals"
 import { toMinor } from "@/components/documents/totals-calculator"
 import type { DocumentFieldDescriptor } from "@/components/documents/types"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
 import { fetchPrefillFields } from "@/hooks/queries"
 
@@ -122,12 +123,22 @@ function LineRowCard({
   designationCatalog,
   readOnly = false,
 }: LineRowCardProps) {
-  const { control, watch } = useFormContext()
+  const { t } = useTranslation()
+  const {
+    control,
+    watch,
+    formState: { errors },
+  } = useFormContext()
   const [headField, ...restFields] = rowFields
   const { moneyField, numberField, discountField } = detectPriceFields(rowFields)
 
   const rowPath = `${name}.${index}`
   const row = useWatch({ control, name: rowPath }) as Record<string, unknown> | undefined
+  const headValue = headField ? row?.[headField.key] : undefined
+  // On a phone a filled line folds into one readable summary; a new or invalid one stays open.
+  const [open, setOpen] = useState(() => typeof headValue !== "string" || headValue.trim() === "")
+  const rowErrors = (errors as Record<string, unknown[] | undefined>)[name]?.[index]
+  const expanded = open || !!rowErrors
   const currency = moneyField?.currencyField ? watch(moneyField.currencyField) : moneyField?.currency
 
   let subtotal: string | null = null
@@ -145,63 +156,106 @@ function LineRowCard({
     }
   }
 
+  const quantity = numberField ? row?.[numberField.key] : undefined
+  const unitPrice = moneyField ? row?.[moneyField.key] : undefined
+  const summaryLine = [
+    typeof quantity === "number" ? String(quantity) : null,
+    typeof unitPrice === "number" ? formatTotal(toMinor(unitPrice, currency || "EUR"), currency || "") : null,
+  ]
+    .filter(Boolean)
+    .join(" × ")
+
   return (
-    <div className="space-y-3 rounded-md border p-4" data-cy={`document-field-${arrayFieldKey}-row-${index}`}>
-      {/* Column on mobile so the designation gets the FULL row width instead of sharing it with the
+    <div className="rounded-md border p-4" data-cy={`document-field-${arrayFieldKey}-row-${index}`}>
+      {!expanded && (
+        <button
+          type="button"
+          className="focus-ring flex w-full items-start justify-between gap-3 rounded-sm text-start sm:hidden"
+          onClick={() => setOpen(true)}
+          aria-expanded={false}
+          data-cy={`document-field-${arrayFieldKey}-row-${index}-summary`}
+        >
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold text-foreground">
+              {typeof headValue === "string" ? headValue : ""}
+            </span>
+            {summaryLine && (
+              <span className="mt-0.5 block text-[13.5px] text-muted-foreground">{summaryLine}</span>
+            )}
+          </span>
+          {subtotal && <span className="amount shrink-0 text-[15px] text-foreground">{subtotal}</span>}
+        </button>
+      )}
+      <div className={cn("space-y-3", !expanded && "max-sm:hidden")}>
+        {/* Column on mobile so the designation gets the FULL row width instead of sharing it with the
           subtotal/remove cluster (that pairing squeezed the one field a user actually reads down to
           about half the screen) — back to one row at `sm:` and up, unchanged from before. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        {headField && (
-          <div className="w-full sm:min-w-0 sm:flex-1">
-            {designationCatalog && headField.kind === "text" ? (
-              <TextField
-                field={headField}
-                name={`${rowPath}.${headField.key}`}
-                documentTypeId={documentTypeId}
-                catalog={designationCatalog}
-              />
-            ) : (
-              <DocumentField
-                field={headField}
-                name={`${rowPath}.${headField.key}`}
-                documentTypeId={documentTypeId}
-              />
-            )}
-          </div>
-        )}
-        <div className="flex items-center justify-end gap-2 sm:mt-1 sm:shrink-0">
-          {subtotal && (
-            <span
-              className="amount text-[15px] text-foreground"
-              data-cy={`document-field-${arrayFieldKey}-row-${index}-subtotal`}
-            >
-              {subtotal}
-            </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          {headField && (
+            <div className="w-full sm:min-w-0 sm:flex-1">
+              {designationCatalog && headField.kind === "text" ? (
+                <TextField
+                  field={headField}
+                  name={`${rowPath}.${headField.key}`}
+                  documentTypeId={documentTypeId}
+                  catalog={designationCatalog}
+                />
+              ) : (
+                <DocumentField
+                  field={headField}
+                  name={`${rowPath}.${headField.key}`}
+                  documentTypeId={documentTypeId}
+                />
+              )}
+            </div>
           )}
+          <div className="flex items-center justify-end gap-2 sm:mt-1 sm:shrink-0">
+            {subtotal && (
+              <span
+                className="amount text-[15px] text-foreground"
+                data-cy={`document-field-${arrayFieldKey}-row-${index}-subtotal`}
+              >
+                {subtotal}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={onRemove}
+              disabled={readOnly}
+              tooltip={removeLabel}
+              dataCy={`document-field-${arrayFieldKey}-remove-row-${index}`}
+              aria-label={removeLabel}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-3">
+          {restFields.map((rowField) => (
+            <DocumentField
+              key={rowField.key}
+              field={rowField}
+              name={`${rowPath}.${rowField.key}`}
+              documentTypeId={documentTypeId}
+            />
+          ))}
+        </div>
+        {expanded && !rowErrors && (
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={onRemove}
-            disabled={readOnly}
-            tooltip={removeLabel}
-            dataCy={`document-field-${arrayFieldKey}-remove-row-${index}`}
-            aria-label={removeLabel}
+            size="sm"
+            className="w-full sm:hidden"
+            onClick={() => setOpen(false)}
+            dataCy={`document-field-${arrayFieldKey}-row-${index}-fold`}
           >
-            <Trash2 className="h-4 w-4" />
+            <ChevronDown className="size-4 rotate-180" aria-hidden="true" />
+            {t("documents.form.array.foldRow")}
           </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-3">
-        {restFields.map((rowField) => (
-          <DocumentField
-            key={rowField.key}
-            field={rowField}
-            name={`${rowPath}.${rowField.key}`}
-            documentTypeId={documentTypeId}
-          />
-        ))}
+        )}
       </div>
     </div>
   )

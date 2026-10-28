@@ -57,6 +57,8 @@ export function MobileTabBar() {
   const { data: available } = useAvailableDocumentTypes()
   const documentsTypeId = "invoice"
   const documentsIcon = documentTypeIcon(available?.types.find((type) => type.id === documentsTypeId)?.icon)
+  // The new-record page has its own close button and action bar at the bottom.
+  if (/^\/documents\/[^/]+\/new$/.test(pathname)) return null
   return (
     <nav
       aria-label={t("sidebar.mobile.navLabel")}

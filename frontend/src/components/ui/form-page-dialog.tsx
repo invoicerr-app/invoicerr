@@ -1,3 +1,4 @@
+import { ChevronDown, X } from "lucide-react"
 import { useImperativeHandle, useRef, useState } from "react"
 import type React from "react"
 import type { FieldValues, UseFormReturn } from "react-hook-form"
@@ -26,6 +27,8 @@ export interface FormPageSection {
   render: () => React.ReactNode
   /** For a section whose one field already carries the same label. */
   hideLabel?: boolean
+  /** Folded behind its title on a phone until opened; always open on a wider screen. */
+  foldOnPhone?: boolean
 }
 
 /** The section holding a given field name, for a caller mapping a server-side error back to it. */
@@ -66,6 +69,9 @@ export interface FormPageDialogProps<T extends FieldValues = FieldValues> {
   /** `data-cy` of the block wrapping every section. */
   sectionsDataCy?: string
   className?: string
+  /** "page" renders the same form as the content of a routed page instead of a modal; the page
+   *  itself names it in its header. */
+  presentation?: "dialog" | "page"
 }
 
 /**
@@ -95,17 +101,20 @@ export function FormPageDialog<T extends FieldValues>({
   notice,
   sectionsDataCy,
   className,
+  presentation = "dialog",
   ref,
 }: FormPageDialogProps<T> & { ref?: React.Ref<FormPageDialogHandle> }) {
   const { t } = useTranslation()
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit")
+  const [openOnPhone, setOpenOnPhone] = useState<ReadonlySet<string>>(new Set())
   const bodyRef = useRef<HTMLDivElement>(null)
   // Read during render so react-hook-form starts tracking dirtiness before the first close attempt.
   const { isDirty } = form.formState
 
   const goToSection = (id: string) => {
     setMobileView("edit")
+    setOpenOnPhone((current) => new Set(current).add(id))
     const section = bodyRef.current?.querySelector<HTMLElement>(`[data-section="${id}"]`)
     section?.scrollIntoView({ block: "start", behavior: "smooth" })
   }
@@ -134,8 +143,167 @@ export function FormPageDialog<T extends FieldValues>({
     setConfirmingClose(true)
   }
 
-  return (
-    <>
+  const viewSwitch = preview ? (
+    <div
+      role="group"
+      aria-label={previewLabel}
+      className="inline-flex rounded-lg bg-muted p-[3px] lg:hidden"
+      data-cy={dataCy && `${dataCy}-view-switch`}
+    >
+      {(["edit", "preview"] as const).map((view) => (
+        <button
+          key={view}
+          type="button"
+          aria-pressed={mobileView === view}
+          onClick={() => setMobileView(view)}
+          className={cn(
+            "focus-ring h-8 rounded-md px-3 text-sm font-medium",
+            mobileView === view ? "bg-card text-foreground shadow-control dark:bg-raised" : "text-ink-2",
+          )}
+        >
+          {view === "edit" ? t("common.formPage.edit") : t("common.formPage.preview")}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  const sectionList = (
+    <div className="space-y-5" data-cy={sectionsDataCy}>
+      {notice}
+      {sections.map((section) => (
+        <section
+          key={section.id}
+          data-section={section.id}
+          aria-labelledby={`${dataCy ?? "form-page"}-${section.id}-title`}
+          className="scroll-mt-4 rounded-xl border bg-card p-4 shadow-sheet sm:p-6"
+          data-cy={dataCy && `${dataCy}-step-body-${section.id}`}
+        >
+          <h3
+            id={`${dataCy ?? "form-page"}-${section.id}-title`}
+            className={cn(
+              "mb-4 text-[15px] font-semibold",
+              section.hideLabel && "sr-only",
+              section.foldOnPhone && !openOnPhone.has(section.id) && "max-sm:mb-0",
+            )}
+          >
+            {section.foldOnPhone ? (
+              <button
+                type="button"
+                className="focus-ring flex w-full items-center justify-between gap-2 rounded-sm text-start sm:pointer-events-none"
+                aria-expanded={openOnPhone.has(section.id)}
+                onClick={() =>
+                  setOpenOnPhone((current) => {
+                    const next = new Set(current)
+                    if (next.has(section.id)) next.delete(section.id)
+                    else next.add(section.id)
+                    return next
+                  })
+                }
+              >
+                {section.label}
+                <ChevronDown
+                  className={cn(
+                    "size-4 text-muted-foreground sm:hidden",
+                    openOnPhone.has(section.id) && "rotate-180",
+                  )}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : (
+              section.label
+            )}
+          </h3>
+          <div className={cn(section.foldOnPhone && !openOnPhone.has(section.id) && "max-sm:hidden")}>
+            {section.render()}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+
+  const footer = (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-3 sm:px-8",
+        presentation === "page" &&
+          "z-20 bg-card/95 backdrop-blur-sm max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:sticky sm:bottom-0",
+      )}
+    >
+      {footerSummary && <div className="min-w-0 me-auto lg:hidden">{footerSummary}</div>}
+      <div className={cn("flex min-w-0 flex-wrap items-center gap-2", footerSummary && "max-sm:hidden")}>
+        {footerStart}
+      </div>
+      <div className="ms-auto flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={submitting}
+          onClick={() => handleOpenChange(false)}
+          dataCy={dataCy && `${dataCy}-cancel`}
+          className={cn(footerSummary && "max-sm:hidden")}
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          type="button"
+          loading={submitting}
+          disabled={submitDisabled}
+          tooltip={submitDisabled ? submitTooltip : undefined}
+          onClick={handleSubmit}
+          dataCy={submitDataCy ?? (dataCy && `${dataCy}-submit`)}
+        >
+          {submitLabel}
+        </Button>
+      </div>
+    </div>
+  )
+
+  const body =
+    presentation === "page" ? (
+      <div data-cy={dataCy} className={cn("flex min-h-full flex-col", className)}>
+        <Form {...form}>
+          <div className="mx-auto w-full max-w-7xl flex-1 px-4 pt-1 pb-8 max-sm:pb-24 md:px-6">
+            <div className="mb-5 flex items-center gap-3 lg:hidden">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("common.close")}
+                onClick={() => handleOpenChange(false)}
+                dataCy={dataCy && `${dataCy}-close`}
+              >
+                <X aria-hidden="true" />
+              </Button>
+              <div className="flex flex-1 justify-center pe-9">{viewSwitch}</div>
+            </div>
+            {description && <p className="-mt-1 mb-6 text-[15px] text-ink-2 max-lg:hidden">{description}</p>}
+            <div
+              className={cn(
+                "grid items-start gap-8",
+                preview && "lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]",
+              )}
+            >
+              <div
+                ref={bodyRef}
+                className={cn("min-w-0", preview && mobileView === "preview" && "hidden lg:block")}
+              >
+                {sectionList}
+              </div>
+              {preview && (
+                <aside
+                  aria-label={previewLabel}
+                  className={cn("min-w-0 lg:sticky lg:top-4", mobileView === "edit" && "hidden lg:block")}
+                >
+                  <p className="mb-3 text-[14px] font-semibold text-ink-2 max-lg:hidden">{previewLabel}</p>
+                  {preview}
+                </aside>
+              )}
+            </div>
+          </div>
+          {footer}
+        </Form>
+      </div>
+    ) : (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           data-cy={dataCy}
@@ -156,31 +324,7 @@ export function FormPageDialog<T extends FieldValues>({
                 <DialogDescription className="sr-only">{title}</DialogDescription>
               )}
             </div>
-            {preview && (
-              <div
-                role="group"
-                aria-label={previewLabel}
-                className="inline-flex rounded-lg bg-muted p-[3px] lg:hidden"
-                data-cy={dataCy && `${dataCy}-view-switch`}
-              >
-                {(["edit", "preview"] as const).map((view) => (
-                  <button
-                    key={view}
-                    type="button"
-                    aria-pressed={mobileView === view}
-                    onClick={() => setMobileView(view)}
-                    className={cn(
-                      "focus-ring h-8 rounded-md px-3 text-sm font-medium",
-                      mobileView === view
-                        ? "bg-card text-foreground shadow-control dark:bg-raised"
-                        : "text-ink-2",
-                    )}
-                  >
-                    {view === "edit" ? t("common.formPage.edit") : t("common.formPage.preview")}
-                  </button>
-                ))}
-              </div>
-            )}
+            {viewSwitch}
           </div>
 
           <Form {...form}>
@@ -194,26 +338,7 @@ export function FormPageDialog<T extends FieldValues>({
                   preview && mobileView === "preview" && "hidden lg:block",
                 )}
               >
-                <div className="space-y-5" data-cy={sectionsDataCy}>
-                  {notice}
-                  {sections.map((section) => (
-                    <section
-                      key={section.id}
-                      data-section={section.id}
-                      aria-labelledby={`${dataCy ?? "form-page"}-${section.id}-title`}
-                      className="scroll-mt-4 rounded-xl border bg-card p-4 shadow-sheet sm:p-6"
-                      data-cy={dataCy && `${dataCy}-step-body-${section.id}`}
-                    >
-                      <h3
-                        id={`${dataCy ?? "form-page"}-${section.id}-title`}
-                        className={cn("mb-4 text-[15px] font-semibold", section.hideLabel && "sr-only")}
-                      >
-                        {section.label}
-                      </h3>
-                      {section.render()}
-                    </section>
-                  ))}
-                </div>
+                {sectionList}
               </div>
               {preview && (
                 <aside
@@ -227,36 +352,15 @@ export function FormPageDialog<T extends FieldValues>({
                 </aside>
               )}
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-3 sm:px-8">
-              {footerSummary && <div className="min-w-0 me-auto lg:hidden">{footerSummary}</div>}
-              <div className="flex min-w-0 flex-wrap items-center gap-2">{footerStart}</div>
-              <div className="ms-auto flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={submitting}
-                  onClick={() => handleOpenChange(false)}
-                  dataCy={dataCy && `${dataCy}-cancel`}
-                  className={cn(footerSummary && "max-sm:hidden")}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  loading={submitting}
-                  disabled={submitDisabled}
-                  tooltip={submitDisabled ? submitTooltip : undefined}
-                  onClick={handleSubmit}
-                  dataCy={submitDataCy ?? (dataCy && `${dataCy}-submit`)}
-                >
-                  {submitLabel}
-                </Button>
-              </div>
-            </div>
+            {footer}
           </Form>
         </DialogContent>
       </Dialog>
+    )
+
+  return (
+    <>
+      {body}
 
       <AlertDialog open={confirmingClose} onOpenChange={setConfirmingClose}>
         <AlertDialogContent data-cy={dataCy && `${dataCy}-discard-confirm`}>
