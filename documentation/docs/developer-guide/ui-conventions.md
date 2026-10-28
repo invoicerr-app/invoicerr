@@ -75,7 +75,11 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   shadow-sheet`). A row leads with tinted initials (`InitialsAvatar`) and the name, then a muted
   line, then status, amount and one quiet action. Filters are a segmented control. The documents
   list groups consecutive rows by month of the type's own date field and keeps the sort the reader
-  chose; it never prints a page-local total. A titled group of rows (projects, time entries, bank
+  chose; it never prints a page-local total. On a phone a document row shows only the client, the
+  number, the amount and one state (the settlement mark once it says more than unpaid, the status
+  otherwise); every other control stays in the DOM, hidden, so a `data-cy` never moves. Initials carry
+  the `initials` utility, which trims the text box to the capitals so they sit on the disc's optical
+  centre in either face. A titled group of rows (projects, time entries, bank
   statements) uses `PanelSection` (`pages/(app)/_shared/data-list.tsx`): the title and its one action
   on the ground, the rows in one panel, a row skeleton while loading.
 - **Type faces**: Figtree for the interface, Newsreader for titles and every amount (the `amount`
@@ -84,16 +88,23 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   identifiers).
 - **Forms**: a large form shows all its sections on one page with `FormPageDialog`
   (`components/ui/form-page-dialog.tsx`): saving validates the whole form, scrolls to the first
-  invalid section and focuses the field; closing a dirty form asks first. The document editor passes
-  a `preview`: a live paper sheet of the document beside the form, behind an Edit / Preview switch
-  on a phone. Short controls sit two to a row.
+  invalid section and focuses the field; closing a dirty form asks first. `presentation="page"`
+  renders the same form as the content of a route instead of a modal: the new-document page
+  (`pages/(app)/documents/[typeId]/new.tsx`) uses it, with a `preview` (a live paper sheet beside the
+  form, behind an Edit / Preview switch on a phone) and the action bar held at the bottom. A section
+  may set `foldOnPhone`. On a phone a filled line of a line-items field folds into a one-line summary.
+  Short controls sit two to a row.
 - **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
   from the descriptor, with the double rule under its total, every field still listed below it.
 - **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a
   failed load shows a warning disc and a retry. A page that fails to render shows its title, an
   explanation and a reload button, with the technical message folded behind **Details**.
 - **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
-  sidebar; the main "New" action becomes an extended floating button. Touch targets stay 44 px.
+  sidebar; there is no menu button in the header. The main "New" action becomes an extended floating
+  button. The new-document page hides the tab bar: it has its own close button and action bar. Touch
+  targets stay 44 px.
+- **Offline**: `OfflineBanner` (`components/offline-banner.tsx`) shows a one-line strip above every
+  signed-in page while the browser reports no network.
 
 ### Document type icons
 

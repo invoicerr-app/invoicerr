@@ -17,7 +17,7 @@ triangle for a late one and a circled cross for a rejection.
 
 ## Actions
 
-- **Add New** — create an invoice
+- **New Invoice**: create an invoice, on its own page
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
@@ -50,10 +50,14 @@ triangle for a late one and a circled cross for a rejection.
 
 ## Creating an invoice
 
-Click **Add New**. The form shows every field on one page, with the invoice building itself on the
-right as you type: the lines, the totals and the client as your client will read them. On a phone,
-**Edit** and **Preview** switch between the two. Everything is checked when you save; a field that
-needs attention is brought into view with its message under it. Fill in:
+Click **New Invoice**. A page of its own opens (its address ends in `/new`): every field on the left,
+in sections, and the invoice building itself on the right as you type, the lines, the totals and the
+client as your client will read them. The save action stays at the bottom of the page. A draft you
+open later shows the same sheet beside its form. On a phone, **Edit** and **Preview** at the top
+switch between the two, a filled line folds into one summary (tap it to edit it again), the
+**Options** section stays folded until you open it, and the total stays in view next to the save
+action. Everything is checked when you save; a field that needs attention is brought into view with
+its message under it. Fill in:
 
 - **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
   with just a name and a country. The client must be complete before the invoice is validated or sent;
@@ -247,4 +251,4 @@ This only applies to invoices for now: a credit note correcting such an invoice 
 
 ## First use
 
-With no invoices yet, the page shows *"No invoices yet"* and an **Add New** button. If you have a signed quote, use **Create invoice** from the [Quotes](quotes.md) page to skip data entry.
+With no invoices yet, the page shows *"No invoices yet"* and a **New Invoice** button. If you have a signed quote, use **Create invoice** from the [Quotes](quotes.md) page to skip data entry.

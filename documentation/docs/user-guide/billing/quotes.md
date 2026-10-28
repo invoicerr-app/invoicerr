@@ -36,7 +36,7 @@ through the API. A client can still decline it, and you can simply leave it unsi
 
 ## Creating a quote
 
-Click **Add New**. As for an invoice, every field is on one page with a live preview of the quote beside it ([details](invoices.md#creating-an-invoice)). Fill in:
+Click **Add New**. As for an invoice, the quote opens on its own page, every field beside a live preview of the quote ([details](invoices.md#creating-an-invoice)). Fill in:
 
 - **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
   with just a name and a country; see [Clients](../clients.md#creating-a-client-from-a-quote-or-an-invoice)
