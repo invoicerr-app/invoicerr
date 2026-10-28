@@ -228,7 +228,7 @@ describe("Document line editor", () => {
 
 		it("opens on keyboard focus and closes on Escape without closing the dialog", () => {
 			startDocumentAtLines("invoice");
-			cy.get(unitInput).focus();
+			cy.get(unitInput).scrollIntoView().focus();
 			cy.get(options).should("be.visible");
 			cy.get(unitInput).type("{esc}");
 			cy.get(options).should("not.exist");
