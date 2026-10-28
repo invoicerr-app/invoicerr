@@ -14,7 +14,7 @@ including the e-invoicing rules of the country you bill from.
 
 - Quotes, invoices, credit notes, purchase orders, goods receipts, expenses and received invoices —
   one document engine, one lifecycle, one list and detail screen for every type.
-- Payments, partial payments, deposits, instalments and settlement badges computed from the record,
+- Payments, partial payments, deposits, instalments and settlement states computed from the record,
   never stored on the document.
 - Clients with their own portal, account statements and aged balance.
 - An article catalogue with stock counts, project time tracking that turns into invoice lines, and
@@ -40,10 +40,10 @@ Invoice list, filtered by status, with the settlement state of each one.
 
 ![Invoice list](./documentation/static/img/readme/invoices.webp)
 
-Creation wizard — lines filled from the article catalogue, VAT rates from the seller country's own
-rate list.
+The editor: every section on one page, VAT rates from the seller country's own rate list, and a live
+preview of the document beside it.
 
-![Invoice creation wizard](./documentation/static/img/readme/invoice-wizard.webp)
+![Invoice editor](./documentation/static/img/readme/invoice-editor.webp)
 
 Invoice detail: totals, settlement and the legal archive with its retention rule.
 
