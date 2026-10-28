@@ -1,5 +1,4 @@
 import {
-  Building2,
   Check,
   ChevronDown,
   ChevronRight,
@@ -32,7 +31,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -56,6 +54,7 @@ import { useAvailableDocumentTypes, useCompanies, useCompany, useVersionInfo } f
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 import { isRtlLocale } from "@/lib/i18n"
+import { initialsOf } from "@/lib/initials"
 
 export function Sidebar() {
   const { t, i18n } = useTranslation()
@@ -219,7 +218,7 @@ export function Sidebar() {
             alone stays, exactly like every other icon-only row when the sidebar is collapsed. */}
         <div className="flex items-center gap-2 px-2 pt-1 pb-2">
           <BrandMark className="size-5 text-sidebar-foreground" />
-          <span className="font-heading text-sm font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+          <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
             Invoicerr
           </span>
         </div>
@@ -229,15 +228,20 @@ export function Sidebar() {
               <DropdownMenuTrigger className="cursor-pointer" asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="bg-sidebar-accent/70 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   data-cy="sidebar-company-button"
                 >
-                  <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                    <Building2 className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-start text-sm leading-tight">
-                    <span className="truncate font-medium">{company?.name}</span>
-                    <span className="truncate text-xs">{t("sidebar.company.plan")}</span>
+                  <span
+                    aria-hidden="true"
+                    className="bg-foreground text-background flex aspect-square size-8 items-center justify-center rounded-md text-xs font-semibold"
+                  >
+                    {initialsOf(company?.name)}
+                  </span>
+                  <div className="grid flex-1 text-start leading-tight">
+                    <span className="truncate text-[14.5px] font-semibold">{company?.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {t("sidebar.company.plan")}
+                    </span>
                   </div>
                   {companies.length > 1 && <ChevronsUpDown className="ms-auto size-4" />}
                 </SidebarMenuButton>
@@ -300,19 +304,14 @@ export function Sidebar() {
 
       <SidebarContent className="px-2">
         <SidebarGroup className="px-0">
-          <SidebarGroupLabel>{t("sidebar.menu")}</SidebarGroupLabel>
           <SidebarMenu>
             {items.map((item) => (
               <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
                   <Link
                     data-cy={item.dataCy}
                     to={item.url}
-                    className={`flex items-center gap-2 py-6 ${
-                      location.pathname.startsWith(item.url)
-                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                        : ""
-                    }`}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
                   >
                     {item.icon}
                     <span>{item.title}</span>
@@ -327,12 +326,12 @@ export function Sidebar() {
                 unfiltered), which this sidebar deliberately does NOT use. */}
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="flex items-center gap-2 py-6"
+                className="mt-3 h-8 text-[13px] font-medium text-muted-foreground hover:bg-transparent hover:text-foreground group-data-[collapsible=icon]:mt-0"
                 onClick={() => setDocumentsOpen((open) => !open)}
                 aria-expanded={documentsOpen}
                 data-cy="sidebar-documents-group-toggle"
               >
-                <FileStack className="w-4 h-4" />
+                <FileStack className="hidden w-4 h-4 group-data-[collapsible=icon]:block" />
                 <span className="flex-1">{t("sidebar.navigation.documents")}</span>
                 {documentsOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
@@ -366,7 +365,7 @@ export function Sidebar() {
                     <SidebarMenuSubItem key={type.id}>
                       <SidebarMenuSubButton asChild isActive={location.pathname === `/documents/${type.id}`}>
                         <Link data-cy={`sidebar-document-type-link-${type.id}`} to={`/documents/${type.id}`}>
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-4 w-4" aria-hidden="true" />
                           <span>{type.label}</span>
                         </Link>
                       </SidebarMenuSubButton>
@@ -390,12 +389,12 @@ export function Sidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="flex items-center gap-2 py-6"
+                className="mt-3 h-8 text-[13px] font-medium text-muted-foreground hover:bg-transparent hover:text-foreground group-data-[collapsible=icon]:mt-0"
                 onClick={() => setDataOpen((open) => !open)}
                 aria-expanded={dataOpen}
                 data-cy="sidebar-data-group-toggle"
               >
-                <Users className="w-4 h-4" />
+                <Users className="hidden w-4 h-4 group-data-[collapsible=icon]:block" />
                 <span className="flex-1">{t("sidebar.groups.data")}</span>
                 {dataOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
@@ -425,15 +424,11 @@ export function Sidebar() {
           <SidebarMenu>
             {trailingItems.map((item) => (
               <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
                   <Link
                     data-cy={item.dataCy}
                     to={item.url}
-                    className={`flex items-center gap-2 py-6 ${
-                      location.pathname.startsWith(item.url)
-                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                        : ""
-                    }`}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
                   >
                     {item.icon}
                     <span>{item.title}</span>
@@ -455,9 +450,16 @@ export function Sidebar() {
                   data-cy="sidebar-user-menu-trigger"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                    <User className="size-4" />
-                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-full text-xs font-semibold"
+                  >
+                    {/* @ts-ignore */}
+                    {initialsOf(
+                      [data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ") ||
+                        data?.user?.email,
+                    )}
+                  </span>
                   {userLoading ? (
                     <div className="grid flex-1 text-start text-sm leading-tight">
                       <Skeleton className="h-3 w-3/4" />
@@ -469,7 +471,7 @@ export function Sidebar() {
                         {/* @ts-ignore */}
                         {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
                       </span>
-                      <span className="truncate text-xs">{data?.user?.email}</span>
+                      <span className="truncate text-xs text-muted-foreground">{data?.user?.email}</span>
                     </div>
                   )}
                   <ChevronsUpDown className="ms-auto size-4" />
@@ -525,7 +527,7 @@ export function Sidebar() {
             release notes in a new tab rather than navigating the app away. */}
         {versionInfo && (
           <div className="flex items-center gap-1.5 px-2 pb-1 pt-1 group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-[11px] text-sidebar-foreground/60" data-cy="sidebar-app-version">
+            <span className="truncate text-xs text-muted-foreground" data-cy="sidebar-app-version">
               {t("sidebar.version.label", { version: versionInfo.currentVersion })}
             </span>
             {versionInfo.updateAvailable && versionInfo.latestUrl && (
@@ -536,9 +538,9 @@ export function Sidebar() {
                 title={t("sidebar.version.updateTooltip", { version: versionInfo.latestVersion })}
                 data-cy="sidebar-update-available"
               >
-                <Badge variant="info" className="cursor-pointer">
+                <span className="text-xs text-link underline-offset-4 hover:underline">
                   {t("sidebar.version.updateAvailable")}
-                </Badge>
+                </span>
               </a>
             )}
           </div>

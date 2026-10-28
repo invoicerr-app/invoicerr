@@ -29,7 +29,7 @@ const PageHeaderTitle = () => {
 
   return (
     <div className="flex items-center gap-2">
-      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+      <h1 className="truncate text-[26px] leading-tight text-foreground md:text-[30px]">{title}</h1>
     </div>
   )
 }
@@ -125,8 +125,8 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
                 <DemoBanner />
                 <BillingBanner />
-                <header className="p-4 bg-header border-b flex items-center gap-4">
-                  <SidebarTrigger />
+                <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">
+                  <SidebarTrigger className="-ms-1.5 text-muted-foreground" />
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
