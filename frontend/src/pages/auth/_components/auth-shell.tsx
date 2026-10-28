@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 
 import { BrandWordmark } from "@/components/brand-wordmark"
 import { BetaBanner } from "@/components/beta-banner"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { isBetaBannerEnabled } from "@/lib/runtime-config"
 
@@ -16,28 +15,63 @@ interface AuthShellProps {
   children: React.ReactNode
 }
 
+/** A finished invoice, tilted on the accent ground: the product object instead of a stock image. */
+function AuthPaper() {
+  const { t, i18n } = useTranslation()
+  const money = new Intl.NumberFormat(i18n.resolvedLanguage, { style: "currency", currency: "EUR" })
+  const lines: [string, number][] = [
+    [t("auth.shell.sample.line1"), 2080],
+    [t("auth.shell.sample.line2"), 780],
+    [t("auth.shell.sample.line3"), 290],
+  ]
+  return (
+    <div
+      aria-hidden="true"
+      className="w-[min(380px,80%)] rotate-[-4deg] rounded-md bg-paper p-8 text-paper-ink shadow-sheet"
+    >
+      <p className="font-heading text-[28px] leading-none">{t("auth.shell.sample.title")}</p>
+      <p className="mt-2 text-xs text-paper-mute">{t("auth.shell.sample.reference")}</p>
+      <div className="mt-6 divide-y divide-paper-line text-sm">
+        {lines.map(([label, amount]) => (
+          <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
+            <span>{label}</span>
+            <span className="amount">{money.format(amount)}</span>
+          </div>
+        ))}
+      </div>
+      <p className="amount mt-5 text-end text-[32px] leading-none">{money.format(3737.95)}</p>
+      <p className="mt-2 text-end text-xs text-paper-mute">{t("auth.shell.sample.approved")}</p>
+    </div>
+  )
+}
+
 /**
- * The one frame both auth pages share: a single card centred on the page background, the wordmark
- * above it, a faint radial wash of the primary hue behind everything. Its own scroll container
- * (`html` is `overflow: hidden` app-wide, see `index.css`), so a sign-up form taller than a small
- * phone's viewport can still be scrolled to its button.
+ * The one frame both auth pages share: the form in a quiet column on the ground, and on a wide
+ * screen a second half showing an invoice sheet. Its own scroll container (`html` is
+ * `overflow: hidden` app-wide), so a sign-up form taller than a small phone can still be scrolled.
  */
 export function AuthShell({ title, description, footer, dataCy, children }: AuthShellProps) {
+  const { t } = useTranslation()
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto bg-background bg-radial-[90%_45%_at_50%_-15%] from-primary/15 to-transparent text-foreground">
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
-        <BrandWordmark className="mb-6" />
-        {/* Instance-wide, never page-specific — checked once here rather than in every auth page, so
-            sign-in, sign-up, AND sign-up's single-sign-on-only branch all pick it up automatically. */}
-        {isBetaBannerEnabled() && <BetaBanner className="mb-4 w-full max-w-sm sm:max-w-md" />}
-        <Card className="w-full max-w-sm gap-5 py-6 sm:max-w-md" data-cy={dataCy}>
-          <CardHeader className="gap-1 text-center">
-            <h1 className="font-heading text-xl font-semibold tracking-tight text-balance">{title}</h1>
-            {description && <CardDescription className="text-pretty">{description}</CardDescription>}
-          </CardHeader>
-          <CardContent className="space-y-5">{children}</CardContent>
-          {footer && <CardFooter className="flex-col gap-1.5 text-center text-sm">{footer}</CardFooter>}
-        </Card>
+    <div className="grid h-dvh overflow-y-auto bg-background text-foreground lg:grid-cols-2">
+      <div className="flex min-h-full flex-col px-5 py-8 sm:px-12 lg:px-20 xl:px-24">
+        <BrandWordmark />
+        <div className="flex flex-1 flex-col justify-center py-10">
+          {/* Instance-wide, never page-specific: checked once here for every auth page. */}
+          {isBetaBannerEnabled() && <BetaBanner className="mb-6 w-full max-w-[430px]" />}
+          <div className="w-full max-w-[430px]" data-cy={dataCy}>
+            <h1 className="text-[34px] leading-tight">{title}</h1>
+            {description && <p className="mt-2 text-ink-2">{description}</p>}
+            <div className="mt-7 space-y-5">{children}</div>
+            {footer && <div className="mt-6 flex flex-col gap-1.5 text-sm">{footer}</div>}
+          </div>
+        </div>
+      </div>
+      <div className="relative hidden flex-col items-center justify-center overflow-hidden bg-accent lg:flex">
+        <AuthPaper />
+        <p className="absolute start-12 bottom-12 max-w-xs font-heading text-[28px] leading-tight text-accent-foreground">
+          {t("auth.shell.tagline")}
+        </p>
       </div>
     </div>
   )
@@ -49,9 +83,7 @@ export function AuthSeparator() {
   return (
     <div className="flex items-center gap-3" role="separator" aria-orientation="horizontal">
       <Separator className="flex-1" />
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {t("auth.or")}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{t("auth.or")}</span>
       <Separator className="flex-1" />
     </div>
   )
@@ -70,7 +102,7 @@ export function AuthLink({
   return (
     <a
       href={href}
-      className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded-sm"
+      className="focus-ring rounded-sm font-semibold text-link underline-offset-4 hover:underline"
       data-cy={dataCy}
     >
       {children}

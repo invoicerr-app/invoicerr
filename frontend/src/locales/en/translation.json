@@ -1510,6 +1510,8 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "greeting": "Hello {{name}}. Here is where your invoices stand.",
+    "greetingNoName": "Here is where your invoices stand.",
     "period": {
       "label": "Period",
       "options": {
@@ -3657,6 +3659,17 @@
     }
   },
   "auth": {
+    "shell": {
+      "tagline": "Invoicing that keeps your pace.",
+      "sample": {
+        "title": "Invoice",
+        "reference": "INV-2026-0143",
+        "line1": "Brand identity redesign",
+        "line2": "Print materials",
+        "line3": "Brand book, five copies",
+        "approved": "Approved by the client"
+      }
+    },
     "serverUnavailable": {
       "title": "Service temporarily unavailable",
       "description": "The server can't be reached. Check the logs."
@@ -3792,7 +3805,11 @@
       "title": "This is a public demo",
       "description": "Sign in with the account below.",
       "resets": "Data resets every {{count}} hours.",
-      "resets_one": "Data resets every hour."
+      "resets_one": "Data resets every hour.",
+      "copyEmail": "Copy the email",
+      "copyPassword": "Copy the password",
+      "copied": "Copied",
+      "tryButton": "Try it without an account"
     },
     "disabledTooltip": "Disabled in this demo."
   },
