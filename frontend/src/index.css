@@ -1,12 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Self-hosted fonts, so the PWA works offline and no font request leaks to a third party. Figtree is
-   the interface face, Newsreader the titles and every amount. Weights 400 to 600 (700 for Figtree). */
-@import "@fontsource/figtree/latin-ext-400.css";
-@import "@fontsource/figtree/latin-ext-500.css";
-@import "@fontsource/figtree/latin-ext-600.css";
-@import "@fontsource/figtree/latin-ext-700.css";
+/* Self-hosted fonts, so the PWA works offline and no font request leaks to a third party. IBM Plex Sans is
+   the interface face, Newsreader the titles and every amount. Weights 400 to 600 (700 for IBM Plex Sans). */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
 @import "@fontsource/newsreader/400.css";
 @import "@fontsource/newsreader/vietnamese-500.css";
 @import "@fontsource/newsreader/latin-ext-500.css";
@@ -20,70 +20,6 @@
   src:
     url("@fontsource/newsreader/files/newsreader-latin-500-normal.woff2") format("woff2"),
     url("@fontsource/newsreader/files/newsreader-latin-500-normal.woff") format("woff");
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-  ascent-override: 90%;
-  descent-override: 22%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: "Figtree";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src:
-    url("@fontsource/figtree/files/figtree-latin-400-normal.woff2") format("woff2"),
-    url("@fontsource/figtree/files/figtree-latin-400-normal.woff") format("woff");
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-  ascent-override: 90%;
-  descent-override: 22%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: "Figtree";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 500;
-  src:
-    url("@fontsource/figtree/files/figtree-latin-500-normal.woff2") format("woff2"),
-    url("@fontsource/figtree/files/figtree-latin-500-normal.woff") format("woff");
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-  ascent-override: 90%;
-  descent-override: 22%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: "Figtree";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 600;
-  src:
-    url("@fontsource/figtree/files/figtree-latin-600-normal.woff2") format("woff2"),
-    url("@fontsource/figtree/files/figtree-latin-600-normal.woff") format("woff");
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
-    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-  ascent-override: 90%;
-  descent-override: 22%;
-  line-gap-override: 0%;
-}
-
-@font-face {
-  font-family: "Figtree";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src:
-    url("@fontsource/figtree/files/figtree-latin-700-normal.woff2") format("woff2"),
-    url("@fontsource/figtree/files/figtree-latin-700-normal.woff") format("woff");
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
     U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -106,7 +42,7 @@
   --radius-2xl: 12px;
   --radius-control: 6px;
   --radius-panel: 10px;
-  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Newsreader", ui-serif, Georgia, serif;
   --font-figures: "Newsreader", ui-serif, Georgia, serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", monospace;
