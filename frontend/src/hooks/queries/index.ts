@@ -94,7 +94,8 @@ export {
   type DocumentOperator,
   type DocumentOperatorOffering,
 } from "./use-document-types"
-export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
+export { useDashboardWidgets, useInvoiceOverview, useStatisticsWidgets } from "./use-widgets"
+export type { InvoiceOverview } from "./use-widgets"
 export { useVersionInfo, type VersionInfo } from "./use-version"
 export {
   useUploadReceivedInvoice,
