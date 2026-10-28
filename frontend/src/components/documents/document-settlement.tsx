@@ -28,7 +28,7 @@ import { decimalsFor, fromMinor } from "./totals-calculator"
  * `computeSettlement` to this screen.
  */
 
-export type SettlementTone = "neutral" | "warning" | "success"
+export type SettlementTone = "neutral" | "warning" | "success" | "destructive"
 
 interface SettlementBadgeInfo {
   tone: SettlementTone
@@ -47,13 +47,23 @@ interface SettlementBadgeInfo {
  * answers "does this still owe anything". Renamed from the earlier "Paid" label for the exact same
  * reason — same terminal condition (`settled`), a more honest name for it.
  */
-export function settlementBadgeInfo(settlement: DocumentSettlement): SettlementBadgeInfo {
+export function settlementBadgeInfo(
+  settlement: DocumentSettlement,
+  due?: { dueDate?: unknown; today: string },
+): SettlementBadgeInfo {
   if (settlement.settled) {
     return { tone: "success", labelKey: "documents.settlement.badge.settled" }
   }
-  return settlement.paidMinor > 0 || settlement.creditedMinor > 0
-    ? { tone: "warning", labelKey: "documents.settlement.badge.partiallyPaid" }
-    : { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
+  if (settlement.paidMinor > 0 || settlement.creditedMinor > 0) {
+    return { tone: "warning", labelKey: "documents.settlement.badge.partiallyPaid" }
+  }
+  // Same rule as the backend's overdue filter: a due date strictly before today. A partly paid
+  // record keeps its "Partially paid" mark; the amounts beside it say what is left.
+  const dueDate = typeof due?.dueDate === "string" ? due.dueDate.slice(0, 10) : ""
+  if (due && dueDate !== "" && dueDate < due.today) {
+    return { tone: "destructive", labelKey: "documents.settlement.badge.late" }
+  }
+  return { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
 }
 
 // Exported so a different screen rendering the same tone/label pair (clients/_components/
@@ -64,6 +74,12 @@ export const TONE_CLASSES: Record<SettlementTone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
   success: "bg-success text-success-foreground",
   warning: "bg-warning text-warning-foreground",
+  destructive: "bg-destructive-soft text-destructive-soft-foreground",
+}
+
+function localIsoDate(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 }
 
 function formatMinor(minor: number, currency: string): string {
@@ -78,6 +94,8 @@ interface DocumentSettlementBadgeProps {
    *  the base `data-cy` so each row's badge is independently selectable, the same convention
    *  document-list.tsx's own `document-number-${instance.id}` already uses. */
   dataCySuffix?: string
+  /** The record's own due date, so a balance still owed after it reads as late. */
+  dueDate?: unknown
 }
 
 /** A small, standalone badge — used both in the document list (one per row) and inside the
@@ -88,12 +106,13 @@ export function DocumentSettlementBadge({
   documentId,
   className,
   dataCySuffix,
+  dueDate,
 }: DocumentSettlementBadgeProps) {
   const { t } = useTranslation()
   const { data } = useDocumentSettlement(typeId, documentId)
   if (!data) return null
 
-  const { labelKey } = settlementBadgeInfo(data.settlement)
+  const { labelKey } = settlementBadgeInfo(data.settlement, { dueDate, today: localIsoDate() })
   return (
     <StatusMark
       {...statusPresentation(labelKey.split(".").pop() ?? "")}
@@ -135,6 +154,7 @@ export function SettledMark({ dataCy, className }: Readonly<{ dataCy: string; cl
 interface DocumentSettlementSectionProps {
   typeId: string
   documentId: string
+  dueDate?: unknown
 }
 
 /**
@@ -147,7 +167,7 @@ interface DocumentSettlementSectionProps {
  * declared params are enough for that existing screen, nothing bespoke needed here). It does not
  * render a "send" button for a credit note either, for the identical reason.
  */
-export function DocumentSettlementSection({ typeId, documentId }: DocumentSettlementSectionProps) {
+export function DocumentSettlementSection({ typeId, documentId, dueDate }: DocumentSettlementSectionProps) {
   const { t } = useTranslation()
   const { data, isLoading } = useDocumentSettlement(typeId, documentId)
   // A payment's own `method` (e.g. "bank_transfer") is a `payment-methods/built-in.ts` id, not a
@@ -175,7 +195,7 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
   return (
     <SectionCard
       title={t("documents.settlement.title")}
-      aside={<DocumentSettlementBadge typeId={typeId} documentId={documentId} />}
+      aside={<DocumentSettlementBadge typeId={typeId} documentId={documentId} dueDate={dueDate} />}
       dataCy="document-settlement-section"
     >
       <div className="space-y-4">

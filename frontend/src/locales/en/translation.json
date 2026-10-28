@@ -5598,7 +5598,8 @@
       "badge": {
         "unpaid": "Unpaid",
         "partiallyPaid": "Partially paid",
-        "settled": "Settled"
+        "settled": "Settled",
+        "late": "Late"
       }
     },
     "archive": {

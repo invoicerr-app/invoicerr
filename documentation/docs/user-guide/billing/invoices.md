@@ -155,6 +155,9 @@ something is still owed. An invoice can be paid in several instalments: each pay
 invoice's settlement panel, and the settlement mark reads **Partially paid** (a half-filled circle) until
 the balance reaches zero.
 
+An invoice with nothing paid yet whose due date has passed reads **Late**, with a triangle, in the list
+and on its page.
+
 Once nothing is owed any more, whether through payments, [credit notes](credit-notes.md) or both, the
 settlement mark reads **Settled** and a check takes the place of **Record payment**, in the list and
 on the invoice's page. The action is no longer offered there.

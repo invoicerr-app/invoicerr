@@ -687,6 +687,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                   typeId={descriptor.id}
                   documentId={instance.id}
                   dataCySuffix={instance.id}
+                  dueDate={instance.data?.dueDate}
                 />
               )}
               {/* The list's discreet rejected-deposit indicator: renders nothing unless the

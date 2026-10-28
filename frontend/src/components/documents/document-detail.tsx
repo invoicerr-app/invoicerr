@@ -347,7 +347,13 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
                 : null
             }
           />
-          {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
+          {showSettlement && (
+            <DocumentSettlementSection
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
+          )}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
               gated on "sent" here, since the component's own emptiness check already carries that
@@ -473,7 +479,11 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
           )}
           <DocumentStatusBadge status={instance.status} label={statusLabel(descriptor, instance.status)} />
           {state.showSettlement && (
-            <DocumentSettlementBadge typeId={descriptor.id} documentId={instance.id} />
+            <DocumentSettlementBadge
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
           )}
           <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
         </div>
