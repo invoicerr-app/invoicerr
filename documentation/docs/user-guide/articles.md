@@ -8,14 +8,14 @@ The **Articles** page is a catalog of reusable line items — services or produc
 
 ## Actions
 
-- **Add New** — create a catalog article
+- **Add Article** — create a catalog article
 - **Search** — find an article by name
 - **Edit** (pencil icon) — update an article's details
 - **Delete** (trash icon) — remove an article from the catalog
 
 ## Creating an article
 
-Click **Add New** and fill in:
+Click **Add Article** and fill in:
 
 - **Name** (required): what the line Designation suggestions match, show and copy
 - **Description** (optional, multi-line): supports `**bold**` and `*italic*`; kept in the catalog, not copied onto a line
@@ -53,4 +53,4 @@ A received invoice's lines have the same fields as an invoice line. For a struct
 
 ## First use
 
-With no articles yet, the page shows *"No articles yet"* and an **Add New** button. Articles are entirely optional — you can always type line items by hand on a quote or invoice.
+With no articles yet, the page shows *"No articles yet"* and an **Add Article** button. Articles are entirely optional — you can always type line items by hand on a quote or invoice.

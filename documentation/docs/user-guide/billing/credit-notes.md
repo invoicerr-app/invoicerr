@@ -52,7 +52,7 @@ Some channels cannot carry a credit note at all. KSeF and Invopop are two exampl
 
 ## Archiving
 
-Once sent, a credit note gets its own **Legal archive** card, exactly like a sent invoice: the exact PDF the client received (or, on a structured channel, the file actually deposited), kept for as long as your country's retention rule requires. See [Backups](../backups.md) for how archives are stored and restored. A credit note issued before this existed keeps none; its download still renders fresh, since it was never delivered through this mechanism.
+Once sent, a credit note gets its own **Legal archive** section, exactly like a sent invoice: the exact PDF the client received (or, on a structured channel, the file actually deposited), kept for as long as your country's retention rule requires. See [Backups](../backups.md) for how archives are stored and restored. A credit note issued before this existed keeps none; its download still renders fresh, since it was never delivered through this mechanism.
 
 ## When a credit note is refused
 

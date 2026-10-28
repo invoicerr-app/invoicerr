@@ -75,7 +75,13 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   shadow-sheet`). A row leads with tinted initials (`InitialsAvatar`) and the name, then a muted
   line, then status, amount and one quiet action. Filters are a segmented control. The documents
   list groups consecutive rows by month of the type's own date field and keeps the sort the reader
-  chose; it never prints a page-local total.
+  chose; it never prints a page-local total. A titled group of rows (projects, time entries, bank
+  statements) uses `PanelSection` (`pages/(app)/_shared/data-list.tsx`): the title and its one action
+  on the ground, the rows in one panel, a row skeleton while loading.
+- **Type faces**: Figtree for the interface, Newsreader for titles and every amount (the `amount`
+  utility: tabular, lining figures). Dates, counts and rates keep `tabular-nums` in the interface face;
+  monospace is kept for what is typed or copied as a code (API keys, secrets, hashes, paths, patterns,
+  identifiers).
 - **Forms**: a large form shows all its sections on one page with `FormPageDialog`
   (`components/ui/form-page-dialog.tsx`): saving validates the whole form, scrolls to the first
   invalid section and focuses the field; closing a dirty form asks first. The document editor passes
@@ -84,7 +90,8 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
 - **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
   from the descriptor, with the double rule under its total, every field still listed below it.
 - **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a
-  failed load shows a warning disc and a retry.
+  failed load shows a warning disc and a retry. A page that fails to render shows its title, an
+  explanation and a reload button, with the technical message folded behind **Details**.
 - **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
   sidebar; the main "New" action becomes an extended floating button. Touch targets stay 44 px.
 

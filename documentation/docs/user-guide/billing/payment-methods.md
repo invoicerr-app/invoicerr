@@ -10,7 +10,7 @@ method prints on your invoices automatically — there is nothing to attach per 
 ## How it works
 
 Unlike Clients or Articles, this isn't a list you add entries to. Invoicerr ships a fixed set of
-payment methods, each shown as its own card:
+payment methods, each shown as one row of a single list:
 
 - **Bank transfer** — IBAN (required) and BIC (optional)
 - **PayPal** — the receiving account's e-mail
@@ -21,21 +21,21 @@ payment methods, each shown as its own card:
 
 ## Turning a method on
 
-Flip the switch on a card. If the method needs information it doesn't have yet (an IBAN, a PayPal
+Flip the switch at the end of a row. If the method needs information it doesn't have yet (an IBAN, a PayPal
 e-mail…), the switch opens the configuration dialog instead of failing silently — fill it in and
-save, and the method is enabled in the same step. A card already configured just toggles straight
+save, and the method is enabled in the same step. A method already configured just toggles straight
 on or off.
 
 ## Configuring a method
 
-Click **Configure** on any card to open or change its details, whether it's currently on or off. A
+Click **Configure** on any row to open or change its details, whether it's currently on or off. A
 method with nothing to configure (Cash, Stripe, Mollie) shows no fields at all — there's simply
 nothing to fill in.
 
 ## What shows on a document
 
-Every card's own preview — the same "field: value" lines your invoices print — appears right on
-the card, so what you see here is exactly what a client sees. **Cash**, **Stripe**, and **Mollie**
+Every method's preview, the same "field: value" lines your invoices print, appears under its
+name, so what you see here is exactly what a client sees. **Cash**, **Stripe**, and **Mollie**
 show nothing beyond their own label; **Bank transfer** shows the IBAN/BIC you set; **PayPal** shows
 the account e-mail.
 
@@ -45,7 +45,7 @@ the account e-mail.
 - **No per-document choice.** A quote or invoice doesn't ask "which payment method" — every method
   you've turned on appears on every document that shows payment methods (invoices). You can still
  narrow this per **client** - see [Restricting payment methods for a client](../clients.md#restricting-payment-methods-for-a-client).
-- **No search or filter.** There are only ever six cards.
+- **No search or filter.** There are only ever six rows.
 
 ## First use
 
