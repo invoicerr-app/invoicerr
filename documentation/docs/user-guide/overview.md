@@ -43,4 +43,8 @@ Once signed in, the left sidebar is your main navigation. The items appear in th
 
 The sidebar footer holds the theme toggle (Light / Dark / System) and your profile menu (Account, Logout).
 
+On a phone, the sidebar folds away and a bar at the bottom of the screen takes its place: **Home**
+(the dashboard), **Documents** (your invoices), **Clients**, and **More**, which opens the full
+sidebar.
+
 Ready? Start with [Clients](clients.md).

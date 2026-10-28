@@ -152,11 +152,12 @@ Choosing a local cancellation asks you to confirm first: it is irreversible, and
 
 **Record payment** is offered on a sent invoice, in its row and on its own page, for as long as
 something is still owed. An invoice can be paid in several instalments: each payment is listed in the
-invoice's settlement panel, and the badge reads **Partially paid** until the balance reaches zero.
+invoice's settlement panel, and the settlement mark reads **Partially paid** (a half-filled circle) until
+the balance reaches zero.
 
 Once nothing is owed any more, whether through payments, [credit notes](credit-notes.md) or both, the
-badge reads **Settled** and a green check takes the place of **Record payment**, in the list and on
-the invoice's page. The action is no longer offered there.
+settlement mark reads **Settled** and a check takes the place of **Record payment**, in the list and
+on the invoice's page. The action is no longer offered there.
 
 :::info[Money received after the invoice is settled]
 A payment that still arrives afterwards, through an online payment link or
