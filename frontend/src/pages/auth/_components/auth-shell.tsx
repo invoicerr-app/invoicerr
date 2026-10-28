@@ -18,7 +18,10 @@ interface AuthShellProps {
 /** A finished invoice, tilted on the accent ground: the product object instead of a stock image. */
 function AuthPaper() {
   const { t, i18n } = useTranslation()
-  const money = new Intl.NumberFormat(i18n.resolvedLanguage, { style: "currency", currency: "EUR" })
+  const money = new Intl.NumberFormat(i18n.resolvedLanguage, {
+    style: "currency",
+    currency: t("auth.shell.sample.currency"),
+  })
   const lines: [string, number][] = [
     [t("auth.shell.sample.line1"), 2080],
     [t("auth.shell.sample.line2"), 780],
