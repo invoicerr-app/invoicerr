@@ -215,21 +215,17 @@ function DocumentRow({ row }: { row: ClientStatementDocumentRow }) {
           </span>
           <StatementRowBadge row={row} />
         </div>
-        <p className="text-xs text-muted-foreground">
-          {row.issueDate ?? "—"}
+        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          <span>{row.issueDate ?? "—"}</span>
           {row.dueDate && (
-            <>
-              {" · "}
-              <span className={cn(overdue && "font-medium text-destructive")}>
-                {t("clientPortal.statement.due")} {row.dueDate}
-              </span>
-            </>
+            <span className={cn(overdue && "font-medium text-destructive")}>
+              {t("clientPortal.statement.due")} {row.dueDate}
+            </span>
           )}
           {row.paidMinor > 0 && !row.settled && (
-            <>
-              {" "}
-              · {t("clientPortal.statement.paidSoFar", { amount: formatMinor(row.paidMinor, row.currency) })}
-            </>
+            <span>
+              {t("clientPortal.statement.paidSoFar", { amount: formatMinor(row.paidMinor, row.currency) })}
+            </span>
           )}
         </p>
       </div>
