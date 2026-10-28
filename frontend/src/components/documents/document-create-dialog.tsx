@@ -10,7 +10,12 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentPaper } from "@/components/documents/document-paper"
 import { BlockedActionReason, LineTotalWarnings } from "@/components/documents/document-form"
-import { DocumentTotals, useDocumentTotals } from "@/components/documents/document-totals"
+import {
+  DocumentTotals,
+  formatTotal,
+  useDocumentOptionTotals,
+  useDocumentTotals,
+} from "@/components/documents/document-totals"
 import type {
   DocumentFieldDescriptor,
   DocumentInstance,
@@ -18,6 +23,7 @@ import type {
 } from "@/components/documents/types"
 import { useDocumentForm } from "@/components/documents/use-document-form"
 import { Button } from "@/components/ui/button"
+import { LtrValue } from "@/components/ui/ltr-value"
 import { type FormPageSection, FormPageDialog } from "@/components/ui/form-page-dialog"
 import { cn } from "@/lib/utils"
 import { useClient, useCompany, useReferenceResolve } from "@/hooks/queries"
@@ -130,6 +136,22 @@ function FieldsSection({
 }
 
 /** The live sheet beside the form: what the client will read, rebuilt on every change. */
+/** The running total in the footer on a phone. A quote with options has no single total to show. */
+function DocumentFooterTotal({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
+  const { t } = useTranslation()
+  const totals = useDocumentTotals(descriptor)
+  const optionTotals = useDocumentOptionTotals(descriptor)
+  if (!totals || optionTotals) return null
+  return (
+    <div data-cy="document-create-footer-total">
+      <p className="text-xs text-muted-foreground">{t("documents.totals.gross")}</p>
+      <p className="amount text-xl leading-tight">
+        <LtrValue>{formatTotal(totals.grossMinor, totals.currency || "—")}</LtrValue>
+      </p>
+    </div>
+  )
+}
+
 function DocumentLivePreview({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
   const { t } = useTranslation()
   const totals = useDocumentTotals(descriptor)
@@ -335,6 +357,7 @@ export function DocumentCreateDialog({
         notice={notice}
         preview={<DocumentLivePreview descriptor={effectiveDescriptor} />}
         previewLabel={t("documents.form.editor.previewLabel")}
+        footerSummary={<DocumentFooterTotal descriptor={effectiveDescriptor} />}
         footerStart={
           <>
             {secondaryActions.map((action) => (

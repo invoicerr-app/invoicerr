@@ -59,6 +59,8 @@ export interface FormPageDialogProps<T extends FieldValues = FieldValues> {
   previewLabel?: string
   /** Quieter actions shown at the start of the footer. */
   footerStart?: React.ReactNode
+  /** A running figure at the start of the footer on a phone, where the preview is out of sight. */
+  footerSummary?: React.ReactNode
   /** Above the sections: a notice that concerns the whole form. */
   notice?: React.ReactNode
   /** `data-cy` of the block wrapping every section. */
@@ -89,6 +91,7 @@ export function FormPageDialog<T extends FieldValues>({
   preview,
   previewLabel,
   footerStart,
+  footerSummary,
   notice,
   sectionsDataCy,
   className,
@@ -224,32 +227,34 @@ export function FormPageDialog<T extends FieldValues>({
                 </aside>
               )}
             </div>
-          </Form>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-3 sm:px-8">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">{footerStart}</div>
-            <div className="ms-auto flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submitting}
-                onClick={() => handleOpenChange(false)}
-                dataCy={dataCy && `${dataCy}-cancel`}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                type="button"
-                loading={submitting}
-                disabled={submitDisabled}
-                tooltip={submitDisabled ? submitTooltip : undefined}
-                onClick={handleSubmit}
-                dataCy={submitDataCy ?? (dataCy && `${dataCy}-submit`)}
-              >
-                {submitLabel}
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-3 sm:px-8">
+              {footerSummary && <div className="min-w-0 me-auto lg:hidden">{footerSummary}</div>}
+              <div className="flex min-w-0 flex-wrap items-center gap-2">{footerStart}</div>
+              <div className="ms-auto flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting}
+                  onClick={() => handleOpenChange(false)}
+                  dataCy={dataCy && `${dataCy}-cancel`}
+                  className={cn(footerSummary && "max-sm:hidden")}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  loading={submitting}
+                  disabled={submitDisabled}
+                  tooltip={submitDisabled ? submitTooltip : undefined}
+                  onClick={handleSubmit}
+                  dataCy={submitDataCy ?? (dataCy && `${dataCy}-submit`)}
+                >
+                  {submitLabel}
+                </Button>
+              </div>
             </div>
-          </div>
+          </Form>
         </DialogContent>
       </Dialog>
 
