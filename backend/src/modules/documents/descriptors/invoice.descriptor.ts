@@ -454,6 +454,7 @@ export function buildInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'invoice',
     label: 'Invoice',
+    icon: 'invoice',
     statuses: INVOICE_STATUSES,
     initialStatus: 'draft',
     // Issue #581 widened this from a bare 'sending' to a SET: "validate" can now also be the first

@@ -1,4 +1,5 @@
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
@@ -23,7 +24,10 @@ export function TimeSeriesWidgetRenderer({ widget }: WidgetRendererProps) {
   return (
     <Card data-cy={`widget-${series.id}`} data-widget-kind="timeSeries">
       <CardHeader className="gap-0 pb-2">
-        <CardTitle className="font-heading text-xl font-normal text-foreground">{series.label}</CardTitle>
+        <CardTitle className="font-heading text-xl font-normal text-foreground">
+          <DocumentTypeIcon icon={series.icon} className="me-2 inline align-[-1px] text-muted-foreground" />
+          {series.label}
+        </CardTitle>
         <WidgetValue>
           <p className="amount mt-1 text-[34px] leading-tight text-foreground">
             {total.toLocaleString()}

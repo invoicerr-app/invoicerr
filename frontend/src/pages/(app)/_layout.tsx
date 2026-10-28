@@ -24,12 +24,13 @@ import { authClient } from "@/lib/auth"
 const ALLOWED_PATHS = ["/signature/[^/]+"]
 
 const PageHeaderTitle = () => {
-  const { title } = usePageHeaderContext()
+  const { title, icon } = usePageHeaderContext()
 
   if (!title) return null
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2.5">
+      {icon && <span className="text-muted-foreground [&>svg]:size-5 md:[&>svg]:size-6">{icon}</span>}
       <h1 className="truncate text-[26px] leading-tight text-foreground md:text-[30px]">{title}</h1>
     </div>
   )

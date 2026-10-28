@@ -49,7 +49,7 @@ export async function collectWidgets(params: CollectWidgetsParams): Promise<Widg
     }
 
     const contributed = await handler({ companyId, period });
-    widgets.push(...contributed);
+    widgets.push(...contributed.map((widget) => ({ ...widget, icon: widget.icon ?? descriptor.icon })));
   }
 
   return widgets;

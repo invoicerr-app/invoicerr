@@ -82,6 +82,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'quote',
     label: 'Quote',
+    icon: 'quote',
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },

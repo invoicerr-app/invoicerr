@@ -83,10 +83,36 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   on a phone. Short controls sit two to a row.
 - **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
   from the descriptor, with the double rule under its total, every field still listed below it.
-- **Empty states** draw a sheet and a pencil from tokens; a failed load shows a warning disc and a
-  retry.
+- **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a
+  failed load shows a warning disc and a retry.
 - **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
   sidebar; the main "New" action becomes an extended floating button. Touch targets stay 44 px.
+
+### Document type icons
+
+Every document type has its own icon, drawn wherever the type is named: the sidebar, the page
+header of its list and of a document, its empty list, the dashboard widgets it contributes and the
+phone's tab bar. The descriptor carries a key (`icon: 'purchase-order'`), and
+`components/documents/document-type-icon.tsx` maps keys to Lucide icons in one table, so no
+component switches on a type id. A key that table does not know, or no key at all, draws the
+generic document icon. To give a new type its own icon, add its key to the descriptor and one row
+to that table; pick a Lucide icon that still reads apart from the others at 16 px.
+
+| Key | Icon |
+| --- | --- |
+| `quote` | `FilePen` |
+| `invoice` | `ReceiptText` |
+| `credit-note` | `FileMinus` |
+| `debit-note` | `FilePlus` |
+| `pro-forma` | `FileClock` |
+| `deposit-invoice` | `Coins` |
+| `final-invoice` | `FileCheck` |
+| `purchase-order` | `ShoppingCart` |
+| `goods-receipt` | `PackageCheck` |
+| `delivery-note` | `Truck` |
+| `expense` | `Wallet` |
+| `received-invoice` | `FileDown` |
+| anything else | `FileText` |
 
 ### Motion
 

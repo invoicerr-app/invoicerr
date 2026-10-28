@@ -647,7 +647,7 @@ export class DocumentsService implements OnModuleInit {
    */
   async listAvailableTypes(
     companyId: string,
-  ): Promise<{ types: { id: string; label: string }[]; reason?: string }> {
+  ): Promise<{ types: { id: string; label: string; icon?: string }[]; reason?: string }> {
     const decision = await resolveAvailableDocumentTypes(companyId);
     if (decision.typeIds.length === 0) {
       return { types: [], reason: decision.reason };
@@ -665,7 +665,7 @@ export class DocumentsService implements OnModuleInit {
         }
       })
       .filter((descriptor): descriptor is DocumentTypeDescriptor => !!descriptor)
-      .map(({ id, label }) => ({ id, label }));
+      .map(({ id, label, icon }) => ({ id, label, icon }));
 
     return { types };
   }

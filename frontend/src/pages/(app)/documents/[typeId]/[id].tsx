@@ -1,4 +1,5 @@
 import { FileQuestion } from "lucide-react"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { useParams } from "react-router"
 import { useTranslation } from "react-i18next"
 
@@ -24,7 +25,7 @@ export default function DocumentDetailPage() {
   const { data: descriptor, isLoading: descriptorLoading, error: descriptorError } = useDocumentType(typeId)
   const { data: instance, isLoading: instanceLoading, error: instanceError } = useDocumentInstance(typeId, id)
 
-  usePageHeader(descriptor?.label ?? typeId)
+  usePageHeader(descriptor?.label ?? typeId, <DocumentTypeIcon icon={descriptor?.icon} />)
 
   if (descriptorLoading || instanceLoading) {
     return (

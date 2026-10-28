@@ -88,7 +88,15 @@ function EmptyState({
       {...props}
     >
       {tone === "default" && size === "default" ? (
-        <SheetAndPencil />
+        <div className="relative">
+          <SheetAndPencil />
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 start-3 grid size-10 place-items-center rounded-full border bg-card text-primary shadow-sheet"
+          >
+            <Icon className="size-5" strokeWidth={1.75} />
+          </span>
+        </div>
       ) : (
         <div
           aria-hidden="true"

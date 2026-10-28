@@ -4,7 +4,6 @@ import {
   Eye,
   FileCode,
   FileDown,
-  FileStack,
   Link2,
   Plus,
   Repeat,
@@ -83,6 +82,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { documentTypeIcon } from "@/components/documents/document-type-icon"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FieldLock } from "@/components/ui/field-help"
 import { Input } from "@/components/ui/input"
@@ -1105,7 +1105,7 @@ export function DocumentList({
       />
     ) : (
       <EmptyState
-        icon={FileStack}
+        icon={documentTypeIcon(descriptor.icon)}
         title={t("documents.list.emptyState.noneYetTitle", { label: descriptor.label })}
         description={t("documents.list.emptyState.startCreatingHint", { label: descriptor.label })}
         // `secondary`, not `default`: the header's own "New <type>" stays the page's one filled

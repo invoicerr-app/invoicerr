@@ -261,6 +261,7 @@ export function buildReceivedInvoiceDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'received-invoice',
     label: 'Received invoice',
+    icon: 'received-invoice',
     statuses: [
       { id: 'received', label: 'Received' },
       { id: 'approved', label: 'Approved' },

@@ -1,9 +1,11 @@
-import { FileText, LayoutDashboard, Menu, Users } from "lucide-react"
+import { LayoutDashboard, Menu, Users } from "lucide-react"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useLocation } from "react-router"
 
+import { documentTypeIcon } from "@/components/documents/document-type-icon"
 import { useSidebar } from "@/components/ui/sidebar"
+import { useAvailableDocumentTypes } from "@/hooks/queries"
 import { cn } from "@/lib/utils"
 
 interface TabProps {
@@ -52,6 +54,9 @@ export function MobileTabBar() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const { setOpenMobile } = useSidebar()
+  const { data: available } = useAvailableDocumentTypes()
+  const documentsTypeId = "invoice"
+  const documentsIcon = documentTypeIcon(available?.types.find((type) => type.id === documentsTypeId)?.icon)
   return (
     <nav
       aria-label={t("sidebar.mobile.navLabel")}
@@ -67,8 +72,8 @@ export function MobileTabBar() {
       />
       <Tab
         label={t("sidebar.navigation.documents")}
-        icon={FileText}
-        to="/documents/invoice"
+        icon={documentsIcon}
+        to={`/documents/${documentsTypeId}`}
         active={pathname.startsWith("/documents")}
         dataCy="mobile-tab-documents"
       />

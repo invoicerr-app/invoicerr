@@ -1,4 +1,5 @@
 import { FileQuestion } from "lucide-react"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router"
 import { useTranslation } from "react-i18next"
@@ -186,7 +187,7 @@ export default function DocumentTypePage() {
     void navigate(location.pathname, { replace: true, state: null })
   }, [location.state])
 
-  usePageHeader(descriptor?.label ?? typeId)
+  usePageHeader(descriptor?.label ?? typeId, <DocumentTypeIcon icon={descriptor?.icon} />)
 
   if (isLoading) {
     return (

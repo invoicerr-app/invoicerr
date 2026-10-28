@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { Link } from "react-router"
 
 import { decimalsFor } from "@/components/documents/totals-calculator"
@@ -88,6 +89,10 @@ export function ShortListWidgetRenderer({ widget }: WidgetRendererProps) {
     <Card data-cy={`widget-${shortList.id}`} data-widget-kind="shortList">
       <CardHeader className="pb-2">
         <CardTitle className="font-heading text-xl font-normal text-foreground">
+          <DocumentTypeIcon
+            icon={shortList.icon}
+            className="me-2 inline align-[-1px] text-muted-foreground"
+          />
           {shortList.label}
           <AmountBasisCaption basis={shortList.basis} dataCy={`widget-${shortList.id}-basis`} />
         </CardTitle>

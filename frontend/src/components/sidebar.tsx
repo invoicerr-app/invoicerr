@@ -6,7 +6,6 @@ import {
   Clock,
   CreditCard,
   FileStack,
-  FileText,
   Gavel,
   Landmark,
   LayoutDashboard,
@@ -18,6 +17,8 @@ import {
   User,
   Users,
 } from "lucide-react"
+
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -368,7 +369,7 @@ export function Sidebar() {
                     <SidebarMenuSubItem key={type.id}>
                       <SidebarMenuSubButton asChild isActive={location.pathname === `/documents/${type.id}`}>
                         <Link data-cy={`sidebar-document-type-link-${type.id}`} to={`/documents/${type.id}`}>
-                          <FileText className="h-4 w-4" aria-hidden="true" />
+                          <DocumentTypeIcon icon={type.icon} />
                           <span>{type.label}</span>
                         </Link>
                       </SidebarMenuSubButton>

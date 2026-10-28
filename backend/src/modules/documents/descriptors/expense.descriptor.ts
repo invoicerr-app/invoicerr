@@ -80,6 +80,7 @@ export function buildExpenseDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'expense',
     label: 'Expense',
+    icon: 'expense',
     statuses: [{ id: 'draft', label: 'Draft' }],
     initialStatus: 'draft',
     // See types.ts's own comment on `DocumentTypeDescriptor.email` — declared for the same

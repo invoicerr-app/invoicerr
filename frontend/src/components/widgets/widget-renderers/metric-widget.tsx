@@ -1,4 +1,5 @@
 import { ChevronRight, Minus, TrendingDown, TrendingUp } from "lucide-react"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
@@ -123,10 +124,15 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           )}
         >
           <span className="min-w-0">
-            {tone === "destructive" && metric.value !== 0 && (
+            {tone === "destructive" && metric.value !== 0 ? (
               <svg viewBox="0 0 12 12" aria-hidden="true" className="me-1.5 inline size-3 align-[-1px]">
                 <path d="M6 1.5 11 10.5H1z" fill="currentColor" />
               </svg>
+            ) : (
+              <DocumentTypeIcon
+                icon={metric.icon}
+                className="me-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
+              />
             )}
             {metric.label}
             <AmountBasisCaption

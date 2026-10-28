@@ -10,6 +10,8 @@ export interface WidgetBase {
   warnings?: string[]
   /** Whether the amounts shown include VAT, rendered through `widgets.basis.*`, never in `label`. */
   basis?: AmountBasis
+  /** The contributing type's descriptor icon key. */
+  icon?: string
 }
 
 export type AmountBasis = "inclVat" | "exclVat"
