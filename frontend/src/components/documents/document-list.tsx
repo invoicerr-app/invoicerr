@@ -58,6 +58,7 @@ import { DocumentStatusBadge } from "@/components/documents/document-status-badg
 import { formatTotal } from "@/components/documents/document-totals"
 import { LtrValue } from "@/components/ui/ltr-value"
 import { type RowAmount, resolveRowAmount } from "@/components/documents/list-amount"
+import { groupConsecutiveByMonth } from "@/components/documents/list-groups"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
 import { findCurrencyField } from "@/components/documents/totals-shape"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
@@ -70,7 +71,7 @@ import BetterPagination from "@/components/pagination"
 import SearchSelect from "@/components/search-input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { InitialsAvatar } from "@/components/ui/initials-avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,7 +92,7 @@ import { cn } from "@/lib/utils"
 
 /** A row's grid — see DocumentListRow's own comment on why the desktop columns are fixed widths. */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_9rem_minmax(10rem,auto)_5rem] sm:gap-4"
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)_8rem_minmax(0,12rem)_auto] sm:gap-x-4"
 
 /** Mirrors the backend's `list-filters.ts#resolveClientFieldKey` exactly — the ONE field on this
  *  type that references a CLIENT entity, which is what the `clientId` filter (and the search box's
@@ -179,7 +180,7 @@ function DocumentCardNumber({ descriptor, instance }: DocumentCardNumberProps) {
         : t("documents.numbering.issuedWithoutNumber")
 
   return (
-    <span className="font-mono text-xs text-muted-foreground" data-cy={`document-number-${instance.id}`}>
+    <span className="tabular-nums" data-cy={`document-number-${instance.id}`}>
       {label}
     </span>
   )
@@ -229,16 +230,16 @@ function DocumentCardMeta({ descriptor, instance, amount }: DocumentCardMetaProp
   if (entries.length === 0) return null
 
   return (
-    <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:text-sm">
+    <>
       {entries.map((field) => (
         <span key={field.key} className="whitespace-nowrap">
-          {field.label}:{" "}
-          <span className="text-foreground/80">
+          {field.label}{" "}
+          <span className="text-ink-2">
             <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
           </span>
         </span>
       ))}
-    </div>
+    </>
   )
 }
 
@@ -355,15 +356,15 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
     primarySlot = <SettledMark dataCy={`document-row-settled-${instance.id}`} />
   } else if (primary) {
     primarySlot = (
-      // `outline`, never `default`: the page's one filled button is "New <type>" in the header. A
+      // `ghost`, never `default`: the page's one filled button is "New <type>" in the header. A
       // disabled primary still shows, carrying its reason in a tooltip — a rule reads as a rule,
       // an empty slot reads as a bug (the same call the detail page's header makes).
       <span className="flex w-full items-center gap-1.5 sm:w-auto">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="flex-1 sm:flex-none"
+          className="flex-1 text-link hover:text-link sm:flex-none"
           disabled={!!primary.policyBlockedReason}
           loading={isRunning && pendingAction === undefined}
           onClick={() => handleAction(primary)}
@@ -607,6 +608,22 @@ interface DocumentListRowProps {
  * the same page — the one control a keyboard or screen-reader user can reach (a `div` with an
  * onClick is invisible to both), and the one a middle-click opens in a new tab.
  */
+/** The initials of whatever the row is titled after (usually the client), tinted per name. */
+function DocumentRowAvatar({ descriptor, instance }: DocumentCardTitleProps) {
+  const field = useMemo(
+    () => resolveListFields(descriptor, descriptor.listItem?.titleFields)[0],
+    [descriptor],
+  )
+  const raw = field ? instance.data[field.key] : undefined
+  const isReference = field?.kind === "reference" && typeof raw === "string"
+  const { data: resolved } = useReferenceResolve(
+    isReference ? field.entity : undefined,
+    isReference ? (raw as string) : undefined,
+  )
+  const name = isReference ? resolved?.label : typeof raw === "string" ? raw : undefined
+  return <InitialsAvatar name={name ?? descriptor.label} />
+}
+
 function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess }: DocumentListRowProps) {
   const { t } = useTranslation()
   // Same generic gate use-document-form.ts's own settlement section uses: shown once "record-payment"
@@ -616,31 +633,25 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
 
   return (
     <div
-      className="cursor-pointer px-4 py-3 transition-colors duration-150 hover:bg-accent/40 sm:px-6"
+      className="cursor-pointer px-4 py-3.5 transition-colors duration-150 hover:bg-sunken sm:px-5"
       onClick={() => onOpen(instance)}
       data-cy={`document-list-row-${instance.id}`}
     >
       <DocumentRowActions descriptor={descriptor} instance={instance} onActionSuccess={onActionSuccess}>
         {({ primary, menu }) => (
-          // Fixed desktop columns for the amount, the primary and the menu, so figures line up as a
-          // column across rows and a row with no action or no amount keeps every other row's
-          // alignment (the slot renders empty rather than collapsing). `ROW_GRID` is shared with
-          // the skeleton below for the same reason.
+          // Fixed desktop columns for the amount and the menu, so figures line up as a column across
+          // rows and a row with no action or no amount keeps every other row's alignment.
           <div className={ROW_GRID}>
-            <div className="order-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <DocumentStatusBadge
-                  status={instance.status}
-                  label={descriptor.statuses?.find((s) => s.id === instance.status)?.label}
-                />
-                <DocumentCardNumber descriptor={descriptor} instance={instance} />
+            <div className="order-1 flex min-w-0 items-center gap-3.5">
+              <DocumentRowAvatar descriptor={descriptor} instance={instance} />
+              <div className="min-w-0">
                 <h2
-                  className="min-w-0 break-words font-medium text-foreground"
+                  className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground"
                   data-cy={`document-list-title-${instance.id}`}
                 >
                   <Link
                     to={`/documents/${descriptor.id}/${instance.id}`}
-                    className="rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    className="focus-ring rounded-sm outline-none hover:underline"
                     title={t("documents.list.tooltips.open")}
                     onClick={(event) => event.stopPropagation()}
                     data-cy={`document-open-link-${instance.id}`}
@@ -648,30 +659,38 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                     <DocumentCardTitle descriptor={descriptor} instance={instance} />
                   </Link>
                 </h2>
-                {showSettlementBadge && (
-                  <DocumentSettlementBadge
-                    typeId={descriptor.id}
-                    documentId={instance.id}
-                    dataCySuffix={instance.id}
-                  />
+                <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13.5px] text-muted-foreground">
+                  <DocumentCardNumber descriptor={descriptor} instance={instance} />
+                  <DocumentCardMeta descriptor={descriptor} instance={instance} amount={amount} />
+                </div>
+                {instance.lastActionError && (
+                  // Never a silent failure: a "send_failed" document names WHY, right here.
+                  <p
+                    className="mt-1 line-clamp-2 text-xs text-destructive-soft-foreground"
+                    title={instance.lastActionError}
+                    data-cy={`document-row-last-error-${instance.id}`}
+                  >
+                    {t("documents.list.lastActionError", { message: instance.lastActionError })}
+                  </p>
                 )}
-                {/* The list's discreet rejected-deposit indicator: renders nothing unless the
-                    platform actually rejected this deposit (see that component's own header). */}
-                <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
               </div>
-              <DocumentCardMeta descriptor={descriptor} instance={instance} amount={amount} />
-              {instance.lastActionError && (
-                // Never a silent failure: a "send_failed" document names WHY, right here, not only
-                // in a server log. Generic — reads whatever the backend recorded, on ANY status,
-                // never a per-type branch.
-                <p
-                  className="mt-1 line-clamp-2 text-xs text-destructive"
-                  title={instance.lastActionError}
-                  data-cy={`document-row-last-error-${instance.id}`}
-                >
-                  {t("documents.list.lastActionError", { message: instance.lastActionError })}
-                </p>
+            </div>
+
+            <div className="order-3 flex flex-wrap items-center gap-x-3 gap-y-1 sm:order-2 sm:justify-end">
+              <DocumentStatusBadge
+                status={instance.status}
+                label={descriptor.statuses?.find((s) => s.id === instance.status)?.label}
+              />
+              {showSettlementBadge && (
+                <DocumentSettlementBadge
+                  typeId={descriptor.id}
+                  documentId={instance.id}
+                  dataCySuffix={instance.id}
+                />
               )}
+              {/* The list's discreet rejected-deposit indicator: renders nothing unless the
+                  platform actually rejected this deposit (see that component's own header). */}
+              <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
             </div>
 
             {/* Stops a click on any control here from also bubbling up to the row's own onClick
@@ -679,7 +698,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                 intents. */}
             <div
               className={cn(
-                "amount order-3 text-sm font-medium text-foreground sm:order-2 sm:text-right",
+                "amount order-4 text-end text-base text-foreground sm:order-3",
                 !amount && "hidden sm:block",
               )}
               data-cy={amount ? `document-row-amount-${instance.id}` : undefined}
@@ -687,7 +706,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               {amount && <LtrValue>{formatTotal(amount.minor, amount.currency)}</LtrValue>}
               {amount && !amount.fieldKey && (
                 <span
-                  className="block text-xs font-normal text-muted-foreground"
+                  className="block font-sans text-xs font-normal text-muted-foreground"
                   data-cy={`document-row-amount-basis-${instance.id}`}
                 >
                   {t("documents.list.amountInclVat")}
@@ -695,14 +714,17 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               )}
             </div>
             <div
-              className={cn("order-4 flex justify-end sm:order-3", !primary && "hidden sm:flex")}
+              className={cn(
+                "order-5 col-span-2 flex justify-end sm:order-4 sm:col-span-1",
+                !primary && "hidden sm:flex",
+              )}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
               {primary}
             </div>
             <div
-              className="order-2 flex items-center justify-end gap-1 sm:order-4"
+              className="order-2 flex items-center justify-end gap-1 sm:order-5"
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
@@ -720,18 +742,19 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
  *  placeholder array: a loading placeholder has no identity for a key to carry. */
 function DocumentListSkeletonRow() {
   return (
-    <div className="px-4 py-3 sm:px-6" aria-hidden="true">
+    <div className="px-4 py-3.5 sm:px-5" aria-hidden="true">
       <div className={ROW_GRID}>
-        <div className="order-1 space-y-2">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-5 w-14 rounded-md" />
-            <Skeleton className="h-4 w-40" />
+        <div className="order-1 flex items-center gap-3.5">
+          <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-3 w-28" />
           </div>
-          <Skeleton className="h-3 w-56" />
         </div>
-        <Skeleton className="order-3 h-4 w-24 sm:order-2 sm:justify-self-end" />
-        <Skeleton className="order-4 h-8 w-24 justify-self-end sm:order-3" />
-        <Skeleton className="order-2 size-9 justify-self-end rounded-md sm:order-4" />
+        <Skeleton className="order-3 h-4 w-20 sm:order-2 sm:justify-self-end" />
+        <Skeleton className="order-4 h-4 w-24 justify-self-end sm:order-3" />
+        <Skeleton className="order-5 hidden h-8 w-24 justify-self-end sm:order-4 sm:block" />
+        <Skeleton className="order-2 size-8 justify-self-end rounded-md sm:order-5" />
       </div>
     </div>
   )
@@ -771,19 +794,15 @@ function StatusChip({ label, count, active, onClick, dataCy }: StatusChipProps) 
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium outline-none transition-colors duration-150",
         active
-          ? "border-foreground bg-foreground text-background"
-          : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/70",
+          ? "bg-card text-foreground shadow-[0_1px_2px_oklch(0.2_0.03_230/15%)] dark:bg-raised"
+          : "text-ink-2 hover:text-foreground",
       )}
       data-cy={dataCy}
     >
       <span>{label}</span>
-      {count !== undefined && (
-        <span className={cn("tabular-nums text-xs", active ? "text-background/70" : "text-muted-foreground")}>
-          {count}
-        </span>
-      )}
+      {count !== undefined && <span className="tabular-nums text-xs text-muted-foreground">{count}</span>}
     </button>
   )
 }
@@ -994,7 +1013,7 @@ export function DocumentList({
   onSortChange,
   onClearFilters,
 }: DocumentListProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   // See custom-slots.ts's own comment on "list-header-extra" — additive, next to the generic "New"
   // button below, never in place of it. `instance` is deliberately omitted (this slot is per-LIST,
@@ -1105,34 +1124,49 @@ export function DocumentList({
       />
     )
   } else {
+    const monthFormat = new Intl.DateTimeFormat(i18n.resolvedLanguage, { month: "long", year: "numeric" })
+    const groups = groupConsecutiveByMonth(items, (instance) =>
+      dateFieldKey ? instance.data[dateFieldKey] : undefined,
+    )
     body = (
-      <div className="divide-y" data-cy="document-list-cards">
-        {items.map((instance) => (
-          <DocumentListRow
-            key={instance.id}
-            descriptor={descriptor}
-            instance={instance}
-            amount={amounts.get(instance.id) ?? null}
-            onOpen={onOpen}
-            onActionSuccess={onActionSuccess}
-          />
+      <div className="space-y-7" data-cy="document-list-cards">
+        {groups.map((group) => (
+          <section key={group.items[0].id}>
+            {group.month && (
+              <h3 className="mb-2.5 px-1 font-heading text-xl font-normal first-letter:uppercase">
+                {monthFormat.format(new Date(`${group.month}-01T12:00:00`))}
+              </h3>
+            )}
+            <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-sheet">
+              {group.items.map((instance) => (
+                <DocumentListRow
+                  key={instance.id}
+                  descriptor={descriptor}
+                  instance={instance}
+                  amount={amounts.get(instance.id) ?? null}
+                  onOpen={onOpen}
+                  onActionSuccess={onActionSuccess}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     )
   }
 
   return (
-    <Card className="gap-0" data-cy="document-list-card">
-      <CardHeader className="gap-3 border-b">
+    <div className="flex flex-col gap-5" data-cy="document-list-card">
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* On a phone the search and the "New" button share the first line and the sort takes
               the second; `sm:contents` dissolves that pairing on a desktop so the four controls
               become direct flex children again, re-ordered with `sm:order-*` into
               search · sort · extras · New. */}
           <div className="flex items-center gap-2 sm:contents">
-            <div className="relative min-w-0 flex-1 sm:order-1 sm:max-w-xs">
+            <div className="relative min-w-0 flex-1 sm:order-1 sm:max-w-sm">
               <Search
-                className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
               <Input
@@ -1141,7 +1175,7 @@ export function DocumentList({
                 aria-label={t("documents.list.searchPlaceholder")}
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                className="w-full ps-9"
+                className="w-full ps-10"
                 data-cy="document-list-search"
               />
             </div>
@@ -1237,11 +1271,7 @@ export function DocumentList({
         {isLoading && (
           // Placeholder pills where the chips will land, so the header keeps its height and the
           // rows below don't drop by a line once the descriptor arrives.
-          <div className="flex gap-2 py-0.5" aria-hidden="true">
-            <Skeleton className="h-8 w-16 rounded-full" />
-            <Skeleton className="h-8 w-20 rounded-full" />
-            <Skeleton className="h-8 w-20 rounded-full" />
-          </div>
+          <Skeleton className="h-[38px] w-80 rounded-lg" aria-hidden="true" />
         )}
 
         {!isLoading && (descriptor.statuses?.length ?? 0) > 0 && (
@@ -1252,7 +1282,7 @@ export function DocumentList({
           <div
             role="group"
             aria-label={t("documents.list.filters.ariaLabel")}
-            className="-mx-6 flex gap-2 overflow-x-auto px-6 py-0.5 [scrollbar-width:none]"
+            className="flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-lg bg-muted p-[3px] [scrollbar-width:none]"
             data-cy="document-status-filters"
           >
             <StatusChip
@@ -1272,15 +1302,17 @@ export function DocumentList({
             ))}
           </div>
         )}
-      </CardHeader>
+      </div>
 
-      <CardContent className="p-0">{body}</CardContent>
+      {isLoading || error || items.length === 0 ? (
+        <div className="rounded-xl border bg-card shadow-sheet">{body}</div>
+      ) : (
+        body
+      )}
 
       {!isLoading && !error && items.length > 0 && pageCount > 1 && (
-        <div className="border-t p-4">
-          <BetterPagination pageCount={pageCount} page={page} setPage={onPageChange} />
-        </div>
+        <BetterPagination pageCount={pageCount} page={page} setPage={onPageChange} />
       )}
-    </Card>
+    </div>
   )
 }
