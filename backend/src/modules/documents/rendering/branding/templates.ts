@@ -97,7 +97,8 @@ export function templateStyleBlock(
     th { font-weight: 500; color: #4f616c; font-size: 11px; padding: 8px; }
     tbody tr { border-bottom: 1px solid #e3e9ec; }
     td { padding: 10px 8px; }
-    td:last-child, .totals-amount { font-family: ${TITLE_STACK}; font-variant-numeric: tabular-nums lining-nums; font-size: 14px; }
+    td { font-variant-numeric: tabular-nums; }
+    .totals-amount { font-family: ${TITLE_STACK}; font-variant-numeric: tabular-nums lining-nums; font-size: 14px; }
     .totals-section { background: ${tint}; border-radius: 10px; padding: 14px 18px; }
     .totals-row { border-bottom: none; padding: 5px 0; }
     .totals-row.summary { border-top: 1px solid #c9d3d9; border-bottom: none; margin-top: 6px; padding-top: 12px; align-items: baseline; }
