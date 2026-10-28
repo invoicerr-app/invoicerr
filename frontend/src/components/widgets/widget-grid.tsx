@@ -56,7 +56,8 @@ function CardSkeleton({ height, className }: { height?: number; className?: stri
   )
 }
 
-const METRICS_GRID = "grid grid-cols-2 overflow-hidden rounded-xl border bg-card shadow-sheet sm:grid-cols-4"
+const METRICS_GRID =
+  "grid grid-cols-1 overflow-hidden rounded-xl border bg-card shadow-sheet sm:grid-cols-2 lg:grid-cols-4"
 const REST_GRID = "grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
 
 /** Skeletons in the exact shape last measured at this width, or a generic row of tiles and two cards

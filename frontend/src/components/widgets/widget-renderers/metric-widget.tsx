@@ -12,6 +12,10 @@ import { AmountBasisCaption } from "./amount-basis"
 import type { MetricWidget } from "@/components/widgets/types"
 import type { WidgetRendererProps } from "./registry"
 
+// On a phone each figure is one row, label left and figure right, instead of a cramped pair of columns.
+const TILE =
+  "h-full gap-2 rounded-none border-0 py-5 shadow-[1px_0_0_var(--border),0_1px_0_var(--border)] max-sm:flex-row max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:py-4"
+
 type Tone = "neutral" | "info" | "success" | "warning" | "destructive"
 
 // The same "match a small, generic vocabulary in the widget's own words, never a document type"
@@ -111,7 +115,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
 
   const cardBody = (
     <>
-      <CardHeader className="gap-0 px-5">
+      <CardHeader className="gap-0 px-5 max-sm:min-w-0 max-sm:flex-1 max-sm:pe-0">
         <CardTitle
           className={cn(
             "flex items-start justify-between gap-2 text-[13.5px] font-medium text-ink-2",
@@ -139,9 +143,9 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-5">
+      <CardContent className="px-5 max-sm:shrink-0 max-sm:ps-0 max-sm:text-end">
         <WidgetValue>
-          <p className="amount text-[28px] leading-tight text-foreground sm:text-[34px]">
+          <p className="amount text-2xl leading-tight text-foreground sm:text-[34px]">
             {metric.approx ? "≈ " : ""}
             {metric.value.toLocaleString()}
             {metric.unit ? (
@@ -181,7 +185,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
         <Card
           data-cy={`widget-${metric.id}`}
           data-widget-kind="metric"
-          className="h-full cursor-pointer gap-2 rounded-none border-0 py-5 shadow-[1px_0_0_var(--border),0_1px_0_var(--border)] transition-colors duration-150 hover:bg-sunken"
+          className={cn(TILE, "cursor-pointer transition-colors duration-150 hover:bg-sunken")}
         >
           {cardBody}
         </Card>
@@ -191,11 +195,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
   }
 
   return (
-    <Card
-      data-cy={`widget-${metric.id}`}
-      data-widget-kind="metric"
-      className="h-full gap-2 rounded-none border-0 py-5 shadow-[1px_0_0_var(--border),0_1px_0_var(--border)]"
-    >
+    <Card data-cy={`widget-${metric.id}`} data-widget-kind="metric" className={TILE}>
       {cardBody}
     </Card>
   )
