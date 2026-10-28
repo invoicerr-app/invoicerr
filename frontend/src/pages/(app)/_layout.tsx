@@ -1,6 +1,7 @@
 import { TriangleAlert } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Navigate, Outlet, useLocation } from "react-router"
+import { OfflineBanner } from "@/components/offline-banner"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
@@ -125,6 +126,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
               <Sidebar />
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <OfflineBanner />
                 <DemoBanner />
                 <BillingBanner />
                 <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">

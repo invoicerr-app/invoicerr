@@ -3929,6 +3929,10 @@
       }
     }
   },
+  "offline": {
+    "title": "You are offline.",
+    "description": "What you see may be out of date, and nothing can be saved until the connection is back."
+  },
   "common": {
     "fieldHelp": {
       "trigger": "Show help",
