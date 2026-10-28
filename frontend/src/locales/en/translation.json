@@ -5712,7 +5712,8 @@
       },
       "timeline": {
         "reason": "Reason: {{reason}}",
-        "created": "Created"
+        "created": "Created",
+        "statusUpdate": "Status update from the platform"
       }
     },
     "correction": {

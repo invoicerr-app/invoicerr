@@ -176,16 +176,15 @@ export function ConformityTimeline({ events, createdAt }: ConformityTimelineProp
             )}
             <StatusMark {...presentation} className="mt-0.5 gap-0" aria-hidden="true" />
             <div className="min-w-0 space-y-0.5">
-              {event.statusText && (
-                <p
-                  className={cn("font-semibold", event.reason && "text-destructive-soft-foreground")}
-                  data-cy="document-conformity-event-text"
-                >
-                  {event.statusText}
-                </p>
-              )}
+              <p
+                className={cn("font-semibold", event.reason && "text-destructive-soft-foreground")}
+                data-cy="document-conformity-event-text"
+              >
+                {event.statusText || t("documents.conformity.timeline.statusUpdate")}
+              </p>
               <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-                <span className="tabular-nums" data-cy="document-conformity-event-code">
+                {/* The platform's own code stays out of sight: the person reads the label above. */}
+                <span hidden data-cy="document-conformity-event-code">
                   {event.statusCode}
                 </span>
                 <span className="tabular-nums" data-cy="document-conformity-event-date">
