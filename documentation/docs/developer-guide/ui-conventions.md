@@ -17,7 +17,7 @@ object. The two share one palette (Lagune), one type system and one set of token
 
 ### Type
 
-- **Figtree** is the interface face (400 to 700). **Newsreader** sets page and section titles (`h1`,
+- **IBM Plex Sans** is the interface face (400 to 700). **Newsreader** sets page and section titles (`h1`,
   `h2`) and every amount, through the `amount` utility (tabular, lining figures). Both are
   self-hosted through Fontsource, so the PWA works offline.
 - Body text is 15 px; `text-sm` is 14 px and `text-xs` 13 px. Labels are sentence case and never
@@ -78,7 +78,7 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   chose; it never prints a page-local total. A titled group of rows (projects, time entries, bank
   statements) uses `PanelSection` (`pages/(app)/_shared/data-list.tsx`): the title and its one action
   on the ground, the rows in one panel, a row skeleton while loading.
-- **Type faces**: Figtree for the interface, Newsreader for titles and every amount (the `amount`
+- **Type faces**: IBM Plex Sans for the interface, Newsreader for titles and every amount (the `amount`
   utility: tabular, lining figures). Dates, counts and rates keep `tabular-nums` in the interface face;
   monospace is kept for what is typed or copied as a code (API keys, secrets, hashes, paths, patterns,
   identifiers).
