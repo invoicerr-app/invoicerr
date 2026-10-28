@@ -64,6 +64,7 @@ export {
 export {
   useDocumentTypesList,
   useAvailableDocumentTypes,
+  useDocumentTypeSummary,
   useDocumentType,
   useDocumentInstances,
   useDocumentInstance,

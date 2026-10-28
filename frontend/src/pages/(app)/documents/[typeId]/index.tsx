@@ -8,7 +8,7 @@ import { DocumentLoadState } from "@/components/documents/document-load-state"
 import { useOnline } from "@/components/offline-banner"
 import type { DocumentInstance } from "@/components/documents/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useDocumentInstances, useDocumentType } from "@/hooks/queries"
+import { useDocumentInstances, useDocumentType, useDocumentTypeSummary } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 import { createPendingEchoes } from "@/lib/pending-echoes"
 
@@ -165,7 +165,11 @@ export default function DocumentTypePage() {
   }, [location.state])
 
   const online = useOnline()
-  usePageHeader(descriptor?.label ?? typeId, <DocumentTypeIcon icon={descriptor?.icon} />)
+  const summary = useDocumentTypeSummary(typeId)
+  usePageHeader(
+    descriptor?.label ?? summary?.label ?? typeId,
+    <DocumentTypeIcon icon={descriptor?.icon ?? summary?.icon} />,
+  )
 
   if (isLoading) {
     return (

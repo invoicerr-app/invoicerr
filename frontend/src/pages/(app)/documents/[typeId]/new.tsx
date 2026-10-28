@@ -6,7 +6,7 @@ import { DocumentCreateDialog } from "@/components/documents/document-create-dia
 import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { DocumentLoadState } from "@/components/documents/document-load-state"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useDocumentType } from "@/hooks/queries"
+import { useDocumentType, useDocumentTypeSummary } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 
 /**
@@ -25,9 +25,11 @@ export default function NewDocumentPage() {
     () => (location.state as { initialData?: Record<string, unknown> } | null)?.initialData,
   )
 
+  const summary = useDocumentTypeSummary(typeId)
+  const label = descriptor?.label ?? summary?.label
   usePageHeader(
-    descriptor ? t("documents.form.newTitle", { label: descriptor.label }) : "",
-    <DocumentTypeIcon icon={descriptor?.icon} />,
+    label ? t("documents.form.newTitle", { label }) : "",
+    <DocumentTypeIcon icon={descriptor?.icon ?? summary?.icon} />,
   )
 
   if (isLoading) {

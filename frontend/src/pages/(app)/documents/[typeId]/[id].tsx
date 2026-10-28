@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { DocumentDetail } from "@/components/documents/document-detail"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DocumentLoadState } from "@/components/documents/document-load-state"
-import { useDocumentInstance, useDocumentType } from "@/hooks/queries"
+import { useDocumentInstance, useDocumentType, useDocumentTypeSummary } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
 
 /**
@@ -35,7 +35,11 @@ export default function DocumentDetailPage() {
     refetch: refetchInstance,
   } = useDocumentInstance(typeId, id)
 
-  usePageHeader(descriptor?.label ?? typeId, <DocumentTypeIcon icon={descriptor?.icon} />)
+  const summary = useDocumentTypeSummary(typeId)
+  usePageHeader(
+    descriptor?.label ?? summary?.label ?? typeId,
+    <DocumentTypeIcon icon={descriptor?.icon ?? summary?.icon} />,
+  )
 
   if (descriptorLoading || instanceLoading) {
     return (
