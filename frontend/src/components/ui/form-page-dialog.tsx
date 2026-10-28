@@ -226,7 +226,7 @@ export function FormPageDialog<T extends FieldValues>({
       className={cn(
         "flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-3 sm:px-8",
         presentation === "page" &&
-          "z-20 bg-card/95 backdrop-blur-sm max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:sticky sm:bottom-0",
+          "sticky bottom-0 z-20 bg-card/95 backdrop-blur-sm max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
       )}
     >
       {footerSummary && <div className="min-w-0 me-auto lg:hidden">{footerSummary}</div>}
@@ -262,7 +262,7 @@ export function FormPageDialog<T extends FieldValues>({
     presentation === "page" ? (
       <div data-cy={dataCy} className={cn("flex min-h-full flex-col", className)}>
         <Form {...form}>
-          <div className="mx-auto w-full max-w-7xl flex-1 px-4 pt-1 pb-8 max-sm:pb-24 md:px-6">
+          <div className="mx-auto w-full max-w-7xl flex-1 px-4 pt-1 pb-8 md:px-6">
             <div className="mb-5 flex items-center gap-3 lg:hidden">
               <Button
                 type="button"

@@ -9,7 +9,7 @@ import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
-import { MobileTabBar } from "@/components/mobile-tab-bar"
+import { isNewDocumentPath, MobileTabBar } from "@/components/mobile-tab-bar"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -21,6 +21,7 @@ import { useRoutePrefetch } from "@/hooks/use-route-prefetch"
 import { ApiError } from "@/hooks/use-api-query"
 import { useCompanies, useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
+import { cn } from "@/lib/utils"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
 
@@ -113,6 +114,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
 
   // Signed-in only: on a public page it would pull the whole app for an anonymous visitor.
   useRoutePrefetch()
+  const { pathname } = useLocation()
 
   // Decides whether the footer strip below even exists — see that element's own comment for why a
   // `<footer>` wrapper can't just contain `<LegalLinks/>` and rely on it rendering `null`.
@@ -134,7 +136,12 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
-                <section className="h-full overflow-y-auto overflow-x-hidden pb-20 md:pb-0">
+                <section
+                  className={cn(
+                    "h-full overflow-y-auto overflow-x-hidden md:pb-0",
+                    !isNewDocumentPath(pathname) && "pb-20",
+                  )}
+                >
                   <Outlet />
                 </section>
                 {/* Signed-in users had no route back to the terms they accepted (or any other legal
