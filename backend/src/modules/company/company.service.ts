@@ -65,6 +65,7 @@ import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
 import { companyMemberIds } from '@/modules/companies/company-member-ids';
 import { loadPaymentTerms } from '@/modules/company/payment-terms/load-payment-terms';
+import { NEW_COMPANY_TEMPLATE } from '@/modules/documents/rendering/branding/templates';
 
 /**
  * One SYSTEM email template, as this module's settings routes hand it over — the signature request and
@@ -773,6 +774,7 @@ export class CompanyService {
         city: picked.city ?? '',
         phone: picked.phone ?? '',
         email: picked.email ?? '',
+        brandingTemplate: NEW_COMPANY_TEMPLATE,
       },
     });
 

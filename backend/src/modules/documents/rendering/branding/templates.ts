@@ -16,6 +16,9 @@ export const DOCUMENT_TEMPLATES: readonly { key: DocumentTemplateKey; label: str
   { key: 'atelier', label: 'Atelier' },
 ];
 
+/** What a company created from now on starts with; a company with no stored template renders classic. */
+export const NEW_COMPANY_TEMPLATE: DocumentTemplateKey = 'atelier';
+
 export function isDocumentTemplateKey(value: unknown): value is DocumentTemplateKey {
   return typeof value === 'string' && DOCUMENT_TEMPLATES.some((entry) => entry.key === value);
 }

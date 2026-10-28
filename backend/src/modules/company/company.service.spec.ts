@@ -383,3 +383,31 @@ describe('CompanyService#createCompany - issue #535: the owner always gets a sea
     }
   });
 });
+
+describe('CompanyService#createCompany - the document template of a new company', () => {
+  it('starts a new company on the atelier template', async () => {
+    const service = new CompanyService(fakeWebhookDispatcher);
+    const owner = await prisma.user.create({
+      data: {
+        id: randomUUID(),
+        firstname: 'Template',
+        lastname: 'Owner',
+        email: `company-service-spec-template-${Date.now()}-${Math.random()}@example.com`,
+      },
+    });
+    let companyId: string | undefined;
+    try {
+      const company = await service.createCompany(owner.id, {
+        name: 'Template Fresh Co',
+        country: 'France',
+        countryCode: 'FR',
+      } as never);
+      companyId = company.id;
+      const stored = await prisma.company.findUnique({ where: { id: company.id } });
+      expect(stored?.brandingTemplate).toBe('atelier');
+    } finally {
+      if (companyId) await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+      await prisma.user.delete({ where: { id: owner.id } }).catch(() => undefined);
+    }
+  });
+});
