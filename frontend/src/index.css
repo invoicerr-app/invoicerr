@@ -329,30 +329,44 @@
   font-weight: 500;
 }
 
-/* The one focus indicator for custom controls: 2px of --focus, offset so it never touches the edge. */
-@utility focus-ring {
-  &:focus-visible {
+/* Plain selectors rather than nested @utility rules: none of these is used behind a variant. */
+@layer utilities {
+  /* The one focus indicator for custom controls: 2px of --focus, offset so it never touches the edge. */
+  .focus-ring:focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
-}
 
-/* Focus for text fields: the indicator hugs the field and its edge takes the same colour. */
-@utility focus-field {
-  &:focus-visible {
+  /* Focus for text fields: the indicator hugs the field and its edge takes the same colour. */
+  .focus-field:focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 1px;
     border-color: var(--focus);
   }
-}
 
-/* An initials avatar tinted by a per-name hue (--tint), with its own dark pair. */
-@utility tint-avatar {
-  background-color: oklch(0.9 0.05 var(--tint, 230));
-  color: oklch(0.3 0.07 var(--tint, 230));
-  &:where(.dark *) {
+  /* An initials avatar tinted by a per-name hue (--tint), with its own dark pair. */
+  .tint-avatar {
+    background-color: oklch(0.9 0.05 var(--tint, 230));
+    color: oklch(0.3 0.07 var(--tint, 230));
+  }
+  .dark .tint-avatar {
     background-color: oklch(0.34 0.06 var(--tint, 230));
     color: oklch(0.88 0.08 var(--tint, 230));
+  }
+
+  /* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
+  .press {
+    transition-property: transform, background-color, border-color, color, box-shadow;
+    transition-duration: 120ms;
+    transition-timing-function: var(--ease-out);
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press:active:not(:disabled) {
+      transform: none;
+    }
   }
 }
 
@@ -372,21 +386,6 @@
   color: var(--paper-ink);
   border-radius: var(--radius-md);
   box-shadow: var(--elev-sheet);
-}
-
-/* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
-@utility press {
-  transition-property: transform, background-color, border-color, color, box-shadow;
-  transition-duration: 120ms;
-  transition-timing-function: var(--ease-out);
-  &:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    &:active:not(:disabled) {
-      transform: none;
-    }
-  }
 }
 
 button:disabled {

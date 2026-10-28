@@ -1,6 +1,16 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
 import { resolveCountryCode } from "@/lib/country-code"
+
+// The theme's named shadows and radii, so an override of one actually replaces it.
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      shadow: ["sheet", "pop", "press", "press-destructive", "control", "inset"],
+      radius: ["control", "panel"],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
