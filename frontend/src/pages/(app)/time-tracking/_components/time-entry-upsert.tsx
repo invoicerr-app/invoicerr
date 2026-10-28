@@ -55,7 +55,7 @@ function TaskStep({ control, projectName }: { control: Control<TimeEntryForm>; p
   return (
     <div className="space-y-4" data-cy="time-entry-form">
       <div className="rounded-md border bg-muted/40 px-3 py-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-[13px] font-medium text-muted-foreground">
           {t("timeTracking.entries.upsert.projectLabel")}
         </p>
         <p className="text-sm font-medium text-foreground">{projectName}</p>

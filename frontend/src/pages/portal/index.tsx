@@ -115,7 +115,7 @@ function CurrencyTotalsCard({ totals }: { totals: ClientStatementCurrencyTotals 
   const { t } = useTranslation()
   return (
     <div className="space-y-1 rounded-lg border p-4" data-cy={`portal-statement-total-${totals.currency}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{totals.currency}</p>
+      <p className="text-sm font-semibold text-foreground">{totals.currency}</p>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm text-muted-foreground">{t("clientPortal.statement.totalOutstanding")}</span>
         <span className="amount text-lg font-semibold">
@@ -440,9 +440,7 @@ export default function ClientPortalDashboard() {
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("clientPortal.statement.title")}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">{t("clientPortal.statement.title")}</h2>
           {statement.isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : !statement.data || statement.data.documents.length === 0 ? (
@@ -468,9 +466,7 @@ export default function ClientPortalDashboard() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("clientPortal.quotes.title")}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">{t("clientPortal.quotes.title")}</h2>
           {quotes.isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : !quotes.data || quotes.data.length === 0 ? (

@@ -548,7 +548,7 @@ function ColumnsStep({ headers, parsedText }: { headers: string[]; parsedText: s
 
       {previewRows.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-[13px] font-medium text-muted-foreground">
             {t("bankReconciliation.import.mapping.previewTitle")}
           </p>
           <Table data-cy="bank-reconciliation-import-mapping-preview">

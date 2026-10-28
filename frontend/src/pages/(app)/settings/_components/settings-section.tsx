@@ -64,7 +64,7 @@ export function SettingsPage({
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <h1 className="font-heading text-xl font-semibold tracking-tight text-balance">{title}</h1>
+            <h1 className="text-[26px] leading-tight text-balance">{title}</h1>
             {help && (
               <TitleHelp title={title} dataCy={dataCy}>
                 {help}
@@ -131,7 +131,7 @@ export function SettingsSection({
   return (
     <Card
       className={cn(
-        "gap-5 py-5",
+        "gap-5 rounded-none border-0 border-t bg-transparent pt-6 pb-2 shadow-none",
         tone === "destructive" && "border-destructive/40",
         tone === "warning" && "border-warning-foreground/30",
         className,
@@ -139,12 +139,12 @@ export function SettingsSection({
       data-cy={dataCy}
     >
       {hasHeader && (
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2 px-5">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2 px-0">
           <div className="min-w-0 flex-1 grid gap-1">
             {title && (
               <CardTitle
                 className={cn(
-                  "flex flex-wrap items-center gap-2 text-base",
+                  "flex flex-wrap items-center gap-2 text-[17px]",
                   tone === "destructive" && "text-destructive",
                   tone === "warning" && "text-warning-foreground",
                 )}
@@ -163,14 +163,14 @@ export function SettingsSection({
         </CardHeader>
       )}
       {children !== undefined && children !== null && children !== false && (
-        <CardContent className={cn("px-5", contentClassName)}>{children}</CardContent>
+        <CardContent className={cn("px-0", contentClassName)}>{children}</CardContent>
       )}
-      {footer && <div className="border-t px-5 pt-4">{footer}</div>}
+      {footer && <div className="border-t pt-4">{footer}</div>}
     </Card>
   )
 }
 
-/** A titled group of fields INSIDE a section — a `fieldset` whose legend is a small caps label, so
+/** A titled group of fields INSIDE a section — a `fieldset` whose legend is a short semibold label, so
  *  "Identifiers" or "Peppol routing" read as sub-groups of the company section rather than as a
  *  nested card of their own. */
 export function SettingsFieldGroup({
@@ -192,9 +192,7 @@ export function SettingsFieldGroup({
     <fieldset className={cn("grid gap-4 border-t pt-4", className)} data-cy={dataCy}>
       <div className="grid gap-1">
         <div className="flex items-center gap-1">
-          <legend className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {legend}
-          </legend>
+          <legend className="text-sm font-semibold text-foreground">{legend}</legend>
           {help && (
             <TitleHelp title={legend} dataCy={dataCy}>
               {help}
