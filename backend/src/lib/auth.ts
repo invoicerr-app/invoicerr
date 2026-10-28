@@ -17,6 +17,7 @@ import {
   companyForOAuthSignup,
   deriveUserNames,
   isOidcOnly,
+  mapOidcProfileToUser,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
   resolveOidcEndpoints,
@@ -91,6 +92,7 @@ const createOidcConfig = (): GenericOAuthConfig[] => {
     providerId: envOidcProvider.providerId,
     clientId: process.env.OIDC_CLIENT_ID || 'TEMP',
     scopes: ['openid', 'profile', 'email'],
+    mapProfileToUser: mapOidcProfileToUser,
   };
 
   if (process.env.OIDC_CLIENT_SECRET) {

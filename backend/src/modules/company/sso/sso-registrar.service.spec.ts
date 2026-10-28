@@ -40,6 +40,7 @@ import { vi, type Mock } from 'vitest';
 
 import { resetRegisteredCompanyProviders } from '@/lib/sso-registry';
 import { auth } from '@/lib/auth';
+import { mapOidcProfileToUser } from '@/lib/sso-policy';
 import { assertPublicOutboundUrl } from '@/utils/outbound-url';
 import { SsoRegistrySync, SsoRegistrySyncMessage } from './sso-registry-sync';
 import { SsoProviderResolved, SsoService } from './sso.service';
@@ -150,6 +151,19 @@ describe('buildCompanyProvider — better-auth constructs the provider, nothing 
       authorizationUrl: 'https://idp.acme.com/authorize',
       tokenUrl: 'https://idp.acme.com/token',
       scopes: ['openid', 'profile', 'email'],
+    });
+  });
+
+  it('hands the library a profile mapping that supplies the required names', async () => {
+    const ctx = { socialProviders: [], logger: { error: vi.fn() } };
+
+    const built = await buildCompanyProvider(ctx as never, resolved());
+
+    const config = (built as unknown as { builtFrom: { mapProfileToUser: typeof mapOidcProfileToUser } })
+      .builtFrom;
+    expect(config.mapProfileToUser({ name: 'Alice Martin' })).toEqual({
+      firstname: 'Alice',
+      lastname: 'Martin',
     });
   });
 
