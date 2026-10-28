@@ -50,14 +50,14 @@ describe("Client contacts validation (#415 follow-up review)", () => {
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 
 		// The Contact step already carries one blank contact row - type an invalid email into it.
-		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).scrollIntoView().should("be.visible");
 		cy.get('[name="contacts.0.firstName"]').clear().type("Bob");
 		cy.get('[name="contacts.0.email"]').clear().type("bob@");
 
 		// Saving must not go through: the form stays open on its contact section.
 		cy.get('[data-cy="client-submit"]').click();
 		cy.wait(500);
-		cy.get('[data-cy="client-dialog-step-body-contact"]').should("be.visible");
+		cy.get('[data-cy="client-dialog-step-body-contact"]').scrollIntoView().should("be.visible");
 
 		// The error is visible, attached to the offending row.
 		cy.get('[data-cy="client-contact-row-0"]')
@@ -66,7 +66,7 @@ describe("Client contacts validation (#415 follow-up review)", () => {
 
 		// Fixing the email lets the save go through.
 		cy.get('[name="contacts.0.email"]').clear().type("bob@invalid-email.example");
-		cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
+		cy.get('[data-cy="client-dialog-step-body-recap"]').scrollIntoView().should("be.visible");
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 	});
@@ -114,7 +114,7 @@ describe("Client contacts validation (#415 follow-up review)", () => {
 				cy.get(`[data-cy="edit-client-button-bad-phone@example.com"]`).click();
 				cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
-				cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
+				cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).scrollIntoView().should("be.visible");
 
 				// The stored bad value is right there in the visible row, not hidden anywhere.
 				cy.get('[name="contacts.0.phone"]').should("have.value", "01.02.03.04.05");
@@ -122,14 +122,14 @@ describe("Client contacts validation (#415 follow-up review)", () => {
 				// Saving with the bad value still on the row surfaces the error on THAT row.
 				cy.get('[data-cy="client-submit"]').click();
 				cy.wait(500);
-				cy.get('[data-cy="client-dialog-step-body-contact"]').should("be.visible");
+				cy.get('[data-cy="client-dialog-step-body-contact"]').scrollIntoView().should("be.visible");
 				cy.get('[data-cy="client-contact-row-0"]')
 					.should("contain.text", "Phone number format is invalid")
 					.screenshot("474-after-edit-bad-phone-error");
 
 				// Fixing the row's own phone clears the error and lets the step (and the save) proceed.
 				cy.get('[name="contacts.0.phone"]').clear().type("+33102030405");
-				cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
+				cy.get('[data-cy="client-dialog-step-body-recap"]').scrollIntoView().should("be.visible");
 				cy.get('[data-cy="client-submit"]').click();
 				cy.get('[data-cy="client-dialog"]').should("not.exist");
 
@@ -158,8 +158,8 @@ describe("Client contacts validation (#415 follow-up review)", () => {
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
 
 		// Nothing typed into the Contact step's own blank row - straight to Continue.
-		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
+		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).scrollIntoView().should("be.visible");
+		cy.get('[data-cy="client-dialog-step-body-recap"]').scrollIntoView().should("be.visible");
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 

@@ -69,7 +69,7 @@ describe("COMPANY client's blank default contact row never hides the real primar
 
 		// Row 0 (the wizard's own default primary row) is left COMPLETELY untouched - the exact
 		// scenario this fix is about. Bob is a SECOND row, added and filled with the colliding email.
-		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="client-form-contact"]', { timeout: 10000 }).scrollIntoView().should("be.visible");
 		cy.get('[data-cy="client-contact-add"]').click();
 		cy.get('[name="contacts.1.firstName"]').clear().type("Bob");
 		cy.get('[name="contacts.1.lastName"]').clear().type("Someone");
@@ -83,7 +83,7 @@ describe("COMPANY client's blank default contact row never hides the real primar
 			.and("contain.text", "Existing Dupe 474r3 SARL");
 		cy.get('[data-cy="client-duplicate-warning"]').screenshot("474r3-after-duplicate-warning-bob");
 
-		cy.get('[data-cy="client-dialog-step-body-recap"]').should("be.visible");
+		cy.get('[data-cy="client-dialog-step-body-recap"]').scrollIntoView().should("be.visible");
 
 		// The summary shows exactly what will be saved: Bob primary, and no row at all for the blank
 		// default contact - it never survives normalization, so it never gets a slot in the recap.
