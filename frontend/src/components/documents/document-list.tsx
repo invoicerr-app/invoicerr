@@ -1202,9 +1202,12 @@ export function DocumentList({
             </Button>
             <div className="flex items-center gap-2 sm:order-4 sm:ms-auto">
               {/* See the "list-row-extra" map above for why this keys by function name, not index. */}
-              {headerExtras.map((HeaderExtra) => (
-                <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
-              ))}
+              {/* On a phone the imports wait behind the filters button with the sort and filters. */}
+              <span className={cn("contents", !filtersOpen && "max-sm:hidden")}>
+                {headerExtras.map((HeaderExtra) => (
+                  <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
+                ))}
+              </span>
 
               <Button
                 onClick={onCreate}
