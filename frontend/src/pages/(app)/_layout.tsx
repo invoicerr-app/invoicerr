@@ -128,7 +128,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                 <DemoBanner />
                 <BillingBanner />
                 <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">
-                  <SidebarTrigger className="-ms-1.5 text-muted-foreground" />
+                  <SidebarTrigger className="-ms-1.5 hidden text-muted-foreground md:inline-flex" />
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
