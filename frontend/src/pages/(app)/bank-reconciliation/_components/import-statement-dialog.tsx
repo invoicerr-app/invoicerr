@@ -623,7 +623,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
                 <TableCell
                   dir="ltr"
                   className={cn(
-                    "text-right font-mono tabular-nums whitespace-nowrap",
+                    "amount text-right whitespace-nowrap",
                     (line.amountMinor ?? 0) < 0 && "text-destructive",
                   )}
                 >
@@ -660,7 +660,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
               </span>
               <span
                 className={cn(
-                  "font-mono text-sm tabular-nums whitespace-nowrap",
+                  "amount text-sm whitespace-nowrap",
                   (line.amountMinor ?? 0) < 0 && "text-destructive",
                 )}
               >
@@ -684,7 +684,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
         data-cy="bank-reconciliation-import-preview-total"
       >
         <span>{t("bankReconciliation.import.preview.total")}</span>
-        <span className={cn("font-mono tabular-nums", preview.totalMinor < 0 && "text-destructive")}>
+        <span className={cn("amount", preview.totalMinor < 0 && "text-destructive")}>
           {fromMinor(preview.totalMinor, currency).toFixed(decimalsFor(currency))} {currency}
         </span>
       </div>
@@ -721,19 +721,13 @@ function ImportStep({
         <p className="text-sm font-medium">{t("bankReconciliation.import.result.title")}</p>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.result.imported")}</span>
-          <span
-            className="font-mono tabular-nums font-medium"
-            data-cy="bank-reconciliation-import-result-imported"
-          >
+          <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-result-imported">
             {result.statement.lineCount}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.result.ignored")}</span>
-          <span
-            className="font-mono tabular-nums font-medium"
-            data-cy="bank-reconciliation-import-result-ignored"
-          >
+          <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-result-ignored">
             {result.errors.length}
           </span>
         </div>
@@ -759,11 +753,11 @@ function ImportStep({
       </div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{t("bankReconciliation.import.recap.currency")}</span>
-        <span className="font-mono">{currency}</span>
+        <span>{currency}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{t("bankReconciliation.import.recap.lines")}</span>
-        <span className="font-mono tabular-nums font-medium" data-cy="bank-reconciliation-import-recap-lines">
+        <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-recap-lines">
           {preview.lines.length}
         </span>
       </div>
@@ -776,7 +770,7 @@ function ImportStep({
       {preview.errorCount > 0 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.recap.ignored")}</span>
-          <span className="font-mono tabular-nums">{preview.errorCount}</span>
+          <span className="tabular-nums">{preview.errorCount}</span>
         </div>
       )}
     </div>

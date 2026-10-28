@@ -79,10 +79,10 @@ export function GenerateInvoiceDialog({
               {entries.map((entry) => (
                 <TableRow key={entry.id} data-cy={`generate-invoice-row-${entry.id}`}>
                   <TableCell>{entry.description || entry.project.name}</TableCell>
-                  <TableCell dir="ltr" className="text-right font-mono tabular-nums">
+                  <TableCell dir="ltr" className="text-right tabular-nums">
                     {(entry.durationMinutes / 60).toFixed(2)}
                   </TableCell>
-                  <TableCell dir="ltr" className="text-right font-mono tabular-nums">
+                  <TableCell dir="ltr" className="amount text-right">
                     {lineTotal(entry).toFixed(2)}
                     {currencySymbol}
                   </TableCell>
@@ -92,10 +92,7 @@ export function GenerateInvoiceDialog({
           </Table>
         </div>
 
-        <div
-          className="flex justify-end gap-1 font-mono font-medium tabular-nums"
-          data-cy="generate-invoice-total"
-        >
+        <div className="amount flex justify-end gap-1 text-base" data-cy="generate-invoice-total">
           {t("timeTracking.generateInvoice.total")}: {total.toFixed(2)}
           {currencySymbol}
         </div>

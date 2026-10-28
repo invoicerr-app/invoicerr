@@ -38,7 +38,7 @@ export interface AnimationConfig {
  * Variants for the multi-select component to handle different styles.
  * Uses class-variance-authority (cva) to define different styles based on "variant" prop.
  */
-const multiSelectVariants = cva("m-1 transition-all duration-300 ease-in-out", {
+const multiSelectVariants = cva("m-1 transition-colors duration-150 ease-out", {
   variants: {
     variant: {
       default: "border-foreground/10 text-foreground bg-card hover:bg-card/80",

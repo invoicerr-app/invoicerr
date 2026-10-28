@@ -307,7 +307,7 @@ export function DocumentSettlementSection({ typeId, documentId, dueDate }: Docum
                       back to the raw id (never blank) for one issued before this type declares
                       `numbering` — the same fallback credit-note-contributions.ts's own
                       `resolveInvoiceLabel` already uses for the identical "no number yet" case. */}
-                    <span className="font-mono font-medium">{credit.displayNumber ?? credit.id}</span>
+                    <span className="font-medium">{credit.displayNumber ?? credit.id}</span>
                     <span className="amount font-medium">
                       {formatMinor(credit.amountMinor, credit.currency)}
                     </span>

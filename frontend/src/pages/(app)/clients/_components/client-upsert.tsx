@@ -1208,7 +1208,7 @@ function RecapStep({
       )}
       <div className="flex items-center justify-between gap-4">
         <dt className="text-muted-foreground">{t("clients.upsert.fields.currency.label")}</dt>
-        <dd className="font-mono font-medium tabular-nums text-foreground">{currency || fallback}</dd>
+        <dd className="font-medium text-foreground">{currency || fallback}</dd>
       </div>
       {contacts.length > 0 ? (
         <div className="space-y-1" data-cy="client-upsert-recap-contacts">

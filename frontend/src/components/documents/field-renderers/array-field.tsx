@@ -172,7 +172,7 @@ function LineRowCard({
         <div className="flex items-center justify-end gap-2 sm:mt-1 sm:shrink-0">
           {subtotal && (
             <span
-              className="font-mono tabular-nums text-sm font-medium text-foreground"
+              className="amount text-[15px] text-foreground"
               data-cy={`document-field-${arrayFieldKey}-row-${index}-subtotal`}
             >
               {subtotal}

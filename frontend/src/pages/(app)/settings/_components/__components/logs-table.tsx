@@ -89,7 +89,7 @@ export function LogsTable({ logs, onSelectLog }: LogsTableProps) {
                 className="cursor-pointer hover:bg-accent"
                 onClick={() => onSelectLog(log)}
               >
-                <TableCell className="font-mono text-sm tabular-nums">
+                <TableCell className="text-sm tabular-nums">
                   <div className="flex flex-col">
                     <span className="text-foreground">{formatTime(log.timestamp)}</span>
                     <span className="text-xs text-muted-foreground">{formatDate(log.timestamp)}</span>

@@ -51,9 +51,7 @@ export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {
               <span className="text-[13px] font-medium text-muted-foreground">
                 {t("settings.logs.details.timestamp")}
               </span>
-              <p className="mt-1 font-mono text-sm tabular-nums text-foreground">
-                {log.timestamp.toLocaleString()}
-              </p>
+              <p className="mt-1 text-sm tabular-nums text-foreground">{log.timestamp.toLocaleString()}</p>
             </div>
             <div>
               <span className="text-[13px] font-medium text-muted-foreground">
