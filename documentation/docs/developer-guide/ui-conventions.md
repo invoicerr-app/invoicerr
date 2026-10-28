@@ -100,8 +100,9 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   failed load shows a warning disc and a retry. A page that fails to render shows its title, an
   explanation and a reload button, with the technical message folded behind **Details**.
 - **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
-  sidebar; there is no menu button in the header. The main "New" action becomes an extended floating
-  button. The new-document page hides the tab bar: it has its own close button and action bar. Touch
+  sidebar (an ellipsis, never a menu icon); there is no menu button in the header. A list's toolbar
+  keeps the search field and one filters button, which also holds the sort and any import buttons a
+  type adds. The main "New" action becomes an extended floating button. The new-document page hides the tab bar: it has its own close button and action bar. Touch
   targets stay 44 px.
 - **Offline**: `OfflineBanner` (`components/offline-banner.tsx`) shows a one-line strip above every
   signed-in page while the browser reports no network.
