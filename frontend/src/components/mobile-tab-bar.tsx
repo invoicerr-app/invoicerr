@@ -17,7 +17,7 @@ interface TabProps {
 
 function Tab({ label, icon: Icon, active, to, onClick, dataCy }: TabProps) {
   const className = cn(
-    "focus-ring flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-md text-xs font-medium",
+    "focus-ring flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md text-xs font-medium",
     active ? "text-foreground" : "text-muted-foreground",
   )
   const content = (
@@ -30,7 +30,7 @@ function Tab({ label, icon: Icon, active, to, onClick, dataCy }: TabProps) {
       >
         <Icon className="size-5" aria-hidden="true" />
       </span>
-      {label}
+      <span className="max-w-full truncate">{label}</span>
     </>
   )
   if (to) {
@@ -59,7 +59,7 @@ export function MobileTabBar() {
       data-cy="mobile-tab-bar"
     >
       <Tab
-        label={t("sidebar.navigation.dashboard")}
+        label={t("sidebar.mobile.home")}
         icon={LayoutDashboard}
         to="/dashboard"
         active={pathname.startsWith("/dashboard")}

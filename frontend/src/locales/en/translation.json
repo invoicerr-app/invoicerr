@@ -3667,7 +3667,8 @@
     },
     "mobile": {
       "more": "More",
-      "navLabel": "Main sections"
+      "navLabel": "Main sections",
+      "home": "Home"
     }
   },
   "auth": {
@@ -5480,7 +5481,8 @@
         "dateTo": "To",
         "clear": "Clear",
         "settlementUnsettled": "Unpaid only",
-        "settlementOverdue": "Overdue only"
+        "settlementOverdue": "Overdue only",
+        "toggle": "Sort and filters"
       }
     },
     "custom": {

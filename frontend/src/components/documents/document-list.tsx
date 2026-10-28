@@ -10,6 +10,7 @@ import {
   Repeat,
   Search,
   SearchX,
+  SlidersHorizontal,
   TriangleAlert,
   X,
 } from "lucide-react"
@@ -1014,6 +1015,8 @@ export function DocumentList({
   onClearFilters,
 }: DocumentListProps) {
   const { t, i18n } = useTranslation()
+  // On a phone the sort and the client and date filters fold behind one button.
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   // See custom-slots.ts's own comment on "list-header-extra" — additive, next to the generic "New"
   // button below, never in place of it. `instance` is deliberately omitted (this slot is per-LIST,
@@ -1180,6 +1183,17 @@ export function DocumentList({
               />
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="sm:hidden"
+              aria-expanded={filtersOpen}
+              aria-label={t("documents.list.filters.toggle")}
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              <SlidersHorizontal aria-hidden="true" />
+            </Button>
             <div className="flex items-center gap-2 sm:order-4 sm:ms-auto">
               {/* See the "list-row-extra" map above for why this keys by function name, not index. */}
               {headerExtras.map((HeaderExtra) => (
@@ -1214,7 +1228,7 @@ export function DocumentList({
 
           <Select value={sort} onValueChange={(value) => onSortChange(value as SortKey)}>
             <SelectTrigger
-              className="w-full sm:order-2 sm:w-44"
+              className={cn("w-full sm:order-2 sm:flex sm:w-44", !filtersOpen && "max-sm:hidden")}
               aria-label={t("documents.list.sort.label")}
               dataCy="document-list-sort"
             >
@@ -1236,7 +1250,10 @@ export function DocumentList({
         </div>
 
         {(clientFieldKey || dateFieldKey) && (
-          <div className="flex flex-wrap items-center gap-2" data-cy="document-list-extra-filters">
+          <div
+            className={cn("flex flex-wrap items-center gap-2", !filtersOpen && "max-sm:hidden")}
+            data-cy="document-list-extra-filters"
+          >
             {clientFieldKey && <DocumentClientFilter clientId={clientId} onChange={onClientIdChange} />}
             {dateFieldKey && (
               <DocumentDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} onChange={onDateRangeChange} />
