@@ -420,6 +420,7 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 
 					cy.get('[data-cy="document-field-invoice-input"] button')
 						.first()
+						.scrollIntoView()
 						.click({ force: true });
 					cy.get('[data-cy="document-field-invoice-input-options"]', {
 						timeout: 10000,

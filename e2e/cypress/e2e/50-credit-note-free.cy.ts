@@ -312,6 +312,7 @@ describe("Free credit note — the screen, browser level", () => {
 		// Targeted by its own data-cy: credit note lines also carry the "Supply type" select.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should(
 			"be.visible",

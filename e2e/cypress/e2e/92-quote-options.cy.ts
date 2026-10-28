@@ -130,6 +130,7 @@ describe("Quotes with options (issue #373)", () => {
 
 				cy.get('[data-cy="document-field-currency-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-currency-input-options"]', {
 					timeout: 10000,

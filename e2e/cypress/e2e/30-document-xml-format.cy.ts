@@ -323,7 +323,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);

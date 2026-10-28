@@ -108,7 +108,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
@@ -130,6 +130,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("100", { force: true });
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
@@ -184,7 +185,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 

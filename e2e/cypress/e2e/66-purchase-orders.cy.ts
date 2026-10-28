@@ -60,7 +60,7 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		// "currency" — a SearchSelect, same pattern as 20-document-totals.cy.ts's own currency fill.
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 

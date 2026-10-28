@@ -116,6 +116,7 @@ describe("Document totals", () => {
 		// container unfolds nothing. `commands.ts::selectCountry` has the right pattern — the BUTTON first.
 		cy.get('[data-cy="document-field-currency-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', {
 			timeout: 10000,
@@ -141,6 +142,7 @@ describe("Document totals", () => {
 		// Targeted by its own data-cy: a quote line also carries the "Supply type" select.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
@@ -190,7 +192,7 @@ describe("Document totals", () => {
 		// the document is even saved — not just that a request eventually carries the right value.
 		cy.get('[data-cy="document-field-dueDate-input"]').should("contain.text", String(nextYear));
 
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
@@ -207,6 +209,7 @@ describe("Document totals", () => {
 		// this one.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)

@@ -1083,6 +1083,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				}).as("clientAwareDescriptor");
 				cy.get('[data-cy="document-field-client-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-client-input-options"]', {
 					timeout: 10000,
@@ -1103,6 +1104,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.pickToday('[data-cy="document-field-dueDate-input"]');
 				cy.get('[data-cy="document-field-currency-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-currency-input-options"]', {
 					timeout: 10000,

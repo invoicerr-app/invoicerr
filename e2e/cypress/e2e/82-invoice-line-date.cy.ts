@@ -36,7 +36,7 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
@@ -50,6 +50,7 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("800", { force: true });
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
@@ -70,6 +71,7 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('input[name="lines.1.unitPrice"]').clear({ force: true }).type("90", { force: true });
 		cy.get('[data-cy="document-field-lines-row-1"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
@@ -137,7 +139,7 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
@@ -150,6 +152,7 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("42", { force: true });
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)

@@ -520,6 +520,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 				// created by the previous DE test (same describe, same `before`, data preserved).
 				cy.get('[data-cy="document-field-client-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-client-input-options"]', {
 					timeout: 10000,

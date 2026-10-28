@@ -559,7 +559,7 @@ describe("Receiving invoices", () => {
 
 			cy.openDocument(target!.id);
 
-			cy.get('[data-cy="document-field-supplierClient-input"] button').first().click({ force: true });
+			cy.get('[data-cy="document-field-supplierClient-input"] button').first().scrollIntoView().click({ force: true });
 			cy.get('[data-cy="document-field-supplierClient-input-options"]', { timeout: 10000 }).should(
 				"be.visible",
 			);

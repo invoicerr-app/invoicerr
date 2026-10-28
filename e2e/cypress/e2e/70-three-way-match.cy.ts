@@ -50,7 +50,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
@@ -115,7 +115,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.intercept("GET", `${api}/api/documents/references/purchase-order/*/fields`).as(
 			"getPurchaseOrderFields",
 		);
-		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
@@ -208,7 +208,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("10", { force: true });
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("25", { force: true });
 
-		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
