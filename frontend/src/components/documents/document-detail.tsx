@@ -902,7 +902,6 @@ function DraftLivePaper({
         descriptor={descriptor}
         data={values}
         displayNumber={displayNumber}
-        totals={<DocumentTotals descriptor={descriptor} />}
       />
     </section>
   )
