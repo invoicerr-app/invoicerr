@@ -258,3 +258,28 @@ export function ListSkeleton({ dataCy }: { dataCy?: string }) {
 export function FilterChipSkeleton() {
   return <Skeleton className="h-[38px] w-72 rounded-lg" aria-hidden="true" />
 }
+
+interface PanelSectionProps {
+  title: React.ReactNode
+  description?: React.ReactNode
+  action?: React.ReactNode
+  dataCy?: string
+  className?: string
+  children: React.ReactNode
+}
+
+/** A titled group of rows: the title and its one action on the page ground, the rows in one panel. */
+export function PanelSection({ title, description, action, dataCy, className, children }: PanelSectionProps) {
+  return (
+    <section className={cn("space-y-3", className)} data-cy={dataCy}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-xl break-words">{title}</h2>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sheet">{children}</div>
+    </section>
+  )
+}

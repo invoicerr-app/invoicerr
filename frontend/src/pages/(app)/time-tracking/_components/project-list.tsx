@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ListSkeleton, PanelSection } from "../../_shared/data-list"
 import { EmptyState } from "@/components/ui/empty-state"
 import { currencies } from "@/lib/constants/currencies"
 import { cn } from "@/lib/utils"
@@ -36,9 +36,9 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
 
   return (
     <>
-      <Card className="gap-0">
-        <CardHeader className="border-b flex flex-row items-center justify-between">
-          <CardTitle>{t("timeTracking.projects.title")}</CardTitle>
+      <PanelSection
+        title={t("timeTracking.projects.title")}
+        action={
           <Button
             onClick={() => setCreateOpen(true)}
             aria-label={t("timeTracking.projects.list.add")}
@@ -47,102 +47,95 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
             <Plus className="h-4 w-4 me-0 md:me-2" aria-hidden="true" />
             <span className="hidden md:inline-flex">{t("timeTracking.projects.list.add")}</span>
           </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-            </div>
-          ) : projects.length === 0 ? (
-            // `secondary`: the card header's own "Add project" stays the one filled button.
-            <EmptyState
-              icon={Briefcase}
-              title={t("timeTracking.projects.empty")}
-              action={
-                <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-                  <Plus aria-hidden="true" />
-                  {t("timeTracking.projects.list.add")}
-                </Button>
-              }
-              data-cy="project-empty"
-            />
-          ) : (
-            <div className="divide-y">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => onSelect(project)}
-                  className={cn(
-                    "w-full text-start p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
-                    selectedProjectId === project.id && "bg-muted",
-                  )}
-                  data-cy={`project-item-${project.id}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-foreground break-words">{project.name}</span>
-                      {project.isArchived && (
-                        <Badge variant="outline" className="text-xs">
-                          {t("timeTracking.projects.archivedBadge")}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      {project.client.name}
-                      {project.hourlyRate != null && (
-                        <>
-                          <span className="ms-3 tabular-nums">
-                            {project.hourlyRate}
-                            {currencySymbol}/{t("timeTracking.units.hourShort")}
-                          </span>
-                        </>
-                      )}
-                    </div>
+        }
+      >
+        {loading ? (
+          <ListSkeleton />
+        ) : projects.length === 0 ? (
+          // `secondary`: the card header's own "Add project" stays the one filled button.
+          <EmptyState
+            icon={Briefcase}
+            title={t("timeTracking.projects.empty")}
+            action={
+              <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+                <Plus aria-hidden="true" />
+                {t("timeTracking.projects.list.add")}
+              </Button>
+            }
+            data-cy="project-empty"
+          />
+        ) : (
+          <div className="divide-y">
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() => onSelect(project)}
+                className={cn(
+                  "w-full text-start p-4 flex items-center justify-between gap-4 hover:bg-muted/50",
+                  selectedProjectId === project.id && "bg-muted",
+                )}
+                data-cy={`project-item-${project.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-foreground break-words">{project.name}</span>
+                    {project.isArchived && (
+                      <Badge variant="outline" className="text-xs">
+                        {t("timeTracking.projects.archivedBadge")}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      tooltip={t("timeTracking.actions.edit")}
-                      aria-label={t("timeTracking.actions.edit")}
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditProject(project)
-                      }}
-                      dataCy="project-edit-button"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      tooltip={t(
-                        project.isArchived
-                          ? "timeTracking.actions.unarchive"
-                          : "timeTracking.actions.archive",
-                      )}
-                      aria-label={t(
-                        project.isArchived
-                          ? "timeTracking.actions.unarchive"
-                          : "timeTracking.actions.archive",
-                      )}
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => toggleArchived(project, e)}
-                      dataCy="project-archive-toggle"
-                    >
-                      {project.isArchived ? (
-                        <ArchiveRestore className="h-4 w-4" />
-                      ) : (
-                        <Archive className="h-4 w-4" />
-                      )}
-                    </Button>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {project.client.name}
+                    {project.hourlyRate != null && (
+                      <>
+                        <span className="ms-3 tabular-nums">
+                          {project.hourlyRate}
+                          {currencySymbol}/{t("timeTracking.units.hourShort")}
+                        </span>
+                      </>
+                    )}
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    tooltip={t("timeTracking.actions.edit")}
+                    aria-label={t("timeTracking.actions.edit")}
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditProject(project)
+                    }}
+                    dataCy="project-edit-button"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    tooltip={t(
+                      project.isArchived ? "timeTracking.actions.unarchive" : "timeTracking.actions.archive",
+                    )}
+                    aria-label={t(
+                      project.isArchived ? "timeTracking.actions.unarchive" : "timeTracking.actions.archive",
+                    )}
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => toggleArchived(project, e)}
+                    dataCy="project-archive-toggle"
+                  >
+                    {project.isArchived ? (
+                      <ArchiveRestore className="h-4 w-4" />
+                    ) : (
+                      <Archive className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </PanelSection>
 
       <ProjectUpsert open={createOpen} onOpenChange={setCreateOpen} />
       <ProjectUpsert

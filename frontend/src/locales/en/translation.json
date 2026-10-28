@@ -1857,6 +1857,7 @@
       "error": "Could not import this statement"
     },
     "statements": {
+      "title": "Statements",
       "empty": "No statement imported yet",
       "unmatched": "{{count}} unmatched",
       "reconciled": "{{count}} reconciled"

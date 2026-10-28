@@ -9,7 +9,7 @@ export default function ArticlesPage() {
   usePageHeader(t("sidebar.navigation.articles"))
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 p-6">
+    <div className="mx-auto max-w-7xl px-4 pt-1 pb-8 md:px-6">
       <ArticlesList />
     </div>
   )
