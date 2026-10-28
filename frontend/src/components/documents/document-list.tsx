@@ -645,7 +645,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
             <div className="order-1 flex min-w-0 items-center gap-3.5">
               <DocumentRowAvatar descriptor={descriptor} instance={instance} />
               <div className="min-w-0">
-                <h2
+                <h3
                   className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground"
                   data-cy={`document-list-title-${instance.id}`}
                 >
@@ -658,7 +658,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                   >
                     <DocumentCardTitle descriptor={descriptor} instance={instance} />
                   </Link>
-                </h2>
+                </h3>
                 <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13.5px] text-muted-foreground">
                   <DocumentCardNumber descriptor={descriptor} instance={instance} />
                   <DocumentCardMeta descriptor={descriptor} instance={instance} amount={amount} />
@@ -1133,9 +1133,9 @@ export function DocumentList({
         {groups.map((group) => (
           <section key={group.items[0].id}>
             {group.month && (
-              <h3 className="mb-2.5 px-1 font-heading text-xl font-normal first-letter:uppercase">
+              <h2 className="mb-2.5 px-1 text-xl font-normal first-letter:uppercase">
                 {monthFormat.format(new Date(`${group.month}-01T12:00:00`))}
-              </h3>
+              </h2>
             )}
             <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-sheet">
               {group.items.map((instance) => (
