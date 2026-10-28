@@ -143,23 +143,12 @@ function uploadAndOpenForm(fixturePath: string) {
 }
 
 /**
- * Reaches the wizard's last step ("Summary", where "receive" — the type's own action — finally
- * renders; every earlier step's primary button reads "Continue" instead, stepped-dialog.tsx) and
- * clicks it. Every received-invoice field is `required: false` (received-invoice.descriptor.ts's
- * own header), so each "Continue" along the way is unconditional — nothing to fill first, unlike
- * document-create-dialog.tsx's own generic wizard-walkers (17-document-descriptor.cy.ts), which
- * exist only because OTHER types DO have required fields. A caller that already navigated to a
- * LATER step for its own field assertions (most of this file does — see each `it`'s own comments)
- * simply arrives here with fewer "Continue" clicks left to make.
+ * Clicks "receive", the type's own action, in the editor's footer. Every received-invoice field is
+ * `required: false` (received-invoice.descriptor.ts's own header), so nothing has to be filled first.
  */
 function confirmReceive(guard = 0) {
-	if (guard > 4) throw new Error("wizard never reached its last step");
+	if (guard > 4) throw new Error("the editor never offered its receive action");
 	cy.get("body").then(($body) => {
-		if ($body.find('[data-cy="document-create-dialog-continue"]').length > 0) {
-			cy.continueDocumentWizard();
-			confirmReceive(guard + 1);
-			return;
-		}
 		cy.get('[data-cy="document-action-receive"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("exist");
 		// A successful first save closes the create dialog and lands on the new record's own page
@@ -178,19 +167,16 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.contains("button", /add|new|créer|ajouter/i).click();
 	cy.get('[data-cy="client-dialog"]', { timeout: 10000 }).should("be.visible");
 	cy.get('[name="name"]').clear().type(name);
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.selectCountry("client-country-select", "France");
 	cy.get('[name="address"]').clear().type("1 Rue du Test");
 	cy.get('[name="postalCode"]').clear().type("75000");
 	cy.get('[name="city"]').clear().type("Paris");
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 	if (opts?.vat) {
 		cy.get('[data-cy="client-identifier-VAT"]').clear().type(opts.vat);
 	}
-	cy.continueSteppedDialog("client-dialog");
 
 	// ASCII-only slug — an accented character (e.g. "Confirmé") makes an otherwise-plausible email
 	// fail the form's own RFC-ish check ("Email format is invalid"), which this mutation hit for real.
@@ -202,7 +188,6 @@ function createClientByScreen(name: string, opts?: { vat?: string }) {
 	cy.get('[name="contacts.0.email"]')
 		.clear()
 		.type(`${emailSlug}@example.com`);
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[data-cy="client-submit"]').click();
 	cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -231,7 +216,6 @@ describe("Receiving invoices", () => {
 		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "250");
 		cy.get('input[name="lines.0.vatRate"]').should("have.value", "20");
 		cy.get('[data-cy="document-line-total-warnings"]').should("not.exist");
-		cy.continueDocumentWizard(); // Lines -> Options
 
 		cy.get('[data-cy="document-field-supplier-input"]').should(
 			"have.value",
@@ -324,7 +308,6 @@ describe("Receiving invoices", () => {
 		// No line was extracted from this PDF either — "Lines" (the wizard's own first step; see the
 		// previous test's comment) shows no row, nothing to check there. "supplier" etc. are on
 		// "Options", one step later.
-		cy.continueDocumentWizard(); // Lines -> Options
 		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "");
 		cy.get('[data-cy="document-field-netAmount-input"]').should("have.value", "");
@@ -386,7 +369,6 @@ describe("Receiving invoices", () => {
 		cy.get('input[name="lines.0.description"]').should("have.value", "OCR Fake Line");
 		cy.get('input[name="lines.0.quantity"]').should("have.value", "1");
 		cy.get('input[name="lines.0.unitPrice"]').should("have.value", "500");
-		cy.continueDocumentWizard(); // Lines -> Options
 
 		cy.get('[data-cy="document-field-supplier-input"]').should("have.value", "OCR Fake Fournisseur SARL");
 		cy.get('[data-cy="document-field-supplierNumber-input"]').should("have.value", "OCR-FAKE-0001");
@@ -443,7 +425,6 @@ describe("Receiving invoices", () => {
 		}
 		cy.get('[data-cy="document-field-lines-add-row"]').should("be.disabled");
 		cy.get('[data-cy="document-field-lines-remove-row-0"]').should("be.disabled");
-		cy.continueDocumentWizard(); // Lines -> Options ("grossAmount" lives there)
 
 		// The deposited gross total (650) is carried over AS-IS — never rewritten by the sum of the lines (600).
 		cy.get('[data-cy="document-field-grossAmount-input"]').should("have.value", "650");
@@ -516,7 +497,6 @@ describe("Receiving invoices", () => {
 		uploadAndOpenForm(KNOWN_VAT_FIXTURE);
 		// "supplierClient"/"supplier" are on "Options", one step past the wizard's own first step
 		// ("Lines" — this fixture's own line isn't read by this test).
-		cy.continueDocumentWizard(); // Lines -> Options
 
 		// Visible BEFORE even confirming: the reference field already shows the resolved client — the
 		// same generic pre-fill as any other extracted field (buildInitialData).
@@ -550,7 +530,6 @@ describe("Receiving invoices", () => {
 
 	it("A deposit from an UNKNOWN seller links nothing, and the screen says so", () => {
 		uploadAndOpenForm(UNKNOWN_VAT_FIXTURE);
-		cy.continueDocumentWizard(); // Lines -> Options ("supplierClient" lives there)
 
 		// The field stays empty — never a guessed link.
 		cy.get('[data-cy="document-field-supplierClient-input"]').should(

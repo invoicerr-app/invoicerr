@@ -40,7 +40,6 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// ---- Lines step: row 0 gets a work date, row 1 deliberately does not ----
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
@@ -83,8 +82,6 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 			"Pick a date",
 		);
 
-		cy.continueDocumentWizard(); // Lines -> Options
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.get('[data-cy="document-create-recap-line-count"]', { timeout: 10000 })
 			.invoke("text")
@@ -144,7 +141,6 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
-		cy.continueDocumentWizard();
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
@@ -160,8 +156,6 @@ describe("Invoice line `date` — optional, per-line, on the screen", () => {
 			.first()
 			.click();
 
-		cy.continueDocumentWizard();
-		cy.continueDocumentWizard();
 
 		cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
 		cy.get('[data-cy="document-action-save-draft"]').click();

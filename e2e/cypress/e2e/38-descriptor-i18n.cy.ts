@@ -80,7 +80,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="sidebar-document-type-link-invoice"]').should("contain.text", "Invoice");
 
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// The dialog's title interpolates the translated type label (documents.form.newTitle, already
 		// existing — {{label}} now becomes the derivation's result, not the raw value directly).
@@ -111,7 +111,6 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines"]').should("contain.text", "Lines");
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
@@ -134,7 +133,6 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
-		cy.continueDocumentWizard(); // Lines -> Options
 
 		cy.get('[data-cy="document-field-notes"]').should("contain.text", "Notes");
 
@@ -149,7 +147,6 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 			"have.text",
 			"The invoice this one corrects, if any. Leave empty for an ordinary invoice.",
 		);
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		// The actions — documents.descriptors.invoice.actions.<id>.label, the same EN value as before.
 		// "send" only appears once the document has been saved a first time (its derived
@@ -174,7 +171,7 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 	it("FALLBACK: the VAT rate options (per-company catalog, never translated here) stay the backend's RAW label — in French, on an English screen", () => {
 		cy.visit("/documents/invoice");
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
 		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
@@ -190,7 +187,6 @@ describe("i18n descriptors (item 25) -- key derived in EN, falling back to the r
 		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]')

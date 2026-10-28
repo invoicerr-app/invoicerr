@@ -96,9 +96,7 @@ describe("Document totals", () => {
 	it("shows the totals on the wizard's Summary step, recomputed from the lines just entered", () => {
 		cy.visit("/documents/quote", { timeout: 20000 });
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-			"be.visible",
-		);
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// "client"/"issueDate"/"currency" (all `required`) are the wizard's own "Details" step —
 		// see document-create-dialog.tsx's `buildFieldGroups`. Client: whichever the seed's default
@@ -126,7 +124,6 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// One line: 100 at 20%. Fields addressed by NAME, like spec 17 — a line's input order is not
 		// a contract, their names are.
@@ -152,8 +149,6 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		cy.continueDocumentWizard(); // Lines -> Options (dueDate/notes/clientReference, nothing required)
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		// The totals, on the Summary step — the displayed fact comes from the client-side
 		// recalculation (document-totals.tsx), mirroring the backend.
@@ -170,7 +165,7 @@ describe("Document totals", () => {
 	it("lets an invoice's due date be set a year ahead, through the Details step's own dropdowns", () => {
 		cy.visit("/documents/invoice", { timeout: 20000 });
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// client/issueDate/dueDate/currency are all `required` on the invoice descriptor, so all
 		// four sit on this first ("Details") step — see invoice.descriptor.ts's own field list.
@@ -199,7 +194,6 @@ describe("Document totals", () => {
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
-		cy.continueDocumentWizard(); // Details -> Lines
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
 		cy.get('input[name="lines.0.description"]').type("Item 1", { force: true });
@@ -219,8 +213,6 @@ describe("Document totals", () => {
 			.first()
 			.click();
 
-		cy.continueDocumentWizard(); // Lines -> Options
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
 		cy.get('[data-cy="document-action-save-draft"]').click();

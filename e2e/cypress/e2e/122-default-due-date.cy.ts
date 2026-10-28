@@ -32,7 +32,6 @@ function openCreateWizard(typeId: "quote" | "invoice") {
 
 function pickCurrencyAndContinue() {
 	cy.pickDocumentFieldOption("currency", "eur");
-	cy.continueDocumentWizard();
 }
 
 function typeInLine(field: string, value: string) {
@@ -58,8 +57,6 @@ function fillOneLineAndReachRecap(typeId: "quote" | "invoice") {
 			.first()
 			.click();
 	}
-	cy.continueDocumentWizard(); // Lines -> Options
-	cy.continueDocumentWizard(); // Options -> Recap
 }
 
 function saveAndReadBack(typeId: "quote" | "invoice") {

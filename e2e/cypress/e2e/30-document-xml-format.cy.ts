@@ -310,9 +310,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 	it("the FR overlay's supplyType field is visible on an invoice line, and the downloaded XML carries the derived BT-23 code", () => {
 		cy.visit("/documents/invoice", { timeout: 20000 });
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-			"be.visible",
-		);
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
 		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
@@ -330,7 +328,6 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 			"be.visible",
 		);
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]', { timeout: 10000 }).should(

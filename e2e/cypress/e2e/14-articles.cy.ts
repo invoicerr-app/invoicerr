@@ -57,12 +57,11 @@ function createCatalogArticle(name: string, unitPrice: number) {
 function openInvoiceLinesStep() {
     cy.visit('/documents/invoice', { timeout: 20000 });
     cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-    cy.get('[data-cy="document-form"]', { timeout: 15000 }).should('be.visible');
+    cy.get('[data-cy="document-form"]', { timeout: 15000 }).should('exist');
     cy.pickDocumentClient();
     cy.pickToday('[data-cy="document-field-issueDate-input"]');
     cy.pickToday('[data-cy="document-field-dueDate-input"]');
     cy.pickDocumentFieldOption('currency', 'eur');
-    cy.continueDocumentWizard(); // Details -> Lines
 }
 
 const lineRow = (index: number) => `[data-cy="document-field-lines-row-${index}"]`;
@@ -318,8 +317,6 @@ describe('Articles E2E', () => {
             fillLineQuantityAndUnit(2);
             pickLineVatRate(2);
 
-            cy.continueDocumentWizard(); // Lines -> Options
-            cy.continueDocumentWizard(); // Options -> Summary
 
             cy.intercept('POST', `${api}/api/documents/types/invoice/actions/save-draft`).as('saveDraft');
             cy.get('[data-cy="document-action-save-draft"]').click();
@@ -369,8 +366,6 @@ describe('Articles E2E', () => {
                 expectLinePrefilled(0, name, '120');
                 cy.get('input[name="lines.0.vatRate"]').should('have.value', '20');
 
-                cy.continueDocumentWizard(); // Lines -> Options
-                cy.continueDocumentWizard(); // Options -> Summary
 
                 cy.intercept('POST', `${api}/api/documents/types/received-invoice/actions/receive`).as('receive');
                 cy.get('[data-cy="document-action-receive"]').click();

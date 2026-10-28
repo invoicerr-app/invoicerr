@@ -13,7 +13,6 @@ function startInvoiceAtLines() {
 	cy.pickToday('[data-cy="document-field-issueDate-input"]');
 	cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
 	cy.pickDocumentFieldOption("currency", "eur");
-	cy.continueDocumentWizard();
 	cy.get('[data-cy="document-field-lines-add-row"]').click();
 	cy.get(row).should("exist");
 }

@@ -464,7 +464,6 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 						});
 
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard(); // Details -> Lines
 					cy.get(
 						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',
 						{
@@ -476,8 +475,6 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 
 					// "notes"/"reason" (both optional once "invoice" IS set — `reason` is
 					// `requiredIfAbsent: "invoice"`, so it stays silent here) are the "Options" step.
-					cy.continueDocumentWizard(); // Lines -> Options
-					cy.continueDocumentWizard(); // Options -> Recap
 
 					cy.intercept(
 						"POST",

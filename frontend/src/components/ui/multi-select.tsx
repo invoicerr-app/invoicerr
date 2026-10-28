@@ -747,7 +747,7 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
               aria-label={`Multi-select: ${selectedValues.length} of ${getAllOptions().length} options selected. ${placeholder}`}
               className={cn(
                 // Mirror SelectTrigger classes exactly for consistent visuals
-                "border-input [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-fit",
+                "border-input bg-card shadow-control dark:shadow-none focus-field [&_svg:not([class*='text-'])]:text-muted-foreground aria-invalid:border-destructive flex min-h-[42px] items-center justify-between gap-2 rounded-md border px-3.5 py-2 text-[15px] whitespace-nowrap outline-none disabled:cursor-not-allowed disabled:opacity-50 h-fit",
                 autoSize ? "w-auto" : "w-full",
                 responsiveSettings.compactMode && "min-h-8 text-sm",
                 screenSize === "mobile" && "min-h-12 text-base",
@@ -895,7 +895,7 @@ export const MultiSelect = React.forwardRef<MultiSelectRef, MultiSelectProps>(
                         }
                       }}
                       aria-label={`Clear all ${selectedValues.length} selected options`}
-                      className="flex items-center justify-center h-4 w-4 mx-2 cursor-pointer text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded-sm"
+                      className="flex items-center justify-center h-4 w-4 mx-2 cursor-pointer text-muted-foreground hover:text-foreground focus-ring rounded-sm"
                     >
                       <XIcon className="h-4 w-4" />
                     </div>

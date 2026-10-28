@@ -90,7 +90,6 @@ function continueToLines() {
 	cy.pickDocumentClient();
 	cy.pickToday('[data-cy="document-field-issueDate-input"]');
 	cy.pickDocumentFieldOption("currency", "eur");
-	cy.continueDocumentWizard();
 	cy.get('[data-cy="document-field-lines-add-row"]').click();
 	cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
 }
@@ -321,32 +320,25 @@ describe("Document line editor", () => {
 					openNewCreditNote();
 					pickInvoice("Avoir Premier SARL");
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard();
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 2).and("be.checked");
 					cy.get(corrected).first().uncheck();
 
-					cy.get('[data-cy="document-create-dialog-back"]').click();
 					pickInvoice("Avoir Second SARL");
-					cy.continueDocumentWizard();
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 3).and("be.checked");
 				});
 			});
 		});
 
-		it("saves the lines of the newly picked invoice after jumping back through the step chips", () => {
+		it("saves the lines of the newly picked invoice after picking another invoice", () => {
 			validatedInvoice("Avoir Chip Premier SARL", ["One", "Two"]).then(() => {
 				validatedInvoice("Avoir Chip Second SARL", ["Three", "Four", "Five"]).then((secondId) => {
 					openNewCreditNote();
 					pickInvoice("Avoir Chip Premier SARL");
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard(); // Details -> Lines
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 2).and("be.checked");
-					cy.continueDocumentWizard(); // Lines -> Options
-					cy.continueDocumentWizard(); // Options -> Summary
 
-					cy.get('[data-cy="document-create-dialog-step-details"]').click();
 					pickInvoice("Avoir Chip Second SARL");
-					cy.get('[data-cy="document-create-dialog-step-recap"]').click();
+					cy.get(corrected, { timeout: 10000 }).should("have.length", 3);
 
 					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as("save");
 					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();

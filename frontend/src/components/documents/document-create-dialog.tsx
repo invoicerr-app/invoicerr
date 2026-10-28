@@ -8,17 +8,18 @@ import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
 import { actionAssignsNumber } from "@/components/documents/action-presentation"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
+import { DocumentPaper } from "@/components/documents/document-paper"
 import { BlockedActionReason, LineTotalWarnings } from "@/components/documents/document-form"
 import { DocumentTotals, useDocumentTotals } from "@/components/documents/document-totals"
 import type {
-  DocumentActionDescriptor,
   DocumentFieldDescriptor,
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { useDocumentForm, type DocumentFormState } from "@/components/documents/use-document-form"
+import { useDocumentForm } from "@/components/documents/use-document-form"
 import { Button } from "@/components/ui/button"
-import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
+import { type FormPageSection, FormPageDialog } from "@/components/ui/form-page-dialog"
+import { cn } from "@/lib/utils"
 import { useClient, useCompany, useReferenceResolve } from "@/hooks/queries"
 import { useDomesticInvoiceCurrencyRule } from "@/hooks/use-domestic-invoice-currency"
 
@@ -98,16 +99,14 @@ function buildFieldGroups(fields: DocumentFieldDescriptor[]) {
   return { detailsFields, lineFields, optionsFields }
 }
 
-/** One step's worth of plain fields — `data-cy="document-form"` on the wrapper is unchanged from
- *  the pre-wizard single-screen form: every screen-driven e2e test still reaches for that one
- *  selector to say "the (current step's) form is here", then addresses fields by name underneath
- *  it. Only ONE step is ever mounted at a time (`SteppedDialog` renders the current step alone), so
- *  the same `data-cy` recurring across steps is never a collision at runtime.
- *
- *  `lineTotalWarnings` (a received invoice's own "lines don't sum to its stated totals" hint, see
- *  use-document-form.ts's `extractLineTotalWarnings`) is passed ONLY by the "Lines" step's own call
- *  below: it is about the lines, and this is the one step where they are on screen. */
-function FieldsStep({
+/** Short controls (dates, choices, numbers) sit two to a row; everything else takes the full width. */
+function isShortField(field: DocumentFieldDescriptor): boolean {
+  return ["date", "select", "number", "money", "boolean"].includes(field.kind)
+}
+
+/** One section's fields. `lineTotalWarnings` (a received invoice's "lines don't sum to its stated
+ *  totals" hint) is passed only by the lines section, where the lines are. */
+function FieldsSection({
   fields,
   documentTypeId,
   lineTotalWarnings,
@@ -117,43 +116,25 @@ function FieldsStep({
   lineTotalWarnings?: string[]
 }) {
   return (
-    <div className="space-y-6 sm:space-y-4" data-cy="document-form">
+    <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
       {fields.map((field) => (
-        <DocumentField key={field.key} field={field} name={field.key} documentTypeId={documentTypeId} />
+        <div key={field.key} className={cn("min-w-0", !isShortField(field) && "sm:col-span-2")}>
+          <DocumentField field={field} name={field.key} documentTypeId={documentTypeId} />
+        </div>
       ))}
-      <LineTotalWarnings warnings={lineTotalWarnings} />
+      <div className="sm:col-span-2 empty:hidden">
+        <LineTotalWarnings warnings={lineTotalWarnings} />
+      </div>
     </div>
   )
 }
 
-interface RecapStepProps {
-  descriptor: DocumentTypeDescriptor
-  state: DocumentFormState
-  secondaryActions: DocumentActionDescriptor[]
-}
-
-/**
- * The closing step: nothing left to fill in, only what's about to be saved — client, how many
- * lines, and the net/VAT/gross breakdown (`DocumentTotals`, the exact same live client-side
- * recompute the old flat form showed under the lines). No new backend call: a document being
- * CREATED has no `issueDate`-anchored legal mentions yet (those are resolved at "send" time —
- * `tax/tax-engine.ts`'s own `LOCALIZED_MENTION`, and France's `mentions/` catalog — against a
- * record that doesn't exist yet), so this reuses whatever free-text `notes` field the descriptor
- * already declares as the recap's own "what will print on it" line, rather than inventing a
- * pre-save mentions endpoint.
- */
-function RecapStep({ descriptor, state, secondaryActions }: RecapStepProps) {
+/** The live sheet beside the form: what the client will read, rebuilt on every change. */
+function DocumentLivePreview({ descriptor }: { descriptor: DocumentTypeDescriptor }) {
   const { t } = useTranslation()
   const totals = useDocumentTotals(descriptor)
-
-  // `useWatch`, scoped to THIS component, never `state.form.watch(name)` read during render (issue
-  // #488). The latter subscribes the component that owns `useForm` (the whole dialog), and react-hook-
-  // form keeps the watched names registered after this step unmounts: once the user had visited the
-  // Summary step, every keystroke back on "Lines" re-rendered the whole dialog and every field in it
-  // (measured: 10 characters in one line of five committed 100 text fields, against 30 before the
-  // Summary step was ever opened). Watching the whole form is fine here: this step has no inputs, and
-  // only this step re-renders.
-  const values = useWatch({ control: state.form.control }) as Record<string, unknown>
+  // Scoped to this component so a keystroke re-renders the preview, never the whole dialog.
+  const values = useWatch() as Record<string, unknown>
 
   const clientField = descriptor.fields.find(
     (field) => field.kind === "reference" && field.entity === "client" && !field.entities,
@@ -174,68 +155,44 @@ function RecapStep({ descriptor, state, secondaryActions }: RecapStepProps) {
   const notes = notesField ? (values[notesField.key] as string | undefined) : undefined
 
   return (
-    <div className="space-y-6" data-cy="document-create-recap">
-      {clientField && (
-        <div className="flex items-center justify-between gap-4 text-sm">
-          <span className="text-muted-foreground">{t("documents.form.stepped.recap.clientLabel")}</span>
-          <span className="font-medium text-foreground" data-cy="document-create-recap-client">
-            {resolvedClient?.label ?? t("documents.form.stepped.recap.noClient")}
-          </span>
-        </div>
-      )}
-
-      {lineFields.length > 0 && (
-        <div className="flex items-center justify-between gap-4 text-sm">
-          <span className="text-muted-foreground">{t("documents.form.stepped.recap.lineCountLabel")}</span>
-          <span className="font-medium text-foreground" data-cy="document-create-recap-line-count">
-            {t("documents.form.stepped.recap.lineCountValue", { count: lineCount })}
-          </span>
-        </div>
-      )}
-
-      {notesField && notes && (
-        <div className="space-y-1 text-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t("documents.form.stepped.recap.notesTitle")}
-          </p>
-          <p className="whitespace-pre-wrap text-foreground" data-cy="document-create-recap-notes">
-            {notes}
-          </p>
-        </div>
-      )}
-
-      <div className="border-t pt-4">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("documents.form.stepped.recap.totalsTitle")}
-        </p>
-        {totals ? (
-          <DocumentTotals descriptor={descriptor} />
-        ) : (
-          <p className="text-sm text-muted-foreground">{t("documents.form.stepped.recap.noTotals")}</p>
+    <div className="space-y-5">
+      <DocumentPaper
+        descriptor={descriptor}
+        data={values}
+        totals={
+          totals ? (
+            <DocumentTotals descriptor={descriptor} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("documents.form.stepped.recap.noTotals")}</p>
+          )
+        }
+      />
+      <dl className="space-y-2 text-sm" data-cy="document-create-recap">
+        {clientField && (
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">{t("documents.form.stepped.recap.clientLabel")}</dt>
+            <dd className="font-medium text-foreground" data-cy="document-create-recap-client">
+              {resolvedClient?.label ?? t("documents.form.stepped.recap.noClient")}
+            </dd>
+          </div>
         )}
-      </div>
-
-      {secondaryActions.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t pt-4">
-          {secondaryActions.map((action) => (
-            <Button
-              key={action.id}
-              type="button"
-              variant="outline"
-              loading={state.runner.isRunning && state.runner.pendingAction === undefined}
-              disabled={!!action.policyBlockedReason}
-              tooltip={action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : undefined}
-              onClick={() => state.runner.handleAction(action)}
-              dataCy={`document-action-${action.id}`}
-            >
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      )}
-      {secondaryActions.map(
-        (action) => action.policyBlockedReason && <BlockedActionReason key={action.id} action={action} />,
-      )}
+        {lineFields.length > 0 && (
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">{t("documents.form.stepped.recap.lineCountLabel")}</dt>
+            <dd className="font-medium text-foreground" data-cy="document-create-recap-line-count">
+              {t("documents.form.stepped.recap.lineCountValue", { count: lineCount })}
+            </dd>
+          </div>
+        )}
+        {notesField && notes && (
+          <div className="space-y-1">
+            <dt className="text-muted-foreground">{t("documents.form.stepped.recap.notesTitle")}</dt>
+            <dd className="whitespace-pre-wrap text-foreground" data-cy="document-create-recap-notes">
+              {notes}
+            </dd>
+          </div>
+        )}
+      </dl>
     </div>
   )
 }
@@ -327,75 +284,80 @@ export function DocumentCreateDialog({
     state.form,
   ])
 
-  // `SteppedDialog` mounts exactly one step's `render()` at a time (see that component's own
-  // header), so `notice` (a caller-level condition, not a per-step one) is prepended inside EVERY
-  // step's own `render()` below rather than once outside the wizard — the only way it stays visible
-  // regardless of which step the user is currently on.
-  const withNotice = (content: React.ReactNode): React.ReactNode => (
-    <>
-      {notice}
-      {content}
-    </>
-  )
-
-  // The first runnable action is the ONE default button (the type's own "Save draft"/"Save"),
-  // shown as the wizard's final "Continue"; anything else a never-saved record can already run is
-  // offered alongside, on the Summary step, quieter (unchanged from the pre-wizard footer).
+  // The first runnable action is the ONE filled button (the type's own "Save draft"/"Save");
+  // anything else a never-saved record can already run is offered at the start of the footer.
   const primaryAction = state.availableActions.find((action) => !action.policyBlockedReason)
   const secondaryActions = state.availableActions.filter((action) => action.id !== primaryAction?.id)
   const pendingAction = state.runner.pendingAction
 
-  const steps: SteppedDialogStep[] = []
+  const sections: FormPageSection[] = []
   if (detailsFields.length > 0) {
-    steps.push({
+    sections.push({
       id: "details",
       label: t("documents.form.stepped.steps.details"),
       fields: detailsFields.map((field) => field.key),
-      render: () => withNotice(<FieldsStep fields={detailsFields} documentTypeId={descriptor.id} />),
+      render: () => <FieldsSection fields={detailsFields} documentTypeId={descriptor.id} />,
     })
   }
   if (lineFields.length > 0) {
-    steps.push({
+    sections.push({
       id: "lines",
       label: t("documents.form.stepped.steps.lines"),
+      hideLabel: lineFields.length === 1,
       fields: lineFields.map((field) => field.key),
-      render: () =>
-        withNotice(
-          <FieldsStep
-            fields={lineFields}
-            documentTypeId={descriptor.id}
-            lineTotalWarnings={state.lineTotalWarnings}
-          />,
-        ),
+      render: () => (
+        <FieldsSection
+          fields={lineFields}
+          documentTypeId={descriptor.id}
+          lineTotalWarnings={state.lineTotalWarnings}
+        />
+      ),
     })
   }
   if (optionsFields.length > 0) {
-    steps.push({
+    sections.push({
       id: "options",
       label: t("documents.form.stepped.steps.options"),
       fields: optionsFields.map((field) => field.key),
-      render: () => withNotice(<FieldsStep fields={optionsFields} documentTypeId={descriptor.id} />),
+      render: () => <FieldsSection fields={optionsFields} documentTypeId={descriptor.id} />,
     })
   }
-  steps.push({
-    id: "recap",
-    label: t("documents.form.stepped.steps.recap"),
-    fields: [],
-    render: () =>
-      withNotice(
-        <RecapStep descriptor={effectiveDescriptor} state={state} secondaryActions={secondaryActions} />,
-      ),
-  })
 
   return (
     <>
-      <SteppedDialog
-        steps={steps}
+      <FormPageDialog
+        sections={sections}
         form={state.form}
         open={open}
         onOpenChange={onOpenChange}
         title={t("documents.form.newTitle", { label: descriptor.label })}
-        submitLabel={primaryAction?.label ?? t("common.next")}
+        description={t("documents.form.editor.description")}
+        notice={notice}
+        preview={<DocumentLivePreview descriptor={effectiveDescriptor} />}
+        previewLabel={t("documents.form.editor.previewLabel")}
+        footerStart={
+          <>
+            {secondaryActions.map((action) => (
+              <Button
+                key={action.id}
+                type="button"
+                variant="ghost"
+                loading={state.runner.isRunning && state.runner.pendingAction === undefined}
+                disabled={!!action.policyBlockedReason}
+                tooltip={action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : undefined}
+                onClick={() => state.runner.handleAction(action)}
+                dataCy={`document-action-${action.id}`}
+              >
+                {action.label}
+              </Button>
+            ))}
+            {secondaryActions.map(
+              (action) =>
+                action.policyBlockedReason && <BlockedActionReason key={action.id} action={action} />,
+            )}
+          </>
+        }
+        submitLabel={primaryAction?.label ?? t("common.save")}
         submitDataCy={primaryAction ? `document-action-${primaryAction.id}` : undefined}
         submitting={state.runner.isRunning && state.runner.pendingAction === undefined}
         submitDisabled={!primaryAction}
@@ -404,14 +366,10 @@ export function DocumentCreateDialog({
           // handleAction reports every failure through a toast.
           if (primaryAction) void state.runner.handleAction(primaryAction)
         }}
-        // Issue #365, "empty line items should not survive a save" — see use-document-form.ts's own
-        // `pruneEmptyLines` header. `runner.handleAction`'s OWN copy of this same pass (wired into
-        // its `validate`) only ever runs from the wizard's LAST step (`onSubmit` above); this is what
-        // makes an empty row added on the EARLIER "Lines" step disappear before ITS OWN per-step
-        // `form.trigger(['lines'])` gets a chance to block "Continue" on that row's now-unreachable
-        // required fields.
+        // Empty line items never survive a save: pruned before the whole-form validation.
         onBeforeValidate={state.pruneEmptyLines}
         dataCy="document-create-dialog"
+        sectionsDataCy="document-form"
       />
 
       {pendingAction && (

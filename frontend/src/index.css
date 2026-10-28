@@ -356,6 +356,24 @@
   }
 }
 
+/* A printed sheet: white with its own ink in both themes, and every token inside it follows. */
+@utility paper-sheet {
+  --background: var(--paper-bg);
+  --card: var(--paper-bg);
+  --foreground: var(--paper-ink);
+  --card-foreground: var(--paper-ink);
+  --muted-foreground: var(--paper-mute);
+  --ink-2: var(--paper-mute);
+  --border: var(--paper-line);
+  --muted: var(--paper-sunken);
+  --sunken: var(--paper-sunken);
+  color-scheme: light;
+  background-color: var(--paper-bg);
+  color: var(--paper-ink);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-sheet);
+}
+
 /* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
 @utility press {
   transition-property: transform, background-color, border-color, color, box-shadow;

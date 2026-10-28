@@ -1985,6 +1985,14 @@
         "logoRemoveError": "Failed to remove logo",
         "invalidFileType": "Please choose a PNG, JPEG or WebP image",
         "fileTooLarge": "This file is over the 10 MB limit"
+      },
+      "template": {
+        "label": "Document template",
+        "hint": "Changes the layout of your PDFs, never their content. Your colour, font and logo still apply.",
+        "options": {
+          "classic": "Classic",
+          "atelier": "Atelier"
+        }
       }
     },
     "accountingExport": {
@@ -3656,6 +3664,10 @@
       "label": "{{version}}",
       "updateAvailable": "Update available",
       "updateTooltip": "{{version}} is available. Click to see the release notes"
+    },
+    "mobile": {
+      "more": "More",
+      "navLabel": "Main sections"
     }
   },
   "auth": {
@@ -3936,6 +3948,10 @@
       "loadErrorTitle": "This list could not be loaded.",
       "loadErrorHint": "Check your connection, then try again.",
       "retry": "Retry"
+    },
+    "formPage": {
+      "edit": "Edit",
+      "preview": "Preview"
     }
   },
   "payments": {
@@ -5390,7 +5406,12 @@
           "notesTitle": "Notes"
         }
       },
-      "lineTotalWarningsTitle": "The lines do not add up to the stated totals"
+      "lineTotalWarningsTitle": "The lines do not add up to the stated totals",
+      "editor": {
+        "description": "Fill in the form; the document builds itself as you type.",
+        "previewLabel": "Preview, as your client will read it",
+        "recapTitle": "Summary"
+      }
     },
     "list": {
       "title": "Saved",
@@ -5810,7 +5831,8 @@
       "totalsTitle": "Totals",
       "notFound": "This document could not be found.",
       "importNotTransmitted": "This document was imported with no transmission evidence declared (no SdI id, KSeF number, accredited platform reference, or ATCUD). It must be regularised with the relevant authority.",
-      "importNotTransmittedTitle": "Not yet transmitted to the tax authority"
+      "importNotTransmittedTitle": "Not yet transmitted to the tax authority",
+      "allFields": "All fields"
     },
     "acceptance": {
       "menuLabel": "Mark as accepted",
@@ -5858,6 +5880,12 @@
     },
     "fieldHelp": {
       "noVatRateCatalog": "No known VAT rate list for this company's country. Enter the applicable rate manually."
+    },
+    "paper": {
+      "ariaLabel": "{{label}} as your client reads it",
+      "for": "For",
+      "amount": "Amount",
+      "vatAt": "VAT {{rate}} %"
     }
   },
   "declarations": {
