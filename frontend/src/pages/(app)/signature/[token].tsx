@@ -424,9 +424,7 @@ export default function PublicSignaturePage() {
           <SignatureStepper current={otpRequested ? "verify" : "review"} />
 
           <div className="space-y-1 text-center">
-            <h1 className="font-heading text-lg font-semibold tracking-tight">
-              {t("documents.publicSignature.title")}
-            </h1>
+            <h1 className="font-heading text-lg font-medium">{t("documents.publicSignature.title")}</h1>
             <p className="text-sm text-muted-foreground text-pretty">
               {view.displayNumber
                 ? t("documents.publicSignature.descriptionWithNumber", { number: view.displayNumber })

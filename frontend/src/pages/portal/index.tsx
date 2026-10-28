@@ -434,7 +434,7 @@ export default function ClientPortalDashboard() {
         )}
 
         <div data-cy="portal-header">
-          <h1 className="font-heading text-xl font-semibold tracking-tight text-balance">
+          <h1 className="font-heading text-xl font-medium text-balance">
             {t("clientPortal.title", { name: profile.data.clientName })}
           </h1>
           <p className="text-sm text-muted-foreground">

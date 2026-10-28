@@ -180,7 +180,7 @@ export function ClientViewDialog({
     >
       <div className="space-y-2 border-b pb-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="font-heading text-lg font-semibold tracking-tight" data-cy="client-view-name">
+          <h2 className="font-heading text-lg font-medium" data-cy="client-view-name">
             {clientDisplayName(client)}
           </h2>
           {client && <ClientBadges client={client} />}
