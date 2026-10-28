@@ -388,7 +388,7 @@ function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; 
           </div>
         ))}
 
-      <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+      <div className="flex justify-between gap-4 border-t border-b-[3px] border-double border-b-foreground/70 pt-2 pb-2 font-semibold">
         <dt>{t(includesCommon ? "documents.totals.grossIncludingCommon" : "documents.totals.gross")}</dt>
         <dd className="amount text-base" data-cy="document-totals-gross">
           <LtrValue>{formatTotal(totals.grossMinor, currency)}</LtrValue>
@@ -457,7 +457,7 @@ export function DocumentTotals({ descriptor, acceptedOption, derivedTotals }: Do
               <span data-cy="document-option-total-name">{option}</span>
               {acceptedOption === option && (
                 <span
-                  className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal uppercase tracking-wide text-primary"
+                  className="rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-link"
                   data-cy="document-option-accepted-badge"
                 >
                   {t("documents.totals.optionAccepted")}

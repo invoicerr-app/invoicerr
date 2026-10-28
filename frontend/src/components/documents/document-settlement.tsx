@@ -205,9 +205,7 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
 
         {/* Block 2: payments — never mixed with credits below. */}
         <div className="space-y-2">
-          <h5 className="text-xs font-semibold uppercase text-muted-foreground">
-            {t("documents.settlement.paymentsTitle")}
-          </h5>
+          <h5 className="text-sm font-semibold text-foreground">{t("documents.settlement.paymentsTitle")}</h5>
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground" data-cy="document-settlement-empty">
               {t("documents.settlement.empty")}
@@ -269,7 +267,7 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
           credit-note-contributions.ts already makes for ITS OWN dashboard presence. */}
         {credits.length > 0 || warnings.length > 0 ? (
           <div className="space-y-2">
-            <h5 className="text-xs font-semibold uppercase text-muted-foreground">
+            <h5 className="text-sm font-semibold text-foreground">
               {t("documents.settlement.creditsTitle")}
             </h5>
             {credits.length === 0 ? (

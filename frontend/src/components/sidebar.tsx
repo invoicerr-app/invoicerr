@@ -62,6 +62,9 @@ export function Sidebar() {
   const location = useLocation()
 
   const { data, isPending: userLoading } = authClient.useSession()
+  const sessionUser = data?.user as { firstname?: string; lastname?: string; email?: string } | undefined
+  const accountName =
+    [sessionUser?.firstname, sessionUser?.lastname].filter(Boolean).join(" ") || sessionUser?.email
   const { companies, activeCompanyId, isPending: companiesLoading } = useCompanies()
 
   const { data: company } = useCompany()
@@ -454,11 +457,7 @@ export function Sidebar() {
                     aria-hidden="true"
                     className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-full text-xs font-semibold"
                   >
-                    {/* @ts-ignore */}
-                    {initialsOf(
-                      [data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ") ||
-                        data?.user?.email,
-                    )}
+                    {initialsOf(accountName)}
                   </span>
                   {userLoading ? (
                     <div className="grid flex-1 text-start text-sm leading-tight">
