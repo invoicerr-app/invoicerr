@@ -178,11 +178,16 @@ this is an aid, never your official declaration.
 ## Branding
 
 The **Branding** settings tab personalizes every PDF your company issues (quotes, invoices, credit
-notes and the other document types) with three things:
+notes and the other document types) with four things:
 
 - **Logo** (PNG, JPEG or WebP, 10 MB at most), printed at the top left of the first page.
 - **Accent color**, used for the rule under the header and for the small section labels.
 - **Font**: Inter, Source Serif 4, IBM Plex Sans, DM Sans or Lora, or the default system font.
+- **Document template**: **Classic** (the default) or **Atelier**. Atelier sets the document title
+  large in a serif face, puts the dates and references in a band tinted with your accent color,
+  shows the totals in a tinted box and frames the payment details. It changes the presentation
+  only: every word, identifier, legal mention and the Factur-X data are the same as with Classic.
+  Your logo, accent color and font apply to both.
 
 Four **Presets** (Classic, Modern, Minimal, Bold) set an accent color and a font in one click. The
 **Preview** renders a sample invoice with your current settings, through the same renderer as a real
@@ -190,11 +195,12 @@ document.
 
 ## PDF layout
 
-The layout itself is the same for every company and cannot be edited: it has to carry the legal
+The order of the content is the same for every company and every template, and cannot be edited: it has to carry the legal
 mentions and identifiers each country requires, and one fixed layout is what keeps that reliable. A
 document reads, from top to bottom:
 
-1. **Header**: your logo on the left; the document type, its number and its date on the right.
+1. **Header**: your logo on the left; the document type, its number and its date on the right (with
+   the Atelier template, the logo sits above the large document title instead).
 2. **Parties**: your company, its company-law mentions and its address on the left, the client (or the supplier, on a purchase
    order or a received invoice) and its address on the right, each followed by the identifiers filled
    in for it (see [Identifiers on the PDF](../billing/invoices.md#identifiers-on-the-pdf)).

@@ -6,6 +6,104 @@ sidebar_position: 15
 
 Conventions the frontend (`frontend/src`) follows, so every screen behaves the same way.
 
+## Visual system
+
+The interface combines two directions. The shell, the document detail, settings, statuses, toasts and
+confirmations follow **Registre**: a quiet ledger, flat, separated by hairlines, colour only on data
+and on the one primary action. The dashboard, lists, editor, forms, sign-in and empty states follow
+**Atelier**: the same product with a warmer voice, soft panels, and the paper sheet as its recurring
+object. The two share one palette (Lagune), one type system and one set of tokens in
+`frontend/src/index.css`.
+
+### Type
+
+- **Figtree** is the interface face (400 to 700). **Newsreader** sets page and section titles (`h1`,
+  `h2`) and every amount, through the `amount` utility (tabular, lining figures). Both are
+  self-hosted through Fontsource, so the PWA works offline.
+- Body text is 15 px; `text-sm` is 14 px and `text-xs` 13 px. Labels are sentence case and never
+  tracked capitals.
+- A monospace face is kept for codes a person copies (API keys, IBAN), never for amounts or document
+  numbers.
+
+### Tokens
+
+Use the tokens, never a raw colour. Besides the Lagune pairs (`background`, `card`, `primary`,
+`muted`, `success`, `warning`, `info`, `destructive-soft` and their `-foreground`), the redesign adds:
+
+| Token | Use |
+| --- | --- |
+| `ink-2` | Secondary text that must stay very readable |
+| `sunken`, `raised` | Wells and hovered rows; popovers one step above a card |
+| `link` | Text links (6:1 on a card) |
+| `focus` | The one colour a focus indicator is drawn with (3:1 or more on every ground) |
+| `input` | Control edges, 3:1 against a card (hairlines use `border`) |
+| `paper-*` | A printed sheet: white with its own ink in both themes (`paper-sheet` utility) |
+| `shadow-sheet`, `shadow-pop` | The only two shadows: panels, and popovers and dialogs |
+
+Radii go by role: 6 px for controls (`rounded-md`), 8 px for popovers and dialogs (`rounded-lg`),
+10 px for panels (`rounded-xl`). Buttons are 38 px high (32 px small), text fields and selects 42 px.
+
+### Focus
+
+Every focusable control shows a 2 px outline in `--focus`, 2 px away from it (`focus-ring` utility),
+or hugging the field with its edge in the same colour for text fields (`focus-field`). Never remove
+an outline without drawing this one.
+
+### Status
+
+A status is always a shape and a word, never a filled pill and never colour alone:
+`components/ui/status-mark.tsx` renders it, `components/documents/status-presentation.ts` maps any
+status id to a tone and a glyph.
+
+| Glyph | Tone | Meaning |
+| --- | --- | --- |
+| Open circle | neutral | Not sent yet (draft), unpaid, unknown |
+| Half disc | info | On its way (sent, deposited, imported) |
+| Half disc | warning | Waiting on someone (sending, pending) |
+| Check | success | Done and fine (approved, accepted, signed) |
+| Disc | success | Paid, settled |
+| Half disc | success | Partly paid |
+| Triangle | destructive | Late |
+| Circled cross | destructive | Rejected by the platform, refused by the buyer, failed |
+| Cross, struck through | neutral | Cancelled |
+
+Statuses are open data: an id the table does not know reads as neutral, never hidden.
+
+### Layouts
+
+- **Lists**: the toolbar sits on the page ground; rows live in panels (`rounded-xl border bg-card
+  shadow-sheet`). A row leads with tinted initials (`InitialsAvatar`) and the name, then a muted
+  line, then status, amount and one quiet action. Filters are a segmented control. The documents
+  list groups consecutive rows by month of the type's own date field and keeps the sort the reader
+  chose; it never prints a page-local total.
+- **Forms**: a large form shows all its sections on one page with `FormPageDialog`
+  (`components/ui/form-page-dialog.tsx`): saving validates the whole form, scrolls to the first
+  invalid section and focuses the field; closing a dirty form asks first. The document editor passes
+  a `preview`: a live paper sheet of the document beside the form, behind an Edit / Preview switch
+  on a phone. Short controls sit two to a row.
+- **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
+  from the descriptor, with the double rule under its total, every field still listed below it.
+- **Empty states** draw a sheet and a pencil from tokens; a failed load shows a warning disc and a
+  retry.
+- **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
+  sidebar; the main "New" action becomes an extended floating button. Touch targets stay 44 px.
+
+### Motion
+
+Buttons scale to 0.97 for 120 ms when pressed (`press` utility); popovers and dialogs fade and grow
+from 0.97 over 150 ms. Nothing animates on page load, on typing or on row selection, and
+`prefers-reduced-motion` turns every transition off. Never `transition: all`, never animate a width or
+a height.
+
+### Never
+
+- No tracked uppercase labels or eyebrows, no middle-dot meta strings.
+- No grid of identical cards, no card inside a card, no coloured side stripe on a card or a row.
+- No gradient text or wash, no glass, no emoji or unicode character used as an icon.
+- No shadow other than the two tokens, no colour as the only carrier of a status.
+- No placeholder-only label, no exclamation mark in copy, no amount without tabular figures.
+- No second green: green means success, and only that.
+
 ## Field labels and descriptions
 
 A field's label reads `Name *` when the field is required. When the field has a description, a
@@ -184,7 +282,7 @@ A button that hides its label on small screens, such as an icon-only "Import" be
 `aria-label` and marks its icon `aria-hidden`. A link whose visible text is not the whole story keeps
 that text as its name and adds the rest as screen-reader-only text after it, rather than replacing it
 with an `aria-label`. Headings go down one level at a time: a list row or an empty state under a page
-`h1` is an `h2`. A page has one `main`, the layout's: a screen's own content area is a
+`h1` is an `h2`, and a row under a month heading (`h2`) is an `h3`. A page has one `main`, the layout's: a screen's own content area is a
 plain element. A toggle that opens a group carries `aria-expanded`, and the group's list sits inside
 the toggle's own list item.
 

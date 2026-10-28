@@ -4,13 +4,13 @@ sidebar_position: 3
 
 # Clients
 
-The **Clients** page is your address book of everyone you bill. Clients are reused across quotes and invoices, so you enter their details once.
+The **Clients** page is your address book of everyone you bill. Clients are reused across quotes and invoices, so you enter their details once. Each client is a row with its initials, its name, and its email, phone and city underneath.
 
 ## Actions
 
 - **Add New**: create a client
 - **Search**: find a client by name, first name, last name, or email
-- **Filter**: click the **Active** or **Inactive** badge to filter the list (each shows a count)
+- **Filter**: pick **All**, **Active**, **Inactive** or **Suppliers** in the segmented control above the list (each shows a count)
 - **View** (eye icon): open a read-only summary
 - **Edit** (pencil icon): change a client's details
 - **Client portal access**: invite this client to their own [Client Portal](client-portal.md)
@@ -20,9 +20,10 @@ The **Clients** page is your address book of everyone you bill. Clients are reus
 
 ## Creating a client
 
-Click **Add New**. The form is a short wizard with five steps: **Identity**, **Address**,
-**Tax & identifiers**, **Contact & portal** and **Summary**. Each step is checked when you continue,
-and you can go back at any time without losing what you typed.
+Click **Add New**. The form shows every section on one page: **Identity**, **Address**,
+**Tax & identifiers**, **Contact & portal** and **Summary**. Everything is checked when you save; if
+a field needs attention, the form scrolls to it and says what is wrong. Closing a form you have
+changed asks before discarding it.
 
 ### What is required
 
@@ -46,7 +47,7 @@ Everything else is optional, including the postal code, the email and the phone 
 
 ### Address
 
-**Country** (it drives the identifiers and the currency suggested on the next step), **Address**,
+**Country** (it drives the identifiers and the currency suggested in the next section), **Address**,
 **Address line 2**, **Postal code**, **City** and **State / Province**. If address suggestions are
 enabled on your instance, picking one fills the whole block.
 
@@ -57,12 +58,12 @@ enabled on your instance, picking one fills the whole block.
 - **Currency**: overrides your company's default currency for this client
 - **Country-specific identifiers**: the identifiers your client's country asks for (for example a
   SIREN or SIRET in France, a NIF in Portugal). The ones marked as required must be filled in to save
-  the client from this wizard. What is required depends on the client type: a French SIREN, a
+  the client from this form. What is required depends on the client type: a French SIREN, a
   Portuguese NIF, an Italian Partita IVA or a Polish NIP is required of a company, while an
   individual may leave it empty (a private person in France has no SIREN, and a Portuguese private
   client's NIF goes on the invoice only when they ask for it). An Italian individual must give a
   codice fiscale instead. A client saved before its country required one of these keeps its record,
-  and the wizard asks for the missing identifier the next time you edit it. Every identifier you fill
+  and the form asks for the missing identifier the next time you edit it. Every identifier you fill
   in is printed on the client's documents. Where
   your instance supports it, **Look up** fills the client's name, address and founded date from the
   official business registry
@@ -72,7 +73,7 @@ enabled on your instance, picking one fills the whole block.
 
 One or several contacts, each with a name, role, email and phone, and one marked as the primary
 contact. The **Document language** overrides your company's default language for this client's PDFs
-and emails; see [Document Language](document-language.md). Once the client exists, this step also
+and emails; see [Document Language](document-language.md). Once the client exists, this section also
 gives access to the [Client Portal](client-portal.md) invitation.
 
 If a client with the same email, or the same name in the same country, already exists, a warning
@@ -81,12 +82,12 @@ names it and links to it. You can still create the client.
 ## Creating a client from a quote or an invoice
 
 The **Client** field of a [quote](billing/quotes.md) or an [invoice](billing/invoices.md) ends with a
-**Create new client** option. It opens a one-screen form instead of the wizard: the client type, the
+**Create new client** option. It opens a short form instead of the full one: the client type, the
 name (or first and last name) and the country, which starts as your own company's country and can be
 changed. Saving creates the client and selects it on the document straight away, without losing
 anything you already entered.
 
-**Fill in all the details** switches to the full wizard, keeping what you typed.
+**Fill in all the details** switches to the full form, keeping what you typed.
 
 A client created this way has no address yet. That is fine for a quote, but an invoice cannot be
 issued without it, see below.
@@ -106,7 +107,7 @@ can always be saved, and a quote can always be sent, whatever the state of the c
 :::info[Why the identifiers]
 The identifiers checked here come from your own country's invoicing law, and depend on the client's
 type and country: a French company issuing to a French business client needs its SIREN, but never
-asks a private client for one. They can differ from what the wizard asks for, which follows the
+asks a private client for one. They can differ from what the form asks for, which follows the
 client's own country. For example, the VAT number of a business client in another EU country is not
 required to save the client, yet a French invoice to it must carry it. The draft's PDF marks each
 missing one, see [Identifiers on the PDF](billing/invoices.md#identifiers-on-the-pdf).

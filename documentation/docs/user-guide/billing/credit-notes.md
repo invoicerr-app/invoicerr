@@ -24,7 +24,7 @@ A credit note reaches its client through the invoice it corrects; the type carri
 - **Import** / **Import CSV** - record a past credit note from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md). A CSV-imported credit note is always free (no invoice link); a linked import needs the one-at-a-time form
 - **Search** - find a credit note by its number or client name
-- **Filter** - toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
+- **Filter** - pick one or more statuses in the segmented control above the list: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
 - **View** (eye icon) - read-only details
 - **Preview PDF** / **Download PDF** - open the credit note's PDF in a new tab, or save it under the credit note's number (see [PDF file name](invoices.md#pdf-file-name))
 - **Download normalized XML** - once numbered, the same normalized XML formats as an [invoice](invoices.md#download-formats). An **Imported** credit note also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)

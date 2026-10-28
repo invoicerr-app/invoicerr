@@ -4,9 +4,10 @@ sidebar_position: 2
 
 # Dashboard
 
-The **Dashboard** is the first page you see after signing in. It is a grid of tiles, each answering
-one question about your business: what you invoiced, what came in, what clients still owe, and what
-is waiting for you.
+The **Dashboard** is the first page you see after signing in. A line under the title greets you, then
+one panel of figures answers the questions about your business: what you invoiced, what came in, what
+clients still owe, and what is waiting for you. Below it, the lists and the chart of invoices issued.
+A late figure is marked with a triangle next to its label.
 
 ## Choosing a period
 

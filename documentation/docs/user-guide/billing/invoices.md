@@ -6,8 +6,14 @@ sidebar_position: 4
 
 The **Invoices** page is where you bill your clients. You can create invoices from scratch or convert a signed [quote](quotes.md).
 
-Each row shows the invoice's total **including VAT**, labelled "incl. VAT" under the figure,
-before any payment or credit note. What is still owed on it is in its settlement panel.
+Invoices are grouped by month of their date, in the order you sorted them. Each row leads with the
+client (initials and name), then the invoice number and dates, its status, and its total **including
+VAT**, labelled "incl. VAT" under the figure, before any payment or credit note. What is still owed
+on it is in its settlement panel.
+
+A status is always a small shape next to a word, never a colour alone: an open circle for a draft, a
+half disc for an invoice on its way, a check for an approved one, a full disc for a paid one, a
+triangle for a late one and a circled cross for a rejection.
 
 ## Actions
 
@@ -15,7 +21,7 @@ before any payment or credit note. What is still owed on it is in its settlement
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter**: toggle the status chips: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
+- **Filter**: pick one or more statuses in the segmented control above the list: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
 - **Preview PDF** / **Download PDF** - open the invoice's PDF in a new tab, or save it to your computer as a file named after the invoice's number (see [PDF file name](#pdf-file-name))
 - **Download normalized XML** - once the invoice has been numbered: **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
@@ -44,7 +50,10 @@ before any payment or credit note. What is still owed on it is in its settlement
 
 ## Creating an invoice
 
-Click **Add New** and fill in:
+Click **Add New**. The form shows every field on one page, with the invoice building itself on the
+right as you type: the lines, the totals and the client as your client will read them. On a phone,
+**Edit** and **Preview** switch between the two. Everything is checked when you save; a field that
+needs attention is brought into view with its message under it. Fill in:
 
 - **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
   with just a name and a country. The client must be complete before the invoice is validated or sent;
