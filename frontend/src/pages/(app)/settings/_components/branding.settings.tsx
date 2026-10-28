@@ -8,6 +8,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { FieldLabel } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ApiError } from "@/hooks/use-api-query"
@@ -384,7 +385,9 @@ export default function BrandingSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="branding-template">{t("settings.branding.template.label")}</Label>
+                  <FieldLabel htmlFor="branding-template" description={t("settings.branding.template.hint")}>
+                    {t("settings.branding.template.label")}
+                  </FieldLabel>
                   <Select
                     value={template || "classic"}
                     onValueChange={(v) => setTemplate(v === "classic" ? "" : v)}
@@ -404,7 +407,6 @@ export default function BrandingSettings() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[13px] text-muted-foreground">{t("settings.branding.template.hint")}</p>
                 </div>
               </div>
             </SettingsSection>
