@@ -39,12 +39,17 @@ function ShortListRow({ item, documentTypeId }: ShortListRowProps) {
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {item.secondary && (
-          <span className={cn("text-xs", overdue ? "font-medium text-destructive" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "text-[13px]",
+              overdue ? "font-semibold text-destructive-soft-foreground" : "text-muted-foreground",
+            )}
+          >
             {item.secondary}
           </span>
         )}
         {item.amount && (
-          <span className="amount text-sm font-medium text-foreground">
+          <span className="amount text-[15px] text-foreground">
             {item.amount.value.toFixed(decimalsFor(item.amount.currency))} {item.amount.currency}
           </span>
         )}
@@ -52,13 +57,13 @@ function ShortListRow({ item, documentTypeId }: ShortListRowProps) {
     </div>
   )
 
-  const rowClassName = "block rounded-md px-1 py-1.5 -mx-1 text-sm transition-colors duration-150"
+  const rowClassName = "block rounded-md px-2 py-2.5 -mx-2 text-sm transition-colors duration-150"
 
   if (documentTypeId) {
     return (
       <Link
         to={`/documents/${documentTypeId}/${item.id}`}
-        className={cn(rowClassName, "hover:bg-accent/40 focus-visible:bg-accent/40 outline-none")}
+        className={cn(rowClassName, "focus-ring hover:bg-sunken")}
         data-cy={`widget-item-${item.id}`}
       >
         {content}
@@ -82,7 +87,7 @@ export function ShortListWidgetRenderer({ widget }: WidgetRendererProps) {
   return (
     <Card data-cy={`widget-${shortList.id}`} data-widget-kind="shortList">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="font-heading text-xl font-normal text-foreground">
           {shortList.label}
           <AmountBasisCaption basis={shortList.basis} dataCy={`widget-${shortList.id}-basis`} />
         </CardTitle>

@@ -34,17 +34,6 @@ function metricTone(id: string, label: string): Tone {
   return "neutral"
 }
 
-// A left accent stripe, not a filled background — "sober tile" per the identity brief: the shape
-// (a stripe) and the color both carry the signal, without the tile shouting. `border-s-transparent`
-// keeps the ordinary, unremarkable case (a plain count or flow) visually silent.
-const TONE_BORDER: Record<Tone, string> = {
-  neutral: "border-s-transparent",
-  info: "border-s-info",
-  success: "border-s-success",
-  warning: "border-s-warning",
-  destructive: "border-s-destructive",
-}
-
 interface VariationChipProps {
   value: number
   previousValue: number
@@ -89,7 +78,7 @@ function VariationChip({ value, previousValue, unit }: VariationChipProps) {
         // convention) — its `-foreground` is the readable ink meant to sit on a neutral card
         // background in both themes. `--destructive` has no such split (it IS the plain-text-safe
         // tone already, see document-list.tsx's own `text-destructive` on a row's own error line).
-        isUp ? "text-success-foreground" : "text-destructive",
+        isUp ? "text-success-foreground" : "text-destructive-soft-foreground",
       )}
     >
       {isUp ? (
@@ -102,9 +91,8 @@ function VariationChip({ value, previousValue, unit }: VariationChipProps) {
   )
 }
 
-/** A single number and its label — "Pending invoices: 4", now a KPI tile: label in the small-caps
- *  treatment every section title in this app uses, the figure itself in the mono tabular face
- *  (identity "Lagune" — a column of these never jitters), and — when the contribution supplied
+/** A single number and its label — "Pending invoices: 4", one cell of the figures panel: a
+ *  sentence-case label, the figure in the figures face with tabular digits, and — when the contribution supplied
  *  `previousValue`, a variation chip underneath so a reader sees a direction, not just a number.
  *
  *  When the contribution supplied `link`, the whole tile opens the filtered list behind the figure
@@ -123,9 +111,19 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
 
   const cardBody = (
     <>
-      <CardHeader className="gap-0 px-4">
-        <CardTitle className="flex items-start justify-between gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <CardHeader className="gap-0 px-5">
+        <CardTitle
+          className={cn(
+            "flex items-start justify-between gap-2 text-[13.5px] font-medium text-ink-2",
+            tone === "destructive" && metric.value !== 0 && "font-semibold text-destructive-soft-foreground",
+          )}
+        >
           <span className="min-w-0">
+            {tone === "destructive" && metric.value !== 0 && (
+              <svg viewBox="0 0 12 12" aria-hidden="true" className="me-1.5 inline size-3 align-[-1px]">
+                <path d="M6 1.5 11 10.5H1z" fill="currentColor" />
+              </svg>
+            )}
             {metric.label}
             <AmountBasisCaption
               basis={metric.basis}
@@ -141,13 +139,13 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-4">
+      <CardContent className="px-5">
         <WidgetValue>
-          <p className="amount text-2xl font-semibold text-foreground sm:text-3xl">
+          <p className="amount text-[28px] leading-tight text-foreground sm:text-[34px]">
             {metric.approx ? "≈ " : ""}
             {metric.value.toLocaleString()}
             {metric.unit ? (
-              <span className="ms-1 text-sm font-normal text-muted-foreground">{metric.unit}</span>
+              <span className="ms-1 font-sans text-sm font-normal text-muted-foreground">{metric.unit}</span>
             ) : null}
           </p>
           {/* The chip's row is always reserved, so a tile without a chip is as tall as one with it.
@@ -177,19 +175,13 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
     return (
       <Link
         to={buildMetricLinkHref(metric.link)}
-        className="group block h-full rounded-xl outline-none"
+        className="focus-ring group block h-full bg-card outline-none"
         data-cy={`widget-${metric.id}-link`}
       >
         <Card
           data-cy={`widget-${metric.id}`}
           data-widget-kind="metric"
-          className={cn(
-            "h-full cursor-pointer gap-2 border-s-4 py-4 transition-colors duration-150",
-            // Background and shadow only: the left border carries the tile's tone and must survive a hover.
-            "hover:bg-accent/40 hover:shadow-md",
-            "group-focus-visible:ring-2 group-focus-visible:ring-ring",
-            TONE_BORDER[tone],
-          )}
+          className="h-full cursor-pointer gap-2 rounded-none border-0 py-5 shadow-[1px_0_0_var(--border),0_1px_0_var(--border)] transition-colors duration-150 hover:bg-sunken"
         >
           {cardBody}
         </Card>
@@ -202,7 +194,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
     <Card
       data-cy={`widget-${metric.id}`}
       data-widget-kind="metric"
-      className={cn("gap-2 border-s-4 py-4", TONE_BORDER[tone])}
+      className="h-full gap-2 rounded-none border-0 py-5 shadow-[1px_0_0_var(--border),0_1px_0_var(--border)]"
     >
       {cardBody}
     </Card>

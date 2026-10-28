@@ -56,7 +56,7 @@ export function TableWidgetRenderer({ widget }: WidgetRendererProps) {
   return (
     <Card className="col-span-full gap-0" data-cy={`widget-${table.id}`} data-widget-kind="table">
       <CardHeader className="border-b">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{table.label}</CardTitle>
+        <CardTitle className="font-heading text-xl font-normal text-foreground">{table.label}</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         {table.rows.length === 0 ? (

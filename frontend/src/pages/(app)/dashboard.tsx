@@ -15,6 +15,7 @@ import {
   parseDashboardPeriodParams,
   resolveDashboardPeriod,
 } from "@/lib/dashboard-period"
+import { authClient } from "@/lib/auth"
 import { languageToLocale } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -148,9 +149,14 @@ export default function Dashboard() {
   const { data: widgets = [], isLoading, isPlaceholderData } = useDashboardWidgets(range)
 
   usePageHeader(t("dashboard.title"))
+  const { data: session } = authClient.useSession()
+  const firstname = (session?.user as { firstname?: string } | undefined)?.firstname
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-6">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 pt-1 pb-8 md:px-6">
+      <p className="text-ink-2" data-cy="dashboard-greeting">
+        {firstname ? t("dashboard.greeting", { name: firstname }) : t("dashboard.greetingNoName")}
+      </p>
       <DashboardPeriodSelector />
       <WidgetGrid
         widgets={widgets}
