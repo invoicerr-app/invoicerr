@@ -647,7 +647,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               <DocumentRowAvatar descriptor={descriptor} instance={instance} />
               <div className="min-w-0">
                 <h3
-                  className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground"
+                  className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:break-words"
                   data-cy={`document-list-title-${instance.id}`}
                 >
                   <Link
@@ -700,7 +700,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                 intents. */}
             <div
               className={cn(
-                "amount order-4 text-end text-base text-foreground sm:order-3",
+                "amount order-4 text-end text-base whitespace-nowrap text-foreground sm:order-3",
                 !amount && "hidden sm:block",
               )}
               data-cy={amount ? `document-row-amount-${instance.id}` : undefined}

@@ -8,10 +8,10 @@ The **Articles** page is a catalog of reusable line items — services or produc
 
 ## Actions
 
-- **Add Article** — create a catalog article
-- **Search** — find an article by name
-- **Edit** (pencil icon) — update an article's details
-- **Delete** (trash icon) — remove an article from the catalog
+- **Add Article**: create a catalog article
+- **Search**: find an article by name
+- **Edit** (pencil icon): update an article's details
+- **Delete** (trash icon): remove an article from the catalog
 
 ## Creating an article
 
@@ -53,4 +53,4 @@ A received invoice's lines have the same fields as an invoice line. For a struct
 
 ## First use
 
-With no articles yet, the page shows *"No articles yet"* and an **Add Article** button. Articles are entirely optional — you can always type line items by hand on a quote or invoice.
+With no articles yet, the page shows *"No articles yet"* and an **Add Article** button. Articles are entirely optional: you can always type line items by hand on a quote or invoice.
