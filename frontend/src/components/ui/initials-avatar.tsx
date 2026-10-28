@@ -15,7 +15,7 @@ function InitialsAvatar({ name, size = "md", className, style, ...props }: Initi
       aria-hidden="true"
       data-slot="initials-avatar"
       className={cn(
-        "tint-avatar grid shrink-0 place-items-center rounded-full font-heading font-medium leading-none",
+        "tint-avatar initials grid shrink-0 place-items-center rounded-full font-heading font-medium",
         size === "md" ? "size-9 text-[15px]" : "size-7 text-xs",
         className,
       )}
