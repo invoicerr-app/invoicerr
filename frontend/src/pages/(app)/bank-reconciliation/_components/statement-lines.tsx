@@ -100,7 +100,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                   <TableCell
                     dir="ltr"
                     className={cn(
-                      "text-right font-mono tabular-nums whitespace-nowrap",
+                      "amount text-right whitespace-nowrap",
                       line.amountMinor < 0 && "text-destructive",
                     )}
                   >

@@ -5,13 +5,14 @@ import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { Alert, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
-import { settlementBadgeInfo, TONE_CLASSES } from "@/components/documents/document-settlement"
+import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
+import { statusPresentation } from "@/components/documents/status-presentation"
+import { StatusMark } from "@/components/ui/status-mark"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { ApiError } from "@/hooks/use-api-query"
 import {
@@ -92,22 +93,24 @@ function PaymentReturnBanner({ kind, onDismiss }: { kind: PaymentReturn; onDismi
 
 function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
-  const { tone, labelKey } = settlementBadgeInfo({
-    totalGrossMinor: row.amountMinor,
-    paidMinor: row.paidMinor,
-    creditedMinor: 0,
-    outstandingMinor: row.outstandingMinor,
-    excessMinor: 0,
-    settled: row.settled,
-  })
+  const { labelKey } = settlementBadgeInfo(
+    {
+      totalGrossMinor: row.amountMinor,
+      paidMinor: row.paidMinor,
+      creditedMinor: 0,
+      outstandingMinor: row.outstandingMinor,
+      excessMinor: 0,
+      settled: row.settled,
+    },
+    { dueDate: row.dueDate, today: localIsoDate() },
+  )
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", TONE_CLASSES[tone])}
+    <StatusMark
+      {...statusPresentation(labelKey.split(".").pop() ?? "")}
       data-cy={`portal-document-status-${row.id}`}
     >
       {t(labelKey)}
-    </Badge>
+    </StatusMark>
   )
 }
 
@@ -207,7 +210,9 @@ function DocumentRow({ row }: { row: ClientStatementDocumentRow }) {
     >
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{row.displayNumber ?? row.id.slice(0, 8)}</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {row.displayNumber ?? row.id.slice(0, 8)}
+          </span>
           <StatementRowBadge row={row} />
         </div>
         <p className="text-xs text-muted-foreground">
@@ -311,7 +316,9 @@ function QuoteRow({ quote }: { quote: PortalQuoteRow }) {
     >
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{quote.displayNumber ?? quote.id.slice(0, 8)}</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {quote.displayNumber ?? quote.id.slice(0, 8)}
+          </span>
           {/* The GENERIC status badge (document-status-badge.tsx) — its own tone vocabulary already
               covers "sent"/"signed"/"refused" correctly (info/success/destructive), the same
               component the staff-facing document list uses. Never a second, hand-rolled mapping. */}

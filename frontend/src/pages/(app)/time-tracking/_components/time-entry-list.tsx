@@ -157,10 +157,10 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                         {new Date(entry.date).toLocaleDateString()}
                       </TableCell>
                       <TableCell>{entry.description || "—"}</TableCell>
-                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
+                      <TableCell dir="ltr" className="amount text-right">
                         {(entry.durationMinutes / 60).toFixed(2)}
                       </TableCell>
-                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
+                      <TableCell dir="ltr" className="amount text-right">
                         {amountFor(entry).toFixed(2)}
                         {currencySymbol}
                       </TableCell>

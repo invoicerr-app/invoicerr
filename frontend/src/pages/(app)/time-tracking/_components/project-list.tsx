@@ -92,9 +92,10 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
                       {project.client.name}
                       {project.hourlyRate != null && (
                         <>
-                          {" "}
-                          · <span className="font-mono tabular-nums">{project.hourlyRate}</span>
-                          {currencySymbol}/{t("timeTracking.units.hourShort")}
+                          <span className="ms-3 tabular-nums">
+                            {project.hourlyRate}
+                            {currencySymbol}/{t("timeTracking.units.hourShort")}
+                          </span>
                         </>
                       )}
                     </div>

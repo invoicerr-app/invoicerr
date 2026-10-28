@@ -77,7 +77,7 @@ export const TONE_CLASSES: Record<SettlementTone, string> = {
   destructive: "bg-destructive-soft text-destructive-soft-foreground",
 }
 
-function localIsoDate(): string {
+export function localIsoDate(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 }
