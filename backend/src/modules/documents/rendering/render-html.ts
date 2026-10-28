@@ -5,6 +5,7 @@ import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
 import type { CompanyLawLine } from '../company-law/company-law';
 import { fontFaceCssFor, fontStackFor } from './branding/font-catalog';
+import { templateStyleBlock } from './branding/templates';
 import { pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from './language/supported-languages';
 
@@ -641,8 +642,8 @@ export interface RenderDocumentHtmlInput {
   /**
    * Chantier B (2026-09-15 product decision) — the company's OWN document
    * branding, resolved by the caller (`render-instance-pdf.ts`) from `Company.brandingAccentColor`/
-   * `brandingFont`/`brandingLogoId`. The PDF itself stays a FIXED document — no user-editable HTML or
-   * template, ever; this is three presentation values applied over the one hardcoded layout below,
+   * `brandingFont`/`brandingLogoId`/`brandingTemplate`. The PDF itself stays a FIXED document — no
+   * user-editable HTML, ever; these are presentation values applied over the one hardcoded layout below,
    * the same "a country is data" discipline this codebase already holds elsewhere, turned toward
    * typography/color instead of law.
    *
@@ -664,6 +665,9 @@ export interface RenderDocumentHtmlInput {
      *  pure function itself (the same discipline `paymentQr`'s own header documents for its own
      *  pre-rendered image). */
     logoDataUri?: string | null;
+    /** A `branding/templates.ts` key: one stylesheet over the same markup. Absent or `classic` adds
+     *  nothing at all. */
+    template?: string | null;
   };
 }
 
@@ -687,6 +691,11 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   // right after the main `</style>` below adds nothing at all — not even a blank line — for the
   // default, unbranded case.
   const fontFaceStyleBlock = fontFaceCss ? `\n  <style>${fontFaceCss}</style>` : '';
+  const templateStyle = templateStyleBlock(
+    input.branding?.template,
+    accentColor,
+    fontStackFor(input.branding?.font),
+  );
   const logoDataUri = input.branding?.logoDataUri || null;
   // Same "adds nothing at all when absent" discipline as `fontFaceStyleBlock` above — see this
   // block's own splice point in the header markup below.
@@ -1027,7 +1036,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       color: #1a5fb4;
       word-break: break-all;
     }
-  </style>${fontFaceStyleBlock}
+  </style>${fontFaceStyleBlock}${templateStyle}
 </head>
 <body>
   <div class="container">

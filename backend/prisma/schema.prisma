@@ -431,6 +431,9 @@ model Company {
   // `branding.service.ts#setBranding`'s own header). NULL means "no preset ever chosen" — either no
   // branding at all, or colour/font set by hand without ever picking a named starting point.
   brandingPreset      String?
+  // A `documents/rendering/branding/templates.ts` key: one stylesheet over the same document markup.
+  // NULL renders the classic template; an unrecognized value is treated exactly like NULL.
+  brandingTemplate    String?
 
   // Issue #496: the company's RUNNING SERIES, keyed by DocumentTypeDescriptor.id - e.g.
   // `{ "invoice": "FAC-{year}-{number:5}" }` - NOT a setting any more. Number formats are defined per

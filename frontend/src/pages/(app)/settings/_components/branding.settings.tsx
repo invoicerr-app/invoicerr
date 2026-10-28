@@ -52,6 +52,7 @@ export default function BrandingSettings() {
 
   const [accentColor, setAccentColor] = useState("")
   const [font, setFont] = useState("")
+  const [template, setTemplate] = useState("")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -72,6 +73,7 @@ export default function BrandingSettings() {
     seededRef.current = true
     setAccentColor(status.accentColor ?? "")
     setFont(status.font ?? "")
+    setTemplate(status.template ?? "")
   }, [status])
 
   // Stable identity (empty deps — only ever touches the ref), the same reason
@@ -156,6 +158,7 @@ export default function BrandingSettings() {
       setBranding.mutateAsync({
         accentColor: accentColor.trim() || null,
         font: font || null,
+        template: template || null,
       }),
     )
   }
@@ -378,6 +381,30 @@ export default function BrandingSettings() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="branding-template">{t("settings.branding.template.label")}</Label>
+                  <Select
+                    value={template || "classic"}
+                    onValueChange={(v) => setTemplate(v === "classic" ? "" : v)}
+                  >
+                    <SelectTrigger id="branding-template" data-cy="branding-template-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(status.templates ?? []).map((entry) => (
+                        <SelectItem
+                          key={entry.key}
+                          value={entry.key}
+                          data-cy={`branding-template-option-${entry.key}`}
+                        >
+                          {t(`settings.branding.template.options.${entry.key}`, entry.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[13px] text-muted-foreground">{t("settings.branding.template.hint")}</p>
                 </div>
               </div>
             </SettingsSection>

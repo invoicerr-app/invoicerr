@@ -404,6 +404,7 @@ export async function renderDocumentInstance(
       brandingAccentColor: true,
       brandingFont: true,
       brandingLogoId: true,
+      brandingTemplate: true,
     },
   });
   if (!company) {
@@ -592,6 +593,7 @@ export async function renderDocumentInstance(
       accentColor: company.brandingAccentColor,
       font: company.brandingFont,
       logoDataUri: await logoDataUriFor(companyId, company.brandingLogoId),
+      template: company.brandingTemplate,
     },
   });
 

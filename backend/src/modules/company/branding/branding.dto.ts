@@ -7,6 +7,7 @@ export interface SetBrandingDto {
   preset?: string | null;
   accentColor?: string | null;
   font?: string | null;
+  template?: string | null;
 }
 
 /** `POST /api/company/branding/logo` — multipart/form-data, a single `file` part, the same wire
