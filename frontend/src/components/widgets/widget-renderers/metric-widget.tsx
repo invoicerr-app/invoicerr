@@ -1,5 +1,6 @@
 import { ChevronRight, Minus, TrendingDown, TrendingUp } from "lucide-react"
 import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
+import { LtrValue } from "@/components/ui/ltr-value"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
@@ -91,7 +92,7 @@ function VariationChip({ value, previousValue, unit }: VariationChipProps) {
       ) : (
         <TrendingDown className="size-3" aria-hidden="true" />
       )}
-      {label}
+      <LtrValue>{label}</LtrValue>
     </span>
   )
 }
@@ -152,11 +153,15 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
       <CardContent className="px-5 max-sm:shrink-0 max-sm:ps-0 max-sm:text-end">
         <WidgetValue>
           <p className="amount text-2xl leading-tight text-foreground sm:text-[34px]">
-            {metric.approx ? "≈ " : ""}
-            {metric.value.toLocaleString()}
-            {metric.unit ? (
-              <span className="ms-1 font-sans text-sm font-normal text-muted-foreground">{metric.unit}</span>
-            ) : null}
+            <LtrValue>
+              {metric.approx ? "≈ " : ""}
+              {metric.value.toLocaleString()}
+              {metric.unit ? (
+                <span className="ms-1 font-sans text-sm font-normal text-muted-foreground">
+                  {metric.unit}
+                </span>
+              ) : null}
+            </LtrValue>
           </p>
           {/* The chip's row is always reserved, so a tile without a chip is as tall as one with it.
               A current value of 0 never gets a chip: "0" next to "-100%" reads as a
