@@ -234,7 +234,7 @@ function DocumentCardMeta({ descriptor, instance, amount }: DocumentCardMetaProp
     <>
       {entries.map((field) => (
         <span key={field.key} className="whitespace-nowrap">
-          {field.label}{" "}
+          {field.label}:{" "}
           <span className="text-ink-2">
             <DocumentFieldValue field={field} value={instance.data[field.key]} data={instance.data} />
           </span>
