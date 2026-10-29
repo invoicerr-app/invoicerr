@@ -262,7 +262,7 @@ export function FormPageDialog<T extends FieldValues>({
     presentation === "page" ? (
       <div data-cy={dataCy} className={cn("flex min-h-full flex-col", className)}>
         <Form {...form}>
-          <div className="mx-auto w-full max-w-7xl flex-1 px-4 pt-1 pb-8 md:px-6">
+          <div className="page-content flex-1">
             <div className="mb-5 flex items-center gap-3 lg:hidden">
               <Button
                 type="button"

@@ -55,7 +55,7 @@ export default function DocumentDetailPage() {
 
   if (descriptorError || !descriptor) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="page-content">
         <DocumentLoadState
           error={descriptorError}
           notFoundTitle={t("documents.form.unknownType", { typeId })}
@@ -68,7 +68,7 @@ export default function DocumentDetailPage() {
 
   if (instanceError || !instance) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="page-content">
         <DocumentLoadState
           error={instanceError}
           notFoundTitle={t("documents.detail.notFound")}

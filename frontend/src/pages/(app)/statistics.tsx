@@ -76,7 +76,7 @@ export default function Statistics() {
   const filteredWidgets = useMemo(() => applyPeriod(widgets, period), [widgets, period])
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-4 pt-1 pb-8 md:px-6">
+    <div className="page-content space-y-5">
       {!isLoading && widgets.length > 0 && (
         <FilterChipGroup label={t("widgets.period.ariaLabel")} dataCy="statistics-period-filters">
           {PERIODS.map((value) => (

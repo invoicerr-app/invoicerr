@@ -77,7 +77,7 @@ export default function DeclarationsPage() {
       : t("declarations.emptyState.noDeclarations")
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-4 pt-1 pb-8 md:px-6" data-cy="declarations-page">
+    <div className="page-content space-y-5" data-cy="declarations-page">
       <p className="text-sm text-muted-foreground">{t("declarations.description")}</p>
 
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">

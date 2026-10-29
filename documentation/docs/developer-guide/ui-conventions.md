@@ -71,6 +71,15 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
 
 ### Layouts
 
+- **Page column**: an authenticated page opens its content on one shared column, the `page-content`
+  utility (`frontend/src/index.css`): the same max width, gutters and vertical rhythm everywhere, so
+  changing screens never moves the reading edges. A page file may keep its own internal spacing
+  (`space-y-*`), never its own width or padding; the routed form (`FormPageDialog` with
+  `presentation="page"`) centres its body on the same values.
+- **Sidebar groups**: the sidebar's labelled groups are plain text labels (`SidebarGroupLabel`),
+  with collapsible lists on the toggle mechanic the Documents and Data groups use. The Account group
+  is always visible and opens the signed-in person's own screens (`/account` and its
+  preferences and security tabs); the same destinations sit behind the footer avatar menu.
 - **Lists**: the toolbar sits on the page ground; rows live in panels (`rounded-xl border bg-card
   shadow-sheet`). A row leads with tinted initials (`InitialsAvatar`) and the name, then a muted
   line, then status, amount and one quiet action. Filters are a segmented control. The documents

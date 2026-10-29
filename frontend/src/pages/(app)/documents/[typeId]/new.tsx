@@ -34,7 +34,7 @@ export default function NewDocumentPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pt-1 md:px-6">
+      <div className="page-content space-y-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -43,7 +43,7 @@ export default function NewDocumentPage() {
 
   if (error || !descriptor) {
     return (
-      <div className="mx-auto max-w-4xl p-6">
+      <div className="page-content">
         <DocumentLoadState
           error={error}
           notFoundTitle={t("documents.form.unknownType", { typeId })}

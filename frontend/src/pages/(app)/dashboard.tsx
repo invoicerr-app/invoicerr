@@ -154,7 +154,7 @@ export default function Dashboard() {
   usePageHeader(firstname ? t("dashboard.hello", { name: firstname }) : t("dashboard.title"))
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 pt-1 pb-8 md:px-6">
+    <div className="page-content space-y-6">
       <p className="-mt-1 text-[15px] text-ink-2" data-cy="dashboard-greeting">
         {t("dashboard.subtitle")}
       </p>

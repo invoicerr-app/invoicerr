@@ -30,7 +30,7 @@ export default function TimeTrackingPage() {
     : null
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 pt-1 pb-8 md:px-6" data-cy="time-tracking-page">
+    <div className="page-content space-y-8" data-cy="time-tracking-page">
       <ProjectList
         projects={projects}
         loading={isLoading}

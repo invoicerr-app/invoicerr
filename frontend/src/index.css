@@ -378,6 +378,23 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* The one content column every authenticated page opens on: one width, one pair of gutters,
+     one vertical rhythm, so a page change never moves the reading edges. The routed editor's
+     inner container follows the same values so a page-more-than-modal form checks out. */
+  .page-content {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 80rem;
+    padding-inline: 1rem;
+    padding-top: 0.25rem;
+    padding-bottom: 2rem;
+  }
+  @media (min-width: 768px) {
+    .page-content {
+      padding-inline: 1.5rem;
+    }
+  }
+
   /* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
   .press {
     transition-property: transform, background-color, border-color, color, box-shadow;

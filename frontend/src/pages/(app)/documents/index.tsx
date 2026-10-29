@@ -23,7 +23,7 @@ export default function DocumentsIndexPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-6">
+      <div className="page-content space-y-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
@@ -35,7 +35,7 @@ export default function DocumentsIndexPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
+    <div className="page-content">
       <EmptyState
         icon={FileStack}
         title={data?.reason ?? t("documents.index.empty")}

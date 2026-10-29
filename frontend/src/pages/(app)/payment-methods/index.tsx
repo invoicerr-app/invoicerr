@@ -20,7 +20,7 @@ export default function PaymentMethodsPage() {
   usePageHeader(t("sidebar.navigation.paymentMethods"))
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 pt-1 pb-8 md:px-6">
+    <div className="page-content space-y-6">
       <p className="text-sm text-muted-foreground">{t("paymentMethods.description")}</p>
 
       {isLoading ? (

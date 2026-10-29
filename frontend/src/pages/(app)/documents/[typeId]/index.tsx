@@ -173,7 +173,7 @@ export default function DocumentTypePage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-4 p-6">
+      <div className="page-content space-y-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -182,7 +182,7 @@ export default function DocumentTypePage() {
 
   if (error || !descriptor) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="page-content">
         <DocumentLoadState
           error={error}
           notFoundTitle={t("documents.form.unknownType", { typeId })}
@@ -207,7 +207,7 @@ export default function DocumentTypePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-6" data-cy="document-type-page">
+    <div className="page-content space-y-6" data-cy="document-type-page">
       <DocumentList
         descriptor={descriptor}
         items={instancePage?.items ?? []}

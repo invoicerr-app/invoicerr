@@ -321,7 +321,7 @@ export default function Clients() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 px-4 pt-1 pb-8 md:px-6">
+    <div className="page-content space-y-5">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <ListSearch
