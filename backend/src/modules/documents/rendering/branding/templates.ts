@@ -16,7 +16,7 @@ export const DOCUMENT_TEMPLATES: readonly { key: DocumentTemplateKey; label: str
   { key: 'atelier', label: 'Atelier' },
 ];
 
-/** What a company created from now on starts with; a company with no stored template renders classic. */
+/** The product default. Migration 20261029070000 moved every pre-existing company to it; new companies start on it too. A null template only remains on an image older than 2026-10-29. */
 export const NEW_COMPANY_TEMPLATE: DocumentTemplateKey = 'atelier';
 
 export function isDocumentTemplateKey(value: unknown): value is DocumentTemplateKey {
