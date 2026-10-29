@@ -302,9 +302,7 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
       <div
         className={cn(
           "grid gap-8",
-          saveLockedMessage
-            ? "lg:grid-cols-[minmax(0,1fr)_22rem]"
-            : "lg:grid-cols-[minmax(0,1fr)_28rem]",
+          saveLockedMessage ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_28rem]",
         )}
       >
         <div className="min-w-0 space-y-6">
@@ -342,10 +340,7 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
           />
           {/* An editable record composes itself beside its form, as on the new-record page. */}
           {!saveLockedMessage && (
-            <DraftLivePaper
-              descriptor={descriptor}
-              displayNumber={liveInstance.displayNumber}
-            />
+            <DraftLivePaper descriptor={descriptor} displayNumber={liveInstance.displayNumber} />
           )}
           <TotalsCard
             descriptor={descriptor}
@@ -901,18 +896,9 @@ function DraftLivePaper({
   const { t } = useTranslation()
   const values = useWatch() as Record<string, unknown>
   return (
-    <section
-      aria-label={t("documents.form.editor.previewLabel")}
-      data-cy="document-detail-live-paper"
-    >
-      <p className="mb-3 text-[14px] font-semibold text-ink-2">
-        {t("documents.form.editor.previewLabel")}
-      </p>
-      <DocumentPaper
-        descriptor={descriptor}
-        data={values}
-        displayNumber={displayNumber}
-      />
+    <section aria-label={t("documents.form.editor.previewLabel")} data-cy="document-detail-live-paper">
+      <p className="mb-3 text-[14px] font-semibold text-ink-2">{t("documents.form.editor.previewLabel")}</p>
+      <DocumentPaper descriptor={descriptor} data={values} displayNumber={displayNumber} />
     </section>
   )
 }
