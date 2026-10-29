@@ -1,0 +1,1231 @@
+{
+  "kind": "nightly",
+  "ref": "dev",
+  "commit": "652e0bce6a1b",
+  "version": "v2.0.0-alpha.1-747-g652e0bce",
+  "date": "2026-10-29T08:33:50.806Z",
+  "runner": "ubuntu24 20261026.354.1, 4 CPU AMD EPYC 9V45 96-Core Processor",
+  "k6": "v1.7.1",
+  "routes": {
+    "GET /api/address-autocomplete/capability": {
+      "p50": 0.5,
+      "p95": 0.6,
+      "p99": 1.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/api-keys/options": {
+      "p50": 0.5,
+      "p95": 0.9,
+      "p99": 1.7,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/api-keys": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 6.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/articles": {
+      "p50": 1,
+      "p95": 1.2,
+      "p99": 1.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/articles/low-stock": {
+      "p50": 0.8,
+      "p95": 1,
+      "p99": 8.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/articles/{id}": {
+      "p50": 0.8,
+      "p95": 1.1,
+      "p99": 1.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/companies/members": {
+      "p50": 1.1,
+      "p95": 1.4,
+      "p99": 1.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/info": {
+      "p50": 1.9,
+      "p95": 2.8,
+      "p99": 10.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/number-formats": {
+      "p50": 1.2,
+      "p95": 1.6,
+      "p99": 2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/payment-terms": {
+      "p50": 0.8,
+      "p95": 1.1,
+      "p99": 1.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/revenue-settings": {
+      "p50": 0.8,
+      "p95": 1.1,
+      "p99": 2.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/email-templates": {
+      "p50": 1.4,
+      "p95": 2.3,
+      "p99": 3.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/mail-settings": {
+      "p50": 1.1,
+      "p95": 1.5,
+      "p99": 1.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/currency-rates": {
+      "p50": 0.9,
+      "p95": 1.1,
+      "p99": 1.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/currency-rates/gaps": {
+      "p50": 0.8,
+      "p95": 1.1,
+      "p99": 1.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/channels": {
+      "p50": 2.1,
+      "p95": 4.1,
+      "p99": 5.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/branding": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 3.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/branding/logo": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/branding/preview": {
+      "p50": 1.2,
+      "p95": 1.6,
+      "p99": 2.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/signing-certificates": {
+      "p50": 0.8,
+      "p95": 1.1,
+      "p99": 1.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/atcud-series": {
+      "p50": 0.8,
+      "p95": 1,
+      "p99": 1.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/sso": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 1.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company/sso/domains": {
+      "p50": 0.8,
+      "p95": 1,
+      "p99": 3.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/webhooks/options": {
+      "p50": 0.6,
+      "p95": 0.7,
+      "p99": 1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/webhooks/{id}": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 1.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/webhooks": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 1.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/import/template": {
+      "p50": 0.5,
+      "p95": 0.8,
+      "p99": 1.7,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients": {
+      "p50": 1.8,
+      "p95": 2.2,
+      "p99": 2.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/search": {
+      "p50": 2,
+      "p95": 2.9,
+      "p99": 4.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/duplicates": {
+      "p50": 0.5,
+      "p95": 0.8,
+      "p99": 1.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/{id}/statement": {
+      "p50": 2.1,
+      "p95": 3,
+      "p99": 9.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/{id}": {
+      "p50": 1.3,
+      "p95": 1.5,
+      "p99": 2.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/country-readiness/fully-supported": {
+      "p50": 0.5,
+      "p95": 0.7,
+      "p99": 1.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/country-readiness/mention-window-alerts": {
+      "p50": 0.5,
+      "p95": 0.8,
+      "p99": 1.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/country-readiness/{countryCode}": {
+      "p50": 0.5,
+      "p95": 0.7,
+      "p99": 1.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company-lookup/capabilities": {
+      "p50": 1.7,
+      "p95": 2.5,
+      "p99": 5.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/company-lookup/capabilities/{countryCode}": {
+      "p50": 0.4,
+      "p95": 0.9,
+      "p99": 2.7,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/danger/reset/company-data/preflight": {
+      "p50": 1.9,
+      "p95": 2.6,
+      "p99": 3.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/expense-categories": {
+      "p50": 1.2,
+      "p95": 1.6,
+      "p99": 5.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/schedules": {
+      "p50": 0.9,
+      "p95": 1.3,
+      "p99": 1.7,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/types": {
+      "p50": 0.5,
+      "p95": 0.7,
+      "p99": 0.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/email-templates": {
+      "p50": 1.1,
+      "p95": 1.7,
+      "p99": 2.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/types/{typeId}/email-template": {
+      "p50": 1.1,
+      "p95": 1.3,
+      "p99": 1.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/types/{typeId}": {
+      "p50": 2,
+      "p95": 2.8,
+      "p99": 4.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/available-types": {
+      "p50": 0.9,
+      "p95": 1.3,
+      "p99": 3.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/required-identifiers": {
+      "p50": 0.9,
+      "p95": 1.3,
+      "p99": 3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/company-law": {
+      "p50": 0.6,
+      "p95": 0.9,
+      "p99": 0.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/b2g-routing": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 2.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/domestic-invoice-currency": {
+      "p50": 0.5,
+      "p95": 0.7,
+      "p99": 0.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/declarations": {
+      "p50": 1.3,
+      "p95": 2.1,
+      "p99": 2.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/dashboard": {
+      "p50": 6.9,
+      "p95": 11.8,
+      "p99": 15.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/statistics": {
+      "p50": 7.5,
+      "p95": 13,
+      "p99": 18,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/transports": {
+      "p50": 0.7,
+      "p95": 1.3,
+      "p99": 1.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/operators": {
+      "p50": 0.6,
+      "p95": 0.9,
+      "p99": 1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/references/{entity}/search": {
+      "p50": 1.5,
+      "p95": 1.9,
+      "p99": 3.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/references/{entity}/{refId}": {
+      "p50": 1.3,
+      "p95": 1.6,
+      "p99": 2.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/references/{entity}/{refId}/fields": {
+      "p50": 0.5,
+      "p95": 0.7,
+      "p99": 0.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents": {
+      "p50": 1.4,
+      "p95": 2.2,
+      "p99": 4.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/totals": {
+      "p50": 1,
+      "p95": 1.5,
+      "p99": 3.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/settlement": {
+      "p50": 1.6,
+      "p95": 2.3,
+      "p99": 3.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/tax-warnings": {
+      "p50": 1.6,
+      "p95": 2.1,
+      "p99": 2.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/actions/{actionId}/transmission-preview": {
+      "p50": 1,
+      "p95": 1.3,
+      "p99": 2.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/correction-routes": {
+      "p50": 1.3,
+      "p95": 1.8,
+      "p99": 2.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/pdf": {
+      "p50": 1.5,
+      "p95": 2,
+      "p99": 8.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/formats/{syntax}": {
+      "p50": 9341.8,
+      "p95": 9511.1,
+      "p99": 9535.7,
+      "count": 10,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/archives": {
+      "p50": 1.3,
+      "p95": 10.2,
+      "p99": 19.7,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/authority-events": {
+      "p50": 1.2,
+      "p95": 2.5,
+      "p99": 4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/manual-acceptance": {
+      "p50": 1.3,
+      "p95": 2.1,
+      "p99": 2.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}/share-links": {
+      "p50": 1.3,
+      "p95": 1.6,
+      "p99": 2.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/{id}": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 1.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/accounting-export": {
+      "p50": 3,
+      "p95": 4.4,
+      "p99": 6.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/revenue/cashed": {
+      "p50": 2.2,
+      "p95": 3,
+      "p99": 6.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/revenue/cashed/export": {
+      "p50": 2.2,
+      "p95": 2.7,
+      "p99": 5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/public/documents/{token}/pdf": {
+      "p50": 1.6,
+      "p95": 2.1,
+      "p99": 2.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/documents/received-invoices/reconciliation-settings": {
+      "p50": 0.9,
+      "p95": 1.2,
+      "p99": 1.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/clients/{clientId}/portal-access": {
+      "p50": 1.5,
+      "p95": 2.1,
+      "p99": 2.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/projects": {
+      "p50": 1.4,
+      "p95": 1.8,
+      "p99": 2.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/projects/{id}": {
+      "p50": 1.4,
+      "p95": 1.8,
+      "p99": 3.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/time-entries": {
+      "p50": 1.6,
+      "p95": 2.1,
+      "p99": 3.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/bank-reconciliation/statements": {
+      "p50": 1,
+      "p95": 1.4,
+      "p99": 1.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/payments/{documentId}/sessions": {
+      "p50": 0.8,
+      "p95": 1.3,
+      "p99": 3.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/payment-methods": {
+      "p50": 1.4,
+      "p95": 1.7,
+      "p99": 1.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/payment-methods/clients/{clientId}": {
+      "p50": 1.1,
+      "p95": 1.3,
+      "p99": 1.6,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/custom-fields": {
+      "p50": 0.9,
+      "p95": 1.1,
+      "p99": 1.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/custom-fields/resolved": {
+      "p50": 0.9,
+      "p95": 1.1,
+      "p99": 2.8,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/invitations/can-register": {
+      "p50": 0.7,
+      "p95": 1,
+      "p99": 1.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/invitations/is-first-user": {
+      "p50": 0.7,
+      "p95": 0.8,
+      "p99": 0.9,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/invitations": {
+      "p50": 1.1,
+      "p95": 1.3,
+      "p99": 1.5,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/companies/transfer": {
+      "p50": 1.1,
+      "p95": 1.5,
+      "p99": 2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/account/transfers": {
+      "p50": 1.1,
+      "p95": 1.4,
+      "p99": 2.2,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/legal/documents": {
+      "p50": 2.8,
+      "p95": 5.7,
+      "p99": 7.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/legal/status": {
+      "p50": 0.5,
+      "p95": 0.9,
+      "p99": 1.1,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/health": {
+      "p50": 0.4,
+      "p95": 1,
+      "p99": 1.3,
+      "count": 60,
+      "errorRate": 0
+    },
+    "GET /api/version": {
+      "p50": 0.6,
+      "p95": 0.7,
+      "p99": 1.4,
+      "count": 60,
+      "errorRate": 0
+    },
+    "POST /api/api-keys": {
+      "p50": 1.2,
+      "p95": 1.3,
+      "p99": 1.8,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/api-keys/{id}": {
+      "p50": 1.3,
+      "p95": 1.6,
+      "p99": 1.7,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/articles": {
+      "p50": 1.5,
+      "p95": 1.7,
+      "p99": 1.7,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PATCH /api/articles/{id}": {
+      "p50": 1.8,
+      "p95": 2.1,
+      "p99": 2.3,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/articles/{id}": {
+      "p50": 1.5,
+      "p95": 2.1,
+      "p99": 4.5,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PATCH /api/webhooks/{id}": {
+      "p50": 2.2,
+      "p95": 3,
+      "p99": 5.1,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/webhooks/{id}": {
+      "p50": 2,
+      "p95": 2.7,
+      "p99": 5.4,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/webhooks": {
+      "p50": 2,
+      "p95": 2.9,
+      "p99": 4.5,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/clients": {
+      "p50": 3.8,
+      "p95": 4.5,
+      "p99": 5.5,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PATCH /api/clients/{id}": {
+      "p50": 3.9,
+      "p95": 4.8,
+      "p99": 5.6,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/clients/{id}": {
+      "p50": 2.2,
+      "p95": 2.3,
+      "p99": 2.7,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/documents/expense-categories": {
+      "p50": 1.4,
+      "p95": 1.7,
+      "p99": 2,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PUT /api/documents/expense-categories/{id}": {
+      "p50": 1.3,
+      "p95": 1.4,
+      "p99": 1.6,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/documents/expense-categories/{id}": {
+      "p50": 1.2,
+      "p95": 1.4,
+      "p99": 1.8,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/documents/{id}/share-link": {
+      "p50": 2.5,
+      "p95": 5.1,
+      "p99": 5.6,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/documents/{id}/share-link/{tokenId}": {
+      "p50": 2,
+      "p95": 2.4,
+      "p99": 2.9,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/projects": {
+      "p50": 2.7,
+      "p95": 3.3,
+      "p99": 7.8,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PATCH /api/projects/{id}": {
+      "p50": 2.3,
+      "p95": 3.3,
+      "p99": 5.4,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/time-entries": {
+      "p50": 2.3,
+      "p95": 3,
+      "p99": 3.5,
+      "count": 20,
+      "errorRate": 0
+    },
+    "PATCH /api/time-entries/{id}": {
+      "p50": 2.2,
+      "p95": 2.7,
+      "p99": 3.2,
+      "count": 20,
+      "errorRate": 0
+    },
+    "DELETE /api/time-entries/{id}": {
+      "p50": 1.2,
+      "p95": 1.8,
+      "p99": 4.2,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/documents/types/{typeId}/actions/{actionId} [quote save-draft]": {
+      "p50": 3.5,
+      "p95": 4.1,
+      "p99": 4.2,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/documents/types/{typeId}/actions/{actionId} [quote convert-to-invoice]": {
+      "p50": 3.3,
+      "p95": 4.1,
+      "p99": 4.1,
+      "count": 20,
+      "errorRate": 0
+    },
+    "POST /api/documents/types/{typeId}/actions/{actionId} [invoice send]": {
+      "p50": 10.2,
+      "p95": 11.7,
+      "p99": 13.9,
+      "count": 20,
+      "errorRate": 0
+    }
+  },
+  "unmeasured": [
+    {
+      "route": "POST /api/auth-extended/set-password",
+      "reason": "changes the session user's credentials"
+    },
+    {
+      "route": "PATCH /api/auth-extended/preferences",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/address-autocomplete/search",
+      "reason": "calls an external geocoder"
+    },
+    {
+      "route": "POST /api/companies",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/companies/switch",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/companies/leave",
+      "reason": "destroys the seeded company"
+    },
+    {
+      "route": "PATCH /api/companies/members/{userId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/companies/members/{userId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/companies/export",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/info",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/number-format",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/number-formats/infer-pattern",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/number-formats/declare-last-number",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/email-templates",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/mail-settings",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/mail-settings",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/mail-settings/reply-to",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/mail-settings/test",
+      "reason": "sends a test e-mail through a company SMTP server"
+    },
+    {
+      "route": "POST /api/company/currency-rates",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/channels/{providerId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/channels/{providerId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/branding",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/branding/logo",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/branding/logo",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/signing-certificates",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/signing-certificates/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/atcud-series",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/atcud-series/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/company/sso",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/sso",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/sso/domains",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/company/sso/domains/{id}/verify",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/company/sso/domains/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/sso/lookup",
+      "reason": "resolves DNS for the e-mail domain"
+    },
+    {
+      "route": "POST /api/clients/import/preview",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/clients/import",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/sirene/siret/{siret}",
+      "reason": "calls an external company registry"
+    },
+    {
+      "route": "GET /api/company-lookup",
+      "reason": "calls an external company registry"
+    },
+    {
+      "route": "POST /api/danger/otp",
+      "reason": "destroys the seeded company"
+    },
+    {
+      "route": "POST /api/danger/reset/company-data",
+      "reason": "destroys the seeded company"
+    },
+    {
+      "route": "POST /api/danger/delete-company",
+      "reason": "destroys the seeded company"
+    },
+    {
+      "route": "GET /api/instance/danger/preflight",
+      "reason": "needs an instance operator account"
+    },
+    {
+      "route": "POST /api/instance/danger/otp",
+      "reason": "destroys the instance"
+    },
+    {
+      "route": "POST /api/instance/danger/reset",
+      "reason": "destroys the instance"
+    },
+    {
+      "route": "POST /api/documents/schedules",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PATCH /api/documents/schedules/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/documents/schedules/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PUT /api/documents/types/{typeId}/email-template",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/documents/types/{typeId}/email-template",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/documents/types/{typeId}/fields/{fieldKey}/rows",
+      "reason": "the seeded invoice type has no row-selection field"
+    },
+    {
+      "route": "GET /api/documents/events",
+      "reason": "server-sent event stream, never completes"
+    },
+    {
+      "route": "POST /api/documents/attachments/upload",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/documents/attachments/{fileRef}",
+      "reason": "needs an uploaded attachment"
+    },
+    {
+      "route": "POST /api/documents/types/{typeId}/actions/{actionId}/params/defaults",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/documents/{id}/original",
+      "reason": "needs a document imported from another tool"
+    },
+    {
+      "route": "POST /api/documents/{id}/archives/{archiveId}/verify",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/documents/types/{typeId}/import",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/documents/types/{typeId}/import/csv/preview",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/documents/types/{typeId}/import/csv/confirm",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/public/signatures/{token}",
+      "reason": "needs a pending e-signature request"
+    },
+    {
+      "route": "GET /api/public/signatures/{token}/document",
+      "reason": "needs a pending e-signature request"
+    },
+    {
+      "route": "POST /api/public/signatures/{token}/otp",
+      "reason": "needs a pending e-signature request"
+    },
+    {
+      "route": "POST /api/public/signatures/{token}/sign",
+      "reason": "needs a pending e-signature request"
+    },
+    {
+      "route": "PUT /api/documents/received-invoices/reconciliation-settings",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/documents/received-invoices/upload/{fileRef}/ocr",
+      "reason": "needs an OCR upload, no OCR service on the runner"
+    },
+    {
+      "route": "GET /api/documents/received-invoices/{id}/reconciliation",
+      "reason": "needs a received invoice, no OCR service on the runner"
+    },
+    {
+      "route": "POST /api/documents/received-invoices/{id}/accept-variance",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/documents/received-invoices/upload",
+      "reason": "runs OCR, no OCR service on the runner"
+    },
+    {
+      "route": "GET /api/documents/received-invoices/{id}/file",
+      "reason": "needs a received invoice, no OCR service on the runner"
+    },
+    {
+      "route": "POST /api/clients/{clientId}/portal-access",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/clients/{clientId}/portal-access",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/clients/{clientId}/portal-access/{tokenId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/portal/me",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "GET /api/portal/statement",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "GET /api/portal/quotes",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "POST /api/portal/quotes/{id}/request-signature",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "POST /api/portal/quotes/{id}/refuse",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "POST /api/portal/documents/invoice/{id}/checkout-session",
+      "reason": "needs a client-portal session and a payment provider"
+    },
+    {
+      "route": "GET /api/portal/documents/{typeId}/{id}/pdf",
+      "reason": "needs a client-portal session"
+    },
+    {
+      "route": "POST /api/time-entries/generate-invoice",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/bank-reconciliation/statements",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/bank-reconciliation/statements/{id}/lines",
+      "reason": "no seeded value for path parameter \"id\""
+    },
+    {
+      "route": "POST /api/bank-reconciliation/lines/{id}/reconcile",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PATCH /api/payment-methods/{methodId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PATCH /api/payment-methods/clients/{clientId}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/custom-fields",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "PATCH /api/custom-fields/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/custom-fields/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/custom-fields/{id}/restore",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/mcp",
+      "reason": "JSON-RPC endpoint, one route for every tool"
+    },
+    {
+      "route": "POST /api/invitations/validate",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/invitations",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "DELETE /api/invitations/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/companies/transfer",
+      "reason": "gives the seeded company away"
+    },
+    {
+      "route": "DELETE /api/companies/transfer/{id}",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/account/transfers/{id}/accept",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "POST /api/legal/accept",
+      "reason": "mutating route outside the scripted scenario"
+    },
+    {
+      "route": "GET /api/logs",
+      "reason": "instance administrator log stream"
+    }
+  ]
+}
