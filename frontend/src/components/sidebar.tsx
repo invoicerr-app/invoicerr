@@ -13,6 +13,8 @@ import {
   Package,
   Plus,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
   TrendingUp,
   User,
   Users,
@@ -32,6 +34,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -176,6 +179,30 @@ export function Sidebar() {
       icon: <Settings className="w-4 h-4" />,
       url: "/settings",
       dataCy: "sidebar-settings-link",
+    },
+  ]
+
+  // The Account group: the signed-in person's own screens, visible as a labelled group again.
+  // The footer avatar menu still opens the same destinations (its own data-cy keys are what the
+  // existing specs read), this group is the always-visible path to them.
+  const accountItems: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
+    {
+      title: t("sidebar.userMenu.account"),
+      icon: <User className="w-4 h-4" />,
+      url: "/account",
+      dataCy: "sidebar-account-link",
+    },
+    {
+      title: t("account.nav.preferences"),
+      icon: <SlidersHorizontal className="w-4 h-4" />,
+      url: "/account/preferences",
+      dataCy: "sidebar-account-preferences-link",
+    },
+    {
+      title: t("account.nav.security"),
+      icon: <ShieldCheck className="w-4 h-4" />,
+      url: "/account/security",
+      dataCy: "sidebar-account-security-link",
     },
   ]
 
@@ -421,6 +448,28 @@ export function Sidebar() {
                 </SidebarMenuSub>
               )}
             </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup className="px-0">
+          <SidebarGroupLabel className="mt-3 text-muted-foreground">
+            {t("sidebar.groups.account")}
+          </SidebarGroupLabel>
+          <SidebarMenu>
+            {accountItems.map((item) => (
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
+                  <Link
+                    data-cy={item.dataCy}
+                    to={item.url}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 

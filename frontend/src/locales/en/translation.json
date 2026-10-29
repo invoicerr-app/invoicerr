@@ -3658,7 +3658,8 @@
       "documents": "Documents"
     },
     "groups": {
-      "data": "Data"
+      "data": "Data",
+      "account": "Account"
     },
     "documents": {
       "empty": "No document type is available for this company's country."
