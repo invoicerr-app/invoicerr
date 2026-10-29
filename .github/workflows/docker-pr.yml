@@ -1,12 +1,7 @@
 name: Verify Docker Build (PR)
 
-# `pull_request` covers the normal case. `workflow_dispatch` exists for the case this repository
-# actually hits: a long-lived branch that deliberately has no PR open yet still needs a real image
-# to deploy somewhere and exercise. Without it the only way to get an image out of a branch was to
-# open a pull request, which is a poor reason to open one.
-# Building the branch image on every PR synchronisation duplicated the manual `workflow_dispatch`
-# run that deployments actually use (the image is pulled by hand on the dev instance), and each
-# build is a multi-arch job of several minutes. It now runs only when explicitly dispatched.
+# A pull request labelled `preview` publishes `pr-<number>`, rebuilt on every push while the label
+# stays. `workflow_dispatch` builds a branch with no pull request open, tagged with its name.
 #
 # Multi-arch, the same shape as docker-publish.yml: one job per platform on its own NATIVE runner
 # (the Scaleway nodes a branch image gets tested on are ARM, the dev instance is x86; emulating an
@@ -14,6 +9,8 @@ name: Verify Docker Build (PR)
 # its image by digest, then `merge` assembles one manifest list under the tag. One tag, one digest,
 # pulled by either architecture. arm/v7 is not built anywhere any more (Node 24 ships no build for it).
 on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
     inputs:
       tag:
@@ -23,6 +20,11 @@ on:
 
 env:
   REGISTRY: ghcr.io
+
+# Adding any other label must not land in the preview's group, or it would cancel a build in progress.
+concurrency:
+  group: docker-pr-${{ github.event.action == 'labeled' && github.event.label.name != 'preview' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The floor every job inherits. Without a block here a job falls back to the repository-wide default
 # workflow permissions -- a SETTING, not a property of this file: it reads read-only today and one
@@ -34,6 +36,12 @@ permissions:
 
 jobs:
   prepare:
+    # A fork's pull request gets a read-only token and could not push: skipped, not failed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+        (github.event.action == 'labeled' && github.event.label.name == 'preview' ||
+          github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'preview')))
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.vars.outputs.image }}
@@ -49,6 +57,7 @@ jobs:
         # bash as an ordinary environment variable instead, which is never re-parsed as shell syntax.
         env:
           INPUT_TAG: ${{ inputs.tag }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           echo "image=${REGISTRY}/${REPO_NAME_LOWER}" >> "$GITHUB_OUTPUT"
@@ -56,7 +65,9 @@ jobs:
           # The default tag is the branch name with every character a Docker tag rejects turned into
           # a dash -- `feat/compliance-engine-v2` is not a legal tag, `feat-compliance-engine-v2` is.
           TAG="$INPUT_TAG"
-          if [[ -z "$TAG" ]]; then
+          if [[ -n "$PR_NUMBER" ]]; then
+            TAG="pr-$PR_NUMBER"
+          elif [[ -z "$TAG" ]]; then
             TAG=$(echo "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9_.-' '-' | sed 's/-*$//')
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"

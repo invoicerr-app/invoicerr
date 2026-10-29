@@ -11,6 +11,11 @@ on:
 permissions:
   pull-requests: read
 
+# A new commit on a pull request makes the earlier runs of that pull request pointless; other events keep every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   dco:
     name: Sign-off check
@@ -46,11 +51,13 @@ jobs:
           commits_json=$(gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate)
 
           # Merge commits have more than one parent and carry no author's own work; bot commits
-          # (renovate[bot], dependabot[bot], github-actions[bot], ...) cannot run `git commit -s`.
+          # (renovate[bot], dependabot[bot], github-actions[bot], ...) and Hosted Weblate commits
+          # cannot run `git commit -s`.
           rows=$(jq -r '
             .[]
             | select((.parents | length) <= 1)
             | select((.author.login // "") | endswith("[bot]") | not)
+            | select(.commit.author.email | endswith("@users.noreply.hosted.weblate.org") | not)
             | [.sha, .commit.author.name, .commit.author.email, (.commit.message | @base64)]
             | @tsv
           ' <<< "$commits_json")

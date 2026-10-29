@@ -67,6 +67,12 @@ the existing ones:
   an empty country catalogue and fails specs far from the cause. The country loader refuses an empty
   catalogue directory, so if the files are ever missing the backend exits at boot instead of
   reseeding every country away.
+- **A new commit cancels the earlier runs of its pull request.** Every workflow triggered by
+  `pull_request` declares a `concurrency` group keyed on the workflow and the pull request number,
+  with `cancel-in-progress` true only for `pull_request` events. Runs for `push`, `merge_group`,
+  `schedule` and `workflow_dispatch` get a group of their own and are never cancelled, so the merge
+  queue and `dev` are not affected. A workflow added later with a `pull_request` trigger copies the
+  same block.
 - **CI Postgres runs with trust auth.** Service containers set `POSTGRES_HOST_AUTH_METHOD: trust`
   and connection strings carry no password. The database is reachable only from the runner and is
   thrown away with the job.
@@ -126,11 +132,11 @@ shows up first on the next deploy or the next documentation pull request.
 ## DCO check
 
 `dco.yml` runs on every pull request targeting `dev` or `main`. It reads the pull request's commits
-through the GitHub API and fails if one of them (other than a merge commit or a bot commit) has no
-`Signed-off-by` line matching its author, as required by
-[`CONTRIBUTING.md`](https://github.com/invoicerr-app/invoicerr/blob/dev/CONTRIBUTING.md).
-The failing run names each offending commit; fix it with `git rebase --signoff <base-branch>` and a
-force-push.
+through the GitHub API and fails if one of them has no `Signed-off-by` line matching its author, as
+required by [`CONTRIBUTING.md`](https://github.com/invoicerr-app/invoicerr/blob/dev/CONTRIBUTING.md).
+Merge commits, bot commits and the commits Hosted Weblate makes for translators are skipped, since
+none of them can run `git commit -s`. The failing run names each offending commit; fix it with
+`git rebase --signoff <base-branch>` and a force-push.
 
 It also runs on every merge queue entry, reading the pull request number from the queue branch
 name, so it can be a required check of the queue.
@@ -159,6 +165,29 @@ Two rules for anyone, Renovate included, who changes `backend/package.json` or i
   `FileInterceptor` parses uploads with that copy, not with the backend's own dependency. The
   `overrides` entry `"multer": "$multer"` makes both the version `backend/package.json` names. After a
   `multer` update, `npm ls multer` shows a single version, `deduped` under `@nestjs/platform-express`.
+
+## Preview images
+
+To deploy a pull request somewhere and test it, add the `preview` label to it. `docker-pr.yml` then
+builds the pull request (amd64 and arm64) and publishes `ghcr.io/invoicerr-app/invoicerr:pr-<number>`.
+Every later push to the pull request rebuilds the same tag while the label stays, and a new push
+cancels the build still running for the previous one. The run summary gives the `docker pull`
+command and the digest.
+
+- Without the label, nothing is built. Removing the label stops later rebuilds and leaves the last
+  image in place.
+- A pull request from a fork never publishes: its token cannot write packages, so the build is
+  skipped rather than failed. A maintainer who wants an image of it pushes the branch to this
+  repository first.
+- A branch with no pull request open gets an image from **Actions** > **Verify Docker Build (PR)** >
+  **Run workflow**, tagged with the branch name or with the tag typed in the form.
+
+:::info[The image is the merge result]
+Like every `pull_request` run, the build checks out the pull request merged into its base branch, not
+the branch alone. A pull request with merge conflicts gets no run at all until they are resolved.
+:::
+
+Old `pr-*` tags are not deleted automatically.
 
 ## Docker image vulnerability scanning (Trivy)
 

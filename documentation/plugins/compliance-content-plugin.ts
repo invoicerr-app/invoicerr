@@ -27,7 +27,7 @@ interface CountryContent {
  */
 export default function complianceContentPlugin(
   context: LoadContext,
-): Plugin<Record<string, string>> {
+): Plugin {
   const baseUrl = context.baseUrl;
 
   return {
