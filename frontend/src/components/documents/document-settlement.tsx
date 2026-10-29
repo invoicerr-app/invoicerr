@@ -117,6 +117,7 @@ export function DocumentSettlementBadge({
     <StatusMark
       {...statusPresentation(labelKey.split(".").pop() ?? "")}
       className={className}
+      data-settlement={labelKey.split(".").pop()}
       data-cy={dataCySuffix ? `document-settlement-badge-${dataCySuffix}` : "document-settlement-badge"}
     >
       {t(labelKey)}

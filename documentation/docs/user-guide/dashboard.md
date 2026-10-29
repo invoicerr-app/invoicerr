@@ -4,10 +4,23 @@ sidebar_position: 2
 
 # Dashboard
 
-The **Dashboard** is the first page you see after signing in. A line under the title greets you, then
-one panel of figures answers the questions about your business: what you invoiced, what came in, what
-clients still owe, and what is waiting for you. Below it, the lists and the chart of invoices issued.
-A late figure is marked with a triangle next to its label.
+The **Dashboard** is the first page you see after signing in. It greets you by name and opens on an
+overview of your invoicing, in your company currency:
+
+- **Invoiced this month**, before VAT, with how much more or less that is than last month.
+- A curve of the money **collected** each month this year, continued as a dashed line with what your
+  clients **still owe by due month** for the months ahead. The curve is hidden on a phone.
+- **To chase**: the clients with at least one invoice past its due date, one row per client, with how
+  many days late the oldest one is and what is still owed. **See the late invoices** opens the list
+  of exactly those invoices.
+- **This week**: the invoices falling due in the next seven days, today included.
+
+Amounts in another currency are never added to the curve or the monthly figure; the two lists show
+each invoice in its own currency.
+
+Below the overview, **All figures** holds one panel of figures answering the questions about your
+business: what you invoiced, what came in, what clients still owe, and what is waiting for you, then
+the lists and the chart of invoices issued. A late figure is marked with a triangle next to its label.
 
 ## Choosing a period
 

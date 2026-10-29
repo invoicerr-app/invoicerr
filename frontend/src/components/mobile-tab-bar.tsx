@@ -1,4 +1,4 @@
-import { LayoutDashboard, Menu, Users } from "lucide-react"
+import { Ellipsis, LayoutDashboard, Users } from "lucide-react"
 import type React from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useLocation } from "react-router"
@@ -49,6 +49,10 @@ function Tab({ label, icon: Icon, active, to, onClick, dataCy }: TabProps) {
   )
 }
 
+export function isNewDocumentPath(pathname: string): boolean {
+  return /^\/documents\/[^/]+\/new$/.test(pathname)
+}
+
 /** The phone's own navigation: the three places used every day, and "More" for the full sidebar. */
 export function MobileTabBar() {
   const { t } = useTranslation()
@@ -57,6 +61,8 @@ export function MobileTabBar() {
   const { data: available } = useAvailableDocumentTypes()
   const documentsTypeId = "invoice"
   const documentsIcon = documentTypeIcon(available?.types.find((type) => type.id === documentsTypeId)?.icon)
+  // The new-record page has its own close button and action bar at the bottom.
+  if (isNewDocumentPath(pathname)) return null
   return (
     <nav
       aria-label={t("sidebar.mobile.navLabel")}
@@ -86,7 +92,7 @@ export function MobileTabBar() {
       />
       <Tab
         label={t("sidebar.mobile.more")}
-        icon={Menu}
+        icon={Ellipsis}
         active={false}
         onClick={() => setOpenMobile(true)}
         dataCy="mobile-tab-more"

@@ -52,6 +52,8 @@ interface DocumentCreateDialogProps {
    *  this becomes true. `undefined` renders nothing — no behaviour change for any caller that doesn't
    *  pass it. */
   notice?: React.ReactNode
+  /** "page" when the form is the content of the new-record route rather than a modal. */
+  presentation?: "dialog" | "page"
 }
 
 /** Whether a field is "table-shaped" — a set of ROWS rather than one scalar value: 'array' (line
@@ -241,6 +243,7 @@ export function DocumentCreateDialog({
   initialData,
   lateData,
   notice,
+  presentation = "dialog",
 }: DocumentCreateDialogProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -250,7 +253,7 @@ export function DocumentCreateDialog({
     initialData,
     lateData,
     onActionSuccess: (result: DocumentInstance) => {
-      onOpenChange(false)
+      if (presentation === "dialog") onOpenChange(false)
       void navigate(`/documents/${result.typeId}/${result.id}`)
     },
   })
@@ -340,6 +343,7 @@ export function DocumentCreateDialog({
     sections.push({
       id: "options",
       label: t("documents.form.stepped.steps.options"),
+      foldOnPhone: true,
       fields: optionsFields.map((field) => field.key),
       render: () => <FieldsSection fields={optionsFields} documentTypeId={descriptor.id} />,
     })
@@ -393,6 +397,7 @@ export function DocumentCreateDialog({
         onBeforeValidate={state.pruneEmptyLines}
         dataCy="document-create-dialog"
         sectionsDataCy="document-form"
+        presentation={presentation}
       />
 
       {pendingAction && (

@@ -1,6 +1,7 @@
 import { TriangleAlert } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Navigate, Outlet, useLocation } from "react-router"
+import { OfflineBanner } from "@/components/offline-banner"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
@@ -8,7 +9,7 @@ import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
-import { MobileTabBar } from "@/components/mobile-tab-bar"
+import { isNewDocumentPath, MobileTabBar } from "@/components/mobile-tab-bar"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
@@ -20,6 +21,7 @@ import { useRoutePrefetch } from "@/hooks/use-route-prefetch"
 import { ApiError } from "@/hooks/use-api-query"
 import { useCompanies, useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
+import { cn } from "@/lib/utils"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
 
@@ -112,6 +114,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
 
   // Signed-in only: on a public page it would pull the whole app for an anonymous visitor.
   useRoutePrefetch()
+  const { pathname } = useLocation()
 
   // Decides whether the footer strip below even exists — see that element's own comment for why a
   // `<footer>` wrapper can't just contain `<LegalLinks/>` and rely on it rendering `null`.
@@ -125,14 +128,20 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
               <Sidebar />
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <OfflineBanner />
                 <DemoBanner />
                 <BillingBanner />
                 <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">
-                  <SidebarTrigger className="-ms-1.5 text-muted-foreground" />
+                  <SidebarTrigger className="-ms-1.5 hidden text-muted-foreground md:inline-flex" />
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
-                <section className="h-full overflow-y-auto overflow-x-hidden pb-20 md:pb-0">
+                <section
+                  className={cn(
+                    "h-full overflow-y-auto overflow-x-hidden md:pb-0",
+                    !isNewDocumentPath(pathname) && "pb-20",
+                  )}
+                >
                   <Outlet />
                 </section>
                 {/* Signed-in users had no route back to the terms they accepted (or any other legal

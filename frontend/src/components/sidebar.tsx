@@ -237,7 +237,7 @@ export function Sidebar() {
                 >
                   <span
                     aria-hidden="true"
-                    className="bg-foreground text-background flex aspect-square size-8 items-center justify-center rounded-md text-xs font-semibold"
+                    className="initials bg-foreground text-background flex aspect-square size-8 items-center justify-center rounded-md text-xs font-semibold"
                   >
                     {initialsOf(company?.name)}
                   </span>
@@ -456,7 +456,7 @@ export function Sidebar() {
                 >
                   <span
                     aria-hidden="true"
-                    className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-full text-xs font-semibold"
+                    className="initials bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-full text-xs font-semibold"
                   >
                     {initialsOf(accountName)}
                   </span>

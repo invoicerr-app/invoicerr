@@ -1513,6 +1513,29 @@
     "title": "Dashboard",
     "greeting": "Hello {{name}}. Here is where your invoices stand.",
     "greetingNoName": "Here is where your invoices stand.",
+    "hello": "Hello {{name}}",
+    "subtitle": "Here is where your invoicing and your collections stand.",
+    "allFigures": "All figures",
+    "overview": {
+      "invoicedIn": "Invoiced in {{month}}",
+      "exclVat": "excl. VAT",
+      "comparisonMore": "{{amount}} more than in {{month}}.",
+      "comparisonLess": "{{amount}} less than in {{month}}.",
+      "comparisonSame": "The same as in {{month}}.",
+      "legendCollected": "Collected",
+      "legendExpected": "Still owed, by due date",
+      "toChase": "To chase",
+      "daysLate": "{{count}} day late",
+      "daysLate_other": "{{count}} days late",
+      "invoiceCount": "{{count}} invoice",
+      "invoiceCount_other": "{{count}} invoices",
+      "seeLate": "See the late invoices",
+      "nothingToChase": "Nobody is late. Nothing to chase.",
+      "thisWeek": "This week",
+      "dueLine": "{{number}}, due",
+      "nothingThisWeek": "Nothing falls due this week.",
+      "noClient": "No client"
+    },
     "period": {
       "label": "Period",
       "options": {
@@ -3906,6 +3929,10 @@
       }
     }
   },
+  "offline": {
+    "title": "You are offline.",
+    "description": "What you see may be out of date, and nothing can be saved until the connection is back."
+  },
   "common": {
     "fieldHelp": {
       "trigger": "Show help",
@@ -3919,6 +3946,7 @@
     "finish": "Finish",
     "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
+    "close": "Close",
     "previous": "Previous",
     "next": "Continue",
     "back": "Back",
@@ -5304,6 +5332,7 @@
       "array": {
         "addRow": "Add row",
         "removeRow": "Remove row",
+        "foldRow": "Done",
         "readOnlyFromSource": "These lines come from the supplier's e-invoice and cannot be edited."
       },
       "select": {
@@ -5673,7 +5702,7 @@
       }
     },
     "conformity": {
-      "title": "Compliance tracking",
+      "title": "Transmission",
       "badge": {
         "accepted": "Validated by the platform",
         "rejected": "Rejected",
@@ -5682,7 +5711,9 @@
         "declarationIssue": "Declaration issue"
       },
       "timeline": {
-        "reason": "Reason: {{reason}}"
+        "reason": "Reason: {{reason}}",
+        "created": "Created",
+        "statusUpdate": "Status update from the platform"
       }
     },
     "correction": {

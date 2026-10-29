@@ -151,13 +151,15 @@ export function DocumentConformityListIndicator({
 
 interface ConformityTimelineProps {
   events: DocumentAuthorityEvent[]
+  /** When the record was created: closes the history at its bottom, below every platform event. */
+  createdAt?: string
 }
 
 /** The PRESENTATIONAL half — pure props in, markup out, no data fetching of its own. Split out from
  *  `DocumentConformitySection` below so `document-conformity-section.spec.tsx` can render it directly
  *  with hardcoded events, no query client/network mocking needed. Most-recent-first — the API's own order
  *  (`listAuthorityEvents`), never re-sorted here. */
-export function ConformityTimeline({ events }: ConformityTimelineProps) {
+export function ConformityTimeline({ events, createdAt }: ConformityTimelineProps) {
   const { t } = useTranslation()
   return (
     <ol className="relative" data-cy="document-conformity-timeline">
@@ -169,21 +171,20 @@ export function ConformityTimeline({ events }: ConformityTimelineProps) {
             className="relative grid grid-cols-[1rem_1fr] gap-x-3 pb-4 text-sm last:pb-0"
             data-cy={`document-conformity-event-${event.id}`}
           >
-            {index < events.length - 1 && (
+            {(index < events.length - 1 || createdAt) && (
               <span aria-hidden="true" className="absolute start-[7px] top-4 bottom-0 w-px bg-border" />
             )}
             <StatusMark {...presentation} className="mt-0.5 gap-0" aria-hidden="true" />
             <div className="min-w-0 space-y-0.5">
-              {event.statusText && (
-                <p
-                  className={cn("font-semibold", event.reason && "text-destructive-soft-foreground")}
-                  data-cy="document-conformity-event-text"
-                >
-                  {event.statusText}
-                </p>
-              )}
+              <p
+                className={cn("font-semibold", event.reason && "text-destructive-soft-foreground")}
+                data-cy="document-conformity-event-text"
+              >
+                {event.statusText || t("documents.conformity.timeline.statusUpdate")}
+              </p>
               <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-                <span className="tabular-nums" data-cy="document-conformity-event-code">
+                {/* The platform's own code stays out of sight: the person reads the label above. */}
+                <span hidden data-cy="document-conformity-event-code">
                   {event.statusCode}
                 </span>
                 <span className="tabular-nums" data-cy="document-conformity-event-date">
@@ -202,6 +203,20 @@ export function ConformityTimeline({ events }: ConformityTimelineProps) {
           </li>
         )
       })}
+      {createdAt && (
+        <li
+          className="relative grid grid-cols-[1rem_1fr] gap-x-3 text-sm"
+          data-cy="document-conformity-created"
+        >
+          <StatusMark {...statusPresentation("draft")} className="mt-0.5 gap-0" aria-hidden="true" />
+          <div className="min-w-0 space-y-0.5">
+            <p className="font-semibold">{t("documents.conformity.timeline.created")}</p>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {new Date(createdAt).toLocaleString()}
+            </p>
+          </div>
+        </li>
+      )}
     </ol>
   )
 }
@@ -209,13 +224,14 @@ export function ConformityTimeline({ events }: ConformityTimelineProps) {
 interface DocumentConformitySectionProps {
   typeId: string
   documentId: string
+  createdAt?: string
 }
 
 /** The data-fetching half, shown on the document detail page (document-detail.tsx), next to the
  *  archive section. Renders NOTHING for a document with no conformity events at all — never a
  *  falsely-empty "Compliance tracking" block for a document sent by email, or by any channel with no
  *  poller registered (see the backend's `authority-status-poller.ts` on why "sdi" never gets one). */
-export function DocumentConformitySection({ typeId, documentId }: DocumentConformitySectionProps) {
+export function DocumentConformitySection({ typeId, documentId, createdAt }: DocumentConformitySectionProps) {
   const { t } = useTranslation()
   const { data: events, isLoading } = useDocumentAuthorityEvents(typeId, documentId)
 
@@ -236,7 +252,7 @@ export function DocumentConformitySection({ typeId, documentId }: DocumentConfor
       aside={<ConformityBadge events={events} />}
       dataCy="document-conformity-section"
     >
-      <ConformityTimeline events={events} />
+      <ConformityTimeline events={events} createdAt={createdAt} />
     </SectionCard>
   )
 }

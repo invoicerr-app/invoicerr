@@ -10,6 +10,7 @@ import * as useFetchModule from "@/hooks/use-fetch"
 
 import DocumentTypePage from "@/pages/(app)/documents/[typeId]/index"
 import DocumentDetailPage from "@/pages/(app)/documents/[typeId]/[id]"
+import NewDocumentPage from "@/pages/(app)/documents/[typeId]/new"
 
 /**
  * Journey coverage, not line coverage: five NAMED tests, one
@@ -112,6 +113,7 @@ function documentTypeTree(queryClient: QueryClient, typeId: string, extra?: Reac
                 </>
               }
             />
+            <Route path="/documents/:typeId/new" element={<NewDocumentPage />} />
             <Route path="/documents/:typeId/:id" element={<DocumentDetailPage />} />
           </Routes>
         </MemoryRouter>

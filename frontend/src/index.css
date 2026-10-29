@@ -371,6 +371,13 @@
     color: oklch(0.88 0.08 var(--tint, 230));
   }
 
+  /* Initials on their optical centre: the box is trimmed to the capitals, so neither face's ascent
+     nor descent pushes the letters off the middle of their disc or badge. */
+  .initials {
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+  }
+
   /* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
   .press {
     transition-property: transform, background-color, border-color, color, box-shadow;

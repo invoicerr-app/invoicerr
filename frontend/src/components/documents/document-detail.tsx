@@ -11,12 +11,14 @@ import {
   UserCheck,
 } from "lucide-react"
 import { type ReactNode, useState } from "react"
+import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 // Side-effect only: makes whatever is registered in custom-slots.ts available — the same pattern
 // document-list.tsx follows, and for the same reason (see custom-registrations.ts's own header).
 import "@/components/documents/custom-registrations"
+import { cn } from "@/lib/utils"
 
 import {
   extraActionGates,
@@ -297,7 +299,12 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div
+        className={cn(
+          "grid gap-8",
+          saveLockedMessage ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_28rem]",
+        )}
+      >
         <div className="min-w-0 space-y-6">
           {saveLockedMessage && (
             <DocumentPaper
@@ -323,6 +330,18 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </div>
 
         <aside className="space-y-6">
+          {/* The transmission history leads the aside: any type or status once the platform has
+              reported at least one event, nothing for a document sent by email or by a channel with
+              no poller. */}
+          <DocumentConformitySection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            createdAt={instance.createdAt}
+          />
+          {/* An editable record composes itself beside its form, as on the new-record page. */}
+          {!saveLockedMessage && (
+            <DraftLivePaper descriptor={descriptor} displayNumber={liveInstance.displayNumber} />
+          )}
           <TotalsCard
             descriptor={descriptor}
             documentId={instance.id}
@@ -369,11 +388,6 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             status={liveInstance.status}
             updatedAt={instance.updatedAt}
           />
-          {/* Conformity tracking — same gate as the archive section right above (any type/status
-              once it has at least one event; renders nothing otherwise, see that component's own
-              header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
-              shows a section here at all. */}
-          <DocumentConformitySection typeId={descriptor.id} documentId={instance.id} />
           {/* The 3-way-match panel — TYPE-gated, unlike the two sections above: see
               document-reconciliation-section.tsx's own header for why. */}
           {descriptor.id === "received-invoice" && <DocumentReconciliationSection documentId={instance.id} />}
@@ -867,5 +881,28 @@ function DocumentDetailActions({
         />
       )}
     </>
+  )
+}
+
+/** The record as its client will see it, recomposed from the form on every change. Its own
+ *  component, so a keystroke re-renders only the sheet. */
+function DraftLivePaper({
+  descriptor,
+  displayNumber,
+}: {
+  descriptor: DocumentTypeDescriptor
+  displayNumber?: string | null
+}) {
+  const { t } = useTranslation()
+  const values = useWatch() as Record<string, unknown>
+  return (
+    <section aria-label={t("documents.form.editor.previewLabel")} data-cy="document-detail-live-paper">
+      <p className="mb-3 text-[14px] font-semibold text-ink-2">{t("documents.form.editor.previewLabel")}</p>
+      <DocumentPaper
+        descriptor={descriptor}
+        data={values}
+        displayNumber={displayNumber}
+      />
+    </section>
   )
 }

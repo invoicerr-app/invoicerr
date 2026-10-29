@@ -643,11 +643,11 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
           // Fixed desktop columns for the amount and the menu, so figures line up as a column across
           // rows and a row with no action or no amount keeps every other row's alignment.
           <div className={ROW_GRID}>
-            <div className="order-1 flex min-w-0 items-center gap-3.5">
+            <div className="order-1 flex min-w-0 items-center gap-3.5 max-sm:row-span-2">
               <DocumentRowAvatar descriptor={descriptor} instance={instance} />
               <div className="min-w-0">
                 <h3
-                  className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:break-words"
+                  className="min-w-0 truncate font-sans text-[15px] leading-snug font-semibold text-foreground"
                   data-cy={`document-list-title-${instance.id}`}
                 >
                   <Link
@@ -662,12 +662,14 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                 </h3>
                 <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13.5px] text-muted-foreground">
                   <DocumentCardNumber descriptor={descriptor} instance={instance} />
-                  <DocumentCardMeta descriptor={descriptor} instance={instance} amount={amount} />
+                  <span className="contents max-sm:hidden">
+                    <DocumentCardMeta descriptor={descriptor} instance={instance} amount={amount} />
+                  </span>
                 </div>
                 {instance.lastActionError && (
                   // Never a silent failure: a "send_failed" document names WHY, right here.
                   <p
-                    className="mt-1 line-clamp-2 text-xs text-destructive-soft-foreground"
+                    className="mt-1 line-clamp-2 text-xs text-destructive-soft-foreground max-sm:hidden"
                     title={instance.lastActionError}
                     data-cy={`document-row-last-error-${instance.id}`}
                   >
@@ -677,10 +679,13 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               </div>
             </div>
 
-            <div className="order-3 flex flex-wrap items-center gap-x-3 gap-y-1 sm:order-2 sm:justify-end">
+            {/* On a phone the row carries one state: the settlement mark once it says more than
+                "unpaid", the document status otherwise. */}
+            <div className="group/states order-3 flex flex-wrap items-center gap-x-3 gap-y-1 max-sm:justify-end sm:order-2 sm:justify-end">
               <DocumentStatusBadge
                 status={instance.status}
                 label={descriptor.statuses?.find((s) => s.id === instance.status)?.label}
+                className="max-sm:group-has-[[data-settlement]:not([data-settlement=unpaid])]/states:hidden"
               />
               {showSettlementBadge && (
                 <DocumentSettlementBadge
@@ -688,11 +693,14 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                   documentId={instance.id}
                   dataCySuffix={instance.id}
                   dueDate={instance.data?.dueDate}
+                  className="max-sm:[&[data-settlement=unpaid]]:hidden"
                 />
               )}
               {/* The list's discreet rejected-deposit indicator: renders nothing unless the
                   platform actually rejected this deposit (see that component's own header). */}
-              <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
+              <span className="contents max-sm:hidden">
+                <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
+              </span>
             </div>
 
             {/* Stops a click on any control here from also bubbling up to the row's own onClick
@@ -700,7 +708,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                 intents. */}
             <div
               className={cn(
-                "amount order-4 text-end text-base whitespace-nowrap text-foreground sm:order-3",
+                "amount order-2 text-end text-base whitespace-nowrap text-foreground sm:order-3",
                 !amount && "hidden sm:block",
               )}
               data-cy={amount ? `document-row-amount-${instance.id}` : undefined}
@@ -708,7 +716,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               {amount && <LtrValue>{formatTotal(amount.minor, amount.currency)}</LtrValue>}
               {amount && !amount.fieldKey && (
                 <span
-                  className="block font-sans text-xs font-normal text-muted-foreground"
+                  className="block font-sans text-xs font-normal text-muted-foreground max-sm:hidden"
                   data-cy={`document-row-amount-basis-${instance.id}`}
                 >
                   {t("documents.list.amountInclVat")}
@@ -716,17 +724,14 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
               )}
             </div>
             <div
-              className={cn(
-                "order-5 col-span-2 flex justify-end sm:order-4 sm:col-span-1",
-                !primary && "hidden sm:flex",
-              )}
+              className={cn("order-4 hidden sm:flex")}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
               {primary}
             </div>
             <div
-              className="order-2 flex items-center justify-end gap-1 sm:order-5"
+              className="order-5 hidden items-center justify-end gap-1 sm:flex"
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
@@ -1197,9 +1202,12 @@ export function DocumentList({
             </Button>
             <div className="flex items-center gap-2 sm:order-4 sm:ms-auto">
               {/* See the "list-row-extra" map above for why this keys by function name, not index. */}
-              {headerExtras.map((HeaderExtra) => (
-                <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
-              ))}
+              {/* On a phone the imports wait behind the filters button with the sort and filters. */}
+              <span className={cn("contents", !filtersOpen && "max-sm:hidden")}>
+                {headerExtras.map((HeaderExtra) => (
+                  <HeaderExtra key={HeaderExtra.name} descriptor={descriptor} />
+                ))}
+              </span>
 
               <Button
                 onClick={onCreate}
