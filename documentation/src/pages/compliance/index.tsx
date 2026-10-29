@@ -170,7 +170,7 @@ function CountryExplorer(): ReactNode {
   }, []);
 
   const emptySelection = (): Record<FacetKey, string[]> =>
-    Object.fromEntries(FACET_ORDER.map((key) => [key, []])) as Record<
+    Object.fromEntries(FACET_ORDER.map((key): [FacetKey, string[]] => [key, []])) as Record<
       FacetKey,
       string[]
     >;
