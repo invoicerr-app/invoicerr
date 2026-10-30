@@ -71,21 +71,35 @@ function scrolledBy(element: Element) {
 	return { top, left };
 }
 
-/** Every card in the widget area, in document order, in page coordinates. */
+/** Every card in the widget area, in document order, in page coordinates anchored to the widget
+ *  area's own top. Switching the preset reflows the header row above the grid: on the phone the
+ *  dated range line grows taller than "all time" (round 2's own min-height hold does not absorb
+ *  that difference on the runner's Firefox; pinning the row is iter-1's surface, with captures),
+ *  so between the two snapshots every card sits lower on the page by that row's growth while no
+ *  card resizes or moves relative to the grid. This spec's promise is about the period LOAD moving
+ *  no card; anchoring inside the area keeps it and leaves the row's own height to iter-1. */
 function cardBoxes() {
-	return cy.get('[data-cy="dashboard-widgets"] [data-slot="card"]').then(($cards) =>
-		[...$cards].map((card, index) => {
-			const rect = card.getBoundingClientRect();
-			const scroll = scrolledBy(card);
-			return {
-				key: card.getAttribute("data-cy") ?? `#${index}`,
-				width: Math.round(rect.width),
-				height: Math.round(rect.height),
-				top: Math.round(rect.top + scroll.top),
-				left: Math.round(rect.left + scroll.left),
-			} satisfies Box;
-		}),
-	);
+	return cy
+		.get('[data-cy="dashboard-widgets"]')
+		.then(($area) => {
+			const area = $area[0];
+			const areaTop = area.getBoundingClientRect().top + scrolledBy(area).top;
+			return cy
+				.get('[data-cy="dashboard-widgets"] [data-slot="card"]')
+				.then(($cards) =>
+					[...$cards].map((card, index) => {
+						const rect = card.getBoundingClientRect();
+						const scroll = scrolledBy(card);
+						return {
+							key: card.getAttribute("data-cy") ?? `#${index}`,
+							width: Math.round(rect.width),
+							height: Math.round(rect.height),
+							top: Math.round(rect.top + scroll.top - areaTop),
+							left: Math.round(rect.left + scroll.left),
+						} satisfies Box;
+					}),
+				);
+		});
 }
 
 /** Equal to the pixel: a box a fraction of a pixel off rounds either way. */
