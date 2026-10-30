@@ -46,15 +46,18 @@ function installFetchMock(handlers: Record<string, FetchHandler>) {
   return fn
 }
 
+/** What the list route returns now: an eight-character preview, no plaintext code. */
 const INVITATION = {
   id: "invite-1",
-  code: "ABCD1234EFGH5678",
+  code: "ABCD1234",
   role: "MEMBER",
   createdAt: "2026-09-01T00:00:00.000Z",
   expiresAt: null,
   usedAt: null,
   usedBy: null,
 }
+
+const CREATED_CODE = "ABCD1234EFGH5678IJKL9012MNOP3456"
 
 function renderScreen() {
   return render(
@@ -64,7 +67,12 @@ function renderScreen() {
   )
 }
 
-describe("<InvitationsSettings> — copy outcome", () => {
+async function createInvitation() {
+  fireEvent.click(await screen.findByTestId("invitations-create-button"))
+  return screen.findByTestId("invitation-created-code")
+}
+
+describe("<InvitationsSettings> — the code is shown once", () => {
   const originalClipboard = navigator.clipboard
   const originalExecCommand = document.execCommand
 
@@ -72,6 +80,7 @@ describe("<InvitationsSettings> — copy outcome", () => {
     vi.clearAllMocks()
     installFetchMock({
       "GET /api/invitations": () => ({ body: [INVITATION] }),
+      "POST /api/invitations": () => ({ status: 201, body: { ...INVITATION, code: CREATED_CODE } }),
     })
   })
 
@@ -80,10 +89,33 @@ describe("<InvitationsSettings> — copy outcome", () => {
     document.execCommand = originalExecCommand
   })
 
+  it("shows the full code right after creation, since the list only ever returns a preview", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    })
+
+    renderScreen()
+    const input = (await createInvitation()) as HTMLInputElement
+
+    expect(input.value).toBe(CREATED_CODE)
+  })
+
+  it("has no per-row copy button any more: copying a stored preview would hand out a dead code", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    })
+
+    renderScreen()
+    await screen.findByTestId(`invitation-row-${INVITATION.id}`)
+
+    expect(screen.queryByTestId(`invitation-copy-${INVITATION.id}`)).toBeNull()
+  })
+
   // The regression this guards: `navigator.clipboard`'s `writeText` rejecting (no permission, no focus,
-  // no secure context) used to throw straight out of the row's copy handler instead of resolving to
-  // a known outcome — the row button below is `copyCode`, independent from the create-then-copy path.
-  it("shows an error toast, never the success one, when copying an existing code fails", async () => {
+  // no secure context) must resolve to a known outcome, never throw out of the handler.
+  it("shows an error toast, never the success one, when copying the new code fails", async () => {
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
       configurable: true,
@@ -91,7 +123,9 @@ describe("<InvitationsSettings> — copy outcome", () => {
     document.execCommand = vi.fn().mockReturnValue(false)
 
     renderScreen()
-    fireEvent.click(await screen.findByTestId(`invitation-copy-${INVITATION.id}`))
+    await createInvitation()
+    vi.clearAllMocks()
+    fireEvent.click(screen.getByTestId("invitation-created-code-copy"))
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Couldn't copy the code — copy it manually instead."),
@@ -99,14 +133,16 @@ describe("<InvitationsSettings> — copy outcome", () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
-  it("shows the success toast when copying an existing code actually lands", async () => {
+  it("shows the success toast when copying the new code lands", async () => {
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       configurable: true,
     })
 
     renderScreen()
-    fireEvent.click(await screen.findByTestId(`invitation-copy-${INVITATION.id}`))
+    await createInvitation()
+    vi.clearAllMocks()
+    fireEvent.click(screen.getByTestId("invitation-created-code-copy"))
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Code copied to clipboard"))
     expect(toast.error).not.toHaveBeenCalled()
