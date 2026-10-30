@@ -11,6 +11,7 @@ import { devOnlyOrigins } from './lib/dev-origins';
 import { createLibRedisClient } from './lib/redis-connection';
 import { resolveTrustProxyHops } from './lib/trust-proxy';
 import { auth } from './lib/auth';
+import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 
 /**
  * Everything between `NestFactory.create()` and `app.listen()` — split out of `main.ts` (where
@@ -39,6 +40,9 @@ import { auth } from './lib/auth';
  */
 export async function createApp(module: Type<unknown> = AppModule): Promise<INestApplication> {
   const app = await NestFactory.create(module, { bodyParser: false });
+  // Every line the framework itself prints — unhandled exception traces included — goes through the
+  // same redaction the `Log` table gets; see `logger/redaction.ts` for what is filtered and why.
+  app.useLogger(new RedactingConsoleLogger());
   // Exact hop count matters here: nginx (nginx.conf) proxies to this process over loopback (same
   // container, see entrypoint.sh) and APPENDS its own directly-observed peer address to whatever
   // `X-Forwarded-For` it received (`$proxy_add_x_forwarded_for`, never overwriting it) — so the

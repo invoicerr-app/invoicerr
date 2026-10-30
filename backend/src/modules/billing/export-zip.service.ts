@@ -30,11 +30,11 @@
  */
 import { Injectable } from '@nestjs/common';
 import { createWriteStream } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
+import { createTempWorkspace } from '@/lib/temp-workspace';
 // `jszip` ships an `export = JSZip` (CJS) declaration — a plain `import JSZip from 'jszip'` compiles,
 // under ts-jest, to a `.default` access that does not exist on it (`jszip_1.default is not a
 // constructor` at runtime); the namespace form (`import * as JSZip`) instead fails `nest build`'s own
@@ -109,7 +109,7 @@ async function streamZipToTempFile(
   maxDurationMs: number,
   now: () => number = Date.now,
 ): Promise<{ dir: string; path: string }> {
-  const dir = await mkdtemp(join(tmpdir(), 'invoicerr-billing-export-'));
+  const dir = await createTempWorkspace('invoicerr-billing-export');
   const path = join(dir, 'export.zip');
   const startedAt = now();
   let bytesWritten = 0;

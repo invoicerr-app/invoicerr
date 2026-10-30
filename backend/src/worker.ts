@@ -3,6 +3,8 @@ import * as http from 'node:http';
 import { NestFactory } from '@nestjs/core';
 
 import { WorkerModule } from './worker.module';
+import { RedactingConsoleLogger } from './logger/redacting-console-logger';
+import { redactLogValue } from './logger/redaction';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -23,6 +25,8 @@ import { WorkerModule } from './worker.module';
  */
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(WorkerModule);
+  // Same redaction as the API process: the worker prints the same kind of provider/document payloads.
+  app.useLogger(new RedactingConsoleLogger());
   app.enableShutdownHooks();
   await app.init();
 
@@ -38,6 +42,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  console.error('Error during worker bootstrap:', err);
+  console.error('Error during worker bootstrap:', redactLogValue(err));
   process.exit(1);
 });

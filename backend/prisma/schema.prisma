@@ -1246,7 +1246,13 @@ model Webhook {
 
 model InvitationCode {
   id          String      @id @default(uuid())
-  code        String      @unique
+  /// Plaintext code, nullable only so a boot-time backfill can digest rows written before the switch.
+  /// Every write since sets `codeHash` + `codePrefix` instead and leaves this null.
+  code        String?     @unique
+  /// HMAC-SHA256 of the presented code (`lib/invitation-code.ts`) — the only form the app searches.
+  codeHash    String?     @unique
+  /// First eight characters, for the settings screen preview; never enough to redeem.
+  codePrefix  String?
   createdAt   DateTime    @default(now())
   expiresAt   DateTime?
   usedAt      DateTime?

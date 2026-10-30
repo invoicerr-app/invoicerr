@@ -110,6 +110,51 @@ and error message would otherwise expose another tenant's identifiers, and those
 for whoever has direct access to it. There is no manual "run now" trigger; the schedule above is the
 only way a sweep starts.
 
+## Verifying encryption at rest
+
+The per-artifact encryption above is proven by the fact that you cannot read a backup without
+`BACKUP_ENCRYPTION_KEY`. The storage underneath it has its own, weaker guarantee, and it is worth
+checking once rather than assuming: a bucket or a volume created before encryption was turned on
+stays readable at rest until its contents are rewritten, so "the console says encrypted" is not the
+same claim as "these bytes are encrypted".
+
+**Object storage.** With Scaleway on the S3 API, confirm the setting on the bucket itself, then on
+one real object:
+
+```bash
+aws --endpoint-url https://s3.fr-par.scw.cloud s3api get-bucket-encryption \
+  --bucket <bucket-name>
+aws --endpoint-url https://s3.fr-par.scw.cloud s3api head-object \
+  --bucket <bucket-name> --key <any-existing-key>
+```
+
+The second command must print a `ServerSideEncryption` entry. `get-bucket-encryption` describes the
+default for **new** objects only: on Scaleway, enabling SSE-ONE after objects exist does not encrypt
+those objects, so copy them to a fresh bucket (or rewrite them in place) and check a rewritten key.
+OVHcloud Object Storage offers the same two modes under the names SSE-OMK (provider-held key) and
+SSE-C (your key); the same `head-object` check applies, against
+`https://s3.<region>.io.cloud.ovh.net`.
+
+**Block storage and the database volume.** On OVHcloud, only volume types whose name ends in `-luks`
+are encrypted, so check the type rather than the label:
+
+```bash
+openstack volume type list
+openstack volume show <volume-id> -c name -c type -c encrypted
+```
+
+On a Proxmox host, ask the storage layer directly rather than the summary screen; a dataset without
+`encryption=on` is not encrypted even when it sits on an encrypted pool:
+
+```bash
+zfs get -r encryption,encryptionroot <pool>/<dataset>
+dmsetup ls --target crypt
+lsblk -o NAME,TYPE,FSTYPE,MOUNTPOINT
+```
+
+Keep the output with the deployment's own records. It is the only thing that turns "the provider says
+it is encrypted" into a dated fact about this instance.
+
 ## Restoring
 
 There is no "restore" button in this application — recovering a backup is an operator action against

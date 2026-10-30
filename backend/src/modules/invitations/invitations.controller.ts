@@ -11,6 +11,7 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { Public } from '@thallesp/nestjs-better-auth';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from '@/lib/pending-signup-store';
+import { hashInvitationCode } from '@/lib/invitation-code';
 
 // A second, independent connection to the same Redis-backed store `lib/auth.ts` writes through — not
 // a shared singleton, deliberately: this controller runs inside Nest DI (unlike `lib/auth.ts`, which
@@ -77,7 +78,12 @@ export class InvitationsController {
       throw new BadRequestException(result.message || 'Invalid invitation code');
     }
 
-    await pendingSignupStore.setPendingInvitationCode(body.email.toLowerCase(), body.code);
+    // The digest, never the code: the Redis entry only has to survive until the signup hook reads it
+    // back, and a Redis dump must not be any more replayable than a Postgres one.
+    await pendingSignupStore.setPendingInvitationCode(
+      body.email.toLowerCase(),
+      hashInvitationCode(body.code),
+    );
 
     return { valid: true, message: 'Invitation code validated' };
   }
