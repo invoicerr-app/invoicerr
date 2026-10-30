@@ -20,7 +20,7 @@ commitments, fees, or limitations below apply to a self-hosted deployment.
 ## 1. Acceptance, Parties and Eligibility
 
 1.1. These Terms form a binding agreement between **INVOICERR**, a société par actions simplifiée
-unipersonnelle (**SASU**) under French law, with a share capital of **100 euros**, registered office at
+(**SAS**) under French law, with a share capital of **100 euros**, registered office at
 **63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the Lyon Trade and Companies
 Register (RCS Lyon) under number `[to be completed at registration]`, intra-EU VAT number
 `[to be completed]`, represented by its president, **Roméo Chevrier** ("**we**", "**us**", "**the
@@ -274,7 +274,7 @@ deletion.
      permanently deleted **no earlier than one hundred eighty (180) days after the archive is made
      available**, giving you a further window to reactivate your subscription before deletion.
    - Deletion covers all of Your Data, including the archived copies of the documents you sent. The
-     encrypted backups of the Service expire thirty-five (35) days after they are made, so no copy of
+     backups of the Service expire thirty-five (35) days after they are made, so no copy of
      Your Data remains with us after that.
 
 13.4. **You alone keep your invoices.** **Retaining your invoices and related documents for any
@@ -631,4 +631,6 @@ concluding this Agreement. Nothing in this Section reduces a right that mandator
   covers "a translation or a summary" wherever it covered a translation, and adds that between
   professionals the parties derogate from article 1127-1, 3° of the French Civil Code as article 1127-3
   allows: English is the only language offered for concluding the Agreement, and that Section reduces
-  no right mandatory law gives the customer. No other fact changed.
+  no right mandatory law gives the customer. Section 1.1 now names the société par actions simplifiée
+  (SAS) rather than a SASU (D-262). Section 13.3 no longer calls the backups encrypted: they expire after
+  thirty-five days, and encryption is only claimed where it is true (DPA Annex III).

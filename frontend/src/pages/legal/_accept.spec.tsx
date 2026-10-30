@@ -146,7 +146,7 @@ describe("<LegalAcceptPage> — language selector", () => {
 })
 
 describe("<LegalAcceptPage> — language consent notice", () => {
-  it('states, right above the button, the language the documents are accepted in', async () => {
+  it("states, right above the button, the language the documents are accepted in", async () => {
     installFetchMock({
       "GET /api/legal/status": () => STATUS,
       "GET /api/legal/documents": () => DOCUMENTS,

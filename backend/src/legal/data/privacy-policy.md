@@ -19,7 +19,7 @@ happens to you. Everything below concerns the hosted Service only.
 ## 1. Who We Are
 
 The data controller for the account and billing data described in Section 3 is **INVOICERR**, a
-société par actions simplifiée unipersonnelle (**SASU**) under French law, with a share capital of 100
+société par actions simplifiée (**SAS**) under French law, with a share capital of 100
 euros, registered office at **63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the
 Lyon Trade and Companies Register (RCS Lyon) under number `[to be completed at registration]`,
 represented by its president, **Roméo Chevrier** ("**we**", "**us**", "**the Provider**"). Contact:
@@ -153,7 +153,7 @@ the documents you create, or your Company's account and database records, involv
   archived copies of the documents you sent. We return your data to you first (Terms of Service,
   Sections 8.2 and 13.2); we do not keep your invoices for you afterwards, and keeping them for any
   statutory retention period is your responsibility alone (Terms of Service, Section 13.4).
-- **Backups** are encrypted and kept for **thirty-five (35) days**, then deleted automatically. Data
+- **Backups** are kept for **thirty-five (35) days**, then deleted automatically. Data
   deleted from the Service therefore disappears from the backups within thirty-five days.
 - **Our own invoices to your Company**, and the accounting records behind them, are kept for the period
   French law requires of us for accounting documents (10 years, C. com. art. L123-22), including after
@@ -437,4 +437,6 @@ Nothing in this Section reduces a right the GDPR gives you.
   optional. Section 14 covers "a translation or a summary" wherever it covered a translation, and adds
   that it reduces no right the GDPR gives the reader. English-only legal texts: the full French
   translation is replaced by a short French summary, and the German, Italian, Polish and Portuguese
-  translations are withdrawn. No other fact changed.
+  translations are withdrawn. Section 1 now names the société par actions simplifiée (SAS) rather than a
+  SASU (D-262). Section 6 no longer calls the backups encrypted: they are kept for thirty-five days,
+  and encryption is only claimed where it is true (DPA Annex III).

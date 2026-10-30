@@ -350,7 +350,7 @@ shall continue to ensure compliance with these Clauses.
 
 **Processor(s)**
 
-- **Name**: INVOICERR, société par actions simplifiée unipersonnelle (SASU) with a share capital of 100
+- **Name**: INVOICERR, société par actions simplifiée (SAS) with a share capital of 100
   euros, RCS Lyon `[to be completed at registration]`, operator of the hosted Invoicerr Service.
 - **Address**: 63 avenue Jules Guesde, 69200 Vénissieux, France.
 - **Contact person’s name, position and contact details**: Roméo Chevrier, president,
@@ -685,3 +685,5 @@ this document; they create no separate or additional rights.
   Google (Gmail) are removed, as is the separate acceptance environment; Cloudflare's entry now
   describes DNS and its proxy. The e-invoicing platforms move to the Notes, as chosen and contracted
   by the Customer; Stripe, GitHub and Weblate are noted as receiving no Customer data.
+- **2026-10-30**: Annex I now names the Processor as a société par actions simplifiée (SAS) rather than a
+  SASU (D-262). No other fact changed.

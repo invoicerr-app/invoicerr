@@ -73,7 +73,7 @@ restent en France, chez OVHcloud.
   30 jours après l'envoi de l'archive pour un essai non converti, 180 jours pour un abonnement payé.
 - **Suppression de l'entreprise :** tout est supprimé, y compris les documents archivés. La conservation
   légale de vos factures reste à votre charge.
-- **Sauvegardes :** 35 jours, chiffrées.
+- **Sauvegardes :** 35 jours.
 - **Nos factures et notre comptabilité :** 10 ans (C. com. art. L123-22).
 - **Journaux applicatifs :** 90 jours.
 - **Sessions :** jusqu'à la déconnexion, sinon tant que le compte existe.

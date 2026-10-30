@@ -17,7 +17,7 @@ license in the `LICENSE` file at the root of the
 
 ## 1. Publisher
 
-- **INVOICERR**, a société par actions simplifiée unipersonnelle (**SASU**) under French law, with a
+- **INVOICERR**, a société par actions simplifiée (**SAS**) under French law, with a
   share capital of **100 euros**.
 - Registered office: **63 avenue Jules Guesde, 69200 Vénissieux, France**.
 - Registered with the Lyon Trade and Companies Register (**RCS Lyon**) under number
@@ -152,4 +152,5 @@ Nothing in this Section sets aside a mandatory rule of law.
 - **2026-10-30**: English-only legal texts: the full French translation is replaced by a short French
   summary, and the German, Italian, Polish and Portuguese translations are withdrawn. Section 8 covers
   "a translation or a summary" wherever it covered a translation, and adds that it sets aside no
-  mandatory rule of law. No other fact changed.
+  mandatory rule of law. Section 1 now names the société par actions simplifiée (SAS) rather than a
+  SASU (D-262).
