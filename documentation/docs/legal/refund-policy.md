@@ -39,10 +39,13 @@ A founder pre-order is a subscription bought in advance, before the hosted Servi
 pre-order contract. On top of Section 2:
 
 - **Full refund if the Service has not opened.** If the hosted Service is not open on **30 June 2027**,
-  the whole amount you paid for your pre-order is refunded.
+  you can ask for a refund of the whole amount you paid for your pre-order, by email, between 1 July
+  and 30 September 2027, as your pre-order contract provides.
 - **Pro rata refund if the Service stops.** If the hosted Service stops during a period you have
   already paid for, the part of that period during which you no longer receive the Service is refunded
   pro rata.
+
+Your pre-order contract prevails over this Section.
 
 ## 4. Auto-Renewal
 
@@ -154,3 +157,9 @@ this document; they create no separate or additional rights.
   deletion covers archived documents too, and that the customer alone keeps their invoices. Section 10
   points to the late payment terms of the Terms of Service, Section 7.6. Sections renumbered from 3
   onward.
+- **2026-10-30**: Section 3's first bullet now gives the request the pre-order contract requires: a
+  refund of the whole pre-order price can be asked for by email between 1 July and 30 September 2027 if
+  the hosted Service is not open on 30 June 2027, and the Section now states that the pre-order contract
+  prevails over it. English-only legal texts: the full French translation is replaced by a short French
+  summary, and the German, Italian, Polish and Portuguese translations are withdrawn. No other fact
+  changed.

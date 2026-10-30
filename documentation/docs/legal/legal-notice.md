@@ -82,12 +82,14 @@ this Agreement.
 
 ## 8. Governing Language
 
-This document is drafted and executed in English. Where we provide a translation into another
-language for your convenience and understanding, that translation is not a substitute for the English
+This document is drafted and executed in English. Where we provide a translation or a summary in
+another language for your convenience and understanding, it is not a substitute for the English
 text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
-translated version, **the English version prevails** and is the version that governs the rights and
-obligations of the parties. Translations are provided in good faith to help each audience understand
-this document; they create no separate or additional rights.
+translated or summarized version, **the English version prevails** and is the version that governs the
+rights and obligations of the parties. Translations and summaries are provided in good faith to help
+each audience understand this document; they create no separate or additional rights.
+
+Nothing in this Section sets aside a mandatory rule of law.
 
 ---
 
@@ -147,3 +149,7 @@ this document; they create no separate or additional rights.
   France by OVH SAS (OVHcloud), which also hosts the support mailbox; Cloudflare is named for DNS and,
   while enabled, its proxy. The Scaleway production entry and the separate acceptance environment are
   removed. Section 7 now names the court of the registered office in Lyon.
+- **2026-10-30**: English-only legal texts: the full French translation is replaced by a short French
+  summary, and the German, Italian, Polish and Portuguese translations are withdrawn. Section 8 covers
+  "a translation or a summary" wherever it covered a translation, and adds that it sets aside no
+  mandatory rule of law. No other fact changed.

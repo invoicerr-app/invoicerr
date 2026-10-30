@@ -65,11 +65,25 @@ describe('LegalService.listDocuments', () => {
 
   it('every document reports its own available languages regardless of which one was resolved', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
-    const documents = new LegalService().listDocuments(['de']).documents;
+    const documents = new LegalService().listDocuments(['fr']).documents;
     const privacy = documents.find((d) => d.slug === 'privacy-policy');
-    expect(privacy?.availableLanguages).toEqual(['en', 'fr', 'de', 'it', 'pl', 'pt']);
+    expect(privacy?.availableLanguages).toEqual(['en', 'fr']);
     const notice = documents.find((d) => d.slug === 'legal-notice');
     expect(notice?.availableLanguages).toEqual(['en', 'fr']);
+    // A document with no French page at all: English only, even to a French reader.
+    const refund = documents.find((d) => d.slug === 'refund-policy');
+    expect(refund?.availableLanguages).toEqual(['en']);
+    expect(refund?.language).toBe('en');
+  });
+
+  it('serves a German, Italian, Polish or Portuguese reader English on every document', () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
+    for (const lang of ['de', 'it', 'pl', 'pt']) {
+      const documents = new LegalService().listDocuments([lang]).documents;
+      for (const doc of documents) {
+        expect(doc.language).toBe('en');
+      }
+    }
   });
 });
 

@@ -57,6 +57,9 @@ use the Service (connection and security data).
 | Invoicing records for our own accounting | your Company's identity, VAT number, and the invoices we issue to it for the Fees | our own statutory invoicing and bookkeeping obligations | Legal obligation (Art. 6(1)(c)) |
 | Waiting-list data | e-mail address, country, company size, sign-up date and time | tell you when the hosted version of the Service opens | Consent (Art. 6(1)(a)), given by submitting the form and withdrawable at any time; the sign-up date and time is the record of that consent (Art. 7(1)) |
 
+Providing your account, Company and subscription data is necessary to enter into the contract: without
+it we cannot open your account. The waiting-list form is optional.
+
 We do not send marketing email beyond what is transactional to your account and subscription (e.g.
 sign-in, billing, and service notices) — there is no separate marketing-consent flow to describe.
 
@@ -269,12 +272,14 @@ or by post to the address in Section 1.
 
 ## 14. Governing Language
 
-This document is drafted and executed in English. Where we provide a translation into another
-language for your convenience and understanding, that translation is not a substitute for the English
+This document is drafted and executed in English. Where we provide a translation or a summary in
+another language for your convenience and understanding, it is not a substitute for the English
 text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
-translated version, **the English version prevails** and is the version that governs the rights and
-obligations of the parties. Translations are provided in good faith to help each audience understand
-this document; they create no separate or additional rights.
+translated or summarized version, **the English version prevails** and is the version that governs the
+rights and obligations of the parties. Translations and summaries are provided in good faith to help
+each audience understand this document; they create no separate or additional rights.
+
+Nothing in this Section reduces a right the GDPR gives you.
 
 ---
 
@@ -427,3 +432,9 @@ this document; they create no separate or additional rights.
   alone keeps their invoices, backups expire after 35 days, and our own invoices are kept for the
   accounting retention period. Section 8 no longer describes a statutory-retention limit on erasure,
   since none is applied any more. Section 10 names OVHcloud as the host.
+- **2026-10-30**: Section 3 now gives the information article 13(2)(e) of the GDPR requires: the account,
+  Company and subscription data are necessary to enter into the contract, and the waiting-list form is
+  optional. Section 14 covers "a translation or a summary" wherever it covered a translation, and adds
+  that it reduces no right the GDPR gives the reader. English-only legal texts: the full French
+  translation is replaced by a short French summary, and the German, Italian, Polish and Portuguese
+  translations are withdrawn. No other fact changed.

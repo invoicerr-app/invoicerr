@@ -448,12 +448,16 @@ Questions about these Terms can be sent to **contact@invoicerr.app**.
 
 ## 23. Governing Language
 
-This document is drafted and executed in English. Where we provide a translation into another
-language for your convenience and understanding, that translation is not a substitute for the English
+This document is drafted and executed in English. Where we provide a translation or a summary in
+another language for your convenience and understanding, it is not a substitute for the English
 text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
-translated version, **the English version prevails** and is the version that governs the rights and
-obligations of the parties. Translations are provided in good faith to help each audience understand
-this document; they create no separate or additional rights.
+translated or summarized version, **the English version prevails** and is the version that governs the
+rights and obligations of the parties. Translations and summaries are provided in good faith to help
+each audience understand this document; they create no separate or additional rights.
+
+This Agreement is concluded between professionals. As article 1127-3 of the French Civil Code allows,
+the parties derogate from article 1127-1, 3° of that Code: English is the only language offered for
+concluding this Agreement. Nothing in this Section reduces a right that mandatory law gives you.
 
 ---
 
@@ -622,3 +626,9 @@ this document; they create no separate or additional rights.
   Scaleway are removed, as is the separate acceptance environment; e-invoicing platforms are chosen
   and contracted by the customer. Section 17.1(b): the cap is the Fees paid to the Provider. Section
   20.3: court of the registered office in Lyon. Section 21.2 and 21.4 reworded to match.
+- **2026-10-30**: English-only legal texts: the full French translation is replaced by a short French
+  summary, and the German, Italian, Polish and Portuguese translations are withdrawn. Section 23 now
+  covers "a translation or a summary" wherever it covered a translation, and adds that between
+  professionals the parties derogate from article 1127-1, 3° of the French Civil Code as article 1127-3
+  allows: English is the only language offered for concluding the Agreement, and that Section reduces
+  no right mandatory law gives the customer. No other fact changed.
