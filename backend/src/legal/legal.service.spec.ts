@@ -46,13 +46,14 @@ describe('LegalService.listDocuments', () => {
   it('serves each document in the best-matching preferred language, per document', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
     const documents = new LegalService().listDocuments(['fr']).documents;
-    // privacy-policy ships a French translation — it resolves to it.
+    // privacy-policy ships a short French summary (D-297) — it resolves to it.
     const privacy = documents.find((d) => d.slug === 'privacy-policy');
     expect(privacy?.language).toBe('fr');
-    expect(privacy?.title).toBe('Politique de Confidentialité');
-    // legal-notice also ships a French translation.
+    expect(privacy?.title).toBe('Politique de Confidentialité (synthèse en français)');
+    // legal-notice ships one too.
     const notice = documents.find((d) => d.slug === 'legal-notice');
     expect(notice?.language).toBe('fr');
+    expect(notice?.title).toBe('Mentions Légales');
   });
 
   it('falls back to English, per document, for a language the catalog does not carry at all', () => {
