@@ -48,7 +48,7 @@ jobs:
     # needed by a queue-driven pipeline spec that no longer exists in this codebase (see below).
     services:
       postgres:
-        image: postgres:16@sha256:a902560563d3a5661228585f53474c5065e7f273b21ffd77e555a8b5682c5690
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust

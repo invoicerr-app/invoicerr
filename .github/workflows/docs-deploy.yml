@@ -50,7 +50,7 @@ jobs:
       APP_URL: http://localhost:3000
     services:
       postgres:
-        image: postgres:16@sha256:a902560563d3a5661228585f53474c5065e7f273b21ffd77e555a8b5682c5690
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -63,7 +63,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       redis:
-        image: redis:7@sha256:44960b3100c48159a66d28c18b0588c193492e25f7551d60e51dd464fc3eca5b
+        image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
         ports:
           - "6379:6379"
         options: >-
