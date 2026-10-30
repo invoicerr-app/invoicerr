@@ -45,22 +45,25 @@ export class InvitationsService {
   // of a generic "something went wrong" from better-auth. `requiresCode` tells the caller
   // whether a valid invitation code is still a way forward; false on a closed demo instance.
   async canRegister(
-    invitationCode?: string,
+    invitationCode?: unknown,
   ): Promise<{ allowed: boolean; requiresCode: boolean; message?: string }> {
+    // This parameter crosses the HTTP boundary: `@Query()` hands a repeated key over as an array,
+    // and the value is digested below. Only a non-empty string is a code; anything else is none.
+    const code = typeof invitationCode === 'string' && invitationCode.length > 0 ? invitationCode : undefined;
     const isFirstUser = (await this.prisma.user.count()) === 0;
 
     let invitation:
       | { found: true; usedAt: Date | null; expiresAt: Date | null }
       | { found: false }
       | undefined;
-    if (invitationCode) {
-      const record = await this.findByPresentedCode(invitationCode);
+    if (code) {
+      const record = await this.findByPresentedCode(code);
       invitation = record
         ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
         : { found: false };
     }
 
-    const decision = decideRegistration({ invitationCode, invitation, isFirstUser });
+    const decision = decideRegistration({ invitationCode: code, invitation, isFirstUser });
 
     if (!decision.allowed) {
       return {

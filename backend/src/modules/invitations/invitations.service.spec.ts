@@ -439,6 +439,19 @@ describe('InvitationsService', () => {
       expect(result.message).toMatch(/invalid/i);
     });
 
+    it('treats a repeated query key (an array, never a string) as no code supplied at all', async () => {
+      delete process.env.DISABLE_AUTH;
+      prisma.user.count.mockResolvedValue(5);
+
+      // `?code=a&code=b` reaches `@Query('code')` as an array; this value ends up digested, and a
+      // digest whose input may be an array is a type confusion. Not a string means no code, so the
+      // open-signup path decides — the lookup is never even attempted.
+      const result = await service.canRegister(['CODE123', 'CODE456']);
+
+      expect(result.allowed).toBe(true);
+      expect(prisma.invitationCode.findUnique).not.toHaveBeenCalled();
+    });
+
     it('rejects an expired code even though it exists and is unused', async () => {
       delete process.env.DISABLE_AUTH;
       prisma.user.count.mockResolvedValue(5);

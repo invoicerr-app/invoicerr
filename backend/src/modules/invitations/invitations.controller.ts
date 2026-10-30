@@ -35,8 +35,10 @@ export class InvitationsController {
   })
   @ApiQuery({ name: 'code', required: false, type: String, description: 'Invitation code to validate' })
   @ApiResponse({ status: 200, description: 'Registration status retrieved', type: CanRegisterResponseDto })
-  async canRegister(@Query('code') code?: string) {
-    return this.invitationsService.canRegister(code);
+  async canRegister(@Query('code') code?: unknown) {
+    // A query key repeated in the URL (`?code=a&code=b`) arrives as an array, exactly like a
+    // repeated body field: only a string ever names an invitation, so anything else is "no code".
+    return this.invitationsService.canRegister(typeof code === 'string' ? code : undefined);
   }
 
   @Get('is-first-user')
