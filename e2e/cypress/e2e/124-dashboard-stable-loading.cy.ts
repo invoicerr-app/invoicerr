@@ -144,6 +144,20 @@ function delayDashboardResponses(onRequest: () => void) {
 	}).as("dashboard");
 }
 
+/** Pins the invoice-overview panel to its skeleton longer than the measurement window runs, on top
+ *  of the widget grid's own delay. Round 2 stacks the panel between the dashboard header and the
+ *  widget grid, and its skeleton's fixed heights are not the loaded panel's content heights, so a
+ *  panel that resolves while the boxes around it are being compared moves every one of them by
+ *  that height change without a card resizing at all. Holding the panel keeps the page above the
+ *  grid at one known height while the widgets do their own slow, skeleton-fitted reload. */
+function delayOverviewResponses() {
+	cy.intercept({ method: "GET", pathname: "/api/documents/dashboard/overview" }, (req) => {
+		req.on("response", (res) => {
+			res.setDelay(RESPONSE_DELAY_MS + 10000);
+		});
+	}).as("overview");
+}
+
 describe("Dashboard keeps its layout while a period loads", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -166,6 +180,7 @@ describe("Dashboard keeps its layout while a period loads", () => {
 		it(`changing the period keeps every card at the same size and position, marked busy (${device})`, () => {
 			let requested = false;
 			cy.viewport(width, height);
+			delayOverviewResponses();
 			cy.visit("/dashboard", { onBeforeLoad: trackLayoutShifts });
 			cy.get('[data-cy="dashboard-widgets"] [data-widget-kind]', { timeout: 20000 }).should("have.length.gt", 0);
 
@@ -196,6 +211,7 @@ describe("Dashboard keeps its layout while a period loads", () => {
 
 	it("the first load shows skeletons with the dimensions of the cards they stand for", () => {
 		let requested = false;
+		delayOverviewResponses();
 		cy.visit("/dashboard");
 		cy.get('[data-cy="dashboard-widgets"] [data-widget-kind]', { timeout: 20000 }).should("have.length.gt", 0);
 		cardBoxes().then((loaded) => {
