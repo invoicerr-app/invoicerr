@@ -11,6 +11,7 @@
  * directory could not be removed. Directories are `0700` and are removed as soon as their caller is
  * done with them; the age-based pass only catches the crash case.
  */
+import type { Dirent } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -43,7 +44,7 @@ export async function sweepStaleTempWorkspaces(options: SweepOptions = {}): Prom
   const maxAgeMs = options.maxAgeMs ?? TEMP_WORKSPACE_MAX_AGE_MS;
   const now = options.now ?? Date.now;
 
-  let entries;
+  let entries: Dirent[];
   try {
     entries = await readdir(root, { withFileTypes: true });
   } catch {

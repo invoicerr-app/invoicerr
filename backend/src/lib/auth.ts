@@ -45,7 +45,7 @@ import { MailService } from '../mail/mail.service';
 import { servedOverHttps } from './app-url-scheme';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
-import { redactLogText } from './logger/redaction';
+import { redactLogText } from '../logger/redaction';
 import { CLIENT_IP_HEADER } from './client-ip-header';
 import { devOnlyOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
@@ -130,8 +130,7 @@ const validateInvitationForSignup = async (
 
   // What the store holds is the DIGEST of the code (`invitations.controller.ts` writes it), so this
   // hook can look the row up without ever seeing, or persisting, the plaintext credential.
-  const pendingInvitationCodeHash =
-    (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
+  const pendingInvitationCodeHash = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
 
   let invitation: InvitationLookupResult | undefined;
   if (pendingInvitationCodeHash) {
