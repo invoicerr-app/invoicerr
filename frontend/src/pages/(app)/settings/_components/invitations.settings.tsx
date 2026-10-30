@@ -177,7 +177,9 @@ export default function InvitationsSettings() {
                 <CopyIcon />
               </Button>
             </div>
-            <p className="text-muted-foreground text-xs">{t("settings.invitations.create.createdCodeHint")}</p>
+            <p className="text-muted-foreground text-xs">
+              {t("settings.invitations.create.createdCodeHint")}
+            </p>
           </div>
         </SettingsSection>
       )}
