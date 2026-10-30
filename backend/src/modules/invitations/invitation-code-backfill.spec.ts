@@ -12,9 +12,11 @@ interface Row {
 /** In-memory stand-in honouring only the two calls the backfill makes, including the `code IS NOT
  *  NULL` guard that makes concurrent boots safe. */
 function fakePrisma(rows: Row[], options: { loseRaceOn?: string[] } = {}) {
-  const findMany = vi.fn(
-    async ({ take }: { take: number }) =>
-      rows.filter((row) => row.code !== null).slice(0, take).map(({ id, code }) => ({ id, code: code! })),
+  const findMany = vi.fn(async ({ take }: { take: number }) =>
+    rows
+      .filter((row) => row.code !== null)
+      .slice(0, take)
+      .map(({ id, code }) => ({ id, code: code! })),
   );
 
   const updateMany = vi.fn(

@@ -136,7 +136,8 @@ const TEXT_PATTERNS: readonly { pattern: RegExp; replacement: string }[] = [
   { pattern: /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, replacement: `$1 ${REDACTED_SECRET}` },
   // Secrets passed as query parameters (?token=…, ?code=…, ?api_key=…).
   {
-    pattern: /([?&](?:token|access_token|refresh_token|id_token|code|api_key|apikey|secret|password)=)[^&\s#]+/gi,
+    pattern:
+      /([?&](?:token|access_token|refresh_token|id_token|code|api_key|apikey|secret|password)=)[^&\s#]+/gi,
     replacement: `$1${REDACTED_SECRET}`,
   },
   // key=value pairs in a body-ish string (form-encoded, .env dump, connection string).

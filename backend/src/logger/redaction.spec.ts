@@ -9,9 +9,7 @@ import {
 
 describe('redactLogText', () => {
   it('replaces an email address interpolated into a sentence', () => {
-    expect(redactLogText('signup failed for ada@acme.test')).toBe(
-      `signup failed for ${REDACTED_EMAIL}`,
-    );
+    expect(redactLogText('signup failed for ada@acme.test')).toBe(`signup failed for ${REDACTED_EMAIL}`);
   });
 
   it('leaves a file path or a version string alone', () => {
@@ -42,12 +40,8 @@ describe('redactLogText', () => {
   });
 
   it('replaces a provider key that a driver error can carry verbatim', () => {
-    expect(redactLogText('failed with sk_live_abcdef1234567890')).toBe(
-      `failed with ${REDACTED_SECRET}`,
-    );
-    expect(redactLogText('hook whsec_abcdef1234567890 rejected')).toBe(
-      `hook ${REDACTED_SECRET} rejected`,
-    );
+    expect(redactLogText('failed with sk_live_abcdef1234567890')).toBe(`failed with ${REDACTED_SECRET}`);
+    expect(redactLogText('hook whsec_abcdef1234567890 rejected')).toBe(`hook ${REDACTED_SECRET} rejected`);
   });
 
   it('keeps a uuid intact: it is the id a support request needs', () => {
