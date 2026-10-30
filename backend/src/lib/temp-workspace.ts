@@ -70,7 +70,10 @@ let sweptThisProcess = false;
  * stale-artifact sweep once, asynchronously — the caller's own directory is freshly created and thus
  * never a candidate, so the sweep cannot race what it is about to return.
  */
-export async function createTempWorkspace(prefix: string, env: NodeJS.ProcessEnv = process.env): Promise<string> {
+export async function createTempWorkspace(
+  prefix: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string> {
   const root = tempWorkspaceRoot(env);
   await mkdir(root, { recursive: true, mode: 0o700 });
 
