@@ -48,9 +48,9 @@ export default function LegalAcceptPage() {
   // to every pending document at once (`useLegalDocuments(langOverride)` above), so switching language
   // never leaves one tab in the visitor's pick and another silently still in whatever the server
   // resolved on its own. The union of every pending document's own `availableLanguages` is what decides
-  // whether it even shows — Terms of Service (en/fr only) and Privacy Policy (all six) pending together
-  // still surface French, German, Italian, Polish, and Portuguese as choices, each just falling back to
-  // English for whichever document doesn't carry it.
+  // whether it even shows — since D-297 only Terms of Service, Privacy Policy and Legal Notice carry a
+  // French summary, so a pending pair of Terms and Privacy still surfaces English and French, while a
+  // document with no French page at all (the DPA, the refund policy) contributes English only.
   const availableLanguages = Array.from(new Set(pendingDocs.flatMap((doc) => doc.availableLanguages)))
   const resolvedLanguage = pendingDocs[0]?.language ?? "en"
 
@@ -151,6 +151,18 @@ export default function LegalAcceptPage() {
             ))}
           </Tabs>
         )}
+
+        {/* D-299: the language the visitor is accepting in is its own consent, separate from the
+            document content above — stated right above the button, where the acceptance actually
+            happens, rather than buried in Section 23 of the Terms. English source string only for
+            now: the French wording is left to Weblate (`legal.accept.languageNotice` is absent from
+            every other locale file and falls back to English, `lib/i18n.ts`'s `fallbackLng`). */}
+        <p className="max-w-2xl text-xs text-muted-foreground" data-cy="legal-accept-language-notice">
+          {t(
+            "legal.accept.languageNotice",
+            "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
+          )}
+        </p>
 
         <Button
           className="w-full max-w-2xl"
