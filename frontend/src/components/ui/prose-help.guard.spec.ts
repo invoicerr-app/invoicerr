@@ -22,6 +22,11 @@ const KEPT_VISIBLE = new Set([
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.resetCompanyData.detail",
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.resetCompanyData.countsSummary",
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.deleteCompany.detail",
+  // D-299: the language the legal documents are accepted in is consent, and consent has to be read
+  // before the click — behind a `?` it would not be given at the moment it is asked for. Stated on
+  // both acceptance screens (`/legal/accept` and the sign-up checkbox), same key.
+  "pages/legal/accept.tsx|legal.accept.languageNotice",
+  "pages/auth/sign-up.tsx|legal.accept.languageNotice",
 ])
 
 function sourceFiles(dir: string): string[] {
