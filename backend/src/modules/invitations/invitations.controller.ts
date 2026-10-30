@@ -67,12 +67,16 @@ export class InvitationsController {
       'Validates an invitation code and email pair, storing the code for the registration flow (public).',
   })
   @ApiResponse({ status: 201, description: 'Invitation code validated' })
-  async validateInvitation(@Body() body: { code: string; email: string }) {
-    if (!body.code || !body.email) {
+  async validateInvitation(@Body() body: { code?: unknown; email?: unknown }) {
+    // A JSON body is attacker-shaped: a repeated field arrives as an array, and the code is then fed
+    // to a digest. Reading only a string keeps the digest's input a string by construction.
+    const code = typeof body.code === 'string' ? body.code : '';
+    const email = typeof body.email === 'string' ? body.email : '';
+    if (!code || !email) {
       throw new BadRequestException('Code and email are required');
     }
 
-    const result = await this.invitationsService.canRegister(body.code);
+    const result = await this.invitationsService.canRegister(code);
 
     if (!result.allowed) {
       throw new BadRequestException(result.message || 'Invalid invitation code');
@@ -80,10 +84,7 @@ export class InvitationsController {
 
     // The digest, never the code: the Redis entry only has to survive until the signup hook reads it
     // back, and a Redis dump must not be any more replayable than a Postgres one.
-    await pendingSignupStore.setPendingInvitationCode(
-      body.email.toLowerCase(),
-      hashInvitationCode(body.code),
-    );
+    await pendingSignupStore.setPendingInvitationCode(email.toLowerCase(), hashInvitationCode(code));
 
     return { valid: true, message: 'Invitation code validated' };
   }

@@ -152,21 +152,22 @@ export default function InvitationsSettings() {
             </SelectContent>
           </Select>
         </div>
-        {createdCode && (
-          <div className="grid gap-1.5 sm:col-span-2" data-cy="invitation-created-code-panel">
-            <Label htmlFor="createdInvitationCode">{t("settings.invitations.create.createdCode")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="createdInvitationCode"
-                readOnly
-                value={createdCode}
-                className="font-mono"
-                onFocus={(e) => e.currentTarget.select()}
-                data-cy="invitation-created-code"
-              />
+      </SettingsSection>
+
+      {createdCode && (
+        <SettingsSection
+          tone="warning"
+          title={t("settings.invitations.create.createdCode")}
+          dataCy="invitation-created-code-panel"
+        >
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-muted p-2">
+              <code className="min-w-0 flex-1 break-all font-mono text-sm" data-cy="invitation-created-code">
+                {createdCode}
+              </code>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 aria-label={t("settings.common.copy")}
                 tooltip={t("settings.common.copy")}
@@ -176,12 +177,10 @@ export default function InvitationsSettings() {
                 <CopyIcon />
               </Button>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("settings.invitations.create.createdCodeHint")}
-            </p>
+            <p className="text-muted-foreground text-xs">{t("settings.invitations.create.createdCodeHint")}</p>
           </div>
-        )}
-      </SettingsSection>
+        </SettingsSection>
+      )}
 
       <SettingsSection
         title={t("settings.invitations.list.title")}
