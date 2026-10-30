@@ -58,7 +58,7 @@ jobs:
 
       # Biome is the only linter/formatter (eslint+prettier removed). biome ci = check without writes.
       - name: Lint backend (biome ci)
-        run: cd backend && ./node_modules/.bin/biome ci --diagnostic-level=error .
+        run: cd backend && ./node_modules/.bin/biome ci .
 
       - name: Lint frontend (biome ci)
         run: cd frontend && ./node_modules/.bin/biome ci .
