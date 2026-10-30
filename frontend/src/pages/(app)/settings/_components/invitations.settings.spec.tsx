@@ -96,9 +96,11 @@ describe("<InvitationsSettings> — the code is shown once", () => {
     })
 
     renderScreen()
-    const input = (await createInvitation()) as HTMLInputElement
+    const code = await createInvitation()
 
-    expect(input.value).toBe(CREATED_CODE)
+    // The code lives in its own read-only panel now (a `code` element, not a form field): there is
+    // nothing to type into and nothing to copy out of an input, only the text plus its copy button.
+    expect(code).toHaveTextContent(CREATED_CODE)
   })
 
   it("has no per-row copy button any more: copying a stored preview would hand out a dead code", async () => {
