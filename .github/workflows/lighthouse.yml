@@ -31,7 +31,7 @@ jobs:
       LH_EMAIL: john.doe@acme.org
     services:
       postgres-test:
-        image: postgres:16@sha256:a902560563d3a5661228585f53474c5065e7f273b21ffd77e555a8b5682c5690
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -43,12 +43,12 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
+        image: axllent/mailpit@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
         ports:
           - "8025:8025"
           - "1025:1025"
       redis:
-        image: redis:7@sha256:44960b3100c48159a66d28c18b0588c193492e25f7551d60e51dd464fc3eca5b
+        image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
         ports:
           - "6379:6379"
         options: >-
