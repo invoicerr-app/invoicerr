@@ -151,6 +151,43 @@ export interface ExtractedInvoiceFields {
 
 export type RecognizedSyntax = 'CII' | 'UBL' | 'FACTURX_CII' | null;
 
+/** One BG-23 tax subtotal, as stated by the producer. */
+export interface ExtractedTaxSubtotal {
+  /** Raw text (e.g. "20"), the same convention `ExtractedInvoiceLine.vatRate` already uses. */
+  rate: string;
+  basis: number;
+  tax: number;
+}
+
+/** One BG-25 line plus the producer's own stated net amount (BT-131). */
+export interface ExtractedInvoiceLineWithNet extends ExtractedInvoiceLine {
+  netAmount?: number;
+}
+
+/**
+ * The richer projection `extractImportFields` returns for the import pre-fill (issue #758): the
+ * same header facts `ExtractedInvoiceFields` already carries, plus the BUYER party, the document
+ * type, the due date and the producer's own tax subtotals. Deliberately a separate type rather
+ * than more optional keys on `ExtractedInvoiceFields`: `extractReceivedInvoiceFields` feeds a
+ * document descriptor whose field vocabulary is fixed, and its exact output is asserted by
+ * `extraction.spec.ts`. One reader, two projections - never a second parser.
+ */
+export interface ExtractedDocumentFields extends Omit<ExtractedInvoiceFields, 'lines'> {
+  documentType?: 'invoice' | 'credit-note';
+  dueDate?: string;
+  buyer?: string;
+  buyerVatId?: string;
+  buyerAddress?: string;
+  buyerCity?: string;
+  buyerPostalCode?: string;
+  buyerCountry?: string;
+  buyerEmail?: string;
+  buyerReference?: string;
+  notes?: string;
+  taxBreakdown?: ExtractedTaxSubtotal[];
+  lines?: ExtractedInvoiceLineWithNet[];
+}
+
 export interface ExtractionResult {
   /** null when nothing recognizable was found at all (a plain scanned PDF, an unknown XML dialect,
    *  or a file that failed to parse as either) — never thrown: see this module's own header on why a
@@ -273,11 +310,12 @@ function normaliseCiiDate(raw: string | undefined): string | undefined {
  * `SpecifiedTradeSettlementHeaderMonetarySummation`'s own `LineTotalAmount`/`TaxBasisTotalAmount`
  * (net), `TaxTotalAmount` (VAT), `GrandTotalAmount` (gross).
  */
-function parseCii(doc: XmlDocument): ExtractedInvoiceFields {
+function parseCii(doc: XmlDocument): ExtractedDocumentFields {
   // Non-null: `parseXmlDocument` never returns a document without one — see that function's own guard.
   const root = doc.documentElement as XmlElement;
   const exchBlock = firstByLocalName(root, 'ExchangedDocument');
   const supplierNumber = exchBlock ? textOf(exchBlock, 'ID') : undefined;
+  const typeCode = exchBlock ? textOf(exchBlock, 'TypeCode') : undefined;
   const issueDate = normaliseCiiDate(exchBlock ? textOf(exchBlock, 'DateTimeString') : undefined);
 
   const sellerBlock = firstByLocalName(root, 'SellerTradeParty');
@@ -286,6 +324,26 @@ function parseCii(doc: XmlDocument): ExtractedInvoiceFields {
     ? firstByLocalName(sellerBlock, 'SpecifiedTaxRegistration')
     : undefined;
   const supplierVatId = sellerTaxRegBlock ? textOf(sellerTaxRegBlock, 'ID') : undefined;
+
+  const buyerBlock = firstByLocalName(root, 'BuyerTradeParty');
+  const buyer = buyerBlock ? textOf(buyerBlock, 'Name') : undefined;
+  const buyerTaxRegBlock = buyerBlock ? firstByLocalName(buyerBlock, 'SpecifiedTaxRegistration') : undefined;
+  const buyerVatId = buyerTaxRegBlock ? textOf(buyerTaxRegBlock, 'ID') : undefined;
+  const buyerAddressBlock = buyerBlock ? firstByLocalName(buyerBlock, 'PostalTradeAddress') : undefined;
+  const buyerAddress = buyerAddressBlock ? textOf(buyerAddressBlock, 'LineOne') : undefined;
+  const buyerCity = buyerAddressBlock ? textOf(buyerAddressBlock, 'CityName') : undefined;
+  const buyerPostalCode = buyerAddressBlock ? textOf(buyerAddressBlock, 'PostcodeCode') : undefined;
+  const buyerCountry = buyerAddressBlock ? textOf(buyerAddressBlock, 'CountryID') : undefined;
+  const buyerCommunicationBlock = buyerBlock
+    ? firstByLocalName(buyerBlock, 'URIUniversalCommunication')
+    : undefined;
+  // `URIID` is BT-49 (an electronic address), which the generator fills with the buyer's VAT id in
+  // these profiles. Only an actual e-mail is worth proposing as a client contact - never a VAT id
+  // silently typed into an email field.
+  const rawBuyerCommunication = buyerCommunicationBlock
+    ? textOf(buyerCommunicationBlock, 'URIID')
+    : undefined;
+  const buyerEmail = rawBuyerCommunication?.includes('@') ? rawBuyerCommunication : undefined;
 
   const currency = textOf(root, 'InvoiceCurrencyCode');
 
@@ -299,21 +357,53 @@ function parseCii(doc: XmlDocument): ExtractedInvoiceFields {
   const grossAmount = toFloat(summBlock ? textOf(summBlock, 'GrandTotalAmount') : undefined);
   const lines = parseCiiLines(root);
 
+  const paymentTermsBlock = firstByLocalName(root, 'SpecifiedTradePaymentTerms');
+  const dueDate = normaliseCiiDate(
+    paymentTermsBlock ? textOf(paymentTermsBlock, 'DateTimeString') : undefined,
+  );
+
+  const settlementBlock = firstByLocalName(root, 'ApplicableHeaderTradeSettlement');
+  const taxBreakdown = settlementBlock ? parseCiiTaxSubtotals(settlementBlock) : undefined;
+
   return {
     supplierNumber,
     issueDate,
     supplier,
     supplierVatId,
+    buyer,
+    buyerVatId,
+    buyerAddress,
+    buyerCity,
+    buyerPostalCode,
+    buyerCountry,
+    buyerEmail,
+    buyerReference: textOf(root, 'BuyerReference'),
+    notes: textOf(root, 'Content'),
+    documentType: typeCode === '381' ? 'credit-note' : typeCode === '380' ? 'invoice' : undefined,
+    dueDate,
     currency,
     netAmount,
     vatAmount,
     grossAmount,
+    ...(taxBreakdown && taxBreakdown.length > 0 ? { taxBreakdown } : {}),
     ...(lines.length > 0 ? { lines } : {}),
   };
 }
 
+/** BG-23's own header tax subtotals, scoped to the header settlement block so a line's own
+ *  `ApplicableTradeTax` is never mistaken for a document-level rate. */
+function parseCiiTaxSubtotals(settlement: XmlElement): ExtractedTaxSubtotal[] {
+  return collectByLocalName(settlement, 'ApplicableTradeTax').flatMap((taxBlock) => {
+    const rate = textOf(taxBlock, 'RateApplicablePercent');
+    const basis = toFloat(textOf(taxBlock, 'BasisAmount'));
+    const tax = toFloat(textOf(taxBlock, 'CalculatedAmount'));
+    if (rate === undefined || basis === undefined || tax === undefined) return [];
+    return [{ rate, basis, tax }];
+  });
+}
+
 /** BG-25, CII side — see this file's own header, "Line extraction", for the exact element map. */
-function parseCiiLines(root: XmlElement): ExtractedInvoiceLine[] {
+function parseCiiLines(root: XmlElement): ExtractedInvoiceLineWithNet[] {
   return collectByLocalName(root, 'IncludedSupplyChainTradeLineItem').map((line) => {
     const productBlock = firstByLocalName(line, 'SpecifiedTradeProduct');
     const description = productBlock ? textOf(productBlock, 'Name') : undefined;
@@ -327,7 +417,13 @@ function parseCiiLines(root: XmlElement): ExtractedInvoiceLine[] {
     const taxBlock = firstByLocalName(line, 'ApplicableTradeTax');
     const vatRate = taxBlock ? textOf(taxBlock, 'RateApplicablePercent') : undefined;
 
-    return { description, quantity, ...(unit ? { unit } : {}), unitPrice, vatRate };
+    const lineSettlementBlock = firstByLocalName(line, 'SpecifiedLineTradeSettlement');
+    const lineSummationBlock = lineSettlementBlock
+      ? firstByLocalName(lineSettlementBlock, 'SpecifiedTradeSettlementLineMonetarySummation')
+      : undefined;
+    const netAmount = toFloat(lineSummationBlock ? textOf(lineSummationBlock, 'LineTotalAmount') : undefined);
+
+    return { description, quantity, ...(unit ? { unit } : {}), unitPrice, vatRate, netAmount };
   });
 }
 
@@ -339,9 +435,10 @@ function parseCiiLines(root: XmlElement): ExtractedInvoiceLine[] {
  * `cbc:DocumentCurrencyCode`, and `LegalMonetaryTotal`'s own `TaxExclusiveAmount` (net),
  * `TaxInclusiveAmount`/`PayableAmount` (gross), plus `TaxTotal/TaxAmount` (VAT).
  */
-function parseUbl(doc: XmlDocument): ExtractedInvoiceFields {
+function parseUbl(doc: XmlDocument): ExtractedDocumentFields {
   // Non-null: `parseXmlDocument` never returns a document without one — see that function's own guard.
   const root = doc.documentElement as XmlElement;
+  const rootName = localNameOf(root);
   const supplierNumber = textOf(root, 'ID');
   const issueDate = textOf(root, 'IssueDate');
   const currency = textOf(root, 'DocumentCurrencyCode');
@@ -358,6 +455,21 @@ function parseUbl(doc: XmlDocument): ExtractedInvoiceFields {
     : undefined;
   const supplierVatId = supplierTaxSchemeBlock ? textOf(supplierTaxSchemeBlock, 'CompanyID') : undefined;
 
+  const buyerBlock = firstByLocalName(root, 'AccountingCustomerParty');
+  const buyer = buyerBlock
+    ? (textOf(buyerBlock, 'Name') ?? textOf(buyerBlock, 'RegistrationName'))
+    : undefined;
+  const buyerTaxSchemeBlock = buyerBlock ? firstByLocalName(buyerBlock, 'PartyTaxScheme') : undefined;
+  const buyerVatId = buyerTaxSchemeBlock ? textOf(buyerTaxSchemeBlock, 'CompanyID') : undefined;
+  const buyerAddressBlock = buyerBlock ? firstByLocalName(buyerBlock, 'PostalAddress') : undefined;
+  const buyerAddress = buyerAddressBlock ? textOf(buyerAddressBlock, 'StreetName') : undefined;
+  const buyerCity = buyerAddressBlock ? textOf(buyerAddressBlock, 'CityName') : undefined;
+  const buyerPostalCode = buyerAddressBlock ? textOf(buyerAddressBlock, 'PostalZone') : undefined;
+  const buyerCountryBlock = buyerAddressBlock ? firstByLocalName(buyerAddressBlock, 'Country') : undefined;
+  const buyerCountry = buyerCountryBlock ? textOf(buyerCountryBlock, 'IdentificationCode') : undefined;
+  const buyerContactBlock = buyerBlock ? firstByLocalName(buyerBlock, 'Contact') : undefined;
+  const buyerEmail = buyerContactBlock ? textOf(buyerContactBlock, 'ElectronicMail') : undefined;
+
   const legalBlock = firstByLocalName(root, 'LegalMonetaryTotal');
   const netAmount = toFloat(legalBlock ? textOf(legalBlock, 'TaxExclusiveAmount') : undefined);
   const grossAmount = toFloat(
@@ -368,38 +480,72 @@ function parseUbl(doc: XmlDocument): ExtractedInvoiceFields {
 
   const taxBlock = firstByLocalName(root, 'TaxTotal');
   const vatAmount = toFloat(taxBlock ? textOf(taxBlock, 'TaxAmount') : undefined);
+  const taxBreakdown = taxBlock ? parseUblTaxSubtotals(taxBlock) : undefined;
   const lines = parseUblLines(root);
+
+  const typeCode = textOf(root, 'InvoiceTypeCode') ?? textOf(root, 'CreditNoteTypeCode');
 
   return {
     supplierNumber,
     issueDate,
     supplier,
     supplierVatId,
+    buyer,
+    buyerVatId,
+    buyerAddress,
+    buyerCity,
+    buyerPostalCode,
+    buyerCountry,
+    buyerEmail,
+    buyerReference: textOf(root, 'BuyerReference'),
+    notes: textOf(root, 'Note'),
+    documentType:
+      rootName === 'CreditNote' || typeCode === '381'
+        ? 'credit-note'
+        : rootName === 'Invoice' || typeCode === '380'
+          ? 'invoice'
+          : undefined,
+    dueDate: textOf(root, 'DueDate'),
     currency,
     netAmount,
     vatAmount,
     grossAmount,
+    ...(taxBreakdown && taxBreakdown.length > 0 ? { taxBreakdown } : {}),
     ...(lines.length > 0 ? { lines } : {}),
   };
 }
 
-/** BG-25, UBL side — see this file's own header, "Line extraction", for the exact element map. */
-function parseUblLines(root: XmlElement): ExtractedInvoiceLine[] {
-  return collectByLocalName(root, 'InvoiceLine').map((line) => {
-    const itemBlock = firstByLocalName(line, 'Item');
-    const description = itemBlock ? textOf(itemBlock, 'Name') : undefined;
-
-    const quantity = toFloat(textOf(line, 'InvoicedQuantity'));
-    const unit = unitCodeOf(line, 'InvoicedQuantity');
-
-    const priceBlock = firstByLocalName(line, 'Price');
-    const unitPrice = toFloat(priceBlock ? textOf(priceBlock, 'PriceAmount') : undefined);
-
-    const taxCategoryBlock = itemBlock ? firstByLocalName(itemBlock, 'ClassifiedTaxCategory') : undefined;
-    const vatRate = taxCategoryBlock ? textOf(taxCategoryBlock, 'Percent') : undefined;
-
-    return { description, quantity, ...(unit ? { unit } : {}), unitPrice, vatRate };
+/** BG-23, UBL side: one `TaxSubtotal` per rate, under the header's own `TaxTotal`. */
+function parseUblTaxSubtotals(taxBlock: XmlElement): ExtractedTaxSubtotal[] {
+  return collectByLocalName(taxBlock, 'TaxSubtotal').flatMap((subtotal) => {
+    const rate = textOf(subtotal, 'Percent');
+    const basis = toFloat(textOf(subtotal, 'TaxableAmount'));
+    const tax = toFloat(textOf(subtotal, 'TaxAmount'));
+    if (rate === undefined || basis === undefined || tax === undefined) return [];
+    return [{ rate, basis, tax }];
   });
+}
+
+/** BG-25, UBL side — see this file's own header, "Line extraction", for the exact element map. */
+function parseUblLines(root: XmlElement): ExtractedInvoiceLineWithNet[] {
+  return collectByLocalName(root, 'InvoiceLine')
+    .concat(collectByLocalName(root, 'CreditNoteLine'))
+    .map((line) => {
+      const itemBlock = firstByLocalName(line, 'Item');
+      const description = itemBlock ? textOf(itemBlock, 'Name') : undefined;
+
+      const quantity = toFloat(textOf(line, 'InvoicedQuantity') ?? textOf(line, 'CreditedQuantity'));
+      const unit = unitCodeOf(line, 'InvoicedQuantity') ?? unitCodeOf(line, 'CreditedQuantity');
+
+      const priceBlock = firstByLocalName(line, 'Price');
+      const unitPrice = toFloat(priceBlock ? textOf(priceBlock, 'PriceAmount') : undefined);
+
+      const taxCategoryBlock = itemBlock ? firstByLocalName(itemBlock, 'ClassifiedTaxCategory') : undefined;
+      const vatRate = taxCategoryBlock ? textOf(taxCategoryBlock, 'Percent') : undefined;
+      const netAmount = toFloat(textOf(line, 'LineExtensionAmount'));
+
+      return { description, quantity, ...(unit ? { unit } : {}), unitPrice, vatRate, netAmount };
+    });
 }
 
 /** Best-effort syntax sniff — same signatures the removed compliance engine's own `detectSyntax` used
@@ -424,16 +570,24 @@ function detectXmlSyntax(raw: string): 'CII' | 'UBL' | null {
   return null;
 }
 
+/** The richer, import-facing counterpart of `ExtractionResult` — see `ExtractedDocumentFields`. */
+export interface DocumentExtractionResult {
+  syntax: RecognizedSyntax;
+  fields: ExtractedDocumentFields;
+}
+
+const EMPTY_DOCUMENT_RESULT: DocumentExtractionResult = { syntax: null, fields: {} };
+
 /** Parses a raw XML string (already known to be XML — the caller decides that from the upload's own
  *  mime/filename, or from having just unwrapped it out of a PDF) into fields, auto-detecting CII vs
- *  UBL. Returns `EMPTY_RESULT`'s own shape (never throws) for an unrecognized XML dialect, an
- *  oversized deposit, or one that fails to parse at all — see this file's own header. */
-function extractFromXmlString(xml: string): ExtractionResult {
+ *  UBL. Returns `EMPTY_DOCUMENT_RESULT`'s own shape (never throws) for an unrecognized XML dialect,
+ *  an oversized deposit, or one that fails to parse at all — see this file's own header. */
+function extractFromXmlString(xml: string): DocumentExtractionResult {
   const syntax = detectXmlSyntax(xml);
-  if (syntax === null) return EMPTY_RESULT;
+  if (syntax === null) return EMPTY_DOCUMENT_RESULT;
 
   const doc = parseXmlDocument(xml);
-  if (!doc) return EMPTY_RESULT;
+  if (!doc) return EMPTY_DOCUMENT_RESULT;
 
   if (syntax === 'CII') return { syntax: 'CII', fields: parseCii(doc) };
   return { syntax: 'UBL', fields: parseUbl(doc) };
@@ -469,6 +623,75 @@ async function extractEmbeddedXmlFromPdf(bytes: Uint8Array): Promise<string | un
 }
 
 /**
+ * The one strategy both public entry points share: XML is parsed directly, a PDF is unwrapped to
+ * its embedded XML first, anything else yields nothing. See `extractReceivedInvoiceFields` below.
+ */
+async function extractDocument(
+  bytes: Uint8Array,
+  mime: string,
+  fileName: string,
+): Promise<DocumentExtractionResult> {
+  const looksLikeXml = mime === 'application/xml' || mime === 'text/xml' || /\.xml$/i.test(fileName);
+  const looksLikePdf = mime === 'application/pdf' || /\.pdf$/i.test(fileName);
+
+  if (looksLikeXml) {
+    const xml = Buffer.from(bytes).toString('utf-8');
+    return extractFromXmlString(xml);
+  }
+
+  if (looksLikePdf) {
+    const embedded = await extractEmbeddedXmlFromPdf(bytes);
+    if (embedded === undefined) return EMPTY_DOCUMENT_RESULT;
+    const result = extractFromXmlString(embedded);
+    if (result.syntax === 'CII') return { syntax: 'FACTURX_CII', fields: result.fields };
+    return result; // A Factur-X-shaped PDF embedding UBL instead would be non-standard, but degrade honestly.
+  }
+
+  return EMPTY_DOCUMENT_RESULT;
+}
+
+/** Projects the richer extraction down to the exact shape `ExtractedInvoiceFields` has always
+ *  promised to `received-invoices.service.ts` — see `ExtractedDocumentFields`'s own comment. */
+function toReceivedInvoiceResult(result: DocumentExtractionResult): ExtractionResult {
+  if (result.syntax === null) return EMPTY_RESULT;
+  const {
+    supplierNumber,
+    issueDate,
+    supplier,
+    supplierVatId,
+    currency,
+    netAmount,
+    vatAmount,
+    grossAmount,
+    lines,
+  } = result.fields;
+  return {
+    syntax: result.syntax,
+    fields: {
+      supplierNumber,
+      issueDate,
+      supplier,
+      supplierVatId,
+      currency,
+      netAmount,
+      vatAmount,
+      grossAmount,
+      ...(lines && lines.length > 0
+        ? {
+            lines: lines.map(({ description, quantity, unit, unitPrice, vatRate }) => ({
+              description,
+              quantity,
+              ...(unit ? { unit } : {}),
+              unitPrice,
+              vatRate,
+            })),
+          }
+        : {}),
+    },
+  };
+}
+
+/**
  * The single entry point `received-invoices.service.ts` calls. `mime`/`fileName` decide the
  * STRATEGY (never trusted alone for the RESULT — a `.xml` extension whose bytes are not actually XML
  * still degrades to `EMPTY_RESULT` rather than throwing):
@@ -484,21 +707,20 @@ export async function extractReceivedInvoiceFields(
   mime: string,
   fileName: string,
 ): Promise<ExtractionResult> {
-  const looksLikeXml = mime === 'application/xml' || mime === 'text/xml' || /\.xml$/i.test(fileName);
-  const looksLikePdf = mime === 'application/pdf' || /\.pdf$/i.test(fileName);
+  return toReceivedInvoiceResult(await extractDocument(bytes, mime, fileName));
+}
 
-  if (looksLikeXml) {
-    const xml = Buffer.from(bytes).toString('utf-8');
-    return extractFromXmlString(xml);
-  }
-
-  if (looksLikePdf) {
-    const embedded = await extractEmbeddedXmlFromPdf(bytes);
-    if (embedded === undefined) return EMPTY_RESULT;
-    const result = extractFromXmlString(embedded);
-    if (result.syntax === 'CII') return { syntax: 'FACTURX_CII', fields: result.fields };
-    return result; // A Factur-X-shaped PDF embedding UBL instead would be non-standard, but degrade honestly.
-  }
-
-  return EMPTY_RESULT;
+/**
+ * The import pre-fill's own entry point (issue #758). Same reader, richer projection: adds the
+ * buyer party, the document type, the due date and the producer's own tax subtotals, which a
+ * received-invoice form has no use for but a migrated PAST invoice does. Never throws: a caller
+ * that needs a hard refusal (malformed XML, missing totals) decides that from `syntax === null`
+ * and the fields it actually needs.
+ */
+export async function extractImportFields(
+  bytes: Uint8Array,
+  mime: string,
+  fileName: string,
+): Promise<DocumentExtractionResult> {
+  return extractDocument(bytes, mime, fileName);
 }

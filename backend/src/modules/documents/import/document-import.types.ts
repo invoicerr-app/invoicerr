@@ -81,3 +81,56 @@ export interface ImportDocumentResult {
   displayNumber: string;
   transmitted: boolean;
 }
+
+/** The outcome of matching a structured file's BUYER party against this company's own client book.
+ *  Deliberately the same three-outcome shape `received-invoices/supplier-reconciliation.ts` already
+ *  uses for the supplier side: "nothing matched" and "more than one candidate" are different facts,
+ *  and an ambiguous VAT hit never silently falls through to a weaker name guess. */
+export type ImportClientMatch =
+  | { outcome: 'matched'; clientId: string; matchedBy: 'vat' | 'name' }
+  | { outcome: 'unmatched'; reason: 'no-criteria' | 'not-found' }
+  | { outcome: 'ambiguous'; matchedBy: 'vat' | 'name'; candidateIds: string[] };
+
+/** The buyer party as the file states it, ready to seed a client-creation form. Never persisted by
+ *  the pre-fill itself: creating a client is the user's decision, made on the import screen. */
+export interface ImportClientProposal {
+  name: string;
+  vatId?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  countryCode?: string;
+  email?: string;
+  currency?: string;
+}
+
+export interface ImportPrefillTotals {
+  /** The file's own stated totals. */
+  net: number;
+  vat: number;
+  gross: number;
+  /** What the extracted lines add up to, when the file carries lines. */
+  linesNet?: number;
+  linesVat?: number;
+}
+
+/**
+ * What `POST /documents/types/:typeId/import/prefill` returns: the SAME `data` shape the import
+ * form submits, plus the facts a human must review (client match or proposal, totals, warnings).
+ * `fields` is deliberately ready to merge into the form: `client` is a real client id when one
+ * matched, never a guessed one.
+ */
+export interface ImportPrefillResult {
+  typeId: ImportableTypeId;
+  syntax: 'CII' | 'UBL' | 'FACTURX_CII';
+  originalNumber: string;
+  fields: Record<string, unknown>;
+  clientMatch: ImportClientMatch;
+  clientProposal?: ImportClientProposal;
+  totals: ImportPrefillTotals;
+  /** Honest, user-facing facts the file itself does not settle (no due date, no lines in a MINIMUM
+   *  profile, an ambiguous client...). Never a substitute for a refusal: a file whose totals do not
+   *  add up is refused with a 400 instead. */
+  warnings: string[];
+}
