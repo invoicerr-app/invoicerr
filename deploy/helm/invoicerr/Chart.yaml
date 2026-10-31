@@ -6,8 +6,8 @@ description: >-
   bundled Postgres/Redis for dev/kind installs, and S3-compatible legal archive storage
   for production.
 type: application
-version: 0.1.0
-appVersion: "2.0.0-alpha.5"
+version: 0.2.0
+appVersion: "26.11.0"
 home: https://github.com/invoicerr-app/invoicerr
 sources:
   - https://github.com/invoicerr-app/invoicerr

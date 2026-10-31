@@ -1,8 +1,11 @@
 {
   "name": "invoicerr-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "26.11.0",
   "type": "module",
+  "engines": {
+    "node": ">=26 <27"
+  },
   "scripts": {
     "dev": "vite",
     "start": "vite",
@@ -86,7 +89,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/markdown-it": "^14.1.2",
-    "@types/node": "^24.6.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
