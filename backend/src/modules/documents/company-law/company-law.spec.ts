@@ -85,6 +85,43 @@ describe('the company settings ask, for each legal form, the values its mentions
     ]);
   });
 
+  it('an Italian S.r.l. is asked for the two extra FatturaPA facts, never required', () => {
+    const srl = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_SRL');
+
+    expect(srl?.fields).toEqual([
+      {
+        key: 'registerOffice',
+        kind: 'text',
+        label: 'Ufficio del registro delle imprese',
+        required: true,
+      },
+      {
+        key: 'registerNumber',
+        kind: 'text',
+        label: "Numero d'iscrizione al registro delle imprese",
+        required: true,
+      },
+      {
+        key: 'shareCapital',
+        kind: 'money',
+        label: 'Capitale sociale versato (da ultimo bilancio)',
+        required: true,
+      },
+      {
+        key: 'registerOfficeProvince',
+        kind: 'text',
+        label: "Sigla della provincia dell'ufficio del registro delle imprese (due lettere, e.g. MI)",
+        required: false,
+      },
+      {
+        key: 'liquidationStatus',
+        kind: 'text',
+        label: 'Stato di liquidazione: LN (non in liquidazione) o LS (in liquidazione)',
+        required: false,
+      },
+    ]);
+  });
+
   it('a country with no companyLaw section asks for nothing', () => {
     expect(companyLawSettings('ES')).toEqual({ legalForms: [] });
   });

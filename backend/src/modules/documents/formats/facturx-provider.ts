@@ -74,7 +74,12 @@ import {
   DocumentFormatProvider,
 } from './format-provider';
 import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './semantic/business-process';
-import { splitCiiIncludedNotes, splitCiiIncludedNotesInObject } from './semantic/cii-post-process';
+import {
+  applyCiiSellerLegalDescription,
+  applyCiiSellerLegalDescriptionInObject,
+  splitCiiIncludedNotes,
+  splitCiiIncludedNotesInObject,
+} from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -143,6 +148,11 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
     // 1) The SAME CII `cii-provider.ts` produces, gated the SAME way — see this file's own header.
     const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
     let cii = splitCiiIncludedNotes(rawCii);
+    const sellerLegalInformation =
+      euInvoice['ubl:Invoice']['cac:AccountingSupplierParty']['cac:Party']['cac:PartyLegalEntity'][
+        'cbc:CompanyLegalForm'
+      ];
+    cii = applyCiiSellerLegalDescription(cii, sellerLegalInformation);
     // Belt-and-suspenders reuse of `applyFrenchBusinessProcess` — see `cii-provider.ts`'s own,
     // identical comment for why this is safe to run even though the object-level `cbc:ProfileID`
     // above already reaches this same rendered string.
@@ -200,6 +210,7 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       postProcessor: async (data) => {
         const cii = data as Record<string, unknown>;
         splitCiiIncludedNotesInObject(cii);
+        applyCiiSellerLegalDescriptionInObject(cii, sellerLegalInformation);
         if (businessProcessCode) applyFrenchBusinessProcessInObject(cii, businessProcessCode);
       },
     })) as Uint8Array;

@@ -12,7 +12,7 @@ import {
   DocumentFormatProvider,
 } from './format-provider';
 import { applyFrenchBusinessProcess } from './semantic/business-process';
-import { splitCiiIncludedNotes } from './semantic/cii-post-process';
+import { applyCiiSellerLegalDescription, splitCiiIncludedNotes } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -41,6 +41,14 @@ async function build(
   // there is at most one note (the common case: this bridge emits at most one, from the document's
   // own `notes` field — see `shared-build.ts`), so this is always safe to run.
   let xml = splitCiiIncludedNotes(raw);
+  // BT-33 — the CII mapping of `@e-invoice-eu/core` does not read `cbc:CompanyLegalForm`; the line
+  // is inserted by `applyCiiSellerLegalDescription` (see its own header). Read from the semantic
+  // object `shared-build.ts` already filled.
+  const sellerLegalInformation =
+    euInvoice['ubl:Invoice']['cac:AccountingSupplierParty']['cac:Party']['cac:PartyLegalEntity'][
+      'cbc:CompanyLegalForm'
+    ];
+  xml = applyCiiSellerLegalDescription(xml, sellerLegalInformation);
   // Belt-and-suspenders reuse of the already-tested `applyFrenchBusinessProcess`: the object-level
   // `cbc:ProfileID` set above already reaches this same rendered string (verified against the
   // vendored dependency's own mapping — see `business-process.ts`'s header), but re-asserting it here
