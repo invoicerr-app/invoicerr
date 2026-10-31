@@ -249,7 +249,7 @@ export interface SemanticInvoiceInput {
   seller: SemanticPartyInput;
   buyer: SemanticPartyInput;
   /**
-   * BT-33 (Seller additional legal information) — the seller's company-law mention lines, already
+   * BT-33 (Seller additional legal information): the seller's company-law mention lines, already
    * resolved and joined by `shared-build.ts` from the seller's own country file. A single string:
    * UBL-SR-14 allows `cac:PartyLegalEntity/cbc:CompanyLegalForm` once. `undefined` when the seller's
    * country declares no company law or no line is complete.

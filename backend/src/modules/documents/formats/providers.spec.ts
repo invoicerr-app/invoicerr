@@ -470,7 +470,7 @@ describe('line unit: text stored on an issued invoice exports the code it always
   );
 });
 
-describe('BT-33 — the seller company-law mentions reach both EN 16931 syntaxes', () => {
+describe('BT-33: the seller company-law mentions reach both EN 16931 syntaxes', () => {
   const seller: DocumentFormatParty = {
     ...SELLER,
     language: 'en',

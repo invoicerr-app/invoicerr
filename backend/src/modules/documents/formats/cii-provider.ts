@@ -41,7 +41,7 @@ async function build(
   // there is at most one note (the common case: this bridge emits at most one, from the document's
   // own `notes` field — see `shared-build.ts`), so this is always safe to run.
   let xml = splitCiiIncludedNotes(raw);
-  // BT-33 — the CII mapping of `@e-invoice-eu/core` does not read `cbc:CompanyLegalForm`; the line
+  // BT-33: the CII mapping of `@e-invoice-eu/core` does not read `cbc:CompanyLegalForm`; the line
   // is inserted by `applyCiiSellerLegalDescription` (see its own header). Read from the semantic
   // object `shared-build.ts` already filled.
   const sellerLegalInformation =
