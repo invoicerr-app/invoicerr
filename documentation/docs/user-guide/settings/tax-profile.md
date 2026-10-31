@@ -20,7 +20,6 @@ Answering it once is enough for Invoicerr to apply the matching rules afterwards
 | France | VAT regime | Shown from your VAT exemption switch, not asked: the franchise in base is the exempt scheme. |
 | France | Option for VAT on debits | Asked only under the normal regime, since only a company that charges VAT can opt to pay it on debits. |
 | Germany | Recapitulative statement period | Monthly by default; quarterly below the turnover threshold set by the law, yearly for a company exempted from advance returns. |
-| Italy | Tax regime | The regime the electronic invoice carries, as the tax authority enumerates it. |
 | Poland | Intra-EU VAT registration | Whether your company is entered in the VAT UE register an intra-Community supply requires. |
 | Algeria | Tax regime | The regime under which your company is taxed on its turnover. |
 
