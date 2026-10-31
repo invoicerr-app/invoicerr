@@ -185,26 +185,55 @@ describe('Validate, against each shipped channel mandate, for a private and a bu
     expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
   });
 
-  it('France, micro-enterprise selling to a business before 2027-09-01: validates without a PDP', async () => {
-    const result = await validate(FRANCE, 'COMPANY', { reportingProfile: { sizeCategory: 'MICRO' } });
+  it('France, micro-enterprise that is not a member, selling to a business before 2027-09-01: validates without a PDP', async () => {
+    const result = await validate(FRANCE, 'COMPANY', {
+      reportingProfile: { sizeCategory: 'MICRO', vatGroupMember: 'no' },
+    });
 
     expect(result.document).toMatchObject({ status: 'validated' });
     expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalled();
   });
 
-  it('France, SME selling to a business before 2027-09-01: the Validate dialog announces no transmission', async () => {
+  it('France, SME that is not a member, selling to a business before 2027-09-01: the Validate dialog announces no transmission', async () => {
     expect(
-      await transmissionPreview(FRANCE, 'COMPANY', { reportingProfile: { sizeCategory: 'SME' } }),
+      await transmissionPreview(FRANCE, 'COMPANY', {
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+      }),
     ).toEqual({ transmits: false });
   });
 
-  it('France, SME selling to a business from 2027-09-01: refused without a PDP', async () => {
+  it('France, SME that is not a member, selling to a business from 2027-09-01: refused without a PDP', async () => {
     const error = await rejection(
-      validate(FRANCE, 'COMPANY', { reportingProfile: { sizeCategory: 'SME' }, issueDate: '2027-09-01' }),
+      validate(FRANCE, 'COMPANY', {
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+        issueDate: '2027-09-01',
+      }),
     );
 
     expect(error.message).toMatch(/to go through the "pdp" channel/);
     expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
+  });
+
+  it('France, SME that is a member of a VAT group: refused without a PDP from 2026-09-01, whatever its size', async () => {
+    const error = await rejection(
+      validate(FRANCE, 'COMPANY', {
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'yes' },
+        issueDate: '2026-09-01',
+      }),
+    );
+
+    expect(error.message).toMatch(/to go through the "pdp" channel/);
+  });
+
+  it('France, SME that has not answered the VAT group question: refused without a PDP from 2026-09-01', async () => {
+    const error = await rejection(
+      validate(FRANCE, 'COMPANY', {
+        reportingProfile: { sizeCategory: 'SME' },
+        issueDate: '2026-09-01',
+      }),
+    );
+
+    expect(error.message).toMatch(/to go through the "pdp" channel/);
   });
 
   it('France, large company selling to a business: refused without a PDP', async () => {

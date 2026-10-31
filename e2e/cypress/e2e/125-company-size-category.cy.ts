@@ -50,23 +50,28 @@ describe("Company size category and the French PDP calendar", () => {
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 	});
 
-	it("declares the size category in the company settings, and shows it again after a reload", () => {
+	it("declares the size category and the VAT group answer in the company settings, and shows them again after a reload", () => {
 		cy.visit("/settings/company");
 		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 }).scrollIntoView();
 
 		cy.get('[data-cy="company-profile-sizeCategory-select"]').click();
 		cy.get('[data-cy="company-profile-sizeCategory-option-SME"]').click();
+		cy.get('[data-cy="company-profile-vatGroupMember-select"]').click();
+		cy.get('[data-cy="company-profile-vatGroupMember-option-no"]').click();
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.get("[data-sonner-toast]", { timeout: 15000 }).should("exist");
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
-			.should("deep.equal", { sizeCategory: "SME" });
+			.should("deep.equal", { sizeCategory: "SME", vatGroupMember: "no" });
 
 		cy.reload();
 		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 })
 			.scrollIntoView()
 			.should("contain.text", "Small or medium-sized enterprise (PME)");
+		cy.get('[data-cy="company-profile-vatGroupMember-select"]', { timeout: 20000 })
+			.scrollIntoView()
+			.should("contain.text", "Not a member");
 	});
 
 	it("an SME validates a domestic business invoice dated before 2027-09-01 without a PDP, and the dialog announces no transmission", () => {
