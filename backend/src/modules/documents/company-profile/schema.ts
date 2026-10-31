@@ -15,6 +15,13 @@ export interface CompanyProfileAttribute {
   label: string;
   help?: string;
   values: CompanyProfileAttributeValue[];
+  /**
+   * The value a RULE reads when the company has not answered this attribute. Never stored, never
+   * shown as the company's answer: it exists so a country can pick the fail-closed side of an
+   * unanswered question where the consequence of the other side cannot be walked back. A country
+   * that omits it keeps the older behaviour, an undeclared attribute satisfies every condition.
+   */
+  assumedWhenUndeclared?: string;
   provenance: PolicyProvenance;
 }
 
@@ -67,6 +74,12 @@ function assertValidAttribute(attribute: CompanyProfileAttribute, context: strin
       );
     }
     values.add(entry.value);
+  }
+  if (attribute.assumedWhenUndeclared !== undefined && !values.has(attribute.assumedWhenUndeclared)) {
+    throw new InvalidCompanyProfileError(
+      `${context}: attribute "${key}" assumes "${attribute.assumedWhenUndeclared}" when undeclared, ` +
+        'which is not one of its values.',
+    );
   }
   assertValidPolicyProvenance(
     attribute.provenance,

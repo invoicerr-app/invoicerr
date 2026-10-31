@@ -37,6 +37,8 @@
  * `actions/convert-to-invoice.ts`). `isOnOrAfter` below compares both the same way (as calendar
  * instants), so it makes no difference which shape a given caller happens to have on hand.
  */
+import { withAssumedValues } from '../../company-profile/profile';
+import { defaultCompanyProfileCatalog } from '../../company-profile/registry';
 import { CompanyProfileValues, ProfileCondition } from '../../company-profile/schema';
 import { PartyType } from '../../country-identifiers/schema';
 import { LegalProvenance } from '../../country-policy/schema';
@@ -138,9 +140,10 @@ export function activeChannelMandateFor(
   catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
   sellerProfile?: CompanyProfileValues,
 ): ActiveChannelMandate | undefined {
+  const resolvedProfile = resolveSellerProfile(countryCode, sellerProfile);
   for (const fact of catalog.factsFor(countryCode)) {
     if (fact.requirement !== 'mandated') continue;
-    if (!sellerIsInScope(fact.scope?.seller, sellerProfile)) continue;
+    if (!sellerIsInScope(fact.scope?.seller, resolvedProfile)) continue;
     // schema.ts's `assertValidChannelPolicyFact` — run for every shipped file at load time, see
     // data/all.ts — guarantees a 'mandated' fact always carries a non-empty `mandatedFrom` and
     // 'legal' provenance; a fact that failed either check never made it into the catalog at all, so
@@ -160,8 +163,9 @@ export function channelFactsForSeller(
   catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
 ): ChannelPolicyFact[] {
   const seen = new Set<string>();
+  const resolvedProfile = resolveSellerProfile(countryCode, sellerProfile);
   return catalog.factsFor(countryCode).filter((fact) => {
-    if (seen.has(fact.providerId) || !sellerIsInScope(fact.scope?.seller, sellerProfile)) return false;
+    if (seen.has(fact.providerId) || !sellerIsInScope(fact.scope?.seller, resolvedProfile)) return false;
     seen.add(fact.providerId);
     return true;
   });
@@ -194,8 +198,22 @@ export interface ChannelMandateOperation {
   sellerProfile?: CompanyProfileValues;
 }
 
+/** The seller profile a rule reads: the declared values plus, for this country, each unanswered
+ *  attribute's own `assumedWhenUndeclared`. See `company-profile/schema.ts` for why that assumption
+ *  exists (it is never mistaken for an answer). */
+function resolveSellerProfile(
+  countryCode: string,
+  profile?: CompanyProfileValues,
+): CompanyProfileValues | undefined {
+  const attributes = defaultCompanyProfileCatalog.attributesFor(countryCode);
+  if (attributes.length === 0) return profile;
+  return withAssumedValues(profile ?? {}, attributes);
+}
+
 /** Whether a fact's seller condition covers this seller. An attribute the seller has not declared
- *  counts as covered, so an undeclared size category never lifts a mandate. */
+ *  counts as covered, so an undeclared size category never lifts a mandate; a country that needs the
+ *  other side of an unanswered question declares `assumedWhenUndeclared` on that attribute, which
+ *  `resolveSellerProfile` has already applied before this predicate runs. */
 export function sellerIsInScope(
   condition: ProfileCondition | undefined,
   profile?: CompanyProfileValues,
@@ -254,6 +272,7 @@ export function activeChannelMandateForOperation(
   operation: ChannelMandateOperation,
   catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
 ): ActiveChannelMandate | undefined {
+  const resolvedProfile = resolveSellerProfile(operation.sellerCountryCode, operation.sellerProfile);
   for (const fact of catalog.factsFor(operation.sellerCountryCode)) {
     if (fact.requirement !== 'mandated') continue;
     if (!isOnOrAfter(operation.issueDate, fact.mandatedFrom!)) continue;
@@ -263,7 +282,7 @@ export function activeChannelMandateForOperation(
     if (operation.buyerType && fact.scope?.buyerType && !fact.scope.buyerType.includes(operation.buyerType)) {
       continue;
     }
-    if (!sellerIsInScope(fact.scope?.seller, operation.sellerProfile)) continue;
+    if (!sellerIsInScope(fact.scope?.seller, resolvedProfile)) continue;
     return toActiveMandate(fact);
   }
   return undefined;

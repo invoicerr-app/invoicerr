@@ -248,6 +248,10 @@ describe('CompanyService - the company profile its country asks for', () => {
             expect.objectContaining({ value: 'MICRO' }),
           ],
         }),
+        expect.objectContaining({
+          key: 'vatGroupMember',
+          values: [expect.objectContaining({ value: 'yes' }), expect.objectContaining({ value: 'no' })],
+        }),
       ]);
     });
   });
