@@ -111,7 +111,7 @@ describe('ClientsService — contactEmail is optional', () => {
       contactEmail: '',
     } as never);
 
-    // #415: `contactEmail` is now derived from the primary `ClientContact.email`, and
+    // `contactEmail` is derived from the primary `ClientContact.email`, and
     // `writeClientContacts` normalizes a blank string to `null` (`blankToNull`) - the same "blank
     // means absent" convention every other optional column in this codebase already holds. The
     // behavior this test pins ("an explicit blank actually clears the stored value") still holds -     // only the exact empty-vs-null representation of "cleared" changed.
