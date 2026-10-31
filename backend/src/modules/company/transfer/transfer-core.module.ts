@@ -1,7 +1,7 @@
 /**
  * Providers-only half of the ownership-transfer queue, split so a `ROLE=worker` process can consume
- * it too; `transfer.module.ts` is the HTTP half. Keeping the processor here is what lets the expiry
- * sweep run on a worker rather than competing with request serving on an API replica.
+ * it too; `transfer.module.ts` is the HTTP half. This module holds only the BullMQ connection it
+ * registers under `TRANSFER_BULL_CONFIG_KEY` and `TransferExpirySweepRunner`; no `@Processor()` here.
  * Does NOT provide `TransferExpiryProcessor` or register the repeatable — that is the CONSUMING half's
  * own job (`transfer-queue-worker.module.ts`), exactly mirroring `billing-core.module.ts` versus
  * `billing-queue-worker.module.ts`. `exports: [BullModule]` is what lets that OTHER module's own

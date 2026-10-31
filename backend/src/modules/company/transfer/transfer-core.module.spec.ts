@@ -54,10 +54,10 @@ describe('TransferExpiryProcessor is reachable from the worker process', () => {
   });
 
   it('the HTTP-only TransferModule no longer carries the processor or the repeatable registration itself', () => {
-    // Checks actual CODE, not prose: this module's own header explains the split in words that
-    // legitimately name `TransferExpiryProcessor`/`OnApplicationBootstrap`, so a blanket string search
-    // over the whole file would trip on its own comments — this checks the real `@Module({...})`
-    // providers array and the class declaration instead.
+    // Checks actual CODE, not prose: what matters is the real `@Module({...})` providers array and
+    // the class declaration. `transfer.module.ts`'s own header names neither symbol — it only points
+    // at `transfer-core.module.ts` for the queue wiring — and a blanket string search would anyway
+    // tie this test to wording any later comment rewrite is free to change.
     expect(transferModuleSource).toMatch(/providers:\s*\[MailService,\s*TransferService\]/);
     expect(transferModuleSource).not.toMatch(/implements OnApplicationBootstrap/);
   });

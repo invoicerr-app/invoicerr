@@ -6,9 +6,10 @@
  * The ECB stays the sole source for everything it quotes, being the reference the tax authorities
  * publish against, so a row from this feed is never stamped `ecb`.
  *
- * Licence (https://www.exchangerate-api.com/docs/free): attribution is required, caching is allowed and
- * redistributing the feed is not. The settings screen carries the attribution, never the invoice PDF;
- * only the computed cross-rate is stored and the response body is discarded.
+ * Licence (https://www.exchangerate-api.com/docs/free): attribution is required, caching is allowed,
+ * commercial use is explicitly granted and redistributing the feed is not. The settings screen carries
+ * the attribution, never the invoice PDF; only the computed cross-rate is stored and the response body
+ * is discarded.
  */
 
 export const OPEN_ER_API_BASE_CURRENCY = 'EUR';
