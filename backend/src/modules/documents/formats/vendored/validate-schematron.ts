@@ -22,6 +22,10 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { DOMParser } from '@xmldom/xmldom';
+import { evaluateXPath, evaluateXPathToNodes } from 'fontoxpath';
+import type { Schema as SchematronSchema } from 'node-schematron';
+
 const { Schema } = require('node-schematron');
 
 /**
@@ -394,6 +398,173 @@ export interface SchematronResult {
   warnings: SchematronError[];
 }
 
+interface SchematronAssertion {
+  assertId: string;
+  isReport: boolean;
+  message?: string;
+}
+
+/**
+ * Why this is not `schema.validateString()`: node-schematron selects each rule's context with
+ * `//(context)` (see `Pattern.prototype.validateDocument` in its own dist bundle). For an ABSOLUTE
+ * context (`//ram:...`, most of the EN 16931 rules) that re-evaluates the whole document once per
+ * descendant node — O(n²) XPath work for a set identical to evaluating the context once. On the CII
+ * export that dominated the request time. Relative contexts are rewritten with the `//` prefix when
+ * they are a plain path (or a union of plain paths), and fall back to the library's own per-node
+ * semantics otherwise. Pattern/phase/variable handling and the first-rule-wins flattening are the
+ * library's own algorithm, copied here unchanged, so the assertions reported are identical.
+ */
+function reduceVariables(
+  context: unknown,
+  variables: Array<{ name: string; value?: string }>,
+  options: { namespaceResolver: (prefix?: string | null) => string | null },
+  initial: Record<string, unknown>,
+): Record<string, unknown> {
+  return variables.reduce<Record<string, unknown>>((mapping, variable) => {
+    mapping[variable.name] = variable.value
+      ? evaluateXPath(
+          variable.value,
+          context as never,
+          null as never,
+          mapping as never,
+          undefined as never,
+          options as never,
+        )
+      : context;
+    return mapping;
+  }, initial);
+}
+
+type SchematronNode = {
+  childNodes?: ArrayLike<SchematronNode>;
+};
+
+/** Splits a rule context on top-level `|` (XPath unions), respecting quotes and brackets. */
+function splitTopLevelUnion(context: string): string[] {
+  const branches: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  for (let i = 0; i < context.length; i++) {
+    const char = context[i];
+    if (quote) {
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === '(' || char === '[') {
+      depth++;
+    } else if (char === ')' || char === ']') {
+      depth--;
+    } else if (char === '|' && depth === 0) {
+      branches.push(context.slice(start, i));
+      start = i + 1;
+    }
+  }
+  branches.push(context.slice(start));
+  return branches;
+}
+
+/**
+ * `//(context)` and `//context` select the same nodes when `context` is a relative path starting
+ * with a name test, and `//(a | b)` is `//a | //b`; the parenthesised form is what makes
+ * node-schematron re-evaluate each branch per node. Returns null for anything else, which keeps the
+ * slow but exact per-node path below.
+ */
+function toAbsoluteContext(context: string): string | null {
+  const trimmed = context.trim();
+  if (trimmed.startsWith('/')) return trimmed;
+  const rewritten = splitTopLevelUnion(trimmed).map((branch) => {
+    const path = branch.trim();
+    if (path.startsWith('/')) return path;
+    if (/^[A-Za-z_*][\w.*:-]*/.test(path)) return `//${path}`;
+    return null;
+  });
+  if (rewritten.some((branch) => branch === null)) return null;
+  return rewritten.join(' | ');
+}
+
+function contextNodes(
+  context: string,
+  documentDom: SchematronNode,
+  variables: Record<string, unknown>,
+  options: { namespaceResolver: (prefix?: string | null) => string | null },
+): SchematronNode[] {
+  const absolute = toAbsoluteContext(context);
+  if (absolute) {
+    return evaluateXPathToNodes(
+      absolute,
+      documentDom as never,
+      null as never,
+      variables as never,
+      options as never,
+    ) as SchematronNode[];
+  }
+  // `//(context)` semantics for a context with no safe rewrite: evaluate it from the document node
+  // and from every descendant, then union.
+  const matches = new Set<SchematronNode>();
+  const visit = (node: SchematronNode): void => {
+    for (const match of evaluateXPathToNodes(
+      context.trim(),
+      node as never,
+      null as never,
+      variables as never,
+      options as never,
+    )) {
+      matches.add(match as SchematronNode);
+    }
+    for (const child of Array.from(node.childNodes ?? [])) visit(child);
+  };
+  visit(documentDom);
+  return [...matches];
+}
+
+function validateParsedDocument(
+  schema: SchematronSchema,
+  documentDom: SchematronNode,
+): SchematronAssertion[] {
+  const options = { namespaceResolver: schema.getNamespaceUriForPrefix.bind(schema) };
+  const schemaVariables = reduceVariables(documentDom, schema.variables, options, {});
+  const results: SchematronAssertion[] = [];
+
+  const phaseId = schema.defaultPhase ?? '#ALL';
+  const phase = phaseId === '#ALL' ? undefined : schema.phases.find((entry) => entry.id === phaseId);
+  const patterns = phase
+    ? phase.active
+        .map((id) => schema.patterns.find((pattern) => pattern.id === id))
+        .filter((pattern) => pattern !== undefined)
+    : schema.patterns;
+
+  for (const pattern of patterns) {
+    const variables = reduceVariables(
+      documentDom,
+      [...(phase?.variables ?? []), ...pattern.variables],
+      options,
+      { ...schemaVariables },
+    );
+    const ruleContexts = pattern.rules.map((rule) =>
+      contextNodes(rule.context, documentDom, variables, options),
+    );
+
+    const visit = (node: SchematronNode): void => {
+      const ruleIndex = ruleContexts.findIndex((nodes) => nodes.includes(node));
+      if (ruleIndex >= 0) {
+        for (const row of pattern.rules[ruleIndex].validateNode(node as never, variables, options as never)) {
+          results.push({
+            assertId: row.assertId ?? '',
+            isReport: row.isReport,
+            message: row.message,
+          });
+        }
+      }
+      for (const child of Array.from(node.childNodes ?? [])) visit(child);
+    };
+    for (const child of Array.from(documentDom.childNodes ?? [])) visit(child);
+  }
+  return results;
+}
+
 /**
  * Validates an XML document against a Schematron .sch file (via node-schematron). Pass the
  * PREPROCESSED .sch (all `<sch:include>`s already resolved) — e.g.
@@ -407,14 +578,34 @@ export interface SchematronResult {
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
   const severity = loadSeverityMap(schRelPath);
-  const results: Array<{ assertId: string; isReport: boolean; message: string }> = schema.validateString(xml);
+  const parseErrors: string[] = [];
+  const documentDom = new DOMParser({
+    onError: (level: string, message: string) => {
+      if (level === 'error' || level === 'fatalError') parseErrors.push(message);
+    },
+  }).parseFromString(xml, 'application/xml');
+  if (parseErrors.length > 0 || !documentDom.documentElement) {
+    return {
+      valid: false,
+      errorCount: 1,
+      errors: [
+        {
+          id: 'malformed-xml',
+          flag: 'fatal',
+          message: `Malformed XML: ${parseErrors.join('; ') || 'no root element'}`,
+        },
+      ],
+      warnings: [],
+    };
+  }
+  const results = validateParsedDocument(schema, documentDom as unknown as SchematronNode);
 
   const errors: SchematronError[] = [];
   const warnings: SchematronError[] = [];
   for (const r of results) {
     if (r.isReport) continue;
     const flag = (r.assertId && severity.get(r.assertId)) || 'fatal';
-    const entry: SchematronError = { id: r.assertId, flag, message: r.message };
+    const entry: SchematronError = { id: r.assertId, flag, message: r.message ?? '' };
     if (flag === 'fatal') errors.push(entry);
     else warnings.push(entry);
   }
