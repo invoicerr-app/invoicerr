@@ -24,12 +24,8 @@ import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../../prisma/generated/prisma/client';
 import { byCodeUnit } from '@/lib/compare';
 
-/** What a TRANSPORT (`documents/transports/pdp-transport.ts`) gets back once credentials are
- *  resolved — REPRISED verbatim (shape-for-shape) from `avant-refonte-documents`'s own
- *  `ResolvedChannelConfig`/`ActiveChannelConfig` (channel-credentials-port.ts): `config` is already
- *  DECRYPTED here — a transport is exactly the trusted, server-side caller this whole module exists
- *  to serve; nothing about this type is ever handed back over HTTP (see `ChannelConfigStatus` below
- *  for the ONLY shape a controller response is allowed to carry). */
+/** What a transport gets back once credentials are resolved: `config` is already decrypted, and this
+ *  shape never leaves the server. */
 export interface ResolvedChannelConfig {
   providerId: string;
   channel: string;
@@ -42,148 +38,73 @@ export interface ActiveChannelConfig extends ResolvedChannelConfig {
   companyId: string;
 }
 
-/** What GET returns — status ONLY, never a config value (masked or not). The surest way to honor
- *  that is to never let a secret reach this type's own shape at all, rather than trust a per-field
- *  masking step (the old repo's own `maskSecrets`) to run correctly on every call site forever. See
- *  `channels.service.spec.ts`'s own mutation-proof test. */
+/** What GET returns: status only, never a config value, masked or not. Never letting a secret reach
+ *  this shape is sturdier than trusting a masking step on every call site. */
 export interface ChannelConfigStatus {
   providerId: string;
   channel: string;
   environment: ChannelEnvironment;
   isActive: boolean;
-  /** See `CompanyChannelConfig.pushToken`'s own schema comment. Not a secret in the sense `config`
-   *  above is — exposing it here is the point: a settings screen needs to show it so the company can
-   *  paste it into a callback URL it registers with a foreign authority. `undefined`/`null` for a row
-   *  that predates this column, or for a provider whose transport never needed one. */
+  /** Not a secret: the settings screen shows it so the company can paste it into a callback URL it
+   *  registers with a foreign authority. Null for rows that predate the column or providers that need none. */
   pushToken?: string | null;
-  /**
-   * Issue #526 - which `documents/operators/` catalogue entry this row's `providerId` resolves to,
-   * NEVER the connected `baseUrl`/credentials themselves (the "GET never leaks a secret" guarantee
-   * this whole interface exists to hold - see `ResolvedOperatorId`'s own reasoning just below
-   * `resolveOperatorId`). `null` when this provider has no catalogued operator at all (an
-   * uncatalogued transport a third party registered, or - for the "pdp" transport specifically - a
-   * connected `baseUrl` this catalogue does not recognize: see
-   * `documents/operators/registry.ts#resolveForTransportConfig`'s own header on why that is an
-   * honest "unknown", never a guess).
-   */
+  /** The `documents/operators/` entry this row's providerId resolves to, never its connected URL or
+   *  credentials; null when the catalogue does not know the provider. */
   operatorId?: string | null;
-  /**
-   * Issue #527 - true when this ACTIVE row would be REFUSED by `invoice-actions.ts`'s own send
-   * preflight for a domestic operation, right now: this company's own country currently enforces a
-   * DIFFERENT mandated channel (`activeChannelMandateFor`, today's date) and this row's `providerId`
-   * is neither that mandate's own `providerId` nor one of its `equivalentProviderIds`. Settings-screen
-   * state 4 ("a previously configured channel the send preflight now refuses") reads this rather than
-   * recomputing the same comparison itself - see `channels.service.ts#computeBlockedBySend`'s own
-   * header for why this never applies `ChannelPolicyFact.scope` narrowing (no invoice, no buyer, the
-   * exact same "country-level, not operation-level" honesty `activeChannelMandateFor` itself
-   * documents). `undefined` for an inactive row (nothing to warn about - it is not the row a "send"
-   * would even consider) or when no mandate currently binds this company's own country at all.
-   */
+  /** True when the send preflight would refuse this active row for a domestic operation, because the
+   *  country mandates a different channel. Undefined for an inactive row or with no mandate in force. */
   blockedBySend?: boolean;
 }
 
-/**
- * What `GET /api/company/channels`'s own `suggested` array now returns — item 10's original
- * `{ providerId, provenance }` shape, WIDENED (never renamed: `suggestedChannels`/`suggested` stays
- * the settings screen's "what does this country say about each channel" view regardless of whether a
- * given fact happens to be a mere suggestion or a mandate — see `channel-policy/schema.ts`'s own
- * header for why the underlying MODULE was renamed while this controller-facing shape was not: the
- * blast radius of touching every consumer of this exact JSON key was not worth it for a field that is
- * still, honestly, "the country's per-channel stance").
- */
+/** One row of the settings screen's `suggested` list: the country's stance on one legal channel. */
 export interface ChannelPolicyStatus {
   providerId: string;
   requirement: ChannelRequirement;
   /** Present only when `requirement === 'mandated'` (schema.ts guarantees it always is, in that case). */
   mandatedFrom?: string;
-  /**
-   * Present only when `requirement === 'mandated'`: whether TODAY's date already crosses
-   * `mandatedFrom` — a DIFFERENT clock than the one `invoice-actions.ts`'s preflight uses (the
-   * invoice's own `issueDate`, see `channel-policy/mandate.ts`'s header for why). This settings
-   * screen has no document to anchor to, so it can only ever answer the narrower, honestly-labeled
-   * question "is this mandate already binding as of right now" — a heads-up for a mandate whose start
-   * date is still ahead, never the authority on what a given invoice will actually be allowed to do.
-   */
+  /** True when today already crosses `mandatedFrom`. The send preflight uses the invoice's issueDate
+   *  instead; this screen has no document to anchor to. */
   effectiveNow?: boolean;
-  /** Passed through verbatim from `ChannelPolicyFact.equivalentProviderIds` - see that field's own
-   *  header. Added for issue #527's "blocked by send" comparison (`blockedBySend` above) so a
-   *  frontend never needs its own copy of "is this connected provider equivalent to the mandate". */
+  /** Passed through from the policy fact, so the frontend never reimplements the equivalence check. */
   equivalentProviderIds?: string[];
   provenance: PolicyProvenance;
 }
 
 /**
- * Issue #527 - one row of the settings screen's LEVEL-1 nav ("legal channel, then operator", design
- * C): a closed, small set of ids, discovered from `documents/operators/registry.ts` rather than
- * hand-maintained here (see `legalChannels()`'s own header for exactly how) - "which legal channels
- * does this catalogue actually carry a DELIVERY offering for". Every per-country VERDICT on it
- * (`requirement`, `automatic`, `lawful`, `mandatedElsewhere`) is computed HERE, server-side, from the
- * same catalogs `invoice-actions.ts`'s own send preflight reads - never re-derived in the frontend
- * (owner instruction on #527: "the lawfulness verdict comes from the backend").
+ * One row of the settings screen's legal-channel nav: the ids come from the operator catalogue, and
+ * every per-country verdict is computed here rather than in the frontend.
  */
 export interface LegalChannelStatus {
-  /** A `documents/operators/schema.ts#OperatorOffering.legalChannel` value, e.g. "pdp"/"sdi"/"ksef"/
-   *  "chorus-pro" - NOT a `transports/transport-registry.ts` id (several transport ids can share one
-   *  legal channel, e.g. "pdp"/"billit"/"invopop"/"iopole" all implement "pdp" - see
-   *  `operators/schema.ts`'s own header, "ONE OPERATOR, MANY OFFERINGS"). */
+  /** A `documents/operators/schema.ts#OperatorOffering.legalChannel` value, e.g. "pdp" or "sdi"; not a
+   *  transport id, since several transports can implement one legal channel. */
   id: string;
-  /** This company's OWN country's `channel-policy/data/<cc>.json` fact for this legal channel, when
-   *  one exists - `undefined` for a legal channel that country's file never names (e.g. "sdi" for a
-   *  French company). */
+  /** This company's own country's fact for this legal channel, when its file names one. */
   requirement?: ChannelRequirement;
   mandatedFrom?: string;
   effectiveNow?: boolean;
   equivalentProviderIds?: string[];
   provenance?: PolicyProvenance;
-  /** True when this company's own country's `b2g-routing/data/<cc>.json` rule already routes a
-   *  government recipient through a transport this legal channel offers (today: only "chorus-pro" for
-   *  FR) - the company never "chooses" this channel, it only supplies credentials. Independent of
-   *  `requirement` above; a legal channel can be both (Italy's "sdi" is its own domestic mandate AND
-   *  its own B2G transport) - the frontend shows the mandate badge in that case, never both at once,
-   *  see `channels.settings.tsx`'s own render. */
+  /** True when this country's B2G routing already sends government recipients through this channel, so
+   *  the company only supplies credentials. Independent of `requirement`. */
   automatic: boolean;
-  /** True when this legal channel is usable for this company's own country without being refused by
-   *  the send preflight for a domestic operation. Three ways to earn it: `requirement` is set
-   *  (suggested OR mandated - a merely-suggested channel is never itself "refused", only NOT yet
-   *  chosen), `automatic` is true, or - owner review of #527 - `mandatedElsewhere` is empty AND this
-   *  country enforces no mandate of its own at all: a channel no country's law claims (Peppol is the
-   *  only one today) is genuinely lawful whenever nothing forces a DIFFERENT channel instead, exactly
-   *  like Germany's own "no channel imposed" banner already says of every channel. False means this
-   *  company's own country's mandate requires a DIFFERENT channel - still visible, still browsable,
-   *  never connectable from this screen; see `mandatedElsewhere` just below for how the screen tells
-   *  "this is another country's own channel" apart from "your own country requires something else". */
+  /** True when the send preflight would accept this channel for a domestic operation: the country
+   *  names it, routes to it automatically, or enforces no mandate at all and no other country claims
+   *  it. False means the country mandates a different channel. */
   lawful: boolean;
-  /** Every OTHER country whose own `channel-policy` file names this legal channel (mandated or
-   *  suggested) - lets the screen explain WHOSE law a locked channel actually belongs to instead of a
-   *  bare "not for you" (design C's own "the reason is written on the button"). Never includes this
-   *  company's own country (that case is `requirement`/`lawful` above). Empty for a legal channel no
-   *  country's channel-policy file names at all (e.g. "chorus-pro" - a B2G routing fact, never a
-   *  channel-policy one). */
+  /** Every other country whose policy file names this channel, so the screen can say whose law a locked
+   *  channel belongs to. Never this company's own country. */
   mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[];
-  /** Every OTHER country whose own `b2g-routing/data/<cc>.json` rule routes THROUGH this legal
-   *  channel automatically (today: only "chorus-pro", for FR) - owner review of #527: without this,
-   *  the frontend had no way to tell "Chorus Pro, shown to an Italian company, is specifically
-   *  France's own portal" from "Peppol, shown to a French company, is a homeless cross-border
-   *  network" - both had an empty `mandatedElsewhere` (chorus-pro is a B2G routing fact, never a
-   *  channel-policy one), so both rendered the same wrong "outside your invoicing country" badge.
-   *  `mandatedElsewhere.length > 0 || automaticElsewhere.length > 0` is "this channel has a specific
-   *  home somewhere"; both empty is the one case that earns the cross-border-network wording instead.
-   *  Never includes this company's own country (that case is `automatic`/`lawful` above). */
+  /** Every other country whose B2G routing routes through this channel without the company choosing
+   *  it. With `mandatedElsewhere`, tells a national portal apart from a cross-border network. */
   automaticElsewhere: string[];
 }
 
 /**
- * Issue #527 - the settings screen's top banner (design A, folded onto design C): this company's OWN
- * country's overall channel-policy situation, ONE fact, computed the same way `suggestedChannels`
- * already is - `tone: 'none'` (never an empty screen) for a country with no fact at all (DE, PT: see
- * `countries/data/de.json (section "channelPolicy")`'s own header on why `facts: []` is itself a researched fact, not a
- * gap) - the frontend supplies the SENTENCE (via `t()`, interpolating the fields below), this object
- * only ever supplies the VERDICT.
+ * The settings screen's top banner: this company's country's overall channel situation, one verdict.
+ * The frontend supplies the sentence; `tone: 'none'` covers a country with no fact at all.
  */
 export interface ChannelPolicyBanner {
-  /** The active company's own resolved country - `undefined` only when it cannot be resolved at all
-   *  (`resolveCompanyCountryCode`), the same "no guess" case `suggestedChannels` already returns `[]`
-   *  for. */
+  /** The company's resolved country; undefined when it cannot be resolved, never a guess. */
   countryCode?: string;
   tone: 'mandated' | 'suggested' | 'none';
   /** Present for `tone !== 'none'` - which legal channel the banner is about. */
@@ -194,14 +115,8 @@ export interface ChannelPolicyBanner {
 }
 
 /**
- * What `GET /api/company/channels`'s own `reportingObligations` array returns — a NEW concept
- * ("declaration"), never a widened `ChannelPolicyStatus`: a declarative-reporting
- * obligation (NAV/myDATA) is not "this country's stance on a DELIVERY channel", it says nothing at
- * all about how an invoice reaches the buyer — see `documents/reporting/report-on-send.ts`'s own
- * header for the full "a country is data, a declaration is not a transport" reasoning. Kept as its
- * own, separate array (rather than folded into `suggested` with a widened `requirement` enum) so the
- * settings screen can render it with its own, visually distinct "Declaration" badge without having to
- * first decide "is this ACTUALLY a channel policy fact in disguise" — it categorically is not one.
+ * What the `reportingObligations` array returns: a declarative-reporting obligation (NAV/myDATA) is
+ * not a delivery channel, so it gets its own array and its own badge rather than a widened requirement.
  */
 export interface ReportingObligationStatus {
   providerId: string;
@@ -215,32 +130,22 @@ export interface UpsertChannelConfigBody {
   isActive?: boolean;
 }
 
-/** Coerce an untrusted string to a valid ChannelEnvironment, defaulting to TEST — same convention
- *  the removed compliance engine's own channel-settings.service.ts used for the identical enum. */
+/** Coerce an untrusted string to ChannelEnvironment, defaulting to TEST. */
 function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
   if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
   return ChannelEnvironment.TEST;
 }
 
-/** 256 random bits, hex-encoded — the same entropy budget `share-link-token.ts#generateShareLinkToken`
- *  uses for its own high-entropy value, kept in the clear here for the reason `pushToken`'s own schema
- *  comment gives (never the confidentiality boundary, only a scoping label; must stay legible so it
- *  can be shown back to the company that needs to re-paste it into a portal). */
+/** 256 random bits, hex-encoded. Kept in the clear because it is a scoping label, not a secret, and the
+ *  company must be able to read it back and paste it into a portal. */
 function generatePushToken(): string {
   return randomBytes(32).toString('hex');
 }
 
 /**
- * "Transports nationaux" — the credentials layer REPRISED from git tag
- * `avant-refonte-documents` (`channel-credentials.service.ts` + `channel-settings.service.ts`,
- * merged into ONE service here: the old split existed to keep the compliance module decoupled from
- * `invoices`, a cycle this codebase's `documents`/`company` modules do not have — see this file's own
- * git history for the two services this used to be). `resolve`/`resolveActive`/`listActiveByProvider`/
- * `reEncrypt` are the surface a TRANSPORT calls (the "port" role); `listCompanyChannels`/
- * `upsertChannelConfig`/`deleteChannelConfig` back the settings-screen controller.
- *
- * `Controller → Service → Prisma`: this is the ONE place `CompanyChannelConfig` rows are read or
- * written — `channels.controller.ts` never touches Prisma directly.
+ * The per-company channel credentials: transports call `resolve`/`resolveActive`/`listActiveByProvider`/
+ * `reEncrypt`, the settings screen calls the list/upsert/delete methods. This is the only place
+ * `CompanyChannelConfig` rows are read or written.
  */
 @Injectable()
 export class ChannelCredentialsService {
@@ -250,9 +155,8 @@ export class ChannelCredentialsService {
   // The PORT surface — what a transport calls to actually deliver something.
   // ---------------------------------------------------------------------------
 
-  /** Resolve ONE (company, provider, environment) config, decrypted. Null when unconfigured,
-   *  inactive, corrupted, or encryption itself is unavailable — a transport's PREFLIGHT (see
-   *  `pdp-transport.ts`) treats every one of those identically: "not connected", never a crash. */
+  /** Resolves one (company, provider, environment) config, decrypted. Null when unconfigured, inactive,
+   *  corrupted or encryption is unavailable: a transport's preflight treats all of those as "not connected". */
   async resolve(
     companyId: string,
     providerId: string,
@@ -285,9 +189,8 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * Resolve whichever (single) environment is ACTIVE for a provider — what a transport actually
-   * calls (it never asks for a specific environment; a company has exactly one active connection
-   * per provider by construction of the settings screen, never both TEST and PROD at once).
+   * Resolves the single environment that is active for a provider: a company has one active connection
+   * per provider, so a transport never names an environment.
    */
   async resolveActive(companyId: string, providerId: string): Promise<ResolvedChannelConfig | null> {
     if (!isEncryptionAvailable()) return null;
@@ -310,10 +213,8 @@ export class ChannelCredentialsService {
     }
 
     if (active.length > 1) {
-      // Should be unreachable through this service's own `upsertChannelConfig` (it never leaves two
-      // environments active for the same provider — see that method's own comment), but a transport
-      // must never GUESS which one to use if it ever happens (a stray direct DB write, a bug):
-      // refuse loudly rather than pick one silently.
+      // Upsert never leaves two environments active, but a stray write must never make a transport
+      // guess: refuse loudly instead of picking one.
       this.logger.error(
         `Multiple active configs for company ${companyId} provider ${providerId}: ` +
           `[${active.map((r) => r.environment).join(', ')}]. Exactly one must be active.`,
@@ -332,13 +233,8 @@ export class ChannelCredentialsService {
     return this.decryptRow(active[0], 'RESOLVE_ACTIVE');
   }
 
-  /**
-   * Every ACTIVE (company, environment) config for a provider, across ALL companies — REPRISED for
-   * a future inbound poller the same shape as the removed `KsefInboxPort` used it for (see this
-   * method's own header in the removed compliance engine); nothing calls it yet (PDP has no poller here yet),
-   * kept because the reuse is deliberate and a future poller should not have to
-   * reinvent it.
-   */
+  /** Every active config of a provider across all companies. Unused today; a future inbound poller
+   *  needs exactly this shape. */
   async listActiveByProvider(providerId: string): Promise<ActiveChannelConfig[]> {
     if (!isEncryptionAvailable()) return [];
 
@@ -378,9 +274,8 @@ export class ChannelCredentialsService {
   }
 
   /**
-   * §188 rotation seam — re-encrypt a stored blob under the CURRENT `CREDENTIALS_ENCRYPTION_KEY`
-   * (idempotent when the key has not changed). REPRISED verbatim from the removed compliance engine: no DB migration
-   * needed for a key rotation, only new ciphertext in the same column.
+   * Re-encrypts a stored blob under the current key, so a key rotation needs no migration: the column
+   * keeps its shape, only the ciphertext changes. Idempotent when the key has not changed.
    */
   async reEncrypt(companyId: string, providerId: string, environment: string): Promise<boolean> {
     if (!isEncryptionAvailable()) return false;
@@ -437,10 +332,7 @@ export class ChannelCredentialsService {
       orderBy: [{ providerId: 'asc' }, { environment: 'asc' }],
     });
     const countryCode = await resolveCompanyCountryCode(companyId);
-    // Computed ONCE per call, against "now" - the same country-level, no-invoice comparison
-    // `suggestedChannels`'s own `effectiveNow` already makes (see `blockedBySend`'s own header on why
-    // this is deliberately never `activeChannelMandateForOperation`, which needs an invoice this
-    // listing does not have).
+    // Computed once per call against "now": country-level only, with no invoice to anchor to.
     const activeMandate = countryCode
       ? activeChannelMandateFor(
           countryCode,
@@ -449,8 +341,7 @@ export class ChannelCredentialsService {
           await resolveCompanyProfile(companyId),
         )
       : undefined;
-    // See `computeBlockedBySend`'s own header on why this is read here too - a channel this
-    // company's own B2G routing selects automatically is never subject to the domestic mandate.
+    // A channel the company's own B2G routing selects is never subject to the domestic mandate.
     const b2gTransportId = countryCode ? (await resolveB2gRoutingRule(countryCode))?.transportId : undefined;
 
     return Promise.all(
@@ -475,43 +366,22 @@ export class ChannelCredentialsService {
     if (!row.isActive || !activeMandate) return undefined;
     if (row.providerId === activeMandate.providerId) return false;
     if (activeMandate.equivalentProviderIds?.includes(row.providerId)) return false;
-    // Issue #527 - a connected provider whose OWN operator offering implements the exact SAME legal
-    // channel the mandate names also satisfies it, even when its own transport id differs from the
-    // mandate's literal `providerId` - e.g. Iopole/Billit/Invopop each carry their own dedicated
-    // transport id but all implement "pdp" (see `operators/schema.ts`'s own "ONE OPERATOR, MANY
-    // OFFERINGS" header). Found live by this issue's own e2e coverage: connecting Iopole for a French
-    // company was flagged "blocked" the instant it connected, which is what led to `fr.json`'s own
-    // `equivalentProviderIds` addition alongside this generic fallback (a future operator needs no
-    // second data-file edit to be recognized here, as long as its OWN offering is catalogued).
+    // A provider whose operator offering implements the mandate's legal channel satisfies it, even
+    // under a different transport id: several transports implement "pdp".
     const candidateLegalChannels = defaultOperatorCatalog
       .matchesForTransportId(row.providerId)
       .map((match) => match.offering.legalChannel);
     if (candidateLegalChannels.includes(activeMandate.providerId)) return false;
-    // A channel this company's own B2G routing selects automatically (e.g. "chorus-pro" for France)
-    // is NEVER evaluated against the domestic mandate at all - `resolveB2gInvoiceTransport`
-    // (invoice-actions.ts) short-circuits BEFORE the mandate check ever runs, for ANY invoice whose
-    // client is government. Flagging it "blocked" here would be actively misleading: unlike a
-    // channel that genuinely stopped satisfying the mandate, this one was never trying to - it
-    // keeps working, for its own purpose, entirely unaffected by this company's domestic mandate.
+    // A channel the B2G routing selects is evaluated by that path, which short-circuits before the
+    // mandate check: flagging it here would be misleading, it was never trying to satisfy the mandate.
     if (b2gTransportId && row.providerId === b2gTransportId) return false;
     return true;
   }
 
   /**
-   * Issue #526 - resolve this row's `providerId` (+, when genuinely ambiguous, its own connected
-   * `baseUrl`) to a `documents/operators/` catalogue entry id. Owner review of PR #528: an operator
-   * can implement more than one offering, so resolution answers "operator AND offering" internally
-   * (`OperatorCatalog.resolveForTransportConfig`) - this method only ever hands the CALLER the
-   * operator's own id, since a `CompanyChannelConfig` row's own `providerId` already pins down WHICH
-   * offering matched (the offering's own `transportId` is exactly that `providerId`). The COMMON case
-   * (every provider today except a hypothetical future second "pdp"-family offering) never touches
-   * the encrypted `config` blob at all: `OperatorCatalog.matchesForTransportId` already answers
-   * unambiguously from `providerId` alone, and only a transport id with MORE than one catalogued
-   * offering (today: none - see `operators/registry.spec.ts`'s own header on why "pdp" is
-   * unconditional too, for now) needs a decrypt to read `baseUrl` - kept cheap on purpose, never a
-   * blanket decrypt-every-row-every-call. A decrypt failure here degrades to `null` (same "corrupted
-   * blob or wrong key → looks unconfigured, never crash" discipline `decryptRow` already holds), never
-   * a thrown error out of a LIST endpoint.
+   * Resolves a row's providerId, plus its connected baseUrl only when the id is ambiguous, to a
+   * catalogue operator id. Most rows never decrypt: the transport id alone is unambiguous. A decrypt
+   * failure degrades to null, never an error out of a list endpoint.
    */
   private async resolveOperatorId(row: CompanyChannelConfig): Promise<string | null> {
     const candidates = defaultOperatorCatalog.matchesForTransportId(row.providerId);
