@@ -10,6 +10,24 @@ Live application logs, streamed as they happen — filter by date range or categ
 any entry for its full detail (timestamp, level, category, message, user ID, request path). This is
 a technical log stream, not a plain-English "who did what" audit trail.
 
+### What is redacted
+
+Every line is filtered before it is written, whether it goes to this screen or to the container's
+stdout. Email addresses, invitation codes, bearer tokens and passwords, API keys, IBAN/BIC, phone
+numbers and request bodies are replaced with `[redacted]`, `[redacted-email]` or
+`[redacted-secret]`. The filter works on the key name as well as on the text, at any depth, so
+`details: { password }` is caught even when its value looks ordinary. What remains is the context an
+incident needs: path, status code, level, category, user and company ids, provider names, counts.
+
+Two consequences worth knowing. A log line that used to show a client's email address now shows
+`[redacted-email]`, so support questions are answered from the client record, not from the log. And
+redaction is a safety net, not a licence to log personal data: if a line looks useless because it is
+redacted, remove the value from the call site instead of widening the filter.
+
+There is no third-party error tracker (no Sentry, no GlitchTip) connected to this application: the
+only sinks are the `Log` table and stdout. If you add one, feed it the same filtered values, never the
+raw exception object.
+
 ## Danger Zone
 
 Every action below sends a verification code to your e-mail first; nothing is touched until you

@@ -45,6 +45,7 @@ import { MailService } from '../mail/mail.service';
 import { servedOverHttps } from './app-url-scheme';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
+import { redactLogText } from '../logger/redaction';
 import { CLIENT_IP_HEADER } from './client-ip-header';
 import { devOnlyOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
@@ -127,36 +128,49 @@ const validateInvitationForSignup = async (
     await pendingSignupStore.deletePendingInvitationCode(email);
   }
 
-  const invitationCode = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
+  // What the store holds is the DIGEST of the code (`invitations.controller.ts` writes it), so this
+  // hook can look the row up without ever seeing, or persisting, the plaintext credential.
+  const pendingInvitationCodeHash = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
 
   let invitation: InvitationLookupResult | undefined;
-  if (invitationCode) {
-    const record = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+  if (pendingInvitationCodeHash) {
+    const record = await prisma.invitationCode.findUnique({
+      where: { codeHash: pendingInvitationCodeHash },
+    });
     invitation = record
       ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
       : { found: false };
   }
 
-  const decision = decideRegistration({ invitationCode, invitation, isFirstUser, email });
+  const decision = decideRegistration({
+    invitationCode: pendingInvitationCodeHash,
+    invitation,
+    isFirstUser,
+    email,
+  });
 
   if (!decision.allowed) {
     // A code was supplied and rejected: forget it, it must not be silently retried
     // (or re-consumed) by a later signup attempt for the same email.
-    if (invitationCode) {
+    if (pendingInvitationCodeHash) {
       await pendingSignupStore.deletePendingInvitationCode(email);
     }
     return { valid: false, message: registrationDenialMessage(decision.reason) };
   }
 
-  return { valid: true, invitationCode };
+  return { valid: true, invitationCode: pendingInvitationCodeHash };
 };
 
 const markInvitationAsUsed = async (email: string, userId: string) => {
-  const invitationCode = await pendingSignupStore.getPendingInvitationCode(email);
-  if (invitationCode) {
+  const invitationCodeHash = await pendingSignupStore.getPendingInvitationCode(email);
+  if (invitationCodeHash) {
     try {
-      const invitation = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
-      if (!invitation) throw new Error(`Invitation code "${invitationCode}" not found`);
+      const invitation = await prisma.invitationCode.findUnique({
+        where: { codeHash: invitationCodeHash },
+      });
+      // The message never carries the digest either: it is half of a lookup key and ends up in a
+      // stack trace the moment this throws.
+      if (!invitation) throw new Error('Pending invitation code not found');
 
       // Marking the code used and attaching the new user to the company/role it was issued for happen
       // in the SAME transaction as the seat reservation — a `NoFreeSeatError` (thrown before either
@@ -180,7 +194,7 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
           data: { usedAt: new Date(), usedById: userId },
         });
         if (count === 0) {
-          throw new Error(`Invitation code "${invitationCode}" has already been used`);
+          throw new Error('Pending invitation code has already been used');
         }
         return tx.userCompany.upsert({
           where: { userId_companyId: { userId, companyId: invitation.companyId } },
@@ -195,7 +209,10 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
       if (error instanceof NoFreeSeatError) {
         throw new APIError('FORBIDDEN', { message: error.message, code: NO_FREE_SEAT_CODE });
       }
-      console.warn(`Could not mark invitation code as used: ${error}`);
+      console.warn(
+        'Could not mark a pending invitation code as used',
+        redactLogText(error instanceof Error ? error.message : String(error)),
+      );
       return;
     }
     await pendingSignupStore.deletePendingInvitationCode(email);
@@ -340,7 +357,11 @@ const userAfterCreateHook = async (user, context) => {
           user.id,
           (id) => prisma.user.delete({ where: { id } }),
           (cleanupError) =>
-            console.warn(`Could not delete orphaned user ${user.id} after a refused seat: ${cleanupError}`),
+            console.warn(
+              `Could not delete orphaned user ${user.id} after a refused seat: ${redactLogText(
+                cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+              )}`,
+            ),
         );
       }
       throw error;

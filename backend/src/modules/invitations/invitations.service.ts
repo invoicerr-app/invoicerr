@@ -8,6 +8,7 @@ import { decideRegistration, registrationDenialMessage } from '@/lib/registratio
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { logger } from '@/logger/logger.service';
+import { hashInvitationCode, invitationCodePrefix, invitationCodesMatch } from '@/lib/invitation-code';
 
 @Injectable()
 export class InvitationsService {
@@ -17,28 +18,52 @@ export class InvitationsService {
     return randomBytes(16).toString('hex').toUpperCase();
   }
 
+  /**
+   * Resolves a presented code to its row. The digest is the only thing a current row stores; a row
+   * written before the switch still carries its plaintext `code` until the boot backfill reaches it,
+   * so it is matched here once, digested in place, and then behaves like any other row. Without this
+   * lookup an upgrade would refuse every invitation issued before it until the next boot.
+   */
+  private async findByPresentedCode(code: string): Promise<InvitationCode | null> {
+    const codeHash = hashInvitationCode(code);
+    const byHash = await this.prisma.invitationCode.findUnique({ where: { codeHash } });
+    if (byHash) return byHash;
+
+    const legacy = await this.prisma.invitationCode.findUnique({ where: { code } });
+    if (!legacy) return null;
+
+    await this.prisma.invitationCode.updateMany({
+      where: { id: legacy.id, code: { not: null } },
+      data: { code: null, codeHash, codePrefix: invitationCodePrefix(code) },
+    });
+    return { ...legacy, code: null, codeHash };
+  }
+
   // Same decision the better-auth signup hook enforces (lib/registration-policy.ts) — this
   // is the front end's pre-flight check, called before the actual `authClient.signUp.email`
   // call so a bad/expired/used code (or a closed instance) surfaces as a form error instead
   // of a generic "something went wrong" from better-auth. `requiresCode` tells the caller
   // whether a valid invitation code is still a way forward; false on a closed demo instance.
   async canRegister(
-    invitationCode?: string,
+    invitationCode?: unknown,
   ): Promise<{ allowed: boolean; requiresCode: boolean; message?: string }> {
+    // This parameter crosses the HTTP boundary: `@Query()` hands a repeated key over as an array,
+    // and the value is digested below. Only a non-empty string is a code; anything else is none.
+    const code = typeof invitationCode === 'string' && invitationCode.length > 0 ? invitationCode : undefined;
     const isFirstUser = (await this.prisma.user.count()) === 0;
 
     let invitation:
       | { found: true; usedAt: Date | null; expiresAt: Date | null }
       | { found: false }
       | undefined;
-    if (invitationCode) {
-      const record = await this.prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+    if (code) {
+      const record = await this.findByPresentedCode(code);
       invitation = record
         ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
         : { found: false };
     }
 
-    const decision = decideRegistration({ invitationCode, invitation, isFirstUser });
+    const decision = decideRegistration({ invitationCode: code, invitation, isFirstUser });
 
     if (!decision.allowed) {
       return {
@@ -71,7 +96,10 @@ export class InvitationsService {
 
     const invitation = await this.prisma.invitationCode.create({
       data: {
-        code,
+        // Only the digest and the preview are persisted — the plaintext code leaves this process in
+        // the HTTP response below and is never written to the database, a log or Redis again.
+        codeHash: hashInvitationCode(code),
+        codePrefix: invitationCodePrefix(code),
         createdById,
         companyId,
         role,
@@ -90,7 +118,8 @@ export class InvitationsService {
 
     return {
       id: invitation.id,
-      code: invitation.code,
+      // The one and only time this value is ever returned: the row stores no plaintext to re-read.
+      code,
       role: invitation.role,
       createdAt: invitation.createdAt,
       expiresAt: invitation.expiresAt,
@@ -98,17 +127,18 @@ export class InvitationsService {
   }
 
   async useInvitation(code: string, userId: string) {
-    const invitation = await this.prisma.invitationCode.findUnique({
-      where: { code },
-    });
+    // Looked up by digest: the row no longer holds anything a dump could replay. The explicit
+    // constant-time re-check below covers a row whose digest was written by an older, incompatible
+    // key (nothing matches, so the code is simply refused rather than trusted on the index alone).
+    const invitation = await this.findByPresentedCode(code);
 
-    if (!invitation) {
+    if (!invitation || !invitation.codeHash || !invitationCodesMatch(code, invitation.codeHash)) {
       // No row to point at by `id` here — the code itself doesn't exist. Logging a short prefix
       // (not the full 32-hex-char secret `generateCode()` mints) keeps enough to correlate a support
       // report without leaving 96 bits of the still-guessable remainder in the logs.
       logger.warn('Invitation code not found', {
         category: 'invitation',
-        details: { codePrefix: code.slice(0, 8) },
+        details: { codePrefix: invitationCodePrefix(code) },
       });
       throw new NotFoundException('Invitation code not found');
     }
@@ -176,12 +206,14 @@ export class InvitationsService {
   }
 
   async listInvitations(companyId: string) {
-    return this.prisma.invitationCode.findMany({
+    const invitations = await this.prisma.invitationCode.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
-        code: true,
+        // The full code is not in the row any more; the screen gets the eight-character preview it
+        // always displayed, under the same `code` field the front end and its specs already read.
+        codePrefix: true,
         role: true,
         createdAt: true,
         expiresAt: true,
@@ -196,6 +228,16 @@ export class InvitationsService {
         },
       },
     });
+
+    return invitations.map((invitation) => ({
+      id: invitation.id,
+      code: invitation.codePrefix ?? '',
+      role: invitation.role,
+      createdAt: invitation.createdAt,
+      expiresAt: invitation.expiresAt,
+      usedAt: invitation.usedAt,
+      usedBy: invitation.usedBy,
+    }));
   }
 
   async deleteInvitation(id: string, companyId: string) {

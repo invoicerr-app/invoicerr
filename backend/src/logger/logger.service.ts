@@ -3,6 +3,7 @@ import { Log, LogLevel } from 'prisma/generated/prisma/client';
 import { Logger } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 import { getContextCompanyId } from '@/lib/request-context';
+import { redactLogDetails, redactLogText } from './redaction';
 
 interface LogOptions {
   userId?: string;
@@ -80,10 +81,11 @@ export class LoggerService {
         data: {
           level,
           category,
-          message,
+          message: redactLogText(message),
           userId,
-          path,
-          details: details || {},
+          // A path can carry a query string (`?token=…`) or a public share token as a segment.
+          path: path === undefined ? undefined : redactLogText(path),
+          details: redactLogDetails(details),
           companyId,
         },
       });
@@ -92,7 +94,10 @@ export class LoggerService {
       // straight back into createLog(), so a database that cannot accept logs — exactly
       // what happens when the schema is being rebuilt under a running app — turned one
       // failure into an endless chain of failing writes.
-      this.inLogger.error(`Failed to persist a ${level} log entry: ${message}`, error as Error);
+      this.inLogger.error(
+        `Failed to persist a ${level} log entry: ${redactLogText(message)}`,
+        error as Error,
+      );
     }
   }
 
@@ -100,7 +105,7 @@ export class LoggerService {
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
   ): void {
-    this.inLogger.log(`[${options.category}] ${message}`);
+    this.inLogger.log(`[${options.category}] ${redactLogText(message)}`);
     void this.createLog('INFO', message, options);
   }
 
@@ -108,7 +113,7 @@ export class LoggerService {
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
   ): void {
-    this.inLogger.warn(`[${options.category}] ${message}`);
+    this.inLogger.warn(`[${options.category}] ${redactLogText(message)}`);
     void this.createLog('WARN', message, options);
   }
 
@@ -116,7 +121,7 @@ export class LoggerService {
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
   ): void {
-    this.inLogger.error(`[${options.category}] ${message}`);
+    this.inLogger.error(`[${options.category}] ${redactLogText(message)}`);
     const errorDetails = options.details || {};
     if (errorDetails.stack === undefined) {
       errorDetails.stack = new Error().stack;
@@ -129,7 +134,7 @@ export class LoggerService {
     message: string,
     options: Omit<LogOptions, 'details'> & { details?: Record<string, unknown> },
   ): Promise<void> {
-    this.inLogger.log(`[${options.category}] ${message}`);
+    this.inLogger.log(`[${options.category}] ${redactLogText(message)}`);
     return this.createLog('INFO', message, options);
   }
 
@@ -138,7 +143,7 @@ export class LoggerService {
     options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
   ): void {
     if (process.env.NODE_ENV !== 'production' || process.env.FORCE_DEBUG_LOGS === 'true') {
-      this.inLogger.debug(`[${options.category}] ${message}`);
+      this.inLogger.debug(`[${options.category}] ${redactLogText(message)}`);
     }
     void this.createLog('DEBUG', message, options);
   }

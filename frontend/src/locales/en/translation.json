@@ -2078,11 +2078,13 @@
         "expiresPlaceholder": "Leave empty for no expiration",
         "button": "Generate Code",
         "creating": "Generating...",
-        "role": "Role"
+        "role": "Role",
+        "createdCode": "Your new invitation code",
+        "createdCodeHint": "Shown only once. Copy it now: the list below keeps only its first eight characters. If it is lost, delete this invitation and generate another."
       },
       "list": {
         "title": "Your Invitation Codes",
-        "description": "Manage the invitation codes you have created",
+        "description": "Manage the invitation codes you have created. Only their first eight characters are kept.",
         "code": "Code",
         "status": "Status",
         "createdAt": "Created",

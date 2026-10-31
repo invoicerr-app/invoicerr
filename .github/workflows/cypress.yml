@@ -61,7 +61,7 @@ jobs:
         run: cd backend && ./node_modules/.bin/biome ci .
 
       - name: Lint frontend (biome ci)
-        run: cd frontend && ./node_modules/.bin/biome ci .
+        run: cd frontend && ./node_modules/.bin/biome ci . --diagnostic-level=error
 
       # The frontend unit tests (vitest + testing-library) ride along in this job rather than
       # claiming a runner of their own: they take seconds, and this is already the "static checks on
