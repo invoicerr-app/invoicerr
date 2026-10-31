@@ -228,6 +228,38 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
   // (`flux CPP0011117000000000425895`, "TypeCode.value est obligatoire") — see
   // `SemanticInvoiceInput.businessProcessCodeOverride`'s own header (BT-23, the sibling fix) for the
   // full sourcing of the OTHER half of that same rejection.
+  it('the EMBEDDED CII carries BT-33, so the interim object postProcessor survives the library regeneration', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      language: 'en',
+      companyLaw: {
+        legalForm: 'FR_SAS',
+        values: {
+          shareCapital: { amount: '10000', currency: 'EUR' },
+          registerCity: 'Paris',
+        },
+      },
+    };
+    const result = await provider.build(
+      descriptor,
+      {
+        id: 'doc-1',
+        data: VALID_DATA,
+        displayNumber: 'INV-2026-0001',
+        status: 'sent',
+        createdAt: new Date(),
+      },
+      seller,
+      BUYER,
+      'company-1',
+    );
+
+    const embeddedCii = await extractEmbeddedCii(result.bytes);
+    expect(embeddedCii).toContain(
+      '<ram:Description>SAS with a share capital of 10000.00 EUR; RCS Paris</ram:Description>',
+    );
+  }, 180_000);
+
   it('BT-81: a seller WITH an IBAN on file embeds cac:PaymentMeans (TypeCode 30 + the IBAN) in the ACTUAL Factur-X', async () => {
     const sellerWithIban: DocumentFormatParty = { ...SELLER, iban: 'FR7630006000011234567890189' };
     const document = {

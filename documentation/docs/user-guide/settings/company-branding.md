@@ -37,7 +37,9 @@ companies register office, registration number and paid-up capital of an S.r.l. 
 required is one the law asks of your form; the others are printed only when you fill them in.
 
 A sole trader, or any form with no share capital, is never asked for one, and no capital line is
-printed. The group does not appear at all for a country that has nothing declared. What you enter is
+printed. Some countries ask for a fact an electronic format needs but the printed document does not
+show, for example in Italy the province of the companies register office and the liquidation status
+used by FatturaPA; those fields appear in the same group and stay optional. The group does not appear at all for a country that has nothing declared. What you enter is
 printed under your company name on the PDF, in the document's language (see
 [Company-law mentions on the PDF](../billing/invoices.md#company-law-mentions-on-the-pdf)). Changing
 country keeps what you entered, so switching back loses nothing.

@@ -209,8 +209,10 @@ function fieldsFor(file: CountryCompanyLawFile, formCode: string): CompanyLawFor
   const mentions = file.mentions.filter((mention) => mention.legalForms.includes(formCode));
   return file.fields.flatMap((field) => {
     const quoting = mentions.filter((mention) => quotesField(mention, field.key));
-    if (quoting.length === 0) return [];
-    return [{ ...field, required: quoting.some((mention) => mention.required) }];
+    if (quoting.length === 0 && !field.asked) return [];
+    return [
+      { key: field.key, kind: field.kind, label: field.label, required: quoting.some((m) => m.required) },
+    ];
   });
 }
 

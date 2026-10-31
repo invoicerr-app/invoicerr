@@ -74,6 +74,7 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
+import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
@@ -105,6 +106,60 @@ function fmtAmount(n: number, decimals = 2): string {
 /** Format AliquotaIVA as /^[-]?\d{1,3}(\.\d{2,2})$/ */
 function fmtRate(n: number): string {
   return n.toFixed(2);
+}
+
+/**
+ * `CedentePrestatore/IscrizioneREA`: the company-law facts the Italian catalog already declares,
+ * mapped onto FatturaPA's own block. Every required element must be declared for the block to be
+ * emitted (`Ufficio`, `NumeroREA`, `StatoLiquidazione`); a missing one omits the whole block
+ * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the
+ * company is not in liquidation.
+ *
+ * The `NumeroREA` question the issue left open is settled by the specification itself: Specifiche
+ * tecniche del formato della FatturaPA v1.4 §3.3.4 defines it as « il numero di repertorio con il
+ * quale la società è iscritta nel Registro delle Imprese », i.e. the registration number codice
+ * civile art. 2250 already requires and this catalog already stores as `registerNumber`. It is not a
+ * second, distinct number.
+ */
+function iscrizioneReaFor(company: DocumentFormatParty): Record<string, string> | undefined {
+  const countryCode = guessCountryCode(company.country) ?? '';
+  const file = defaultCompanyLawCatalog.fileFor(countryCode);
+  if (!file) return undefined;
+  const details = readCompanyLawDetails(company.companyLaw);
+  if (!details.legalForm) return undefined;
+
+  const stringValue = (key: string): string => {
+    const value = details.values?.[key];
+    return typeof value === 'string' ? value.trim() : '';
+  };
+  const province = stringValue('registerOfficeProvince').toUpperCase();
+  const number = stringValue('registerNumber');
+  const liquidation = stringValue('liquidationStatus').toUpperCase();
+  if (!/^[A-Z]{2}$/.test(province)) return undefined;
+  if (!number || number.length > 20) return undefined;
+  if (liquidation !== 'LN' && liquidation !== 'LS') return undefined;
+
+  const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
+  const capital = details.values?.shareCapital;
+  const capitalAmountText =
+    capital && typeof capital === 'object' && capital.currency.toUpperCase() === 'EUR'
+      ? capital.amount.trim()
+      : '';
+  const capitalAmount = capitalAmountText ? Number(capitalAmountText) : undefined;
+
+  return {
+    Ufficio: province,
+    NumeroREA: number,
+    ...(capitalAmount !== undefined && Number.isFinite(capitalAmount)
+      ? { CapitaleSociale: fmtAmount(capitalAmount, 2) }
+      : {}),
+    ...(form?.singleMember === true
+      ? { SocioUnico: 'SU' }
+      : form?.singleMember === false
+        ? { SocioUnico: 'SM' }
+        : {}),
+    StatoLiquidazione: liquidation,
+  };
 }
 
 /** The Natura of an untaxed line, read from the country data; `undefined` for a taxed line. */
@@ -165,6 +220,7 @@ async function build(
   const codes = einvoiceCodesFor(formatCountry);
   const vatCountry = guessCountryCode(company.country) ?? formatCountry;
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
+  const iscrizioneRea = iscrizioneReaFor(company);
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
   const clienteVatCountry = guessCountryCode(client.country) ?? '';
@@ -282,6 +338,7 @@ async function build(
             Comune: company.city || 'N/A',
             Nazione: vatCountry,
           },
+          ...(iscrizioneRea ? { IscrizioneREA: iscrizioneRea } : {}),
           ...(Object.keys(contatti).length > 0 ? { Contatti: contatti } : {}),
         },
         CessionarioCommittente: {

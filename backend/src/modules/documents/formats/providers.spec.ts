@@ -469,3 +469,30 @@ describe('line unit: text stored on an issued invoice exports the code it always
     30_000,
   );
 });
+
+describe('BT-33: the seller company-law mentions reach both EN 16931 syntaxes', () => {
+  const seller: DocumentFormatParty = {
+    ...SELLER,
+    language: 'en',
+    companyLaw: {
+      legalForm: 'FR_SAS',
+      values: {
+        shareCapital: { amount: '10000', currency: 'EUR' },
+        registerCity: 'Paris',
+      },
+    },
+  };
+
+  describe.each([
+    ['CII', ciiFormatProvider, '<ram:Description>', '</ram:Description>'] as const,
+    ['UBL', ublFormatProvider, '<cbc:CompanyLegalForm>', '</cbc:CompanyLegalForm>'] as const,
+  ])('%s', (_label, provider, open, close) => {
+    it('carries the resolved lines once, in the field the syntax gives BT-33', async () => {
+      const result = await provider.build(descriptor, DOCUMENT, seller, BUYER);
+
+      expect(result.validation.valid).toBe(true);
+      const xml = new TextDecoder().decode(result.bytes);
+      expect(xml).toContain(`${open}SAS with a share capital of 10000.00 EUR; RCS Paris${close}`);
+    }, 180_000);
+  });
+});

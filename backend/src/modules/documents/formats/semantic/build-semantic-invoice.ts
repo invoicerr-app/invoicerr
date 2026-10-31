@@ -197,6 +197,12 @@ export interface SemanticPartyInput {
   partyIdentifiers: { scheme: string; value: string }[];
   /** SELLER side only: the company's own VAT scheme. Absent means the ordinary scheme. */
   taxScheme?: TaxScheme;
+  /** SELLER side only: `Company.companyLaw`, the raw details `company-law/` resolves. Read by
+   *  `shared-build.ts` for BT-33 and by FatturaPA for its own `IscrizioneREA`. */
+  companyLaw?: unknown;
+  /** Per-recipient document language, `Client.language` then `Company.language`; free text as
+   *  stored, narrowed by `resolveRecipientLanguage`. Used for free-text legal content (BT-33). */
+  language?: string | null;
 }
 
 /** One line's DESCRIPTIVE facts — the ARITHMETIC facts (net/VAT/gross) come from `totals.lines`,
@@ -242,6 +248,13 @@ export interface SemanticInvoiceInput {
   notes?: string | null;
   seller: SemanticPartyInput;
   buyer: SemanticPartyInput;
+  /**
+   * BT-33 (Seller additional legal information): the seller's company-law mention lines, already
+   * resolved and joined by `shared-build.ts` from the seller's own country file. A single string:
+   * UBL-SR-14 allows `cac:PartyLegalEntity/cbc:CompanyLegalForm` once. `undefined` when the seller's
+   * country declares no company law or no line is complete.
+   */
+  sellerAdditionalLegalInformation?: string;
   /** Same length and order as `totals.lines` — see this file's own header. */
   lines: SemanticLineInput[];
   totals: DocumentTotals;
@@ -419,12 +432,17 @@ function einvoiceLegalId(
 }
 
 /** `cac:PartyLegalEntity` with the party's ISO 6523 schemeID when its country declares one. */
-function partyLegalEntity(name: string, legalId: string | undefined, iso6523Scheme: string | undefined) {
-  if (!legalId) return { 'cbc:RegistrationName': name };
+function partyLegalEntity(
+  name: string,
+  legalId: string | undefined,
+  iso6523Scheme: string | undefined,
+  companyLegalForm?: string,
+) {
   return {
     'cbc:RegistrationName': name,
-    'cbc:CompanyID': legalId,
-    ...(iso6523Scheme ? { 'cbc:CompanyID@schemeID': iso6523Scheme } : {}),
+    ...(legalId ? { 'cbc:CompanyID': legalId } : {}),
+    ...(legalId && iso6523Scheme ? { 'cbc:CompanyID@schemeID': iso6523Scheme } : {}),
+    ...(companyLegalForm ? { 'cbc:CompanyLegalForm': companyLegalForm } : {}),
   };
 }
 
@@ -711,6 +729,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       input.seller.name,
       sellerLegalId,
       sellerLegalIdFacts.iso6523Scheme,
+      input.sellerAdditionalLegalInformation,
     ),
   };
   if (addressScheme && sellerLegalId) {
