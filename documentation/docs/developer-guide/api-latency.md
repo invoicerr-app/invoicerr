@@ -94,7 +94,7 @@ check, a local `npm start`) shows the page with no run.
 
 The page shows one route at a time: p95 as a solid line, p99 as a dashed line, and every published
 release as a vertical marker. A run is named by its short commit and the last release published
-before it, for example `5f5c7415 after v2.0.0-alpha.5`: release tags live on `main`, so the
+before it, for example `5f5c7415 after 26.11.0`: release tags live on `main`, so the
 record's own `git describe` on `dev` would name an older release. Hovering a point shows that name,
 the run's date, p50, p95, p99 and error rate. The table below the chart lists the latest run,
 slowest first; clicking a route plots it.

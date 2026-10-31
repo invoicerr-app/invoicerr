@@ -1,12 +1,13 @@
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS backend-builder
+FROM --platform=$BUILDPLATFORM node:26-bookworm AS backend-builder
 # PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
 # `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
 # no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
 # points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
 #
 # bookworm, not bullseye: matches the runtime stage's own Debian release (server-image is
-# nginx:bookworm). 24, not 22: matches the runtime's Node, so native deps never cross a Node-ABI
-# boundary between builder and runtime.
+# nginx:bookworm). 26, not 24: matches the runtime's Node, so native deps never cross a Node-ABI
+# boundary between builder and runtime. `.nvmrc` is the source of truth for every other tool; this
+# tag and the guard at the bottom of this file are the two places Docker has to state it again.
 
 WORKDIR /app
 
@@ -24,7 +25,7 @@ RUN npm run build
 # and its native canvas binaries (about 100 MB), have no use there.
 RUN rm -rf node_modules/pdfjs-dist node_modules/@napi-rs/canvas*
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:26-bookworm AS frontend-builder
 # Matches backend-builder's version for consistency only; this stage has no native deps.
 
 WORKDIR /app
@@ -37,6 +38,11 @@ COPY frontend/. .
 RUN npm run build
 
 FROM ghcr.io/invoicerr-app/server-image:latest
+
+# The runtime Node comes from that base image, not from this file: if it is still on Node 24 while
+# the builders above are on 26, every native module installed here was built for another ABI. Fail
+# the image build instead of shipping it. Fix: publish invoicerr-app/server-image with Node 26.
+RUN node -e "const major = process.versions.node.split('.')[0]; if (major !== '26') { console.error('server-image runs Node ' + process.versions.node + ', this image is built for Node 26: publish invoicerr-app/server-image with Node 26 first'); process.exit(1); }"
 
 # `playwright-core` ships no browser of its own — this points it at the Chromium already baked into
 # the base image (`ghcr.io/invoicerr-app/server-image`), the same binary the old PUPPETEER_EXECUTABLE_PATH

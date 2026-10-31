@@ -10,11 +10,11 @@ repository instead of `docker-compose.yml`. It deploys the same image in two rol
 queue consumer) — as independently-scaled Deployments, plus Redis, an optional OCR service, and an
 Ingress.
 
-:::info[The chart runs Invoicerr 2.x and needs an image tag]
+:::info[The chart needs a CalVer image tag]
 The chart has no default image: `helm install` and `helm template` fail until `image.tag` (or
-`image.digest`) is set. It only works with 2.x images, published as pre-releases for now
-(`v2.0.0-alpha.N`). A 1.x image has neither the `worker` role nor the `catalogs:release` script the
-chart's hook Job runs. See "Which tag?" below to choose one.
+`image.digest`) is set. It only works with 2.x images, published in CalVer (`26.11.0`). A 1.x image
+has neither the `worker` role nor the `catalogs:release` script the chart's hook Job runs. See
+"Which tag?" below to choose one.
 :::
 
 :::info[Reference deployment]
@@ -374,7 +374,7 @@ kubectl rollout restart deployment/invoicerr-api deployment/invoicerr-worker
 ```yaml title="values.prod.yaml"
 image:
   repository: ghcr.io/invoicerr-app/invoicerr
-  tag: "v2.0.0-alpha.5" # required, an EXISTING 2.x tag, see "Which tag?" below
+  tag: "26.11.0" # required, an EXISTING CalVer tag, see "Which tag?" below
 
 existingSecret: invoicerr-secrets
 
@@ -409,36 +409,23 @@ later change (including a new `image.tag`).
 
 ### Which tag?
 
-`.github/workflows/docker-publish.yml` is triggered by `release: created`, and the image tag it
-pushes is the git tag the release was cut from, verbatim. There is no separate image versioning
-scheme: every version-numbered tag on GHCR is a published release of this repository, and the
-workflow's other outputs are branch-named tags built for internal testing, which you should never
-deploy. List the releases before you pin:
+`.github/workflows/docker-publish.yml` is triggered by a tag push, and the image tag it pushes is the
+git tag, verbatim. Tags are CalVer: `AA.M.N`, for example `26.11.0`, with `26.11.0-beta.1` and
+`26.11.0-rc.1` for pre-releases. There is no separate image versioning scheme. List the releases
+before you pin:
 
 ```bash
 gh release list --repo invoicerr-app/invoicerr
 ```
 
-**`:latest` is not the newest tag.** The same workflow only adds `:latest` when the tag it is
-building matches what `gh release view` reports as the repository's latest release, and GitHub
-excludes pre-releases from that. `v1.4.6a` (2026-07-06) and `v1.4.6b` (2026-07-07) were both
-published as **pre-releases**, so neither moved the moving tag: `:latest` still resolves to the
-`v1.4.5c` image published on 2026-06-29. Comparing manifest digests on GHCR is how you check this
-for yourself, and it needs no credentials for a public package:
+Three moving tags sit next to the versioned ones: `latest` follows the newest stable release, `beta`
+the newest tagged beta/rc, and `nightly` every commit merged into `dev` (no GitHub release). A
+stable tag is only accepted on `main`; a beta or rc tag is cut on `dev`, merged to `main`, then
+tagged stable. This is why `latest` never points at a pre-release.
 
-```bash
-docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:latest
-docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:v1.4.5c
-```
-
-As of 2026-09-20 both print the same `Digest: sha256:615f4cec…`, while `:v1.4.6b` prints a different
-one. This is the concrete reason the guide says to pin: on this repository `latest` means "newest
-full release", not "newest thing published", and the two have differed since July 2026.
-
-For this chart, choose a 2.x release from that list: `gh release list` marks them `Pre-release`.
-The chart's `appVersion` (`Chart.yaml`) names the release it was last written against, a safe
-choice when in doubt. `image.tag` has no default, so `:latest`, which still resolves to a 1.x
-image, is never pulled by accident.
+For this chart, choose a stable CalVer tag from that list. The chart's `appVersion` (`Chart.yaml`)
+names the release it was last written against, a safe choice when in doubt. `image.tag` has no
+default, so `:latest` is never pulled by accident, and a 1.x image can never be selected silently.
 
 Pinning a digest is stronger still: set `image.digest: "sha256:…"` next to the tag, and the
 templates render `repository:tag@sha256:…`, which the container runtime pulls by digest. A
@@ -459,7 +446,7 @@ directly:
 kubectl port-forward svc/invoicerr-api 8080:80
 curl http://localhost:8080/api/health
 # {"status":"ok","database":"up","databaseLatencyMs":1,"redis":"up","redisLatencyMs":1,
-#  "version":"v2.0.0-alpha.4","time":"2026-10-11T08:24:06.172Z","uptimeSeconds":36}
+#  "version":"26.11.0","time":"2026-10-31T08:24:06.172Z","uptimeSeconds":36}
 ```
 
 :::info[What /api/health reports]
@@ -507,7 +494,7 @@ The chart's defaults now follow the Kubernetes rules SonarCloud checks. On `helm
 your own values file unchanged:
 
 - **`image.tag` no longer defaults to `latest`; it has no default at all.** A values file that
-  sets no tag now fails at `helm upgrade` with `Set image.tag (for example v2.0.0-alpha.5)`, before
+  sets no tag now fails at `helm upgrade` with `Set image.tag (for example 26.11.0)`, before
   anything changes in the cluster. Such an install was pulling `:latest`, a 1.x image this chart
   cannot run (no `worker` role, no `catalogs:release` script). Set `image.tag` to a 2.x release and
   upgrade again. If you also set `image.digest`, change both together: the digest decides what is

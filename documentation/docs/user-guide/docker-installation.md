@@ -24,11 +24,23 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
 
 ## Image tags
 
-`ghcr.io/invoicerr-app/invoicerr:latest` is always the last **stable** release. A pre-release (for
-example `v2.0.0-alpha.5`) is never published as `latest`: to run one, write its exact tag in
-`image:`, such as `ghcr.io/invoicerr-app/invoicerr:v2.0.0-alpha.5`. The
+Every image is tagged with a CalVer release: `AA.M.N`, where `AA` is the two-digit year, `M` the
+month without a leading zero, and `N` a counter that restarts at zero every month. The first
+stable release is `26.11.0`; a pre-release of it is `26.11.0-beta.1` or `26.11.0-rc.1`.
+
+Three moving tags exist, one per channel:
+
+| Tag | Follows | GitHub release |
+| --- | --- | --- |
+| `latest` | the newest stable release | yes |
+| `beta` | the newest tagged beta/rc | yes, as a pre-release |
+| `nightly` | every commit merged into `dev` | no |
+
+A pre-release is never published as `latest`: to run one, write its exact tag in `image:`, such as
+`ghcr.io/invoicerr-app/invoicerr:26.11.0-beta.1`. The
 [releases page](https://github.com/invoicerr-app/invoicerr/releases) lists every tag, pre-releases
-included.
+included. Only the newest release is supported, and migrations are cumulative, so an instance can
+skip versions when upgrading: pull the new image and restart.
 
 ## Quick start
 

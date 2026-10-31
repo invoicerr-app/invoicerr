@@ -1,7 +1,10 @@
 {
+  "engines": {
+    "node": ">=26 <27"
+  },
   "devDependencies": {
     "@signpdf/utils": "^3.4.0",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/wait-on": "^5.3.4",
     "asn1js": "^3.1.0",

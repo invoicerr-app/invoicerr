@@ -154,7 +154,7 @@ export default defineConfig({
     // specs themselves still import `describe`/`it`/`expect` explicitly, which keeps them
     // typechecking without widening the `types` array of tsconfig.app.json.
     globals: true,
-    setupFiles: ["./src/test/setup.ts"],
+    setupFiles: ["./src/test/node-webstorage.ts", "./src/test/setup.ts"],
     // Colocated `*.spec.ts(x)` next to the code they cover — the same convention as the backend.
     // Cypress owns `e2e/`, which is a separate npm project and never seen by this glob.
     include: ["src/**/*.spec.{ts,tsx}"],
