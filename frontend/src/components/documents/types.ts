@@ -225,6 +225,8 @@ export interface DocumentStatusDescriptor {
 export interface DocumentTypeDescriptor {
   id: string
   label: string
+  /** Icon key, drawn through `documentTypeIcon` (document-type-icon.tsx). */
+  icon?: string
   fields: DocumentFieldDescriptor[]
   actions: DocumentActionDescriptor[]
   listItem?: DocumentListItemHint
@@ -313,6 +315,7 @@ export function statusLabel(descriptor: Pick<DocumentTypeDescriptor, "statuses">
 export interface DocumentTypeSummary {
   id: string
   label: string
+  icon?: string
 }
 
 /** The backend's `DocumentTotals` as the API serializes it - see `DocumentInstance.derivedTotals`. */

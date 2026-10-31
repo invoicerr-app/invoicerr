@@ -6,16 +6,19 @@ import {
   FileCode,
   FileDown,
   Link2,
+  Lock,
   Repeat,
   UserCheck,
 } from "lucide-react"
 import { type ReactNode, useState } from "react"
+import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 // Side-effect only: makes whatever is registered in custom-slots.ts available — the same pattern
 // document-list.tsx follows, and for the same reason (see custom-registrations.ts's own header).
 import "@/components/documents/custom-registrations"
+import { cn } from "@/lib/utils"
 
 import {
   extraActionGates,
@@ -82,6 +85,7 @@ import { type DocumentFormState, useDocumentForm } from "@/components/documents/
 import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DocumentPaper } from "@/components/documents/document-paper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -258,9 +262,10 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         // which by itself just looks like the feature vanished. This says WHY, and what to do
         // instead - same wording whether the type's own `lockedStatuses` fired or a country policy's
         // `policyRestrictedToStatuses` did (see `saveDraftLockNotice`'s own header).
-        <Alert data-cy="document-save-locked-notice">
-          <AlertDescription>{saveLockedMessage}</AlertDescription>
-        </Alert>
+        <p className="flex items-start gap-2 text-sm text-ink-2" data-cy="document-save-locked-notice">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {saveLockedMessage}
+        </p>
       )}
 
       {liveInstance.status === "imported" && !hasImportTransmissionEvidence(liveInstance) && (
@@ -294,19 +299,49 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        {/* `scroll-mb-24` on anything focused inside the form: a field tabbed into near the bottom
+      <div
+        className={cn(
+          "grid gap-8",
+          saveLockedMessage ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_28rem]",
+        )}
+      >
+        <div className="min-w-0 space-y-6">
+          {saveLockedMessage && (
+            <DocumentPaper
+              descriptor={descriptor}
+              data={liveInstance.data}
+              displayNumber={liveInstance.displayNumber}
+              derivedTotals={liveInstance.derivedTotals}
+            />
+          )}
+          {saveLockedMessage && (
+            <h3 className="pt-2 text-base font-semibold">{t("documents.detail.allFields")}</h3>
+          )}
+          {/* `scroll-mb-24` on anything focused inside the form: a field tabbed into near the bottom
             must clear the sticky "unsaved" bar, not land under it. */}
-        <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
-          <CardContent className="px-5">
-            {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
+          <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
+            <CardContent className="px-5">
+              {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
                 notice explains WHY "save-draft" is missing, this is what stops the fields underneath
                 from still looking editable while it does. */}
-            <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
-          </CardContent>
-        </Card>
+              <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
+            </CardContent>
+          </Card>
+        </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-6">
+          {/* The transmission history leads the aside: any type or status once the platform has
+              reported at least one event, nothing for a document sent by email or by a channel with
+              no poller. */}
+          <DocumentConformitySection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            createdAt={instance.createdAt}
+          />
+          {/* An editable record composes itself beside its form, as on the new-record page. */}
+          {!saveLockedMessage && (
+            <DraftLivePaper descriptor={descriptor} displayNumber={liveInstance.displayNumber} />
+          )}
           <TotalsCard
             descriptor={descriptor}
             documentId={instance.id}
@@ -331,7 +366,13 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
                 : null
             }
           />
-          {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
+          {showSettlement && (
+            <DocumentSettlementSection
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
+          )}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
               gated on "sent" here, since the component's own emptiness check already carries that
@@ -347,11 +388,6 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             status={liveInstance.status}
             updatedAt={instance.updatedAt}
           />
-          {/* Conformity tracking — same gate as the archive section right above (any type/status
-              once it has at least one event; renders nothing otherwise, see that component's own
-              header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
-              shows a section here at all. */}
-          <DocumentConformitySection typeId={descriptor.id} documentId={instance.id} />
           {/* The 3-way-match panel — TYPE-gated, unlike the two sections above: see
               document-reconciliation-section.tsx's own header for why. */}
           {descriptor.id === "received-invoice" && <DocumentReconciliationSection documentId={instance.id} />}
@@ -436,13 +472,17 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
         </Link>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="font-heading text-xl font-semibold tracking-tight">{descriptor.label}</h2>
+          <h2 className="text-[28px] leading-tight">{descriptor.label}</h2>
           {/* See document-list.tsx's own `DocumentCardNumber` comment for the full "why" of the three
            *  states `numberingDisplayState` distinguishes - issue #471's legacy credit note is what
            *  makes "issuedWithoutNumber" a real, distinct case here, not just "no number yet". */}
           {descriptor.numbering && (
             <span
-              className={instance.displayNumber ? "font-mono text-lg" : "text-sm text-muted-foreground"}
+              className={
+                instance.displayNumber
+                  ? "font-heading text-[28px] leading-tight tabular-nums"
+                  : "text-sm text-muted-foreground"
+              }
               data-cy="document-form-number"
             >
               {instance.displayNumber ??
@@ -453,7 +493,11 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
           )}
           <DocumentStatusBadge status={instance.status} label={statusLabel(descriptor, instance.status)} />
           {state.showSettlement && (
-            <DocumentSettlementBadge typeId={descriptor.id} documentId={instance.id} />
+            <DocumentSettlementBadge
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
           )}
           <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
         </div>
@@ -518,7 +562,7 @@ function HeadlineAmount({
   const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
   if (!headline) return null
   return (
-    <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
+    <span className="amount text-lg text-foreground" data-cy="document-detail-amount">
       <LtrValue>{formatTotal(headline.grossMinor, headline.currency || "")}</LtrValue>
     </span>
   )
@@ -837,5 +881,24 @@ function DocumentDetailActions({
         />
       )}
     </>
+  )
+}
+
+/** The record as its client will see it, recomposed from the form on every change. Its own
+ *  component, so a keystroke re-renders only the sheet. */
+function DraftLivePaper({
+  descriptor,
+  displayNumber,
+}: {
+  descriptor: DocumentTypeDescriptor
+  displayNumber?: string | null
+}) {
+  const { t } = useTranslation()
+  const values = useWatch() as Record<string, unknown>
+  return (
+    <section aria-label={t("documents.form.editor.previewLabel")} data-cy="document-detail-live-paper">
+      <p className="mb-3 text-[14px] font-semibold text-ink-2">{t("documents.form.editor.previewLabel")}</p>
+      <DocumentPaper descriptor={descriptor} data={values} displayNumber={displayNumber} />
+    </section>
   )
 }

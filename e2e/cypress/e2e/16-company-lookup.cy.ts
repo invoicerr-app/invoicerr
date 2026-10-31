@@ -152,7 +152,6 @@ describe('Company lookup — client form', () => {
 
         // Identity step — only the name is required with the default COMPANY type.
         cy.get('[name="name"]').clear().type('ACME Corporation');
-        cy.continueSteppedDialog('client-dialog');
 
         // Address step — country lives here now (client-upsert.tsx's wizard split), and picking it
         // is what drives the Fiscalité step's required-identifiers query below.
@@ -160,7 +159,6 @@ describe('Company lookup — client form', () => {
         cy.get('[name="address"]').clear().type('123 Tech Boulevard');
         cy.get('[name="postalCode"]').clear().type('75001');
         cy.get('[name="city"]').clear().type('Paris');
-        cy.continueSteppedDialog('client-dialog');
 
         // Fiscalité & identifiants step — the country-specific identifier field and its lookup button.
         cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).should('exist');

@@ -29,12 +29,15 @@ export interface BrandingStatus {
   hasLogo: boolean
   presets: BrandingPreset[]
   fonts: BrandingFontOption[]
+  template: string | null
+  templates: BrandingFontOption[]
 }
 
 export interface SetBrandingInput {
   preset?: string | null
   accentColor?: string | null
   font?: string | null
+  template?: string | null
 }
 
 const STATUS_KEY = ["company", "branding"] as const

@@ -123,6 +123,7 @@ export function buildPurchaseOrderDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'purchase-order',
     label: 'Purchase order',
+    icon: 'purchase-order',
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },

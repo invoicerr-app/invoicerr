@@ -24,7 +24,7 @@ A credit note reaches its client through the invoice it corrects; the type carri
 - **Import** / **Import CSV** - record a past credit note from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md). A CSV-imported credit note is always free (no invoice link); a linked import needs the one-at-a-time form
 - **Search** - find a credit note by its number or client name
-- **Filter** - toggle the status chips: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
+- **Filter** - pick one or more statuses in the segmented control above the list: **Draft**, **Sending**, **Sent**, **Send failed**, **Imported**
 - **View** (eye icon) - read-only details
 - **Preview PDF** / **Download PDF** - open the credit note's PDF in a new tab, or save it under the credit note's number (see [PDF file name](invoices.md#pdf-file-name))
 - **Download normalized XML** - once numbered, the same normalized XML formats as an [invoice](invoices.md#download-formats). An **Imported** credit note also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
@@ -52,7 +52,7 @@ Some channels cannot carry a credit note at all. KSeF and Invopop are two exampl
 
 ## Archiving
 
-Once sent, a credit note gets its own **Legal archive** card, exactly like a sent invoice: the exact PDF the client received (or, on a structured channel, the file actually deposited), kept for as long as your country's retention rule requires. See [Backups](../backups.md) for how archives are stored and restored. A credit note issued before this existed keeps none; its download still renders fresh, since it was never delivered through this mechanism.
+Once sent, a credit note gets its own **Legal archive** section, exactly like a sent invoice: the exact PDF the client received (or, on a structured channel, the file actually deposited), kept for as long as your country's retention rule requires. See [Backups](../backups.md) for how archives are stored and restored. A credit note issued before this existed keeps none; its download still renders fresh, since it was never delivered through this mechanism.
 
 ## When a credit note is refused
 

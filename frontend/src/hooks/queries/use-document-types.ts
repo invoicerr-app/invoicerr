@@ -597,3 +597,10 @@ function selectableRowsKey(typeId?: string, fieldKey?: string, sourceId?: string
 function selectableRowsUrl(typeId?: string, fieldKey?: string, sourceId?: string) {
   return `/api/documents/types/${typeId}/fields/${fieldKey}/rows?sourceId=${encodeURIComponent(sourceId ?? "")}`
 }
+
+/** One type's label and icon from the list of available types, which every signed-in page already
+ *  holds: the name a page shows while the type's own descriptor is loading or failed to load. */
+export function useDocumentTypeSummary(typeId: string | undefined): DocumentTypeSummary | undefined {
+  const { data } = useAvailableDocumentTypes()
+  return typeId ? data?.types.find((type) => type.id === typeId) : undefined
+}

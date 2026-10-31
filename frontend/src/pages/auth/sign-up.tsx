@@ -376,7 +376,7 @@ export default function SignupPage() {
                 required={invitationOnly}
                 aria-describedby={fieldHelpId("invitationCode")}
                 defaultValue={codeFromUrl ?? undefined}
-                className="ps-9 font-mono uppercase"
+                className="ps-9 font-mono uppercase placeholder:font-sans placeholder:normal-case"
                 data-cy="auth-invitation-code-input"
               />
             </div>

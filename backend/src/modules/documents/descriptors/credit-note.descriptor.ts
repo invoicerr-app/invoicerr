@@ -191,6 +191,7 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'credit-note',
     label: 'Credit note',
+    icon: 'credit-note',
     statuses: CREDIT_NOTE_STATUSES,
     initialStatus: 'draft',
     // Issue #471 - see this file's own header, "Numbering", for the full "why" (CGI art. 289, I, 5 /

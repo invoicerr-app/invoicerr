@@ -137,6 +137,25 @@ describe('BrandingService', () => {
       );
     });
 
+    it('stores a known document template, and an explicit null goes back to the classic one', async () => {
+      await service.setBranding('company-1', { template: 'atelier' });
+      expect(mockedPrisma.company.update).toHaveBeenLastCalledWith({
+        where: { id: 'company-1' },
+        data: { brandingTemplate: 'atelier' },
+      });
+      await service.setBranding('company-1', { template: null });
+      expect(mockedPrisma.company.update).toHaveBeenLastCalledWith({
+        where: { id: 'company-1' },
+        data: { brandingTemplate: null },
+      });
+    });
+
+    it('rejects an unknown document template, named', async () => {
+      await expect(service.setBranding('company-1', { template: 'baroque' })).rejects.toThrow(
+        /Unknown template "baroque"/,
+      );
+    });
+
     it('rejects an unknown preset id, named', async () => {
       await expect(service.setBranding('company-1', { preset: 'not-a-real-preset' })).rejects.toThrow(
         BadRequestException,

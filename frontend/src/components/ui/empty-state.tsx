@@ -23,6 +23,40 @@ interface EmptyStateProps extends Omit<React.ComponentProps<"div">, "title"> {
   size?: "default" | "sm"
 }
 
+/** A sheet and a pencil drawn from tokens, so it reads in both themes. */
+function SheetAndPencil() {
+  return (
+    <svg
+      width="136"
+      height="96"
+      viewBox="20 4 136 112"
+      fill="none"
+      aria-hidden="true"
+      className="text-primary"
+    >
+      <g transform="rotate(-4 81 62)">
+        <rect
+          x="38"
+          y="10"
+          width="86"
+          height="104"
+          rx="6"
+          fill="var(--paper-bg)"
+          stroke="var(--border)"
+          strokeWidth="2"
+        />
+        <path d="M52 34h38M52 48h58M52 62h50" stroke="var(--border)" strokeWidth="3" strokeLinecap="round" />
+        <path d="M62 100h44" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </g>
+      <g transform="rotate(32 122 70)">
+        <rect x="112" y="26" width="12" height="62" rx="3" fill="currentColor" />
+        <path d="M112 88h12l-6 14z" fill="var(--foreground)" />
+        <rect x="112" y="26" width="12" height="9" rx="3" fill="var(--accent)" />
+      </g>
+    </svg>
+  )
+}
+
 /**
  * The one empty state every list in this app renders — a first visit, a search that matched
  * nothing, a load that failed — so the four different treatments the audit found ("grey text alone",
@@ -53,31 +87,44 @@ function EmptyState({
       )}
       {...props}
     >
-      <div
-        aria-hidden="true"
+      {tone === "default" && size === "default" ? (
+        <div className="relative">
+          <SheetAndPencil />
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 start-3 grid size-10 place-items-center rounded-full border bg-card text-primary shadow-sheet"
+          >
+            <Icon className="size-5" strokeWidth={1.75} />
+          </span>
+        </div>
+      ) : (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "flex items-center justify-center rounded-full",
+            size === "sm" ? "size-10" : "size-14",
+            tone === "destructive" ? "bg-warning text-warning-foreground" : "bg-muted text-muted-foreground",
+          )}
+        >
+          <Icon className={size === "sm" ? "size-5" : "size-6"} strokeWidth={1.75} />
+        </div>
+      )}
+      <h2
         className={cn(
-          "flex items-center justify-center rounded-full",
-          size === "sm" ? "size-10" : "size-14",
-          tone === "destructive"
-            ? "bg-destructive-soft text-destructive-soft-foreground"
-            : "bg-muted text-muted-foreground",
+          "text-foreground text-balance",
+          size === "sm" ? "mt-3 font-sans text-sm font-semibold" : "mt-4 text-[22px] leading-tight",
         )}
       >
-        <Icon className={size === "sm" ? "size-5" : "size-6"} strokeWidth={1.5} />
-      </div>
-      <h2 className={cn("font-medium text-foreground text-balance", size === "sm" ? "mt-3 text-sm" : "mt-4")}>
         {title}
       </h2>
-      {description && (
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground text-pretty">{description}</p>
-      )}
+      {description && <p className="mt-1.5 max-w-sm text-sm text-ink-2 text-pretty">{description}</p>}
       {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
       {docHref && docLabel && (
         <a
           href={docHref}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 rounded-sm text-xs text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="focus-ring mt-3 rounded-sm text-xs text-muted-foreground underline-offset-4 hover:underline"
         >
           {docLabel}
         </a>

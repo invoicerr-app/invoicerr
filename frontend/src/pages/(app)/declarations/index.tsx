@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -78,92 +77,87 @@ export default function DeclarationsPage() {
       : t("declarations.emptyState.noDeclarations")
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-6" data-cy="declarations-page">
+    <div className="page-content space-y-5" data-cy="declarations-page">
       <p className="text-sm text-muted-foreground">{t("declarations.description")}</p>
 
-      <Card className="gap-0">
-        <CardHeader className="border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
-          <Select value={status ?? ALL_STATUSES_VALUE} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-full sm:w-64" dataCy="declarations-status-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_STATUSES_VALUE} dataCy="declarations-status-option-all">
-                {t("declarations.filters.allStatuses")}
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Select value={status ?? ALL_STATUSES_VALUE} onValueChange={handleStatusChange}>
+          <SelectTrigger className="w-full sm:w-64" dataCy="declarations-status-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATUSES_VALUE} dataCy="declarations-status-option-all">
+              {t("declarations.filters.allStatuses")}
+            </SelectItem>
+            {statusCodes.map((code) => (
+              <SelectItem key={code} value={code} dataCy={`declarations-status-option-${code}`}>
+                {statusLabel(code)}
               </SelectItem>
-              {statusCodes.map((code) => (
-                <SelectItem key={code} value={code} dataCy={`declarations-status-option-${code}`}>
-                  {statusLabel(code)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardHeader>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="space-y-2 p-6" data-cy="declarations-loading">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : declarations.length === 0 ? (
-            <EmptyState
-              icon={status ? SearchX : Gavel}
-              title={emptyMessage}
-              action={
-                status && (
-                  <Button variant="outline" onClick={() => handleStatusChange(ALL_STATUSES_VALUE)}>
-                    {t("common.emptyState.clearFilters")}
-                  </Button>
-                )
-              }
-              data-cy={!status && !data?.hasObligation ? "declarations-no-obligation" : "declarations-empty"}
-            />
-          ) : (
-            <Table data-cy="declarations-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("declarations.table.document")}</TableHead>
-                  <TableHead>{t("declarations.table.country")}</TableHead>
-                  <TableHead>{t("declarations.table.provider")}</TableHead>
-                  <TableHead>{t("declarations.table.status")}</TableHead>
-                  <TableHead>{t("declarations.table.date")}</TableHead>
-                  <TableHead>{t("declarations.table.error")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {declarations.map((declaration) => (
-                  <TableRow key={declaration.id} data-cy={`declaration-row-${declaration.id}`}>
-                    <TableCell data-cy="declaration-document">
-                      {declaration.displayNumber ?? declaration.documentId}
-                    </TableCell>
-                    <TableCell>{declaration.countryCode ?? "-"}</TableCell>
-                    <TableCell className="font-mono text-xs">{declaration.providerId}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={STATUS_VARIANT[declaration.statusCode] ?? "secondary"}
-                        data-cy="declaration-status-badge"
-                      >
-                        {statusLabel(declaration.statusCode)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {new Date(declaration.observedAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell
-                      className="max-w-[280px] truncate text-destructive"
-                      data-cy="declaration-error"
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sheet">
+        {isLoading ? (
+          <div className="space-y-2 p-6" data-cy="declarations-loading">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : declarations.length === 0 ? (
+          <EmptyState
+            icon={status ? SearchX : Gavel}
+            title={emptyMessage}
+            action={
+              status && (
+                <Button variant="outline" onClick={() => handleStatusChange(ALL_STATUSES_VALUE)}>
+                  {t("common.emptyState.clearFilters")}
+                </Button>
+              )
+            }
+            data-cy={!status && !data?.hasObligation ? "declarations-no-obligation" : "declarations-empty"}
+          />
+        ) : (
+          <Table data-cy="declarations-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("declarations.table.document")}</TableHead>
+                <TableHead>{t("declarations.table.country")}</TableHead>
+                <TableHead>{t("declarations.table.provider")}</TableHead>
+                <TableHead>{t("declarations.table.status")}</TableHead>
+                <TableHead>{t("declarations.table.date")}</TableHead>
+                <TableHead>{t("declarations.table.error")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {declarations.map((declaration) => (
+                <TableRow key={declaration.id} data-cy={`declaration-row-${declaration.id}`}>
+                  <TableCell data-cy="declaration-document">
+                    {declaration.displayNumber ?? declaration.documentId}
+                  </TableCell>
+                  <TableCell>{declaration.countryCode ?? "-"}</TableCell>
+                  <TableCell className="font-mono text-xs">{declaration.providerId}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={STATUS_VARIANT[declaration.statusCode] ?? "secondary"}
+                      data-cy="declaration-status-badge"
                     >
-                      {declaration.reason ?? "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                      {statusLabel(declaration.statusCode)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {new Date(declaration.observedAt).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="max-w-[280px] truncate text-destructive" data-cy="declaration-error">
+                    {declaration.reason ?? "-"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
 
       {data && data.pageCount > 1 && (
         <BetterPagination pageCount={data.pageCount} page={page} setPage={setPage} />

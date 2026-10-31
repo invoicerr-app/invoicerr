@@ -86,6 +86,7 @@ export function buildGoodsReceiptDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'goods-receipt',
     label: 'Goods receipt',
+    icon: 'goods-receipt',
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'recorded', label: 'Recorded' },

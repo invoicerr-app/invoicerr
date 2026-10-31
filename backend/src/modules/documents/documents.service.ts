@@ -144,8 +144,19 @@ import {
   resolveCreditsForDocument,
   toSettlementCreditInputs,
 } from './settlement/credits';
-import { DocumentPaymentResult, listPayments, toSettlementPaymentInputs } from './settlement/payments';
-import { filterUnsettledInvoices, isOverdueInvoice } from './settlement/unsettled-invoices';
+import {
+  DocumentPaymentResult,
+  listPayments,
+  listPaymentsInRange,
+  toSettlementPaymentInputs,
+} from './settlement/payments';
+import {
+  filterUnsettledInvoices,
+  isOverdueInvoice,
+  resolveUnsettledInvoiceBalances,
+} from './settlement/unsettled-invoices';
+import { buildInvoiceOverview, InvoiceOverview } from './contributions/invoice-overview';
+import { resolveClientLabels } from './accounting-export/client-labels';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -610,6 +621,47 @@ export class DocumentsService implements OnModuleInit {
    * and friends) is what makes threading it through here safe for every EXISTING caller of this
    * method (the statistics controller route, any future one) without touching them at all.
    */
+  /** The dashboard's invoicing overview (contributions/invoice-overview.ts), in the company's own
+   *  currency. Empty lists and zeros for a company with no invoice type or no invoices. */
+  async invoiceOverview(companyId: string): Promise<InvoiceOverview> {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } });
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.typeRegistry.has('invoice')) {
+      return buildInvoiceOverview({
+        currency: company?.currency ?? 'EUR',
+        today,
+        invoices: [],
+        unsettled: [],
+        payments: [],
+        clientLabels: new Map(),
+      });
+    }
+    const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
+    const balances = await resolveUnsettledInvoiceBalances(
+      companyId,
+      this.typeRegistry.resolve('invoice'),
+      invoices,
+    );
+    const invoiceIds = new Set(invoices.map((invoice) => invoice.id));
+    const payments = (
+      await listPaymentsInRange(companyId, new Date(`${today.slice(0, 4)}-01-01T00:00:00.000Z`), new Date())
+    ).filter((payment) => invoiceIds.has(payment.documentId));
+    const clientIds = balances
+      .map(({ invoice }) => (invoice.data as Record<string, unknown> | null)?.client)
+      .filter((id): id is string => typeof id === 'string');
+    return buildInvoiceOverview({
+      currency: company?.currency ?? 'EUR',
+      today,
+      invoices,
+      unsettled: balances.map(({ invoice, settlement }) => ({
+        invoice,
+        outstandingMinor: settlement.outstandingMinor,
+      })),
+      payments,
+      clientLabels: await resolveClientLabels(companyId, clientIds),
+    });
+  }
+
   async collectWidgets(
     companyId: string,
     location: WidgetLocation,
@@ -647,7 +699,7 @@ export class DocumentsService implements OnModuleInit {
    */
   async listAvailableTypes(
     companyId: string,
-  ): Promise<{ types: { id: string; label: string }[]; reason?: string }> {
+  ): Promise<{ types: { id: string; label: string; icon?: string }[]; reason?: string }> {
     const decision = await resolveAvailableDocumentTypes(companyId);
     if (decision.typeIds.length === 0) {
       return { types: [], reason: decision.reason };
@@ -665,7 +717,7 @@ export class DocumentsService implements OnModuleInit {
         }
       })
       .filter((descriptor): descriptor is DocumentTypeDescriptor => !!descriptor)
-      .map(({ id, label }) => ({ id, label }));
+      .map(({ id, label, icon }) => ({ id, label, icon }));
 
     return { types };
   }

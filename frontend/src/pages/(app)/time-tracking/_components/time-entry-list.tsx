@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ListSkeleton, PanelSection } from "../../_shared/data-list"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -88,11 +88,11 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
   }
 
   return (
-    <Card className="gap-0" data-cy="time-entry-panel">
-      <CardHeader className="border-b flex flex-row items-center justify-between flex-wrap gap-2">
-        <CardTitle>
-          {project.name} — {project.client.name}
-        </CardTitle>
+    <PanelSection
+      dataCy="time-entry-panel"
+      title={project.name}
+      description={project.client.name}
+      action={
         <Button
           onClick={() => setCreateOpen(true)}
           aria-label={t("timeTracking.entries.list.add")}
@@ -101,114 +101,111 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
           <Plus className="h-4 w-4 me-0 md:me-2" aria-hidden="true" />
           <span className="hidden md:inline-flex">{t("timeTracking.entries.list.add")}</span>
         </Button>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-primary" />
-          </div>
-        ) : entries.length === 0 ? (
-          <EmptyState
-            icon={Clock}
-            size="sm"
-            title={t("timeTracking.entries.empty")}
-            data-cy="time-entry-empty"
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-primary"
-                      checked={allSelected}
-                      disabled={selectableEntries.length === 0}
-                      onChange={(e) => toggleAll(e.target.checked)}
-                      data-cy="time-entry-select-all"
-                    />
-                  </TableHead>
-                  <TableHead>{t("timeTracking.entries.columns.date")}</TableHead>
-                  <TableHead>{t("timeTracking.entries.columns.description")}</TableHead>
-                  <TableHead className="text-right">{t("timeTracking.entries.columns.hours")}</TableHead>
-                  <TableHead className="text-right">{t("timeTracking.entries.columns.amount")}</TableHead>
-                  <TableHead>{t("timeTracking.entries.columns.status")}</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => {
-                  const selectable = entry.billable && !entry.invoiceId
-                  return (
-                    <TableRow key={entry.id} data-cy={`time-entry-row-${entry.id}`}>
-                      <TableCell>
-                        {selectable && (
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 accent-primary"
-                            checked={selectedIds.has(entry.id)}
-                            onChange={(e) => toggleOne(entry.id, e.target.checked)}
-                            data-cy={`time-entry-checkbox-${entry.id}`}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell dir="ltr" className="tabular-nums">
-                        {new Date(entry.date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>{entry.description || "—"}</TableCell>
-                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
-                        {(entry.durationMinutes / 60).toFixed(2)}
-                      </TableCell>
-                      <TableCell dir="ltr" className="text-right font-mono tabular-nums">
-                        {amountFor(entry).toFixed(2)}
-                        {currencySymbol}
-                      </TableCell>
-                      <TableCell>
-                        {entry.invoiceId ? (
-                          <Badge variant="success" data-cy={`time-entry-billed-${entry.id}`}>
-                            {t("timeTracking.entries.status.billed")}
-                          </Badge>
-                        ) : !entry.billable ? (
-                          <Badge variant="outline">{t("timeTracking.entries.status.nonBillable")}</Badge>
-                        ) : (
-                          <Badge variant="outline">{t("timeTracking.entries.status.unbilled")}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!entry.invoiceId && (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              tooltip={t("timeTracking.actions.edit")}
-                              aria-label={t("timeTracking.actions.edit")}
-                              onClick={() => setEditEntry(entry)}
-                              dataCy={`time-entry-edit-${entry.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              tooltip={t("timeTracking.actions.delete")}
-                              aria-label={t("timeTracking.actions.delete")}
-                              onClick={() => setDeleteEntryTarget(entry)}
-                              dataCy={`time-entry-delete-${entry.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
+      }
+    >
+      {isLoading ? (
+        <ListSkeleton />
+      ) : entries.length === 0 ? (
+        <EmptyState
+          icon={Clock}
+          size="sm"
+          title={t("timeTracking.entries.empty")}
+          data-cy="time-entry-empty"
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={allSelected}
+                    disabled={selectableEntries.length === 0}
+                    onChange={(e) => toggleAll(e.target.checked)}
+                    data-cy="time-entry-select-all"
+                  />
+                </TableHead>
+                <TableHead>{t("timeTracking.entries.columns.date")}</TableHead>
+                <TableHead>{t("timeTracking.entries.columns.description")}</TableHead>
+                <TableHead className="text-right">{t("timeTracking.entries.columns.hours")}</TableHead>
+                <TableHead className="text-right">{t("timeTracking.entries.columns.amount")}</TableHead>
+                <TableHead>{t("timeTracking.entries.columns.status")}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => {
+                const selectable = entry.billable && !entry.invoiceId
+                return (
+                  <TableRow key={entry.id} data-cy={`time-entry-row-${entry.id}`}>
+                    <TableCell>
+                      {selectable && (
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-primary"
+                          checked={selectedIds.has(entry.id)}
+                          onChange={(e) => toggleOne(entry.id, e.target.checked)}
+                          data-cy={`time-entry-checkbox-${entry.id}`}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell dir="ltr" className="tabular-nums">
+                      {new Date(entry.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{entry.description || "—"}</TableCell>
+                    <TableCell dir="ltr" className="amount text-right">
+                      {(entry.durationMinutes / 60).toFixed(2)}
+                    </TableCell>
+                    <TableCell dir="ltr" className="amount text-right">
+                      {amountFor(entry).toFixed(2)}
+                      {currencySymbol}
+                    </TableCell>
+                    <TableCell>
+                      {entry.invoiceId ? (
+                        <Badge variant="success" data-cy={`time-entry-billed-${entry.id}`}>
+                          {t("timeTracking.entries.status.billed")}
+                        </Badge>
+                      ) : !entry.billable ? (
+                        <Badge variant="outline">{t("timeTracking.entries.status.nonBillable")}</Badge>
+                      ) : (
+                        <Badge variant="outline">{t("timeTracking.entries.status.unbilled")}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {!entry.invoiceId && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            tooltip={t("timeTracking.actions.edit")}
+                            aria-label={t("timeTracking.actions.edit")}
+                            onClick={() => setEditEntry(entry)}
+                            dataCy={`time-entry-edit-${entry.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            tooltip={t("timeTracking.actions.delete")}
+                            aria-label={t("timeTracking.actions.delete")}
+                            onClick={() => setDeleteEntryTarget(entry)}
+                            dataCy={`time-entry-delete-${entry.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {selectableEntries.length > 0 && (
         <div className="border-t p-4 flex items-center justify-between gap-4 flex-wrap">
@@ -270,7 +267,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
         onOpenChange={setGenerateOpen}
         onGenerated={handleGenerated}
       />
-    </Card>
+    </PanelSection>
   )
 }
 

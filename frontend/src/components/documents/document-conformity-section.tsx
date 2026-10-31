@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@/components/ui/badge"
+import { StatusMark } from "@/components/ui/status-mark"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentAuthorityEvents } from "@/hooks/queries/use-document-types"
 import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
+import { type StatusPresentation, statusPresentation } from "./status-presentation"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**
@@ -87,16 +88,13 @@ export function latestConformityReason(events: DocumentAuthorityEvent[]): string
   return rejection?.reason ?? undefined
 }
 
-// Theme tokens (index.css) rather than stock Tailwind colors — each pair already switches with
-// `.dark`. "declarationIssue" shares the warning tone with "pending" on purpose: both mean "not
-// settled, someone has to look", and the label (not the hue) is what tells them apart; a fifth,
-// orange-ish tone would have been a second amber the identity deliberately doesn't have.
-const VERDICT_TONE: Record<ConformityVerdict, string> = {
-  accepted: "bg-success text-success-foreground",
-  rejected: "bg-destructive-soft text-destructive-soft-foreground",
-  gaveUp: "bg-secondary text-secondary-foreground",
-  pending: "bg-warning text-warning-foreground",
-  declarationIssue: "bg-warning text-warning-foreground",
+// "declarationIssue" shares the waiting mark with "pending" on purpose: the label tells them apart.
+const VERDICT_MARK: Record<ConformityVerdict, StatusPresentation> = {
+  accepted: statusPresentation("approved"),
+  rejected: statusPresentation("rejected"),
+  gaveUp: statusPresentation("cancelled"),
+  pending: statusPresentation("pending"),
+  declarationIssue: statusPresentation("pending"),
 }
 
 const VERDICT_LABEL_KEY: Record<ConformityVerdict, string> = {
@@ -122,13 +120,13 @@ export function ConformityBadge({ events, className, dataCySuffix }: ConformityB
   if (events.length === 0) return null
   const verdict = computeConformityVerdict(events)
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", VERDICT_TONE[verdict], className)}
+    <StatusMark
+      {...VERDICT_MARK[verdict]}
+      className={className}
       data-cy={dataCySuffix ? `document-conformity-badge-${dataCySuffix}` : "document-conformity-badge"}
     >
       {t(VERDICT_LABEL_KEY[verdict])}
-    </Badge>
+    </StatusMark>
   )
 }
 
@@ -153,55 +151,87 @@ export function DocumentConformityListIndicator({
 
 interface ConformityTimelineProps {
   events: DocumentAuthorityEvent[]
+  /** When the record was created: closes the history at its bottom, below every platform event. */
+  createdAt?: string
 }
 
 /** The PRESENTATIONAL half — pure props in, markup out, no data fetching of its own. Split out from
  *  `DocumentConformitySection` below so `document-conformity-section.spec.tsx` can render it directly
  *  with hardcoded events, no query client/network mocking needed. Most-recent-first — the API's own order
  *  (`listAuthorityEvents`), never re-sorted here. */
-export function ConformityTimeline({ events }: ConformityTimelineProps) {
+export function ConformityTimeline({ events, createdAt }: ConformityTimelineProps) {
   const { t } = useTranslation()
   return (
-    <ul className="divide-y" data-cy="document-conformity-timeline">
-      {events.map((event) => (
+    <ol className="relative" data-cy="document-conformity-timeline">
+      {events.map((event, index) => {
+        const presentation = statusPresentation(event.reason ? "rejected" : event.statusCode)
+        return (
+          <li
+            key={event.id}
+            className="relative grid grid-cols-[1rem_1fr] gap-x-3 pb-4 text-sm last:pb-0"
+            data-cy={`document-conformity-event-${event.id}`}
+          >
+            {(index < events.length - 1 || createdAt) && (
+              <span aria-hidden="true" className="absolute start-[7px] top-4 bottom-0 w-px bg-border" />
+            )}
+            <StatusMark {...presentation} className="mt-0.5 gap-0" aria-hidden="true" />
+            <div className="min-w-0 space-y-0.5">
+              <p
+                className={cn("font-semibold", event.reason && "text-destructive-soft-foreground")}
+                data-cy="document-conformity-event-text"
+              >
+                {event.statusText || t("documents.conformity.timeline.statusUpdate")}
+              </p>
+              <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                {/* The platform's own code stays out of sight: the person reads the label above. */}
+                <span hidden data-cy="document-conformity-event-code">
+                  {event.statusCode}
+                </span>
+                <span className="tabular-nums" data-cy="document-conformity-event-date">
+                  {new Date(event.observedAt).toLocaleString()}
+                </span>
+              </p>
+              {event.reason && (
+                <p
+                  className="text-xs text-destructive-soft-foreground"
+                  data-cy="document-conformity-event-reason"
+                >
+                  {t("documents.conformity.timeline.reason", { reason: event.reason })}
+                </p>
+              )}
+            </div>
+          </li>
+        )
+      })}
+      {createdAt && (
         <li
-          key={event.id}
-          className="space-y-1 py-2 text-sm"
-          data-cy={`document-conformity-event-${event.id}`}
+          className="relative grid grid-cols-[1rem_1fr] gap-x-3 text-sm"
+          data-cy="document-conformity-created"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span
-              className="font-mono text-xs text-muted-foreground"
-              data-cy="document-conformity-event-code"
-            >
-              {event.statusCode}
-            </span>
-            <span className="text-xs text-muted-foreground" data-cy="document-conformity-event-date">
-              {new Date(event.observedAt).toLocaleString()}
-            </span>
-          </div>
-          {event.statusText && <p data-cy="document-conformity-event-text">{event.statusText}</p>}
-          {event.reason && (
-            <p className="text-xs text-destructive" data-cy="document-conformity-event-reason">
-              {t("documents.conformity.timeline.reason", { reason: event.reason })}
+          <StatusMark {...statusPresentation("draft")} className="mt-0.5 gap-0" aria-hidden="true" />
+          <div className="min-w-0 space-y-0.5">
+            <p className="font-semibold">{t("documents.conformity.timeline.created")}</p>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {new Date(createdAt).toLocaleString()}
             </p>
-          )}
+          </div>
         </li>
-      ))}
-    </ul>
+      )}
+    </ol>
   )
 }
 
 interface DocumentConformitySectionProps {
   typeId: string
   documentId: string
+  createdAt?: string
 }
 
 /** The data-fetching half, shown on the document detail page (document-detail.tsx), next to the
  *  archive section. Renders NOTHING for a document with no conformity events at all — never a
  *  falsely-empty "Compliance tracking" block for a document sent by email, or by any channel with no
  *  poller registered (see the backend's `authority-status-poller.ts` on why "sdi" never gets one). */
-export function DocumentConformitySection({ typeId, documentId }: DocumentConformitySectionProps) {
+export function DocumentConformitySection({ typeId, documentId, createdAt }: DocumentConformitySectionProps) {
   const { t } = useTranslation()
   const { data: events, isLoading } = useDocumentAuthorityEvents(typeId, documentId)
 
@@ -222,7 +252,7 @@ export function DocumentConformitySection({ typeId, documentId }: DocumentConfor
       aside={<ConformityBadge events={events} />}
       dataCy="document-conformity-section"
     >
-      <ConformityTimeline events={events} />
+      <ConformityTimeline events={events} createdAt={createdAt} />
     </SectionCard>
   )
 }

@@ -60,13 +60,12 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 		// "currency" — a SearchSelect, same pattern as 20-document-totals.cy.ts's own currency fill.
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
 		// "supplier"/"issueDate"/"currency" (all `required`) are the wizard's own "Details" step —
 		// see document-create-dialog.tsx's `buildFieldGroups`.
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// One line: 10 units at 25 EUR — no article catalog link, no VAT rate (see the descriptor's
 		// own header on why "lines" carries neither).
@@ -78,8 +77,6 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 
 		// "expectedDeliveryDate"/"reference"/"notes" (all optional) are the "Options" step — nothing
 		// to fill to pass through it.
-		cy.continueDocumentWizard(); // Lines -> Options
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.intercept("POST", `${api}/api/documents/types/purchase-order/actions/save-draft`).as(
 			"savePurchaseOrderDraft",

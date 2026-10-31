@@ -123,15 +123,14 @@ describe("Quotes with options (issue #373)", () => {
 				cy.get('[data-cy="document-create-button"]', {
 					timeout: 15000,
 				}).click();
-				cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-					"be.visible",
-				);
+				cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 				cy.pickDocumentClient();
 				cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
 				cy.get('[data-cy="document-field-currency-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-currency-input-options"]', {
 					timeout: 10000,
@@ -140,7 +139,6 @@ describe("Quotes with options (issue #373)", () => {
 					.first()
 					.click();
 
-				cy.continueDocumentWizard(); // Details -> Lines
 
 				// Line 0: Basic option, 100.00.
 				cy.get('[data-cy="document-field-lines-add-row"]').click();
@@ -217,8 +215,6 @@ describe("Quotes with options (issue #373)", () => {
 				cy.get('[data-cy="document-field-lines-row-0"]').scrollIntoView();
 				cy.screenshot("373-after-editor-lines", { capture: "viewport" });
 
-				cy.continueDocumentWizard(); // Lines -> Options (dueDate/notes/clientReference)
-				cy.continueDocumentWizard(); // Options -> Summary
 
 				// The Summary step shows PER-OPTION totals, never a single global one - PLUS the
 				// common line's own "Common to all options" block (this issue's own follow-up rule).

@@ -180,19 +180,7 @@ declare namespace Cypress {
         openSearchSelect(dataCy: string): Chainable<void>
 
         /**
-         * Advances the document CREATE dialog (`document-create-dialog.tsx`, a
-         * `components/ui/stepped-dialog.tsx` wizard: Details -> Lines -> Options -> Summary, a step
-         * dropped when it has nothing to show) from its CURRENT step to the next one — waits for the
-         * "Continue" button, clicks it, then waits for the step's own body to actually change
-         * (`document-create-dialog-step-body-*`'s `data-cy` includes the new step's id), so a spec
-         * never races `handleContinue`'s own `await form.trigger(...)` the way a bare
-         * `cy.get(...).click()` would.
-         * @example cy.continueDocumentWizard()
-         */
-        continueDocumentWizard(): Chainable<void>
-
-        /**
-         * The generic sibling of `continueDocumentWizard` for any OTHER `components/ui/stepped-dialog.tsx`
+         * Advances any `components/ui/stepped-dialog.tsx`
          * wizard (article-upsert.tsx, time-entry-upsert.tsx, ...) — takes the dialog's own `dataCy`
          * prefix (the same string passed to `<SteppedDialog dataCy="...">`) since those aren't hardcoded
          * to "document-create-dialog". Same "wait for the step body's own data-cy to actually change"

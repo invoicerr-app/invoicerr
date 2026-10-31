@@ -78,7 +78,7 @@ async function bootstrap() {
       <QueryClientProvider client={queryClient}>
         <CauseDayFavicon />
         <Routes />
-        <Toaster richColors position="top-right" />
+        <Toaster position="top-right" />
       </QueryClientProvider>
     </ThemeProvider>,
   )

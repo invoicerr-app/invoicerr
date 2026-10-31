@@ -66,7 +66,7 @@ function WaitingBench({
 
   return (
     <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-3" data-cy="seats-waiting-bench">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="mb-2 text-[13px] font-medium text-muted-foreground">
         {t("settings.seats.waitingBench", "Waiting for a seat")}
       </p>
       <div className="flex flex-wrap gap-3">

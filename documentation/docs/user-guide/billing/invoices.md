@@ -6,16 +6,22 @@ sidebar_position: 4
 
 The **Invoices** page is where you bill your clients. You can create invoices from scratch or convert a signed [quote](quotes.md).
 
-Each row shows the invoice's total **including VAT**, labelled "incl. VAT" under the figure,
-before any payment or credit note. What is still owed on it is in its settlement panel.
+Invoices are grouped by month of their date, in the order you sorted them. Each row leads with the
+client (initials and name), then the invoice number and dates, its status, and its total **including
+VAT**, labelled "incl. VAT" under the figure, before any payment or credit note. What is still owed
+on it is in its settlement panel.
+
+A status is always a small shape next to a word, never a colour alone: an open circle for a draft, a
+half disc for an invoice on its way, a check for an approved one, a full disc for a paid one, a
+triangle for a late one and a circled cross for a rejection.
 
 ## Actions
 
-- **Add New** — create an invoice
+- **New Invoice**: create an invoice, on its own page
 - **Import** / **Import CSV**: record a past invoice from a previous tool; see
   [Migrating from another tool](migrating-from-another-tool.md)
 - **Search** — find an invoice by its number or client name
-- **Filter**: toggle the status chips: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
+- **Filter**: pick one or more statuses in the segmented control above the list: **Draft**, **Validated**, **Sending**, **Sent**, **Send failed**, **Cancelled**, **Imported**
 - **View** (eye icon) — read-only details
 - **Preview PDF** / **Download PDF** - open the invoice's PDF in a new tab, or save it to your computer as a file named after the invoice's number (see [PDF file name](#pdf-file-name))
 - **Download normalized XML** - once the invoice has been numbered: **CII**, **UBL**, **Factur-X**, **FA(3)** (Polish KSeF), **FatturaPA** (Italian SdI), **Peppol BIS Billing 3.0**, and **XRechnung**. An **Imported** invoice also offers **Download original** - see [Migrating from another tool](migrating-from-another-tool.md#downloading-the-original)
@@ -44,7 +50,14 @@ before any payment or credit note. What is still owed on it is in its settlement
 
 ## Creating an invoice
 
-Click **Add New** and fill in:
+Click **New Invoice**. A page of its own opens (its address ends in `/new`): every field on the left,
+in sections, and the invoice building itself on the right as you type, the lines, the totals and the
+client as your client will read them. The save action stays at the bottom of the page. A draft you
+open later shows the same sheet beside its form. On a phone, **Edit** and **Preview** at the top
+switch between the two, a filled line folds into one summary (tap it to edit it again), the
+**Options** section stays folded until you open it, and the total stays in view next to the save
+action. Everything is checked when you save; a field that needs attention is brought into view with
+its message under it. Fill in:
 
 - **Client** (required): pick an existing client, or use **Create new client** to add one on the spot
   with just a name and a country. The client must be complete before the invoice is validated or sent;
@@ -143,11 +156,15 @@ Choosing a local cancellation asks you to confirm first: it is irreversible, and
 
 **Record payment** is offered on a sent invoice, in its row and on its own page, for as long as
 something is still owed. An invoice can be paid in several instalments: each payment is listed in the
-invoice's settlement panel, and the badge reads **Partially paid** until the balance reaches zero.
+invoice's settlement panel, and the settlement mark reads **Partially paid** (a half-filled circle) until
+the balance reaches zero.
+
+An invoice with nothing paid yet whose due date has passed reads **Late**, with a triangle, in the list
+and on its page.
 
 Once nothing is owed any more, whether through payments, [credit notes](credit-notes.md) or both, the
-badge reads **Settled** and a green check takes the place of **Record payment**, in the list and on
-the invoice's page. The action is no longer offered there.
+settlement mark reads **Settled** and a check takes the place of **Record payment**, in the list and
+on the invoice's page. The action is no longer offered there.
 
 :::info[Money received after the invoice is settled]
 A payment that still arrives afterwards, through an online payment link or
@@ -234,4 +251,4 @@ This only applies to invoices for now: a credit note correcting such an invoice 
 
 ## First use
 
-With no invoices yet, the page shows *"No invoices yet"* and an **Add New** button. If you have a signed quote, use **Create invoice** from the [Quotes](quotes.md) page to skip data entry.
+With no invoices yet, the page shows *"No invoices yet"* and a **New Invoice** button. If you have a signed quote, use **Create invoice** from the [Quotes](quotes.md) page to skip data entry.

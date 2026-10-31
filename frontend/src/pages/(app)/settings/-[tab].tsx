@@ -340,7 +340,7 @@ export default function Settings() {
           <SelectContent data-cy="settings-nav-select-options">
             {groups.map((group) => (
               <SelectGroup key={group.id}>
-                <SelectLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                <SelectLabel className="text-[13px] text-muted-foreground">
                   {t(`settings.nav.groups.${group.id}`)}
                 </SelectLabel>
                 {group.tabs.map((item) => (
@@ -364,16 +364,19 @@ export default function Settings() {
         </Select>
       </div>
 
-      {/* The desktop rail: real links (middle-click, keyboard, screen reader all work), grouped
-          under small-caps labels, the active one on the accent ground rather than a filled block:
-          it is a "you are here", not a button to press. */}
+      {/* The desktop rail: real links, plain text under plain group labels, the active one on a
+          grey pill: a "you are here", not a button to press. */}
       {/* Its own `overflow-y-auto`, independent of `main`'s below: a sidebar this tall only ever
           scrolls on a very short screen, but it must never be main's overflow dragging it along. */}
-      <aside className="hidden w-60 min-h-0 shrink-0 overflow-y-auto border-e bg-sidebar/60 lg:block">
-        <nav aria-label={t("settings.common.navLabel")} className="px-3 py-5" data-cy="settings-nav">
+      <aside className="hidden w-56 min-h-0 shrink-0 overflow-y-auto lg:block">
+        <nav
+          aria-label={t("settings.common.navLabel")}
+          className="ps-4 pe-2 py-5 md:ps-6"
+          data-cy="settings-nav"
+        >
           {groups.map((group) => (
             <div key={group.id} className="mb-5 last:mb-0">
-              <p className="mb-1 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="mb-1 px-2 text-[13px] text-muted-foreground">
                 {t(`settings.nav.groups.${group.id}`)}
               </p>
               <ul className="grid gap-0.5">
@@ -387,19 +390,14 @@ export default function Settings() {
                         aria-current={active ? "page" : undefined}
                         data-cy={`settings-nav-${item.value}`}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                          "focus-ring flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[14.5px] outline-none transition-colors duration-150",
                           active
-                            ? "bg-accent font-medium text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                          danger && !active && "text-destructive/80 hover:text-destructive",
+                            ? "bg-sidebar-accent font-semibold text-foreground"
+                            : "text-ink-2 hover:bg-sidebar-accent/60 hover:text-foreground",
+                          danger && !active && "text-destructive-soft-foreground",
                           danger && active && "bg-destructive-soft text-destructive-soft-foreground",
                         )}
                       >
-                        <item.icon
-                          className="size-4 shrink-0"
-                          strokeWidth={active ? 2 : 1.75}
-                          aria-hidden="true"
-                        />
                         <span className="truncate">{label(item)}</span>
                       </Link>
                     </li>
@@ -412,10 +410,10 @@ export default function Settings() {
       </aside>
 
       <div
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6"
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-8"
         data-cy={`settings-tab-${currentTab}`}
       >
-        <div className="mx-auto max-w-6xl">
+        <div className="max-w-6xl">
           <Content />
         </div>
       </div>

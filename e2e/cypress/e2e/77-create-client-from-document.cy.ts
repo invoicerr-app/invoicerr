@@ -85,19 +85,15 @@ describe("Create client from the document wizard's own client picker", () => {
 		cy.screenshot("create-client/nested-dialog-desktop");
 
 		cy.get('[name="name"]').clear().type(clientName);
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue Créée Depuis Le Devis");
 		cy.get('[name="postalCode"]').clear().type("75001");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type(clientEmail);
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.wait("@createClient").then((interception) => {
@@ -138,7 +134,6 @@ describe("Create client from the document wizard's own client picker", () => {
 		// so the field rebuild it causes lands now, and not under the "Lines" step below.
 		cy.wait("@clientAwareDescriptor", { timeout: 20000 });
 
-		cy.continueDocumentWizard(); // Details -> Lines
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
 		cy.get('[name="lines.0.description"]').clear().type("Prestation de conseil");
@@ -148,10 +143,8 @@ describe("Create client from the document wizard's own client picker", () => {
 		cy.openSearchSelect("document-field-vatRate-input");
 		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
 
-		cy.continueDocumentWizard(); // Lines -> Options
 		cy.get('[data-cy="document-field-notes-input"]').clear().type(notes);
 
-		cy.continueDocumentWizard(); // Options -> Summary
 		cy.get('[data-cy="document-create-recap-client"]').should("contain.text", clientName);
 
 		cy.get('[data-cy="document-action-save-draft"]').should("be.visible").click();
@@ -232,15 +225,12 @@ describe("Quick client creation from a quote, completion required before an invo
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.openSearchSelect("document-field-currency-input");
 		cy.get('[data-cy="document-field-currency-input-option-eur"]').click();
-		cy.continueDocumentWizard();
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[name="lines.0.description"]').type("Prestation de conseil");
 		cy.get('[name="lines.0.quantity"]').clear().type("1");
 		cy.get('[name="lines.0.unitPrice"]').clear().type("500");
 		cy.openSearchSelect("document-field-vatRate-input");
 		cy.get('[data-cy="document-field-vatRate-input-options"] button').first().click();
-		cy.continueDocumentWizard();
-		cy.continueDocumentWizard();
 		cy.get('[data-cy="document-action-save-draft"]').should("be.visible").click();
 		cy.get('[data-cy="document-detail-page"]', { timeout: 15000 }).should("be.visible");
 
@@ -297,13 +287,10 @@ describe("Quick client creation from a quote, completion required before an invo
 			cy.location("pathname", { timeout: 15000 }).should("eq", "/clients");
 			cy.wait("@editedClient").its("response.statusCode").should("eq", 200);
 			cy.get('[data-cy="client-dialog"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="client-dialog-step-address"]').click();
 			cy.get('[name="address"]').type("2 Rue Complète");
 			cy.get('[name="postalCode"]').type("75002");
 			cy.get('[name="city"]').type("Paris");
-			cy.get('[data-cy="client-dialog-step-fiscal"]').click();
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).type("732829320");
-			cy.get('[data-cy="client-dialog-step-recap"]').click();
 			cy.get('[data-cy="client-submit"]').click();
 			cy.wait("@updateClient").its("response.statusCode").should("be.oneOf", [200, 201]);
 			clientById(quickClientId).then((client) => {
