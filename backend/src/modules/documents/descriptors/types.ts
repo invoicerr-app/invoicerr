@@ -415,7 +415,13 @@ export interface DocumentFieldDescriptor {
    */
   suggestedValues?: readonly { value: string; label: string }[];
   /** 'select': the choices offered. */
-  options?: { value: string; label: string }[];
+  options?: {
+    value: string;
+    label: string;
+    /** Translation key for `label`, for an option whose text comes from a country file. Without it
+     *  the frontend derives the key from the type id, the field path and the value. */
+    labelKey?: string;
+  }[];
   /**
    * 'select' only: additional values the VALIDATOR (field-kinds.ts) still accepts, but the frontend
    * never renders as a choice — backward compatibility for a value ALREADY PERSISTED under a

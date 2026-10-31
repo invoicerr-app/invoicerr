@@ -1132,11 +1132,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure.",
@@ -1160,11 +1162,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure.",
@@ -1188,11 +1192,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure.",
@@ -1216,11 +1222,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: used to derive BT-23 (\"cadre de facturation\") on a French invoice. Optional: leave unset if unsure.",

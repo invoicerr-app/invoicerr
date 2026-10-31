@@ -264,7 +264,9 @@ function translateDocumentFields(
       )
     const options = field.options?.map((option) => ({
       ...option,
-      label: descriptorFieldOptionLabel(t, typeId, path, option.value, option.label),
+      label: explicitOrDerived(t, option.labelKey, option.label, () =>
+        descriptorFieldOptionLabel(t, typeId, path, option.value, option.label),
+      ),
     }))
     const suggestedValues = field.suggestedValues?.map((entry) => ({
       ...entry,

@@ -35,6 +35,7 @@ const TRANSLATIONS: Record<string, string> = {
   "documents.descriptors.invoice.fields.lines.fields.supplyType.helpText": "Aide dérivée",
   "documents.countryFields.supplyType.variant.label": "Nature de la livraison",
   "documents.countryFields.supplyType.variant.helpText": "Aide propre au pays",
+  "documents.countryFields.supplyType.options.goods": "Marchandises",
   "documents.descriptors.invoice.actions.send.label": "Envoyer",
   "documents.descriptors.invoice.actions.record-payment.params.method.label": "Moyen",
   "documents.descriptors.invoice.actions.record-payment.params.method.options.card": "Carte",
@@ -151,6 +152,14 @@ describe("descriptor-i18n", () => {
               labelKey: "documents.countryFields.supplyType.variant.label",
               helpText: "Country help",
               helpTextKey: "documents.countryFields.supplyType.variant.helpText",
+              options: [
+                {
+                  value: "GOODS",
+                  label: "Goods",
+                  labelKey: "documents.countryFields.supplyType.options.goods",
+                },
+                { value: "SERVICES", label: "Services" },
+              ],
             },
             {
               key: "unit",
@@ -242,6 +251,18 @@ describe("descriptor-i18n", () => {
       const supplyType = translated.fields[1].fields?.find((field) => field.key === "supplyType")
       expect(supplyType?.label).toBe("Nature de la livraison")
       expect(supplyType?.helpText).toBe("Aide propre au pays")
+    })
+
+    it("an option's own labelKey wins over the derived key, and one without it keeps its text", () => {
+      const supplyType = translated.fields[1].fields?.find((field) => field.key === "supplyType")
+      expect(supplyType?.options).toEqual([
+        {
+          value: "GOODS",
+          label: "Marchandises",
+          labelKey: "documents.countryFields.supplyType.options.goods",
+        },
+        { value: "SERVICES", label: "Services" },
+      ])
     })
 
     it("an action param's help text falls back to the raw text when no key matches", () => {
