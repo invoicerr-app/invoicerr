@@ -53,27 +53,34 @@ Some rules of your country depend on facts about your company that only you can 
 country asks for any, the company settings show a **Company profile** card with one choice per
 question. A country that asks nothing shows no card.
 
-France asks one question today, the **Company size category**: large enterprise, intermediate-sized
-enterprise (ETI), small or medium-sized enterprise (PME) or micro-enterprise, the categories of the
-loi de modernisation de l'économie (art. 51), assessed on 1 January 2025 from your last closed
-financial year. It decides from when your invoices to French business clients must go through an
+France asks two questions today.
+
+The **Company size category** is large enterprise, intermediate-sized enterprise (ETI), small or
+medium-sized enterprise (PME) or micro-enterprise, the categories of the loi de modernisation de
+l'économie (art. 51), assessed on 1 January 2025 from your last closed financial year.
+
+The **VAT group membership** question asks whether your company is a member of an assujetti unique,
+the French VAT group of CGI art. 256 C.
+
+Together they decide from when your invoices to French business clients must go through an
 accredited platform (PDP):
 
-| Size category | Accredited platform required for invoices issued from |
+| Company profile | Accredited platform required for invoices issued from |
 | --- | --- |
 | Large enterprise, ETI | 1 September 2026 |
-| PME, micro-enterprise | 1 September 2027 |
-| Not declared | 1 September 2026 |
+| PME, micro-enterprise, member of a VAT group | 1 September 2026 |
+| PME, micro-enterprise, not a member | 1 September 2027 |
+| Size category not declared | 1 September 2026 |
+| VAT group question not answered | 1 September 2026 |
 
-:::warning[Not declared means the earliest date]
-Until you declare a category, Invoicerr applies the earliest date. A PME or micro-enterprise without
-a connected platform cannot validate an invoice to a French business client until it declares its
-category.
+:::warning[An unanswered question means the earliest date]
+Until you answer, Invoicerr applies the earliest date. An unanswered VAT group question is read as a
+membership, so a PME or micro-enterprise is not deferred to 2027. A company without a connected
+platform cannot validate an invoice to a French business client once its date has come.
 :::
 
 "Micro-enterprise" is the statistical category, not the micro-entrepreneur tax regime, although most
-micro-entrepreneurs belong to it. A company that is a member of a VAT group (assujetti unique) follows
-the large-company calendar whatever its size: do not declare PME or micro-enterprise for it.
+micro-entrepreneurs belong to it.
 
 Receiving invoices through a platform is required of every company from 1 September 2026, whatever
 its size.

@@ -414,6 +414,28 @@ describe('countries/data: the company profile and the seller conditions that rea
     );
   });
 
+  it('loads an attribute whose undeclared assumption is one of its own values', () => {
+    writeCountry({
+      countryCode: 'ZZ',
+      attributes: [{ ...sizeCategory, assumedWhenUndeclared: 'SMALL' }],
+    });
+
+    const [zz] = loadComposedCountryFilesFrom(tmpDir);
+
+    expect(zz.companyProfile?.attributes[0].assumedWhenUndeclared).toBe('SMALL');
+  });
+
+  it('refuses an undeclared assumption that is not one of the attribute values', () => {
+    writeCountry({
+      countryCode: 'ZZ',
+      attributes: [{ ...sizeCategory, assumedWhenUndeclared: 'MEDIUM' }],
+    });
+
+    expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(
+      /attribute "sizeCategory" assumes "MEDIUM" when undeclared, which is not one of its values/,
+    );
+  });
+
   it('refuses a profile with no attribute, a duplicate attribute, an attribute with no value or no provenance', () => {
     const cases: [unknown, RegExp][] = [
       [{ countryCode: 'ZZ', attributes: [] }, /"attributes" must be a non-empty array/],
