@@ -348,6 +348,14 @@ describe("Document line editor", () => {
 					pickInvoice("Avoir Chip Second SARL");
 					cy.get('[data-cy="document-create-dialog-step-recap"]').click();
 
+					// Picking another invoice re-selects its lines asynchronously (useSelectAllRowsOfSource).
+					// Saving before that settles posts the previous invoice's row ids, which the server
+					// refuses as lines that no longer exist (400). The recap's own line count is that state:
+					// the first invoice has two lines, the second three.
+					cy.get('[data-cy="document-create-recap-line-count"]', { timeout: 10000 }).should(($count) => {
+						expect($count.text().trim()).to.match(/^3\b/);
+					});
+
 					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as("save");
 					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
 					cy.wait("@save").then((interception) => {
