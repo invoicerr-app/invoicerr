@@ -89,10 +89,8 @@ export class WebhooksController {
     const { webhook, company } = await this.webhooksService.create(companyId, body);
 
     try {
-      // This payload is what OTHER webhooks subscribed to WEBHOOK_CREATED receive over HTTP;
-      // `webhook.secret` here is this brand-new webhook's own plaintext secret (see
-      // `WebhooksService.create`'s own comment on why it's plaintext at this point), which is for the
-      // CALLER of THIS request alone, once, in the response below — never for a third receiver.
+      // Other webhooks subscribed to WEBHOOK_CREATED receive this payload, never the plaintext secret
+      // that belongs to the caller of this request alone.
       await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, {
         webhook: { ...webhook, secret: undefined },
         company,
@@ -101,7 +99,6 @@ export class WebhooksController {
       this.logger.error('Failed to dispatch WEBHOOK_CREATED', err);
     }
 
-    // Return the secret only once
     return { success: true, data: { ...webhook } };
   }
 
@@ -131,8 +128,7 @@ export class WebhooksController {
     const { webhook, company } = await this.webhooksService.update(companyId, id, body);
 
     try {
-      // Same reasoning as `create` above: never forward the (encrypted, but still not this
-      // receiver's business) secret to another webhook's payload.
+      // Same as `create`: never forward the secret to another webhook's payload.
       await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, {
         webhook: { ...webhook, secret: undefined },
         company,

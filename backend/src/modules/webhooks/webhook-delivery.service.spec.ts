@@ -1,8 +1,6 @@
 /**
- * `WebhookDeliveryService.deliver` — the per-subscriber fresh-lookup, secret-redaction, and
- * "an HTTP-level failure is a failure worth retrying" proofs. `dispatch()` itself only enqueues
- * (`webhook-dispatcher.service.spec.ts`); this file proves what actually reaches `prisma.webhook` and
- * `WebhooksService.send` for ONE (event, webhookId) pair.
+ * `deliver`: the per-subscriber fresh lookup, secret redaction, and "an HTTP-level failure is worth
+ * retrying".
  */
 
 import { vi, type Mock } from 'vitest';
@@ -108,9 +106,7 @@ describe('WebhookDeliveryService.deliver', () => {
       'boom',
     );
 
-    // WARN, not ERROR: this method cannot tell "BullMQ will retry" from "this was the last attempt" —
-    // see this file's own header and `queue/webhook-delivery.processor.ts`'s own `onFailed`, which is
-    // the one place that escalates to ERROR once every attempt is genuinely spent.
+    // WARN here; only the processor knows whether retries remain and escalates to ERROR.
     expect(mockedLogger.warn).toHaveBeenCalledTimes(1);
     const loggedPayload = JSON.stringify(mockedLogger.warn.mock.calls[0]);
     expect(loggedPayload).not.toContain(webhook.secret);

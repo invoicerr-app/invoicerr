@@ -1,16 +1,7 @@
 /**
- * SSRF hardening — the send-time half that URL validation alone cannot cover: a webhook endpoint
- * that passed `webhook-url-guard.ts` at request time could
- * still answer with a 30x pointing at an internal address, and following it would land the exact
- * same SSRF the guard was built to stop. Every driver that owns its own `fetch()` call must set
- * `redirect: 'manual'` (never follow) and a bounded timeout — this file is what turns "someone
- * deleted that option while refactoring" into a red test instead of a silent regression.
- *
- * `DiscordDriver` is covered here too now that it owns a plain `fetch()` call like every other
- * driver (it used to go through `@teever/ez-hook`, a pure-ESM JSR package ts-jest could not even
- * import, let alone test — the "ClientsModule inimportable sous ts-jest" item; see
- * `discord.driver.ts`'s own header). Its 429 bounded-retry handling has its own dedicated coverage
- * in `discord.driver.spec.ts`.
+ * SSRF hardening at send time: a validated endpoint can still answer with a 30x to an internal
+ * address. Every driver owning a `fetch()` must set `redirect: 'manual'` and the bounded timeout, so
+ * removing either turns this red.
  */
 
 import { vi } from 'vitest';

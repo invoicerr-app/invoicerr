@@ -15,7 +15,7 @@ export class ZapierDriver implements WebhookDriver {
       body: JSON.stringify(payload),
       redirect: 'manual',
       signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-      // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+      // Pins the address validated by the guard; see webhook-driver.interface.ts.
       dispatcher,
     } as RequestInit);
 
