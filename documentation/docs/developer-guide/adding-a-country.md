@@ -619,8 +619,8 @@ identifier, it never redeclares one) and from `mentions` (notes about the transa
 | Field | Meaning |
 | --- | --- |
 | `legalFormLabel` | The country's own name for the legal form, shown above the select and in a missing marker. |
-| `legalForms` | The forms a company of this country picks from. `code` is stored on the company and starts with the country code (`FR_SAS`), so a form kept across a change of country never reads as another country's form; `designation` is what `{legalForm}` prints, in the words the law accepts; `notes` says why a form carries no mention, when it carries none. |
-| `fields` | The values a company may be asked for. `kind` is `text` or `money` (an amount and its currency). `label` is the country's own name for it. The key `legalForm` is reserved. |
+| `legalForms` | The forms a company of this country picks from. `code` is stored on the company and starts with the country code (`FR_SAS`), so a form kept across a change of country never reads as another country's form; `designation` is what `{legalForm}` prints, in the words the law accepts; `singleMember` records the sole-member question when it applies (Italy's `SU`/`SM`); `notes` says why a form carries no mention, when it carries none. |
+| `fields` | The values a company may be asked for. `kind` is `text` or `money` (an amount and its currency). `label` is the country's own name for it. The key `legalForm` is reserved. `asked: true` shows the field even when no printed mention quotes it, for a fact an electronic format needs (Italy's register-office province and liquidation status). |
 | `mentions[].documentTypes` | The document type ids the mention is printed on. |
 | `mentions[].legalForms` | The forms it binds. A form with no mention prints nothing, which is how a sole trader or a partnership gets no capital line. |
 | `mentions[].required` | `true`: every value it quotes is required, the working copy flags a gap and Validate and Send refuse it. `false`: printed once every value is filled in, never asked for (an RCS city an individual entrepreneur may or may not have). |

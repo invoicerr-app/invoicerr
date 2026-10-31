@@ -25,6 +25,11 @@ export interface CompanyRowForFormat {
   iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
   exemptVat: boolean;
+  /** `Company.companyLaw` — the seller's company-law details, read by e-invoice formats (BT-33,
+   *  FatturaPA IscrizioneREA). Absent when the caller's own query did not select it. */
+  companyLaw?: unknown;
+  /** `Company.language` — the fallback layer of the per-recipient document language. */
+  language?: string | null;
 }
 
 export interface ClientRowForFormat {
@@ -39,6 +44,8 @@ export interface ClientRowForFormat {
   postalCode: string | null;
   country: string;
   partyIdentifiers: { scheme: string; value: string }[];
+  /** `Client.language` — the recipient's own document language, first of the fallback chain. */
+  language?: string | null;
 }
 
 export function companyToFormatParty(company: CompanyRowForFormat): DocumentFormatParty {
@@ -54,6 +61,8 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
     iban: company.iban,
     partyIdentifiers: company.partyIdentifiers,
     taxScheme: companyTaxScheme(company),
+    companyLaw: company.companyLaw,
+    language: company.language,
   };
 }
 
@@ -73,5 +82,6 @@ export function clientToFormatParty(client: ClientRowForFormat): DocumentFormatP
     email: primary.contactEmail,
     phone: primary.contactPhone,
     partyIdentifiers: client.partyIdentifiers,
+    language: client.language,
   };
 }

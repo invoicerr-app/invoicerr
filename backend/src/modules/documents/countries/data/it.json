@@ -1428,22 +1428,26 @@
       {
         "code": "IT_SRL",
         "name": "Società a responsabilità limitata",
-        "designation": "S.r.l."
+        "designation": "S.r.l.",
+        "singleMember": false
       },
       {
         "code": "IT_SRL_SOCIO_UNICO",
         "name": "Società a responsabilità limitata con unico socio",
-        "designation": "S.r.l."
+        "designation": "S.r.l.",
+        "singleMember": true
       },
       {
         "code": "IT_SPA",
         "name": "Società per azioni",
-        "designation": "S.p.A."
+        "designation": "S.p.A.",
+        "singleMember": false
       },
       {
         "code": "IT_SPA_SOCIO_UNICO",
         "name": "Società per azioni con unico socio",
-        "designation": "S.p.A."
+        "designation": "S.p.A.",
+        "singleMember": true
       },
       {
         "code": "IT_SAPA",
@@ -1488,6 +1492,18 @@
         "key": "shareCapital",
         "kind": "money",
         "label": "Capitale sociale versato (da ultimo bilancio)"
+      },
+      {
+        "key": "registerOfficeProvince",
+        "kind": "text",
+        "label": "Sigla della provincia dell'ufficio del registro delle imprese (due lettere, e.g. MI)",
+        "asked": true
+      },
+      {
+        "key": "liquidationStatus",
+        "kind": "text",
+        "label": "Stato di liquidazione: LN (non in liquidazione) o LS (in liquidazione)",
+        "asked": true
       }
     ],
     "mentions": [
@@ -1567,13 +1583,15 @@
       },
       "values": {
         "registerOffice": "{city}",
+        "registerOfficeProvince": "MI",
         "registerNumber": "01234567890",
         "shareCapital": {
           "amount": "10000",
           "currency": "EUR"
-        }
+        },
+        "liquidationStatus": "LN"
       }
     },
-    "notes": "Art. 2250 does not name the REA number: what it asks for is the registro delle imprese office and the registration number, which is what is declared. The FatturaPA format carries the same facts in its own IscrizioneREA block, which the e-invoice export does not fill yet. Not modelled: companies in liquidation."
+    "notes": "Art. 2250 does not name the REA number: what it asks for is the registro delle imprese office and the registration number, which is what is declared. FatturaPA's IscrizioneREA block asks for the province code of that office (`registerOfficeProvince`), the number itself (`NumeroREA`), the paid-up capital, the single-member status and the liquidation status; the e-invoice export fills it only when the facts it requires are declared, never by guessing a province or asserting that a company is not in liquidation."
   }
 }

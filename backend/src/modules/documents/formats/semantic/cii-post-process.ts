@@ -83,3 +83,56 @@ export function splitCiiIncludedNotesInObject(cii: Record<string, unknown>): voi
     return m ? { 'ram:Content': m[2], 'ram:SubjectCode': m[1] } : { 'ram:Content': raw };
   });
 }
+
+/** XML text escaping for the one element this file injects itself. */
+function escapeXmlText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * BT-33 for CII: `@e-invoice-eu/core` maps the seller's `cbc:CompanyLegalForm` to
+ * `ram:SellerTradeParty/ram:Description`, but only on its UBL mapping — the CII mapping reads
+ * `cbc:LegalForm`, a semantic field the library's own schema does not declare. The line is therefore
+ * inserted here, after `ram:Name` (the position the UN/CEFACT TradePartyType sequence gives
+ * `Description`), instead of silently dropping the seller's company-law mentions from every CII and
+ * Factur-X export.
+ *
+ * A no-op when there is no description, so every existing caller keeps its byte-for-byte output.
+ */
+export function applyCiiSellerLegalDescription(ciiXml: string, description: string | undefined): string {
+  if (!description) return ciiXml;
+  return ciiXml.replace(
+    /(<ram:SellerTradeParty>[\s\S]*?<ram:Name>[^<]*<\/ram:Name>)/,
+    `$1<ram:Description>${escapeXmlText(description)}</ram:Description>`,
+  );
+}
+
+/**
+ * The same BT-33 insertion, on the library's intermediate CII object — needed by Factur-X, whose
+ * embedded CII is regenerated from the semantic model and never passes through the string helper
+ * above (the same gap `splitCiiIncludedNotesInObject` documents for notes). A no-op when there is no
+ * description or no seller party.
+ */
+export function applyCiiSellerLegalDescriptionInObject(
+  cii: Record<string, unknown>,
+  description: string | undefined,
+): void {
+  if (!description) return;
+  const root = cii?.['rsm:CrossIndustryInvoice'] as Record<string, unknown> | undefined;
+  const transaction = root?.['rsm:SupplyChainTradeTransaction'] as Record<string, unknown> | undefined;
+  const agreement = transaction?.['ram:ApplicableHeaderTradeAgreement'] as
+    | Record<string, unknown>
+    | undefined;
+  const seller = agreement?.['ram:SellerTradeParty'] as Record<string, unknown> | undefined;
+  if (!seller) return;
+  // Rebuild in place so `ram:Description` keeps the position the UN/CEFACT TradePartyType sequence
+  // gives it (right after `ram:Name`): the renderer serialises object keys in insertion order.
+  const rebuilt: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(seller)) {
+    rebuilt[key] = value;
+    if (key === 'ram:Name') rebuilt['ram:Description'] = description;
+  }
+  if (!('ram:Description' in rebuilt)) rebuilt['ram:Description'] = description;
+  for (const key of Object.keys(seller)) delete seller[key];
+  Object.assign(seller, rebuilt);
+}
