@@ -1,5 +1,29 @@
 {
   "countryCode": "PL",
+  "companyProfile": {
+    "countryCode": "PL",
+    "attributes": [
+      {
+        "key": "vatUeRegistration",
+        "label": "Intra-EU VAT registration",
+        "help": "Whether the company is entered in the Polish register of VAT UE taxpayers, which an intra-Community supply requires.",
+        "values": [
+          {
+            "value": "REGISTERED",
+            "label": "Registered as a VAT UE taxpayer"
+          },
+          {
+            "value": "NOT_REGISTERED",
+            "label": "Not registered as a VAT UE taxpayer"
+          }
+        ],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Ustawa o podatku od towarów i usług art. 97 ust. 1 (rejestr podatników VAT UE): read the consolidated text and quote the registration rule before this attribute gates anything. The isap.sejm.gov.pl page answered a bot check on 2026-10-31."
+        }
+      }
+    ]
+  },
   "policy": {
     "countryCode": "PL",
     "documentTypes": [

@@ -1,5 +1,34 @@
 {
   "countryCode": "DE",
+  "companyProfile": {
+    "countryCode": "DE",
+    "attributes": [
+      {
+        "key": "ecSalesListPeriod",
+        "label": "Recapitulative statement period",
+        "help": "The period covered by each Zusammenfassende Meldung. A company whose intra-Community supplies stay under 50 000 EUR over the current and the four preceding quarters may file quarterly; a company exempted from advance returns may file yearly.",
+        "values": [
+          {
+            "value": "MONTHLY",
+            "label": "Monthly"
+          },
+          {
+            "value": "QUARTERLY",
+            "label": "Quarterly"
+          },
+          {
+            "value": "ANNUAL",
+            "label": "Yearly"
+          }
+        ],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "(1) Der Unternehmer im Sinne des § 2 hat bis zum 25. Tag nach Ablauf jedes Kalendermonats (Meldezeitraum), in dem er innergemeinschaftliche Warenlieferungen oder Lieferungen im Sinne des § 25b Absatz 2 ausgeführt hat, dem Bundeszentralamt für Steuern eine Meldung (Zusammenfassende Meldung) nach amtlich vorgeschriebenem Datensatz über die amtlich bestimmte Schnittstelle zu übermitteln […] Soweit die Summe der Bemessungsgrundlagen für innergemeinschaftliche Warenlieferungen und für Lieferungen im Sinne des § 25b Absatz 2 weder für das laufende Kalendervierteljahr noch für eines der vier vorangegangenen Kalendervierteljahre jeweils mehr als 50 000 Euro beträgt, kann die Zusammenfassende Meldung bis zum 25. Tag nach Ablauf des Kalendervierteljahres übermittelt werden. […] (9) Hat das Finanzamt den Unternehmer von der Verpflichtung zur Abgabe der Voranmeldungen und Entrichtung der Vorauszahlungen befreit (§ 18 Absatz 2 Satz 3), kann er die Zusammenfassende Meldung abweichend von den Absätzen 1 und 2 bis zum 25. Tag nach Ablauf jedes Kalenderjahres abgeben […]",
+          "sourceCheckedAt": "2026-10-31"
+        }
+      }
+    ]
+  },
   "policy": {
     "countryCode": "DE",
     "documentTypes": [

@@ -1512,6 +1512,53 @@
           "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, A, third paragraph: « Les catégories mentionnées au deuxième alinéa du présent A sont celles mentionnées à l'article 51 de la loi n° 2008-776 du 4 août 2008 de modernisation de l'économie. L'appartenance à une catégorie s'apprécie au niveau de chaque personne juridique au 1er janvier 2025, sur la base du dernier exercice clos avant cette date ou, en l'absence d'un tel exercice, sur celle du premier exercice clos à compter de cette date. »",
           "sourceCheckedAt": "2026-10-25"
         }
+      },
+      {
+        "key": "vatRegime",
+        "label": "VAT regime",
+        "help": "The scheme under which the company charges VAT. The franchise in base exempts a company whose turnover stays under the ceilings of article 293 D; the normal regime applies above them or once the company has opted out.",
+        "values": [
+          {
+            "value": "FRANCHISE",
+            "label": "Franchise in base (VAT exempt)"
+          },
+          {
+            "value": "NORMAL",
+            "label": "Normal regime"
+          }
+        ],
+        "derived": {
+          "source": "exemptVat",
+          "whenTrue": "FRANCHISE",
+          "whenFalse": "NORMAL"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Pour leurs livraisons de biens et leurs prestations de services, les assujettis établis en France bénéficient d'une franchise qui les dispense du paiement de la taxe sur la valeur ajoutée lorsqu'ils n'ont pas réalisé en France un chiffre d'affaires, évalué dans les conditions prévues à l'article 293 D, excédant les plafonds suivants […].",
+          "sourceCheckedAt": "2026-09-01"
+        }
+      },
+      {
+        "key": "vatDebitsOption",
+        "label": "Option for VAT on debits",
+        "help": "A company under the normal regime may opt to pay VAT on debits instead of on collections.",
+        "askedWhen": {
+          "vatRegime": ["NORMAL"]
+        },
+        "values": [
+          {
+            "value": "EXERCISED",
+            "label": "Option exercised"
+          },
+          {
+            "value": "NOT_EXERCISED",
+            "label": "Option not exercised"
+          }
+        ],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "CGI art. 287 (option pour le paiement de la taxe d'après les débits): read the consolidated article and quote it before this attribute gates anything. Légifrance refused automated reads on 2026-10-31."
+        }
       }
     ]
   }
