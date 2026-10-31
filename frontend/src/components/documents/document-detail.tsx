@@ -83,6 +83,7 @@ import type {
 import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
 import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
+import { useDemoMode } from "@/hooks/queries"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { DocumentPaper } from "@/components/documents/document-paper"
@@ -99,6 +100,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Form } from "@/components/ui/form"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
 
 interface DocumentDetailProps {
   descriptor: DocumentTypeDescriptor
@@ -677,6 +679,7 @@ function DocumentDetailActions({
   isProcessing,
 }: DocumentDetailActionsProps) {
   const { t } = useTranslation()
+  const { demoMode } = useDemoMode()
   const [recurrenceOpen, setRecurrenceOpen] = useState(false)
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
   const [markAcceptedOpen, setMarkAcceptedOpen] = useState(false)
@@ -737,7 +740,8 @@ function DocumentDetailActions({
         <DropdownMenuContent align="end" className="min-w-56" data-cy="document-actions-menu-content">
           {secondary.map((action) => {
             const hint = transitionHint(t, descriptor, action, state.currentStatus)
-            const blocked = !!action.policyBlockedReason
+            const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+            const blocked = !!action.policyBlockedReason || demoBlocked
             return (
               <DropdownMenuItem
                 key={action.id}
@@ -760,7 +764,9 @@ function DocumentDetailActions({
                       className="max-w-xs text-xs text-muted-foreground"
                       data-cy={`document-blocked-reason-${action.id}`}
                     >
-                      {t("documents.form.actionBlockedTitle")}
+                      {demoBlocked
+                        ? t("demo.disabledTooltip", "Disabled in this demo.")
+                        : t("documents.form.actionBlockedTitle")}
                     </span>
                   )}
                 </div>

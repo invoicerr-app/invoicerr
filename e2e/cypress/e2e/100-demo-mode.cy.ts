@@ -26,6 +26,20 @@ function openSignInSignedOut() {
 	);
 }
 
+/** Send through the API, for the server-side refusals the disabled button can no longer trigger. */
+function sendDocument(typeId: string, id: string) {
+	return cy
+		.request(`${api}/api/documents/${id}?typeId=${typeId}`)
+		.then(({ body }) =>
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/${typeId}/actions/send`,
+				body: { documentId: id, data: body.data },
+				failOnStatusCode: false,
+			}),
+		);
+}
+
 describe("Demo mode (issue #533)", () => {
 	it("signs a fresh visitor in automatically, with no click, and lands on the dashboard", () => {
 		cy.intercept("POST", "**/api/auth/sign-in/email").as("signIn");
@@ -178,6 +192,8 @@ describe("Demo mode (issue #533)", () => {
 			"contain.text",
 			"resets every 4 hours",
 		);
+		// Issue #592: the copy names payments, not only "nothing is kept or sent".
+		cy.get('[data-cy="demo-banner"]').should("contain.text", "payments are disabled");
 
 		// The banner is not a per-page fluke of the dashboard: it is mounted once, for the whole
 		// authenticated shell.
@@ -211,66 +227,45 @@ describe("Demo mode (issue #533)", () => {
 	// refused by the backend at the transport chokepoint (`TransportRegistry.register`,
 	// `modules/demo/demo-blocked.ts`), surfacing as "Send failed" with a named reason, never a
 	// silent success.
-	it('refuses to send a document: a draft invoice ends "Send failed" with the demo reason, never a silent success', () => {
+	it('pre-warns that Send is disabled, then the server still refuses it with the demo reason', () => {
 		signInAsDemo();
-		cy.visit("/documents/invoice");
-		cy.contains(/^draft$/i, { timeout: 10000 }).should("be.visible");
+		cy.request<{ items: Array<{ id: string; status: string }> }>(
+			`${api}/api/documents?typeId=invoice&page=1&pageSize=50`,
+		)
+			.its("body.items")
+			.then((items: Array<{ id: string; status: string }>) => {
+				const draft = items.find((item) => item.status === "draft");
+				expect(draft, "a seeded draft invoice").to.exist;
+				const id = draft!.id;
 
-		// The one draft row's own "Send" button, found by text (like 13-api-keys.cy.ts's own
-		// create-button selector): this action has no stable per-test data-cy (its id is a fresh
-		// document id every seed), so it is found by its visible label instead.
-		cy.contains("button", /^send$/i, { timeout: 10000 }).click();
-		// The confirmation dialog can render below the small default Cypress viewport, so
-		// `scrollIntoView()` first, the same fix `13-api-keys.cy.ts` already uses for an
-		// analogous "appeared but is outside the current scroll position" case.
-		cy.contains("button", /^confirm$/i, { timeout: 10000 })
-			.scrollIntoView()
-			.click();
+				cy.visit("/documents/invoice");
+				// Issue #592: the disabled state and its reason are on screen BEFORE any click, the same
+				// pre-warning account deletion, password change and API keys already show.
+				cy.get(`[data-cy="document-row-action-send-${id}"]`, { timeout: 15000 }).should("be.disabled");
+				cy.get(`[data-cy="document-row-blocked-reason-send-${id}"]`).should(
+					"contain.text",
+					"Disabled in this demo",
+				);
+				cy.get(`[data-cy="document-list-row-${id}"]`)
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Draft");
 
-		// The row itself is the real "did this stay blocked" signal: its status badge is the
-		// guarantee that a send never silently succeeds. Found by text, like the "Send"/"Confirm"
-		// buttons above: this status has no stable per-test data-cy either.
-		//
-		// Issue #570, twice over. First pass: the error paragraph below was asserted `be.visible`
-		// while clipped by its own `line-clamp-2`. Second pass (this one): moving the assertion to
-		// the status badge was not enough on its own -- CI (never reproduced locally across more
-		// than a dozen runs under Firefox) still failed here, same "clipped by ... overflow: hidden,
-		// clip, scroll or auto" message, now on the BADGE. Root cause is Cypress's own
-		// `scrollBehavior: "top"` (the config default, unchanged here): clicking "Send" above
-		// scrolls that button to the very top of the scrollable content pane while the row is still
-		// short (pre-send: no number, no error line yet). Once the send fails and the row grows
-		// (gains its number, then the two-line error paragraph), that earlier scroll position can
-		// leave the badge outside the viewport -- the exact mechanism PR #572 already hit and fixed
-		// on spec 112's "declares the last number issued" test the same way. This is a scroll
-		// artifact of the click, not a rendering bug: the row itself never overflows or truncates
-		// anything a real user would see (confirmed against the CI failure's own screenshot -- nothing
-		// is visually clipped, the page is simply scrolled to a different part of a normal list), so
-		// `scrollIntoView()` first, then assert existence and TEXT rather than Cypress's
-		// layout/scroll-dependent visibility, exactly like the error paragraph below already does.
-		cy.contains('[data-cy="document-status-badge"]', /^send failed$/i, {
-			timeout: 20000,
-		})
-			.scrollIntoView()
-			.should("exist")
-			.and("contain.text", "Send failed");
+				// The UI disabling is a warning, never the enforcement: send is still accepted by the
+				// async queue, then the worker's own demo chokepoint makes it fail.
+				sendDocument("invoice", id).then((res) => {
+					expect(res.status, "send accepted by the queue").to.be.oneOf([200, 201]);
+				});
+				cy.waitForDocumentStatus(`${api}/api/documents/${id}?typeId=invoice`, ["send_failed"]);
 
-		// The unique, load-bearing assertion: this exact refusal text only ever comes from
-		// `DemoModeBlockedError` (`modules/demo/demo-blocked.ts`). `/send failed/i` alone is
-		// ambiguous (it also names the list's OWN status filter tab), so the specific reason is
-		// what this test actually pins down. The error paragraph itself is `line-clamp-2` inside an
-		// `overflow: hidden` row, and sits below the badge checked above -- the same scroll-position
-		// reasoning applies, so this is scrolled into view and read by TEXT too, never by Cypress
-		// visibility. The row id in its own data-cy is a fresh document id every seed (same reason
-		// the "Send" button above is found by text), so the error paragraph is found by a prefix
-		// match instead.
-		cy.get('[data-cy^="document-row-last-error-"]', { timeout: 20000 })
-			.scrollIntoView()
-			.should("exist")
-			.and("contain.text", "is disabled in this demo");
-		// Never the ordinary "no transport configured" refusal a company with none chosen would
-		// see: this specific company DOES have one (`invoiceTransportId: 'email'`, seeded by
-		// `seed-company.ts`), so the ONLY reason it can fail is demo mode itself.
-		cy.contains(/no transport is configured/i).should("not.exist");
+				cy.reload();
+				cy.get(`[data-cy="document-list-row-${id}"]`, { timeout: 20000 })
+					.find('[data-cy="document-status-badge"]')
+					.should("contain.text", "Send failed");
+				cy.get(`[data-cy="document-row-last-error-${id}"]`)
+					.should("exist")
+					.and("contain.text", "is disabled in this demo");
+				cy.contains(/no transport is configured/i).should("not.exist");
+			});
 	});
 
 	it('refuses to send the seeded draft credit note: it ends "Send failed" with the demo reason, never "Sent"', () => {
@@ -285,7 +280,11 @@ describe("Demo mode (issue #533)", () => {
 				const id = draft!.id;
 
 				cy.visit("/documents/credit-note");
-				cy.runDocumentRowAction(id, "send");
+				cy.get(`[data-cy="document-row-action-send-${id}"]`, { timeout: 15000 }).should(
+					"be.disabled",
+				);
+				sendDocument("credit-note", id);
+				cy.reload();
 
 				cy.get(`[data-cy="document-list-row-${id}"]`, { timeout: 20000 })
 					.find('[data-cy="document-status-badge"]', { timeout: 20000 })
@@ -337,16 +336,16 @@ describe("Demo mode (issue #533)", () => {
 					}).then((saved) => {
 						const id = saved.body.document.id as string;
 
-						cy.intercept("POST", "**/api/documents/types/credit-note/actions/send").as(
-							"send",
-						);
 						cy.visit("/documents/credit-note");
-						cy.runDocumentRowAction(id, "send");
-
-						cy.wait("@send").its("response.statusCode").should("eq", 400);
-						cy.contains(/no client to send it to/i, { timeout: 10000 }).should(
-							"exist",
+						cy.get(`[data-cy="document-row-action-send-${id}"]`, { timeout: 15000 }).should(
+							"be.disabled",
 						);
+						sendDocument("credit-note", id).then((res) => {
+							expect(res.status, "send refused").to.eq(400);
+							expect(res.body.message, "the missing client is named").to.match(
+								/no client to send it to/i,
+							);
+						});
 						cy.get(`[data-cy="document-list-row-${id}"]`)
 							.find('[data-cy="document-status-badge"]')
 							.should("contain.text", "Draft");
@@ -460,7 +459,14 @@ describe("Demo mode (issue #533)", () => {
 								// same chokepoint the test above already proves, now reached from
 								// "validated" rather than "draft" (SEND_TRANSITIONS's own widened `from`,
 								// issue #581).
-								cy.runDocumentRowAction(invoiceId, "send");
+								cy.get(`[data-cy="document-row-action-send-${invoiceId}"]`).should(
+									"be.disabled",
+								);
+								sendDocument("invoice", invoiceId);
+								cy.waitForDocumentStatus(`${api}/api/documents/${invoiceId}?typeId=invoice`, [
+									"send_failed",
+								]);
+								cy.reload();
 								cy.get(`[data-cy="document-list-row-${invoiceId}"]`, {
 									timeout: 20000,
 								})

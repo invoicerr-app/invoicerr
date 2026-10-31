@@ -9,9 +9,11 @@ import { DocumentFormReadOnlyProvider } from "@/components/documents/document-fo
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
 import type { DocumentFormState } from "@/components/documents/use-document-form"
 import { useActionTransmissionPreview } from "@/hooks/queries/use-document-types"
+import { useDemoMode } from "@/hooks/queries"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ProseHelp } from "@/components/ui/prose-help"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
 
 /**
  * The rendered pieces of a document form — the fields, one action button, the params dialog —
@@ -132,7 +134,9 @@ export function DocumentActionButton({
 }: DocumentActionButtonProps) {
   const { t } = useTranslation()
   const { currentStatus, runner } = state
+  const { demoMode } = useDemoMode()
   const hint = transitionHint(t, descriptor, action, currentStatus)
+  const demoBlocked = isDemoBlockedAction(action.id, demoMode)
 
   return (
     <div className={className}>
@@ -140,9 +144,15 @@ export function DocumentActionButton({
         type="button"
         variant={variant}
         loading={runner.isRunning && runner.pendingAction === undefined}
-        disabled={!!action.policyBlockedReason}
+        disabled={!!action.policyBlockedReason || demoBlocked}
         tooltip={
-          action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : captions ? undefined : hint
+          action.policyBlockedReason
+            ? t("documents.form.actionBlockedTitle")
+            : demoBlocked
+              ? t("demo.disabledTooltip", "Disabled in this demo.")
+              : captions
+                ? undefined
+                : hint
         }
         onClick={() => runner.handleAction(action)}
         dataCy={`document-action-${action.id}`}
