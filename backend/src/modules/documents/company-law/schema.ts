@@ -27,7 +27,7 @@ export interface CompanyLawField {
   kind: CompanyLawFieldKind;
   /** The country's own name for it, shown beside the input and in a missing marker. */
   label: string;
-  /** Ask for it even when no printed mention of the selected form quotes it — for a fact an
+  /** Ask for it even when no printed mention of the selected form quotes it, for a fact an
    *  electronic format needs but the document itself does not print. */
   asked?: boolean;
 }

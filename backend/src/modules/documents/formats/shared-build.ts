@@ -222,7 +222,7 @@ export function buildEuInvoiceForDocument(
   const totals = computeDocumentTotals(descriptor, data);
   const lines = extractLines(data);
 
-  // BT-33 — the seller's company-law mention lines, resolved from the seller's own country file in
+  // BT-33: the seller's company-law mention lines, resolved from the seller's own country file in
   // the document's language. A line with a gap is a working copy's business (the PDF prints it with
   // a marker); an e-invoice only carries complete lines, and the send preflight already refuses a
   // required gap. Joined with "; " because UBL-SR-14 allows one `CompanyLegalForm`.

@@ -228,7 +228,7 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
   // (`flux CPP0011117000000000425895`, "TypeCode.value est obligatoire") — see
   // `SemanticInvoiceInput.businessProcessCodeOverride`'s own header (BT-23, the sibling fix) for the
   // full sourcing of the OTHER half of that same rejection.
-  it('the EMBEDDED CII carries BT-33 — the interim object postProcessor survives the library regeneration', async () => {
+  it('the EMBEDDED CII carries BT-33, so the interim object postProcessor survives the library regeneration', async () => {
     const seller: DocumentFormatParty = {
       ...SELLER,
       language: 'en',

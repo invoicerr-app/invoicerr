@@ -109,7 +109,7 @@ function fmtRate(n: number): string {
 }
 
 /**
- * `CedentePrestatore/IscrizioneREA` — the company-law facts the Italian catalog already declares,
+ * `CedentePrestatore/IscrizioneREA`: the company-law facts the Italian catalog already declares,
  * mapped onto FatturaPA's own block. Every required element must be declared for the block to be
  * emitted (`Ufficio`, `NumeroREA`, `StatoLiquidazione`); a missing one omits the whole block
  * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the

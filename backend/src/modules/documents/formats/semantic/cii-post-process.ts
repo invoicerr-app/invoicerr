@@ -91,7 +91,7 @@ function escapeXmlText(value: string): string {
 
 /**
  * BT-33 for CII: `@e-invoice-eu/core` maps the seller's `cbc:CompanyLegalForm` to
- * `ram:SellerTradeParty/ram:Description`, but only on its UBL mapping — the CII mapping reads
+ * `ram:SellerTradeParty/ram:Description`, but only on its UBL mapping: the CII mapping reads
  * `cbc:LegalForm`, a semantic field the library's own schema does not declare. The line is therefore
  * inserted here, after `ram:Name` (the position the UN/CEFACT TradePartyType sequence gives
  * `Description`), instead of silently dropping the seller's company-law mentions from every CII and
@@ -108,7 +108,7 @@ export function applyCiiSellerLegalDescription(ciiXml: string, description: stri
 }
 
 /**
- * The same BT-33 insertion, on the library's intermediate CII object — needed by Factur-X, whose
+ * The same BT-33 insertion, on the library's intermediate CII object: needed by Factur-X, whose
  * embedded CII is regenerated from the semantic model and never passes through the string helper
  * above (the same gap `splitCiiIncludedNotesInObject` documents for notes). A no-op when there is no
  * description or no seller party.
