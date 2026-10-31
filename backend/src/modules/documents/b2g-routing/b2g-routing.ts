@@ -27,6 +27,8 @@ export interface RequiredClientIdentifierView {
 export interface RequiredDocumentFieldView {
   field: string;
   label: string;
+  labelKey: string;
+  helpTextKey: string;
   why: string;
   required: boolean;
 }

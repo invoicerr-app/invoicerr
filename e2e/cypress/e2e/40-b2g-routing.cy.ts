@@ -534,18 +534,17 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 					{ timeout: 10000 },
 				).click();
 
-				// REACTIVE, with no page reload: the field appears, with its `why` (the ERechV text)
-				// sourced as a hint — never just a bare label. It is appended at the TAIL of the
-				// descriptor (`applyFieldOverlay`'s own "add"), so it sits outside the dialog's own
-				// visible frame until it is scrolled to — same pattern as the currency SearchSelect
-				// elsewhere in this suite.
+				// REACTIVE, with no page reload: the field appears, with its short translated help
+				// text — never just a bare label, and never the rule's legal `why`. It is appended at
+				// the TAIL of the descriptor (`applyFieldOverlay`'s own "add"), so it sits outside
+				// the dialog's own visible frame until it is scrolled to — same pattern as the
+				// currency SearchSelect elsewhere in this suite.
 				cy.get('[data-cy="document-field-buyerReference"]', { timeout: 10000 })
 					.scrollIntoView()
 					.should("be.visible");
-				cy.get('[data-cy="document-field-buyerReference"]').should(
-					"contain.text",
-					"ERechV",
-				);
+				cy.get('[data-cy="document-field-buyerReference"]')
+					.should("contain.text", "BT-10")
+					.and("not.contain.text", "ERechV");
 
 				cy.get('[data-cy="document-field-buyerReference-input"]')
 					.scrollIntoView()

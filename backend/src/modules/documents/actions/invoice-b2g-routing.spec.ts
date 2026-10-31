@@ -71,7 +71,14 @@ const DE_RULE_UNIMPLEMENTED = {
   formatSyntax: 'xrechnung',
   requiredClientIdentifiers: [],
   requiredDocumentFields: [
-    { field: 'buyerReference', label: 'Buyer reference (Leitweg-ID)', why: '§ 5 ERechV.', required: true },
+    {
+      field: 'buyerReference',
+      label: 'Buyer reference (Leitweg-ID)',
+      labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
+      helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
+      why: '§ 5 ERechV.',
+      required: true,
+    },
   ],
   provenanceDescription: '"§ 4/§ 5 ERechV..." (checked 2026-09-01)',
 };
