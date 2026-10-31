@@ -1,13 +1,7 @@
 /**
- * ChannelCredentialsService in isolation — national transports (`transports nationaux`). Mocks
- * `@/prisma/prisma.service` at its own entry point (the same discipline `company-transport.spec.ts`
- * already holds), so this proves the SERVICE's own logic (encryption round-trip, what a GET is and
- * is not allowed to carry, the "at most one active environment" invariant) — never a real database.
- *
- * `CREDENTIALS_ENCRYPTION_KEY` is set here, in-process, to a FIXED test value — the same pattern the
- * removed compliance engine's own `pdp-live.spec.ts` used
- * (`process.env.CREDENTIALS_ENCRYPTION_KEY ??= '...'`): this is
- * `utils/secret-crypto.ts`'s real AES-256-GCM, exercised for real, never mocked away.
+ * ChannelCredentialsService in isolation: Prisma is mocked, so this proves the service's own logic
+ * (encryption round trip, what a GET may carry, the single-active-environment invariant) without a
+ * real database. The encryption key is a fixed test value, so the real AES-256-GCM is exercised.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -22,10 +16,8 @@ import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
 import { ChannelCredentialsService } from './channels.service';
 
-// Issue #527 - `legalChannels()`'s own "automatic" flag reads the DATABASE-backed B2G routing rule
-// (`b2g-routing.ts#resolveB2gRoutingRule`), never the in-memory catalog `boot-upsert.ts` alone
-// consults (see that module's own header) - mocked WHOLESALE here, the same convention
-// `actions/invoice-channel-mandate.spec.ts` already holds for `channel-policy/mandate.ts`.
+// `legalChannels()`'s "automatic" flag reads the database-backed B2G rule, never the in-memory
+// catalogue, so it is mocked wholesale here.
 vi.mock('@/modules/documents/b2g-routing/b2g-routing', () => ({
   resolveB2gRoutingRule: vi.fn(),
 }));
@@ -245,23 +237,19 @@ describe('ChannelCredentialsService', () => {
           channel: 'PDP',
           environment: ChannelEnvironment.TEST,
           isActive: true,
-          // Issue #526 - "pdp" resolves to its one catalogued operator (SuperPDP) WITHOUT ever
-          // decrypting `config` (see `resolveOperatorId`'s own header): a single candidate answers
-          // unconditionally.
+          // "pdp" resolves from its one catalogued operator without decrypting `config`.
           operatorId: 'superpdp',
         },
       ]);
       for (const row of rows) {
         expect(Object.keys(row)).not.toContain('config');
       }
-      // THE MUTATION PROOF: if this method were changed to decrypt and return the
-      // blob, this is the assertion that would catch it — the secret must not appear ANYWHERE in the
-      // serialized response, not just absent from a named field.
+      // Mutation proof: the secret must not appear anywhere in the serialized response.
       expect(JSON.stringify(rows)).not.toContain(secretMarker);
       expect(JSON.stringify(rows)).not.toContain(encrypted);
     });
 
-    // Issue #526 - the company's configured operator per channel, resolved server-side.
+    // The configured operator per channel, resolved server-side.
     it('resolves "operatorId" for a provider with its own dedicated transport (no ambiguity, no decrypt needed)', async () => {
       mockedPrisma.companyChannelConfig.findMany.mockResolvedValue([
         {
@@ -298,9 +286,8 @@ describe('ChannelCredentialsService', () => {
   });
 
   describe('suggestedChannels() — reads the country file, never a hard-coded country check', () => {
-    // France now MANDATES pdp (countries/data/fr.json (section "channelPolicy"), mandatedFrom
-    // 2026-09-01), not merely suggests it: this is the real, shipped shape, not a fixture, so the
-    // test proves the SERVICE hands the mandate fields straight through, unmassaged.
+    // France mandates pdp in the shipped data file, so the test proves the service passes the mandate
+    // fields through unmassaged.
     it("a French company's channel policy is pdp, MANDATED from 2026-09-01, with legal provenance", async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
       const facts = await service.suggestedChannels('company-1');
@@ -354,16 +341,11 @@ describe('ChannelCredentialsService', () => {
     });
   });
 
-  // "Declaration" — a NEW, categorically different concept from `suggestedChannels`
-  // above: never a transport hint, always "declare this invoice's data to this authority". Reads
-  // `documents/reporting/data/*.json`, the real, shipped files, not a fixture.
+  // A declaration is not a transport hint: it reads the shipped reporting files, never a hard-coded
+  // country check.
   describe('reportingObligations() — reads the country file, never a hard-coded country check', () => {
-    // HU ("nav") and GR ("mydata") were the only two countries this mechanism ever shipped a
-    // reporting obligation for — both removed by the 5-country prune (2026-09-10): the shipped
-    // catalog is now honestly EMPTY for both (countries/compose.spec.ts's own pinned coverage
-    // matrix lists "reporting" only for FR and PT). Re-anchored here (not deleted) on that same
-    // fact, so this still proves the SERVICE reads the real (now-empty) catalog rather than a
-    // hard-coded guess.
+    // The shipped catalogue has no reporting obligation for these two countries, so the service must
+    // read the real file rather than guess.
     it('a Hungarian or Greek company has no reporting obligation any more — the shipped catalog is now empty', async () => {
       for (const [country, countryCode] of [
         ['Hungary', 'HU'],
@@ -374,12 +356,8 @@ describe('ChannelCredentialsService', () => {
       }
     });
 
-    // countries/data/fr.json (section "reporting") now ships three facts (CGI art. 289 E, transport-discharged; two
-    // scoped, unverified art. 290/290 A e-reporting facts) — `reportingObligations` returns
-    // `factsFor()` UNFILTERED (unlike `list-declarations.ts#declarationProviderIds`, which narrows to
-    // `dischargedBy === 'provider'` for the DB query), so all three now surface here. This is the
-    // settings-screen read, never the send-time auto-trigger (`registry.ts#obligationFor` still
-    // excludes the transport fact and both scoped facts — see that file's own header).
+    // fr.json ships three reporting facts and this settings read returns them unfiltered, unlike the
+    // send-time trigger, which excludes the transport fact and the scoped ones.
     it("a French company's reporting obligations reflect the real fr.json facts — not a hard-coded empty guess", async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
       const facts = await service.reportingObligations('company-1');
@@ -430,18 +408,13 @@ describe('ChannelCredentialsService', () => {
     });
   });
 
-  // Issue #527 - the settings screen's level-1 nav (design C) + banner (design A). Reads the REAL,
-  // shipped catalogs (channel-policy, operators, b2g-routing), the same "not a fixture" discipline
-  // `suggestedChannels()`'s own tests above already hold.
+  // The legal-channel nav and banner read the real shipped catalogues, never fixtures.
   describe('legalChannels() - the settings screen level-1 nav + banner verdict', () => {
     it('discovers exactly the DELIVERY legal channels (excludes the pt-at declaration, which never emits)', async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Germany', countryCode: 'DE' });
       const { channels } = await service.legalChannels('company-1');
-      // "peppol" IS included: Billit's own Belgian offering has capabilities.emit: true (it runs
-      // through the same wired "billit" transport as Billit's own French "pdp" offering - see
-      // `operators/data/billit.json`) - a genuinely connectable legal channel, even though no
-      // shipped `channel-policy/data/*.json` file names Belgium today (so it is "outside your
-      // invoicing country" for every company this catalogue currently covers - see the next test).
+      // "peppol" is included: Billit's Belgian offering emits, so the channel is genuinely
+      // connectable even though no shipped policy file names Belgium today.
       expect(channels.map((c) => c.id)).toEqual(['chorus-pro', 'ksef', 'pdp', 'peppol', 'sdi']);
     });
 
@@ -497,26 +470,16 @@ describe('ChannelCredentialsService', () => {
         expect.objectContaining({ countryCode: 'DE', tone: 'none', legalChannelId: undefined }),
       );
       const byId = Object.fromEntries(channels.map((c) => [c.id, c]));
-      // Owner review of #527 - Germany enforces NO domestic mandate at all, so a channel no OTHER
-      // country's law claims either (Peppol: no channel-policy fact, no B2G-routing fact anywhere)
-      // is genuinely lawful - nothing forces a different one. pdp/sdi/ksef stay locked (each is
-      // another specific country's own mandate/suggestion); chorus-pro stays locked too (it is
-      // FRANCE's own automatic B2G portal, found via the b2g-routing cross-index, even though it
-      // carries no channel-policy fact at all).
+      // Germany enforces no domestic mandate, so a channel no other country claims (Peppol) is lawful;
+      // pdp/sdi/ksef and chorus-pro stay locked, each belonging to a specific country.
       expect(byId.peppol.lawful).toBe(true);
       expect(byId.pdp.lawful).toBe(false);
       expect(byId.sdi.lawful).toBe(false);
       expect(byId.ksef.lawful).toBe(false);
       expect(byId['chorus-pro'].lawful).toBe(false);
 
-      // Owner review of #527, second instance of the same bug class the Peppol wording fix targets:
-      // chorus-pro carries no channel-policy fact anywhere (`mandatedElsewhere` is empty for it from
-      // EVERY viewer), so the frontend could not tell "France's own automatic B2G portal" apart from
-      // a genuinely homeless cross-border network without this field - it must name FR here, exactly
-      // like `mandatedElsewhere` already does for sdi/ksef above, so the settings screen keeps saying
-      // "outside your invoicing country" for chorus-pro (correct) rather than switching to the new
-      // "not accepted for your domestic invoices" wording (which would be wrong: chorus-pro is not a
-      // cross-border network, it is specifically France's own portal).
+      // chorus-pro carries no policy fact, so only `automaticElsewhere` can tell France's own portal
+      // apart from a cross-border network.
       expect(byId['chorus-pro'].mandatedElsewhere).toEqual([]);
       expect(byId['chorus-pro'].automaticElsewhere).toEqual(['FR']);
       // Peppol has neither a channel-policy fact NOR a b2g-routing fact anywhere - genuinely homeless.

@@ -1,33 +1,14 @@
 /**
- * The FALLBACK HTTP call this feature makes — a free, no-key GET against open.er-api.com
- * ("Open Access" product of exchangerate-api.com), consulted ONLY for a currency
- * `ecb-rates-client.ts`'s feed does not quote (the ECB publishes ~29 currencies against EUR; this
- * feed publishes ~160). Same "provider client is a plain async function, no Nest DI, no Prisma"
- * shape `ecb-rates-client.ts` already holds, so `currency-rate-sweep-runner.ts` can mock it with a
- * single `jest.mock('./open-er-api-rates-client')`.
+ * The fallback HTTP call: a free, keyless GET against open.er-api.com, consulted only for a currency
+ * the ECB feed does not quote (~29 currencies against ~160). A plain async function with no DI, so the
+ * runner can mock it.
  *
- * ## Why this exists at all, and why it is a fallback, never a replacement
- * The ECB stays the sole source for every currency it quotes: it is the reference the tax
- * authorities of this product's five countries (FR/PL/IT/PT/DE) publish against, and no aggregator
- * matches that on a legal document. This feed only ever fills a gap the ECB leaves open — see
- * `currency-rate-sweep-runner.ts#runSweep` for exactly where it is consulted (lazily, only when the
- * ECB's own map is missing a currency a pair needs) and `currency-rate-sweep.ts`'s
- * `EXCHANGERATE_API_SOURCE` for why a row this feed produced is NEVER stamped `source: 'ecb'`.
+ * The ECB stays the sole source for everything it quotes, being the reference the tax authorities
+ * publish against, so a row from this feed is never stamped `ecb`.
  *
- * ## Licence — the three obligations this file and its caller together honour
- * Fetched verbatim from https://www.exchangerate-api.com/docs/free on 2026-09-14: "This open access
- * API is subject to our Terms and requires attribution. You're welcome to cache the data we respond
- * with and to use it for either personal or commercial currency conversion purposes. You are,
- * however, not allowed to re-distribute it."
- *   - Attribute: the currency settings screen (`CurrencyRatesSettings`, frontend), never the invoice
- *     PDF — the product owner's own placement decision, because an invoice is a legal document to a
- *     third party, not a screen this provider's terms are aimed at.
- *   - Never re-distribute the RAW feed: only the single computed cross-rate a company's own pair
- *     actually needs is ever persisted (`currency-rate-sweep-runner.ts`) — the ~160-currency response
- *     body itself is parsed in memory and discarded, never stored or exposed wholesale.
- *   - Commercial use: explicitly granted by the same clause.
- *   Caching (the existing `CurrencyRate` table, already built for the ECB source) is explicitly
- *   permitted by the same clause — this file adds no new caching mechanism.
+ * Licence (https://www.exchangerate-api.com/docs/free): attribution is required, caching is allowed and
+ * redistributing the feed is not. The settings screen carries the attribution, never the invoice PDF;
+ * only the computed cross-rate is stored and the response body is discarded.
  */
 
 export const OPEN_ER_API_BASE_CURRENCY = 'EUR';
@@ -46,18 +27,12 @@ export interface OpenErApiRates {
   rates: Map<string, number>;
 }
 
-/** The subset of the feed's actual JSON body this parser reads — verified live, 2026-09-14, against
- *  a real `GET https://open.er-api.com/v6/latest/EUR`. The body also carries `provider`,
- *  `documentation`, `terms_of_use`, `time_last_update_utc`/`time_next_update_utc` and
- *  `time_last_update_unix`/`time_next_update_unix` — informational fields this parser has no use for
- *  (the sweep dates every row it writes off the ECB's own `referenceDate`, for both sources alike, so
- *  a second, possibly differently-timed "last updated" stamp from this feed would only invite the two
- *  sources' rows to disagree about what day they're for). */
+/** The subset of the feed's body this parser reads. The body also carries provider and timestamp
+ *  fields it ignores: the sweep dates every row off the ECB reference date for both sources, so a
+ *  second stamp would only invite the two to disagree. */
 interface OpenErApiResponseBody {
-  /** `'success'` or `'error'` — THE actual success signal. This endpoint answers HTTP 200 even for
-   *  its OWN errors (an unsupported base code, a tripped rate limit): verified live, 2026-09-14,
-   *  `GET .../v6/latest/XXXX` -> HTTP 200, body `{"result":"error","error-type":"unsupported-code"}`.
-   *  `response.ok` alone is therefore not enough to trust the body below. */
+  /** `'success'` or `'error'`, and the actual success signal: this endpoint answers HTTP 200 even for
+   *  its own errors (an unsupported base code, a tripped rate limit), so `response.ok` is not enough. */
   result?: string;
   'error-type'?: string;
   base_code?: string;
@@ -65,13 +40,9 @@ interface OpenErApiResponseBody {
 }
 
 /**
- * Fetches and parses `open.er-api.com`'s EUR-based latest-rates response. Never returns a
- * half-empty result: an HTTP-level failure, the feed's own `result: 'error'`, a missing/empty
- * `rates` object, or an unexpected base currency all throw a named Error rather than silently
- * handing the caller an empty/partial map — the same discipline
- * `ecb-rates-client.ts#fetchEcbDailyRates` holds, so `currency-rate-sweep-runner.ts`'s ONE call site
- * treats any throw from this function exactly like an ECB failure: this pass's fallback simply isn't
- * available, never a crash.
+ * Fetches and parses the EUR-based latest rates. An HTTP failure, the feed's own `result: 'error'`, a
+ * missing or empty `rates` object or an unexpected base all throw a named error rather than returning a
+ * partial map, so the caller treats a throw like an ECB failure and skips the fallback this pass.
  */
 export async function fetchOpenErApiRates(): Promise<OpenErApiRates> {
   const controller = new AbortController();

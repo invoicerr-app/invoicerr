@@ -1,7 +1,6 @@
 /**
- * The response of `GET /api/company/number-formats` (issue #496) - the read-only settings card. Every
- * string meant for a human is plain English data from `documents/country-policy/data/xx.json`, shown
- * verbatim, the same convention `country-policy.ts`'s refusal reasons already follow.
+ * The response of `GET /api/company/number-formats`, the read-only settings card. Human-facing strings
+ * are English data from `documents/country-policy/data/xx.json`, shown verbatim.
  */
 import { PolicyProvenance, RunningSeriesPolicy } from '@/modules/documents/country-policy/schema';
 import { NumberFormatViolation } from '@/modules/documents/country-policy/number-formats';
@@ -21,9 +20,8 @@ export interface CompanyNumberFormat {
   source: NumberFormatSource;
   /** The country's own format - differs from `pattern` only for a kept running series. */
   countryPattern: string;
-  /** The value the counter hands out next (1 for a type never numbered, or for the first document of
-   *  a `reset: "yearly"` counter's period - issue #515: read from the row a document ISSUED TODAY
-   *  would land on, `numbering/company-number-format.ts#periodKeyFor`). */
+  /** The value the counter hands out next: 1 for a type never numbered, or for the first document of a
+   *  yearly period. Read from the row a document issued today would land on. */
   nextNumber: number;
   /** `pattern` rendered with `nextNumber` and today's date - what the next document would print. */
   nextDisplayNumber: string;
@@ -31,7 +29,7 @@ export interface CompanyNumberFormat {
   unconstrained: string | null;
   supersededRunningSeries: { pattern: string; violations: NumberFormatViolation[] } | null;
   constraints: CompanyNumberFormatConstraint[];
-  /** Issue #515 - whether this type's counter may restart at 1 on every 1 January, in this country. */
+  /** Whether this type's counter may restart at 1 on 1 January in this country. */
   reset: 'yearly' | 'never';
   /** Why THIS reset rule - see `country-policy/schema.ts#DocumentNumberFormatFact.resetProvenance`. */
   resetProvenance: PolicyProvenance;
@@ -46,8 +44,8 @@ export interface CompanyNumberFormats {
 }
 
 /**
- * "Declare your last number issued" (issue #340) - `numbering/declare-last-number.ts` and
- * `company.service.ts#declareLastNumberIssued`, usable with or without also importing a document.
+ * "Declare your last number issued": `numbering/declare-last-number.ts` and
+ * `company.service.ts#declareLastNumberIssued`, usable with or without importing a document.
  */
 export interface DeclareLastNumberInferRequest {
   typeId: string;

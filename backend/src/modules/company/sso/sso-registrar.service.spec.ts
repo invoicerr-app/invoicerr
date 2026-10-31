@@ -1,39 +1,17 @@
 /**
- * SsoRegistrarService — the runtime registration of a per-company provider into the LIVE better-auth
- * provider list.
+ * The runtime registration of a per-company provider into the live better-auth provider list.
  *
- * TWO modules are mocked here, each for a reason worth stating.
+ * Three modules are mocked. `@/lib/auth`, because importing it builds a Prisma adapter and reads this
+ * repository's `.env`, registering the live environment provider; the mock supplies a synthetic context
+ * whose `socialProviders` array is the object the service mutates. `better-auth/plugins`, because it
+ * ships ESM only and Jest cannot transform it, so the fake reproduces the documented `init` contract and
+ * contributes nothing for a config it declines. `@/utils/outbound-url`, because real DNS against
+ * `idp.acme.com` would make this network-dependent; here it only proves the call and the propagation.
  *
- * `@/lib/auth`, because importing it for real builds a Prisma adapter at import time and pulls in
- * `dotenv/config`, which would read this repository's own `.env` (it really does set `OIDC_CLIENT_ID`
- * and a discovery URL) and register the live environment provider. No spec in this repository imports
- * it. The mock supplies a synthetic context whose `socialProviders` array is the same object the
- * service mutates — exactly the relationship the real `auth.$context` has with every request.
- *
- * `better-auth/plugins`, because it cannot be loaded under Jest at all: the package ships ESM only
- * (`dist/plugins/index.mjs`) and this project's Jest config excludes `node_modules` from
- * transformation apart from `node-schematron`, so a real import fails with "Cannot use import
- * statement outside a module". Widening `transformIgnorePatterns` to cover better-auth would drag its
- * entire ESM dependency chain through the transformer and put all 262 suites at risk for one spec, so
- * the fake below reproduces the documented `init` contract instead: it returns
- * `{ context: { socialProviders: built.concat(ctx.socialProviders) } }`, and contributes NOTHING for a
- * config it declines — which is the real plugin's behaviour when discovery yields no usable endpoints
- * (it logs and `continue`s).
- *
- * So what this spec proves: the config handed to better-auth is the stored configuration, the
- * id-verification guard catches a declined config instead of silently returning another provider, the
- * entry inserted is shaped the way better-auth's own resolution requires, a broken provider cannot
- * break an unrelated sign-in (including one whose stored endpoint fails the outbound-URL guard's own
- * DNS-rebinding-safe re-check), removal finds its entry without triggering a build, and the
- * OIDC_ONLY boot assertion fires. What it does NOT prove: that the real `genericOAuth` builds a
- * working provider (only `npm run build` and the production path cover that), and nothing about a
- * real OAuth round-trip — there is no identity provider in this environment.
- *
- * A THIRD module is mocked for the same "no real network in a unit test" reason as the two above:
- * `@/utils/outbound-url`, whose own exhaustive decision-logic coverage is `outbound-url.spec.ts`'s job
- * (and `sso.service.spec.ts` for the write-time call). Here it only needs to prove it is CALLED, and
- * that a rejection propagates as "this one provider fails to build", never a crash — real DNS
- * resolution against `idp.acme.com` would make this spec flaky and network-dependent for no benefit.
+ * Proves: the stored configuration reaches better-auth, a declined config is caught instead of
+ * returning another provider, the entry has the shape better-auth resolves, a broken provider cannot
+ * break unrelated sign-ins, removal does not trigger a build, and the OIDC_ONLY assertion fires. Does
+ * not prove a real OAuth round-trip: there is no IdP in this environment.
  */
 
 import { vi, type Mock } from 'vitest';

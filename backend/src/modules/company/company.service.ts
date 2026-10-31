@@ -67,10 +67,8 @@ import { companyMemberIds } from '@/modules/companies/company-member-ids';
 import { loadPaymentTerms } from '@/modules/company/payment-terms/load-payment-terms';
 
 /**
- * One SYSTEM email template, as this module's settings routes hand it over — the signature request and
- * the verification code only. A DOCUMENT type's email is a different mechanism, keyed by type rather
- * than by a closed enum: see `documents/actions/company-email-templates.ts` and
- * `GET /api/documents/email-templates`.
+ * One system email template as the settings routes hand it over: the signature request and the
+ * verification code only. A document type's email is a different mechanism, keyed by type.
  */
 export interface EmailTemplate {
   /** The stored override's row id, or '' when this company has none and the shipped default applies —
@@ -94,27 +92,16 @@ function appUrl(): string {
 }
 
 /**
- * The only `Company` columns a caller may ever set through `EditCompanyDto` — the single allow-list
- * BOTH `createCompany` and `editCompanyInfo` write through, so the two can never drift into accepting
- * different fields. `EditCompanyDto` is a TypeScript interface (erased at compile time) and this API
- * has no `ValidationPipe`, so this function is the only thing standing between the raw JSON request
- * body and `prisma.company.create`/`update`. Without it, a caller-named `subscription`, `documents`,
- * `clients`, `signingCertificates`, `channelConfigs`, `id`, or any of the ~30 other relations
- * `CompanyCreateInput`/`CompanyUpdateInput` accept would reach Prisma verbatim — and because the
- * foreign key on a one-to-many/one-to-one relation lives on the CHILD row, a nested `connect` there
- * REASSIGNS an existing row (someone else's active subscription, signing certificate, or transmission
- * channel) to the caller's own company rather than merely failing. Every field named here is a plain
- * scalar column with no such nested-write surface. Each key is always present on the returned object
- * (possibly `undefined`) — Prisma treats an `undefined` value exactly like an absent key for both
- * `create` and `update`, so this matches `editCompanyInfo`'s pre-existing literal-object write below.
+ * The only `Company` columns a caller may set, the single allow-list both `createCompany` and
+ * `editCompanyInfo` write through.
+ *
+ * The DTO is an erased interface and the API has no `ValidationPipe`, so this function is the only
+ * barrier between the raw body and Prisma. Without it a caller could name a relation, and because the
+ * foreign key lives on the child row, a nested `connect` would reassign someone else's subscription,
+ * certificate or channel to their own company rather than fail.
  */
-// `Pick<EditCompanyDto, ...>` rather than letting the return type be inferred: it preserves each
-// field's own OPTIONALITY exactly as `EditCompanyDto` declares it (`phone?: string`, not the
-// mandatory-but-possibly-`undefined` `phone: string | undefined` a bare object-literal return type
-// would infer). That distinction is what lets `createCompany` spread this result AFTER its own
-// `phone: ''`/`email: ''`/... fallbacks without TypeScript flagging every one of them as "always
-// overwritten by an `undefined`-typed spread" — Prisma's generated `CompanyCreateInput` itself marks
-// these columns as optional-with-a-caller-can-omit-them semantics for exactly this reason.
+// `Pick<EditCompanyDto, ...>` preserves each field's optionality, so `createCompany` can spread this
+// after its own fallback values without TypeScript marking them as always overwritten.
 type PickedCompanyInput = Pick<
   EditCompanyDto,
   | 'description'
@@ -148,15 +135,9 @@ type PickedCompanyInput = Pick<
 >;
 
 /**
- * `Company.distanceSalesRegime` is one of exactly two values or nothing at all (see its own
- * schema.prisma comment for the Directive articles that close the set). This API has no
- * `ValidationPipe` — `EditCompanyDto` is an erased TypeScript interface — so a typo'd or invented
- * value would otherwise be stored happily and then read back as "not declared" by
- * `documents/tax/resolve-invoice-tax.ts#parseDistanceSalesRegime`, leaving the company convinced it
- * declared something while every cross-border B2C sale of goods kept being refused. Rejecting at SAVE
- * time, named, is the same posture `updateNumberFormat` below already holds for a number pattern.
- * `undefined` (key absent) leaves the column untouched; `null`/`''` clears it back to "never
- * declared", which is a legitimate state to return to.
+ * `distanceSalesRegime` accepts exactly two values or nothing. With no runtime validation, a typo would
+ * be stored and then read back as "not declared", leaving the company believing it declared something
+ * while every cross-border B2C sale was refused. `undefined` keeps the column, null clears it.
  */
 function normalizeDistanceSalesRegime(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
@@ -299,10 +280,8 @@ export class CompanyService {
     });
     if (!result) return null;
 
-    // Issue #603: expose the country's own `documentValidationCode` fact (e.g. Portugal's ATCUD)
-    // instead of letting the frontend decide from `country`/`countryCode` itself - see
-    // country-policy/schema.ts's own header. Replaces the settings tab's and the ATCUD settings
-    // screen's own `=== "PT"` / `=== "PORTUGAL"` checks, which read this same endpoint.
+    // The country's own `documentValidationCode` fact (ATCUD for Portugal) belongs here, so the
+    // frontend never maps country codes to it.
     const countryCode = resolveCountryCode(result.countryCode, result.country);
     return {
       ...result,
@@ -313,10 +292,8 @@ export class CompanyService {
     };
   }
 
-  /** Issue #516 - see `company.controller.ts#getRevenueSettings`'s own header. A 404 rather than a
-   *  thrown 500 when the company somehow doesn't exist, matching `getCompanyInfo`'s own posture for
-   *  the same case (that one logs and returns null; a resolved-settings caller always expects an
-   *  object, so this one 404s instead of a shape the frontend would have to special-case). */
+  /** 404 rather than a 500 when the company does not exist: a resolved-settings caller always expects
+   *  an object, never a shape it has to special-case. */
   async getRevenueSettings(companyId: string) {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
@@ -387,16 +364,10 @@ export class CompanyService {
       throw new NotFoundException('Company not found');
     }
 
-    // Explicit allow-list, never `...rest`: there is no runtime request validation anywhere in this
-    // API (no ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`,
-    // erased at compile time), so `rest` is really just the raw, caller-supplied JSON body with two
-    // keys deleted. Spreading it wholesale would let a caller write ANY Company column by naming it —
-    // `id`, `createdAt`, and, directly relevant to numbering, `numberFormats` itself: since issue #496
-    // that column holds a company's frozen RUNNING SERIES (see `documents/numbering/
-    // company-number-format.ts`), which nothing may write any more, and a caller naming it here would
-    // silently change the format its next documents are numbered with. Every
-    // field this settings screen is actually allowed to write is named once, in `pickCompanyInput`
-    // above — shared with `createCompany` so the two paths can never diverge.
+    // Explicit allow-list, never `...rest`: no request validation runs at runtime, so `rest` is raw
+    // caller JSON. Spreading it would let a caller write any Company column by name, including
+    // `numberFormats`, whose running series must never be written again. Every writable field is named
+    // once, in `pickCompanyInput`, shared with `createCompany`.
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
       data: {
@@ -414,11 +385,8 @@ export class CompanyService {
       updatedCompany.countryCode ?? updatedCompany.country,
     );
 
-    // A rename or a changed contact email is also what this company's Polar CUSTOMER should show —
-    // pushed in the same request rather than waiting for the next lifecycle-sweep tick, best-effort
-    // (never blocks this write — see `customer-sync.ts`'s own header). Only fired when one of the two
-    // actually changed: every OTHER field this screen writes (address, currency, IBAN…) has no Polar
-    // customer counterpart worth a network call on every save.
+    // A rename or a changed email is what this company's Polar customer should show, pushed in the same
+    // request and best-effort. Only those two fields have a counterpart worth a network call on save.
     if (existingCompany.name !== updatedCompany.name || existingCompany.email !== updatedCompany.email) {
       await syncPolarCustomerOnCompanyChange(companyId, {
         name: updatedCompany.name,
@@ -441,12 +409,9 @@ export class CompanyService {
   }
 
   /**
-   * Issue #496 - REFUSES every change. A document number format is defined per (country, document
-   * type) in `documents/country-policy/data/xx.json`'s `numberFormats`, with the rules that constrain
-   * it and their sources; the owner's decision of 2026-09-27 is that a company can no longer change it.
-   * The endpoint stays, answering 405 with the reason, so an API client that used to set a format
-   * learns why it cannot rather than meeting a bare 404. `GET /api/company/number-formats`
-   * (`getNumberFormats` below) says which format applies and why.
+   * Refuses every change: a format is fixed per (country, document type) by the rules that constrain
+   * it. The endpoint stays as a 405 with the reason, so an old API client learns why instead of
+   * meeting a bare 404.
    */
   updateNumberFormat(): never {
     throw new MethodNotAllowedException(
@@ -457,11 +422,8 @@ export class CompanyService {
   }
 
   /**
-   * The format each numbered document type of this company is numbered with, and why - the read-only
-   * settings card. One entry per format the company's country declares, each resolved exactly as
-   * numbering resolves it (`numbering/company-number-format.ts#resolveNumberFormatFor`, the running
-   * series included), with the NEXT number it would print: read from the real counter, never
-   * invented, so the screen shows the series continuing where it stands.
+   * The format each numbered type uses and why, the read-only settings card. Each entry is resolved the
+   * way numbering resolves it, running series included, and its next number comes from the real counter.
    */
   async getNumberFormats(companyId: string): Promise<CompanyNumberFormats> {
     const company = await prisma.company.findUnique({
@@ -485,10 +447,8 @@ export class CompanyService {
       };
     }
 
-    // Issue #515: `year` is part of `DocumentNumberSequence`'s own key now, so "the next number"
-    // depends on which counter row a document issued TODAY would land on - see `periodKeyFor`'s own
-    // header. Reading every row (never filtering by year in the query) keeps this one round trip: the
-    // map below picks, per format, the row `periodKeyFor(resolved, now)` names.
+    // A document issued today lands on the counter row `periodKeyFor` names, so read every row rather
+    // than filtering by year: one round trip, and the map picks the right one.
     const sequences = await prisma.documentNumberSequence.findMany({
       where: { companyId },
       select: { typeId: true, year: true, nextNumber: true },
@@ -532,10 +492,8 @@ export class CompanyService {
   }
 
   /**
-   * Issue #340 - "declare your last number issued", step 1: a pure, no-write suggestion the frontend
-   * shows as an EDITABLE pattern before the company confirms anything (`declareLastNumberIssued`
-   * below re-derives everything from the CONFIRMED pattern, never from this guess). No country/DB
-   * lookup needed - `inferNumberPatternFromExample` is a pure function of the example and its date.
+   * Step 1 of "declare your last number issued": a pure, no-write suggestion shown as an editable
+   * pattern. The write below re-derives everything from the confirmed pattern, never from this guess.
    */
   inferLastNumberPattern(request: DeclareLastNumberInferRequest): DeclareLastNumberInferResponse {
     const referenceDate = new Date(request.lastIssueDate);
@@ -547,18 +505,12 @@ export class CompanyService {
   }
 
   /**
-   * Issue #340 - "declare your last number issued", step 2: the write. Usable WITHOUT importing any
-   * document (the owner's own decision) - a company migrating its numbering by hand still needs the
-   * counter to resume where the old tool left off. See `numbering/declare-last-number.ts`'s own
-   * header for the full design, and `numbering/sequence.ts#seedSequenceStart`'s own header for why
-   * this can only ever seed a counter that has NEVER numbered anything - refused otherwise (the
-   * owner's own decision, §2 point 6: "once the first Invoicerr document is issued, nothing can
-   * change").
+   * Step 2, the write. Usable without importing a document, since a company migrating its numbering
+   * needs the counter to resume where the old tool stopped. Only a counter that has never numbered
+   * anything can be seeded; refused otherwise.
    *
-   * Portugal is handled first and separately: FAQ 4319 makes reusing the previous tool's own series
-   * identifier illegal outright (a validation code, once used by ANY software, is never reused), so
-   * this never even tries to resolve `pattern` against the country's shipped format the way every
-   * other country does - see `declarePortugalNewSeries` below.
+   * Portugal is handled separately: FAQ 4319 forbids reusing the previous tool's series identifier,
+   * so a new series is always opened under the country's own shape.
    */
   async declareLastNumberIssued(
     companyId: string,
@@ -612,9 +564,8 @@ export class CompanyService {
       throw new BadRequestException('The last number issued is required.');
     }
 
-    // Issue #603: read from the country's own `documentValidationCode` fact instead of a literal
-    // 'PT' - behaviourally identical today, since Portugal is still the only country declaring that
-    // fact (see this fact's own header in country-policy/schema.ts).
+    // Read the country's fact rather than a literal 'PT': Portugal is today the only country declaring
+    // it.
     const documentValidationCode = defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode);
     if (documentValidationCode?.scheme === 'ATCUD') {
       return this.declarePortugalNewSeries(companyId, request.typeId, format, lastNumber, referenceDate);
@@ -662,19 +613,11 @@ export class CompanyService {
   }
 
   /**
-   * Portugal never resumes the previous tool's own series (AT FAQ 4319: "Um código de validação de
-   * série não poderá ser reutilizado ..."), whatever pattern that tool used - so, unlike every other
-   * country, this NEVER tries `request.pattern`/`patternViolations` against the shipped format at
-   * all. It always opens a brand-new series under the country's own shape (`FT A/{number}` /
-   * `NC A/{number}`, `format.pattern`) UNLESS the previous tool's own last number shows it already
-   * used identifier "A" (Invoicerr's own default) - parsed from `lastNumber` by the same
-   * `TYPE SERIES/NUMBER` shape AT FAQ 4310 mandates (`numbering/atcud.ts#parseAtcudPattern` reads the
-   * identical shape for a PATTERN; this reads it off one REAL NUMBER instead). In that one case the
-   * fallback identifier is dated - "A" + the year this is declared, e.g. "A2026" - so it can never
-   * collide with whatever the previous tool already registered, per the owner's own decision in #340.
-   * Either way the counter still resumes at `last + 1` (FAQ 4318: a series' own numbering, once
-   * communicated, keeps counting - it is the IDENTIFIER that may never repeat, not the requirement to
-   * start over at 1).
+   * Portugal never resumes the previous tool's series (FAQ 4319 forbids reusing a validation code), so
+   * the pattern is not checked against the shipped format: a new series opens in the country's own
+   * shape. If the old number already used identifier "A", a dated one ("A2026") avoids the collision.
+   * The counter still resumes at `last + 1` (FAQ 4318: the identifier may not repeat, numbering does
+   * not restart at 1).
    */
   private async declarePortugalNewSeries(
     companyId: string,
@@ -710,9 +653,8 @@ export class CompanyService {
       });
     }
 
-    // PT's own format never carries `{year}` (reset: "never" - a series counts continuously once
-    // registered, FAQ 4317/4318), so `year` is always the `year: 0` sentinel here - no need to
-    // resolve/periodKeyFor for a country this file already knows the answer for.
+    // PT's format never carries `{year}` (a series counts continuously once registered), so the year is
+    // always the sentinel here.
     await seedSequenceStart(prisma, companyId, typeId, 0, declaredNumber + 1);
 
     return {
@@ -725,16 +667,13 @@ export class CompanyService {
     };
   }
 
-  // Creates a brand-new company and makes the creating user its OWNER —
-  // used both for a first-time user's onboarding and for an existing user
-  // starting an additional company from the company switcher.
+  // Creates a company and makes the calling user its OWNER, for onboarding and for an additional
+  // company.
   async createCompany(userId: string, editCompanyDto: EditCompanyDto) {
     const { identifiers, ...data } = editCompanyDto;
 
-    // Checked BEFORE the company row itself is created — same reasoning as
-    // `clients.service.ts#createClient`'s identical guard: `upsertPartyIdentifiers` cannot run
-    // first (no `companyId` yet), and a refusal surfacing only after create would leave an orphan
-    // company (and its OWNER `UserCompany` row) behind.
+    // Checked before the row exists: `upsertPartyIdentifiers` needs a companyId, and a refusal after
+    // create would leave an orphan company and its OWNER membership behind.
     if (identifiers) {
       for (const entry of identifiers) {
         await assertIdentifierValueMatchesPattern({
@@ -745,29 +684,17 @@ export class CompanyService {
       }
     }
 
-    // Same allow-list `editCompanyInfo` writes through — never `...data` (the raw JSON body minus
-    // `identifiers`). This is the ONE route on this DTO open to any authenticated user regardless of
-    // company membership (`companies.controller.ts`'s own comment), so an unchecked spread here was
-    // the more exploitable half of the mass-assignment hole: a caller who knows no other id at all
-    // can hand Prisma a nested `subscription: { create: { status: 'ACTIVE', ... } } }` and get an
-    // ACTIVE subscription with no Polar customer behind it, or a `connect` naming another tenant's
-    // row (subscription, signing certificate, channel config, client, document) and reassign it here
-    // on creation. See `pickCompanyInput`'s own header.
+    // Same allow-list as `editCompanyInfo`, never `...data`: this route is open to any authenticated
+    // user, so an unchecked spread would let a caller create an ACTIVE subscription with no customer
+    // behind it or connect another tenant's row. See `pickCompanyInput`.
     const picked = pickCompanyInput(data);
     const newCompany = await prisma.company.create({
       data: {
         ...picked,
         foundedAt: picked.foundedAt ?? new Date(),
-        // Sensible blanks for the fields the simplified onboarding (name + country only) doesn't
-        // collect — the user fills these in later via Settings. `??`, not the previous
-        // spread-after-literal ordering, because `Company`'s columns are non-nullable `string`
-        // (`prisma/generated/prisma/models/Company.ts`) while `pickCompanyInput`'s fields are all
-        // OPTIONAL (`EditCompanyDto`): the old `{ city: '', ...picked }` shape let an explicit
-        // `city: undefined` key from the spread silently win over the blank default — which
-        // `tsc` catches as a type error (`picked.city` is `string | undefined`, the column wants
-        // `string`) precisely because it WOULD have reached Prisma as `undefined`, i.e. "field not
-        // provided" — throwing at runtime on a required column with no schema default, the exact
-        // simplified-onboarding path (name + country only) this comment says must stay blank instead.
+        // Blank defaults for fields the simplified onboarding does not collect. `??` rather than a
+        // spread after a literal: an explicit `undefined` in the spread would otherwise override the
+        // blank and reach a non-nullable column.
         address: picked.address ?? '',
         postalCode: picked.postalCode ?? '',
         city: picked.city ?? '',
@@ -776,23 +703,16 @@ export class CompanyService {
       },
     });
 
-    // A brand-new company's own OWNER is its first seat — assigned desk 1 on the generative office
-    // plan (`billing/seat-sync.ts#withSeatReservation`, a no-op entirely when billing is disabled).
+    // The creator is the company's first seat on the office plan.
     await withSeatReservation(newCompany.id, userId, (tx) =>
       tx.userCompany.create({ data: { userId, companyId: newCompany.id, role: 'OWNER' } }),
     );
     await sessionCache.invalidateUsers([userId]);
-    // Practically always a no-op here (a brand-new company has no `polarSubscriptionId` yet), kept
-    // for the rare case a company row is created for one already billed elsewhere — see
-    // `billing/member-sync.ts`'s own header.
+    // A no-op for a new company, kept for a row created for one already billed elsewhere.
     await syncCompanyMemberOnMembershipChange(newCompany.id, userId);
 
-    // Enriched expense categories ("notes de frais enrichies") — this brand-new company's default
-    // expense category set (the ten categories + "Other" `expense.descriptor.ts` used to hardcode).
-    // Idempotent (`ensureDefaultExpenseCategoriesSeeded`'s own header) — count is trivially 0 here, so
-    // this always inserts; the SAME function also runs lazily, on first read, for a company that
-    // predates this feature (`expense-categories/persistence.ts#listExpenseCategories`), so no data
-    // migration was needed to backfill existing companies.
+    // Seeds the default expense categories. Idempotent, and the same function also backfills lazily on
+    // first read, so no data migration was needed.
     await ensureDefaultExpenseCategoriesSeeded(newCompany.id);
 
     await this.upsertPartyIdentifiers(
@@ -813,15 +733,11 @@ export class CompanyService {
   }
 
   /**
-   * The two SYSTEM emails, each resolved to what ACTUALLY applies: this company's own `MailTemplate`
-   * override when it has one, else the copy shipped in code (`mail/system-email-templates.ts`). Driven by
-   * `SYSTEM_EMAIL_FAMILIES` rather than a list written down here, so a family added to the enum cannot
-   * be silently missing from this response.
+   * The two system emails as they actually apply: the company's own override when one exists, else the
+   * copy shipped in code. Driven by the family enum, so a new family cannot be silently missing.
    *
-   * Nothing is seeded to make this work. A company whose rows were never created — or were deleted
-   * (`danger.service.ts`'s reset does exactly that) — still gets both templates here and can still send
-   * both emails: "no row" means "the shipped default applies", never "unconfigured". That is what
-   * replaced the upsert this method's own caller used to fire on every read of a company's info.
+   * No row means "the shipped default applies", never "unconfigured", so nothing is seeded and a
+   * company whose rows were deleted still sends both emails.
    */
   async getEmailTemplates(companyId: string): Promise<EmailTemplate[]> {
     const company = await prisma.company.findUnique({
@@ -854,17 +770,12 @@ export class CompanyService {
   }
 
   /**
-   * Saves this company's override of one system email.
+   * Saves the company's override of one system email. The family comes from `id` or from `dbId`, resolved
+   * tenant-scoped so another company's row id is simply not found. An upsert, since the first override
+   * has no row yet.
    *
-   * The family is identified by `id` (the family name) or by `dbId`, the row id a screen holding an
-   * already-stored override will have — resolved TENANT-SCOPED, so a `dbId` belonging to another company
-   * is simply not found rather than updated. An upsert, not an update: the row IS the override, and a
-   * company overriding a shipped default for the first time has no row yet.
-   *
-   * Refused (400): an unidentifiable family, a blank subject, an empty body — none of those is a
-   * sendable email. REPORTED in `warnings`, never refused: an unknown `{placeholder}`, exactly as the
-   * engine documents (`renderEmailTemplate`). A typo in a verification-code template must never be what
-   * stops a code from reaching someone mid-signature.
+   * A blank subject or empty body is refused. An unknown placeholder is only reported, so a typo never
+   * stops a verification code from reaching someone.
    */
   async updateEmailTemplate(
     companyId: string,

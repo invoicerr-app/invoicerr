@@ -1,13 +1,8 @@
 /**
- * Chantier B (2026-09-15 product decision) — "the PDF stays a FIXED
- * document, only THREE brand fields personalize it: logo, accent color, font". This is the
- * `Controller → Service → Prisma` surface for `Company.brandingLogoId`/`brandingAccentColor`/
- * `brandingFont`/`brandingPreset` — `branding.controller.ts` never touches Prisma or the logo store
- * directly. The catalogs this reads from (`FONT_CATALOG`, `BRANDING_PRESETS`) live under
- * `documents/rendering/branding/` — plain, DI-free modules reused here by IMPORT, never by Nest
- * injection, so `CompanyModule` gains no dependency on `DocumentsModule`/`DocumentsCoreModule` (the
- * same avoid-a-cross-module-cycle reasoning `mail-settings/company-mail-settings.resolver.ts`'s own
- * header documents for why IT never imports `MailService` either).
+ * The branding surface: the PDF stays a fixed document and only the logo, accent colour, font and
+ * preset personalise it. `branding.controller.ts` never touches Prisma or the logo store, and the
+ * catalogues come from `documents/rendering/branding/` by import, so `CompanyModule` gains no
+ * dependency on the documents modules.
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
