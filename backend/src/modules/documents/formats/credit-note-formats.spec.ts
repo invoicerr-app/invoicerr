@@ -171,6 +171,25 @@ async function xmlOf(
   return { result, xml: Buffer.from(result.bytes).toString('utf-8') };
 }
 
+/** A FREE credit note builds from its own descriptor and lines, with `creditNote` but no reference. */
+async function freeXmlOf(
+  provider: DocumentFormatProvider,
+  data: unknown,
+  seller: DocumentFormatParty,
+  buyer: DocumentFormatParty,
+  displayNumber = 'CREDIT-NOTE-2026-0001',
+) {
+  const result = await provider.build(
+    creditNoteDescriptor,
+    doc(data, displayNumber),
+    seller,
+    buyer,
+    'company-1',
+    { creditNote: {} },
+  );
+  return { result, xml: Buffer.from(result.bytes).toString('utf-8') };
+}
+
 describe('issue #472 - a credit note in every EN 16931 syntax, judged by the same Schematron gates', () => {
   it('UBL: a genuine <CreditNote> (381) referencing the corrected invoice (BG-3), 0 EN 16931 error', async () => {
     const { result, xml } = await xmlOf(ublFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
@@ -257,6 +276,44 @@ describe('issue #472 - a credit note in every EN 16931 syntax, judged by the sam
     // Issue #494: the credit note's own page is rendered as the delivered legal copy, so it prints no
     // status line (`rendering/status-line-policy.ts`).
     expect(call?.[4]).toBe('delivery');
+  }, 30_000);
+});
+
+describe('a FREE credit note is still a credit-note document, with no preceding-invoice reference', () => {
+  it('UBL: a <CreditNote> at 381 with no BillingReference', async () => {
+    const { result, xml } = await freeXmlOf(ublFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    expect(xml).toMatch(/<CreditNote[ >]/);
+    expect(xml).toContain('<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>');
+    expect(xml).not.toContain('<cac:BillingReference>');
+  }, 30_000);
+
+  it('CII: TypeCode 381 with no InvoiceReferencedDocument', async () => {
+    const { result, xml } = await freeXmlOf(ciiFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    expect(xml).toMatch(/<ram:TypeCode>381<\/ram:TypeCode>/);
+    expect(xml).not.toContain('<ram:InvoiceReferencedDocument>');
+  }, 30_000);
+
+  it('FatturaPA: TD04 with no DatiFattureCollegate and no payment instruction', async () => {
+    const { result, xml } = await freeXmlOf(
+      fatturapaFormatProvider,
+      IT_DATA,
+      IT_SELLER,
+      IT_BUYER,
+      'CN-2026-999999',
+    );
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    const flat = xml.replace(/>\s+</g, '><');
+    expect(flat).toContain('<TipoDocumento>TD04</TipoDocumento>');
+    expect(flat).not.toContain('<DatiFattureCollegate>');
+    expect(flat).not.toContain('<DatiPagamento>');
   }, 30_000);
 });
 

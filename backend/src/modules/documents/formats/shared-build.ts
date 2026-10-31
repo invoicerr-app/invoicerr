@@ -212,7 +212,7 @@ export function buildEuInvoiceForDocument(
     customizationId?: string;
     businessProcessCodeOverride?: string;
     legalIdOverride?: 'full';
-    creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+    creditNote?: { correctedInvoice?: CorrectedInvoiceReference };
   },
 ) {
   const data = (document.data ?? {}) as Record<string, unknown>;

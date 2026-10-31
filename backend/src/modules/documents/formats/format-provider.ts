@@ -83,7 +83,8 @@ export interface CorrectedInvoiceReference {
  * number - never an "Invoice" rendering of the corrected lines.
  */
 export interface DocumentFormatBuildOptions {
-  creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  /** Present for a LINKED credit note only: a FREE one has no preceding invoice to reference. */
+  creditNote?: { correctedInvoice?: CorrectedInvoiceReference };
   humanReadable?: {
     descriptor: DocumentTypeDescriptor;
     document: DocumentInstanceResult;

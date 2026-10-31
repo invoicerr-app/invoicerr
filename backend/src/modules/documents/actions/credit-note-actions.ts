@@ -171,13 +171,14 @@ function hasOriginInvoice(data: Record<string, unknown>): boolean {
   return typeof data.invoice === 'string' && data.invoice.length > 0;
 }
 
-/** A credit note reaches its client through the invoice it corrects; one that corrects none has nobody
- *  to be sent to. */
+/** A linked credit note reaches its client through the invoice it corrects; a free one names its own
+ *  client, and cannot be sent without one. */
 function assertCreditNoteHasRecipient(data: Record<string, unknown>): void {
   if (hasOriginInvoice(data)) return;
+  if (typeof data.client === 'string' && data.client.length > 0) return;
   throw new BadRequestException(
-    'This credit note corrects no invoice, so it has no client to send it to. It was not sent. ' +
-      'Set "Invoice" to the invoice it corrects, then send it.',
+    'This free credit note names no client, so there is nobody to send it to. It was not sent. ' +
+      'Set "Client" to the client it is for, then send it.',
   );
 }
 
@@ -229,14 +230,31 @@ async function assertCreditNoteAllowedForCountry(
 
   const decision = resolveCorrectionRoutesForCountry(countryCode);
   const creditNoteRoute = decision?.routes.find((route) => route.routeId === 'CREDIT_NOTE');
-  if (creditNoteRoute?.status !== 'forbidden') return;
+  if (!creditNoteRoute) return;
 
   const shape = hasOriginInvoice(data) ? 'linked to an invoice' : 'free-standing';
-  throw new BadRequestException(
-    `${countryCode} has no credit note instrument at all (this one is ${shape}) - ${creditNoteRoute.label}. ` +
-      'Use a corrective invoice ("faktura korygująca") instead: create an invoice with "Corrects ' +
-      'invoice" set to the one you need to correct.',
-  );
+  if (creditNoteRoute.status === 'forbidden') {
+    throw new BadRequestException(
+      `${countryCode} has no credit note instrument at all (this one is ${shape}) - ${creditNoteRoute.label}. ` +
+        'Use a corrective invoice ("faktura korygująca") instead: create an invoice with "Corrects ' +
+        'invoice" set to the one you need to correct.',
+    );
+  }
+
+  // A free credit note is a document with nothing to reference, so it is only allowed where the
+  // country's own correction-routes file positively allows (or requires) a credit note. "Unverified"
+  // is not "permitted": this guard must never turn an unsettled country into a licence.
+  if (
+    !hasOriginInvoice(data) &&
+    creditNoteRoute.status !== 'allowed' &&
+    creditNoteRoute.status !== 'required'
+  ) {
+    throw new BadRequestException(
+      `${countryCode} does not establish that a credit note without a corrected invoice is allowed ` +
+        `(the country's own CORRECTION_ROUTE status is "${creditNoteRoute.status}") - ${creditNoteRoute.label}. ` +
+        'Set "Invoice" to the invoice this credit note corrects, or use a corrective invoice.',
+    );
+  }
 }
 
 /**
@@ -401,7 +419,7 @@ function registerCreditNoteSaveDraftAction(
 }
 
 /**
- * Issue #499 - the channel a LINKED credit note is delivered through, and what it is built from.
+ * Issue #499 - the channel a credit note is delivered through, and what it is built from.
  *
  * A credit note is an invoice in law (CGI art. 289, I, 5, already cited by `country-policy/data/
  * fr.json`'s numbering fact), so it is delivered exactly the way its corrected invoice's client is
@@ -484,10 +502,9 @@ async function renderCreditNoteDeliveryPdf(
  *    invoice to the same client would be - by email with the PDF attached, or deposited in its
  *    credit-note form (EN 16931 type 381 + BG-3, FatturaPA TD04, issue #472) on an e-invoicing
  *    channel.
- *  - FREE (no invoice): refused. This type has no client field (`credit-note.descriptor.ts`, "Two
- *    shapes, one type"), so a free credit note has no recipient, and reporting it "sent" would claim a
- *    delivery that never happened. `assertCreditNoteHasRecipient` stops it in phase 1, and again here
- *    so a job already queued cannot reach "sent" either.
+ *  - FREE (no invoice): delivered the same way through its own `client` field, with its own lines.
+ *    A free note with no client is refused (`assertCreditNoteHasRecipient`), since reporting it "sent"
+ *    would claim a delivery that never happened.
  *
  * The archive always holds the credit note's own rendered PDF (`renderCreditNoteDeliveryPdf`): for
  * email it IS the attachment the client received (`send-document-email.ts` hands those exact bytes
@@ -564,18 +581,17 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
         // retried unnumbered (`numberingOnlyFrom` above) gets no number, so it can get no ATCUD, and
         // refusing it here would strand it in "send_failed" for a code it could never carry.
         if (willNumber) await runAtcudPreflight(companyId, 'credit-note');
-        // Issue #499: a linked credit note that cannot be delivered (no channel, a channel that is
-        // not ready or cannot carry a credit note, an unnumbered corrected invoice...) is refused
-        // HERE, before it is numbered or queued - the invoice's own preflight discipline. `data` is
-        // what phase 1 is about to persist, not yet a stored record, hence the stand-in instance.
-        if (hasOriginInvoice(data)) {
-          await resolveCreditNoteDelivery(
-            deps.transportRegistry,
-            companyId,
-            { id: documentId ?? '', data, status: 'sending', displayNumber: null } as DocumentInstanceResult,
-            { runPreflight: true },
-          );
-        }
+        // Issue #499: a credit note that cannot be delivered (no channel, a channel that is not ready
+        // or cannot carry a credit note, an unnumbered corrected invoice...) is refused HERE, before
+        // it is numbered or queued - the invoice's own preflight discipline. `data` is what phase 1 is
+        // about to persist, not yet a stored record, hence the stand-in instance. A free credit note
+        // goes through the same gate, against its own client.
+        await resolveCreditNoteDelivery(
+          deps.transportRegistry,
+          companyId,
+          { id: documentId ?? '', data, status: 'sending', displayNumber: null } as DocumentInstanceResult,
+          { runPreflight: true },
+        );
         return undefined;
       },
       // Portugal's ATCUD, part two - frozen onto the credit note the moment it is numbered, exactly as
