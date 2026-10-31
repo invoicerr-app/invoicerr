@@ -42,24 +42,17 @@ export class WebhooksService {
   ];
 
   /**
-   * SSRF guard: reject a webhook URL that is not a public http(s) endpoint — a URL supplied by a
-   * tenant but dereferenced by this server's own network would otherwise be an SSRF primitive
-   * against internal infrastructure. Called from create/update below, before the row is ever
-   * persisted; `send()` re-runs
-   * `assertPublicWebhookUrl` itself right before each dispatch (DNS rebinding — see that function's
-   * own header). The client only ever sees the one generic message: neither the internal `reason`
-   * nor the rejected URL is echoed back or logged, since either would hand an attacker a live oracle
-   * to scan internal address ranges with ("is 10.0.3.4 open? what about 172.20.0.1?").
+   * SSRF guard at write time: a tenant-supplied URL is dereferenced by this server. The client only
+   * sees a generic message; neither the reason nor the URL goes back or into a log, since either is a
+   * scanning oracle. `send` re-runs the guard before each dispatch, for DNS rebinding.
    */
   private async validateWebhookUrl(url: string): Promise<void> {
     try {
       await assertPublicWebhookUrl(url);
     } catch (err) {
       if (err instanceof WebhookUrlValidationError) {
-        // Never `err.reason` here: it is precisely "which private range, which port" detail that
-        // turns this endpoint into a network-scanning oracle for whoever can create a webhook — see
-        // `outbound-url.ts`'s own header. The log line says nothing an attacker doesn't already know
-        // (they supplied the URL); it exists only to distinguish this rejection from an unrelated 400.
+        // Never the reason: it is exactly the "which private range" detail that would turn this
+        // endpoint into a scanner. The line exists only to separate this from an unrelated 400.
         this.logger.warn('Rejected webhook URL at write time — failed the outbound-URL SSRF guard');
         throw new HttpException('webhook URL must be a public http(s) endpoint', HttpStatus.BAD_REQUEST);
       }
@@ -68,44 +61,10 @@ export class WebhooksService {
   }
 
   /**
-   * Encrypt a webhook's plaintext HMAC secret before it ever reaches Prisma. Every other
-   * integration credential in this codebase already goes through `secret-crypto.ts` at rest
-   * (`CompanyChannelConfig.config` via `channels.service.ts`, `CompanySigningCertificate`'s PFX/pass);
-   * `Webhook.secret` was the one column that stayed in the clear.
-   *
-   * ## Refuses to store a secret it cannot encrypt — it does NOT fall back to plaintext
-   * This used to `return secret` unchanged when `CREDENTIALS_ENCRYPTION_KEY` was unset, on the
-   * reasoning that channel credentials were an opt-in feature gated behind that key from day one
-   * while webhook secrets predate it, so hard-failing would regress instances that never set it. That
-   * reasoning had the blast radius backwards. An unset key is not an edge case here: `.env.example`
-   * ships the variable commented out, `docker-compose.yml` passes it with an empty default, and the
-   * Helm values call it optional — so "no key" is the state of every self-hosted instance that
-   * followed the documentation, and the fallback therefore wrote EVERY webhook secret on those
-   * instances in the clear, which is the default configuration rather than a corner of it. And this
-   * particular column is not a credential this server presents to someone else: it is the HMAC key
-   * the RECEIVER uses to decide that a delivery genuinely came from us. Anyone holding a copy of the
-   * database can forge deliveries into the customer's endpoint that verify as authentic — a loss that
-   * lands on a third party who never had any way to know the key was missing.
-   *
-   * So the write refuses, loudly, naming the variable, exactly like `channels.service.ts#upsertChannelConfig`
-   * and `sso.service.ts#upsert` already do, and for the same reason `backup-crypto.ts#requireBackupKey`
-   * fails a whole backup sweep rather than uploading one plaintext artifact: on every path in this
-   * codebase where a secret is about to be written, a missing key fails the WRITE and nothing else.
-   *
-   * Three things this deliberately does NOT do, because the point is to refuse a plaintext secret and
-   * nothing more:
-   *  - it does not refuse to boot (`main.ts` still asserts only the session secret). Every existing
-   *    instance keeps running, keeps serving, keeps delivering its existing webhooks;
-   *  - it does not refuse a webhook that carries no secret at all — `create`/`update` only reach this
-   *    method for a non-empty value, so an unsigned webhook (the Slack/Discord/Teams drivers, whose
-   *    authentication is the token inside the URL) is untouched;
-   *  - it does not touch, re-read or invalidate a row already stored in the clear. Those keep signing
-   *    (`resolveSecretForSigning` below) until `migratePlaintextWebhookSecrets`
-   *    (`webhook-secret-migration.ts`) encrypts them on the first boot that has a key.
-   *
-   * The one behavior that genuinely changes: on a keyless instance, SETTING a webhook secret now
-   * returns 503 instead of appearing to succeed. That is the intended regression — the alternative is
-   * an operator who believes their deliveries are signed by a secret only they hold.
+   * Refuses to store a secret it cannot encrypt rather than falling back to plaintext: the value is
+   * the HMAC key the receiver authenticates deliveries with, so a keyless instance would let anyone
+   * holding a database copy forge deliveries that verify. Only the write fails, never boot, and rows
+   * already in the clear keep signing until the boot migration encrypts them.
    */
   private encryptSecretForStorage(secret: string): string {
     if (!isEncryptionAvailable()) {
@@ -120,17 +79,9 @@ export class WebhooksService {
   }
 
   /**
-   * The read-side counterpart, called by `send()` right before computing the HMAC signature.
-   * A stored value can be in any of three states at any given time (this method's own three branches,
-   * in order): still legacy plaintext (written before this column was encrypted at all, or written on
-   * a keyless instance back when `encryptSecretForStorage` still fell back to plaintext instead of
-   * refusing, and the boot migration has not reached it yet) — used as-is, unchanged behavior, since
-   * refusing to sign here would silently break deliveries that work today for rows the operator cannot
-   * see and did not choose; an encrypted blob with the key
-   * available — decrypted and used; or an encrypted blob with the key NOW missing (rotated away,
-   * misconfigured) — unusable, so the send proceeds UNSIGNED rather than HMAC-ing the payload with the
-   * literal ciphertext string, which would produce a signature no legitimate receiver could ever
-   * verify anyway.
+   * Legacy plaintext is used as-is; an encrypted blob whose key is now missing (rotated or
+   * misconfigured) is sent unsigned, since signing the ciphertext would produce an unverifiable
+   * signature.
    */
   private resolveSecretForSigning(stored: string | null): string | null {
     if (!stored) return null;
@@ -175,16 +126,12 @@ export class WebhooksService {
   async list(companyId: string) {
     const webhooks = await prisma.webhook.findMany({ where: { companyId } });
 
-    // Remove secret from response
     return webhooks.map((w) => ({ ...w, secret: undefined }));
   }
 
   /**
-   * Create a webhook for the active company. Returns the full row + company for event dispatch, with
-   * `webhook.secret` overridden back to the PLAINTEXT value (never what actually landed in the
-   * `secret` column, which is encrypted — see `encryptSecretForStorage`): this is the one deliberate,
-   * one-time reveal the settings screen relies on (`webhooks.settings.tsx` shows it once right after
-   * creation, then never again — every other read, `findOne`/`list`, strips the column entirely).
+   * Returns the full row with `secret` back in plaintext: the one-time reveal the settings screen
+   * shows after creation. Every other read strips the column.
    */
   async create(companyId: string, body: WebhookCreateInput) {
     await this.validateWebhookUrl(body.url);
@@ -216,11 +163,7 @@ export class WebhooksService {
 
     const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
-    // Only encrypt when the caller is actually SETTING a new secret. `existing.secret` already carries
-    // whatever format it was persisted in (an encrypted blob, or still legacy plaintext until the boot
-    // migration reaches it) and must never be run back through `encryptSecretForStorage` on an update
-    // that leaves it untouched — that would encrypt an already-encrypted blob a second time and make
-    // it permanently undecryptable.
+    // Only encrypt a newly set secret: re-encrypting the stored blob would make it undecryptable.
     const storedSecret =
       body.secret !== undefined
         ? body.secret
@@ -253,30 +196,21 @@ export class WebhooksService {
     return { webhook: existing, company };
   }
 
-  /**
-   * Send a webhook to a specified URL with HMAC signature
-   */
+  /** Sends to every given webhook in parallel, HMAC-signed when a secret is resolvable. */
   async send(webhooks: Webhook[], event: WebhookEvent, payload: any) {
-    // Demo instance (issue #533): the one chokepoint every outbound webhook dispatch in this
-    // codebase reaches (queued delivery via `WebhookDeliveryService.deliver` and any direct caller
-    // alike), checked before the SSRF re-validation and before any network attempt.
+    // Demo instance: the one chokepoint every dispatch reaches, checked before any network attempt.
     assertDemoSendingAllowed('Webhook delivery');
 
     const results = await Promise.all(
       webhooks.map(async (webhook) => {
-        // Re-validate right before dispatch, not just at create/update time: a hostname that
-        // resolved to a public IP when the webhook was saved can be repointed at an internal one by
-        // the time the event actually fires ("DNS rebinding" — see webhook-url-guard.ts). A webhook
-        // failing this check is skipped (reported as a failed send), never allowed to abort the
-        // batch for every other webhook of the same event. `resolved` is what makes this a REAL fix
-        // rather than a narrowed race: `driver.send` below connects to `resolved.address` directly
-        // (via `pinnedDispatcher`) instead of letting `fetch` re-resolve the hostname a second,
-        // independent time — which is exactly the gap a short-TTL DNS answer could flip in between.
+        // Re-validate at send time (DNS rebinding) and keep the resolved address, so the driver pins
+        // it instead of letting `fetch` resolve the hostname again. A webhook failing this is
+        // skipped, never aborting the batch.
         let resolved: ResolvedOutboundUrl | null;
         try {
           resolved = await assertPublicWebhookUrl(webhook.url);
         } catch (err) {
-          // Never `err.reason` — see `validateWebhookUrl`'s own comment on why.
+          // Never the reason: see `validateWebhookUrl`.
           const known = err instanceof WebhookUrlValidationError;
           this.logger.warn(
             `Skipped webhook dispatch: URL failed the outbound-URL SSRF guard at send time` +

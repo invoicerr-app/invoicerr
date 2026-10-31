@@ -1,12 +1,6 @@
 /**
- * `WebhookDispatcherService.dispatch` — the tenant filter, and the enqueue contract that replaced an
- * inline HTTP send. The tenant-scoping proof here is narrower than it used to be: `dispatch()` no
- * longer SENDS anything itself (that moved to `WebhookDeliveryService` — see
- * `webhook-delivery.service.spec.ts` for the "reaches only this company's own webhook, never logs a
- * secret" proofs). What THIS file proves is what `dispatch()` still owns: refusing a payload with no
- * resolvable companyId before anything is ever queued, resolving which subscribers exist, and handing
- * the queue exactly one job PER SUBSCRIBER (see `webhook-queue.constants.ts#WebhookDeliveryJobData`'s
- * own header for why per-subscriber, not per-event).
+ * `dispatch`: refusing a payload with no resolvable companyId, resolving the subscribers, and enqueuing
+ * exactly one job per subscriber. What reaches the endpoint is `webhook-delivery.service.spec.ts`.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -117,10 +111,8 @@ describe('WebhookDispatcherService.dispatch', () => {
     });
 
     it('resolves as soon as the job(s) are queued — it never waits on a delivery', async () => {
-      // The whole point of this move: neither the subscriber lookup (a fast, local Prisma read) nor
-      // `queue.add` (a fast, local Redis write) can block on a customer's own HTTP response — proven
-      // structurally here, and end-to-end (a slow/unreachable receiver) in
-      // `queue/__tests__/webhook-delivery-queue.redis.spec.ts`.
+      // Neither the lookup nor `queue.add` can block on a customer's HTTP response; the redis spec
+      // proves it end-to-end with a slow receiver.
       mockedPrisma.webhook.findMany.mockResolvedValue([{ id: 'wh-1' }]);
       await expect(
         service.dispatch(WebhookEvent.CLIENT_CREATED, { companyId: COMPANY_ID }),

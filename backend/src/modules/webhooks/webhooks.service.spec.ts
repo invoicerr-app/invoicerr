@@ -1,24 +1,7 @@
 /**
- * SSRF via an outbound webhook URL — the SERVICE-level half of the guard. A webhook `url` is set by
- * a tenant (an OWNER/ADMIN, or a compromised account, or in a multi-tenant deployment another tenant
- * entirely), yet the HTTP request it triggers is fired by this server's own network — unvalidated,
- * it is a live SSRF primitive against internal infrastructure. `webhook-url-guard.spec.ts` owns the
- * guard's own decision logic (schemes, literal IPs, DNS resolution, rebinding); this file proves
- * `WebhooksService` actually calls it at the two points that matter: create/update (before the row
- * is ever persisted) and send (right before every dispatch, so a webhook already sitting in the
- * database — e.g. one written before this guard existed — cannot slip a request out). Only
- * `@/prisma/prisma.service` is mocked, the same discipline
- * `channels.service.spec.ts` already established for this kind of service-in-isolation test.
- *
- * Every case here uses a LITERAL IP (never a hostname) so it never touches DNS — that keeps this
- * file decoupled from `dns.lookup` mocking, which is `webhook-url-guard.spec.ts`'s job alone.
- *
- * `WebhooksService`'s own driver list unconditionally constructs `new DiscordDriver()`, which used
- * to drag in `@teever/ez-hook` (a pure-ESM JSR package ts-jest could not compile — the
- * "ClientsModule inimportable sous ts-jest" item) and forced a factory mock at `./drivers/
- * discord.driver` just to import this file at all. `discord.driver.ts` now owns a plain `fetch()`
- * call instead, so the real driver is used here like every other one — none of the cases below ever
- * create a DISCORD-typed webhook, so it is constructed but never actually dispatches through.
+ * Service-level half of the SSRF guard: proves `WebhooksService` calls it at create/update, before the
+ * row is persisted, and again before every send, so a row that predates the guard cannot slip out.
+ * Every case uses a literal IP, so DNS mocking stays in `webhook-url-guard.spec.ts`.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -114,12 +97,9 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
     });
 
     it('does not re-validate the URL when the update leaves it untouched', async () => {
-      // Deliberate: a row already in the table (e.g. from before this guard existed) can still have
-      // its non-URL fields edited without being newly rejected for a URL nobody is trying to change.
-      // The edited field is `events` rather than `secret`: this file sets no
-      // `CREDENTIALS_ENCRYPTION_KEY`, and storing a secret without one is a 503 by design
-      // (`webhooks.service.ts#encryptSecretForStorage`) — which would make this case pass or fail for
-      // a reason that has nothing to do with the URL guard it exists to prove.
+      // A row that predates the guard must stay editable on its non-URL fields. The edit targets
+      // `events`, not `secret`: with no encryption key a secret write is a 503, which has nothing to
+      // do with the guard this case proves.
       mockedPrisma.webhook.findFirst.mockResolvedValue(makeWebhook({ url: 'http://127.0.0.1/legacy' }));
       mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(COMPANY_ROW);
       mockedPrisma.webhook.update.mockResolvedValue(makeWebhook({ url: 'http://127.0.0.1/legacy' }));
@@ -169,10 +149,8 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
       await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
       // THE DNS-rebinding fix: `GenericDriver` must receive and forward the `dispatcher`
-      // `assertPublicWebhookUrl` handed back, not let `fetch` resolve `8.8.8.8`'s (non-)hostname a
-      // second, independent time. A literal IP has nothing to "look up" either way, so the one thing
-      // actually checkable here is that the option reached `fetch` at all — `outbound-url.spec.ts`
-      // owns the exhaustive proof that connecting through it actually lands on the pinned address.
+      // The dispatcher returned by the guard must reach `fetch`; a literal IP has nothing to look up,
+      // so that is the only thing checkable here.
       const opts = fetchSpy.mock.calls[0][1] as RequestInit & { dispatcher?: unknown };
       expect(opts.dispatcher).toBeDefined();
     });

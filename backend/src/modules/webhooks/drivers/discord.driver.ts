@@ -9,9 +9,8 @@ import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interf
 import { instanceIcon, instanceUrl } from './chat-webhook.driver';
 
 /**
- * A bound on how long a single Discord 429 is worth waiting out. `webhooks.service.ts#send` awaits
- * every driver inside one `Promise.all`, so an unbounded wait here would hang the whole batch behind
- * one rate-limited channel — past this bound the send is reported as failed instead.
+ * Bound on how long one Discord 429 is worth waiting out: `send` awaits every driver in one batch,
+ * so an unbounded wait would hang the others behind one rate-limited channel.
  */
 const MAX_RATE_LIMIT_WAIT_MS = 5_000;
 
@@ -33,19 +32,9 @@ function hexToDiscordColor(hex: string): number {
 }
 
 /**
- * Talks to Discord's webhook API directly — `POST` a JSON `{username, avatar_url, embeds}` body to
- * the webhook URL, per Discord's own docs
- * (https://discord.com/developers/docs/resources/webhook#execute-webhook: `content` capped at 2000
- * chars, up to 10 embeds) — instead of going through `@teever/ez-hook`. That dependency was removed
- * because it is a pure-ESM JSR package ts-jest cannot compile (the "ClientsModule inimportable sous
- * ts-jest" item: `ClientsModule → WebhooksModule → DiscordDriver → @teever/ez-hook`, which broke
- * every spec importing `ClientsModule`/`WebhooksModule` as a *module* rather than constructing the
- * service directly — see `clients.module.spec.ts` and the now-obsolete workarounds this removal
- * makes unnecessary in `webhooks.service.spec.ts` and `webhook-fetch-hardening.spec.ts`).
- *
- * Observable output (embed title/description/color/author/footer/fields per event) is unchanged
- * from the `@teever/ez-hook` version this replaces — only the transport changed. `discord.driver.
- * spec.ts` pins the exact payload shape.
+ * Discord's webhook API directly: POST a `{username, avatar_url, embeds}` body at the webhook URL.
+ * Docs: https://discord.com/developers/docs/resources/webhook#execute-webhook.
+ * `discord.driver.spec.ts` pins the payload shape.
  */
 export class DiscordDriver implements WebhookDriver {
   private readonly logger = new Logger(DiscordDriver.name);
@@ -95,9 +84,7 @@ export class DiscordDriver implements WebhookDriver {
   }
 
   /**
-   * One bounded retry on a 429, never a thrown error — a Discord delivery failure must never be
-   * fatal to the event that triggered it (`WebhooksService#send` treats a `false` return as "this
-   * one webhook failed", never as a reason to abort the rest of the batch).
+   * One bounded retry on a 429, never a thrown error: one failed webhook must not abort the batch.
    */
   private async postToDiscord(
     url: string,
@@ -111,12 +98,10 @@ export class DiscordDriver implements WebhookDriver {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        // Never follow redirects — the same SSRF hardening every other driver's own fetch() call
-        // applies (webhook-driver.interface.ts's own header). Discord's real endpoint never
-        // redirects; this only ever matters for a compromised/malicious one.
+        // Never follow redirects, like every driver's own fetch call (webhook-driver.interface.ts).
         redirect: 'manual',
         signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-        // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+        // Pins the address validated by the guard; see webhook-driver.interface.ts.
         dispatcher,
       } as RequestInit);
     } catch (err) {
@@ -140,10 +125,8 @@ export class DiscordDriver implements WebhookDriver {
   }
 
   /**
-   * Discord's rate-limit response (topics/rate-limits) carries the wait both as the `Retry-After`
-   * header (seconds) and as a `retry_after` float in the JSON body — the header is cheaper to read
-   * and present on every 429, so it is tried first; the body is a fallback for a gateway/proxy that
-   * strips it.
+   * Discord sends the wait both as a `Retry-After` header (seconds) and as a `retry_after` float in
+   * the body: the header is tried first, the body covers a proxy that strips it.
    */
   private async readRetryAfterMs(res: Response): Promise<number | undefined> {
     const header = res.headers.get('retry-after');
