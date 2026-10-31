@@ -53,7 +53,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             backend/package-lock.json
@@ -100,7 +100,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Check i18n catalogs (used keys must exist in EN)
         run: node frontend/scripts/i18n-check.mjs
@@ -124,7 +124,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install e2e dependencies
         run: cd e2e && npm ci --ignore-scripts
@@ -176,7 +176,7 @@ jobs:
         # 24: vitest 5 needs >=22.12, and this now matches production too.
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -253,7 +253,7 @@ jobs:
         # 24: vitest 5 needs >=22.12, and this now matches production too.
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -554,7 +554,7 @@ jobs:
         if: steps.scope.outputs.needed == 'true'
         uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install backend dependencies
         if: steps.scope.outputs.needed == 'true'
@@ -789,7 +789,7 @@ jobs:
         if: steps.scope.outputs.needed == 'true'
         uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install backend dependencies
         if: steps.scope.outputs.needed == 'true'
@@ -965,7 +965,7 @@ jobs:
         if: steps.scope.outputs.needed == 'true'
         uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install backend dependencies
         if: steps.scope.outputs.needed == 'true'

@@ -1,11 +1,12 @@
 name: Publish Docker Image to GitHub Container Registry
 
 on:
-  release:
-    types: [ "created" ]
   push:
-    branches:
-      - test/workflow
+    tags:
+      # Every tag, not only digit-led ones: a SemVer tag such as v2.0.0-alpha.8 must fail loudly in
+      # the validation step below, not be ignored silently. The validation refuses anything that is
+      # not CalVer, so no image is ever built or published for it.
+      - '*'
 
 env:
   REGISTRY: ghcr.io
@@ -25,11 +26,12 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    # Read-only: this job only computes tag/cache variables and reads the release list via `gh
-    # release view` (GH_TOKEN below) — it never pushes an image or a package, so it needs neither
-    # `packages: write` (that's `build`/`merge`, which actually push to GHCR) nor any other scope.
-    # Restating the inherited floor rather than leaning on it: this block is what makes the job
-    # read-only even if the top-level one is ever widened for the sake of another job.
+    # Read-only: this job only validates the tag and computes tag/cache variables — it never pushes
+    # an image or a package, so it needs neither `packages: write` (that's `build`/`merge`, which
+    # actually push to GHCR) nor any other scope. The checkout needs `contents: read` only to fetch
+    # main and dev for the branch rule. Restating the inherited floor rather than leaning on it: this
+    # block is what makes the job read-only even if the top-level one is ever widened for the sake of
+    # another job.
     permissions:
       contents: read
     outputs:
@@ -37,49 +39,53 @@ jobs:
       image-tag: ${{ steps.set-vars.outputs.image-tag }}
       cache-ref: ${{ steps.set-vars.outputs.cache-ref }}
       registry-image: ${{ steps.set-vars.outputs.registry-image }}
-      push-latest: ${{ steps.set-vars.outputs.push-latest }}
+      channel: ${{ steps.set-vars.outputs.channel }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The branch rule below needs the real history: a tagged commit has to be contained in
+          # main (stable) or dev (beta/rc), not merely exist somewhere.
+          fetch-depth: 0
+
       - name: Set variables
         id: set-vars
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO_NAME_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           REGISTRY_IMAGE="${REGISTRY}/${REPO_NAME_LOWER}"
-          GIT_REF="$GITHUB_REF"
+          IMAGE_TAG="${GITHUB_REF_NAME}"
+          CALVER='^[0-9]{2}\.(1[0-2]|[1-9])\.[0-9]+(-(beta|rc)\.[0-9]+)?$'
 
-          PUSH_LATEST="false"
-
-          if [[ "$GIT_REF" == refs/tags/* ]]; then
-            IMAGE_TAG=${GIT_REF#refs/tags/}
-            CACHE_REF=release
-            
-            echo "Current Tag: $IMAGE_TAG"
-
-            LATEST_API_TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName' || echo "")
-
-            echo "API Latest Tag: $LATEST_API_TAG"
-            
-            if [[ "$IMAGE_TAG" == "$LATEST_API_TAG" ]]; then
-              PUSH_LATEST="true"
-            fi
-
-          elif [[ "$GIT_REF" == refs/heads/test/workflow ]]; then
-            IMAGE_TAG=test-workflow
-            CACHE_REF=test-workflow
-          else
-            BRANCH_NAME=${GIT_REF#refs/heads/}
-            SAFE_BRANCH_NAME=${BRANCH_NAME//\//-}
-            IMAGE_TAG=${SAFE_BRANCH_NAME}
-            CACHE_REF=branch-${SAFE_BRANCH_NAME}
+          if [[ ! "$IMAGE_TAG" =~ $CALVER ]]; then
+            echo "::error::'${IMAGE_TAG}' is not a CalVer tag. Expected AA.M.N, AA.M.N-beta.N or AA.M.N-rc.N (for example 26.11.0). SemVer tags such as v2.0.0-alpha.8 are refused; nothing is built or published for this tag."
+            exit 1
           fi
+
+          git fetch --no-tags origin main dev
+          if [[ "$IMAGE_TAG" == *-beta.* || "$IMAGE_TAG" == *-rc.* ]]; then
+            CHANNEL=beta
+            CACHE_REF=beta
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/dev && ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::pre-release '${IMAGE_TAG}' must be tagged on a commit contained in dev (or main)."
+              exit 1
+            fi
+          else
+            CHANNEL=stable
+            CACHE_REF=release
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::stable '${IMAGE_TAG}' must be tagged on a commit contained in main; tag a beta or rc on dev first."
+              exit 1
+            fi
+          fi
+
+          echo "Current Tag: $IMAGE_TAG"
+          echo "Channel: $CHANNEL"
 
           {
             echo "repo-name-lower=$REPO_NAME_LOWER"
             echo "image-tag=$IMAGE_TAG"
             echo "cache-ref=$CACHE_REF"
             echo "registry-image=$REGISTRY_IMAGE"
-            echo "push-latest=$PUSH_LATEST"
+            echo "channel=$CHANNEL"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -100,7 +106,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # linux/arm/v7 dropped: Node 24 ships no linux-armv7l build.
+          # linux/arm/v7 dropped: Node 26 ships no linux-armv7l build.
           - platform: linux/amd64
             runner: ubuntu-24.04
           - platform: linux/arm64
@@ -172,7 +178,7 @@ jobs:
     env:
       REGISTRY_IMAGE: ${{ needs.prepare.outputs.registry-image }}
       IMAGE_TAG: ${{ needs.prepare.outputs.image-tag }}
-      PUSH_LATEST: ${{ needs.prepare.outputs.push-latest }}
+      CHANNEL: ${{ needs.prepare.outputs.channel }}
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -191,9 +197,15 @@ jobs:
       - working-directory: /tmp/digests
         run: |
           tags=(-t "$REGISTRY_IMAGE:$IMAGE_TAG")
-          if [[ "$PUSH_LATEST" == "true" ]]; then
+          # Exactly one moving tag per channel: a stable release moves `latest`, a tagged beta/rc
+          # moves `beta`, and neither ever touches the other. `nightly` is docker-dev.yml's, never
+          # this workflow's. A pre-release is therefore never reachable through `latest`.
+          if [[ "$CHANNEL" == "stable" ]]; then
             tags+=(-t "$REGISTRY_IMAGE:latest")
-            echo "Adding the 'latest' tag"
+            echo "Stable release: adding the 'latest' tag"
+          elif [[ "$CHANNEL" == "beta" ]]; then
+            tags+=(-t "$REGISTRY_IMAGE:beta")
+            echo "Pre-release: adding the 'beta' tag"
           fi
           refs=()
           for digest in *; do refs+=("$REGISTRY_IMAGE@sha256:$digest"); done

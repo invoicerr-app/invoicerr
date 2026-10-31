@@ -156,7 +156,7 @@ verbatim.
 
 {{- define "invoicerr.appImage" -}}
 {{- if not (or .Values.image.tag .Values.image.digest (contains "@" .Values.image.repository)) -}}
-{{- required "Set image.tag (for example v2.0.0-alpha.5): this chart runs Invoicerr 2.x and has no default image." nil -}}
+{{- required "Set image.tag (for example 26.11.0): this chart runs Invoicerr 2.x and has no default image." nil -}}
 {{- end -}}
 {{- include "invoicerr.image" (dict "image" .Values.image) -}}
 {{- end -}}

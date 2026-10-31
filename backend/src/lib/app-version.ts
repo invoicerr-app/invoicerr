@@ -6,9 +6,9 @@
  * does not duplicate the same twin-path lookup a second time.
  *
  * ## Why the update-check feature does NOT just use `readBackendPackageJsonVersion()`
- * `backend/package.json`'s own `version` field has never tracked this product's actual releases — it
- * reads "0.0.1" while GitHub's newest tag is `v2.0.0-alpha.1` (checked 2026-09-23, pre-existing, not
- * something this file fixes). What DOES track the real release is `INVOICERR_REF_NAME`, the
+ * `backend/package.json`'s own `version` field is only a display fallback: it carries the next
+ * CalVer release (`26.11.0`), not necessarily the tag this build was cut from. What DOES track the
+ * real release is `INVOICERR_REF_NAME`, the
  * Dockerfile's own build-time env var baked from the exact git ref the image was built from — a
  * release tag on a real release build (`docker-publish.yml`'s `GIT_REF_NAME=${{ github.ref_name }}`),
  * the `dev-...` image tag on a dev image (`docker-dev.yml`), a branch name on a PR image
