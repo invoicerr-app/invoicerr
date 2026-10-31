@@ -19,7 +19,10 @@ export class HealthController {
     summary: 'Health check',
     description:
       'Returns 200 when Postgres and Redis both answer, 503 otherwise (public). The 200 body carries ' +
-      'both ping latencies, the running version, the server time (ISO 8601 UTC) and the process uptime.',
+      'both ping latencies, the running version, the server time (ISO 8601 UTC), the process uptime ' +
+      'and the log-persistence counters. `status` is "degraded", still with a 200, once `Log` row ' +
+      'writes have failed several times in a row: the API serves, but its log screen is not being ' +
+      'written to.',
   })
   @ApiResponse({ status: 200, description: 'Service healthy' })
   @ApiResponse({ status: 503, description: 'Database or Redis unreachable' })

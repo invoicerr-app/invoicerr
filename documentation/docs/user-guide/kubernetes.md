@@ -459,7 +459,8 @@ directly:
 kubectl port-forward svc/invoicerr-api 8080:80
 curl http://localhost:8080/api/health
 # {"status":"ok","database":"up","databaseLatencyMs":1,"redis":"up","redisLatencyMs":1,
-#  "version":"v2.0.0-alpha.4","time":"2026-10-11T08:24:06.172Z","uptimeSeconds":36}
+#  "version":"v2.0.0-alpha.4","time":"2026-10-11T08:24:06.172Z","uptimeSeconds":36,
+#  "logPersistence":{"status":"ok","failures":0,"consecutiveFailures":0,"lastFailureAt":null}}
 ```
 
 :::info[What /api/health reports]
@@ -470,6 +471,12 @@ curl http://localhost:8080/api/health
   branch name for a branch image, and the `backend/package.json` version outside a published image.
   It is the same value `GET /api/version` reports as `currentVersion`.
 - `time`: the server clock in ISO 8601 UTC, to measure clock skew. `uptimeSeconds`: process uptime.
+- `logPersistence`: `{"status":"ok","failures":0,"consecutiveFailures":0,"lastFailureAt":null}`.
+  Every `Log` row write that fails is counted, without ever failing the request that produced the
+  line. After 5 consecutive failed writes `status` becomes `degraded` (still HTTP 200, because
+  Postgres and Redis are answering): the API keeps serving, but the log screen is not being written
+  to. `lastFailureAt` is `null` until the first failure. Each process reports its own counters, so a
+  multi-replica install shows one signal per replica.
 - `503 {"status":"error","database":"down"}` when Postgres does not answer, whatever Redis says.
 - `503 {"status":"error","database":"up","redis":"down"}` when only Redis does not answer. Every other
   route fails without Redis, so the instance is reported down. A monitor that matches the body
