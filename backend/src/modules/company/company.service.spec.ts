@@ -243,6 +243,7 @@ describe('CompanyService - the company profile its country asks for', () => {
         'sizeCategory',
         'vatRegime',
         'vatDebitsOption',
+        'vatGroupMember',
       ]);
       expect(attributes[0].values.map((value) => value.value)).toEqual(['LARGE', 'MID', 'SME', 'MICRO']);
       expect(attributes[1].derived).toEqual({
@@ -251,6 +252,7 @@ describe('CompanyService - the company profile its country asks for', () => {
         whenFalse: 'NORMAL',
       });
       expect(attributes[2].askedWhen).toEqual({ vatRegime: ['NORMAL'] });
+      expect(attributes[3].values.map((value) => value.value)).toEqual(['yes', 'no']);
       expect(info?.companyProfileValues).toEqual({ vatRegime: 'NORMAL' });
     });
   });
