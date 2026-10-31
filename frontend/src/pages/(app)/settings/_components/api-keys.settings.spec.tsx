@@ -37,11 +37,12 @@ function installFetchMock(handlers: Record<string, FetchHandler>) {
   return fn
 }
 
-async function renderWithCreatedKey() {
+/** Renders the screen with a chosen outcome for the create call; every other endpoint is fixed. */
+function renderSettings(createHandler: FetchHandler) {
   installFetchMock({
     "GET /api/api-keys": () => ({ body: [] }),
     "GET /api/api-keys/options": () => ({ body: { scopes: [] } }),
-    "POST /api/api-keys": () => ({ body: { key: "ivr_live_abcdef123456" } }),
+    "POST /api/api-keys": createHandler,
     // `useDemoMode` (issue #533) goes through `useLegalDocuments`, which needs a QueryClientProvider
     // ancestor (below) plus this endpoint mocked, same as every other fetch this component makes.
     "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
@@ -55,8 +56,16 @@ async function renderWithCreatedKey() {
       <ApiKeysSettings />
     </QueryClientProvider>,
   )
-  fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "CLI on my laptop" } })
+}
+
+async function submitCreate(name: string) {
+  fireEvent.change(await screen.findByLabelText("Name"), { target: { value: name } })
   fireEvent.click(screen.getByRole("button", { name: "Create API Key" }))
+}
+
+async function renderWithCreatedKey() {
+  renderSettings(() => ({ body: { key: "ivr_live_abcdef123456" } }))
+  await submitCreate("CLI on my laptop")
 
   // The created-key panel only exists once the create call resolves — its own Copy button is the
   // one and only "Copy" control on screen at that point.
@@ -106,5 +115,14 @@ describe("<ApiKeysSettings> — copy outcome", () => {
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Copied to clipboard"))
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  // Issue #708: creation used to fail into `console.error` only, with no visible feedback.
+  it("shows an error toast when creating a key fails", async () => {
+    renderSettings(() => ({ status: 500, body: { message: "Internal server error" } }))
+    await submitCreate("CLI on my laptop")
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to create API key"))
+    expect(screen.queryByLabelText("Copy")).not.toBeInTheDocument()
   })
 })
