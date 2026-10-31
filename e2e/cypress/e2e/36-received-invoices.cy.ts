@@ -458,9 +458,13 @@ describe("Receiving invoices", () => {
 			expect(created, "le document créé malgré l'écart est bien retrouvé par l'API").to.exist;
 			expect(created?.status).to.eq("received");
 
-			const warnings = created?.data.lineTotalWarnings as string[];
+			const warnings = created?.data.lineTotalWarnings as {
+				key: string;
+				params?: Record<string, unknown>;
+			}[];
 			expect(warnings, "un avertissement NOMMÉ est porté par le document").to.have.length(1);
-			expect(warnings[0]).to.match(/Line total mismatch \(gross \/ TTC\)/);
+			expect(warnings[0].key).to.eq("documents.messages.lineTotals.mismatch");
+			expect(warnings[0].params?.total).to.eq("gross / TTC");
 
 			// … and it is VISIBLE ON SCREEN when reopening the document from the list (not only at
 			// creation time — the document CARRIES it).
@@ -503,7 +507,7 @@ describe("Receiving invoices", () => {
 			})
 				.its("body")
 				.then((updated) => {
-					expect(updated.data.lineTotalWarnings as string[]).to.have.length(0);
+					expect(updated.data.lineTotalWarnings as unknown[]).to.have.length(0);
 					expect((updated.data.lines as { quantity: number }[])[0].quantity).to.eq(5);
 				});
 		});

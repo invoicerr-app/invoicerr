@@ -9,6 +9,7 @@
  * other widget-producing function in this codebase already holds.
  */
 import { ShortListWidget } from '../contributions/widgets';
+import { serverMessage } from '../messages/server-message';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { DocumentScheduleRecord } from './schedule.persistence';
 
@@ -53,10 +54,7 @@ export function buildUpcomingSchedulesWidget(
     label: 'Upcoming recurrences',
     ...(period
       ? {
-          warnings: [
-            'The selected period does not apply to this list: it always shows the next scheduled ' +
-              'runs, regardless of the active period.',
-          ],
+          warnings: [serverMessage('documents.messages.widgets.schedulesPeriodIgnored')],
         }
       : {}),
     items: upcoming.map((schedule) => ({

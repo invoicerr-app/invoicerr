@@ -1,3 +1,4 @@
+import { formatServerMessage } from '../messages/server-message';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { ROW_ID_KEY } from '../row-selection/row-selection';
@@ -126,9 +127,9 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings).toHaveLength(1);
     // The warning still NAMES the credit note (by displayNumber when it has one) and both currencies
     // — never silent about the mismatch, even though it no longer blocks anything.
-    expect(warnings[0]).toContain('CN-2026-0001');
-    expect(warnings[0]).toContain('USD');
-    expect(warnings[0]).toContain('EUR');
+    expect(formatServerMessage(warnings[0])).toContain('CN-2026-0001');
+    expect(formatServerMessage(warnings[0])).toContain('USD');
+    expect(formatServerMessage(warnings[0])).toContain('EUR');
   });
 
   it('falls back to the raw id in the warning when the credit note has no displayNumber yet', () => {
@@ -141,7 +142,7 @@ describe('creditsForInvoiceFromNotes', () => {
 
     const { warnings } = creditsForInvoiceFromNotes(notes, 'inv-1', INVOICE_DESCRIPTOR, invoiceData);
 
-    expect(warnings[0]).toContain('cn-raw-id');
+    expect(formatServerMessage(warnings[0])).toContain('cn-raw-id');
   });
 
   it('a mix of matching, foreign-currency-labeled, draft, and unrelated credit notes resolves each independently — the foreign-labeled one still counts', () => {
@@ -167,7 +168,7 @@ describe('creditsForInvoiceFromNotes', () => {
       { id: 'foreign', displayNumber: null, amountMinor: 6000, currency: 'EUR' },
     ]);
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain('foreign');
+    expect(formatServerMessage(warnings[0])).toContain('foreign');
   });
 });
 

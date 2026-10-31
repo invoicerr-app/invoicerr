@@ -98,13 +98,31 @@ show no `?` at all:
 
 ```tsx
 <ProseHelp tone="warning" title={t("documents.totals.taxWarningsTitle")} dataCy="document-tax-warnings">
-  {warnings}
+  {formatServerMessages(t, warnings)}
 </ProseHelp>
 
 <ProseHelp title={t("documents.archive.retainUntil", { date })} dataCy="document-archive-retention">
-  {archive.retentionBasis}
+  {archive.retentionBasisMessage
+    ? formatServerMessage(t, archive.retentionBasisMessage)
+    : archive.retentionBasis}
 </ProseHelp>
 ```
+
+### Server-composed text is a message, never a sentence
+
+An explanation the server composes (tax warnings, line-total and credit warnings, currency notes,
+retention citations) crosses the API as `{ key, params }`, never as a finished English sentence. The
+frontend renders it through `t()` with `formatServerMessage` / `formatServerMessages`
+(`@/lib/server-message`), so the same warning is translatable on screen and still printable in a PDF.
+
+- The English text lives once in `backend/src/modules/documents/messages/messages.en.ts` and, under
+  the same key and with the same `{{name}}` placeholders, in
+  `frontend/src/locales/en/translation.json`. `messages.en.spec.ts` fails when the two drift.
+- Values (a country code, a rate, a rule label, a statute reference) travel as `params`; never build a
+  sentence in a `params` value.
+- A key is typed against the backend catalog, so an unknown key is a compile error.
+- Anything the server itself prints (the rendered PDF) formats the same message with
+  `formatServerMessage`, from the same English catalog.
 
 A settings page, section or field group takes the long text through its `help` prop instead of
 `description`; `description` stays for one short line:

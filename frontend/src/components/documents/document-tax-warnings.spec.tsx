@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import type { ServerMessage } from "@/lib/server-message"
 import { DocumentTaxWarnings, DocumentTaxWarningsSection } from "./document-tax-warnings"
 
-// The warning texts are what the backend engine emits, verbatim (documents.service.tax-warnings.spec.ts).
+// The messages are what the backend engine emits (documents.service.tax-warnings.spec.ts); the
+// English text they render is the catalog the backend also uses for its PDF.
 vi.mock("@/hooks/queries", () => ({
   useDocumentTaxWarnings: vi.fn(),
 }))
@@ -12,16 +14,15 @@ import { useDocumentTaxWarnings } from "@/hooks/queries"
 
 const mockedUseDocumentTaxWarnings = vi.mocked(useDocumentTaxWarnings)
 
-const UNCONFIRMED_VAT_WARNING =
-  'Buyer VAT number "DE136695976" has not been confirmed valid yet (status: not checked), so this ' +
-  "buyer is treated as B2C until it is verified, never a silent B2B."
+const UNCONFIRMED_VAT_WARNING = {
+  key: "documents.messages.tax.buyerVatUnverified",
+  params: { vatNumber: "DE136695976", status: "not checked" },
+}
 
-const OSS_STANDARD_RATE_WARNING =
-  "This invoice is an intra-Community distance sale taxed in DE (EU One-Stop-Shop, Directive " +
-  "2006/112/EC art. 33(a)), so DE's STANDARD VAT rate (19%) was applied. DE's own reduced rates are " +
-  "not modelled here and an invoice line carries nothing that says which products they cover. " +
-  "Check the destination rate yourself if what you are selling is reduced-rated there, or this " +
-  "invoice over-charges the customer."
+const OSS_STANDARD_RATE_WARNING = {
+  key: "documents.messages.tax.ossStandardRate",
+  params: { country: "DE", rate: 19 },
+}
 
 describe("<DocumentTaxWarnings>: what the seller reads next to the amounts", () => {
   it("shows a one-line warning status, the explanation stays behind its help button", () => {
@@ -63,7 +64,7 @@ describe("<DocumentTaxWarnings>: what the seller reads next to the amounts", () 
 describe("<DocumentTaxWarningsSection>: the fetching half, wired to the endpoint", () => {
   afterEach(() => vi.resetAllMocks())
 
-  function answer(warnings: string[] | undefined) {
+  function answer(warnings: ServerMessage[] | undefined) {
     mockedUseDocumentTaxWarnings.mockReturnValue({
       data: warnings === undefined ? undefined : { warnings },
     } as ReturnType<typeof useDocumentTaxWarnings>)

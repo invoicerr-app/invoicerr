@@ -9,6 +9,7 @@ import { actionAssignsNumber } from "@/components/documents/action-presentation"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { DocumentField } from "@/components/documents/document-field"
 import { BlockedActionReason, LineTotalWarnings } from "@/components/documents/document-form"
+import type { ServerMessage } from "@/lib/server-message"
 import { DocumentTotals, useDocumentTotals } from "@/components/documents/document-totals"
 import type {
   DocumentActionDescriptor,
@@ -114,7 +115,7 @@ function FieldsStep({
 }: {
   fields: DocumentFieldDescriptor[]
   documentTypeId: string
-  lineTotalWarnings?: string[]
+  lineTotalWarnings?: ServerMessage[]
 }) {
   return (
     <div className="space-y-6 sm:space-y-4" data-cy="document-form">

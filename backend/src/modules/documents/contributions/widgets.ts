@@ -1,4 +1,5 @@
 import { WidgetLocation } from '../descriptors/types';
+import { ServerMessage } from '../messages/server-message';
 
 /**
  * The WIDGET vocabulary a document type's contribution renders into — the aggregation-screen
@@ -22,14 +23,14 @@ export interface WidgetBase {
   /** Human-facing, plain data — same convention as DocumentTypeDescriptor.label, not an i18n key: a
    *  plugin's widget can be labelled in any language. */
   label: string;
-  /** Plain-English caveats about THIS widget's own numbers — same convention as
+  /** Caveats about THIS widget's own numbers, as translatable messages — same convention as
    *  DocumentTotals.warnings/CreditsForDocument.warnings (documents/totals, documents/settlement):
    *  never thrown, always shown. Introduced for currency consolidation
    *  (contributions/currency-consolidation.ts) — a converted metric names the rate(s) it used here
    *  ("USD→EUR @ 1.0842 (manual, 2026-08-15)"), and a currency missing a rate is named here on the
    *  ordinary per-currency widgets when no consolidated one could be built at all. Optional and
    *  absent on every widget that has nothing to caveat — the common case, unaffected. */
-  warnings?: string[];
+  warnings?: ServerMessage[];
   /** Whether the amounts shown include VAT. Data, not label text, so every locale can render it. */
   basis?: AmountBasis;
 }

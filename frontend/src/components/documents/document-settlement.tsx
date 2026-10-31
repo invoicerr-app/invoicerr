@@ -5,6 +5,7 @@ import { useDocumentSettlement, usePaymentMethods } from "@/hooks/queries"
 import { Badge } from "@/components/ui/badge"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
+import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
@@ -303,7 +304,7 @@ export function DocumentSettlementSection({ typeId, documentId }: DocumentSettle
                 title={t("documents.settlement.warningsTitle")}
                 dataCy="document-settlement-warnings"
               >
-                {warnings}
+                {formatServerMessages(t, warnings)}
               </ProseHelp>
             )}
           </div>

@@ -42,6 +42,7 @@ import { determineLineTax } from './tax-engine';
 import { ALL_TAX_SYSTEM_FILES } from './tax-systems/data/all';
 import { defaultTaxSystemRegistry, TaxSystemRegistry } from './tax-systems/registry';
 import { DistanceSalesRegime, DocumentLine, PartyTaxProfile, SupplyType } from './types';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 const vat = new TrustFlagVatValidator();
 const prof = (cc: string) => defaultTaxSystemRegistry.resolve(cc)!;
@@ -296,8 +297,8 @@ describe('resolveInvoiceCrossBorderTax → computeDocumentTotals: what the Germa
     // line says "this is a book", so the engine cannot know and must not pretend. It states what it
     // applied instead of applying it silently.
     expect(resolved.warnings).toHaveLength(1);
-    expect(resolved.warnings[0]).toMatch(/STANDARD VAT rate \(19%\)/);
-    expect(resolved.warnings[0]).toMatch(/reduced rates are not modelled/);
+    expect(formatServerMessage(resolved.warnings[0])).toMatch(/STANDARD VAT rate \(19%\)/);
+    expect(formatServerMessage(resolved.warnings[0])).toMatch(/reduced rates are not modelled/);
   });
 
   it('ORIGIN emits no such warning — there is no destination rate involved to caveat', () => {

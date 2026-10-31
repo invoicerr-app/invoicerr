@@ -3,6 +3,8 @@
 // DocumentKindRule already did for the — now removed — compliance engine): this is a wire shape,
 // not code.
 
+import type { ServerMessage } from "@/lib/server-message"
+
 export interface DocumentFieldOption {
   value: string
   label: string
@@ -322,7 +324,7 @@ export interface DerivedDocumentTotals {
   vatMinor: number
   grossMinor: number
   vatBreakdown: { ratePercent: number; baseMinor: number; vatMinor: number }[]
-  warnings: string[]
+  warnings: ServerMessage[]
   showVat?: boolean
 }
 
@@ -447,7 +449,7 @@ export interface DocumentSettlementResult {
   totals: { currency: string | null; grossMinor: number }
   payments: DocumentPayment[]
   credits: DocumentCredit[]
-  warnings: string[]
+  warnings: ServerMessage[]
   settlement: DocumentSettlement
 }
 
@@ -455,10 +457,10 @@ export interface DocumentSettlementResult {
  *  Non-fatal caveats the cross-border tax resolution recorded about THIS document's own amounts (a
  *  buyer VAT number it could not confirm, a destination whose reduced rates it cannot reach). Always
  *  present, empty for a domestic invoice, for a blocked one, and for every type but the invoice — so
- *  the screen reads `.warnings.length` and never has to guard a missing key. English prose formed by
- *  the server, shown verbatim: see `document-tax-warnings.tsx` for why there is no key to translate. */
+ *  the screen reads `.warnings.length` and never has to guard a missing key. Each warning is a
+ *  `ServerMessage` the screen renders through `t()` (`lib/server-message.ts`). */
 export interface DocumentTaxWarningsResult {
-  warnings: string[]
+  warnings: ServerMessage[]
 }
 
 /** Mirrors the backend's `ActionTransmissionPreview` (actions/action-registry.ts) - issue #581's own
@@ -495,6 +497,9 @@ export interface DocumentArchive {
   archivedAt: string
   retentionUntil: string | null
   retentionBasis: string | null
+  /** The same citation as a translatable message; null on rows written before that column existed,
+   *  which the screen renders from `retentionBasis` instead. */
+  retentionBasisMessage: ServerMessage | null
   /** Mirrors the backend's `retentionCalcVersion` column (see `schema.prisma`'s own comment and the
    *  backend's `archive/retention/calc-version.ts`). NULL for a row written before that column
    *  existed — which includes every row computed by the pre-`cf2e7323` bug that counted every

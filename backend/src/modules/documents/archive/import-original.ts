@@ -24,6 +24,7 @@
  * imported document's archive is exactly as undeletable as a sent one's: no NEW guard was needed.
  */
 import prisma from '@/prisma/prisma.service';
+import { ServerMessage } from '../messages/server-message';
 import { DocumentArchiveKind, Prisma } from '../../../../prisma/generated/prisma/client';
 
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
@@ -96,6 +97,7 @@ export async function createImportOriginalArchive(
       archivedAt,
       retentionUntil: resolved.retentionUntil,
       retentionBasis: resolved.retentionBasis,
+      retentionBasisMessage: resolved.retentionBasisMessage as unknown as Prisma.InputJsonValue,
       retentionCalcVersion: CURRENT_RETENTION_CALC_VERSION,
     },
   });
@@ -112,6 +114,7 @@ export async function createImportOriginalArchive(
     archivedAt: created.archivedAt,
     retentionUntil: created.retentionUntil,
     retentionBasis: created.retentionBasis,
+    retentionBasisMessage: (created.retentionBasisMessage ?? null) as unknown as ServerMessage | null,
     retentionCalcVersion: created.retentionCalcVersion,
   };
   return result;

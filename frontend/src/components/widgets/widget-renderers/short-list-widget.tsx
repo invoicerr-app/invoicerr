@@ -6,6 +6,7 @@ import { DocumentStatusBadge } from "@/components/documents/document-status-badg
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { cn } from "@/lib/utils"
+import { formatServerMessages } from "@/lib/server-message"
 
 import type { ShortListItem, ShortListWidget } from "@/components/widgets/types"
 import { WidgetValue } from "@/components/widgets/widget-value"
@@ -106,7 +107,7 @@ export function ShortListWidgetRenderer({ widget }: WidgetRendererProps) {
         {shortList.warnings?.length ? (
           <WidgetValue className="mt-2">
             <ProseHelp title={t("widgets.notesTitle")} dataCy={`widget-${shortList.id}-warnings`}>
-              {shortList.warnings}
+              {formatServerMessages(t, shortList.warnings)}
             </ProseHelp>
           </WidgetValue>
         ) : null}

@@ -19,6 +19,7 @@ import * as receivedExtraction from './received-invoices/extraction';
 import * as receivedStorage from './received-invoices/storage';
 import { PdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
 import { TransportRegistry } from './transports/transport-registry';
+import { formatServerMessage, formatServerMessages } from './messages/server-message';
 
 vi.mock('./persistence');
 // See documents.service.credit-note.spec.ts's own header for why this module is mocked here: the
@@ -186,7 +187,9 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
 
     const persistedData = (persistence.upsertDocument as Mock).mock.calls[0][4];
     expect(persistedData.lineTotalWarnings).toHaveLength(1);
-    expect(persistedData.lineTotalWarnings[0]).toMatch(/Line total mismatch \(net \/ HT\)/);
+    expect(formatServerMessage(persistedData.lineTotalWarnings[0])).toMatch(
+      /Line total mismatch \(net \/ HT\)/,
+    );
   });
 
   it('"receive" persists an EMPTY `lineTotalWarnings` when the lines agree with the stated totals', async () => {

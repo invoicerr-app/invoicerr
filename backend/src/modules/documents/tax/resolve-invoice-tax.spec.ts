@@ -11,6 +11,7 @@ import {
 import { DocumentTaxResult } from './tax-engine';
 import { ALL_TAX_SYSTEM_FILES } from './tax-systems/data/all';
 import { TaxSystemRegistry } from './tax-systems/registry';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 const FR_DE_VALID_VAT = 'DE136695976'; // a widely-published, checksum-valid German VAT number
 
@@ -118,7 +119,9 @@ describe('resolveInvoiceCrossBorderTax — domestic seller under a non-STANDARD 
     });
     expect(result.crossBorder).toBe(false);
     expect(result.data).toBe(data); // same reference — nothing this catalog can safely rewrite
-    expect(result.warnings.join(' ')).toMatch(/no VAT\/GST tax system is known for its own country/);
+    expect(formatServerMessages(result.warnings).join(' ')).toMatch(
+      /no VAT\/GST tax system is known for its own country/,
+    );
   });
 
   // NON-REGRESSION — DoD's own requirement: an ORDINARY (non-exempt) domestic seller must be
@@ -319,7 +322,7 @@ describe('resolveInvoiceCrossBorderTax — FR→DE B2C GOODS: OSS now resolves a
     // so instead of rewriting the rate in silence. The emptiness this used to assert was the
     // silence, not a proof that nothing was wrong.
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/STANDARD VAT rate \(19%\)/);
+    expect(formatServerMessage(result.warnings[0])).toMatch(/STANDARD VAT rate \(19%\)/);
   });
 
   it('re-resolving the already-resolved 19% OSS line is stable (idempotence — the same property the B2B paths already prove)', () => {
@@ -443,7 +446,7 @@ describe('resolveInvoiceCrossBorderTax — the OSS block itself still fires for 
     });
     const line = (result.data.lines as Record<string, unknown>[])[0];
     expect(line.vatRate).toBe('20'); // FR's own standard-rate fallback
-    expect(result.warnings.join(' ')).toMatch(/not one of FR's known VAT rates/);
+    expect(formatServerMessages(result.warnings).join(' ')).toMatch(/not one of FR's known VAT rates/);
   });
 
   it("a DESTINATION-regime GOODS line (OSS) is UNAFFECTED by taxRateHint resolution — its own rate is still the destination country's standard rate", () => {
@@ -478,7 +481,7 @@ describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number neve
     // never reverse-charged for a buyer this function refused to call B2B.
     const line = (result.data.lines as Record<string, unknown>[])[0];
     expect(line.__crossBorderCategory).not.toBe('AE');
-    expect(result.warnings.join(' ')).toMatch(/not syntactically valid/);
+    expect(formatServerMessages(result.warnings).join(' ')).toMatch(/not syntactically valid/);
   });
 
   it('a syntactically valid but unverified (VIES) VAT number is treated as B2C, with a named warning', () => {
@@ -493,7 +496,7 @@ describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number neve
     });
     const line = (result.data.lines as Record<string, unknown>[])[0];
     expect(line.__crossBorderCategory).not.toBe('AE');
-    expect(result.warnings.join(' ')).toMatch(/has not been confirmed valid yet/);
+    expect(formatServerMessages(result.warnings).join(' ')).toMatch(/has not been confirmed valid yet/);
   });
 });
 
