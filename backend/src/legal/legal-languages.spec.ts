@@ -14,6 +14,11 @@ describe('isLegalDocumentLanguage', () => {
 
   it('rejects an unsupported code, garbage, and non-strings without throwing', () => {
     expect(isLegalDocumentLanguage('es')).toBe(false);
+    // `de`, `it`, `pl`, `pt` were in the catalog before D-297; they are languages the product still
+    // renders PDFs in, but no longer legal-document languages — the API falls back to English for them.
+    for (const withdrawn of ['de', 'it', 'pl', 'pt']) {
+      expect(isLegalDocumentLanguage(withdrawn)).toBe(false);
+    }
     expect(isLegalDocumentLanguage('FR')).toBe(false); // case-sensitive — callers normalize first
     expect(isLegalDocumentLanguage('')).toBe(false);
     expect(isLegalDocumentLanguage(undefined)).toBe(false);

@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-10-25
+effectiveDate: 2026-10-25
 ---
 
 :::warning[Draft]
@@ -19,20 +19,13 @@ commitments, fees, or limitations below apply to a self-hosted deployment.
 
 ## 1. Acceptance, Parties and Eligibility
 
-1.1. These Terms form a binding agreement between **Roméo Chevrier, sole trader (entrepreneur
-individuel)**, an **entrepreneur individuel (micro-entreprise) under French law**, registered under
-number **SIREN 982 187 676 (SIRET 982 187 676 00019)**, with his registered address at **4 rue du
-Puits, 26120 Montélier, France**, VAT: **VAT not applicable — Art. 293 B of the French General Tax
-Code (franchise en base)** (this VAT status is a representation by the Provider; the public Sirene
-registry does not itself return a VAT regime field) ("**we**", "**us**", "**the Provider**"), and the
-entity that uses the Service ("**you**", "**the Customer**"). By creating an account, starting a
-trial, or subscribing to the Service, you accept these Terms in full.
-
-1.5. **Who sells the subscription.** The paid subscription is not sold by us. It is sold to you by
-**Polar Software, Inc.** ("**Polar**"), which acts as merchant of record and reseller of the Service
-(Section 7.1). Your purchase is a contract between you and Polar, governed by Polar's own terms. These
-Terms are the terms of the Supplier (the Provider) that Polar's terms refer to: they govern your access
-to and use of the Service.
+1.1. These Terms form a binding agreement between **INVOICERR**, a société par actions simplifiée
+(**SAS**) under French law, with a share capital of **100 euros**, registered office at
+**63 avenue Jules Guesde, 69200 Vénissieux, France**, registered with the Lyon Trade and Companies
+Register (RCS Lyon) under number `[to be completed at registration]`, intra-EU VAT number
+`[to be completed]`, represented by its president, **Roméo Chevrier** ("**we**", "**us**", "**the
+Provider**"), and the entity that uses the Service ("**you**", "**the Customer**"). By creating an
+account, starting a trial, or subscribing to the Service, you accept these Terms in full.
 
 1.2. **The Service is offered strictly business-to-business (B2B).** By entering into this Agreement
 you represent and warrant that you are acting for purposes within your trade, business, craft, or
@@ -43,11 +36,8 @@ right of withdrawal (*droit de rétractation*)** in respect of your subscription
 1.3. If you subscribe on behalf of an organization, you represent that you have the authority to bind
 that organization, and "you" then refers to that organization.
 
-1.4. **Future transfer to a company.** The Provider is currently a sole trader. He may, at his sole
-discretion, transfer this Agreement — together with the Service — to a company he incorporates to
-operate the Service, upon at least **thirty (30) days' prior notice** to you by email. Such a transfer
-does not reduce the rights you hold under these Terms; the transferee company assumes the Provider's
-obligations under this Agreement in full.
+1.4. **Who sells the subscription.** We sell the subscription to you ourselves, under these Terms, and
+we issue the invoices for it (Section 7). No reseller or merchant of record stands between you and us.
 
 ## 2. Definitions
 
@@ -60,8 +50,8 @@ obligations under this Agreement in full.
 - **"Owner"** — the user who created a Company, or was later granted that role.
 - **"Seat"** — a billable slot corresponding to one user account attached to a Company; see
   Section 6.2.
-- **"Fees"**: the price of your subscription, as published on our pricing page and charged to you
-  by Polar (Section 7).
+- **"Fees"**: the price of your subscription, as published on our pricing page and invoiced to you
+  by us (Section 7).
 - **"Your Data"** — the documents, business records, configuration, and other content you or your
   users input into, or generate through, the Service.
 
@@ -113,37 +103,45 @@ a pending, unaccepted invitation is never billed.
 tiers, is published on our pricing page and may be revised from time to time; the rate in effect at
 the start of each billing period governs that period.
 
-6.4. You choose a **monthly** or an **annual** billing cycle. Polar charges an annual subscription
-once, in advance, for twelve (12) times the then-current monthly per-Seat rate, multiplied by your Seat
-count at the time of billing.
+6.4. You choose a **monthly** or an **annual** billing cycle. Each billing period is invoiced and
+charged in advance, at its start. An annual subscription is charged once, at the annual per-Seat rate
+published on our pricing page, multiplied by your Seat count at the time of billing.
 
-## 7. Purchase from Polar, Payment, Invoices and Taxes
+## 7. Payment, Invoices and Taxes
 
-7.1. **Polar is the seller.** Polar Software, Inc. ("Polar") acts as **merchant of record** and
-reseller of the Service. You buy the subscription from Polar, through Polar's checkout, under Polar's
-[Buyer Terms and Conditions](https://polar.sh/legal/checkout-buyer-terms), which govern the purchase,
-the payment, cancellation of the purchase, refunds, and chargebacks. These Terms govern your right to
-access and use the Service. Where Polar's terms and these Terms deal with the same matter, Polar's
-terms govern the purchase and the payment, and these Terms govern the use of the Service.
+7.1. **Payment.** Payment is processed by **Stripe**, our payment provider, by card or SEPA direct
+debit. By subscribing, you authorize us to charge the means of payment you register, through Stripe,
+for the Fees of each billing period at its start, and for any other amount due under these Terms.
 
-7.2. **Payment, invoices and taxes.** Polar charges the Fees, in **United States Dollars (USD)**,
-calculates, collects, and remits any sales tax, VAT, or similar tax due, and issues the invoice for your
-subscription. **Fees published on our pricing page are exclusive of VAT and any similar tax**, which
-Polar adds at checkout where it applies. We do not invoice you for the subscription and never ask you
-to pay us directly.
+7.2. **Invoices and taxes.** We issue an invoice for each billing period. **Fees are stated and charged
+in euros, exclusive of VAT.** While we benefit from the French VAT exemption for small businesses
+(*franchise en base*, Art. 293 B of the French General Tax Code), no French VAT is charged, and our
+invoices carry the corresponding mention. If you are a business established in another member state
+of the European Union, the reverse-charge mechanism applies: our invoice carries no VAT and you account
+for the VAT due in your own member state; you must give us your valid intra-EU VAT number for that
+purpose. If we cease to benefit from the franchise en base, VAT at the applicable rate is added to the
+Fees, which remain exclusive of VAT.
 
 7.3. Your Seat count is kept in sync with your Company's actual membership throughout the billing
-period; changes are reflected in the Fees Polar charges for the following billing cycle unless
-Polar's billing mechanics apply a change sooner.
+period; changes are reflected in the Fees invoiced for the following billing cycle.
 
 7.4. This Agreement covers only your subscription to the Service. It does **not** cover any means you
 connect to collect payment from **your own** customers on the invoices **you** issue through the
-Service (e.g. a Stripe, Mollie, or PayPal account) — see Section 14.3.
+Service (e.g. a Stripe, Mollie, or PayPal account of your own, distinct from the Stripe account
+through which we charge your subscription); see Section 14.3.
 
 7.5. **No switching fees, disclosed in advance.** Before you subscribe, we tell you plainly, in these
 Terms and on our pricing page: the Fees you will pay (Section 6.3); that we charge no
 early-termination penalty (Section 12.2); and that we charge no fee, of any kind, to switch away from
 the Service (Section 9.6).
+
+7.6. **Late payment.** The Fees are due on the date stated on the invoice. Any amount not paid by that
+date bears, from the following day and without any reminder being necessary, late payment penalties at
+the rate the European Central Bank applies to its most recent refinancing operation, plus ten (10)
+percentage points, together with a fixed indemnity of forty (40) euros for recovery costs, in
+accordance with article L441-10 of the French Commercial Code. Where the recovery costs actually
+incurred exceed that indemnity, we may claim additional compensation, on justification. An unresolved
+payment failure also leads to the suspension described in Section 13.1.
 
 ## 8. Data Ownership and Portability
 
@@ -151,12 +149,13 @@ the Service (Section 9.6).
 use it solely to provide the Service to you, as described in Section 15.
 
 8.2. You can export your accounting ledger (invoices, credit notes, and payments) to CSV at any time
-from within the Service. You can also generate a full export of Your Data — the stored fields and,
-where renderable, a PDF copy of every document — **self-service, at any time during your
+from within the Service. You can also generate a full export of Your Data (the stored fields and,
+where renderable, a PDF copy of every document) **self-service, at any time during your
 subscription**, either from within the Service or by calling `POST /api/companies/export` (see
-Section 10 for the API). The same export is generated automatically and sent to your Owner when your
-Company reaches end-of-subscription (Section 13.2). If you are unable to use either of those paths,
-write to **contact@invoicerr.app** and we will provide the export within a reasonable time.
+Section 10 for the API). The same export is generated automatically when your Company reaches
+end-of-subscription, and your Owner receives an email with a link to download it (Section 13.2).
+If you are unable to use either of those paths, write to **contact@invoicerr.app** and we will provide
+the export within a reasonable time.
 
 ## 9. Switching to a Different Provider (EU Data Act)
 
@@ -246,11 +245,11 @@ business purposes, for the number of Seats you hold.
 12.1. Your subscription runs for the billing cycle you selected (monthly or annual) and renews
 automatically at the end of each cycle unless cancelled.
 
-12.2. **You may cancel at any time**, from the Polar customer portal or by writing to
+12.2. **You may cancel at any time**, from Settings > Subscription in the Service or by writing to
 **contact@invoicerr.app**. Cancellation takes effect at the **end of the period you have already paid
-for** (the end of the current month or year), and access to paid features continues until then. We do
-not prorate the unused portion of a cancelled period. Any refund is a matter for Polar, as seller,
-under its own terms; see the [Refund and Cancellation Policy](./refund-policy.md).
+for** (the end of the current month or year), and access to paid features continues until then. A
+billing period already started is not refunded, and we do not prorate its unused portion; the only
+refunds we pay are those set out in the [Refund and Cancellation Policy](./refund-policy.md).
 
 ## 13. Suspension for Non-Payment, End of Subscription, Data Archive and Deletion
 
@@ -262,50 +261,56 @@ issuing a document — is disabled.
 
 13.2. **Data archive.** At the end of the 14-day read-only suspension, we generate an archive (a zip
 file) containing, for every document your Company holds, its stored data and, where the document can
-be rendered, a copy of it, and we email that archive to the Company's **Owner**. This is your
-opportunity to retain a copy of your records before deletion.
+be rendered, a copy of it, and we email the Company's **Owner** a link to download that archive. This
+is how we return Your Data to you, and your opportunity to retain a copy of your records before
+deletion.
 
 13.3. **Deletion.**
    - If the Company never had a paid subscription (i.e. its trial expired unconverted), its account
      and all associated data are permanently deleted **no earlier than thirty (30) calendar days**
-     after the archive is sent — the same minimum Retrieval Window every Company gets, paid or not
-     (Section 9.5).
+     after the archive is made available: the same minimum Retrieval Window every Company gets, paid
+     or not (Section 9.5).
    - If the Company had, at any point, an active paid subscription, its account and data are
-     permanently deleted **no earlier than one hundred eighty (180) days after the archive is sent**,
-     giving you a further window to reactivate your subscription before deletion.
+     permanently deleted **no earlier than one hundred eighty (180) days after the archive is made
+     available**, giving you a further window to reactivate your subscription before deletion.
+   - Deletion covers all of Your Data, including the archived copies of the documents you sent. The
+     backups of the Service expire thirty-five (35) days after they are made, so no copy of
+     Your Data remains with us after that.
 
-13.4. **Transfer of legal retention responsibility.** Once the archive described in Section 13.2 has
-been sent to your Owner, **responsibility for retaining your invoices and related documents for any
+13.4. **You alone keep your invoices.** **Retaining your invoices and related documents for any
 statutory retention period** (for example, ten (10) years for invoices under French law, or such
-other period applicable under the law of the relevant country) **transfers to you**. From that point,
-we are no longer a depositary of those records and undertake no obligation to retain the archive, or
-the underlying data, beyond the deletion described in Section 13.3.
+other period applicable under the law of the relevant country) **is your responsibility alone**. We
+return Your Data to you (Sections 8.2 and 13.2) and then delete it (Section 13.3); we do not keep your
+invoices for you after your Company is deleted, and we are not a depositary of those records.
 
 ## 14. Hosting and Subprocessors
 
-14.1. **The Service and Customer Data are hosted in the European Union, in France.** The production
-environment runs with **Scaleway SAS** (Kubernetes infrastructure, managed PostgreSQL database, and
-document object storage — Paris region, France). Before a release reaches production, and during the
-beta programme, for the programme's participants, the Service instead runs on a separate acceptance
-environment that we operate ourselves, on our own infrastructure, in France — see the
-[Privacy Policy](./privacy-policy.md), Section 4, for detail on that environment and what happens to a
-beta participant's Customer Data once it is retired.
+14.1. **The Service and Customer Data are hosted in the European Union, in France.** The Service runs
+at **OVHcloud** (OVH SAS), in France: managed Kubernetes infrastructure, a managed PostgreSQL database
+with two nodes, and object storage for documents. Backups are kept on OVHcloud Object Storage, in
+France, for thirty-five (35) days.
 
 14.2. We use the following subprocessors in connection with the Service:
 
-   - **Scaleway SAS** — Kubernetes infrastructure, managed PostgreSQL database, and object storage for
-     the **production** environment of the Service and its archived documents (Paris region, France),
-     the database reached over Scaleway's own private network rather than the public internet.
-   - **Polar Software, Inc.**: seller of your subscription as merchant of record, payment processing,
-     and billing (Section 7).
-   - **Resend** — delivery of transactional email sent by the Service.
-   - The **national e-invoicing and government platforms you choose to connect** (for example, the
-     French PDP, Poland's KSeF, Italy's SdI, Portugal's AT, or France's Chorus Pro for B2G invoicing)
-     — these act on your explicit instruction, under credentials and mandates you provide, to transmit
-     the documents you send.
+   - **OVHcloud (OVH SAS)**: hosting of the Service, its database, the storage of its documents and its
+     backups, in France, and the mailbox that receives correspondence sent to
+     **contact@invoicerr.app**.
+   - **Stripe**: processing of the payment of your subscription, by card or SEPA direct debit
+     (Section 7.1).
+   - **Resend**: delivery of the transactional email the Service sends. Only the text of an email
+     goes through Resend: a document is never attached, it is reached through a download link, and no
+     open or click tracking is used.
+   - **Cloudflare, Inc.**: DNS for our domains and, while its proxy is enabled in front of the
+     Service, relay of the traffic between your browser and the Service (Section 14.4).
+   - **GitHub, Inc.**: hosting of the source code and of the public issue tracker. It never receives
+     Your Data.
+   - **Weblate**: translation of the Service's interface. It never receives Your Data.
 
-The acceptance environment described in Section 14.1 is hosted by us directly, not by a sub-processor:
-we operate it ourselves, on our own infrastructure, in France.
+The **national e-invoicing and government platforms**, and any accredited e-invoicing platform (for
+example, a French PDP, Poland's KSeF, Italy's SdI, Portugal's AT, or France's Chorus Pro for B2G
+invoicing), are chosen and contracted by you, under your own account: we do not engage them. They act
+on your explicit instruction, under credentials and mandates you provide, to transmit the documents you
+send.
 
 14.3. **Stripe, Mollie, and PayPal**, where you connect them so your own customers can pay the invoices
 you issue, are **your own accounts** — held, controlled, and contracted for by you, not by us. We
@@ -315,8 +320,9 @@ reconcile your records.
 14.4. **International access transparency.** In accordance with Regulation (EU) 2023/2854, Article 28,
 we publish and keep up to date, at
 [International Access Transparency](./international-access-transparency.md),
-(a) the jurisdictions the ICT infrastructure used to process the Service's data is subject to — today,
-exclusively France and the European Union (Section 14.1) — and (b) a general description of the
+(a) the jurisdictions the ICT infrastructure used to process the Service's data is subject to (the
+Service and Your Data are hosted exclusively in France, Section 14.1; that page also describes the
+Cloudflare proxy the traffic passes through while it is enabled) and (b) a general description of the
 technical, organizational, and contractual measures we take to prevent unlawful international access
 to, or transfer of, the non-personal data we hold in the Union. That page is incorporated into this
 Agreement by reference.
@@ -365,7 +371,7 @@ law does not allow us to exclude.
 consequential damages, including loss of profit, revenue, or data; and (b) our total liability **to
 you** arising out of or relating to this Agreement is capped at the **total amounts you paid for your
 subscription to the Service in the twelve (12) months preceding the event giving rise to the claim**,
-those amounts being the price paid to Polar, as seller of the subscription (Section 7.1).
+those amounts being the Fees paid to the Provider (Section 7).
 
 17.2. Nothing in this Agreement limits or excludes either party's liability for its own gross
 negligence, willful misconduct (*dol*), or death or personal injury, or any other liability that
@@ -412,9 +418,9 @@ example because you are still in the free trial, you never subscribed, or your C
 suspension described in Section 13.1.
 
 20.3. These Terms are governed by **French law**. Any dispute arising out of or relating to these
-Terms shall be submitted to the exclusive jurisdiction of **the Commercial Court of Romans-sur-Isère
-(Tribunal de commerce de Romans-sur-Isère), the court of the Provider's registered office**, subject
-to any mandatory rule of law that provides otherwise.
+Terms shall be submitted to the exclusive jurisdiction of **the commercial court with jurisdiction over
+the Provider's registered office in Lyon (currently the Tribunal des activités économiques de Lyon)**,
+subject to any mandatory rule of law that provides otherwise.
 
 ## 21. Miscellaneous
 
@@ -425,16 +431,13 @@ replaced by one that reflects, as closely as possible, its intended commercial e
 21.2. **Entire agreement.** This Agreement — these Terms together with the Privacy Policy, the Data
 Processing Agreement, and the Cookies & Acceptable Use Policy — is the entire agreement between you
 and us regarding the Service, and supersedes any prior agreement or understanding on the same subject.
-Your purchase of the subscription from Polar is governed by Polar's own terms and is not part of this
-Agreement (Section 7.1).
 
 21.3. **No waiver.** A failure to enforce any provision of this Agreement is not a waiver of the right
 to enforce it later.
 
 21.4. **Assignment.** You may not assign or transfer this Agreement without our prior written
-consent. We may assign this Agreement without your consent to a transferee company under Section 1.4,
-or in connection with a merger, acquisition, or sale of substantially all of the Provider's assets
-relating to the Service.
+consent. We may assign this Agreement without your consent in connection with a merger, acquisition,
+or sale of substantially all of the Provider's assets relating to the Service.
 
 21.5. **Notices.** We give you notice under this Agreement by email to your account's registered
 address. You give us notice by writing to **contact@invoicerr.app**.
@@ -445,12 +448,16 @@ Questions about these Terms can be sent to **contact@invoicerr.app**.
 
 ## 23. Governing Language
 
-This document is drafted and executed in English. Where we provide a translation into another
-language for your convenience and understanding, that translation is not a substitute for the English
+This document is drafted and executed in English. Where we provide a translation or a summary in
+another language for your convenience and understanding, it is not a substitute for the English
 text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
-translated version, **the English version prevails** and is the version that governs the rights and
-obligations of the parties. Translations are provided in good faith to help each audience understand
-this document; they create no separate or additional rights.
+translated or summarized version, **the English version prevails** and is the version that governs the
+rights and obligations of the parties. Translations and summaries are provided in good faith to help
+each audience understand this document; they create no separate or additional rights.
+
+This Agreement is concluded between professionals. As article 1127-3 of the French Civil Code allows,
+the parties derogate from article 1127-1, 3° of that Code: English is the only language offered for
+concluding this Agreement. Nothing in this Section reduces a right that mandatory law gives you.
 
 ---
 
@@ -602,3 +609,29 @@ this document; they create no separate or additional rights.
   the same cap and window, now described as the price paid to Polar as seller rather than an amount paid
   to Polar "on our behalf". Definition of "Fees", Sections 6.1, 6.4, 7.3, 14.2 and 21.2 reworded to
   match. No section renumbered.
+- **2026-10-25**: The Provider is now **INVOICERR**, a SAS with a share capital of 100 euros, registered
+  office in Vénissieux, represented by its president, Roméo Chevrier (Section 1.1; RCS and intra-EU
+  VAT numbers left as placeholders until registration). The former Section 1.4 (future transfer to a
+  company) is removed, and Section 1.5 becomes Section 1.4: we sell the subscription ourselves, with no
+  merchant of record. Section 7 is renamed "Payment, Invoices and Taxes": Stripe processes payment by
+  card or SEPA direct debit, we issue the invoices, Fees are in euros exclusive of VAT, the franchise
+  en base applies in France and the reverse charge applies to business customers in other EU member
+  states. New Section 7.6 sets the late payment penalties and the 40 euro recovery indemnity of article
+  L441-10 of the French Commercial Code. Section 6.4 no longer fixes the annual price as twelve monthly
+  rates; it refers to the annual rate on the pricing page. Section 12.2: cancellation from the Service,
+  no refund of a period already started. Sections 8.2 and 13.2: the archive is reached through a
+  download link. Section 13.3: deletion covers archived documents, and backups expire after 35 days.
+  Section 13.4: the customer alone keeps their invoices. Section 14: hosting at OVHcloud in France,
+  and the subprocessors are now OVHcloud, Stripe, Resend, Cloudflare, GitHub and Weblate; Polar and
+  Scaleway are removed, as is the separate acceptance environment; e-invoicing platforms are chosen
+  and contracted by the customer. Section 17.1(b): the cap is the Fees paid to the Provider. Section
+  20.3: court of the registered office in Lyon. Section 21.2 and 21.4 reworded to match.
+- **2026-10-30**: English-only legal texts: the full French translation is replaced by a short French
+  summary, and the German, Italian, Polish and Portuguese translations are withdrawn. Section 23 now
+  covers "a translation or a summary" wherever it covered a translation, and adds that between
+  professionals the parties derogate from article 1127-1, 3° of the French Civil Code as article 1127-3
+  allows: English is the only language offered for concluding the Agreement, and that Section reduces
+  no right mandatory law gives the customer. Section 1.1 now names the société par actions simplifiée
+  (SAS) rather than its single-shareholder form (D-262). Section 13.3 no longer calls the backups
+  encrypted: they expire after thirty-five days, and encryption is only claimed where it is true
+  (DPA Annex III).

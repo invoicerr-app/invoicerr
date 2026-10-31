@@ -1,8 +1,8 @@
 ---
 title: Data Processing Agreement
 sidebar_position: 3
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-10-25
+effectiveDate: 2026-10-25
 ---
 
 :::warning[Draft]
@@ -350,10 +350,10 @@ shall continue to ensure compliance with these Clauses.
 
 **Processor(s)**
 
-- **Name**: Roméo Chevrier, sole trader (entrepreneur individuel), SIREN 982 187 676 (SIRET 982 187 676
-  00019), operator of the hosted Invoicerr Service.
-- **Address**: 4 rue du Puits, 26120 Montélier, France.
-- **Contact person’s name, position and contact details**: Roméo Chevrier, operator of the Service,
+- **Name**: INVOICERR, société par actions simplifiée (SAS) with a share capital of 100
+  euros, RCS Lyon `[to be completed at registration]`, operator of the hosted Invoicerr Service.
+- **Address**: 63 avenue Jules Guesde, 69200 Vénissieux, France.
+- **Contact person’s name, position and contact details**: Roméo Chevrier, president,
   contact@invoicerr.app. No data protection officer has been appointed (Privacy Policy, Section 1).
 - **Signature and accession date**: Accepted by the Processor by making the Service available under the
   Terms of Service, on the same date as the Customer.
@@ -402,13 +402,13 @@ a Company that never had a paid subscription, and no earlier than one hundred ei
 for a Company that did.
 
 Return of the personal data at the end of the provision of services (Clause 10(d)): that archive,
-emailed to the Company's Owner (Terms of Service, Section 13.2), and the self-service export available
-at any time before (Terms of Service, Section 8.2).
+which the Company's Owner downloads through a link sent by email (Terms of Service, Section 13.2), and
+the self-service export available at any time before (Terms of Service, Section 8.2).
 
-Statutory retention (Clause 10(d): "unless Union or Member State law requires storage of the personal
-data"): an archived document whose statutory retention period is still running is kept until that
-period, recorded against the document together with the text that imposes it, has expired, and is then
-erased. The Privacy Policy, Section 6, lists the countries, periods and texts concerned.
+Deletion after return (Clause 10(d)): once the data has been returned, the Processor deletes all of it,
+including the archived copies of the documents the Customer sent, and keeps no copy for any statutory
+retention period: the Customer alone keeps its invoices (Terms of Service, Section 13.4). Encrypted
+backup copies expire thirty-five (35) days after they are made.
 
 **For processing by (sub-) processors, also specify subject matter, nature and duration of the
 processing**
@@ -421,9 +421,9 @@ See Annex IV.
 
 Credentials and tokens the Service stores to connect a Company to a third-party channel or platform are
 encrypted at rest with AES-256-GCM. Backups of the documents and files the Service stores are encrypted
-with AES-256-GCM inside the Processor's own infrastructure before they are written to backup storage,
-under a key that only the Processor holds and that the storage provider never receives; a missing key
-fails the backup run rather than writing anything unencrypted. This does not, by itself, establish the
+with AES-256-GCM inside the Service's infrastructure before they are written to backup storage, under a
+key that is never written to that storage; a missing key fails the backup run rather than writing
+anything unencrypted. This does not, by itself, establish the
 exemption from notification in Article 34(3)(a) of Regulation (EU) 2016/679; whether it applies is
 assessed case by case.
 
@@ -444,15 +444,14 @@ scopes the Customer grants it.
 **Measures for the protection of data during transmission**
 
 All traffic to and from the Service is encrypted with TLS, terminated at the ingress with a certificate
-issued and renewed automatically.
+issued and renewed automatically. While Cloudflare's proxy is enabled in front of the Service, TLS is
+also terminated at Cloudflare, which re-encrypts the traffic towards the Service (Annex IV).
 
 **Measures for the protection of data during storage**
 
-The production environment, including its managed PostgreSQL database and the object storage that holds
-archived documents, is hosted by Scaleway SAS in its Paris (France) region; the database is reached over
-Scaleway's private network, not the public internet. The acceptance environment, used to validate a
-release and, during the beta programme, by that programme's participants, runs on infrastructure the
-Processor operates himself, in France. Neither environment is hosted, mirrored or backed up outside the
+The Service, including its managed PostgreSQL database (two nodes) and the object storage that holds
+documents, is hosted by OVH SAS (OVHcloud) in France. Backups are stored on OVHcloud Object Storage, in
+France, and expire after thirty-five (35) days. Nothing is hosted, mirrored or backed up outside the
 European Union.
 
 **Measures for ensuring events logging**
@@ -461,8 +460,9 @@ Application logs are kept for ninety (90) days, then deleted automatically.
 
 **Measures for ensuring data minimisation**
 
-Optical character recognition runs on infrastructure the Processor operates; no document is sent to a
-third-party OCR provider.
+Optical character recognition runs within the Service's own infrastructure; no document is sent to a
+third-party OCR provider. Email sent through the Service carries only its text: a document is never
+attached and is reached through a download link served by the Service.
 
 **Measures for ensuring limited data retention**
 
@@ -492,14 +492,15 @@ Customer is informed of any intended addition or replacement by email, at least 
 
 **1.**
 
-- **Name**: Scaleway SAS
-- **Address**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Contact person’s name, position and contact details**: privacy@scaleway.com
+- **Name**: OVH SAS (OVHcloud)
+- **Address**: 2 rue Kellermann, 59100 Roubaix, France
+- **Contact person’s name, position and contact details**: As published by OVH SAS in its own data
+  processing terms.
 - **Description of the processing (including a clear delimitation of responsibilities in case several
-  sub-processors are authorised)**: Hosting of the production environment of the Service: the Kubernetes
-  cluster it runs on, the managed PostgreSQL database that stores the documents the Customer creates
-  (and the personal data they contain), and the object storage that holds archived documents. Paris
-  (France) region; the database is reached over Scaleway's private network, not the public internet.
+  sub-processors are authorised)**: Hosting of the Service, in France: the managed Kubernetes cluster
+  it runs on, the managed PostgreSQL database (two nodes) that stores the documents the Customer
+  creates (and the personal data they contain), the object storage that holds those documents, and the
+  backups, kept on OVHcloud Object Storage for thirty-five (35) days.
 
 **2.**
 
@@ -507,8 +508,9 @@ Customer is informed of any intended addition or replacement by email, at least 
 - **Address**: 2261 Market Street #5039, San Francisco, CA 94114, USA
 - **Contact person’s name, position and contact details**: privacy@resend.com
 - **Description of the processing (including a clear delimitation of responsibilities in case several
-  sub-processors are authorised)**: Delivery of the transactional email that may carry a document, or a
-  link to one, on the Customer's instruction.
+  sub-processors are authorised)**: Delivery of the transactional email sent on the Customer's
+  instruction. Only the text of the email: a document is never attached and is reached through a
+  download link served by the Service. No open or click tracking.
 
 **3.**
 
@@ -516,41 +518,27 @@ Customer is informed of any intended addition or replacement by email, at least 
 - **Address**: 101 Townsend Street, San Francisco, CA 94107, USA
 - **Contact person’s name, position and contact details**: Data Protection Officer, legal@cloudflare.com
 - **Description of the processing (including a clear delimitation of responsibilities in case several
-  sub-processors are authorised)**: Inbound email routing for correspondence sent to
-  contact@invoicerr.app. Support correspondence only; never the personal data contained in the documents
-  created through the Service.
-
-**4.**
-
-- **Name**: Google LLC (Gmail)
-- **Address**: 1600 Amphitheatre Parkway, Mountain View, California 94043, USA
-- **Contact person’s name, position and contact details**: As published by Google LLC in its own data
-  protection terms.
-- **Description of the processing (including a clear delimitation of responsibilities in case several
-  sub-processors are authorised)**: The mailbox where support correspondence sent to
-  contact@invoicerr.app is received. Support correspondence only; never the personal data contained in
-  the documents created through the Service.
-
-**5.**
-
-- **Name**: The national e-invoicing and government platforms the Customer chooses to connect: the
-  French PDP, Poland's KSeF, Italy's SdI (and, for its certified-email channel, the PEC mailbox provider
-  the Customer subscribes to), Portugal's AT, and France's Chorus Pro for B2G invoicing.
-- **Address**: That of each platform's operator.
-- **Contact person’s name, position and contact details**: That published by each platform's operator.
-- **Description of the processing (including a clear delimitation of responsibilities in case several
-  sub-processors are authorised)**: Transmission of the documents the Customer sends through that
-  platform, on the Customer's explicit instruction and under the credentials and mandates the Customer
-  provides.
+  sub-processors are authorised)**: DNS for the Service's domains. While its proxy is enabled in front
+  of the Service, relay of all traffic between the users' browsers and the Service: Cloudflare
+  terminates TLS, so the personal data that traffic carries passes through its network in clear before
+  being re-encrypted towards the Service.
 
 ### Notes to Annex IV
 
-**Not sub-processors under this DPA.** Polar Software, Inc. sells the subscription to the Customer as
-merchant of record and processes the purchase data it collects as an independent controller (Privacy
-Policy, Sections 3 and 4), never the personal data contained in the Customer's documents. GitHub, Inc.
-hosts the public documentation website and the source code repository, which never receive Customer data
-(Privacy Policy, Section 10). The acceptance environment is operated by the Processor himself, on his
-own infrastructure, in France: no third party hosts it.
+**Not sub-processors under this DPA.** Stripe processes the payment of the subscription, using the
+Customer's own billing data (Privacy Policy, Sections 3 and 4), never the personal data contained in
+the Customer's documents. GitHub, Inc. hosts the public documentation website, the source code
+repository and its issue tracker, and Weblate the translation of the interface; neither receives
+Customer data (Privacy Policy, Sections 4 and 10). OVH SAS also hosts the support mailbox, which
+receives the Customer's own correspondence with the Processor, not the personal data contained in the
+Customer's documents.
+
+**E-invoicing platforms chosen by the Customer.** The national e-invoicing and government platforms,
+and any accredited e-invoicing platform (the French PDP, Poland's KSeF, Italy's SdI and, for its
+certified-email channel, the PEC mailbox provider the Customer subscribes to, Portugal's AT, and
+France's Chorus Pro for B2G invoicing), are chosen and contracted by the Customer, under its own
+account. The Processor does not engage them; it transmits a document through such a platform only on
+the Customer's explicit instruction, under the credentials and mandates the Customer provides.
 
 **AI assistant chosen by the Customer.** The Service exposes a Model Context Protocol endpoint (`POST
 /api/mcp`) to which the Customer may connect an AI assistant of its own choosing, through an API key it
@@ -560,10 +548,10 @@ its assistant sends to that provider, including any transfer outside the EEA. On
 tools, `get_document_pdf_link`, creates a public, unauthenticated link to a document's PDF, valid for 30
 days and revocable from the Service.
 
-**International transfers (Clause 7.8).** Resend, Cloudflare and Google LLC may process data outside the
-European Economic Area, including in the United States. Such a transfer relies on that provider's own
-safeguards under Chapter V of Regulation (EU) 2016/679 (Privacy Policy, Section 5). Scaleway SAS
-processes the data in France.
+**International transfers (Clause 7.8).** Resend and Cloudflare may process data outside the European
+Economic Area, including in the United States. Such a transfer relies on that provider's own safeguards
+under Chapter V of Regulation (EU) 2016/679 (Privacy Policy, Section 5). OVH SAS processes the data in
+France.
 
 ## Additional provisions
 
@@ -686,3 +674,16 @@ this document; they create no separate or additional rights.
   notice, and Annexes I to IV completed from the facts this document and the Privacy Policy already
   stated. The former audit frequency limit (once per twelve months) is gone: Clause 7.6 now governs
   audits. The governing-law cross-reference now points to Terms of Service, Section 20.3.
+- **2026-10-25**: The Clauses are unchanged; only the Annexes change. Annex I: the Processor is now
+  **INVOICERR**, a SAS with a share capital of 100 euros, registered office in Vénissieux, represented by
+  its president, Roméo Chevrier. Annex II: the archive is downloaded through a link, and after return
+  the Processor deletes everything, archived documents included, keeping nothing for a statutory
+  retention period; backups expire after 35 days. Annex III: hosting at OVHcloud in France (managed
+  PostgreSQL with two nodes, backups on OVHcloud Object Storage), Cloudflare's TLS termination while
+  its proxy is enabled, the backup key described as never written to the backup storage, and email
+  carrying only text. Annex IV: the sub-processors are OVH SAS, Resend and Cloudflare; Scaleway and
+  Google (Gmail) are removed, as is the separate acceptance environment; Cloudflare's entry now
+  describes DNS and its proxy. The e-invoicing platforms move to the Notes, as chosen and contracted
+  by the Customer; Stripe, GitHub and Weblate are noted as receiving no Customer data.
+- **2026-10-30**: Annex I now names the Processor as a société par actions simplifiée (SAS) rather than
+  its single-shareholder form (D-262). No other fact changed.

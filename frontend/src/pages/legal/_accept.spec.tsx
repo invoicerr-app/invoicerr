@@ -145,6 +145,25 @@ describe("<LegalAcceptPage> — language selector", () => {
   })
 })
 
+describe("<LegalAcceptPage> — language consent notice", () => {
+  it("states, right above the button, the language the documents are accepted in", async () => {
+    installFetchMock({
+      "GET /api/legal/status": () => STATUS,
+      "GET /api/legal/documents": () => DOCUMENTS,
+    })
+
+    renderPage()
+
+    await screen.findByTestId("legal-accept-document-tos")
+    expect(screen.getByTestId("legal-accept-language-notice")).toHaveTextContent(
+      "These documents are in English, the only version that applies.",
+    )
+    expect(screen.getByTestId("legal-accept-language-notice")).toHaveTextContent(
+      "A French summary is available for the Terms of Service and the Privacy Policy.",
+    )
+  })
+})
+
 describe("<LegalAcceptPage> — accept failure", () => {
   it("shows the server's own error message and re-enables the button, instead of leaving it dead with no feedback", async () => {
     installFetchMock({

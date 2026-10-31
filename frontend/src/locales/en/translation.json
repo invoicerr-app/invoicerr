@@ -5937,7 +5937,8 @@
       "description": "We've updated the following document(s). Please review them before continuing.",
       "documentsTabsLabel": "Documents to review",
       "button": "I accept — continue",
-      "error": "Could not save your acceptance — please try again."
+      "error": "Could not save your acceptance — please try again.",
+      "languageNotice": "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English."
     }
   },
   "brand": {

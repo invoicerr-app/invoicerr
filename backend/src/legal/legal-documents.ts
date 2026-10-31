@@ -13,22 +13,23 @@
  *
  * A document's own file (`<slug>.md`) is always English — the sole source `version`/`effectiveDate`/
  * `contentHash` are ever computed from (decision 2026-09-19, owner + counsel: a translation is
- * provided for comprehension, per GDPR Art. 12/WP260 and, for French readers, loi Toubon art. 2 — see
- * the "Governing Language" section every document now carries — but it is never itself the text an
- * acceptance or a release is keyed on; only the wording actually agreed to matters, and that is always
- * the English one). A SIBLING file `<slug>.<lang>.md` (`<lang>` one of `LEGAL_DOCUMENT_LANGUAGES` minus
- * `'en'`) is a translation of that same document, attached to it as `translations[<lang>]` rather than
- * listed as its own top-level `LegalDocument` — `legal-document-view.ts#resolveLegalDocumentView` is
- * the one place that picks which of a document's own text (English, or one of its translations) a
- * given request actually sees.
+ * provided for comprehension — see the "Governing Language" section every document now carries — but
+ * it is never itself the text an acceptance or a release is keyed on; only the wording actually agreed
+ * to matters, and that is always the English one). A SIBLING file `<slug>.<lang>.md` (`<lang>` one of
+ * `LEGAL_DOCUMENT_LANGUAGES` minus `'en'`) is a translation of that same document, attached to it as
+ * `translations[<lang>]` rather than listed as its own top-level `LegalDocument` —
+ * `legal-document-view.ts#resolveLegalDocumentView` is the one place that picks which of a document's
+ * own text (English, or one of its translations) a given request actually sees.
  *
- * Not every slug has a translation into every language: `terms-of-service`, `legal-notice`, and
- * `cookies-and-acceptable-use` only ship French so far; `privacy-policy`, `data-processing-agreement`,
- * and `refund-policy` ship all five non-English languages — the documents a customer most needs to
- * read in their own language before agreeing to something (GDPR Art. 12 for the first two; a refund
- * policy is read at the moment of paying, not after). A missing translation is not an error at load
- * time — a slug simply has fewer keys in its `translations` map — so adding the sixth language for one
- * more slug is a matter of dropping one more file in, never a schema change.
+ * Since decision D-297 (2026-10-30) the texts are English-only, and the French siblings are short
+ * French SUMMARIES, not full translations: `terms-of-service`, `privacy-policy` and `legal-notice`
+ * each ship one, stating in their own header that the English version prevails. The four other
+ * documents (`data-processing-agreement`, `refund-policy`, `cookies-and-acceptable-use`,
+ * `international-access-transparency`) ship none at all. A missing translation is not an error at load
+ * time — a slug simply has fewer keys in its `translations` map — so a French reader of one of those
+ * four gets the English text, and a German, Italian, Polish or Portuguese reader gets the English text
+ * of every document: their language is simply not in the catalog. Adding a language back for one slug
+ * is a matter of dropping one more file in, never a schema change.
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -129,12 +130,13 @@ export function computeContentHash(content: string): string {
 }
 
 /** Matches a translation sibling (`<slug>.<lang>.md`) and captures both groups — never matches a
- *  canonical file, whose name has no language segment before `.md` at all. `<lang>` is intentionally
- *  the same four-non-English-code alternation as `LEGAL_DOCUMENT_LANGUAGES` minus `'en'`, spelled out
- *  rather than built from that array: a `RegExp` built from a `const` array read at import time is not
- *  meaningfully more maintainable than four literal codes for a set this small and this stable, and
- *  spelling it out keeps this file readable without jumping to `legal-languages.ts` to know what it
- *  matches. */
+ *  canonical file, whose name has no language segment before `.md` at all. `<lang>` keeps the
+ *  `de`/`it`/`pl`/`pt` alternatives even though `LEGAL_DOCUMENT_LANGUAGES` no longer carries them since
+ *  D-297: a stale file from a withdrawn translation must still be recognised as a translation (so it
+ *  is never mistaken for a canonical document called `privacy-policy.de`), and keeping the alternation
+ *  spelled out rather than built from that array keeps this file readable without jumping to
+ *  `legal-languages.ts`. Such a file is parsed but never served: `availableLanguagesOf`
+ *  (`legal-document-view.ts`) only ever lists codes the catalog carries. */
 const TRANSLATION_FILENAME_RE = /^(.+)\.(fr|de|it|pl|pt)\.md$/;
 
 function loadDocument(filename: string): LegalDocument {
@@ -169,8 +171,8 @@ function loadDocument(filename: string): LegalDocument {
  * `language` in front matter is OPTIONAL, but when present it must agree with the filename's own
  * `<lang>` segment — a deliberate, cheap cross-check (the same "provenance the loader itself verifies"
  * posture CLAUDE.md's documents-module catalogs all take) against the one copy-paste mistake this
- * format invites: pasting `privacy-policy.de.md`'s front matter into `privacy-policy.it.md` without
- * updating the `language:` line inside it.
+ * format invites: pasting one document's front matter into another's French sibling while leaving a
+ * `language:` line that names a different code than the filename does.
  */
 function loadTranslation(filename: string, lang: LegalDocumentLanguage): LegalDocumentTranslation {
   const raw = readFileSync(join(DATA_DIR, filename), 'utf-8');
@@ -190,8 +192,8 @@ function loadTranslation(filename: string, lang: LegalDocumentLanguage): LegalDo
 }
 
 /**
- * Re-reads `./data/*.md` on every call rather than caching — a few dozen small files even with every
- * translation counted, never on a hot path (a document list page, a sign-up screen, a sign-in
+ * Re-reads `./data/*.md` on every call rather than caching — ten small files since D-297, and still
+ * never on a hot path (a document list page, a sign-up screen, a sign-in
  * interstitial), and NOT caching is what keeps a spec free to assert against the files on disk without
  * a module-cache reset between cases.
  */

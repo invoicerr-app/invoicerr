@@ -1,8 +1,8 @@
 ---
 title: International Access Transparency
 sidebar_position: 7
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-10-25
+effectiveDate: 2026-10-25
 ---
 
 :::warning[Draft]
@@ -20,67 +20,73 @@ by reference. It does not apply to the self-hosted software, which never sends a
 
 ## 1. Jurisdictions
 
-The infrastructure that processes the Service's own data — your Company's account data and Your Data
-(the documents, business records, and configuration you create through the Service) — is located
-exclusively in **France**, across two environments:
+The infrastructure that hosts the Service's own data, your Company's account data and Your Data (the
+documents, business records, and configuration you create through the Service), is located
+exclusively in **France**. One provider sits in front of it, for transit only, while its proxy is
+enabled:
 
-| Environment | Component | Host | Jurisdiction |
+| Role | Component | Provider | Jurisdiction |
 | --- | --- | --- | --- |
-| Production | Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | Scaleway SAS | France (Paris region) |
-| Acceptance | Application infrastructure, database, and document storage — used to validate a release before it reaches production and, during the beta programme, used by that programme's participants | The Provider himself — no third-party host | France |
+| Hosting | Managed Kubernetes infrastructure, managed PostgreSQL database (two nodes), document object storage, and backups (OVHcloud Object Storage, kept 35 days) | OVH SAS (OVHcloud) | France |
+| Transit, while the proxy is enabled | DNS and reverse proxy: all traffic between your browser and the Service passes through Cloudflare's network, where TLS is terminated | Cloudflare, Inc. | United States (Cloudflare's network may handle the traffic outside France) |
 
-The production row sits with a single provider, in a single region, reached over Scaleway's own private
-network rather than the public internet — the database is no longer a separate hop to a different
-provider or country. The acceptance row has no provider at all in the ordinary sense: it runs on
-infrastructure the Provider operates himself, in France, so there is no third party in that chain for a
-foreign authority to serve a demand on — a stronger position under this Article than the production row
-above, not a weaker one. The Provider himself, of course, remains subject to French and EU legal process
-the same way any operator of the Service would be. Neither environment, nor Your Data on either one, is
-hosted, mirrored, or backed up outside France/the EU. Where a sub-processor named in the
-[Privacy Policy](./privacy-policy.md), Section 4,
-and the [Data Processing Agreement](./data-processing-agreement.md), Annex IV (Polar for
-subscription billing, Resend for transactional email, Cloudflare and Google LLC for inbound support
-correspondence) is a non-EU entity or may process data outside the EEA, that processing is limited to
-account/billing data or support correspondence — never Your Data or the documents you create through
-the Service, on either environment — and relies on that provider's own GDPR Chapter V safeguards, as
-described in the Privacy Policy, Section 5.
+**Hosting.** Your Data and the Service's database are stored, processed, and backed up only in France,
+by a single French provider. Neither is hosted, mirrored, or backed up outside France.
 
-Two public, static websites — the marketing site (`invoicerr.app`) and this documentation site
-(`docs.invoicerr.app`) — are hosted on **GitHub Pages**, operated by GitHub, Inc. (USA, a wholly-owned
-subsidiary of Microsoft Corporation). Neither site is ICT infrastructure that processes the Service's
-data: as the [Legal Notice](./legal-notice.md), Section 3, and the Privacy Policy, Section 10, both
-state, GitHub never receives or stores the account, billing, or document data created through the
-Service — only the visitor traffic ordinarily needed to serve a static page. They are listed here for
-completeness, not because they fall within the scope Article 28 targets.
+**Transit.** While Cloudflare's proxy is enabled in front of the Service, every request and response
+between your browser and the Service, including the documents you create and the personal data they
+contain, passes through Cloudflare's network in clear before being re-encrypted towards the Service.
+Cloudflare, Inc. is a company established in the United States and subject to its law. The Service
+will move Cloudflare to DNS only, with no proxy, once production is validated, and this page will be
+updated when it does.
+
+Where another sub-processor named in the [Privacy Policy](./privacy-policy.md), Section 4, and the
+[Data Processing Agreement](./data-processing-agreement.md), Annex IV, is a non-EU entity or may process
+data outside the EEA (Stripe for the payment of the subscription, Resend for the text of transactional
+email), that processing is limited to account and billing data or to the text of an email, never the
+documents you create, which are reached through a download link served from France; it relies on that
+provider's own GDPR Chapter V safeguards, as described in the Privacy Policy, Section 5.
+
+Two public, static websites, the marketing site (`invoicerr.app`) and this documentation site
+(`docs.invoicerr.app`), and the source code repository are hosted by **GitHub**, operated by GitHub,
+Inc. (USA, a wholly-owned subsidiary of Microsoft Corporation). None of them is ICT infrastructure that
+processes the Service's data: as the [Legal Notice](./legal-notice.md), Section 3, and the Privacy
+Policy, Section 10, both state, GitHub never receives or stores the account, billing, or document data
+created through the Service, only the visitor traffic ordinarily needed to serve a static page. They are
+listed here for completeness, not because they fall within the scope Article 28 targets.
 
 ## 2. Measures Against Unlawful International Access
 
-- **Data residency by design.** The Service's own database and document storage are hosted only in
-  France, across the two environments described in Section 1 above — a choice, not a default, that by
-  itself keeps the data outside the reach of any access request that does not go through an EU or
-  French legal channel. The acceptance environment goes one step further: because the Provider hosts it
-  himself, there is no third-party provider in that chain at all for a foreign authority to compel.
-- **Encryption in transit.** All traffic to and from the Service is encrypted end-to-end over TLS,
-  terminated at the ingress with a certificate issued and renewed automatically (cert-manager /
-  Let's Encrypt) — see `deploy/helm/invoicerr/templates/ingress.yaml`.
+- **Data residency by design.** The Service's database, document storage, and backups are hosted only
+  in France, by a French provider: a choice, not a default, that keeps the stored data outside the
+  reach of any access request that does not go through an EU or French legal channel.
+- **Transit through Cloudflare, stated plainly.** While Cloudflare's proxy is enabled, a US company
+  sees the traffic in clear on its way to the Service (Section 1). We do not claim otherwise, and we
+  remove the proxy once production is validated.
+- **Encryption in transit.** All traffic to and from the Service is encrypted over TLS, terminated at
+  the ingress with a certificate issued and renewed automatically (cert-manager / Let's Encrypt), see
+  `deploy/helm/invoicerr/templates/ingress.yaml`, and, while the proxy is enabled, also at Cloudflare.
 - **Encryption at rest for connection credentials.** The credentials and tokens the Service stores to
   connect your Company to a third-party channel or platform (an e-invoicing transport, an OIDC
   provider, a signing certificate, a webhook secret) are encrypted at rest with AES-256-GCM before
-  being written to the database — see `backend/src/utils/secret-crypto.ts` — so a copy of the database
+  being written to the database, see `backend/src/utils/secret-crypto.ts`, so a copy of the database
   alone does not expose them.
 - **Backup encryption.** Backup copies of the documents and files the Service stores are encrypted
-  (AES-256-GCM) before they ever leave our infrastructure, under a key the storage provider never
-  holds — see the Data Processing Agreement, Annex III — so a demand served directly on that provider,
-  or a copy of the backup bucket itself, reaches ciphertext, not documents.
+  (AES-256-GCM) before they are written to backup storage, under a key that is never written to that
+  storage (see the Data Processing Agreement, Annex III), so a copy of the backup bucket alone reaches
+  ciphertext, not documents. Backups expire after thirty-five (35) days.
+- **No document in email.** Email sent through the Service carries only its text: a document is never
+  attached and is reached through a download link served by the Service, so Resend, a US provider,
+  never receives the documents you create.
 - **Access control.** Access to a Company's data within the Service is scoped by that Company's own
   roles (owner/admin/member); access to production infrastructure and data within our own organization
   is restricted to what is needed to operate and support the Service, as described in the Privacy
   Policy, Section 7, and the Data Processing Agreement, Annex III.
 - **Contractual safeguards with sub-processors.** Every sub-processor is bound, by contract, to
   data-protection obligations materially equivalent to the Data Processing Agreement (GDPR Art.
-  28(4)) — see the Data Processing Agreement, Clause 7.7 and Annex IV — and, where a sub-processor may process data
-  outside the EEA, to the European Commission's Standard Contractual Clauses or another GDPR Chapter V
-  safeguard.
+  28(4)), see the Data Processing Agreement, Clause 7.7 and Annex IV, and, where a sub-processor may
+  process data outside the EEA, to the European Commission's Standard Contractual Clauses or another
+  GDPR Chapter V safeguard.
 - **No standing or automated access for a foreign authority.** We do not grant any government,
   authority, or third party standing, automated, or backdoor access to the infrastructure or database
   described in Section 1. Any request for Your Data from a public authority would need to be made
@@ -146,3 +152,13 @@ Questions about this page can be sent to **contact@invoicerr.app**.
 - **2026-10-13**: Cross-references updated after the Data Processing Agreement became the European
   Commission's standard contractual clauses: its former Section 7 (sub-processors) is now Clause 7.7
   and Annex IV, its former Section 9 (security measures) is now Annex III. No measure changed.
+- **2026-10-25**: Section 1 rewritten for the move to OVHcloud: the Service, its database (managed
+  PostgreSQL with two nodes), its documents, and its backups (OVHcloud Object Storage, kept 35 days)
+  are hosted in France by OVH SAS. Scaleway and the separate acceptance environment are removed. The
+  table now shows Cloudflare as a second row, for transit only: while its proxy is enabled, all traffic
+  passes through Cloudflare's network in clear, Cloudflare being a US company; the promise that the
+  Service and Your Data are hosted exclusively in France concerns hosting, and this page now says what
+  transit adds to it. Section 2: new "Transit through Cloudflare" and "No document in email" measures;
+  the backup measure no longer says the storage provider never holds the key, since the same provider
+  now hosts both the Service and its backups, and states only that the key is never written to the
+  backup storage. Polar and Google are removed from the list of non-EU sub-processors, Stripe is added.

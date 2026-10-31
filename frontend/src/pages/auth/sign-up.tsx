@@ -388,26 +388,37 @@ export default function SignupPage() {
             — a self-hosted instance has nothing to accept, so this never renders there at all rather
             than rendering disabled/hidden. */}
         {saasMode && (
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="acceptLegal"
-              checked={acceptLegal}
-              onCheckedChange={(checked) => setAcceptLegal(checked === true)}
-              disabled={loading}
-              className="mt-0.5"
-              data-cy="auth-accept-legal-checkbox"
-            />
-            <Label htmlFor="acceptLegal" className="text-sm font-normal leading-snug text-muted-foreground">
-              {t("auth.signup.form.acceptLegal.prefix", "I accept the")}{" "}
-              <AuthLink href="/legal/terms-of-service" dataCy="auth-accept-legal-terms-link">
-                {t("auth.signup.form.acceptLegal.terms", "Terms of Service")}
-              </AuthLink>{" "}
-              {t("auth.signup.form.acceptLegal.and", "and the")}{" "}
-              <AuthLink href="/legal/privacy-policy" dataCy="auth-accept-legal-privacy-link">
-                {t("auth.signup.form.acceptLegal.privacy", "Privacy Policy")}
-              </AuthLink>
-            </Label>
-          </div>
+          <>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="acceptLegal"
+                checked={acceptLegal}
+                onCheckedChange={(checked) => setAcceptLegal(checked === true)}
+                disabled={loading}
+                className="mt-0.5"
+                data-cy="auth-accept-legal-checkbox"
+              />
+              <Label htmlFor="acceptLegal" className="text-sm font-normal leading-snug text-muted-foreground">
+                {t("auth.signup.form.acceptLegal.prefix", "I accept the")}{" "}
+                <AuthLink href="/legal/terms-of-service" dataCy="auth-accept-legal-terms-link">
+                  {t("auth.signup.form.acceptLegal.terms", "Terms of Service")}
+                </AuthLink>{" "}
+                {t("auth.signup.form.acceptLegal.and", "and the")}{" "}
+                <AuthLink href="/legal/privacy-policy" dataCy="auth-accept-legal-privacy-link">
+                  {t("auth.signup.form.acceptLegal.privacy", "Privacy Policy")}
+                </AuthLink>
+              </Label>
+            </div>
+            {/* D-299: the language being accepted is stated at the point of acceptance, on this
+                second acceptance screen as well as `pages/legal/accept.tsx`. Same key, same English
+                source string; the French wording is left to Weblate. */}
+            <p className="text-xs text-muted-foreground" data-cy="auth-accept-legal-language-notice">
+              {t(
+                "legal.accept.languageNotice",
+                "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
+              )}
+            </p>
+          </>
         )}
 
         <Button

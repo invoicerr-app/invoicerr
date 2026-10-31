@@ -5,16 +5,20 @@
  * `modules/documents/rendering/language/supported-languages.ts`: that module's `RenderLanguage` is
  * about which language a PDF/email renders a document IN, a different concern with its own reasons to
  * change independently of this one (per the "a country/concern is data, in its own narrow module"
- * shape CLAUDE.md's own "documents module" section describes for the compliance catalogs) — the two
- * happen to name the same five non-English codes today only because this product's in-scope countries
- * (FR/PL/IT/PT/DE) haven't diverged, not because one derives from the other.
+ * shape CLAUDE.md's own "documents module" section describes for the compliance catalogs).
+ *
+ * `fr` is the only non-English code since decision D-297 (2026-10-30): the hosted-offer texts are
+ * English-only, and French keeps three short summaries (`terms-of-service`, `privacy-policy`,
+ * `legal-notice`), not full translations. A German, Italian, Polish or Portuguese reader therefore
+ * falls back to English on every document — `isLegalDocumentLanguage` rejects those codes, so they
+ * never even reach `resolveLegalDocumentView`.
  */
 
-export const LEGAL_DOCUMENT_LANGUAGES = ['en', 'fr', 'de', 'it', 'pl', 'pt'] as const;
+export const LEGAL_DOCUMENT_LANGUAGES = ['en', 'fr'] as const;
 
 export type LegalDocumentLanguage = (typeof LEGAL_DOCUMENT_LANGUAGES)[number];
 
-/** English is the ONLY language every one of the five documents is guaranteed to have — see
+/** English is the ONLY language every one of the seven documents is guaranteed to have — see
  *  `legal-documents.ts`'s own header on why a translation file is optional per slug, never required. */
 export const DEFAULT_LEGAL_DOCUMENT_LANGUAGE: LegalDocumentLanguage = 'en';
 
