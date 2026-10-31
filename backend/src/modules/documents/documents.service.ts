@@ -925,8 +925,10 @@ export class DocumentsService implements OnModuleInit {
           key: requirement.field,
           kind: 'text',
           label: requirement.label,
+          labelKey: requirement.labelKey,
           required: requirement.required,
           helpText: requirement.why,
+          helpTextKey: requirement.helpTextKey,
         },
       }));
 

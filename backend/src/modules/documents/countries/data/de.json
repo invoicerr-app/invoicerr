@@ -1011,6 +1011,8 @@
       {
         "field": "buyerReference",
         "label": "Buyer reference (Leitweg-ID)",
+        "labelKey": "documents.countryFields.buyerReference.leitwegId.label",
+        "helpTextKey": "documents.countryFields.buyerReference.leitwegId.helpText",
         "why": "§ 5 ERechV: \"Die elektronische Rechnung hat neben den umsatzsteuerrechtlichen Rechnungsbestandteilen mindestens folgende Angaben zu enthalten: 1. eine Leitweg-Identifikationsnummer, [...]\" — a Leitweg-ID is a MANDATORY invoice component under federal law, not optional the way France's own \"code service\" is (see fr.json's own entry). Carried generically as `data.buyerReference` (`formats/shared-build.ts#extractBuyerReference`), the SAME field the `country-fields/data/de.json` overlay's own Leitweg-ID input feeds — see that file's own header.",
         "required": true
       }

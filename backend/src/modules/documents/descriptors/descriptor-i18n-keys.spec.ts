@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ActionRegistry } from '../actions/action-registry';
 import { buildActionExtensionRegistry } from '../actions/native-extensions';
+import { ALL_B2G_ROUTING_FILES } from '../b2g-routing/data/all';
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { NO_VAT_CATALOG_HELP_TEXT_KEY } from './company-view';
 import { buildNativeDocumentTypeDescriptors } from './native-types';
@@ -112,6 +113,24 @@ describe('descriptor text reaches the translation catalog', () => {
         ? [`${where}: no English key ${field.helpTextKey}`]
         : []),
     ]);
+    expect(problems).toEqual([]);
+  });
+
+  // Issue #706: a B2G rule synthesises a field on the invoice form. Its label and help text must be
+  // translatable, and the long `why` stays provenance rather than becoming the popover text.
+  it('every field a B2G routing rule adds names existing English label and help text keys', () => {
+    const problems = ALL_B2G_ROUTING_FILES.flatMap((rule) =>
+      (rule.requiredDocumentFields ?? []).flatMap((field) => [
+        ...(field.labelKey ? [] : [`${rule.countryCode} ${field.field}: label without labelKey`]),
+        ...(field.labelKey && !hasKey(field.labelKey)
+          ? [`${rule.countryCode} ${field.field}: no English key ${field.labelKey}`]
+          : []),
+        ...(field.helpTextKey ? [] : [`${rule.countryCode} ${field.field}: helpText without helpTextKey`]),
+        ...(field.helpTextKey && !hasKey(field.helpTextKey)
+          ? [`${rule.countryCode} ${field.field}: no English key ${field.helpTextKey}`]
+          : []),
+      ]),
+    );
     expect(problems).toEqual([]);
   });
 

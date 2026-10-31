@@ -5821,6 +5821,10 @@
         "leitwegId": {
           "label": "Buyer reference (Leitweg-ID)",
           "helpText": "The buyer's own reference. For a German public-sector buyer this is usually a Leitweg-ID. Used as BT-10 (\"Buyer reference\") on an EN 16931 export; XRechnung refuses the document when it is missing (rule BR-DE-15)."
+        },
+        "codeService": {
+          "label": "Code service (recipient)",
+          "helpText": "The recipient's own service code inside Chorus Pro. Some public entities require one, others do not; leave it empty when you have none."
         }
       },
       "supplyType": {
