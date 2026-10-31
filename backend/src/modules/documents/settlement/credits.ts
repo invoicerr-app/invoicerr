@@ -1,5 +1,6 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { ServerMessage, serverMessage } from '../messages/server-message';
 import { listAllDocuments } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { linkedCreditNotePricingData } from '../totals/linked-credit-note';
@@ -38,7 +39,7 @@ export interface DocumentCreditResult {
 export interface CreditsForDocument {
   credits: DocumentCreditResult[];
   /**
-   * Plain English, same convention as `DocumentTotals.warnings`.
+   * A translatable message, same convention as `DocumentTotals.warnings`.
    *
    * "A credit note follows the same rule as its invoice" — previously, a credit
    * note whose OWN `currency` field differed from the invoice's was EXCLUDED here entirely (never
@@ -57,7 +58,7 @@ export interface CreditsForDocument {
    * produces no warning at all: an unfinished document is an ordinary, expected state, not a data
    * problem worth flagging the way a currency-label mismatch is.
    */
-  warnings: string[];
+  warnings: ServerMessage[];
 }
 
 /**
@@ -134,7 +135,7 @@ export function creditsForInvoiceFromNotes(
   const invoiceCurrency = typeof invoiceData.currency === 'string' ? invoiceData.currency : undefined;
 
   const credits: DocumentCreditResult[] = [];
-  const warnings: string[] = [];
+  const warnings: ServerMessage[] = [];
 
   for (const note of creditNotes) {
     const noteData = (note.data ?? {}) as Record<string, unknown>;
@@ -145,10 +146,11 @@ export function creditsForInvoiceFromNotes(
     const noteCurrency = typeof noteData.currency === 'string' ? noteData.currency : undefined;
     if (!noteCurrency || noteCurrency !== invoiceCurrency) {
       warnings.push(
-        `Credit note "${label}" declares its own currency as ${noteCurrency ?? 'unrecorded'}, ` +
-          `different from invoice's own ${invoiceCurrency ?? 'unrecorded currency'}. The credited ` +
-          `amount is always computed from, and expressed in, the invoice's own currency; counted as ` +
-          `${invoiceCurrency ?? 'unrecorded currency'}, never converted (there is nothing to convert).`,
+        serverMessage('documents.messages.credits.currencyMismatch', {
+          label,
+          noteCurrency: noteCurrency ?? 'unrecorded',
+          invoiceCurrency: invoiceCurrency ?? 'unrecorded currency',
+        }),
       );
     }
 

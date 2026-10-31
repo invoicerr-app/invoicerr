@@ -1,5 +1,6 @@
 import { computeDocumentTotals } from './compute-totals';
 import type { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 /**
  * Helper to build a minimal descriptor with the structure needed for these tests.
@@ -167,7 +168,9 @@ describe('computeDocumentTotals', () => {
     expect(result.vatMinor).toBe(2000);
     expect(result.grossMinor).toBe(22000);
     // Warnings
-    expect(result.warnings).toContainEqual(expect.stringContaining('line 2 has no usable VAT rate'));
+    expect(formatServerMessages(result.warnings)).toContainEqual(
+      expect.stringContaining('line 2 has no usable VAT rate'),
+    );
     // Only one VAT breakdown entry
     expect(result.vatBreakdown).toHaveLength(1);
     expect(result.vatBreakdown[0].ratePercent).toBe(20);
@@ -184,7 +187,9 @@ describe('computeDocumentTotals', () => {
     const result = computeDocumentTotals(descriptor, data);
 
     expect(result.lines[0].netMinor).toBe(10000); // quantity treated as 1, exactly as before this fix
-    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+    expect(formatServerMessages(result.warnings)).toContainEqual(
+      expect.stringContaining('line 1 has a non-numeric quantity'),
+    );
   });
 
   it('a non-numeric but PRESENT unit price is counted as 0 AND warned — never a silent guess', () => {
@@ -197,7 +202,9 @@ describe('computeDocumentTotals', () => {
     const result = computeDocumentTotals(descriptor, data);
 
     expect(result.lines[0].netMinor).toBe(0);
-    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric unit price'));
+    expect(formatServerMessages(result.warnings)).toContainEqual(
+      expect.stringContaining('line 1 has a non-numeric unit price'),
+    );
   });
 
   it('an ABSENT quantity/unit price still defaults silently — a draft in progress, not a data problem', () => {
@@ -210,7 +217,7 @@ describe('computeDocumentTotals', () => {
     const result = computeDocumentTotals(descriptor, data);
 
     expect(result.lines[0].netMinor).toBe(0); // quantity 1 * unitPrice 0
-    expect(result.warnings).not.toContainEqual(expect.stringContaining('non-numeric'));
+    expect(formatServerMessages(result.warnings)).not.toContainEqual(expect.stringContaining('non-numeric'));
   });
 
   it('a NaN quantity is never silently propagated into the arithmetic (typeof NaN === "number")', () => {
@@ -224,7 +231,9 @@ describe('computeDocumentTotals', () => {
 
     expect(Number.isNaN(result.lines[0].netMinor)).toBe(false);
     expect(result.lines[0].netMinor).toBe(10000); // NaN rejected, quantity falls back to 1
-    expect(result.warnings).toContainEqual(expect.stringContaining('line 1 has a non-numeric quantity'));
+    expect(formatServerMessages(result.warnings)).toContainEqual(
+      expect.stringContaining('line 1 has a non-numeric quantity'),
+    );
   });
 
   it('a line shape with NO vat-like select field at all (e.g. purchase-order.descriptor.ts) never warns — net === gross', () => {
@@ -275,7 +284,9 @@ describe('computeDocumentTotals', () => {
     const result = computeDocumentTotals(descriptor, data);
 
     expect(result.currency).toBeNull();
-    expect(result.warnings).toContainEqual(expect.stringContaining('Document currency not found'));
+    expect(formatServerMessages(result.warnings)).toContainEqual(
+      expect.stringContaining('Document currency not found'),
+    );
     // Should still calculate using default 2 decimals (100 EUR = 10000 cents)
     expect(result.netMinor).toBe(10000);
     expect(result.vatMinor).toBe(2000);

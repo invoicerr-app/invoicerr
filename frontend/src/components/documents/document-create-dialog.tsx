@@ -16,6 +16,7 @@ import {
   useDocumentOptionTotals,
   useDocumentTotals,
 } from "@/components/documents/document-totals"
+import type { ServerMessage } from "@/lib/server-message"
 import type {
   DocumentFieldDescriptor,
   DocumentInstance,
@@ -122,7 +123,7 @@ function FieldsSection({
 }: {
   fields: DocumentFieldDescriptor[]
   documentTypeId: string
-  lineTotalWarnings?: string[]
+  lineTotalWarnings?: ServerMessage[]
 }) {
   return (
     <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">

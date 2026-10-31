@@ -7,6 +7,7 @@ import {
   loadCurrencyContext,
   resolveConsolidationInstant,
 } from './currency-consolidation';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 // Only the two DB-touching reads are mocked — `toCurrencyRateLikes` stays the REAL pure mapper
 // (same "mock only what touches Prisma" discipline invoice-contributions.spec.ts already applies to
@@ -54,17 +55,16 @@ describe('consolidateByCurrency', () => {
       now,
     );
 
-    expect(outcome.consolidated).toEqual({
-      totalMinor: 14600,
-      currency: 'EUR',
-      notes: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
-    });
+    expect(outcome.consolidated).toMatchObject({ totalMinor: 14600, currency: 'EUR' });
+    expect(formatServerMessages(outcome.consolidated!.notes)).toEqual([
+      'USD→EUR @ 0.92 (manual, 2026-08-15)',
+    ]);
     expect(outcome.warnings).toEqual([]);
   });
 
   it('a currency identical to the reference currency contributes no conversion note', () => {
     const outcome = consolidateByCurrency([{ currency: 'EUR', totalMinor: 10000 }], 'EUR', [], now);
-    expect(outcome.consolidated).toEqual({ totalMinor: 10000, currency: 'EUR', notes: [] });
+    expect(outcome.consolidated).toMatchObject({ totalMinor: 10000, currency: 'EUR', notes: [] });
   });
 
   it('a currency with NO resolvable rate: no consolidated total AT ALL (never partial), and a warning naming it', () => {
@@ -79,7 +79,9 @@ describe('consolidateByCurrency', () => {
     );
 
     expect(outcome.consolidated).toBeNull();
-    expect(outcome.warnings).toEqual(['No JPY→EUR rate is set, so the consolidated total is omitted.']);
+    expect(formatServerMessages(outcome.warnings)).toEqual([
+      'No JPY→EUR rate is set, so the consolidated total is omitted.',
+    ]);
   });
 
   it('several missing currencies are each named, not just the first', () => {
@@ -94,7 +96,7 @@ describe('consolidateByCurrency', () => {
     );
 
     expect(outcome.consolidated).toBeNull();
-    expect(outcome.warnings).toEqual([
+    expect(formatServerMessages(outcome.warnings)).toEqual([
       'No JPY→EUR rate is set, so the consolidated total is omitted.',
       'No GBP→EUR rate is set, so the consolidated total is omitted.',
     ]);
@@ -109,7 +111,9 @@ describe('consolidateByCurrency', () => {
     );
 
     expect(outcome.consolidated).toBeNull();
-    expect(outcome.warnings).toEqual(['No USD→EUR rate is set, so the consolidated total is omitted.']);
+    expect(formatServerMessages(outcome.warnings)).toEqual([
+      'No USD→EUR rate is set, so the consolidated total is omitted.',
+    ]);
   });
 
   it('a future-dated rate is not eligible — treated the same as no rate at all', () => {
@@ -121,7 +125,9 @@ describe('consolidateByCurrency', () => {
     );
 
     expect(outcome.consolidated).toBeNull();
-    expect(outcome.warnings).toEqual(['No USD→EUR rate is set, so the consolidated total is omitted.']);
+    expect(formatServerMessages(outcome.warnings)).toEqual([
+      'No USD→EUR rate is set, so the consolidated total is omitted.',
+    ]);
   });
 });
 

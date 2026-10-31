@@ -92,14 +92,18 @@
  * defect this whole axis exists to fix, and per `mandate.ts`'s own precedent for a missing issue date,
  * a case a document type's own "save-draft" validation is expected to make unreachable in practice.
  */
+import { ServerMessage, serverMessage } from '../../messages/server-message';
 import { CountryRetentionFile, RetentionOrigin, RetentionRule } from './schema';
 
 export interface ResolvedRetention {
   retentionUntil: Date | null;
   /** ALWAYS set, even when `retentionUntil` is null — names either the rule(s) actually applied
-   *  (with their own `legalRef`) or states plainly that this country has no declared rule. Free
-   *  text, shown as-is (same convention as `ActionResult.message`) — never an i18n key. */
+   *  (with their own `legalRef`) or states plainly that this country has no declared rule. Kept as
+   *  English text because it is the archive's own verbatim citation record. */
   retentionBasis: string;
+  /** The same citation as a translatable message: the sentence is a key, and the rule labels and
+   *  legal references (data from the country file) travel as params, never reworded. */
+  retentionBasisMessage: ServerMessage;
 }
 
 function addYears(date: Date, years: number): Date {
@@ -171,6 +175,9 @@ export function computeRetention(
       retentionBasis: file
         ? `No retention rule declared for ${file.countryCode}, so no duration is invented.`
         : 'No retention rule declared for this country, so no duration is invented.',
+      retentionBasisMessage: file
+        ? serverMessage('documents.messages.retention.noneForCountry', { country: file.countryCode })
+        : serverMessage('documents.messages.retention.none'),
     };
   }
 
@@ -190,6 +197,11 @@ export function computeRetention(
         `${file!.countryCode} declares ${rules.length} retention rule(s) ` +
         `(${rules.map(describeRule).join('; ')}) but none could be resolved: the document's own issue ` +
         'date is missing or unparseable, and no declared rule here runs from the archiving instant alone.',
+      retentionBasisMessage: serverMessage('documents.messages.retention.unresolved', {
+        country: file!.countryCode,
+        count: rules.length,
+        rules: rules.map(describeRule).join('; '),
+      }),
     };
   }
 
@@ -202,14 +214,33 @@ export function computeRetention(
   const others = resolved.filter((r) => r !== winning);
   const skipped = rules.length - resolved.length;
 
+  const winner = describeRule(winning.rule);
+  const everyRule = resolved.map((r) => describeRule(r.rule)).join('; ');
+
   let retentionBasis =
     others.length === 0
-      ? `${describeRule(winning.rule)}.`
-      : `${describeRule(winning.rule)}: the longer of ${resolved.length} obligations that apply ` +
-        `simultaneously to the same company: ${resolved.map((r) => describeRule(r.rule)).join('; ')}.`;
+      ? `${winner}.`
+      : `${winner}: the longer of ${resolved.length} obligations that apply ` +
+        `simultaneously to the same company: ${everyRule}.`;
   if (skipped > 0) {
     retentionBasis += ` (${skipped} other declared rule(s) could not be resolved: missing issue date.)`;
   }
 
-  return { retentionUntil: winning.until, retentionBasis };
+  const retentionBasisMessage =
+    others.length === 0
+      ? serverMessage('documents.messages.retention.single', { rule: winner })
+      : skipped > 0
+        ? serverMessage('documents.messages.retention.longerOfSkipped', {
+            rule: winner,
+            count: resolved.length,
+            rules: everyRule,
+            skipped,
+          })
+        : serverMessage('documents.messages.retention.longerOf', {
+            rule: winner,
+            count: resolved.length,
+            rules: everyRule,
+          });
+
+  return { retentionUntil: winning.until, retentionBasis, retentionBasisMessage };
 }

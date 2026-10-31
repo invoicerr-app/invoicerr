@@ -40,6 +40,7 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
 import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
+import { ServerMessage, serverMessage } from '../messages/server-message';
 import { computeDocumentTotals } from '../totals/compute-totals';
 
 const RECEIVED_INVOICE_DESCRIPTOR = buildReceivedInvoiceDescriptor();
@@ -66,13 +67,13 @@ interface StatedTotal {
  * with no readable lines has nothing for a total to be controlled against, and must stay exactly as
  * silent as before this check existed.
  */
-export function checkReceivedInvoiceLineTotals(data: Record<string, unknown>): string[] {
+export function checkReceivedInvoiceLineTotals(data: Record<string, unknown>): ServerMessage[] {
   const totals = computeDocumentTotals(RECEIVED_INVOICE_DESCRIPTOR, data);
   if (totals.lines.length === 0) return [];
 
   const currency = totals.currency ?? 'EUR';
   const tolerance = toleranceMinor(totals.lines.length);
-  const warnings: string[] = [];
+  const warnings: ServerMessage[] = [];
 
   const statedTotals: StatedTotal[] = [
     { key: 'netAmount', label: 'net / HT', computedMinor: totals.netMinor },
@@ -89,10 +90,14 @@ export function checkReceivedInvoiceLineTotals(data: Record<string, unknown>): s
     if (deltaMinor <= tolerance) continue;
 
     warnings.push(
-      `Line total mismatch (${label}): the ${totals.lines.length} line(s) sum to ${fmt(computedMinor, currency)} ` +
-        `but the document states ${fmt(statedMinor, currency)}, a difference of ${fmt(deltaMinor, currency)}, ` +
-        `beyond the ${fmt(tolerance, currency)} rounding tolerance for this many line(s). Kept as entered: ` +
-        'this is the supplier’s own document, not recomputed.',
+      serverMessage('documents.messages.lineTotals.mismatch', {
+        total: label,
+        lines: totals.lines.length,
+        computed: fmt(computedMinor, currency),
+        stated: fmt(statedMinor, currency),
+        difference: fmt(deltaMinor, currency),
+        tolerance: fmt(tolerance, currency),
+      }),
     );
   }
 

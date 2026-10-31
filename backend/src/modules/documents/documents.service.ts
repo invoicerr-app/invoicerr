@@ -17,6 +17,7 @@ import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
+import { ServerMessage } from './messages/server-message';
 import {
   DocumentTotalsView,
   resolveDocumentTotalsView,
@@ -269,7 +270,7 @@ export interface DocumentSettlementView {
   totals: DocumentTotals;
   payments: DocumentPaymentResult[];
   credits: DocumentCreditResult[];
-  warnings: string[];
+  warnings: ServerMessage[];
   settlement: DocumentSettlement;
 }
 
@@ -278,7 +279,7 @@ export interface DocumentSettlementView {
  *  anchor) without every caller having to re-shape what it already parses. Always present, always an
  *  array: a document with nothing to caveat answers `[]`, never 204 and never a missing key. */
 export interface DocumentTaxWarningsView {
-  warnings: string[];
+  warnings: ServerMessage[];
 }
 
 /**

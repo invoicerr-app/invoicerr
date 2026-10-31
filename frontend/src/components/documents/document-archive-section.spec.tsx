@@ -24,6 +24,7 @@ function archive(overrides: Partial<DocumentArchive> = {}): DocumentArchive {
     archivedAt: "2026-09-01T00:00:00.000Z",
     retentionUntil: "2032-12-31T00:00:00.000Z",
     retentionBasis: "VAT 5y (ustawa o VAT art. 112).",
+    retentionBasisMessage: null,
     retentionCalcVersion: 1,
     ...overrides,
   }

@@ -6,6 +6,7 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDashboardWidgetsWithConsolidation } from './expense-contributions';
 import { MetricWidget } from './widgets';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 vi.mock('../persistence');
 // Same "mock only the DB-touching reads, keep the real pure mapper" discipline as
@@ -131,9 +132,11 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
       unit: 'EUR (converted)',
       approx: true,
       value: 146,
-      warnings: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
       link: { typeId: 'expense', dateFrom: '2026-08-01', dateTo: '2026-08-31' },
     });
+    expect(formatServerMessages(consolidated?.warnings ?? [])).toEqual([
+      'USD→EUR @ 0.92 (manual, 2026-08-15)',
+    ]);
     // The ordinary per-currency metrics are still there, untouched, with no warnings attached.
     expect(widgets.find((w) => w.id === 'expense:this-month:EUR')).toEqual({
       id: 'expense:this-month:EUR',
@@ -161,8 +164,12 @@ describe('buildExpenseDashboardWidgetsWithConsolidation', () => {
     expect(widgets.find((w) => w.id === 'expense:this-month:consolidated')).toBeUndefined();
     const eur = widgets.find((w) => w.id === 'expense:this-month:EUR');
     const jpy = widgets.find((w) => w.id === 'expense:this-month:JPY');
-    expect(eur?.warnings).toEqual(['No JPY→EUR rate is set, so the consolidated total is omitted.']);
-    expect(jpy?.warnings).toEqual(['No JPY→EUR rate is set, so the consolidated total is omitted.']);
+    expect(formatServerMessages(eur?.warnings ?? [])).toEqual([
+      'No JPY→EUR rate is set, so the consolidated total is omitted.',
+    ]);
+    expect(formatServerMessages(jpy?.warnings ?? [])).toEqual([
+      'No JPY→EUR rate is set, so the consolidated total is omitted.',
+    ]);
     // Values themselves are completely unaffected by the missing rate.
     expect(eur?.value).toBe(100);
     expect(jpy?.value).toBe(1000);

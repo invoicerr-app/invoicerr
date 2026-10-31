@@ -6,6 +6,7 @@ import { StatusMark } from "@/components/ui/status-mark"
 import { statusPresentation } from "./status-presentation"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
+import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
@@ -322,7 +323,7 @@ export function DocumentSettlementSection({ typeId, documentId, dueDate }: Docum
                 title={t("documents.settlement.warningsTitle")}
                 dataCy="document-settlement-warnings"
               >
-                {warnings}
+                {formatServerMessages(t, warnings)}
               </ProseHelp>
             )}
           </div>

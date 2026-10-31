@@ -1,13 +1,14 @@
 import { useTranslation } from "react-i18next"
 
 import { ProseHelp } from "@/components/ui/prose-help"
+import { formatServerMessages, type ServerMessage } from "@/lib/server-message"
 import { useDocumentTaxWarnings } from "@/hooks/queries"
 
 interface DocumentTaxWarningsProps {
-  warnings: string[]
+  warnings: ServerMessage[]
 }
 
-// The caveats change the amounts above, so the status stays visible; the server's prose opens behind its `?`.
+// The caveats change the amounts above, so the status stays visible; their text opens behind the `?`.
 export function DocumentTaxWarnings({ warnings }: DocumentTaxWarningsProps) {
   const { t } = useTranslation()
 
@@ -20,7 +21,7 @@ export function DocumentTaxWarnings({ warnings }: DocumentTaxWarningsProps) {
       dataCy="document-tax-warnings"
       className="mt-3"
     >
-      {warnings}
+      {formatServerMessages(t, warnings)}
     </ProseHelp>
   )
 }

@@ -1,3 +1,4 @@
+import { formatServerMessage } from '../../messages/server-message';
 import { computeRetention } from './compute-retention';
 import { CountryRetentionFile } from './schema';
 
@@ -38,6 +39,14 @@ describe('computeRetention', () => {
     const result = computeRetention(single, archivedAt, undefined);
     expect(result.retentionUntil?.toISOString()).toBe('2031-08-31T00:00:00.000Z');
     expect(result.retentionBasis).toBe('unique 5y (Some Act §1).');
+  });
+
+  it('carries the same citation as a translatable message, with the rule text as a param', () => {
+    const result = computeRetention(FR_LIKE, archivedAt, undefined);
+    expect(result.retentionBasisMessage.key).toBe('documents.messages.retention.longerOf');
+    expect(result.retentionBasisMessage.params?.count).toBe(2);
+    expect(String(result.retentionBasisMessage.params?.rules)).toContain('C. com. art. L123-22');
+    expect(formatServerMessage(result.retentionBasisMessage)).toBe(result.retentionBasis);
   });
 
   it('a country with no declared rules gets a NULL retentionUntil, never an invented duration', () => {

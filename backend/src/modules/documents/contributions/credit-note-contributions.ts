@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 
 import { countDocuments, findOwnedDocument, listRecentDocuments } from '../persistence';
+import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { TableWidget, Widget } from './widgets';
 
@@ -69,7 +70,12 @@ export const buildCreditNoteStatisticsWidgets: ContributionHandler = async ({ co
     // exactly like a complete one, so the widget says which it is.
     warnings:
       creditNoteCount > rows.length
-        ? [`Showing the ${rows.length} most recently updated credit notes of ${creditNoteCount}.`]
+        ? [
+            serverMessage('documents.messages.widgets.creditNotesCapped', {
+              shown: rows.length,
+              total: creditNoteCount,
+            }),
+          ]
         : undefined,
     columns: [
       { key: 'issueDate', label: 'Issue date' },
