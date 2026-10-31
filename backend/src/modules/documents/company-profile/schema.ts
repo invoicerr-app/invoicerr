@@ -79,6 +79,12 @@ function assertValidAttribute(attribute: CompanyProfileAttribute, context: strin
     }
     values.add(entry.value);
   }
+  if (attribute.derived !== undefined && attribute.askedWhen !== undefined) {
+    throw new InvalidCompanyProfileError(
+      `${context}: attribute "${key}" declares both "derived" and "askedWhen" - a value that follows ` +
+        'from a company setting is never asked, so the two cannot sit on the same attribute.',
+    );
+  }
   if (attribute.derived !== undefined) {
     const derived = attribute.derived;
     if (!DERIVED_SOURCES.includes(derived?.source)) {

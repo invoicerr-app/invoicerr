@@ -41,6 +41,24 @@ describe('company profile schema: askedWhen and derived values', () => {
     ).not.toThrow();
   });
 
+  it('refuses an attribute that is both derived and asked', () => {
+    const both: CompanyProfileAttribute = {
+      key: 'vatRegime',
+      label: 'VAT regime',
+      values: [
+        { value: 'EXEMPT', label: 'Exempt' },
+        { value: 'NORMAL', label: 'Normal' },
+      ],
+      askedWhen: { sizeCategory: ['LARGE'] },
+      derived: { source: 'exemptVat', whenTrue: 'EXEMPT', whenFalse: 'NORMAL' },
+      provenance,
+    };
+
+    expect(() => assertValidCompanyProfile(section([sizeCategory, both]), 'xx')).toThrow(
+      /attribute "vatRegime" declares both "derived" and "askedWhen"/,
+    );
+  });
+
   it('refuses an askedWhen on an attribute the country does not declare', () => {
     const conditional: CompanyProfileAttribute = {
       key: 'debitsOption',
