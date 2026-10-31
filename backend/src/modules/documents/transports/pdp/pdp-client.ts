@@ -69,6 +69,30 @@ export interface PdpClientConfig {
 
 export type PdpApiStyle = 'superpdp' | 'afnor';
 
+/**
+ * The status codes SuperPDP accepts on `POST /v1.beta/invoice_events`, exactly as its published
+ * OpenAPI declares them (`status_code_create`, read 2026-10-31 from
+ * `https://api.superpdp.tech/openapi/superpdp.json`). The platform refuses anything outside this
+ * enum with a 400, so a code is a compile-time choice here rather than a bare string.
+ *
+ * The read-side `status_code` schema documents what each one means: `fr:204` acknowledged,
+ * `fr:205` accepted, `fr:206` partly accepted, `fr:207` disputed, `fr:208` on hold, `fr:209`
+ * completed, `fr:210` refused, `fr:211` payment sent, `fr:212` payment received, `fr:220` (not
+ * described in the read-side list). `fr:203` ("made available") is a PLATFORM-emitted status and is
+ * deliberately absent from the create enum.
+ */
+export type SuperPdpStatusCreate =
+  | 'fr:204'
+  | 'fr:205'
+  | 'fr:206'
+  | 'fr:207'
+  | 'fr:208'
+  | 'fr:209'
+  | 'fr:210'
+  | 'fr:211'
+  | 'fr:212'
+  | 'fr:220';
+
 // --- SuperPDP proprietary types ---
 
 /** One lifecycle event as superpdp actually returns it. */
@@ -609,34 +633,32 @@ export class PdpClient {
 
   // -----------------------------------------------------------------------
   // Lifecycle status push (a party notifying the PDP of a status change — outbound seller codes like
-  // fr:211/fr:212, or BUYER-side codes like fr:203/fr:205 pushed from the RECEPTION side — see
+  // fr:211/fr:212, or BUYER-side codes like fr:204/fr:205 pushed from the RECEPTION side — see
   // `pdp-reception.ts`'s own header for the received-invoice "approve"/"reject"/"paid" actions)
   // -----------------------------------------------------------------------
 
   /**
    * Push a lifecycle status event to the PDP for a deposited invoice.
    *
-   * SuperPDP proprietary endpoint (as documented, never independently confirmed until now):
-   * POST /v1.beta/invoices/{id}/lifecycle_events, body `{ code: "fr:211" }` (XP Z12-012 lifecycle
-   * code, e.g. fr:211 = payment sent, fr:212 = payment received, fr:205 = accepted by buyer).
+   * SuperPDP's own endpoint, per its published OpenAPI (read 2026-10-31):
+   * `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`. The path this
+   * method used to call, `POST /v1.beta/invoices/{id}/lifecycle_events`, does not exist on the API
+   * at all — every live attempt answered a generic `404 {"http_status_code":404}` (see
+   * `documentation/docs/developer-guide/live-testing.md`), which is exactly what an unregistered
+   * route returns. The status was therefore never delivered.
    *
-   * LIVE PROOF, 2026-09-16 (`superpdp-reception.live.spec.ts`): this endpoint answers a real, generic
-   * `404 {"http_status_code":404}` on the current superpdp sandbox — tried against a freshly deposited
-   * invoice (both its "out" id AND its "in" twin, see `pdp-reception.ts`'s own header on why a
-   * self-addressed deposit yields two distinct ids), and against every plausible path variant
-   * (`lifecycle-events`, `/events`, `/status`, `/statuses`, `/lifecycle`, a plain `PUT` on the invoice
-   * itself) — all 404, the identical shape a genuinely unregistered route returns (compare
-   * `authenticate()`'s own 4xx/5xx error shaping: a validation failure on a REAL route answers 400/422
-   * with a specific message, not this generic body). Conclusion, not a guess: the sandbox's "API Flux"
-   * does not expose ANY lifecycle-status-push route today, under any of the names this codebase or the
-   * XP Z12-012 naming convention suggested. This method is kept (never deleted) — a real production PA
-   * may still implement it, and `pdp-reception.ts`'s own status-push calls degrade to a LOGGED, non-fatal
-   * no-op on a 404 specifically, never a crashed poll — see `documentation/docs/developer-guide/
-   * live-testing.md`'s own PDP reception section for the full evidence and what remains unverified.
+   * `details[].reason` is the documented slot for a motivated refusal (`invoice_event_detail`'s
+   * `reason`, MDT-113), which is why `pushRejected` passes one. The OpenAPI also states that a
+   * `fr:212` event without details reports the invoice's total as the paid amount.
    */
-  async pushLifecycleStatus(invoiceId: number, code: string): Promise<void> {
-    await this.request<unknown>('POST', `/v1.beta/invoices/${invoiceId}/lifecycle_events`, {
-      body: { code },
+  async pushLifecycleStatus(invoiceId: number, code: SuperPdpStatusCreate, reason?: string): Promise<void> {
+    const details = reason?.trim() ? [{ reason: reason.trim() }] : undefined;
+    await this.request<unknown>('POST', '/v1.beta/invoice_events', {
+      body: {
+        invoice_id: invoiceId,
+        status_code: code,
+        ...(details ? { details } : {}),
+      },
     });
   }
 

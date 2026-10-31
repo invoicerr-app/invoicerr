@@ -37,13 +37,14 @@
  *     real credentials this file reads from `process.env` — identical reasoning
  *     `superpdp-conformity.live.spec.ts`'s own header already gives for its own stub.
  *
- * ## The lifecycle-status PUSH — LIVE-VERIFIED NEGATIVE, not re-asserted here
+ * ## The lifecycle-status PUSH — corrected route, not re-asserted live here
  *
- * `pdp-client.ts#pushLifecycleStatus`'s own header already documents, with full evidence (multiple
- * path variants, all a generic 404), that the sandbox's "API Flux" does not expose this endpoint
- * today. This spec's own "approve"/"record-payment" steps below still exercise the REAL push call
- * (through the REAL `pdpStatusPusher`) — proving it does not crash the action, never re-asserting the
- * already-documented 404 itself (that would just slow this spec down for no new information).
+ * `pdp-client.ts#pushLifecycleStatus`'s own header documents the correction: the old
+ * `POST /v1.beta/invoices/{id}/lifecycle_events` never existed (multiple path variants, all a generic
+ * 404), and the push now targets `POST /v1.beta/invoice_events` as SuperPDP's published OpenAPI
+ * declares. No live round-trip of the corrected push is asserted here — this spec's own
+ * "approve"/"record-payment" steps below still exercise the REAL push call (through the REAL
+ * `pdpStatusPusher`), proving it does not crash the action, and a failure is now logged at `error`.
  */
 
 import { ActionExtensionRegistry } from '../../actions/action-extensions';

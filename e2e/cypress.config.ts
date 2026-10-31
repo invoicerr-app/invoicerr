@@ -80,14 +80,14 @@ function startWebhookReceiver(): Promise<string> {
  * (backend) makes its own server-to-server HTTP calls (OAuth2 token, `listInvoices`,
  * `downloadInvoiceFile`) — a `cy.intercept` only ever sees traffic the BROWSER makes.
  *
- * Answers the exact THREE endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
+ * Answers the exact endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
  * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
  * (`backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`'s own header has the
  * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
  * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
- * own `contentType`). `POST /v1.beta/invoices/{id}/lifecycle_events` answers 200 — never re-proving
- * the real sandbox's own documented 404 gap here (already proven live, see the file cited above);
- * this fake stays a well-behaved PDP so the e2e assertions stay about the SCREEN, not this detail.
+ * own `contentType`). `POST /v1.beta/invoice_events` (the route SuperPDP's published OpenAPI
+ * documents, body `{ invoice_id, status_code }`) answers 200 — this fake stays a well-behaved PDP so
+ * the e2e assertions stay about the SCREEN, not the platform's own event API.
  *
  * The inbox is MUTABLE (`setFakePdpInbox`/`resetFakePdpServer`) rather than a fixed canned response:
  * the spec drives it to first hold ZERO deposits (proving the sweep is a genuine no-op with nothing
@@ -158,14 +158,14 @@ function startFakePdpServer(): Promise<string> {
         return;
       }
 
-      const lifecycleMatch = url.pathname.match(/^\/v1\.beta\/invoices\/(\d+)\/lifecycle_events$/);
-      if (req.method === "POST" && lifecycleMatch) {
+      const eventMatch = url.pathname === "/v1.beta/invoice_events";
+      if (req.method === "POST" && eventMatch) {
         const chunks: Buffer[] = [];
         req.on("data", (chunk) => chunks.push(chunk));
         req.on("end", () => {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
-            fakePdpLifecycleEvents.push({ invoiceId: lifecycleMatch[1], code: body.code });
+            fakePdpLifecycleEvents.push({ invoiceId: String(body.invoice_id), code: body.status_code });
           } catch {
             // A malformed push body is itself not this fake's concern to validate — the real
             // pdp-client.ts already shapes this request; this fake only records what arrived.
