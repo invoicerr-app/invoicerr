@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
@@ -10,6 +10,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import {
   useDocumentTypesList,
   useMultiEntityReferenceSearch,
+  useReferenceFields,
   useReferenceResolve,
   useReferenceSearch,
 } from "@/hooks/queries"
@@ -59,13 +60,32 @@ function capitalize(value: string): string {
  */
 export function ReferenceField({ field, name }: FieldRendererProps) {
   const { t } = useTranslation()
-  const { control, watch } = useFormContext()
+  const { control, watch, setValue } = useFormContext()
   const [search, setSearch] = useState("")
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
   const multiTarget = isMultiTargetReference(field)
   const targetEntities = field.entities ?? []
   const currentValue = watch(name) as string | MultiTargetReferenceValue | undefined
   const readOnly = useDocumentFormReadOnly()
+
+  // `lockedFromReference` (types.ts) on a single-target reference — e.g. a credit note's own
+  // `client` following the invoice it corrects. Same contract as the select renderer's: copy
+  // `sourceKey` off the sibling reference's raw fields and lock the picker while that sibling
+  // resolves.
+  const lockedFrom = field.lockedFromReference
+  const lockedSourceValue = lockedFrom ? watch(lockedFrom.field) : undefined
+  const lockedSourceId = lockedFrom && typeof lockedSourceValue === "string" ? lockedSourceValue : undefined
+  const { data: lockedFields } = useReferenceFields(lockedFrom?.entity, lockedSourceId)
+  const lockedValue =
+    lockedFrom && lockedSourceId && lockedFields && typeof lockedFields[lockedFrom.sourceKey] !== "undefined"
+      ? String(lockedFields[lockedFrom.sourceKey])
+      : undefined
+  const isLocked = !multiTarget && lockedValue !== undefined
+
+  useEffect(() => {
+    if (lockedValue === undefined) return
+    setValue(name, lockedValue, { shouldValidate: true, shouldDirty: true })
+  }, [lockedValue, name, setValue])
 
   // Single-target path — untouched behaviour.
   const singleEntity = multiTarget ? undefined : field.entity
@@ -129,6 +149,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
             required={field.required}
             description={field.helpText}
             helpDataCy={`document-field-${field.key}-help`}
+            lockReason={isLocked ? t("documents.form.select.lockedFromReference") : undefined}
           >
             {field.label}
           </FormLabel>
@@ -150,7 +171,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
               placeholder={field.label}
               searchPlaceholder={t("documents.form.reference.searchPlaceholder")}
               noResultsText={t("documents.form.reference.noResults")}
-              disabled={readOnly}
+              disabled={readOnly || isLocked}
               data-cy={inputDataCy}
               footerAction={
                 QuickCreateComponent

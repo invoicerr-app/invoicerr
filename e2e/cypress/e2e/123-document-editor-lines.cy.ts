@@ -304,14 +304,14 @@ describe("Document line editor", () => {
 			cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		}
 
-		it("asks for the corrected invoice before the dates", () => {
+		it("asks for the corrected invoice and its client before the dates", () => {
 			openNewCreditNote();
 			cy.get('[data-cy="document-form"] [data-cy^="document-field-"]', { timeout: 15000 }).then(($els) => {
 				const keys = [...$els]
 					.map((el) => el.getAttribute("data-cy") ?? "")
 					.filter((cy) => /^document-field-[A-Za-z]+$/.test(cy))
 					.map((cy) => cy.replace("document-field-", ""));
-				expect(keys.slice(0, 3)).to.deep.eq(["invoice", "issueDate", "currency"]);
+				expect(keys.slice(0, 4)).to.deep.eq(["invoice", "client", "issueDate", "currency"]);
 			});
 		});
 

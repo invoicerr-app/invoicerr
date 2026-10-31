@@ -365,11 +365,12 @@ export interface SemanticInvoiceInput {
    */
   customizationId?: string;
   /**
-   * Issue #472 - set ONLY when this document is a credit note: switches BT-3 to '381' and emits BG-3
-   * (see this file's own header, "BT-3" and "BG-3"). `undefined` for every invoice, whose output is
-   * therefore byte-for-byte what it was before.
+   * Issue #472 - set ONLY when this document is a credit note: switches BT-3 to '381' and, when it
+   * carries one, emits BG-3 (see this file's own header, "BT-3" and "BG-3"). A FREE credit note sets
+   * `creditNote` with no `correctedInvoice`, so it is still type 381 but references no invoice.
+   * `undefined` for every invoice, whose output is therefore byte-for-byte what it was before.
    */
-  creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  creditNote?: { correctedInvoice?: CorrectedInvoiceReference };
   /**
    * Issue #517: BT-6 (VAT accounting currency code, `cbc:TaxCurrencyCode`) and BT-111 (Invoice
    * total VAT amount in accounting currency, the SECOND `cac:TaxTotal`: `@e-invoice-eu/core`'s own
@@ -846,8 +847,8 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // BT-10 — see `SemanticInvoiceInput.buyerReference`'s own header. Absent entirely when not
       // supplied, exactly the pre-existing behaviour for every syntax that never sets it.
       ...(input.buyerReference ? { 'cbc:BuyerReference': input.buyerReference } : {}),
-      // BG-3 - see this file's own header. Absent for every invoice.
-      ...(input.creditNote
+      // BG-3 - see this file's own header. Absent for every invoice, and for a FREE credit note.
+      ...(input.creditNote?.correctedInvoice
         ? {
             'cac:BillingReference': [
               {
