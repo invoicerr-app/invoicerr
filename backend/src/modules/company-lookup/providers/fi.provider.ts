@@ -1,11 +1,7 @@
 /**
  * Finland — PRH / YTJ open data (Patentti- ja rekisterihallitus).
- *
- * Endpoint : GET https://avoindata.prh.fi/opendata-ytj-api/v3/companies?businessId={id}
- * Docs     : https://avoindata.prh.fi/ytj_en.html
- * Credentials: none.
- *
- * The Finnish VAT number is the business id without its dash, prefixed with FI.
+ * Docs: https://avoindata.prh.fi/ytj_en.html (no credentials). The VAT number is the business id
+ * without its dash, prefixed with FI.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';

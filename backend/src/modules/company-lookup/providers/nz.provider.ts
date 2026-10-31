@@ -1,10 +1,6 @@
 /**
  * New Zealand — NZBN register (Ministry of Business, Innovation and Employment).
- *
- * Endpoint : GET https://api.business.govt.nz/gateway/nzbn/v5/entities/{nzbn}
- *            header `Ocp-Apim-Subscription-Key`
- * Docs     : https://api.business.govt.nz/api-details#api=nzbn-v5
- * Credentials: NZBN_API_KEY (free subscription).
+ * Docs: https://api.business.govt.nz/api-details#api=nzbn-v5 (NZBN_API_KEY).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';

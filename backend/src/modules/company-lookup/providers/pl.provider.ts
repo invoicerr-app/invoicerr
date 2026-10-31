@@ -1,12 +1,8 @@
 /**
  * Poland — Wykaz podatników VAT ("biała lista", Ministerstwo Finansów).
+ * Docs: https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/ (no credentials).
  *
- * Endpoint : GET https://wl-api.mf.gov.pl/api/search/nip/{nip}?date=YYYY-MM-DD
- * Docs     : https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/
- * Credentials: none.
- *
- * The `date` is mandatory and must not be in the future in Polish local time — the
- * register answers "as of" that day, which is also how it reports VAT status.
+ * The mandatory `date` answers "as of" that day and must not be in the future in Polish local time.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
