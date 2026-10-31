@@ -116,6 +116,27 @@ above (or leave it unlabeled for "Other") before it merges if you want it to sho
 right heading in the next release's notes.
 :::
 
+A published **pre-release** is announced on Discord by the `announce` job of `docker-publish.yml`,
+through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret. That job declares
+`needs: merge`, so it starts only once the release's manifest list exists at ghcr.io, and it is
+skipped whenever a platform build or the manifest fails. An announcement therefore never points at
+a tag that answers "manifest unknown". Nothing about the `:latest` decision moves: `prepare` still
+makes it, and a full release (the pre-release checkbox left unticked) is never announced.
+
+The message itself is built by `.github/scripts/announce-prerelease.sh`. Run it with `DRY_RUN=1` and
+the `RELEASE_*` variables to print the exact payload without posting anything:
+
+```bash
+DRY_RUN=1 \
+  RELEASE_TAG=v2.0.0-alpha.6 \
+  RELEASE_URL="$(gh release view v2.0.0-alpha.6 --json url --jq .url)" \
+  RELEASE_BODY="$(gh release view v2.0.0-alpha.6 --json body --jq .body)" \
+  .github/scripts/announce-prerelease.sh
+```
+
+Without the secret configured, the job logs a notice and skips cleanly rather than failing the
+release.
+
 ## Documentation build
 
 The changelog at `/changelog` is generated at build time: `documentation/scripts/fetch-changelog.mjs`
@@ -140,17 +161,6 @@ none of them can run `git commit -s`. The failing run names each offending commi
 
 It also runs on every merge queue entry, reading the pull request number from the queue branch
 name, so it can be a required check of the queue.
-
-`release-discord.yml` posts a short summary of every published **pre-release** to the Discord
-announcements channel, through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret.
-A full release (the pre-release checkbox left unticked) never posts here; see
-`docker-publish.yml` for why only an unchecked pre-release box is what ships an image to
-`:latest`, which this workflow does not touch.
-
-Without the secret configured, the workflow logs a notice and skips cleanly rather than failing
-the run. `workflow_dispatch` can simulate a pre-release publish (with made-up release details) to
-exercise that skip path, or the real posting once the secret is set, without waiting for an actual
-release.
 
 ## Backend dependency updates
 

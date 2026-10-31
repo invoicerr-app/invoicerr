@@ -10,11 +10,11 @@ on:
 env:
   REGISTRY: ghcr.io
 
-# The floor every job inherits, and deliberately NOT the union of what the three jobs below need:
+# The floor every job inherits, and deliberately NOT the union of what the four jobs below need:
 # only two of them push to GHCR, so `packages: write` stays on those two and never becomes something
-# `prepare` carries for free. `contents: read` rather than an empty `{}` because two jobs genuinely
+# `prepare` carries for free. `contents: read` rather than an empty `{}` because three jobs genuinely
 # read through GITHUB_TOKEN — `prepare` runs `gh release view` (releases live under the `contents`
-# scope, they have no scope of their own) and `build` runs `actions/checkout`.
+# scope, they have no scope of their own), and `build`/`announce` run `actions/checkout`.
 # Without a block here a job falls back to the repository-wide default workflow permissions, which is
 # a SETTING rather than a property of this file: read-only today, one click from write for every
 # workflow at once. Stating the floor caps that blast radius and makes a job added later start
@@ -226,3 +226,31 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
+
+  # Announces a pre-release on Discord, but only here: `needs: merge` means this job starts after
+  # the manifest list exists at ghcr.io, and never runs at all when a build or the manifest failed,
+  # so an announcement can no longer send readers to a tag that answers "manifest unknown" (or
+  # never will exist). It is a job of this workflow rather than a `workflow_run` listener on it
+  # because the release event is right here: tag, name, body and the pre-release flag come from
+  # `github.event.release`, where a `workflow_run` payload would have to rediscover the tag and
+  # re-read the release through the API. See `.github/scripts/announce-prerelease.sh`.
+  announce:
+    needs: [prepare, merge]
+    if: >-
+      !cancelled()
+      && github.event_name == 'release'
+      && github.event.release.prerelease == true
+      && needs.merge.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Post the pre-release summary to Discord
+        env:
+          DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+        run: .github/scripts/announce-prerelease.sh
