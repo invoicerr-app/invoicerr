@@ -189,8 +189,13 @@ function normalizeCompanyLaw(value: unknown): Prisma.InputJsonValue | typeof Pri
  * change drops the values the new country does not ask for.
  */
 function nextReportingProfile(
-  existing: { country: string; countryCode: string | null; reportingProfile: unknown },
-  input: Pick<EditCompanyDto, 'country' | 'countryCode' | 'reportingProfile'>,
+  existing: {
+    country: string;
+    countryCode: string | null;
+    reportingProfile: unknown;
+    exemptVat: boolean;
+  },
+  input: Pick<EditCompanyDto, 'country' | 'countryCode' | 'reportingProfile' | 'exemptVat'>,
 ): CompanyProfileValues | undefined {
   const existingCountry = resolveCountryCode(existing.countryCode, existing.country);
   const nextCountry = resolveCountryCode(
@@ -203,6 +208,9 @@ function nextReportingProfile(
       parseCompanyProfileValues(existing.reportingProfile),
       input.reportingProfile === undefined ? {} : input.reportingProfile,
       defaultCompanyProfileCatalog.attributesFor(nextCountry),
+      // The VAT exemption switch may change in the same request: the profile it derives is judged
+      // against the value the company will have AFTER this write, not the stored one.
+      { exemptVat: input.exemptVat ?? existing.exemptVat },
     );
   } catch (error) {
     if (error instanceof InvalidCompanyProfileValueError) throw new BadRequestException(error.message);

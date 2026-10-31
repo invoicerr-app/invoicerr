@@ -59,28 +59,30 @@ describe('company profile values', () => {
   });
 
   it('refuses a declared value for an attribute the country derives', () => {
-    expect(() => applyCompanyProfileInput({}, { vatRegime: 'NORMAL' }, [sizeCategory, vatRegime])).toThrow(
-      InvalidCompanyProfileValueError,
-    );
-    expect(() => applyCompanyProfileInput({}, { vatRegime: 'NORMAL' }, [sizeCategory, vatRegime])).toThrow(
-      /reportingProfile\.vatRegime follows from the company's own settings and cannot be declared\./,
-    );
+    expect(() =>
+      applyCompanyProfileInput({}, { vatRegime: 'NORMAL' }, [sizeCategory, vatRegime], { exemptVat: false }),
+    ).toThrow(InvalidCompanyProfileValueError);
+    expect(() =>
+      applyCompanyProfileInput({}, { vatRegime: 'NORMAL' }, [sizeCategory, vatRegime], { exemptVat: false }),
+    ).toThrow(/reportingProfile\.vatRegime follows from the company's own settings and cannot be declared\./);
   });
 
   it('still refuses an undeclared attribute and an undeclared value', () => {
-    expect(() => applyCompanyProfileInput({}, { headcount: '12' }, [sizeCategory])).toThrow(
-      /reportingProfile\.headcount is not an attribute/,
-    );
-    expect(() => applyCompanyProfileInput({}, { sizeCategory: 'HUGE' }, [sizeCategory])).toThrow(
-      /reportingProfile\.sizeCategory must be one of LARGE, SMALL, not "HUGE"/,
-    );
+    expect(() =>
+      applyCompanyProfileInput({}, { headcount: '12' }, [sizeCategory], { exemptVat: false }),
+    ).toThrow(/reportingProfile\.headcount is not an attribute/);
+    expect(() =>
+      applyCompanyProfileInput({}, { sizeCategory: 'HUGE' }, [sizeCategory], { exemptVat: false }),
+    ).toThrow(/reportingProfile\.sizeCategory must be one of LARGE, SMALL, not "HUGE"/);
   });
 
   it('does not carry a stored value forward once the country derives that attribute', () => {
-    const next = applyCompanyProfileInput({ sizeCategory: 'SMALL', vatRegime: 'NORMAL' }, {}, [
-      sizeCategory,
-      vatRegime,
-    ]);
+    const next = applyCompanyProfileInput(
+      { sizeCategory: 'SMALL', vatRegime: 'NORMAL' },
+      {},
+      [sizeCategory, vatRegime],
+      { exemptVat: false },
+    );
 
     expect(next).toEqual({ sizeCategory: 'SMALL' });
   });
@@ -93,5 +95,57 @@ describe('company profile values', () => {
 
   it('keeps a conditional attribute visible while the attribute it depends on is undeclared', () => {
     expect(isAttributeAsked(debitsOption, {})).toBe(true);
+  });
+
+  it('never returns a stored answer for a question the derived value no longer asks', () => {
+    // The reviewer's own case: a French company with exemptVat on derives FRANCHISE, so the "VAT on
+    // debits" option is not asked - a value left in the column must not resurface in the profile.
+    const values = companyProfileValues(
+      { sizeCategory: 'SMALL', vatDebitsOption: 'EXERCISED' },
+      [sizeCategory, vatRegime, debitsOption],
+      { exemptVat: true },
+    );
+
+    expect(values).toEqual({ sizeCategory: 'SMALL', vatRegime: 'FRANCHISE' });
+    expect(values).not.toHaveProperty('vatDebitsOption');
+  });
+
+  it('refuses to store an answer for a question the company values do not ask', () => {
+    const write = () =>
+      applyCompanyProfileInput(
+        {},
+        { vatDebitsOption: 'EXERCISED' },
+        [sizeCategory, vatRegime, debitsOption],
+        {
+          exemptVat: true,
+        },
+      );
+
+    expect(write).toThrow(InvalidCompanyProfileValueError);
+    expect(write).toThrow(
+      /reportingProfile\.vatDebitsOption is asked only when vatRegime one of NORMAL, which the company's own values do not satisfy\./,
+    );
+  });
+
+  it('accepts the same answer once the derived value makes the question relevant again', () => {
+    const next = applyCompanyProfileInput(
+      {},
+      { vatDebitsOption: 'EXERCISED' },
+      [sizeCategory, vatRegime, debitsOption],
+      { exemptVat: false },
+    );
+
+    expect(next).toEqual({ vatDebitsOption: 'EXERCISED' });
+  });
+
+  it('drops a carried-forward answer when the edit makes its question irrelevant', () => {
+    const next = applyCompanyProfileInput(
+      { vatDebitsOption: 'EXERCISED' },
+      {},
+      [sizeCategory, vatRegime, debitsOption],
+      { exemptVat: true },
+    );
+
+    expect(next).toEqual({});
   });
 });

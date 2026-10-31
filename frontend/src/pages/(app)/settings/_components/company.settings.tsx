@@ -529,7 +529,11 @@ export default function CompanySettings() {
         sameCountry && profileAttributes.length > 0
           ? Object.fromEntries(
               profileAttributes
-                .filter((attribute) => !attribute.derived)
+                // Only the questions this country still asks are sent: the API refuses an answer for
+                // a question the company's own values no longer make relevant (its `askedWhen`).
+                .filter(
+                  (attribute) => !attribute.derived && isProfileAttributeAsked(attribute, profileValues),
+                )
                 .map((attribute) => [attribute.key, reportingProfile?.[attribute.key] || null]),
             )
           : undefined,

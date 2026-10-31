@@ -26,18 +26,39 @@ export function derivedProfileValue(
   return sources.exemptVat ? attribute.derived.whenTrue : attribute.derived.whenFalse;
 }
 
-/** Every value the company's profile currently carries: the declared ones plus the derived ones. */
+/** The values the company's own settings derive, by attribute key. */
+function derivedProfileValues(
+  attributes: CompanyProfileAttribute[],
+  sources: CompanyProfileSources,
+): CompanyProfileValues {
+  const values: CompanyProfileValues = {};
+  for (const attribute of attributes) {
+    const derived = derivedProfileValue(attribute, sources);
+    if (derived !== undefined) values[attribute.key] = derived;
+  }
+  return values;
+}
+
+/**
+ * Every value the company's profile currently carries: the derived ones plus the declared ones whose
+ * `askedWhen` still holds. A stored answer the country no longer asks for (its condition stopped
+ * holding when another value changed) is not part of the profile, so it is never read back nor
+ * exported; the next write drops it too.
+ */
 export function companyProfileValues(
   stored: unknown,
   attributes: CompanyProfileAttribute[],
   sources: CompanyProfileSources,
 ): CompanyProfileValues {
-  const values: CompanyProfileValues = {};
+  const derived = derivedProfileValues(attributes, sources);
   const declared = parseCompanyProfileValues(stored);
-  for (const attribute of attributes) {
-    const derived = derivedProfileValue(attribute, sources);
-    if (derived !== undefined) values[attribute.key] = derived;
-    else if (declared[attribute.key] !== undefined) values[attribute.key] = declared[attribute.key];
+  const context = { ...declared, ...derived };
+  const values: CompanyProfileValues = { ...derived };
+  for (const [key, value] of Object.entries(declared)) {
+    const attribute = attributes.find((candidate) => candidate.key === key);
+    if (!attribute || attribute.derived) continue;
+    if (!isAttributeAsked(attribute, context)) continue;
+    values[key] = value;
   }
   return values;
 }
@@ -54,24 +75,34 @@ export function isAttributeAsked(attribute: CompanyProfileAttribute, values: Com
   });
 }
 
+/** How an unmet `askedWhen` reads in an error: the attributes and values the country requires. */
+function describeAskedWhen(attribute: CompanyProfileAttribute): string {
+  return Object.entries(attribute.askedWhen ?? {})
+    .map(([key, allowed]) => `${key} one of ${allowed.join(', ')}`)
+    .join(' and ');
+}
+
 /**
  * Applies a write to the stored values. `null` or `""` for a key clears it back to undeclared; an
- * attribute the country does not declare, an attribute it derives, or a value the attribute does not
- * list, is refused.
+ * attribute the country does not declare, an attribute it derives, a value the attribute does not
+ * list, or a value for a question the company's own values no longer make relevant (its `askedWhen`
+ * does not hold), is refused.
  */
 export function applyCompanyProfileInput(
   current: CompanyProfileValues,
   input: unknown,
   attributes: CompanyProfileAttribute[],
+  sources: CompanyProfileSources,
 ): CompanyProfileValues {
   if (input === null) return {};
   if (typeof input !== 'object' || Array.isArray(input)) {
     throw new InvalidCompanyProfileValueError('reportingProfile must be an object of attribute values.');
   }
-  const next: CompanyProfileValues = {};
+  const declared: CompanyProfileValues = {};
+  const touched = new Set<string>();
   for (const [key, value] of Object.entries(current)) {
     const attribute = attributes.find((candidate) => candidate.key === key);
-    if (attribute && !attribute.derived) next[key] = value;
+    if (attribute && !attribute.derived) declared[key] = value;
   }
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
     const attribute = attributes.find((candidate) => candidate.key === key);
@@ -89,7 +120,7 @@ export function applyCompanyProfileInput(
       );
     }
     if (value === null || value === '') {
-      delete next[key];
+      delete declared[key];
       continue;
     }
     if (typeof value !== 'string' || !attribute.values.some((entry) => entry.value === value)) {
@@ -98,7 +129,22 @@ export function applyCompanyProfileInput(
           `not ${JSON.stringify(value)}.`,
       );
     }
-    next[key] = value;
+    declared[key] = value;
+    touched.add(key);
+  }
+  const context = { ...declared, ...derivedProfileValues(attributes, sources) };
+  for (const key of touched) {
+    const attribute = attributes.find((candidate) => candidate.key === key);
+    if (!attribute || isAttributeAsked(attribute, context)) continue;
+    throw new InvalidCompanyProfileValueError(
+      `reportingProfile.${key} is asked only when ${describeAskedWhen(attribute)}, ` +
+        `which the company's own values do not satisfy.`,
+    );
+  }
+  const next: CompanyProfileValues = {};
+  for (const [key, value] of Object.entries(declared)) {
+    const attribute = attributes.find((candidate) => candidate.key === key);
+    if (attribute && isAttributeAsked(attribute, context)) next[key] = value;
   }
   return next;
 }
