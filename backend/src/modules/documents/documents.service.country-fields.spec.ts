@@ -301,6 +301,8 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
             {
               field: 'buyerReference',
               label: 'Buyer reference (Leitweg-ID)',
+              labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
+              helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
               why: '§ 5 ERechV.',
               required: true,
             },
@@ -334,7 +336,14 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
           requiredClientIdentifiers: [],
           // "notes" already exists on the trunk invoice descriptor — must not collide.
           requiredDocumentFields: [
-            { field: 'notes', label: 'Notes', why: 'already exists', required: false },
+            {
+              field: 'notes',
+              label: 'Notes',
+              labelKey: 'documents.descriptors.invoice.fields.notes.label',
+              helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
+              why: 'already exists',
+              required: false,
+            },
           ],
           provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
         },

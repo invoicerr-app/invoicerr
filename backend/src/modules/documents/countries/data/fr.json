@@ -1263,6 +1263,8 @@
       {
         "field": "buyerReference",
         "label": "Code service (destinataire)",
+        "labelKey": "documents.countryFields.buyerReference.codeService.label",
+        "helpTextKey": "documents.countryFields.buyerReference.codeService.helpText",
         "why": "Chorus Pro routes an invoice inside a public entity by a \"code service\" identifying which department/service ordered it — not every public entity requires one (it depends on how that entity organized its own Chorus Pro account), so this stays optional rather than a hard block. Reuses the SAME generic `buyerReference` field the DE/XRechnung rule below also reads (`formats/shared-build.ts#extractBuyerReference`, `country-fields/data/de.json`'s own header) — a deliberate modeling choice, not a coincidence: both are \"which unit inside the recipient should receive this\" facts, even though French doctrine calls it \"code service\" and German law calls it \"Leitweg-ID\".",
         "required": false
       }
