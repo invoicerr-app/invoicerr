@@ -5468,7 +5468,7 @@
       "importDocument": {
         "button": "Import",
         "uploadTitle": "Import a past document",
-        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it.",
+        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it. A Factur-X, CII or UBL e-invoice pre-fills the form; anything else is attached as the original and typed by hand.",
         "dropHint": "Drag and drop a PDF, or an XML invoice, here",
         "maxSize": "Maximum 10 MB",
         "browse": "Browse files",
@@ -5486,7 +5486,15 @@
         "confirm": "Import",
         "imported": "Document imported.",
         "importedUntransmitted": "Document imported, no transmission evidence was declared. It must be regularised.",
-        "importError": "Import failed"
+        "importError": "Import failed",
+        "prefillError": "Could not read this file to pre-fill the form.",
+        "prefillRefused": "The form was not pre-filled:",
+        "prefillWarnings": "Check before importing:",
+        "clientProposal": "No client matches this file's buyer \"{{name}}\". Create it now, or pick an existing client.",
+        "createClient": "Create this client",
+        "clientCreated": "Client \"{{name}}\" created and selected.",
+        "clientCreateError": "Could not create this client.",
+        "clientProposalIncomplete": "This file does not state enough about the buyer to create a client. Pick or create one by hand."
       },
       "importCsv": {
         "button": "Import CSV",

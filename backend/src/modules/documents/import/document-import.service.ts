@@ -58,7 +58,13 @@ import { referencedArrayFieldKeys, stampRowIds } from '../row-selection/row-sele
 import { CountryFieldOverlayCatalog } from '../country-fields/registry';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { COUNTRY_FIELD_OVERLAY_REGISTRY, DOCUMENT_TYPE_REGISTRY, FIELD_KIND_REGISTRY } from '../tokens';
-import { hasTransmissionEvidence, ImportDocumentInput, ImportDocumentResult } from './document-import.types';
+import {
+  hasTransmissionEvidence,
+  ImportDocumentInput,
+  ImportDocumentResult,
+  ImportPrefillResult,
+} from './document-import.types';
+import { buildImportPrefill } from './einvoice-import-prefill';
 
 /** Poland's own transport id (`transports/ksef-transport.ts`, `KSEF_PROVIDER_ID` in
  *  `formats/national/fa3-kor.ts`): an imported invoice that carries a declared KSeF number is given
@@ -185,6 +191,26 @@ export class DocumentImportService {
       input.originalFile.fileRef,
       input.originalFile.mime,
     );
+  }
+
+  /**
+   * Pre-fills the import form from the original file the user just uploaded (issue #758). The
+   * file is read from the tenant-scoped attachment store, exactly like a real import would read
+   * it, then parsed by the SAME reader the received-invoice screen uses - this method only adds
+   * the import-specific decisions (`einvoice-import-prefill.ts`'s own header). Writes nothing:
+   * the user reviews every field before `importDocument` ever runs.
+   */
+  async prefill(
+    companyId: string,
+    typeId: 'invoice' | 'credit-note',
+    originalFile: { fileRef: string; fileName: string; mime: string },
+  ): Promise<ImportPrefillResult> {
+    const original = await this.attachmentsService.download(
+      companyId,
+      originalFile.fileRef,
+      originalFile.mime,
+    );
+    return buildImportPrefill(companyId, typeId, original.bytes, original.mime, originalFile.fileName);
   }
 
   async importDocument(input: ImportDocumentInput): Promise<ImportDocumentResult> {
