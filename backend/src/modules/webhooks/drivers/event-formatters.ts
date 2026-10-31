@@ -1,24 +1,11 @@
 import { Company, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 /**
- * The per-type `QUOTE_*`/`INVOICE_*`/`PAYMENT_*`(document)/`RECEIPT_*`/
- * `SIGNATURE_*`/`PAYMENT_METHOD_*`/`PAYMENT_RECEIVED` formatters this file used to carry are GONE —
- * every one of those enum members was purged (see the migration's own header for the grep proof, one
- * value at a time) because none had a real emitter, INVOICE_SENT/QUOTE_SENT included (the two
- * exceptions, whose sole emitter is replaced by the generic `DOCUMENT_*` formatters
- * right below). `documentLabel`/`documentNumber` read the UNIFORM payload contract
- * (`queue/document-webhooks.ts#buildDocumentWebhookPayload`) so ONE formatter per `DOCUMENT_*` event
- * covers every document type, whatever `typeId` a future one adds.
- *
- * The 2026-09-03 purge — the CLIENT_ACTIVATED, CLIENT_DEACTIVATED, COMPANY_PDF_CONFIG_UPDATED,
- * COMPANY_INFO_VIEWED, WEBHOOK_TRIGGERED, WEBHOOK_FAILED, and every RECURRING_INVOICE_, PLUGIN_,
- * USER_, EMAIL_, DASHBOARD_, etc. entry this file used to carry are GONE THE SAME WAY: each had a
- * style AND a formatter here despite dispatching NOTHING, ever (see the migration's own header for
- * the full per-family grep proof) — dead weight for an event no webhook could ever actually receive.
- * `EVENT_STYLES`/`formatters` below are `Record<WebhookEvent, ...>`, so TypeScript itself now
- * enforces the invariant this purge restores: exactly one style and one formatter per LIVE event, no
- * more, no less — the compiler errors if a future enum member is added here without a mapping, or if
- * a stale mapping outlives its enum member.
+ * Event styles and message formatters for the live webhook events. Both records are typed
+ * `Record<WebhookEvent, ...>`, so the compiler requires exactly one entry per enum member.
+ * `documentLabel`/`documentNumber` read the uniform payload contract from
+ * `queue/document-webhooks.ts#buildDocumentWebhookPayload`, so one formatter per `DOCUMENT_*` event
+ * covers every document type.
  */
 function documentLabel(typeId: unknown): string {
   if (typeof typeId !== 'string' || !typeId) return 'Document';
@@ -46,12 +33,11 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
   [WebhookEvent.DOCUMENT_SEND_FAILED]: { color: '#ef4444', emoji: '⚠️', title: 'Document Send Failed' },
   [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: { color: '#6366f1', emoji: '🏛️', title: 'Authority Event' },
   [WebhookEvent.DOCUMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Document Deleted' },
-  // See settlement/document-settled.ts's own header for when this fires.
+  // See settlement/document-settled.ts for when this fires.
   [WebhookEvent.DOCUMENT_SETTLED]: { color: '#10b981', emoji: '✅', title: 'Document Settled' },
-  // See actions/invoice-actions.ts's own "cancel" handler for when this fires.
+  // See actions/invoice-actions.ts's "cancel" handler for when this fires.
   [WebhookEvent.DOCUMENT_CANCELLED]: { color: '#ef4444', emoji: '🚫', title: 'Document Cancelled' },
-  // See signatures/signatures.service.ts's own "markSigned" for when this
-  // fires (the public OTP-verification flow, never an authenticated action).
+  // Fires from the public OTP-verification flow, never an authenticated action.
   [WebhookEvent.DOCUMENT_SIGNED]: { color: '#10b981', emoji: '✍️', title: 'Document Signed' },
 
   // Client events - Pink (only the four with a real emitter, see schema.prisma's
