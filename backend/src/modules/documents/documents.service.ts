@@ -2236,9 +2236,8 @@ export class DocumentsService implements OnModuleInit {
       throw error;
     }
 
-    // Issue #472 - a credit note is built from the invoice it corrects (its buyer, its selected lines,
-    // priced with the invoice's own descriptor) - see `formats/credit-note-source.ts`'s own header.
-    // Every other type builds from its own data, exactly as before.
+    // A linked credit note is built from the invoice it corrects (its buyer, selected lines, invoice
+    // descriptor); a free one from its own client and lines. Every other type builds from its data.
     const creditNoteSource =
       typeId === 'credit-note' ? await resolveCreditNoteFormatSource(companyId, instance) : undefined;
     const buildDescriptor = creditNoteSource?.pricingDescriptor ?? descriptor;
@@ -2323,7 +2322,9 @@ export class DocumentsService implements OnModuleInit {
         companyId,
         creditNoteSource
           ? {
-              creditNote: { correctedInvoice: creditNoteSource.correctedInvoice },
+              creditNote: creditNoteSource.correctedInvoice
+                ? { correctedInvoice: creditNoteSource.correctedInvoice }
+                : {},
               humanReadable: { descriptor, document: instance },
             }
           : undefined,

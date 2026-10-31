@@ -28,6 +28,10 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    plain id, which is the right shape when there is truly only one kind of thing on the other end.
  *    OPTIONAL, unlike the invoice's own optional `origin`-for-a-different-reason: leaving it unset is
  *    not a data gap here, it is the FREE credit note itself — the fork this whole header describes.
+ *  - `client` (reference, entity: 'client', OPTIONAL) — the client this credit note is for. A LINKED
+ *    credit note takes it from the corrected invoice (`lockedFromReference` below), so the recipient
+ *    can never disagree with the invoice. A FREE credit note has no invoice to take it from, so the
+ *    user picks one; "send" requires it, since a credit note nobody receives is not issued.
  *  - `correctedLines` (kind: 'rowSelection', `requiredIfPresent: 'invoice'`) — WHICH of
  *    `invoice`'s own `lines` this credit note corrects, once it corrects one at all. This used to be a
  *    free-standing `lines` array the user re-entered from scratch, structurally identical to the
@@ -104,9 +108,9 @@ const CURRENCY_OPTIONS = Object.values(Currency).map((code) => ({ value: code, l
  *    (the invoice's own transport resolution: B2G routing, channel mandate, the company's choice),
  *    by email with its PDF attached or in its credit-note e-invoice form (issue #472);
  *  - archives its own PDF at issuance, whatever the channel, so its download serves the copy issued;
- *  - refuses a FREE credit note: this type has no "client" field (see the `invoice` field's own
- *    comment above), so a note correcting no invoice names nobody to send it to. It can be saved as a
- *    draft but not sent.
+ *  - delivers a FREE credit note through its own `client` field (the same client transport the
+ *    invoice would use), and refuses it when that client is missing: a note nobody receives is not
+ *    issued.
  * It is still the verb "send" the frontend already renders a button for on every other type. A
  * credit note only REDUCES what the invoice it corrects still owes once it is no longer a draft
  * (settlement/credits.ts), which is the other reason "send" has to exist; a FREE credit note settles
@@ -170,12 +174,10 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
 const CREDIT_NOTE_STATUSES = [
   { id: 'draft', label: 'Draft' },
   { id: 'sending', label: 'Sending' },
-  // `clientVisible` - see `DocumentStatusDescriptor`'s own header. A credit note has no `client`
-  // field of its own (only `invoice`, above) - the client portal resolves which client a credit
-  // note belongs to through the invoice it corrects, the same join
-  // `settlement/credits.ts#creditsForInvoiceFromNotes` already performs for the statement. A FREE
-  // credit note (no `invoice`) resolves to no client at all and is simply never shown there - see
-  // that same join, which only ever matches a note against ONE named invoice id.
+  // `clientVisible` - see `DocumentStatusDescriptor`'s own header. The client portal still resolves
+  // which client a credit note belongs to through the invoice it corrects, the same join
+  // `settlement/credits.ts#creditsForInvoiceFromNotes` already performs for the statement, so a FREE
+  // credit note is not shown there yet even though it now carries a `client`.
   { id: 'sent', label: 'Sent', clientVisible: true },
   { id: 'send_failed', label: 'Send failed' },
   // Issue #340 - a historical credit note recorded from a previous tool. Same mechanism, and the
@@ -200,10 +202,10 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     // (types.ts).
     numbering: { onEnterStatus: 'sending', onlyFrom: ['draft'] },
     // See types.ts's own comment on `DocumentTypeDescriptor.email`. Used since issue #499, when a
-    // linked credit note is delivered through the "email" transport (credit-note-actions.ts). No
-    // `{recipientName}` here: this type has no field targeting the "client" entity (only `invoice`),
-    // so that placeholder is deliberately left out of this type's OWN default (a company override that
-    // adds it anyway degrades honestly, see actions/email-template.ts).
+    // linked credit note is delivered through the "email" transport (credit-note-actions.ts). The
+    // default stays greetingless even though the type now carries a `client`: adding a salutation
+    // would change every linked credit note's email, and a company override can add
+    // `{recipientName}` itself (actions/email-template.ts).
     email: {
       subject: '{typeLabel} {displayNumber} from {companyName}',
       body:
@@ -215,9 +217,9 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
     // `standardDocumentEmailTranslations()`: that block's own header says it exists BECAUSE the
     // quote's and the invoice's own English wording is word-for-word identical, and this type's own
     // `email` above is not — it opens straight into "Please find attached...", with no
-    // "Dear {recipientName}," greeting (this type has no field targeting the "client" entity, see the
-    // comment above `email`), so each translation below is its own, standing next to its own English
-    // default the same way the invoice's own `email`/`emailTranslations` pair does.
+    // "Dear {recipientName}," greeting (see the comment above `email`), so each translation below is
+    // its own, standing next to its own English default the same way the invoice's own
+    // `email`/`emailTranslations` pair does.
     emailTranslations: {
       fr: {
         subject: '{typeLabel} {displayNumber} de {companyName}',
@@ -273,10 +275,22 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         required: false,
         entity: 'invoice',
         helpText:
-          'The invoice this credit note corrects. A credit note without an invoice can be saved but ' +
-          'not sent yet: it has no client to send it to. Without an invoice, a reason is required ' +
-          'below, and some countries do not recognise a credit note with nothing to reference (this ' +
-          "screen refuses those with the country's own rule once you try to save).",
+          'The invoice this credit note corrects. A credit note without an invoice is a free credit ' +
+          'note: it needs its own client and reason, and some countries do not recognise one at all ' +
+          "(this screen refuses those with the country's own rule once you try to save).",
+      },
+      {
+        key: 'client',
+        kind: 'reference',
+        label: 'Client',
+        required: false,
+        entity: 'client',
+        helpText:
+          'The client this credit note is for. Required to send a free credit note; filled from the ' +
+          'invoice when one is chosen.',
+        // Prefills and locks to the corrected invoice's own client once that invoice resolves, so a
+        // linked credit note can never name a different recipient than the invoice it corrects.
+        lockedFromReference: { field: 'invoice', entity: 'invoice', sourceKey: 'client' },
       },
       {
         key: 'issueDate',
@@ -358,8 +372,9 @@ export function buildCreditNoteDescriptor(): DocumentTypeDescriptor {
         label: 'Send',
         transitions: SEND_TRANSITIONS,
         availableWhen: transitionsAvailableWhen(SEND_TRANSITIONS),
-        // No params, see this file's own "Actions" paragraph: the recipient is never typed in, it is
-        // the corrected invoice's client, reached the way that invoice's own send reaches it.
+        // No params, see this file's own "Actions" paragraph: the recipient is never typed in. It is
+        // the corrected invoice's client when there is one, else this note's own `client`, reached
+        // the way an invoice to that client is reached.
       },
       {
         id: 'download-xml',

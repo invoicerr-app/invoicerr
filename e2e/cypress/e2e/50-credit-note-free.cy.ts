@@ -1,5 +1,6 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 import { companyLawFor } from "../fixtures/company-law";
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
 
 /**
  * The FREE credit note: no `invoice` field at all — a commercial gesture, a refund of
@@ -46,11 +47,15 @@ function createClient(name: string) {
 			url: `${api}/api/clients`,
 			body: {
 				name,
+				contactEmail: `free-credit-${Date.now()}@example.com`,
 				address: "1 Rue Quelconque",
 				postalCode: "75002",
 				city: "Paris",
 				country: "France",
+				countryCode: "FR",
 				currency: "EUR",
+				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 				isActive: true,
 			},
 		})
@@ -83,6 +88,48 @@ describe("Free credit note (API) — no invoice to correct, France (open CREDIT_
 			expect(doc?.data?.reason, "le motif est conservé").to.contain(
 				"trop-perçu",
 			);
+		});
+	});
+
+	it("is sent once it names a client, delivered through that client's transport", () => {
+		createClient("Client Avoir Libre Envoi SARL").then((clientId) => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/info`,
+				body: { invoiceTransportId: "email" },
+			})
+				.its("status")
+				.should("be.oneOf", [200, 201]);
+
+			// Before France's e-invoicing mandate date, so the client's email transport is lawful.
+			const data = freeCreditNoteData({
+				client: clientId,
+				issueDate: "2026-08-31",
+			});
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/credit-note/actions/save-draft`,
+				body: { data },
+			}).then((saved) => {
+				expect(saved.status, "the free credit note is created with a client").to.be.oneOf(
+					[200, 201],
+				);
+				expect(saved.body.document.data.client, "the client is kept").to.eq(
+					clientId,
+				);
+				const id = saved.body.document.id as string;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/credit-note/actions/send`,
+					body: { documentId: id, data: saved.body.document.data },
+				})
+					.its("status")
+					.should("be.oneOf", [200, 201]);
+				cy.waitForDocumentStatus(
+					`${api}/api/documents/${id}?typeId=credit-note`,
+					["sent"],
+				);
+			});
 		});
 	});
 
@@ -271,15 +318,21 @@ describe("Free credit note — the screen, browser level", () => {
 	});
 
 	it('is created from the credit-note list\'s own "New" button — wizard-driven, no invoice ever picked', () => {
-		cy.visit("/documents/credit-note");
-		cy.get('[data-cy="document-create-button"]').click();
-		cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
+		createClient("Client Avoir Libre Écran SARL").then(() => {
+			cy.visit("/documents/credit-note");
+			cy.get('[data-cy="document-create-button"]').click();
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
+				"be.visible",
+			);
 
-		// Details: the optional "invoice" (left empty), the date, and "currency", a normal editable
-		// select since no invoice locks it.
-		cy.pickToday('[data-cy="document-field-issueDate-input"]');
+			// Details: the optional "invoice" (left empty), its own client, the date, and "currency", a
+			// normal editable select since no invoice locks it.
+			cy.openSearchSelect("document-field-client-input");
+			cy.contains(
+				'[data-cy="document-field-client-input-options"] button',
+				"Client Avoir Libre Écran SARL",
+			).click();
+			cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.get('[data-cy="document-field-currency-input"] button')
 			.should("not.be.disabled")
 			.click({ force: true });
@@ -351,8 +404,12 @@ describe("Free credit note — the screen, browser level", () => {
 				expect(res.body?.data?.invoice, "toujours aucune facture d'origine").to
 					.be.undefined;
 				expect(res.body?.data?.reason).to.contain("trop-perçu");
+				expect(res.body?.data?.client, "the chosen client is kept").to.be.a(
+					"string",
+				);
 				expect(res.body?.data?.lines).to.have.length(1);
 			});
+		});
 		});
 	});
 });
