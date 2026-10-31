@@ -402,7 +402,9 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           <button>) rather than through `Button`'s own `tooltip` prop, which would wrap the DOM
           node in a component `DropdownMenuTrigger asChild` cannot clone — see sidebar.tsx's own
           theme toggle for the same constraint. */}
-      <DropdownMenu>
+      {/* Issue #715: a modal Radix menu marks the sidebar aria-hidden while its focusable buttons
+          stay reachable, which axe reports as aria-hidden-focus. This menu needs no inert page. */}
+      <DropdownMenu modal={false}>
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>

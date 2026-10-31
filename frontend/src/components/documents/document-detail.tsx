@@ -681,7 +681,9 @@ function DocumentDetailActions({
       ))}
 
       {/* Always present: the PDF actions alone earn the menu its place on every saved record. */}
-      <DropdownMenu>
+      {/* Issue #715: a modal Radix menu marks the sidebar aria-hidden while its focusable buttons
+          stay reachable, which axe reports as aria-hidden-focus. This menu needs no inert page. */}
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" dataCy="document-actions-menu">
             {t("documents.detail.actions")}
