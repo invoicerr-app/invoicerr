@@ -1,10 +1,6 @@
 /**
  * Ireland — CRO (Companies Registration Office) Company Web Services.
- *
- * Endpoint : GET https://services.cro.ie/cws/companies?company_num={n}&format=json
- *            HTTP Basic with the account e-mail and the API key.
- * Docs     : https://services.cro.ie/
- * Credentials: CRO_API_USER + CRO_API_KEY (free registration).
+ * Docs: https://services.cro.ie/ (CRO_API_USER + CRO_API_KEY, HTTP Basic).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';

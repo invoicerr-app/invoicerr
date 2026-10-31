@@ -1,9 +1,6 @@
 /**
  * Denmark — CVR (Det Centrale Virksomhedsregister), read through cvrapi.dk.
- *
- * Endpoint : GET https://cvrapi.dk/api?search={cvr}&country=dk
- * Docs     : https://cvrapi.dk/documentation
- * Credentials: none — but a descriptive User-Agent is mandatory (set in http.ts).
+ * Docs: https://cvrapi.dk/documentation (no credentials, but a descriptive User-Agent is mandatory).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';

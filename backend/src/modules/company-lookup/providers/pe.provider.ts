@@ -1,9 +1,6 @@
 /**
  * Peru — SUNAT taxpayer register, served by apis.net.pe.
- *
- * Endpoint : GET https://api.apis.net.pe/v1/ruc?numero={ruc}
- * Docs     : https://apis.net.pe/api-consulta-ruc
- * Credentials: none — PE_APISNET_TOKEN lifts the anonymous quota when set.
+ * Docs: https://apis.net.pe/api-consulta-ruc (no credentials; PE_APISNET_TOKEN lifts the quota).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';

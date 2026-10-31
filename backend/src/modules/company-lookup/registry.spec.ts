@@ -105,10 +105,6 @@ describe('CompanyLookupRegistry', () => {
   });
 
   it('enumerates every ISO country, not just the ~40 with a provider of their own', () => {
-    // The permanent-red e2e assertion this backs: 16-company-lookup.cy.ts expects > 100.
-    // Before the full ISO list, `capabilities()` only walked EU members ∪ providers'
-    // explicit country lists — every country outside that union still answered fine
-    // through `capability()` (GLEIF/Peppol are worldwide), it just never got listed.
     expect(registry.capabilities().length).toBeGreaterThan(100);
   });
 

@@ -1,12 +1,7 @@
 /**
- * Switzerland (and Liechtenstein) — Zefix, the central business name index.
- *
- * Endpoint : GET https://www.zefix.admin.ch/ZefixPublicREST/api/v1/company/uid/{uid}
- *            HTTP Basic with the account granted by the Federal Office of Justice.
- * Docs     : https://www.zefix.admin.ch/ZefixPublicREST/
- * Credentials: ZEFIX_USER + ZEFIX_PASSWORD.
- *
- * Liechtenstein companies also carry a CHE UID and are served by the same index.
+ * Switzerland and Liechtenstein: Zefix, the central business name index (Liechtenstein companies
+ * carry a CHE UID too).
+ * Docs: https://www.zefix.admin.ch/ZefixPublicREST/ (ZEFIX_USER + ZEFIX_PASSWORD, HTTP Basic).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';

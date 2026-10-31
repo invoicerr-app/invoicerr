@@ -1,13 +1,9 @@
 /**
  * Romania — ANAF public taxpayer register.
+ * Docs: https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt (no credentials).
  *
- * Endpoint : POST https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva
- *            body [{ cui, data }]
- * Docs     : https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt
- * Credentials: none.
- *
- * ANAF is also the authority on whether the company is registered for VAT and for
- * RO e-Factura, which the invoicing flow needs before it picks a channel.
+ * Also the authority on VAT and RO e-Factura registration, which the invoicing flow needs before it
+ * picks a channel.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
