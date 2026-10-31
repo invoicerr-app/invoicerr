@@ -241,21 +241,40 @@ describe('CompanyService - the company profile its country asks for', () => {
       ...changes,
     } as never);
 
-  it('a French company is asked its size category, with the four statutory categories', async () => {
+  it('a French company is asked its size category and its VAT options, with the regime derived', async () => {
     await withCompany(async (companyId) => {
       const info = await service.getCompanyInfo(companyId);
+      const attributes = info?.companyProfileAttributes ?? [];
 
-      expect(info?.companyProfileAttributes).toEqual([
-        expect.objectContaining({
-          key: 'sizeCategory',
-          values: [
-            expect.objectContaining({ value: 'LARGE' }),
-            expect.objectContaining({ value: 'MID' }),
-            expect.objectContaining({ value: 'SME' }),
-            expect.objectContaining({ value: 'MICRO' }),
-          ],
-        }),
+      expect(attributes.map((attribute) => attribute.key)).toEqual([
+        'sizeCategory',
+        'vatRegime',
+        'vatDebitsOption',
       ]);
+      expect(attributes[0].values.map((value) => value.value)).toEqual(['LARGE', 'MID', 'SME', 'MICRO']);
+      expect(attributes[1].derived).toEqual({
+        source: 'exemptVat',
+        whenTrue: 'FRANCHISE',
+        whenFalse: 'NORMAL',
+      });
+      expect(attributes[2].askedWhen).toEqual({ vatRegime: ['NORMAL'] });
+      expect(info?.companyProfileValues).toEqual({ vatRegime: 'NORMAL' });
+    });
+  });
+
+  it('derives the VAT regime from the VAT exemption switch, and refuses to let the company declare it', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { exemptVat: true });
+
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
+        vatRegime: 'FRANCHISE',
+      });
+      await expect(edit(companyId, { reportingProfile: { vatRegime: 'NORMAL' } })).rejects.toThrow(
+        /reportingProfile.vatRegime follows from the company's own settings and cannot be declared/,
+      );
+      await expect(edit(companyId, { reportingProfile: { vatRegime: 'NORMAL' } })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
