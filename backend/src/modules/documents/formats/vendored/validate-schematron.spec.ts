@@ -21,7 +21,12 @@
  * Greek AFM respectively), an independent cross-check that the port matches the real algorithm, not
  * merely a self-consistent one.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { PEPPOL_BIS_UBL_SCH, validateSchematron } from './validate-schematron';
+
+const { Schema } = require('node-schematron');
 
 function xmlWithEndpoint(schemeID: string, value: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -157,5 +162,30 @@ describe('validate-schematron.ts — the six newly-registered Italian identifier
     expect(() => assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toThrow();
     expect(assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toContain('PEPPOL-COMMON-R047');
     expect(assertIds(xmlWithEndpoint('0211', 'IT01234567898'))).toContain('PEPPOL-COMMON-R047');
+  });
+});
+
+/**
+ * `validateSchematron` walks node-schematron's parsed schema itself instead of calling the library's
+ * `validateString` (see that file's own header: the library re-evaluates every rule context once per
+ * node, which made the CII export slow). The traversal is a copy of the library's algorithm, so this
+ * guards it against drift: it must report exactly the assertion ids `validateString` reports.
+ */
+describe('validate-schematron.ts — its own traversal reports what node-schematron reports', () => {
+  it('matches Schema#validateString on a document with a real violation', { timeout: 30000 }, () => {
+    const xml = xmlWithEndpoint('0088', '5412345678909');
+    const schema = Schema.fromString(
+      readFileSync(resolve(__dirname, 'peppol/PEPPOL-EN16931-UBL.sch'), 'utf-8'),
+    );
+    const expected = schema
+      .validateString(xml)
+      .filter((result: { isReport: boolean }) => !result.isReport)
+      .map((result: { assertId: string }) => result.assertId)
+      .sort();
+
+    const result = validateSchematron(xml, PEPPOL_BIS_UBL_SCH);
+    const actual = [...result.errors, ...result.warnings].map((error) => error.id).sort();
+
+    expect(actual).toEqual(expected);
   });
 });
