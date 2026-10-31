@@ -1,3 +1,4 @@
+import { formatServerMessage } from '../messages/server-message';
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { numberingDisplayState } from '../numbering/display-state';
 import { decimalsFor, fromMinor } from '@/utils/financial';
@@ -262,7 +263,7 @@ function renderTotalsRows(
       <div class="warnings-section">
 `;
     for (const warning of totals.warnings) {
-      html += `        <div class="warning-item">${escapeHtmlSafe(warning)}</div>\n`;
+      html += `        <div class="warning-item">${escapeHtmlSafe(formatServerMessage(warning))}</div>\n`;
     }
     html += `      </div>\n`;
   }

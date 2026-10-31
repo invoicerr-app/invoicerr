@@ -16,6 +16,7 @@ import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { ArchivedArtifactInput, computeArtifactHash, computeContentHash } from './hashing';
 import { persistArtifacts, readArchivedArtifact } from './storage';
 import { CURRENT_RETENTION_CALC_VERSION } from './retention/calc-version';
+import { ServerMessage } from '../messages/server-message';
 import { computeRetention } from './retention/compute-retention';
 import { defaultRetentionCatalog, RetentionCatalog } from './retention/registry';
 import { AttestedDeposit, buildVerdictArtifact, TerminalAuthorityVerdict } from './verdict-artifact';
@@ -46,6 +47,9 @@ export interface DocumentArchiveResult {
   archivedAt: Date;
   retentionUntil: Date | null;
   retentionBasis: string | null;
+  /** The same citation as a translatable message, written alongside `retentionBasis`; NULL on every
+   *  row written before this column existed, which the UI falls back to `retentionBasis` for. */
+  retentionBasisMessage: ServerMessage | null;
   /** See `retention/calc-version.ts` and `schema.prisma`'s own comment on this column. NULL for any
    *  row written before this column existed — the UI (`document-archive-section.tsx`) shows a
    *  "may be stale" notice for those rather than trusting `retentionUntil` at face value. */
@@ -95,6 +99,7 @@ function toResult(row: {
   archivedAt: Date;
   retentionUntil: Date | null;
   retentionBasis: string | null;
+  retentionBasisMessage?: Prisma.JsonValue;
   // Optional for the same reason `kind`/`parentArchiveId` above are: offline test mocks constructing
   // a row by hand without this column (real Prisma rows always carry it once `prisma generate` has
   // run against the migrated schema).
@@ -114,6 +119,7 @@ function toResult(row: {
     archivedAt: row.archivedAt,
     retentionUntil: row.retentionUntil,
     retentionBasis: row.retentionBasis,
+    retentionBasisMessage: (row.retentionBasisMessage ?? null) as ServerMessage | null,
     retentionCalcVersion: row.retentionCalcVersion ?? null,
   };
 }
@@ -157,7 +163,11 @@ export async function createDocumentArchive(
   const countryCode = await resolveCompanyCountryCode(companyId);
   const retentionFile = retentionCatalog.fileFor(countryCode);
   const issueDate = await resolveDocumentIssueDate(companyId, documentId);
-  const { retentionUntil, retentionBasis } = computeRetention(retentionFile, archivedAt, issueDate);
+  const { retentionUntil, retentionBasis, retentionBasisMessage } = computeRetention(
+    retentionFile,
+    archivedAt,
+    issueDate,
+  );
 
   const created = await prisma.documentArchive.create({
     data: {
@@ -170,6 +180,7 @@ export async function createDocumentArchive(
       archivedAt,
       retentionUntil,
       retentionBasis,
+      retentionBasisMessage: retentionBasisMessage as unknown as Prisma.InputJsonValue,
       // See `retention/calc-version.ts` — names WHICH version of the algorithm above produced the two
       // fields just written, so a future fix to that algorithm (or today's UI reading rows from
       // before this column existed) can tell a stale calculation from a current one without ever
@@ -273,6 +284,7 @@ export async function createAuthorityVerdictArchive(
         // just because the verdict itself was archived today.
         retentionUntil: parent.retentionUntil,
         retentionBasis: parent.retentionBasis,
+        retentionBasisMessage: parent.retentionBasisMessage ?? undefined,
         retentionCalcVersion: parent.retentionCalcVersion,
       },
     ],
@@ -442,10 +454,12 @@ async function createAcceptanceArchive(input: {
 
   let retentionUntil: Date | null;
   let retentionBasis: string | null;
+  let retentionBasisMessage: ServerMessage | null;
   let retentionCalcVersion: number | null;
   if (parent) {
     retentionUntil = parent.retentionUntil;
     retentionBasis = parent.retentionBasis;
+    retentionBasisMessage = (parent.retentionBasisMessage ?? null) as ServerMessage | null;
     retentionCalcVersion = parent.retentionCalcVersion;
   } else {
     const countryCode = await resolveCompanyCountryCode(companyId);
@@ -454,6 +468,7 @@ async function createAcceptanceArchive(input: {
     const resolved = computeRetention(retentionFile, archivedAt, issueDate);
     retentionUntil = resolved.retentionUntil;
     retentionBasis = resolved.retentionBasis;
+    retentionBasisMessage = resolved.retentionBasisMessage;
     retentionCalcVersion = CURRENT_RETENTION_CALC_VERSION;
   }
 
@@ -469,6 +484,9 @@ async function createAcceptanceArchive(input: {
       archivedAt,
       retentionUntil,
       retentionBasis,
+      retentionBasisMessage: retentionBasisMessage
+        ? (retentionBasisMessage as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
       retentionCalcVersion,
     },
   });

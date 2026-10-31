@@ -12,6 +12,7 @@ import { useActionTransmissionPreview } from "@/hooks/queries/use-document-types
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ProseHelp } from "@/components/ui/prose-help"
+import { formatServerMessages, type ServerMessage } from "@/lib/server-message"
 
 /**
  * The rendered pieces of a document form — the fields, one action button, the params dialog —
@@ -72,7 +73,7 @@ export function DocumentFormFields({ descriptor, state, readOnly = false }: Docu
 }
 
 // The supplier's own lines and totals disagree: a status the user acts on, the server's figures behind its `?`.
-export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }>) {
+export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: ServerMessage[] }>) {
   const { t } = useTranslation()
   if (!warnings?.length) return null
   return (
@@ -81,7 +82,7 @@ export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }
       title={t("documents.form.lineTotalWarningsTitle")}
       dataCy="document-line-total-warnings"
     >
-      {warnings}
+      {formatServerMessages(t, warnings)}
     </ProseHelp>
   )
 }

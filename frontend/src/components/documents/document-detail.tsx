@@ -512,9 +512,10 @@ function HeadlineAmount({
   acceptedOption?: string | null
   derivedTotals?: DerivedDocumentTotals | null
 }) {
+  const { t } = useTranslation()
   const optionTotals = useDocumentOptionTotals(descriptor)
   const liveTotals = useDocumentTotals(descriptor)
-  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals, t) : liveTotals
   const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
   if (!headline) return null
   return (

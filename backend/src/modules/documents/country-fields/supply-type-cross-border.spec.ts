@@ -30,6 +30,7 @@ import { ALL_COUNTRY_FIELD_OVERLAY_FILES } from './data/all';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { resolveInvoiceCrossBorderTax, UndeclaredDistanceSalesRegimeError } from '../tax/resolve-invoice-tax';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 const descriptor = buildInvoiceDescriptor();
 
@@ -193,7 +194,9 @@ describe.each(LEGS)('intra-Community distance sale of GOODS, $seller seller → 
     // The destination's own reduced rates are not modelled; the branch says so instead of applying
     // a standard rate silently.
     expect(resolved.warnings).toHaveLength(1);
-    expect(resolved.warnings[0]).toMatch(new RegExp(`STANDARD VAT rate \\(${destinationStandardRate}%\\)`));
+    expect(formatServerMessage(resolved.warnings[0])).toMatch(
+      new RegExp(`STANDARD VAT rate \\(${destinationStandardRate}%\\)`),
+    );
   });
 
   it('the two regimes genuinely differ for this pair — the choice the overlay unlocks is worth money', () => {
@@ -231,6 +234,8 @@ describe.each(LEGS)('intra-Community distance sale of GOODS, $seller seller → 
     expect(computeDocumentTotals(descriptor, resolved.data).vatMinor).toBe(
       (NET_MINOR * sellerStandardRate) / 100,
     );
-    expect(resolved.warnings).toContainEqual(expect.stringContaining('no declared supply type'));
+    expect(formatServerMessages(resolved.warnings)).toContainEqual(
+      expect.stringContaining('no declared supply type'),
+    );
   });
 });

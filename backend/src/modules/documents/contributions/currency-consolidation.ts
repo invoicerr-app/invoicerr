@@ -5,6 +5,7 @@ import {
   toCurrencyRateLikes,
 } from '../../company/currency-rates/currency-rates.store';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { ServerMessage, serverMessage } from '../messages/server-message';
 
 /**
  * The ONE rule this whole feature exists to enforce ("multi-currency"): **a
@@ -48,7 +49,7 @@ export interface ConsolidatedTotal {
   /** One line per NON-identity currency actually converted, e.g. "USD→EUR @ 1.0842 (manual,
    *  2026-08-15)" — every rate a reader would need to verify the total by hand. A currency that
    *  already equals `referenceCurrency` contributes no line here (nothing was converted). */
-  notes: string[];
+  notes: ServerMessage[];
 }
 
 export interface ConsolidationOutcome {
@@ -59,7 +60,7 @@ export interface ConsolidationOutcome {
   /** Named, one per currency that blocked consolidation — empty whenever `consolidated` is non-null,
    *  and empty (not an error) when there was simply nothing to consolidate in the first place (no
    *  `referenceCurrency`, or `amounts` is empty). */
-  warnings: string[];
+  warnings: ServerMessage[];
 }
 
 /** "2026-08-15" — the date half of a rate's `asOf`, for the human-facing note; the note names the
@@ -79,7 +80,7 @@ export function consolidateByCurrency(
   }
 
   let totalMinor = 0;
-  const notes: string[] = [];
+  const notes: ServerMessage[] = [];
   const missing: string[] = [];
 
   for (const { currency, totalMinor: amountMinor } of amounts) {
@@ -96,14 +97,25 @@ export function consolidateByCurrency(
     }
 
     totalMinor += convertMinor(amountMinor, currency, referenceCurrency, rate.rate);
-    notes.push(`${currency}→${referenceCurrency} @ ${rate.rate} (${rate.source}, ${isoDate(rate.asOf)})`);
+    notes.push(
+      serverMessage('documents.messages.currency.rateUsed', {
+        from: currency,
+        to: referenceCurrency,
+        rate: rate.rate,
+        source: rate.source,
+        date: isoDate(rate.asOf),
+      }),
+    );
   }
 
   if (missing.length > 0) {
     // Never a partial sum — see this module's own header. Every currency this period actually saw is
     // named, not just the first one, so the person fixing it doesn't have to hunt for the rest.
-    const warnings = missing.map(
-      (currency) => `No ${currency}→${referenceCurrency} rate is set, so the consolidated total is omitted.`,
+    const warnings = missing.map((currency) =>
+      serverMessage('documents.messages.currency.rateMissing', {
+        from: currency,
+        to: referenceCurrency,
+      }),
     );
     return { consolidated: null, warnings };
   }

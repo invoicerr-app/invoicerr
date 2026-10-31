@@ -11,6 +11,7 @@ import {
   listAllDocuments,
   listRecentDocuments,
 } from '../persistence';
+import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
   consolidateByCurrency,
@@ -353,7 +354,12 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
     // exactly like a complete one, so the widget says which it is.
     warnings:
       expenseCount > rows.length
-        ? [`Showing the ${rows.length} most recently updated expenses of ${expenseCount}.`]
+        ? [
+            serverMessage('documents.messages.widgets.expensesCapped', {
+              shown: rows.length,
+              total: expenseCount,
+            }),
+          ]
         : undefined,
     columns: [
       { key: 'date', label: 'Date' },

@@ -2382,6 +2382,13 @@ model DocumentArchive {
   retentionUntil DateTime?
   retentionBasis String?
 
+  // The same citation as a translatable message: `{ key, params }` (documents/messages/), written
+  // alongside `retentionBasis` and never recomputed. `retentionBasis` stays the verbatim English
+  // record; the UI renders this one in the reader's language. NULL on every row written before this
+  // column existed, and on a verdict whose parent predates it — the UI falls back to
+  // `retentionBasis` then, exactly as it showed those rows before.
+  retentionBasisMessage Json?
+
   // Which version of the retention CALCULATION (`retention/calc-version.ts`) produced the two fields
   // above, at the moment THIS row was written — never touched again afterwards, same WORM discipline
   // as every other column here. NULL for every row written before this column existed, which includes

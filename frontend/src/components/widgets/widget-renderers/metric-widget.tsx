@@ -5,6 +5,7 @@ import { Link } from "react-router"
 import { decimalsFor } from "@/components/documents/totals-calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { formatServerMessages } from "@/lib/server-message"
 
 import { buildMetricLinkHref } from "@/components/widgets/metric-link"
 import { useWidgetReloading, WidgetValue } from "@/components/widgets/widget-value"
@@ -160,7 +161,7 @@ export function MetricWidgetRenderer({ widget }: WidgetRendererProps) {
           </div>
           {metric.warnings?.length ? (
             <ul className="mt-2 space-y-0.5" data-cy={`widget-${metric.id}-warnings`}>
-              {metric.warnings.map((warning) => (
+              {formatServerMessages(t, metric.warnings).map((warning) => (
                 <li key={warning} className="text-xs text-muted-foreground">
                   {warning}
                 </li>

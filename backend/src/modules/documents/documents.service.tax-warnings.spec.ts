@@ -16,6 +16,7 @@ import {
   type BuyerVatIdentifierInput,
 } from './tax/resolve-invoice-tax';
 import { TransportRegistry } from './transports/transport-registry';
+import { formatServerMessage, formatServerMessages } from './messages/server-message';
 
 /** Reaches Prisma for the row `findOwnedDocument` hands back — mocked the same way every other
  *  DocumentsService suite in this directory mocks it. */
@@ -119,15 +120,15 @@ describe('DocumentsService.getTaxWarnings — the caveats the tax engine records
     const { warnings } = await buildService().getTaxWarnings('company-1', 'invoice', 'doc-1');
 
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatch(/has not been confirmed valid yet/);
+    expect(formatServerMessage(warnings[0])).toMatch(/has not been confirmed valid yet/);
     // The consequence, not just the fact: this is the half that changes the tax.
-    expect(warnings[0]).toMatch(/treated as B2C/);
+    expect(formatServerMessage(warnings[0])).toMatch(/treated as B2C/);
     // Pinned WHOLE, unusually for this codebase, and only for the two warnings a user can actually
     // reach today: the document screen's own suite renders these exact strings
     // (`frontend/src/components/documents/document-tax-warnings.spec.tsx`), which it can only do
     // faithfully while the two literals agree. Rewording the engine's message is fine — it fails
     // here first, pointing at the copy that has to move with it.
-    expect(warnings[0]).toBe(
+    expect(formatServerMessage(warnings[0])).toBe(
       'Buyer VAT number "DE136695976" has not been confirmed valid yet (status: not checked), so this ' +
         'buyer is treated as B2C until it is verified, never a silent B2B.',
     );
@@ -140,10 +141,10 @@ describe('DocumentsService.getTaxWarnings — the caveats the tax engine records
     const { warnings } = await buildService().getTaxWarnings('company-1', 'invoice', 'doc-1');
 
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatch(/STANDARD VAT rate \(19%\)/);
-    expect(warnings[0]).toMatch(/reduced rates are not modelled/);
+    expect(formatServerMessage(warnings[0])).toMatch(/STANDARD VAT rate \(19%\)/);
+    expect(formatServerMessage(warnings[0])).toMatch(/reduced rates are not modelled/);
     // Pinned whole for the same reason as the warning above — the screen's own suite renders it.
-    expect(warnings[0]).toBe(
+    expect(formatServerMessage(warnings[0])).toBe(
       'This invoice is an intra-Community distance sale taxed in DE (EU One-Stop-Shop, Directive ' +
         "2006/112/EC art. 33(a)), so DE's STANDARD VAT rate (19%) was applied. DE's own reduced " +
         'rates are not modelled here and an invoice line carries nothing that says which products ' +

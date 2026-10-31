@@ -2,12 +2,14 @@
 // than shared — same convention as components/documents/types.ts mirroring the backend's descriptor
 // shapes: a wire shape, not code, and front/back are two separate npm projects with no shared package.
 
+import type { ServerMessage } from "@/lib/server-message"
+
 export interface WidgetBase {
   id: string
   label: string
-  /** Plain-English caveats about THIS widget's own numbers — e.g. the exchange rate(s) a currency
-   *  consolidation used, or which currency was missing one. Always shown, never thrown. */
-  warnings?: string[]
+  /** Caveats about THIS widget's own numbers, as translatable messages — e.g. the exchange rate(s)
+   *  a currency consolidation used, or which currency was missing one. Always shown, never thrown. */
+  warnings?: ServerMessage[]
   /** Whether the amounts shown include VAT, rendered through `widgets.basis.*`, never in `label`. */
   basis?: AmountBasis
 }
