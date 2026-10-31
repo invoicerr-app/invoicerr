@@ -7,6 +7,7 @@ import {
   companyIdFromProviderId,
   companyProviderId,
   isOidcOnly,
+  mapOidcProfileToUser,
   resolveEnvOidcProvider,
 } from '@/lib/sso-policy';
 import { assertOidcOnlyHasProvider } from '@/lib/secret-guard';
@@ -130,6 +131,7 @@ export async function buildCompanyProvider(
         ...(resolved.tokenUrl ? { tokenUrl: resolved.tokenUrl } : {}),
         ...(resolved.userInfoUrl ? { userInfoUrl: resolved.userInfoUrl } : {}),
         scopes: resolved.scopes,
+        mapProfileToUser: mapOidcProfileToUser,
       },
     ],
   });

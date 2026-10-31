@@ -9,6 +9,7 @@ import {
   deriveUserNames,
   emailDomain,
   isOidcOnly,
+  mapOidcProfileToUser,
   normalizeDomains,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
@@ -19,6 +20,7 @@ import {
   ssoEndpointsComplete,
   trustedProviderIds,
 } from '@/lib/sso-policy';
+import { parseAdditionalUserInputFromProviderProfile } from 'better-auth/db';
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 
 // A realistic company id: Prisma's `cuid()` output shape, which is what really ends up inside a
@@ -542,5 +544,50 @@ describe('ssoEndpointsComplete', () => {
   it.each(['', '   '])('treats the blank URL %p as absent', (blank) => {
     expect(ssoEndpointsComplete({ discoveryUrl: blank })).toBe(false);
     expect(ssoEndpointsComplete({ authorizationUrl: blank, tokenUrl: 'https://idp/token' })).toBe(false);
+  });
+});
+
+describe('mapOidcProfileToUser, the names better-auth requires before any database hook runs', () => {
+  it('maps given_name and family_name', () => {
+    expect(mapOidcProfileToUser({ given_name: 'Alice', family_name: 'Martin' })).toEqual({
+      firstname: 'Alice',
+      lastname: 'Martin',
+    });
+  });
+
+  it('splits a bare name when the IdP sends no given/family claims', () => {
+    expect(mapOidcProfileToUser({ name: 'Alice Van Der Berg' })).toEqual({
+      firstname: 'Alice',
+      lastname: 'Van Der Berg',
+    });
+  });
+
+  it('falls back to the email local part when there is no name at all', () => {
+    expect(mapOidcProfileToUser({ email: 'alice@acme.com' })).toEqual({ firstname: 'alice', lastname: '' });
+  });
+});
+
+describe('better-auth create-time validation of an OAuth profile', () => {
+  const options = {
+    user: {
+      additionalFields: {
+        firstname: { type: 'string', required: true },
+        lastname: { type: 'string', required: true },
+      },
+    },
+  };
+  const rawProfile = { name: 'Alice Martin', email: 'a@acme.com' };
+  const validate = (profile: Record<string, unknown>) =>
+    parseAdditionalUserInputFromProviderProfile(options as never, profile, 'create');
+
+  it('rejects a profile built without the mapping', () => {
+    expect(() => validate(rawProfile)).toThrow(/firstname is required/);
+  });
+
+  it('accepts a profile built with the mapping', () => {
+    expect(validate({ ...rawProfile, ...mapOidcProfileToUser(rawProfile) })).toMatchObject({
+      firstname: 'Alice',
+      lastname: 'Martin',
+    });
   });
 });

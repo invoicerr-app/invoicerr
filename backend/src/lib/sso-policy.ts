@@ -505,6 +505,17 @@ export function deriveUserNames(raw: Record<string, unknown>): UserNameParts {
   return { firstname, lastname, name };
 }
 
+/**
+ * better-auth validates the provider profile against the required user fields BEFORE any user
+ * database hook runs, so the names have to be on the profile itself.
+ */
+export function mapOidcProfileToUser(
+  profile: Record<string, unknown>,
+): Pick<UserNameParts, 'firstname' | 'lastname'> {
+  const { firstname, lastname } = deriveUserNames(profile);
+  return { firstname, lastname };
+}
+
 // ---------------------------------------------------------------------------
 // Email-first lookup
 // ---------------------------------------------------------------------------
