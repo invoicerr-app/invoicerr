@@ -6,7 +6,6 @@
  * reassigns another tenant's row while a `create` fabricates one with no upstream fact (a subscription
  * with no Polar customer). `pickCompanyInput` is the single scalar allow-list both write paths use.
  */
- */
 
 import { vi } from 'vitest';
 

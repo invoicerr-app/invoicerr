@@ -8,7 +8,7 @@
  *
  * Silent no-op unless `OPEN_ER_API_LIVE=1`, like every other live spec: no credentials, since the feed
  * is public. Run with:
- * 
+ *
  *   OPEN_ER_API_LIVE=1 npx vitest run src/modules/company/currency-rates/open-er-api-rates-client.live.spec.ts
  */
 
