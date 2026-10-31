@@ -31,6 +31,14 @@ vi.mock("@/hooks/use-fetch", async (importOriginal) => {
   return { ...actual, useSse: vi.fn() }
 })
 
+// These journeys exercise real screens against a fetch mock. `useDemoMode` (issue #592) would add a
+// `/api/legal/documents` request every journey has no fixture for; pin it to "not a demo" instead,
+// which is the state these journeys describe.
+vi.mock("@/hooks/queries", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/queries")>()
+  return { ...actual, useDemoMode: () => ({ demoMode: false, demo: null, isLoading: false }) }
+})
+
 const mockedUseSse = vi.mocked(useFetchModule.useSse)
 
 function sseResult(data: useFetchModule.useSseResult["data"]): useFetchModule.useSseResult {

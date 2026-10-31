@@ -3786,7 +3786,7 @@
     "banner": {
       "title": "Demo: data resets every {{count}} hours",
       "title_one": "Demo: data resets every hour",
-      "description": "Nothing you enter is kept or sent."
+      "description": "Nothing you enter is kept or sent. Sending documents, e-invoicing declarations and payments are disabled in this demo."
     },
     "signIn": {
       "title": "This is a public demo",
