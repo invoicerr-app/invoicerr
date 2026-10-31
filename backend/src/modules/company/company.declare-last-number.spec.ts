@@ -1,7 +1,6 @@
 /**
- * Issue #340 - "declare your last number issued", REAL Postgres. `CompanyService` constructed
- * directly, same posture as `company.service.spec.ts`'s own header (no module, no mocks besides the
- * webhook dispatcher, which this feature never touches).
+ * "Declare your last number issued", against real Postgres. `CompanyService` is built directly, with no
+ * module and no mocks beyond the webhook dispatcher this feature never touches.
  */
 import { vi } from 'vitest';
 

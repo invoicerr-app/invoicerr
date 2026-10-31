@@ -217,9 +217,8 @@ describe('company mail settings — the SMTP endpoint is not a probe of this ser
     }
 
     it('reports nothing that separates "nothing listening" from "something listening but not SMTP"', async () => {
-      // The three outcomes a real stack produces, and that used to be three distinguishable answers:
-      // a closed port, a filtered address, and an open port belonging to something that is not a mail
-      // server (it answered the TCP handshake and then never spoke SMTP).
+      // Three transport outcomes that must be indistinguishable to the caller: a closed port, a
+      // filtered address, and an open port that never spoke SMTP.
       const closedPort = await messageForTransportFailure(
         nodemailerError('connect ECONNREFUSED 203.0.113.25:587', 'ECONNECTION'),
       );

@@ -7,28 +7,12 @@ import { fetchEcbDailyRates } from './ecb-rates-client';
 import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
 /**
- * Issue #574 - "refresh the pairs a company actually uses", proven end-to-end against a REAL
- * Postgres: `currency-rate-sweep-runner.spec.ts` already proves every rule with a mocked
- * `prisma.currencyRate`/`company`/`client`/`documentPayment`/`$queryRaw`, but the three NEW grouped
- * queries this issue adds (`findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
- * `findPaymentDocumentCurrencyPairs`, currency-rate-sweep-runner.ts) include TWO raw `$queryRaw`
- * calls reading `DocumentInstance.data ->> 'currency'` and a JOIN against `DocumentPayment` - exactly
- * the kind of SQL a mock cannot catch a typo in (a wrong column alias, a broken JOIN condition) but a
- * real database executes and fails loudly. Same "real Prisma, own company, cleaned up afterwards"
- * discipline `clients.duplicates.spec.ts`/`reconciliation/variance-acceptance.spec.ts` already hold -
- * the ECB/fallback HTTP clients stay mocked throughout (`vi.mock` below): "never call ECB or
- * exchangerate-api from CI" applies here exactly as much as to the fully-mocked spec.
+ * Proves the usage-derived pair queries end-to-end against a real Postgres: the mocked spec cannot catch
+ * a typo in the raw SQL (a wrong alias, a broken JOIN) that a database fails loudly. The rate clients
+ * stay mocked, so no CI run reaches a real feed.
  *
- * ## One wrinkle real-Prisma tests for THIS runner have that the others don't
- * `CurrencyRateSweepRunner.runSweep()` is deliberately GLOBAL - it scans every company's own rows,
- * not one tenant's (`findActiveCurrencyRatePairs`'s own header). Under this project's own
- * `pool: 'forks'`/`maxWorkers` (vitest.config.ts), several spec FILES run against the SAME database
- * at once, so a real `runSweep()` call here could, in principle, also touch a row some OTHER
- * concurrently-running spec file created. No OTHER spec file in this repository writes a
- * `CurrencyRate`/reads one back as an assertion (grep confirms it - only this module's own specs
- * touch that table, and every other one mocks Prisma), so this is a theoretical risk, not an observed
- * one; every assertion below is scoped to THIS test's own `companyId` regardless, so it holds even if
- * that ever stops being true.
+ * `runSweep` is global, so parallel spec files share the database. No other spec writes or asserts on
+ * `CurrencyRate`, and every assertion here is scoped to this test's own company regardless.
  */
 vi.mock('./ecb-rates-client');
 vi.mock('./open-er-api-rates-client');
@@ -63,7 +47,7 @@ describe('CurrencyRateSweepRunner.runSweep - real Postgres, scope (b) derivation
     });
     companyId = company.id;
 
-    // A client billing in GBP - "each currency used by its clients" (issue #574's own wording).
+    // A client billing in GBP: a currency only usage knows about.
     await prisma.client.create({
       data: {
         companyId,

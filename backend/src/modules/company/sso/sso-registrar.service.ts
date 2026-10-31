@@ -19,10 +19,9 @@ import { SSO_REGISTRY_SYNC, SsoRegistrySync, SsoRegistrySyncMessage } from './ss
 import { SsoProviderResolved, SsoService } from './sso.service';
 
 /**
- * The minimum better-auth needs of a provider entry to resolve one: `getAwaitableValue`
- * (`better-auth/dist/context/helpers.mjs`) iterates `ctx.socialProviders`, calls any entry that is a
- * function, and compares the result's `id` against the id being looked up. Typed locally rather than
- * imported because better-auth does not export its provider type from a public entry point.
+ * The minimum better-auth needs of a provider entry to resolve one: `getAwaitableValue` walks
+ * `ctx.socialProviders`, calls each function entry and compares the result's id. Typed locally because
+ * better-auth exposes no public provider type.
  */
 interface ProviderLike {
   id: string;
@@ -44,12 +43,9 @@ interface AuthContextLike {
 }
 
 /**
- * Removes the entry (if any) tagged with `providerId` from `entries`, IN PLACE. Matches both shapes
- * an entry can take: our own tagged thunk (identified WITHOUT calling it, so removal never triggers a
- * discovery fetch) and an already-built provider object. A standalone function, not a private method,
- * specifically so it never has an `await` of its own — `registerProviderId`/`unregisterProviderId`
- * both call this synchronously, with no yield point between the removal and whatever they do next; see
- * `registerProviderId`'s own header for why that matters.
+ * Removes the entry tagged with `providerId` in place, matching a tagged thunk without calling it (so
+ * removal never triggers a discovery fetch) or an already-built provider. A standalone function so it
+ * has no await of its own: callers stay synchronous between removal and their next step.
  */
 function removeProviderEntry(entries: ProviderEntry[], providerId: string): void {
   const index = entries.findIndex((entry) =>
@@ -61,24 +57,14 @@ function removeProviderEntry(entries: ProviderEntry[], providerId: string): void
 }
 
 /**
- * Re-validated right here, not only at `sso.service.ts#upsert` write time: a hostname that resolved to
- * a public IP when the company saved its configuration can be repointed at an internal one by the
- * time a real sign-in attempt lazily triggers this build ("DNS rebinding" — see
- * `@/utils/outbound-url.ts`'s own header). `buildFor`'s own try/catch is what turns a rejection here
- * into "this one provider fails to build, logged" rather than a crash — the error message is kept
- * generic (never `OutboundUrlValidationError#reason` or the URL itself) so that log line cannot be
- * used as a network-scanning oracle by whoever can read it.
+ * Re-validated here, not only at write time: the hostname can be repointed at an internal address
+ * before a later sign-in lazily builds this provider. `buildFor` turns a rejection into "this provider
+ * failed to build", logged with a generic message, never the reason or the URL, which would make the
+ * log a scanning oracle.
  *
- * Deliberately does NOT pin the connection the way the webhook/PDP/SdI guards do
- * (`pinnedDispatcher`/`pinnedNodeLookup`): the actual discovery/token/userinfo fetches this validates
- * for happen inside `genericOAuth()`'s own `init`/sign-in handling a few lines and, for the token
- * exchange, an entire separate HTTP request later — both go through `betterFetch`
- * (`@better-fetch/fetch`, via `better-auth`/`@better-auth/core`) with no `dispatcher` or custom-`fetch`
- * hook exposed anywhere in the `genericOAuth` config surface to connect through instead. This
- * re-validation narrows the DNS-rebinding window to whatever it costs to resolve DNS once more; it
- * does not close it the way the other three callers' pinning does. Documented here rather than
- * silently accepted: closing it for real would mean vendoring or monkey-patching better-auth's own
- * fetch internals.
+ * It cannot pin the connection like the webhook and transport guards: the fetches happen inside
+ * `genericOAuth` and `betterFetch`, with no dispatcher or fetch hook exposed. This narrows the
+ * rebinding window, it does not close it; doing so would mean patching better-auth.
  */
 async function assertResolvedEndpointsArePublic(resolved: SsoProviderResolved): Promise<void> {
   const allowPrivateForTesting = process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
@@ -96,22 +82,12 @@ async function assertResolvedEndpointsArePublic(resolved: SsoProviderResolved): 
 }
 
 /**
- * Build a better-auth provider for one company, using better-auth's OWN provider construction.
+ * Builds a better-auth provider for one company through the plugin's own construction
+ * (`genericOAuth({ config: [cfg] }).init(ctx)`), so no OAuth is re-implemented here.
  *
- * `genericOAuth({ config: [cfg] }).init(ctx)` is the exact code path a provider declared at boot goes
- * through — discovery fetch, JWKS binding, PKCE defaults, token-endpoint auth, id_token verification —
- * so nothing about OAuth is re-implemented here. `init` returns
- * `{ context: { socialProviders: built.concat(ctx.socialProviders) } }`, which is why the result is
- * read positionally.
- *
- * The id is then VERIFIED against the one expected, and that check is load-bearing rather than
- * defensive: when the plugin rejects a config (discovery yielding no usable authorization or token
- * endpoint, an invalid jwks_uri) it logs and `continue`s, contributing NOTHING to the array — so
- * `[0]` would silently be the first pre-existing provider instead, and this company's sign-ins would
- * be handed the environment provider's configuration. Returns null instead.
- *
- * Exported for `sso-registrar.service.spec.ts`, which drives it with a synthetic context so the real
- * construction is exercised without a network call or a Nest container.
+ * The returned provider's id is verified against the expected one because the plugin skips an invalid
+ * config and contributes nothing, which would leave `[0]` as another provider and hand this company's
+ * sign-ins the wrong configuration. Null instead.
  */
 export async function buildCompanyProvider(
   ctx: AuthContextLike,
@@ -152,37 +128,20 @@ export async function buildCompanyProvider(
 /**
  * Registers every company's own OIDC provider with the live better-auth instance.
  *
- * Why this works at all: `auth.$context` resolves to the ONE context object every request reads. A
- * plugin's `init` result is merged into it with `Object.assign` at startup, and each request then
- * shallow-copies it (`Object.create(..., Object.getOwnPropertyDescriptors(ctx))` — see
- * `better-auth/dist/auth/base.mjs`), so the `socialProviders` ARRAY is shared by reference and an
- * insertion made after boot is visible to the very next request. No restart, no re-instantiation.
+ * It works because `auth.$context` is the one context every request reads, and the `socialProviders`
+ * array is shared by reference across its shallow copies, so an insertion after boot is visible to the
+ * next request.
  *
- * Entries are registered as THUNKS, which `getAwaitableValue` explicitly supports, for two reasons:
- * booting the API must not depend on every customer's IdP being reachable (an eager build would fetch
- * each discovery document at startup, so one tenant's outage would slow or silently degrade every
- * boot), and it must not decrypt every tenant's client secret merely to learn that a row exists. The
- * thunk memoises, so the cost is paid once per provider per process rather than once per lookup.
+ * Entries are thunks so booting never depends on a customer's IdP being reachable and never decrypts a
+ * secret just to learn a row exists; the thunk memoises, paying the cost once per provider per process.
  *
- * A thunk must NEVER throw: it is awaited while better-auth walks the array looking for some OTHER
- * provider, so a broken row would otherwise break unrelated sign-ins. On failure it logs and returns a
- * sentinel whose id is the empty string — which can never equal a real provider id, so the walk simply
- * continues — and forgets its memo so a later attempt retries once the IdP or the key is fixed.
+ * A thunk must never throw: it is awaited while better-auth looks for another provider, so a broken row
+ * would break unrelated sign-ins. On failure it logs and returns an empty-id sentinel, which never
+ * matches, and forgets its memo so a later attempt retries.
  *
- * CROSS-REPLICA SYNC: `register`/`unregister` mutate `auth.$context.socialProviders` — an
- * object that exists ONLY in the memory of whichever API process actually runs this code. Before this
- * fix, a write served by replica A therefore never reached replica B's own copy of that array until B
- * happened to restart (the ONLY thing that re-runs `onModuleInit`'s own boot loop) — a customer could
- * configure SSO, get balanced to a different replica on their very next sign-in attempt, and find the
- * provider simply does not exist there. `sync` (optional — see the constructor's own comment) closes
- * that gap the same way the worker→API document-events bridge already does for a different problem
- * (`documents/queue/document-events-publisher.ts`/`document-events-bridge.ts`): `register`/`unregister`
- * PUBLISH the change after applying it locally, and `onModuleInit` additionally SUBSCRIBES so this
- * process re-applies whatever change any OTHER replica just made — typically within a Redis pub/sub
- * round trip (single-digit milliseconds), not "at the next restart". The existing boot-time loop from
- * the stored rows is UNCHANGED and still runs first — this sync is additive, not a replacement: a
- * replica that boots between two Redis publishes (or missed one outright, pub/sub has no replay) is
- * still fully correct once it reaches that loop, and stays eventually-consistent afterwards via sync.
+ * The array lives in one process's memory, so `register`/`unregister` publish the change and every
+ * replica subscribes, instead of waiting for a restart. The boot loop from the stored rows still runs
+ * first and stays the source of truth when a publish is missed.
  */
 @Injectable()
 export class SsoRegistrarService implements OnModuleInit {
@@ -192,13 +151,8 @@ export class SsoRegistrarService implements OnModuleInit {
   private readonly built = new Map<string, Promise<ProviderLike | null>>();
 
   /**
-   * `sync` is injected BY TOKEN (`SSO_REGISTRY_SYNC`, `sso-registry-sync.ts`), typed as the bare
-   * interface — see that token's own comment for why. `@Optional()` because Nest DI is not the only
-   * caller: every existing unit test in `sso-registrar.service.spec.ts` constructs this class with
-   * plain `new SsoRegistrarService(fakeSso())`, one argument, which bypasses Nest's container (and
-   * therefore `@Inject`) entirely — `@Optional()` documents that the REAL wiring
-   * (`company.module.ts`, which always provides the token) is not the only supported shape, not that
-   * production itself might run without it.
+   * `sync` is injected by token, typed as the bare interface. `@Optional()` because unit tests build
+   * this class with plain `new`, bypassing Nest's container; production always provides the token.
    */
   constructor(
     private readonly sso: SsoService,
@@ -206,13 +160,11 @@ export class SsoRegistrarService implements OnModuleInit {
   ) {}
 
   /**
-   * Register every stored provider at boot, then refuse to boot an instance nobody could log into.
+   * Registers every stored provider at boot, then refuses to boot an instance nobody could log into.
    *
-   * The OIDC_ONLY assertion lives here rather than beside its sibling in `main.ts` because answering
-   * "does any company have a provider?" means reading `CompanySsoProvider`, and this is the place that
-   * already reads exactly those rows. It counts CONFIGURED providers, not reachable ones: whether a
-   * customer's IdP is currently up is a different question from whether the operator has left the
-   * instance with no way to authenticate at all.
+   * The OIDC_ONLY assertion lives here because answering it means reading the provider rows, which this
+   * already does. It counts configured providers, not reachable ones: a customer's IdP being down is a
+   * different question from the operator leaving no way to authenticate at all.
    */
   async onModuleInit(): Promise<void> {
     try {
@@ -235,11 +187,8 @@ export class SsoRegistrarService implements OnModuleInit {
       companyProviderCount: registeredCompanyProviderCount(),
     });
 
-    // Hear about every OTHER replica's own register/unregister from now on — see this class's own
-    // "CROSS-REPLICA SYNC" header section. Subscribed AFTER the boot loop above, deliberately: this
-    // process is already correct from the stored rows by the time it starts listening, so there is no
-    // window where an incoming sync message could race an in-progress boot registration of the SAME
-    // provider.
+    // Subscribed after the boot loop: this process is already correct from the stored rows before it
+    // starts listening, so an incoming message cannot race the boot registration.
     if (this.sync) {
       await this.sync.onMessage((message) => {
         void this.applyRemoteChange(message);
@@ -250,8 +199,8 @@ export class SsoRegistrarService implements OnModuleInit {
   /** Register (or re-register) one company's provider, after an upsert. */
   async register(companyId: string): Promise<void> {
     const providerId = companyProviderId(companyId);
-    // Drop any previous entry FIRST: an edited row must not leave the old configuration resolvable,
-    // and the memoised build of the previous configuration must not outlive it.
+    // Drop the previous entry first: an edited row must not leave the old configuration resolvable, and
+    // its memoised build must not outlive it.
     await this.unregisterProviderId(providerId);
     await this.registerProviderId(providerId);
     await this.publishSyncChange(companyId, 'register');
@@ -264,13 +213,9 @@ export class SsoRegistrarService implements OnModuleInit {
   }
 
   /**
-   * Announces a change AFTER it is already applied locally — this replica is correct regardless of
-   * whether the announcement itself is ever delivered. `SsoRegistrySyncService#publish`'s own real
-   * implementation already never rejects (it logs and swallows), but this call site guards a second
-   * time anyway: `register`/`unregister` run straight from `sso.controller.ts` after the company's
-   * own write already committed to Postgres, and nothing about the `SsoRegistrySync` INTERFACE
-   * promises a caller that no implementation will ever reject — a customer's "save my SSO settings"
-   * request must not fail merely because telling OTHER replicas about it hiccupped.
+   * Publishes a change after applying it locally, so this replica is correct whether or not the
+   * announcement arrives. Guarded even though the real implementation never rejects: the interface
+   * promises nothing, and a customer's save must not fail because notifying other replicas hiccuped.
    */
   private async publishSyncChange(companyId: string, action: 'register' | 'unregister'): Promise<void> {
     if (!this.sync) return;
@@ -289,11 +234,9 @@ export class SsoRegistrarService implements OnModuleInit {
   // ---------------------------------------------------------------------------
 
   /**
-   * Applies a change ANOTHER replica already made and already announced — never re-publishes (that
-   * would echo forever across every replica). Reuses the exact same `registerProviderId`/
-   * `unregisterProviderId` internals `register`/`unregister` themselves call, so a remote "register"
-   * gets the identical drop-then-insert treatment a local one does (an edited configuration arriving
-   * as a remote sync must replace the old entry, not stack a stale one beside it).
+   * Applies a change another replica already made, without re-publishing (which would echo forever).
+   * Reuses the same internals as a local register/unregister, so a remote edit replaces the old entry
+   * rather than stacking beside it.
    */
   private async applyRemoteChange(message: SsoRegistrySyncMessage): Promise<void> {
     const providerId = companyProviderId(message.companyId);
@@ -306,23 +249,12 @@ export class SsoRegistrarService implements OnModuleInit {
   }
 
   /**
-   * Awaited rather than fire-and-forget: `register()` must not return before the provider is actually
-   * in the array, or a caller that immediately unregisters (an upsert that deactivates) could splice
-   * the array before the insertion lands and leave a stale entry resolvable forever.
+   * Awaited, not fire-and-forget: a caller that immediately unregisters must not splice the array
+   * before this insertion lands.
    *
-   * Removes any PRE-EXISTING entry for this same `providerId` itself, synchronously, right before
-   * inserting — never relies solely on a caller having already called `unregisterProviderId` first.
-   * `register()`/`applyRemoteChange()` still do call it first (for the OTHER visible effect that has:
-   * forgetting the previous memoised build below), but with `sync` wired in a SECOND, independent
-   * `SsoRegistrarService`-driven mutation can now be in flight for the exact same provider at the
-   * exact same time within ONE process — a replica's own publish echoes back to its OWN subscription
-   * (Redis pub/sub delivers a publish to every subscriber, the publisher's own connection included),
-   * so `register()`'s direct local call and the resulting self-echoed `applyRemoteChange` race each
-   * other. Without this self-check, two overlapping "remove-then-insert" sequences can each find
-   * NOTHING to remove (the other has not inserted yet) and then both insert — two stacked entries for
-   * one provider, silently, until the next full unregister/re-register cycle. Doing the removal here
-   * too, with no `await` between it and the `unshift` below, closes that window: whichever of the two
-   * overlapping calls reaches this point LAST always removes what the other just inserted first.
+   * The removal happens here too, synchronously before the insert. With sync wired in, a publish echoes
+   * back to its own subscriber, so a local register and the self-echoed remote apply can overlap: each
+   * could find nothing to remove and both insert, stacking two entries for one provider.
    */
   private async registerProviderId(providerId: string): Promise<void> {
     const thunk = this.makeThunk(providerId);

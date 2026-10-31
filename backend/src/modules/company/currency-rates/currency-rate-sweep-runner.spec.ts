@@ -6,12 +6,8 @@ import { CurrencyRateSweepRunner } from './currency-rate-sweep-runner';
 import { fetchEcbDailyRates } from './ecb-rates-client';
 import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
-// Same "mock the prisma singleton default export" shape archive/persistence.spec.ts and
-// conformity/authority-events.persistence.spec.ts already use for a plain-function persistence file
-// — this runner talks to `prisma.currencyRate` directly, never through a service class.
-// `company.findMany`/`client.groupBy`/`documentPayment.groupBy`/`$queryRaw` back the scope (b)
-// queries (#574) - `findCompanyReferenceCurrencies`/`findUsedCurrenciesByCompany`/
-// `findPaymentDocumentCurrencyPairs` in currency-rate-sweep-runner.ts.
+// The runner talks to the prisma singleton directly, never through a service class. The company,
+// client, payment and raw-query mocks back the usage-derived queries.
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
@@ -45,10 +41,8 @@ const fetchEcb = fetchEcbDailyRates as Mock;
 const fetchOpenErApi = fetchOpenErApiRates as Mock;
 
 describe('CurrencyRateSweepRunner.runSweep', () => {
-  // Scope (b) (#574) defaults to "nothing used, no company has a reference currency" for every test
-  // below that doesn't say otherwise - `vi.resetAllMocks()` in `afterEach` wipes these between tests,
-  // so a fresh `beforeEach` is what keeps the PRE-#574 tests (scope (a) only) passing unmodified: they
-  // never cared about usage-derived pairs, and this keeps it that way instead of touching all seven.
+  // Defaults to "nothing used, no reference currency": `vi.resetAllMocks()` wipes these between tests,
+  // so a fresh `beforeEach` keeps the tests that only care about manually entered pairs passing.
   beforeEach(() => {
     companyFindMany.mockResolvedValue([]);
     clientGroupBy.mockResolvedValue([]);
@@ -228,10 +222,8 @@ describe('CurrencyRateSweepRunner.runSweep', () => {
     );
   });
 
-  // Issue #574 - scope (b): a pair derived from actual usage, never typed by hand, still gets
-  // refreshed. `findMany` (currencyRate) returns NOTHING for scope (a) in every case below - the
-  // company never entered a manual rate - so a row only ever appears because the usage-derived query
-  // mocks below produced one.
+  // A pair derived from usage, never typed by hand, still gets refreshed. `findMany` returns nothing
+  // for manually entered pairs in every case below, so a row only appears from the usage queries.
   describe('scope (b) - pairs derived from actual document/client/payment usage', () => {
     it('derives and inserts a pair from a used currency against the reference currency, with no manual rate ever entered', async () => {
       fetchEcb.mockResolvedValue({ referenceDate: '2026-09-11', rates: new Map([['USD', 1.0812]]) });

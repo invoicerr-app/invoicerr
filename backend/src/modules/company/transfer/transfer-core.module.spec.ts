@@ -1,14 +1,8 @@
 /**
- * `transfer-core.module.ts`'s own BullMQ wiring, and — the actual fix under test — that
- * `TransferExpiryProcessor` is reachable from `worker.module.ts` (`ROLE=worker`), which it was NOT
- * before this split: `TransferModule` used to carry the processor and the repeatable registration
- * directly, and `worker.module.ts` never imported `TransferModule` — so a dedicated worker process had
- * no way to consume `Q_COMPANY_TRANSFER` at all, and the expiry sweep always ran on an API replica.
+ * The BullMQ wiring of the transfer queue, and the proof that the processor is reachable from
+ * `worker.module.ts`: a dedicated worker must be able to consume the queue, not only an API replica.
  *
- * Reads module source text rather than booting the real graph — `transfer.module.ts`/
- * `transfer-core.module.ts` do not themselves pull in the `@thallesp/nestjs-better-auth` ESM chain the
- * way `billing-core.module.ts` (via `DocumentsCoreModule`) does, but this file follows the same
- * lightweight, no-Nest-bootstrap style as `billing.module.spec.ts` for consistency and speed.
+ * Reads module source text rather than booting the real graph, keeping it fast.
  */
 import 'reflect-metadata';
 
@@ -60,10 +54,10 @@ describe('TransferExpiryProcessor is reachable from the worker process', () => {
   });
 
   it('the HTTP-only TransferModule no longer carries the processor or the repeatable registration itself', () => {
-    // Checks actual CODE, not prose: this module's own header explains the split in words that
-    // legitimately name `TransferExpiryProcessor`/`OnApplicationBootstrap`, so a blanket string search
-    // over the whole file would trip on its own comments — this checks the real `@Module({...})`
-    // providers array and the class declaration instead.
+    // Checks actual CODE, not prose: what matters is the real `@Module({...})` providers array and
+    // the class declaration. `transfer.module.ts`'s own header names neither symbol — it only points
+    // at `transfer-core.module.ts` for the queue wiring — and a blanket string search would anyway
+    // tie this test to wording any later comment rewrite is free to change.
     expect(transferModuleSource).toMatch(/providers:\s*\[MailService,\s*TransferService\]/);
     expect(transferModuleSource).not.toMatch(/implements OnApplicationBootstrap/);
   });

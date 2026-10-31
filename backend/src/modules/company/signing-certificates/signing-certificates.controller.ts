@@ -46,10 +46,9 @@ export class SigningCertificatesController {
   }
 
   /**
-   * POST /api/company/signing-certificates — upload a PFX (PKCS#12) signing certificate. The PFX and
-   * password are encrypted at rest as two separate blobs; only metadata is returned. A corrupt file,
-   * a wrong password, or an already-expired certificate all refuse NOISILY (400, named message) —
-   * never a silently-stored, silently-unusable certificate.
+   * Uploads a PFX (PKCS#12) signing certificate. The file and password are encrypted at rest as two
+   * blobs and only metadata is returned; a corrupt file, a wrong password or an expired certificate
+   * refuse with a named 400, never a stored but unusable certificate.
    */
   @Post()
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)

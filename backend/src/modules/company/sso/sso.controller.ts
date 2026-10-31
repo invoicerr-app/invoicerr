@@ -96,9 +96,8 @@ export class SsoController {
   @ApiResponse({ status: 200, description: 'SSO configured' })
   @ApiResponse({ status: 400, description: 'Missing clientId, or neither a discovery URL nor endpoints' })
   @ApiResponse({ status: 503, description: 'CREDENTIALS_ENCRYPTION_KEY is not configured' })
-  // Demo instance (issue #533): SSO configuration is refused outright, a stranger's identity
-  // provider must never gain any authority over the seeded demo account. See
-  // `guards/demo-restricted.guard.ts`.
+  // Demo instance: SSO configuration is refused outright, since a stranger's identity provider must
+  // never gain authority over the seeded demo account.
   @DemoRestricted()
   async upsert(@ActiveCompany() companyId: string, @Body() body: UpsertSsoProviderBody) {
     const status = await this.sso.upsert(companyId, body);

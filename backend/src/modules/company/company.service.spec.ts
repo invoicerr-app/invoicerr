@@ -4,14 +4,10 @@
  * `DATABASE_URL` this test run resolves ("invoicerr_dev" in this repo's own dev setup — see
  * `.env`; jest never loads `.env.test`).
  *
- * Covers the mass-assignment close: there is no runtime request validation anywhere in this API (no
- * ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`, erased at
- * compile time), so before this fix `editCompanyInfo`'s `data: { ...rest }` would write ANY key a
- * caller named in the JSON body, including `Company.id`/`createdAt` and — directly relevant to
- * numbering - `numberFormats` itself, which since issue #496 holds the company's frozen running
- * series and must never be written by anyone. These tests prove `editCompanyInfo` writes only its
- * explicit allow-list, and that the one endpoint that used to write `numberFormats`
- * (`updateNumberFormat`) now refuses every change.
+ * Covers the mass-assignment close: with no runtime request validation, `data: { ...rest }` would write
+ * any key the caller named, `numberFormats` included, which holds the frozen running series and must
+ * never be rewritten. These tests prove only the allow-list is written and that `updateNumberFormat`
+ * refuses every change.
  */
 
 import { vi } from 'vitest';
@@ -118,7 +114,7 @@ describe('CompanyService — mass-assignment allow-list', () => {
           name: 'Still Me',
           currency: 'EUR',
           country: 'France',
-          // A running series is frozen (issue #496): nothing a caller sends may replace it.
+          // A running series is frozen: nothing a caller sends may replace it.
           numberFormats: { invoice: 'NOPE', quote: 'ALSO-NOPE' },
         } as never);
 
@@ -179,11 +175,8 @@ describe('CompanyService — mass-assignment allow-list', () => {
 });
 
 /**
- * Issue #603: `getCompanyInfo` exposes the country's own `documentValidationCode` fact
- * (`country-policy/schema.ts`) instead of letting the frontend decide Portugal-only behaviour from
- * `country`/`countryCode` itself - see `actions/atcud-issuance.spec.ts` for the analogous backend
- * enforcement gate, and the frontend's `-[tab].tsx`/`atcud.settings.tsx` for the two readers of this
- * exact field.
+ * `getCompanyInfo` exposes the country's own `documentValidationCode` fact instead of letting the
+ * frontend derive Portugal-only behaviour from the country fields.
  */
 describe('CompanyService#getCompanyInfo - issue #603: documentValidationCode', () => {
   let service: CompanyService;
@@ -315,14 +308,9 @@ describe('CompanyService - the company profile its country asks for', () => {
 });
 
 /**
- * Issue #535: one of the two things a fix has to guarantee ("a new company's owner always has a
- * seat"). `createCompany` reserves the OWNER's own seat through `billing/seat-sync.ts#withSeatReservation`
- * (see that call site's own comment, "A brand-new company's own OWNER is its first seat") - this is
- * an END-TO-END proof of that, real Prisma against a real `CompanySubscription` row (`seats Int
- * @default(1)`, `schema.prisma`), not the mocked `withSeatReservation` unit coverage
- * `seat-sync.spec.ts` already has. Gated on the SAME billing flag production reads
- * (`WARNING__ENABLE_BILLING_FOR_USERS__WARNING`), set and restored around each test since
- * `withSeatReservation` reads `process.env` directly, not an injected flag.
+ * End-to-end proof that a new company's owner always gets a seat: `createCompany` reserves it through
+ * `withSeatReservation`, against real Prisma and a real subscription row. Gated on the same billing flag
+ * production reads, set and restored per test.
  */
 describe('CompanyService#createCompany - issue #535: the owner always gets a seat', () => {
   let service: CompanyService;

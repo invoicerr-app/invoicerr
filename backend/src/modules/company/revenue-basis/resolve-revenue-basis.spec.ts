@@ -128,8 +128,8 @@ describe('normalizeRevenuePeriod', () => {
   });
 });
 
-/** The defaults this resolver used to hard-code, kept as test data: the data-driven resolver must
- *  answer every input exactly as the old table did. */
+/** The old hard-coded defaults, kept as test data: the data-driven resolver must answer exactly as
+ *  that table did. */
 const LEGACY_CASHED_COUNTRIES = new Set(['FR', 'IT']);
 const LEGACY_REASONS: Record<string, string> = {
   FR: 'French micro-entrepreneurs declare cashed revenue (urssaf.fr; CSS art. R133-30-1 to 10).',

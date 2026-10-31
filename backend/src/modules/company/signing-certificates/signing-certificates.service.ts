@@ -1,50 +1,17 @@
 /**
- * SigningCertificatesService — per-company encrypted signing certificate store ("Electronic
- * signature — module removed"). The credentials layer REPRISED from git tag
- * `avant-refonte-documents` (`modules/signing-certificates/signing-certificates.service.ts`), adapted
- * to this codebase's CURRENT `ChannelCredentialsService` conventions (`modules/company/channels/`,
- * the pattern it imitates): no injected `PrismaService` — the `prisma` singleton
- * default export is used directly; `credentialAudit` calls unchanged (that module already anticipated
- * a "Signing certs" caller — see its own header, `credentialRef` doc comment).
+ * Per-company encrypted signing certificate store.
  *
- * WHY THIS IS A COMPANY CAPABILITY, NEVER A LEGAL OBLIGATION — read before touching this file:
- * no jurisdiction this product ships today requires us to prove a SIGNATURE on the document itself.
- * PDP (FR) accepts an unsigned Factur-X; KSeF (PL) authenticates the SESSION by token, never the
- * document; SdI (IT) accepts CAdES but that channel has no accreditation (see `sdi-transport.ts`'s
- * own header) — a company can go through this product's entire compliance surface
- * today without ever touching this file. Signing is therefore opt-in, company-scoped, and NEVER
- * presented as required anywhere in this module or its screen (`settings.signing.*`, front-end) — the
- * day a real sourced obligation appears (a `content-requirements/`-style dated legal citation, never
- * invented here), that is a NEW, separate fact to encode, not a retrofit of this module's own wording.
+ * No jurisdiction this product ships requires a signature proof on the document itself (PDP accepts an
+ * unsigned Factur-X, KSeF authenticates the session, SdI has no accreditation), so signing is opt-in,
+ * company-scoped and never presented as required.
  *
- * Reprised UNCHANGED from the removed compliance engine:
- *  - AES-256-GCM encryption of the PFX bytes AND the password (`utils/secret-crypto.ts`), two
- *    independent blobs — never one derived from the other.
- *  - node-forge extraction of notBefore/notAfter/serial/subject at upload time.
- *  - `resolve()`'s certRef convention: "{companyId}" or "{companyId}:{algo}" (see its own header).
- *  - The expiry check at RESOLVE time (a cert valid at upload can expire before it is next used).
+ * Encryption: the PFX bytes and the password are two independent AES-256-GCM blobs, never one derived
+ * from the other. node-forge extracts the certificate dates at upload. An expired certificate is
+ * refused at upload and skipped again at resolve time, since a valid cert can expire before next use.
+ * Deactivation is a soft delete, since which certificate signed which document is audit history.
  *
- * ADAPTED (deliberately, beyond the type/import path changes every reprised file has):
- *  - `upload()` now ALSO refuses an ALREADY-EXPIRED certificate outright (the removed compliance
- *    engine silently stored it and only skipped it at resolve time) — a noisy refusal at upload is
- *    deliberate, not a
- *    certificate that sits in the store looking configured while never actually
- *    signing anything.
- *  - `delete()` is now `deactivate()` — a SOFT delete (`isActive: false`), matching the
- *    "upload/list/deactivate" verb set: a signing certificate is audit-relevant history (which
- *    document was signed under which cert), unlike a channel connection's credentials, which
- *    `channels.service.ts#deleteChannelConfig` really does erase.
- *  - `rotate()` is dropped — certificate renewal/chain rollover is out of scope for this pass; it
- *    was not implemented in the removed compliance engine either.
- *
- * Security rules (unchanged):
- *  - encryptedPfx and encryptedPass are stored with AES-256-GCM (secret-crypto), as two SEPARATE
- *    ciphertexts.
- *  - NEVER log privateKeyPem, p12Password, or the decrypted PFX bytes.
- *  - NEVER return PFX / private-key material from HTTP endpoints — `toMeta()` is the ONLY shape a
- *    controller response is allowed to carry (see `signing-certificates.service.spec.ts`'s own
- *    "never returns" test).
- *  - Expired certs (notAfter < now) are skipped at resolve time and logged as a warn.
+ * Never log the password, the private key or the decrypted PFX, and never return them over HTTP:
+ * `toMeta()` is the only shape a response may carry.
  */
 import * as forge from 'node-forge';
 import { Injectable, Logger } from '@nestjs/common';
@@ -199,18 +166,9 @@ export class SigningCertificatesService implements SigningCredentialsPort {
   // ── SigningCredentialsPort implementation — the PORT surface (sign-instance-pdf.ts calls this) ──
 
   /**
-   * Resolve signing credentials for a given certRef.
-   * certRef == companyId, or "{companyId}:{algo}" (see `sign-instance-pdf.ts#certRefFor`).
-   *
-   * Resolution order:
-   *  1. Active cert with applicability matching the algo (if encoded in certRef).
-   *  2. Active cert with applicability="*" (wildcard).
-   *  3. null → caller passes the artifact through unsigned.
-   *
-   * Environment resolution mirrors `channels.service.ts`'s own convention: PROD in a production
-   * process, TEST everywhere else (dev, CI, jest) — a company activates exactly one environment's
-   * cert in a given slot (upload upserts by `[companyId, applicability, environment]`), so this never
-   * has to choose between two active rows the way `ChannelCredentialsService.resolveActive` does.
+   * Resolves signing credentials for a certRef: the company id alone, or `{companyId}:{algo}`. Tries an
+   * algo-specific certificate, then the wildcard, then null so the caller passes the artifact through
+   * unsigned. The environment follows the process: PROD in production, TEST elsewhere.
    */
   async resolve(certRef: string): Promise<SigningCredentialsMaterial | null> {
     if (!isEncryptionAvailable()) return null;
@@ -253,9 +211,8 @@ export class SigningCertificatesService implements SigningCredentialsPort {
       return null;
     }
 
-    // Validity check — skip expired certs rather than crashing, and SAY why (see this file's own
-    // header — this is the "never used, says why" half; the "refused at upload" half is
-    // `upload()`'s own check, below).
+    // An expired certificate is skipped rather than crashing, with a warn saying why; upload refuses
+    // one outright.
     if (row.notAfter < new Date()) {
       this.logger.warn(
         `Signing cert "${row.id}" (${row.label}) for company ${companyId} expired on ` +
@@ -313,8 +270,7 @@ export class SigningCertificatesService implements SigningCredentialsPort {
 
   // ── The CONTROLLER surface — signing-certificates.controller.ts's settings screen ──
 
-  /** List all signing certs for a company — metadata only (see `CertificateMetaResponse`'s own
-   *  header: never a PFX or password, no exceptions). */
+  /** List a company's certificates, metadata only: never a PFX or a password. */
   async listForCompany(companyId: string): Promise<CertificateMetaResponse[]> {
     const rows = await prisma.companySigningCertificate.findMany({
       where: { companyId },
@@ -324,12 +280,9 @@ export class SigningCertificatesService implements SigningCredentialsPort {
   }
 
   /**
-   * Upload (upsert, by `[companyId, applicability, environment]`) a signing certificate.
-   *  - Parses the PFX to extract metadata — throws a NAMED error for an unreadable file or a wrong
-   *    password (see `parsePfx`'s own header), never a bare crash.
-   *  - Refuses an ALREADY-EXPIRED certificate outright — see this file's own header, "ADAPTED".
-   *  - Encrypts PFX bytes + password as two SEPARATE ciphertexts before storing.
-   *  - Returns metadata only (never the decrypted material).
+   * Uploads a certificate, upserting by (company, applicability, environment). The PFX is parsed for
+   * metadata with a named error for a corrupt file or a wrong password, an already-expired certificate
+   * is refused, and the bytes and password are encrypted as two separate blobs. Returns metadata only.
    */
   async upload(companyId: string, body: UploadCertificateBody): Promise<CertificateMetaResponse> {
     if (!isEncryptionAvailable()) {
@@ -397,10 +350,8 @@ export class SigningCertificatesService implements SigningCredentialsPort {
   }
 
   /**
-   * Deactivate a signing cert by ID — a SOFT delete (`isActive: false`), never a hard `deleteMany`:
-   * see this file's own header, "ADAPTED", for why this differs from `channels.service.ts`'s own
-   * `deleteChannelConfig`. Scoped by BOTH `id` AND `companyId` so a foreign company's certificate id
-   * simply matches nothing (count 0) rather than ever being reachable cross-tenant.
+   * Deactivates a certificate: a soft delete, unlike a channel's credentials, because which certificate
+   * signed which document is audit history. Scoped by id and companyId, so a foreign id matches nothing.
    */
   async deactivate(companyId: string, certId: string): Promise<{ deactivated: boolean }> {
     const { count } = await prisma.companySigningCertificate.updateMany({
