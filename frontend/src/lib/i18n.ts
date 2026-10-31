@@ -123,6 +123,42 @@ if (DEV_RTL_TEST_LOCALE !== null) {
   resources[DEV_RTL_TEST_LOCALE] = { translation: resources.en.translation }
 }
 
+/** The codes this app ships a real catalog for. `pt-BR`/`ja`/`ko`/`ru` and the other stub
+ *  folders are deliberately absent (see `SUPPORTED_LANGUAGES`'s own comment). */
+const SUPPORTED_LANGUAGE_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code))
+
+/**
+ * Browsers report things that are not BCP 47 tags. A POSIX-locale OS makes headless Chromium send
+ * `en-US@posix`, which every `Intl` constructor rejects with `RangeError: Invalid language tag`
+ * (issue #718). Strip the POSIX modifier (`@posix`, `@euro`, ...), accept an underscore separator,
+ * then let `Intl.getCanonicalLocales` decide whether what is left is a tag at all.
+ */
+export function normalizeLanguageTag(lang: string | null | undefined): string | null {
+  if (!lang) return null
+  const withoutPosix = lang.trim().replace(/_/g, "-").split("@")[0]
+  if (!withoutPosix) return null
+  try {
+    return Intl.getCanonicalLocales(withoutPosix)[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The language the interface actually renders in, from whatever the detector read. Only a supported
+ * base language survives: `fr-FR`, `fr-CA` and `fr` all resolve to `fr`, and a language this app has
+ * no (non-stub) catalog for (`ja`, `ko`, `pt-BR`, `xx`) resolves to `en`, i18next's own fallback.
+ * That is what keeps `i18n.language` and the dates in the same language (issue #733): the interface
+ * falls back to English for a `ja` browser, so the dates must too.
+ */
+export function resolveAppLanguage(lang: string | null | undefined): string {
+  if (DEV_RTL_TEST_LOCALE !== null && lang === DEV_RTL_TEST_LOCALE) return DEV_RTL_TEST_LOCALE
+  const normalized = normalizeLanguageTag(lang)
+  if (!normalized) return "en"
+  const base = normalized.split("-")[0].toLowerCase()
+  return SUPPORTED_LANGUAGE_CODES.has(base) ? base : "en"
+}
+
 /** True when `lang` (a resolved i18next language, or the dev-only RTL test locale) reads right-to-left. */
 export function isRtlLocale(lang: string | undefined | null): boolean {
   if (!lang) return false
@@ -137,6 +173,10 @@ i18n
       order: ["localStorage", "navigator"],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
       caches: [],
+      // A detected value must already be a language this app renders in, never the raw browser tag:
+      // `en-US@posix` is not BCP 47 (issue #718), and a regional/unsupported code whose interface
+      // falls back to English must not leave its dates in another language (issue #733).
+      convertDetectedLanguage: (lng) => resolveAppLanguage(lng),
     }),
   )
   .use(initReactI18next)
@@ -213,5 +253,7 @@ const DATE_FNS_LOCALES = new Map<string, Locale>([
 ])
 
 export function languageToLocale(lang: string): Locale {
-  return DATE_FNS_LOCALES.get(lang) ?? enUS
+  const normalized = normalizeLanguageTag(lang)
+  if (!normalized) return enUS
+  return DATE_FNS_LOCALES.get(normalized) ?? DATE_FNS_LOCALES.get(normalized.split("-")[0]) ?? enUS
 }
