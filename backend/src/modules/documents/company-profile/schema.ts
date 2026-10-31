@@ -25,6 +25,13 @@ export interface CompanyProfileAttribute {
   /** Asked only when the company's own declared values satisfy every entry; absent means always. */
   askedWhen?: ProfileCondition;
   derived?: DerivedCompanyProfileValue;
+  /**
+   * The value a RULE reads when the company has not answered this attribute. Never stored, never
+   * shown as the company's answer: it exists so a country can pick the fail-closed side of an
+   * unanswered question where the consequence of the other side cannot be walked back. A country
+   * that omits it keeps the older behaviour, an undeclared attribute satisfies every condition.
+   */
+  assumedWhenUndeclared?: string;
   provenance: PolicyProvenance;
 }
 
@@ -103,6 +110,12 @@ function assertValidAttribute(attribute: CompanyProfileAttribute, context: strin
   }
   if (attribute.askedWhen !== undefined) {
     assertWellFormedProfileCondition(attribute.askedWhen, `${context}: attribute "${key}" "askedWhen"`);
+  }
+  if (attribute.assumedWhenUndeclared !== undefined && !values.has(attribute.assumedWhenUndeclared)) {
+    throw new InvalidCompanyProfileError(
+      `${context}: attribute "${key}" assumes "${attribute.assumedWhenUndeclared}" when undeclared, ` +
+        'which is not one of its values.',
+    );
   }
   assertValidPolicyProvenance(
     attribute.provenance,

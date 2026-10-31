@@ -8,7 +8,7 @@ import { ALL_CHANNEL_POLICY_FILES } from './data/all';
 import { ChannelPolicyCatalog, defaultChannelPolicyCatalog } from './registry';
 
 describe('channel policy files — loaded, not hard-coded', () => {
-  it('FR mandates the "pdp" provider from 2026-09-01 for large and mid-size sellers, from 2027-09-01 for SMEs and micro-enterprises', () => {
+  it('FR mandates the "pdp" provider from 2026-09-01 for large, mid-size and VAT-group sellers, from 2027-09-01 for non-member SMEs and micro-enterprises', () => {
     expect(defaultChannelPolicyCatalog.factsFor('FR')).toEqual([
       expect.objectContaining({
         providerId: 'pdp',
@@ -20,8 +20,17 @@ describe('channel policy files — loaded, not hard-coded', () => {
       expect.objectContaining({
         providerId: 'pdp',
         requirement: 'mandated',
+        mandatedFrom: '2026-09-01',
+        scope: expect.objectContaining({ seller: { vatGroupMember: ['yes'] } }),
+        provenance: expect.objectContaining({ kind: 'legal' }),
+      }),
+      expect.objectContaining({
+        providerId: 'pdp',
+        requirement: 'mandated',
         mandatedFrom: '2027-09-01',
-        scope: expect.objectContaining({ seller: { sizeCategory: ['SME', 'MICRO'] } }),
+        scope: expect.objectContaining({
+          seller: { sizeCategory: ['SME', 'MICRO'], vatGroupMember: ['no'] },
+        }),
         provenance: expect.objectContaining({ kind: 'legal' }),
       }),
     ]);

@@ -7,6 +7,21 @@ export interface CompanyProfileSources {
   exemptVat: boolean;
 }
 
+/** The values a RULE reads for this country: each unanswered attribute that declares an assumption
+ *  takes it, every answered one is kept. The stored column is never rewritten by this. */
+export function withAssumedValues(
+  profile: CompanyProfileValues,
+  attributes: CompanyProfileAttribute[],
+): CompanyProfileValues {
+  const resolved = { ...profile };
+  for (const attribute of attributes) {
+    if (resolved[attribute.key] === undefined && attribute.assumedWhenUndeclared !== undefined) {
+      resolved[attribute.key] = attribute.assumedWhenUndeclared;
+    }
+  }
+  return resolved;
+}
+
 /** Reads the stored JSON column back: only string values survive, anything else counts as undeclared. */
 export function parseCompanyProfileValues(stored: unknown): CompanyProfileValues {
   if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return {};

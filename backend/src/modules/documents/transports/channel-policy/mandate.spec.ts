@@ -5,7 +5,7 @@
  * same split `country-policy.spec.ts` vs. `schema.spec.ts` already keeps for the sibling module.
  */
 import { ChannelPolicyCatalog } from './registry';
-import { activeChannelMandateFor, activeChannelMandateForOperation } from './mandate';
+import { activeChannelMandateFor, activeChannelMandateForOperation, channelFactsForSeller } from './mandate';
 
 // `activeChannelMandateFor` reads the SHIPPED, singleton catalog by default — this first block
 // exercises it against the real, shipped `fr.json` (item 11's actual data), rather than only ever a
@@ -326,28 +326,50 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
   });
 });
 
-describe('activeChannelMandateForOperation - the French PDP mandate follows the seller size category', () => {
+describe('activeChannelMandateForOperation - the French PDP mandate follows the seller size and VAT group', () => {
   const domesticBusinessSale = {
     sellerCountryCode: 'FR',
     buyerCountryCode: 'FR',
     buyerType: 'COMPANY' as const,
   };
 
-  it('a micro-enterprise is not bound before 2027-09-01', () => {
+  it('a micro-enterprise that is not a member is not bound before 2027-09-01', () => {
     expect(
       activeChannelMandateForOperation({
         ...domesticBusinessSale,
         issueDate: '2026-10-25',
-        sellerProfile: { sizeCategory: 'MICRO' },
+        sellerProfile: { sizeCategory: 'MICRO', vatGroupMember: 'no' },
       }),
     ).toBeUndefined();
   });
 
-  it('an SME is not bound on 2027-08-31 and is bound from 2027-09-01', () => {
-    const sme = { ...domesticBusinessSale, sellerProfile: { sizeCategory: 'SME' } };
+  it('an SME that is not a member is not bound on 2027-08-31 and is bound from 2027-09-01', () => {
+    const sme = {
+      ...domesticBusinessSale,
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+    };
 
     expect(activeChannelMandateForOperation({ ...sme, issueDate: '2027-08-31' })).toBeUndefined();
     expect(activeChannelMandateForOperation({ ...sme, issueDate: '2027-09-01' })?.providerId).toBe('pdp');
+  });
+
+  it('an SME that is a member is bound from 2026-09-01 whatever its size', () => {
+    const member = {
+      ...domesticBusinessSale,
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'yes' },
+    };
+
+    expect(activeChannelMandateForOperation({ ...member, issueDate: '2026-08-31' })).toBeUndefined();
+    expect(activeChannelMandateForOperation({ ...member, issueDate: '2026-09-01' })?.providerId).toBe('pdp');
+  });
+
+  it('an SME that has not answered the VAT group question stays bound from 2026-09-01', () => {
+    const unanswered = { ...domesticBusinessSale, sellerProfile: { sizeCategory: 'SME' } };
+
+    expect(activeChannelMandateForOperation({ ...unanswered, issueDate: '2026-08-31' })).toBeUndefined();
+    expect(activeChannelMandateForOperation({ ...unanswered, issueDate: '2026-09-01' })?.providerId).toBe(
+      'pdp',
+    );
   });
 
   it('a large company and a mid-size company are bound from 2026-09-01', () => {
@@ -373,5 +395,14 @@ describe('activeChannelMandateForOperation - the French PDP mandate follows the 
         sellerProfile: {},
       })?.providerId,
     ).toBe('pdp');
+  });
+
+  it('the settings screen shows an SME its own start date', () => {
+    const startDate = (sellerProfile: { sizeCategory?: string; vatGroupMember?: string }) =>
+      channelFactsForSeller('FR', sellerProfile).find((fact) => fact.providerId === 'pdp')?.mandatedFrom;
+
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'no' })).toBe('2027-09-01');
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'yes' })).toBe('2026-09-01');
+    expect(startDate({ sizeCategory: 'SME' })).toBe('2026-09-01');
   });
 });
