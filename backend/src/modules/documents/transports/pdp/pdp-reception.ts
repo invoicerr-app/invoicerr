@@ -22,29 +22,26 @@
  *    for the wrong `/file` sub-path an earlier version of this code guessed and the real endpoint
  *    (`GET /v1.beta/invoices/{id}?format=original`, the SAME one `getInvoice()` already calls) found
  *    by testing live.
- *  - `PdpClient.pushLifecycleStatus()` — LIVE-VERIFIED NEGATIVE: every code below, pushed against a
- *    freshly deposited invoice's own "in" id, answered a generic, route-not-found-shaped `404` — see
- *    that method's own header for the full evidence (multiple path variants, all 404). The push
- *    functions below still call it (a real PA, unlike the free sandbox, may implement it) but NEVER
- *    let that failure become fatal — see `pushReceptionStatus` below.
+ *  - `PdpClient.pushLifecycleStatus()` — the route and body now match SuperPDP's published OpenAPI
+ *    (read 2026-10-31): `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`.
+ *    The old `POST /v1.beta/invoices/{id}/lifecycle_events` never existed on the API; every live
+ *    attempt answered a generic route-not-found `404`, so no status was ever delivered. The push
+ *    functions below keep their never-fatal contract (a local status change is persisted first) but
+ *    a failed push is now logged at `error`, with the platform's own status and response body.
  *
- * The exact fr:2xx CODE for each buyer-side status is the ONE thing this file cannot cite a verified
- * source for: `fr:205` ("accepted by buyer") is REPRISED from `pdp-client.ts`'s own pre-existing
- * header comment (itself never independently re-verified here — the push endpoint doesn't answer);
- * `fr:203`/`fr:206`/`fr:211` follow the SAME XP Z12-012 numbering pattern (200 deposited, 201 issued,
- * 202 received, …, 213 rejected) but are NOT confirmed against any spec text this session could reach
- * — superpdp.tech's own OpenAPI page is a client-rendered SPA that yields no body to an automated
- * fetch (confirmed again this session, same limitation `credentials-guide.md` already documents), and
- * no DGFiP source found names the raw numeric codes at all (the practical guide above discusses the
- * STATUSES by name and legal effect, never by code). Marked `unverified` below, honestly, rather than
- * presented as researched fact — the same provenance discipline CLAUDE.md's country-data catalogs
- * already hold.
+ * The fr:2xx codes below come from SuperPDP's own read-side `status_code` schema, which documents
+ * each one: `fr:204` acknowledged, `fr:205` accepted, `fr:206` partly accepted, `fr:210` refused,
+ * `fr:211` payment sent. Its create-side enum (`status_code_create`) is narrower than the read-side
+ * list and refuses `fr:203` (a platform-emitted status), so "prise en charge" is pushed as `fr:204`
+ * and a buyer refusal as `fr:210`, never `fr:206` ("partly accepted"). Which code DGFiP's own
+ * lifecycle expects for a buyer's "prise en charge" is still not named by any source this codebase
+ * could reach — see `pdp-reception.ts`'s own per-constant notes.
  */
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { extractPdpCredentials } from '../pdp-transport';
-import { PdpClient } from './pdp-client';
+import { PdpApiError, PdpClient, SuperPdpStatusCreate } from './pdp-client';
 
 export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
 
@@ -53,24 +50,23 @@ export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
  *  code is NEVER pushed by this codebase, only ever read (`pdp-reception-poller.ts`). */
 export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the
- *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `kind: 'unverified'` — see this
- *  file's own header. */
-export const PDP_RECEPTION_TAKEN_IN_CHARGE_CODE = 'fr:203';
-/** Approuvée (par l'acheteur) — pushed by the "approve" action. `kind: 'unverified'`, though closer
- *  to sourced than the others: `pdp-client.ts`'s own pre-existing header already named this exact
- *  code "accepted by buyer" before this file existed. */
-export const PDP_RECEPTION_APPROVED_CODE = 'fr:205';
-/** Refusée (par l'acheteur) — pushed by the "reject" action, always with the user's own `reason` as
- *  `data.reason` on the push body: the DGFiP guide's own Q12 is explicit that this status is
- *  "obligatoirement motivé" — never fired without one. `kind: 'unverified'` — see this file's own
- *  header; no source named the numeric code itself. */
-export const PDP_RECEPTION_REJECTED_CODE = 'fr:206';
+ *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `fr:204` is the closest status the
+ *  create enum accepts ("Acknowledged"); `fr:203` ("Made available") is platform-emitted and refused
+ *  by `status_code_create`. Which code DGFiP expects for this buyer act is still unverified. */
+export const PDP_RECEPTION_TAKEN_IN_CHARGE_CODE: SuperPdpStatusCreate = 'fr:204';
+/** Approuvée (par l'acheteur) — pushed by the "approve" action. `fr:205` is documented by SuperPDP's
+ *  own `status_code` schema as "Accepted". */
+export const PDP_RECEPTION_APPROVED_CODE: SuperPdpStatusCreate = 'fr:205';
+/** Refusée (par l'acheteur) — pushed by the "reject" action, always with the user's own `reason` in
+ *  the event's `details[].reason` (MDT-113): the DGFiP guide's own Q12 is explicit that this status
+ *  is "obligatoirement motivé" — never fired without one. `fr:210` is documented as "Refused";
+ *  `fr:206`, used before, is "Partly accepted" and meant the wrong thing. */
+export const PDP_RECEPTION_REJECTED_CODE: SuperPdpStatusCreate = 'fr:210';
 /** Payée — pushed by "record-payment" once the recorded payment(s) reach the received invoice's own
  *  stated gross total. `fr:211` ("payment sent") rather than `fr:212` ("payment received") — see
  *  `pdp-client.ts`'s own header: `212` is the SELLER's own code once THEY are paid; this company is
- *  the BUYER here, so the code for the buyer's own act of paying is the one that applies.
- *  `kind: 'unverified'` numerically, same reasoning as the others. */
-export const PDP_RECEPTION_PAID_CODE = 'fr:211';
+ *  the BUYER here, so the code for the buyer's own act of paying is the one that applies. */
+export const PDP_RECEPTION_PAID_CODE: SuperPdpStatusCreate = 'fr:211';
 
 /** What the received-invoice actions (`actions/received-invoice-actions.ts`) and the reception sweep
  *  (`conformity/reception-sweep-runner.ts`) both depend on — narrow on purpose, the same "depend on
@@ -97,16 +93,15 @@ async function resolveClient(
 /**
  * Pushes ONE lifecycle code — NEVER fatal. A received-invoice's own local status change (the actual
  * legal/bookkeeping fact this company cares about) is always persisted BEFORE this is even called
- * (see each action's own handler) — a platform that cannot yet accept the push (proven true of the
- * sandbox today, see this file's own header) must never roll back, retry-block, or fail the user-facing
- * action that already succeeded locally. Logged at `warn` (not `error`): this is the DOCUMENTED,
- * expected-for-now outcome against the sandbox, not a surprise.
+ * (see each action's own handler) — a platform that cannot accept the push must never roll back,
+ * retry-block, or fail the user-facing action that already succeeded locally. A failure is logged at
+ * `error` with the platform's own status and body, so it is visible in the logs instead of swallowed.
  */
 async function pushReceptionStatus(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
   pdpInboundId: string,
-  code: string,
+  code: SuperPdpStatusCreate,
   reason?: string,
 ): Promise<void> {
   const invoiceId = Number(pdpInboundId);
@@ -120,26 +115,26 @@ async function pushReceptionStatus(
       });
       return;
     }
-    await client.pushLifecycleStatus(invoiceId, code);
+    await client.pushLifecycleStatus(invoiceId, code, reason);
     logger.info('PDP reception status pushed', {
       category: 'documents',
       details: { companyId, pdpInboundId, code },
     });
   } catch (error) {
-    logger.warn(
-      'PDP reception status push failed — non-fatal, the local status change is unaffected ' +
-        '(see pdp-client.ts#pushLifecycleStatus for why this endpoint is not reachable on the sandbox today)',
-      {
-        category: 'documents',
-        details: {
-          companyId,
-          pdpInboundId,
-          code,
-          reason,
-          message: error instanceof Error ? error.message : String(error),
-        },
+    // Never fatal — the local status change was persisted before this ran — but never silent either:
+    // a status the platform never received is a legal fact this company believes it reported.
+    logger.error('PDP reception status push failed — the platform did not receive it', {
+      category: 'documents',
+      details: {
+        companyId,
+        pdpInboundId,
+        code,
+        reason,
+        status: error instanceof PdpApiError ? error.status : undefined,
+        response: error instanceof PdpApiError ? error.body : undefined,
+        message: error instanceof Error ? error.message : String(error),
       },
-    );
+    });
   }
 }
 

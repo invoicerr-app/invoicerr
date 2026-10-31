@@ -335,6 +335,53 @@ describe('PdpClient', () => {
     });
   });
 
+  describe('Lifecycle status push (POST /v1.beta/invoice_events)', () => {
+    it('posts invoice_id and status_code to the documented invoice_events route', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(
+          mockJsonResponse({ id: 1, invoice_id: 604667, status_code: 'fr:212' }) as unknown as Response,
+        );
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.pushLifecycleStatus(604667, 'fr:212');
+
+      const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(url).toBe('https://api.superpdp.tech/v1.beta/invoice_events');
+      expect(opts.method).toBe('POST');
+      expect(JSON.parse(String(opts.body))).toEqual({ invoice_id: 604667, status_code: 'fr:212' });
+    });
+
+    it('carries a motivated refusal as details[].reason, and nothing else', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockJsonResponse({ id: 2 }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.pushLifecycleStatus(604667, 'fr:210', 'Wrong PO number');
+
+      const [, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(JSON.parse(String(opts.body))).toEqual({
+        invoice_id: 604667,
+        status_code: 'fr:210',
+        details: [{ reason: 'Wrong PO number' }],
+      });
+    });
+
+    it('never calls the route SuperPDP does not have', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockJsonResponse({ id: 1 }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.pushLifecycleStatus(604667, 'fr:211');
+
+      for (const call of mockFetch.mock.calls) {
+        expect(String(call[0])).not.toContain('lifecycle_events');
+      }
+    });
+  });
+
   describe('Error handling', () => {
     it('throws PdpApiError with response body on 4xx', async () => {
       mockFetch

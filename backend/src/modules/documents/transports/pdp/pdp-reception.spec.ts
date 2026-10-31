@@ -52,7 +52,11 @@ describe('buildPdpReceptionStatusPusher', () => {
 
     await pusher.pushTakenInCharge('company-1', '604667');
 
-    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_TAKEN_IN_CHARGE_CODE);
+    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(
+      604667,
+      PDP_RECEPTION_TAKEN_IN_CHARGE_CODE,
+      undefined,
+    );
   });
 
   it('pushApproved pushes the "accepted by buyer" code', async () => {
@@ -61,21 +65,17 @@ describe('buildPdpReceptionStatusPusher', () => {
 
     await pusher.pushApproved('company-1', '604667');
 
-    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_APPROVED_CODE);
+    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_APPROVED_CODE, undefined);
   });
 
-  it(
-    'pushRejected pushes the "refusée" code — the reason is not sent as a second argument (this ' +
-      'client method takes only a code), consistent with pdp-client.ts#pushLifecycleStatus',
-    async () => {
-      mockPushLifecycleStatus.mockResolvedValue(undefined);
-      const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials());
+  it('pushRejected pushes the "refusée" code with the reason as the documented details[].reason', async () => {
+    mockPushLifecycleStatus.mockResolvedValue(undefined);
+    const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials());
 
-      await pusher.pushRejected('company-1', '604667', 'Wrong PO');
+    await pusher.pushRejected('company-1', '604667', 'Wrong PO');
 
-      expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_REJECTED_CODE);
-    },
-  );
+    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_REJECTED_CODE, 'Wrong PO');
+  });
 
   it('pushPaid pushes "payment sent" (this company IS the buyer here) — fr:211, not fr:212', async () => {
     mockPushLifecycleStatus.mockResolvedValue(undefined);
@@ -83,7 +83,7 @@ describe('buildPdpReceptionStatusPusher', () => {
 
     await pusher.pushPaid('company-1', '604667');
 
-    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_PAID_CODE);
+    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_PAID_CODE, undefined);
   });
 
   it('never throws when the platform push fails (LIVE-VERIFIED 404 on the sandbox, see pdp-client.ts) — non-fatal', async () => {
