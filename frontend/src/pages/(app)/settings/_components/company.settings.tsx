@@ -47,7 +47,8 @@ import {
   useRequiredIdentifiers,
   withVatIdentifier,
 } from "@/hooks/use-required-identifiers"
-import type { Company, ResolvedRevenueSettings } from "@/types"
+import type { Company, CompanyProfileAttribute, ResolvedRevenueSettings } from "@/types"
+import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
 
 import { NumberFormatsSection } from "./number-formats.section"
 import { CompanyLawSection } from "./company-law.section"
@@ -69,6 +70,18 @@ const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 const UNDECLARED_PROFILE_VALUE = "__undeclared__"
+
+/** Whether the country still needs this attribute answered; an undeclared dependency keeps it shown. */
+function isProfileAttributeAsked(
+  attribute: CompanyProfileAttribute,
+  values: Record<string, string | undefined>,
+): boolean {
+  if (!attribute.askedWhen) return true
+  return Object.entries(attribute.askedWhen).every(([key, allowed]) => {
+    const value = values[key]
+    return !value || allowed.includes(value)
+  })
+}
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation()
@@ -257,6 +270,16 @@ export default function CompanySettings() {
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
     },
   })
+
+  // The attributes the country asks for right now: a condition follows the value on screen, so a
+  // question that stops being relevant disappears without a save.
+  const profileValues = {
+    ...(data?.companyProfileValues ?? {}),
+    ...(form.watch("reportingProfile") ?? {}),
+  }
+  const askedProfileAttributes = profileAttributes.filter((attribute) =>
+    isProfileAttributeAsked(attribute, profileValues),
+  )
 
   // A SEPARATE data source from `/api/company/info` above (see this field's own zod comment) — its
   // own small sync effect, the same "don't clobber a value the user already touched" guard the main
@@ -505,10 +528,9 @@ export default function CompanySettings() {
       reportingProfile:
         sameCountry && profileAttributes.length > 0
           ? Object.fromEntries(
-              profileAttributes.map((attribute) => [
-                attribute.key,
-                reportingProfile?.[attribute.key] || null,
-              ]),
+              profileAttributes
+                .filter((attribute) => !attribute.derived)
+                .map((attribute) => [attribute.key, reportingProfile?.[attribute.key] || null]),
             )
           : undefined,
       identifiers: [
@@ -1334,50 +1356,79 @@ export default function CompanySettings() {
               description={t("settings.company.profile.description")}
               contentClassName="grid gap-5 sm:grid-cols-2"
             >
-              {profileAttributes.map((attribute) => (
-                <FormField
-                  key={attribute.key}
-                  control={form.control}
-                  name={`reportingProfile.${attribute.key}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel description={attribute.help}>{attribute.label}</FormLabel>
-                      <Select
-                        value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
-                        // Radix fires a spurious "" when the stored value arrives after mount; a
-                        // real pick is never "", so it is dropped (same as invoiceTransportId).
-                        onValueChange={(value) => {
-                          if (value) field.onChange(value === UNDECLARED_PROFILE_VALUE ? "" : value)
-                        }}
+              {askedProfileAttributes.map((attribute) =>
+                attribute.derived ? (
+                  <div key={attribute.key} className="space-y-1.5">
+                    <FieldLabel
+                      htmlFor={`company-profile-${attribute.key}-derived`}
+                      description={attribute.help}
+                      lockReason={t("settings.company.profile.derivedReason")}
+                    >
+                      {attribute.label}
+                    </FieldLabel>
+                    <Select value={profileValues[attribute.key] ?? ""} disabled>
+                      <SelectTrigger
+                        id={`company-profile-${attribute.key}-derived`}
+                        className="w-full"
+                        aria-describedby={`${fieldHelpId(`company-profile-${attribute.key}-derived`)} ${fieldLockId(`company-profile-${attribute.key}-derived`)}`}
+                        data-cy={`company-profile-${attribute.key}-derived`}
                       >
-                        <FormControl>
-                          <SelectTrigger
-                            className="w-full"
-                            data-cy={`company-profile-${attribute.key}-select`}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={UNDECLARED_PROFILE_VALUE}>
-                            {t("settings.company.profile.notDeclared")}
+                        <SelectValue placeholder={t("settings.company.profile.notDeclared")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {attribute.values.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
                           </SelectItem>
-                          {attribute.values.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              data-cy={`company-profile-${attribute.key}-option-${option.value}`}
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <FormField
+                    key={attribute.key}
+                    control={form.control}
+                    name={`reportingProfile.${attribute.key}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel description={attribute.help}>{attribute.label}</FormLabel>
+                        <Select
+                          value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
+                          // Radix fires a spurious "" when the stored value arrives after mount; a
+                          // real pick is never "", so it is dropped (same as invoiceTransportId).
+                          onValueChange={(value) => {
+                            if (value) field.onChange(value === UNDECLARED_PROFILE_VALUE ? "" : value)
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger
+                              className="w-full"
+                              data-cy={`company-profile-${attribute.key}-select`}
                             >
-                              {option.label}
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={UNDECLARED_PROFILE_VALUE}>
+                              {t("settings.company.profile.notDeclared")}
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
+                            {attribute.values.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                data-cy={`company-profile-${attribute.key}-option-${option.value}`}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ),
+              )}
             </SettingsSection>
           )}
 

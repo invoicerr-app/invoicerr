@@ -58,6 +58,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'companyLookup',
         'paymentTerms',
         'companyLaw',
+        'companyProfile',
       ],
       DZ: [
         'policy',
@@ -68,6 +69,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'channelPolicy',
         'retention',
         'companyLaw',
+        'companyProfile',
       ],
       FR: [
         'policy',
@@ -106,6 +108,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'paymentTerms',
         'einvoiceCodes',
         'companyLaw',
+        'companyProfile',
       ],
       PL: [
         'policy',
@@ -122,6 +125,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'companyLookup',
         'paymentTerms',
         'companyLaw',
+        'companyProfile',
       ],
       PT: [
         'policy',

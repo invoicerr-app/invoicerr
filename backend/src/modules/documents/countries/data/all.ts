@@ -60,6 +60,7 @@ import { assertValidPaymentTerms } from '../../payment-terms/schema';
 import { assertValidEinvoiceCodes } from '../../einvoice-codes/schema';
 import { assertValidCompanyLawSection } from '../../company-law/schema';
 import { assertProfileConditionIsDeclared, assertValidCompanyProfile } from '../../company-profile/schema';
+import { assertValidCodeLists } from '../../code-lists/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
@@ -232,6 +233,16 @@ function validateCompanyProfileSection(
   assertValidCompanyProfile(companyProfile, `${filePath}#companyProfile`);
 }
 
+function validateCodeListsSection(
+  codeLists: ComposedCountryView['codeLists'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!codeLists) return;
+  assertSectionCountryCode(codeLists, 'codeLists', ctx);
+  assertValidCodeLists(codeLists, `${filePath}#codeLists`);
+}
+
 function validateRetentionSection(
   retention: ComposedCountryView['retention'],
   ctx: LoadContext,
@@ -381,6 +392,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateTaxSystemSection(parsed.taxSystem, ctx, filePath);
   validateVatCurrencySection(parsed.vatCurrency, ctx, filePath);
   validateCompanyProfileSection(parsed.companyProfile, ctx, filePath);
+  validateCodeListsSection(parsed.codeLists, ctx, filePath);
   validateChannelPolicySection(parsed.channelPolicy, parsed.companyProfile, ctx, filePath);
   validateRetentionSection(parsed.retention, ctx, filePath);
   validateMentionsSection(parsed.mentions, ctx, filePath);

@@ -10,11 +10,21 @@ export interface CompanyProfileAttributeValue {
   label: string;
 }
 
+/** A value the company does not answer: it follows from a setting it already made elsewhere. */
+export interface DerivedCompanyProfileValue {
+  source: 'exemptVat';
+  whenTrue: string;
+  whenFalse: string;
+}
+
 export interface CompanyProfileAttribute {
   key: string;
   label: string;
   help?: string;
   values: CompanyProfileAttributeValue[];
+  /** Asked only when the company's own declared values satisfy every entry; absent means always. */
+  askedWhen?: ProfileCondition;
+  derived?: DerivedCompanyProfileValue;
   provenance: PolicyProvenance;
 }
 
@@ -32,6 +42,7 @@ export type ProfileCondition = Record<string, string[]>;
 export class InvalidCompanyProfileError extends Error {}
 
 const ATTRIBUTE_KEY_PATTERN = /^[a-z][A-Za-z0-9]*$/;
+const DERIVED_SOURCES: readonly DerivedCompanyProfileValue['source'][] = ['exemptVat'];
 
 function isNonBlankString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
@@ -68,6 +79,25 @@ function assertValidAttribute(attribute: CompanyProfileAttribute, context: strin
     }
     values.add(entry.value);
   }
+  if (attribute.derived !== undefined) {
+    const derived = attribute.derived;
+    if (!DERIVED_SOURCES.includes(derived?.source)) {
+      throw new InvalidCompanyProfileError(
+        `${context}: attribute "${key}" derives from "${String(derived?.source)}", not one of ` +
+          `${DERIVED_SOURCES.join(', ')}.`,
+      );
+    }
+    for (const value of [derived.whenTrue, derived.whenFalse]) {
+      if (!values.has(value)) {
+        throw new InvalidCompanyProfileError(
+          `${context}: attribute "${key}" derives to "${String(value)}", which it does not list in "values".`,
+        );
+      }
+    }
+  }
+  if (attribute.askedWhen !== undefined) {
+    assertWellFormedProfileCondition(attribute.askedWhen, `${context}: attribute "${key}" "askedWhen"`);
+  }
   assertValidPolicyProvenance(
     attribute.provenance,
     `${context}: attribute "${key}"`,
@@ -84,6 +114,22 @@ export function assertValidCompanyProfile(section: CountryCompanyProfileFile, co
   const seen = new Set<string>();
   for (const attribute of section.attributes) {
     assertValidAttribute(attribute, context, seen);
+  }
+  for (const attribute of section.attributes) {
+    if (!attribute.askedWhen) continue;
+    for (const key of Object.keys(attribute.askedWhen)) {
+      if (key === attribute.key) {
+        throw new InvalidCompanyProfileError(
+          `${context}: attribute "${key}" declares an "askedWhen" on itself.`,
+        );
+      }
+    }
+    assertProfileConditionIsDeclared(
+      attribute.askedWhen,
+      section,
+      `${context}: attribute "${attribute.key}"`,
+      '"askedWhen"',
+    );
   }
 }
 
@@ -110,19 +156,20 @@ export function assertProfileConditionIsDeclared(
   condition: ProfileCondition,
   profile: CountryCompanyProfileFile | undefined,
   context: string,
+  what = 'seller condition',
 ): void {
   for (const [key, values] of Object.entries(condition)) {
     const attribute = profile?.attributes.find((candidate) => candidate.key === key);
     if (!attribute) {
       throw new InvalidCompanyProfileError(
-        `${context}: seller condition names attribute "${key}", which this country's "companyProfile" ` +
+        `${context}: ${what} names attribute "${key}", which this country's "companyProfile" ` +
           'does not declare.',
       );
     }
     const unknown = values.find((value) => !attribute.values.some((entry) => entry.value === value));
     if (unknown !== undefined) {
       throw new InvalidCompanyProfileError(
-        `${context}: seller condition "${key}" names value "${unknown}", which attribute "${key}" does not ` +
+        `${context}: ${what} "${key}" names value "${unknown}", which attribute "${key}" does not ` +
           `declare (expected one of ${attribute.values.map((entry) => entry.value).join(', ')}).`,
       );
     }

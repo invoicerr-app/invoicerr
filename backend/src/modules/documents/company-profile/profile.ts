@@ -2,6 +2,11 @@ import { CompanyProfileAttribute, CompanyProfileValues } from './schema';
 
 export class InvalidCompanyProfileValueError extends Error {}
 
+/** The company settings an attribute can be derived from, read off the company's own row. */
+export interface CompanyProfileSources {
+  exemptVat: boolean;
+}
+
 /** Reads the stored JSON column back: only string values survive, anything else counts as undeclared. */
 export function parseCompanyProfileValues(stored: unknown): CompanyProfileValues {
   if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return {};
@@ -12,9 +17,47 @@ export function parseCompanyProfileValues(stored: unknown): CompanyProfileValues
   return values;
 }
 
+/** The value an attribute takes without being asked, or `undefined` when the company decides it. */
+export function derivedProfileValue(
+  attribute: CompanyProfileAttribute,
+  sources: CompanyProfileSources,
+): string | undefined {
+  if (!attribute.derived) return undefined;
+  return sources.exemptVat ? attribute.derived.whenTrue : attribute.derived.whenFalse;
+}
+
+/** Every value the company's profile currently carries: the declared ones plus the derived ones. */
+export function companyProfileValues(
+  stored: unknown,
+  attributes: CompanyProfileAttribute[],
+  sources: CompanyProfileSources,
+): CompanyProfileValues {
+  const values: CompanyProfileValues = {};
+  const declared = parseCompanyProfileValues(stored);
+  for (const attribute of attributes) {
+    const derived = derivedProfileValue(attribute, sources);
+    if (derived !== undefined) values[attribute.key] = derived;
+    else if (declared[attribute.key] !== undefined) values[attribute.key] = declared[attribute.key];
+  }
+  return values;
+}
+
+/**
+ * Whether the country still needs this attribute answered. An attribute named by `askedWhen` and not
+ * declared yet leaves the condition open, and an open condition keeps the question visible.
+ */
+export function isAttributeAsked(attribute: CompanyProfileAttribute, values: CompanyProfileValues): boolean {
+  if (!attribute.askedWhen) return true;
+  return Object.entries(attribute.askedWhen).every(([key, allowed]) => {
+    const value = values[key];
+    return value === undefined || allowed.includes(value);
+  });
+}
+
 /**
  * Applies a write to the stored values. `null` or `""` for a key clears it back to undeclared; an
- * attribute the country does not declare, or a value the attribute does not list, is refused.
+ * attribute the country does not declare, an attribute it derives, or a value the attribute does not
+ * list, is refused.
  */
 export function applyCompanyProfileInput(
   current: CompanyProfileValues,
@@ -27,7 +70,8 @@ export function applyCompanyProfileInput(
   }
   const next: CompanyProfileValues = {};
   for (const [key, value] of Object.entries(current)) {
-    if (attributes.some((attribute) => attribute.key === key)) next[key] = value;
+    const attribute = attributes.find((candidate) => candidate.key === key);
+    if (attribute && !attribute.derived) next[key] = value;
   }
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
     const attribute = attributes.find((candidate) => candidate.key === key);
@@ -37,6 +81,11 @@ export function applyCompanyProfileInput(
           (attributes.length
             ? ` (expected one of ${attributes.map((candidate) => candidate.key).join(', ')}).`
             : '; it asks for none.'),
+      );
+    }
+    if (attribute.derived) {
+      throw new InvalidCompanyProfileValueError(
+        `reportingProfile.${key} follows from the company's own settings and cannot be declared.`,
       );
     }
     if (value === null || value === '') {

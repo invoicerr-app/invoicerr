@@ -40,6 +40,7 @@ import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import {
   applyCompanyProfileInput,
+  companyProfileValues,
   InvalidCompanyProfileValueError,
   parseCompanyProfileValues,
 } from '@/modules/documents/company-profile/profile';
@@ -304,12 +305,21 @@ export class CompanyService {
     // country-policy/schema.ts's own header. Replaces the settings tab's and the ATCUD settings
     // screen's own `=== "PT"` / `=== "PORTUGAL"` checks, which read this same endpoint.
     const countryCode = resolveCountryCode(result.countryCode, result.country);
+    const profileAttributes = defaultCompanyProfileCatalog.attributesFor(countryCode);
     return {
       ...result,
       documentValidationCode: defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode) ?? null,
-      companyProfileAttributes: defaultCompanyProfileCatalog
-        .attributesFor(countryCode)
-        .map(({ key, label, help, values }) => ({ key, label, help, values })),
+      companyProfileAttributes: profileAttributes.map(({ key, label, help, values, askedWhen, derived }) => ({
+        key,
+        label,
+        help,
+        values,
+        askedWhen,
+        derived,
+      })),
+      companyProfileValues: companyProfileValues(result.reportingProfile, profileAttributes, {
+        exemptVat: result.exemptVat,
+      }),
     };
   }
 
