@@ -1,13 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 
-/**
- * How stale a verdict may be before it is asked again.
- *
- * A VAT registration can be withdrawn, so "valid as of 2019" is not a fact about today. Ninety days
- * is a deliberate, arbitrary-but-stated choice: long enough that a client edited twice in a week
- * does not hammer VIES, short enough that a deregistration surfaces within a quarter. An
- * UNAVAILABLE verdict is retried on the next edit whatever its age — it was never an answer.
- */
+/** A VALID verdict is re-asked after this long; UNAVAILABLE is retried on every edit. */
 const REVALIDATE_AFTER_DAYS = 90;
 
 function needsRevalidation(row?: { validationStatus: string | null; validatedAt: Date | null }): boolean {
@@ -18,16 +11,9 @@ function needsRevalidation(row?: { validationStatus: string | null; validatedAt:
   return ageDays > REVALIDATE_AFTER_DAYS;
 }
 
-/** No real client email/name/country is anywhere near this long — a value past it is either a client
- *  that will never exist or a caller poking at the endpoint, not a legitimate lookup. Bounding it here
- *  (rather than accepting whatever a GET query string hands over) keeps `findDuplicates`'s own
- *  case-insensitive match a fixed-cost equality check, never a growing one. */
+/** Keeps the duplicate match a fixed-cost equality check; longer values are treated as absent. */
 const MAX_MATCH_VALUE_LENGTH = 300;
 
-/** Trims `value` and returns it only if non-empty and within `MAX_MATCH_VALUE_LENGTH` — an oversized
- *  input is treated exactly like an ABSENT one (never a thrown 400), matching `findDuplicates`'s own
- *  "this only ever informs" contract: a garbage-length query param does not get a different error
- *  experience than simply not having typed anything usable yet. */
 function boundedOrUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed || trimmed.length > MAX_MATCH_VALUE_LENGTH) return undefined;
@@ -55,8 +41,7 @@ import { assertClientCreatable, assertIndividualIdentity } from './client-valida
 import { writeClientContacts } from './contacts/client-contacts';
 import { withDerivedContactFields } from './primary-contact';
 
-/** The one `include`/`orderBy` shape every client read in this file uses for `contacts` - primary
- *  first, then `position` - so a caller never has to re-sort what came back from Prisma itself. */
+/** Primary first, then position: the order every client read expects. */
 const CONTACTS_INCLUDE = {
   orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }],
 } satisfies Prisma.Client$contactsArgs;
@@ -68,9 +53,7 @@ export class ClientsService {
     @Inject('VAT_VALIDATION_CLIENT') private readonly vatValidationClient: VatValidationPort,
   ) {}
 
-  /** Single client by id, scoped to the company — used by the document descriptor system's generic
-   *  entity-reference resolution (a 'reference' field only stores an id; resolving it to a label
-   *  for display, e.g. a quote's client, goes through here). */
+  /** Single client by id, scoped to the company; also backs generic reference resolution. */
   async getClientById(companyId: string, id: string) {
     const client = await prisma.client.findFirst({
       where: { id, companyId },
@@ -79,17 +62,8 @@ export class ClientsService {
     return client ? withDerivedContactFields(client) : null;
   }
 
-  /**
-   * Client account statement — the client's own statement (open/settled
-   * invoices, the credit notes correcting them, the total owed, and an aged balance), computed by
-   * settlement/client-statement.ts's `resolveClientStatement`. 404s the same way every other
-   * single-client read on this service does when `id` doesn't exist or belongs to another company —
-   * a client id is never enough on its own; every one of this file's own reads scopes by `companyId`
-   * first, and this is no exception (`resolveClientStatement` itself never touches `Client` at all,
-   * so skipping this check would let a guessed id from ANOTHER tenant's client silently read invoices
-   * whose own `data.client` happens to match it — this check is what keeps that structurally
-   * impossible, not merely a filter that could be forgotten).
-   */
+  /** The client's statement. The ownership check comes first: `resolveClientStatement` itself never
+   *  reads `Client`, so a guessed id must not reach another tenant's invoices. */
   async getStatement(companyId: string, id: string): Promise<ClientStatement> {
     const client = await prisma.client.findFirst({ where: { id, companyId } });
     if (!client) {
@@ -121,14 +95,7 @@ export class ClientsService {
     };
   }
 
-  /**
-   * `options.excludeSuppliers` filters out `isSupplier: true` clients when
-   * set (the invoice's/quote's own "client" reference entity — see
-   * `references/client-reference.provider.ts`'s own header on why); every OTHER caller (the plain
-   * `/clients/search` combobox screens use directly, the MCP `list_clients` tool, the "supplier"
-   * reference entity) passes nothing and keeps today's behaviour — every client, unfiltered by role,
-   * exactly like `kind` (GOVERNMENT) already never filters here either.
-   */
+  /** `excludeSuppliers` is for the invoice/quote client picker; every other caller sees all roles. */
   async searchClients(companyId: string, query: string, options?: { excludeSuppliers?: boolean }) {
     const supplierFilter = options?.excludeSuppliers ? { isSupplier: false } : {};
 
@@ -151,9 +118,7 @@ export class ClientsService {
         ...supplierFilter,
         OR: [
           { name: { contains: query } },
-          // Contact fields moved off `Client` itself onto its `contacts` relation (#415) - matched
-          // through `some`, so a client is found whether the term matches its PRIMARY contact or any
-          // other one on file (the search box has no notion of "primary" to filter by).
+          // Contacts live on their own relation; `some` matches any of them, not only the primary.
           { contacts: { some: { firstName: { contains: query } } } },
           { contacts: { some: { lastName: { contains: query } } } },
           { contacts: { some: { email: { contains: query } } } },
@@ -184,20 +149,7 @@ export class ClientsService {
     return results.map(withDerivedContactFields);
   }
 
-  /**
-   * Non-blocking duplicate detection for the client wizard (create AND edit) — never a DB-level
-   * unique constraint: the owner explicitly accepts genuine duplicates (a franchise's two branches
-   * sharing one billing inbox, a common name repeated across unrelated companies), so this only ever
-   * INFORMS, never refuses a write. Two independent match rules, either one enough to surface a row:
-   *   - the same `contactEmail`, case-insensitive (a typo'd casing must not hide an existing record);
-   *   - the same `name` AND the same `country`, both case-insensitive (name alone is too common a
-   *     collision — "Martin" — to warn on by itself; country narrows it to "the same business
-   *     entity", not just a shared surname across unrelated clients).
-   * Returns `[]` — never throws, never 400s — when neither criterion is usable (no `email`, and no
-   * `name`+`country` pair, or a value so long it can only be garbage — see `MAX_MATCH_VALUE_LENGTH`
-   * below): a partially-filled wizard has nothing to check yet, and that is a normal state, not an
-   * error — this endpoint stays a hint, never a gate a caller could get a 400 stuck on.
-   */
+  /** Duplicate detection only informs, never blocks: matching primary email, or name + country. */
   async findDuplicates(companyId: string, query: FindDuplicatesQuery): Promise<ClientDuplicateMatch[]> {
     const email = boundedOrUndefined(query.email);
     const name = boundedOrUndefined(query.name);
@@ -206,9 +158,7 @@ export class ClientsService {
     const hasNameCountry = !!name && !!country;
     if (!email && !hasNameCountry) return [];
 
-    // The email half of the rule matches the PRIMARY contact's email specifically (#415) - a
-    // secondary contact sharing an inbox with an unrelated client is not "the same client"; only the
-    // one document-delivery actually uses is.
+    // Only the primary contact's email counts: that is the address delivery actually uses.
     const or: Prisma.ClientWhereInput[] = [];
     if (email)
       or.push({ contacts: { some: { isPrimary: true, email: { equals: email, mode: 'insensitive' } } } });
@@ -265,10 +215,7 @@ export class ClientsService {
       where: { clientId },
     });
 
-    // Every entry is checked against its country's declared `pattern` BEFORE any write below — an
-    // invalid entry later in the array must never leave an earlier one already deleted/upserted
-    // while the call as a whole still fails (see validate-identifier-value.ts's own header for why
-    // this refuses rather than warns, and why an unchanged value is exempt).
+    // Validate every entry before writing any: a later failure must not leave earlier rows changed.
     for (const entry of identifiers) {
       const before = existing.find((r) => r.scheme === entry.scheme);
       await assertIdentifierValueMatchesPattern({
@@ -295,18 +242,11 @@ export class ClientsService {
         update: { value: entry.value },
       });
 
-      // Validate the VAT number HERE — when it is entered or changed — and never at issuance.
-      // Validating at issuance would make emitting an invoice depend on a third-party service that
-      // is regularly saturated, which is exactly what the port's UNAVAILABLE verdict exists to
-      // avoid. Here a slow or failing VIES only delays a form submission.
-      //
-      // A changed value invalidates any previous verdict: it is a different number.
+      // Validated on entry, never at issuance: a saturated VIES must not block an invoice. A changed
+      // value invalidates the previous verdict.
       const valueChanged = before?.value !== entry.value;
       if (entry.scheme === 'VAT' && countryCode && (valueChanged || needsRevalidation(before))) {
-        // Cross-border ("transfrontalier") — the SYNTAX gate runs FIRST, before ever asking
-        // VIES: a syntactically wrong number is B2C, named,
-        // without spending a network round-trip on a number that cannot possibly be valid. Only a
-        // number that PASSES its own country's format is worth asking the European Commission about.
+        // Syntax before network: an invalid number is B2C and never worth a VIES round-trip.
         const iso = guessCountryCode(countryCode) ?? countryCode.toUpperCase();
         const syntax = validateVat(entry.value, iso);
 
@@ -342,10 +282,7 @@ export class ClientsService {
   }
 
   async createClient(companyId: string, editClientsDto: EditClientsDto) {
-    // `contacts` is pulled out of `data` here (never spread into `prisma.client.create`'s own `data`
-    // - it is a RELATION on `Client`, not a scalar column, and would need a nested-write shape Prisma
-    // never gets from a plain array): `writeClientContacts` below is the only thing that ever writes
-    // it, inside the same transaction as the client row itself.
+    // `contacts` is a relation, written only by `writeClientContacts` inside this transaction.
     const { id, identifiers, contacts, ...data } = editClientsDto;
 
     const type = (data as any).type || 'COMPANY';
@@ -353,21 +290,12 @@ export class ClientsService {
     if (type === 'INDIVIDUAL') {
       data.name = ``;
     } else if (contacts === undefined) {
-      // Legacy-shape callers only (see `EditClientsDto.contacts`'s own header) - a COMPANY client's
-      // named contact is now free to carry any first/last name through the new `contacts` array; this
-      // blanking preserves the OLD API's exact behavior (a flat `contactFirstname`/`contactLastname`
-      // pair on a non-INDIVIDUAL client was always discarded) for a caller that has not adopted the
-      // new shape yet.
+      // Legacy-shape COMPANY callers always had their flat first/last name discarded; keep that.
       data.contactFirstname = undefined;
       data.contactLastname = undefined;
     }
 
-    // Name/type, identifier-pattern and custom-field checks - extracted to `client-validation.ts` so
-    // the CSV import's preview endpoint runs the IDENTICAL checks per row instead of a second,
-    // hand-rolled copy that could silently drift. Checked BEFORE the client row itself is created:
-    // `upsertPartyIdentifiers` cannot run first (it needs a `clientId` that does not exist yet), and
-    // letting a bad identifier or custom field surface only after create would leave an orphan client
-    // behind - a resubmit after fixing it would then duplicate the record rather than complete it.
+    // Shared with the CSV import. Checked before the row exists so a rejection leaves no orphan.
     try {
       await assertClientCreatable(
         companyId,
@@ -380,10 +308,7 @@ export class ClientsService {
       throw error;
     }
 
-    // The four legacy flat fields are no longer columns on `Client` (#415) - stripped here, right
-    // before the create, so `data` above can still carry them through to `assertClientCreatable`
-    // (which needs them for the INDIVIDUAL-identity check on a legacy-shape payload) without Prisma
-    // ever seeing them as create args.
+    // `assertClientCreatable` still needs the legacy fields above; Prisma must not see them.
     const clientData = { ...data };
     for (const key of ['address', 'postalCode', 'city'] as const) {
       if (clientData[key]?.trim() === '') clientData[key] = null;
@@ -395,14 +320,7 @@ export class ClientsService {
 
     const created = await prisma.$transaction(async (tx) => {
       const newClient = await tx.client.create({ data: { ...clientData, companyId } });
-      // `data`, not `editClientsDto` (#415 follow-up review, point 4): a COMPANY client created
-      // through the legacy flat fields had its `contactFirstname`/`contactLastname` blanked ABOVE,
-      // on `data`, specifically so they would be ignored - the original `editClientsDto` still
-      // carries whatever the caller sent for those two keys, and handing THAT to
-      // `writeClientContacts` would silently resurrect them into the primary contact it creates,
-      // contradicting the very comment that blanking was meant to satisfy. `data` carries every other
-      // key `editClientsDto` did (only `id`/`identifiers`/`contacts` were ever destructured out of
-      // it), so this is a straight fix, not a behavior change for any other caller shape.
+      // `data`, not `editClientsDto`: the blanking above must reach the contacts write too.
       await writeClientContacts(tx, newClient.id, data as unknown as Record<string, unknown>, contacts);
       return newClient;
     });
@@ -445,12 +363,7 @@ export class ClientsService {
     const type = data.type || existingClient.type || 'COMPANY';
 
     if (type === 'INDIVIDUAL') {
-      // Same gate `createClient` runs through `assertClientCreatable` - required-name check plus the
-      // "no other `contacts` row may become primary under a different name" check (#415 follow-up
-      // review, point 1) - kept in the ONE place `assertIndividualIdentity` is, so create and edit can
-      // never drift into checking a different rule. `data` still carries every key `dataFields` did
-      // (only `identifiers`/`contacts` were destructured out of `editClientsDto`), so it doubles as the
-      // raw-payload key-presence check that function needs.
+      // Same identity gate as create; `data` carries the raw keys its presence check needs.
       try {
         assertIndividualIdentity({ ...data, contacts }, data);
       } catch (error) {
@@ -467,22 +380,11 @@ export class ClientsService {
       }
     }
 
-    // Custom fields — checked BEFORE the write, same reasoning as
-    // `createClient`'s own check above. `undefined` (the caller never sent `customFields` at all) is
-    // treated the same as `{}` by `assertClientCustomFieldValuesValid` — a plain edit that never
-    // touches custom fields never trips a "missing required field" error for one it wasn't editing.
+    // `undefined` means "not edited", so a required custom field is not re-checked.
     await assertClientCustomFieldValuesValid(companyId, dataFields.customFields);
 
-    // Explicit allow-list, never `...dataFields`: there is no runtime request validation anywhere in
-    // this API (no ValidationPipe, no class-validator — `EditClientsDto` is a TypeScript `interface`,
-    // erased at compile time), so `dataFields` is really the raw, caller-supplied JSON body with
-    // `identifiers`/`contacts` deleted - `id` is still in there. Spreading it wholesale would let a
-    // caller rewrite THIS record's own primary key (`data.id` differing from the `where: { id }`
-    // above) or reassign it to another tenant entirely (`Client.companyId`, not even a field on this
-    // DTO but just as happily accepted by an unchecked spread). Every column this endpoint is
-    // actually allowed to write is named once, here. Contact fields are no longer columns on `Client`
-    // at all (#415) - `writeClientContacts`, run inside the same transaction below, is what persists
-    // them, from either `contacts` or the legacy flat fields still present on `editClientsDto`.
+    // Explicit allow-list, never `...dataFields`: the API has no runtime validation, so a spread
+    // would let a caller rewrite `id` or `companyId`. Contacts are written by `writeClientContacts`.
     const updatedClient = await prisma.$transaction(async (tx) => {
       const updated = await tx.client.update({
         where: { id: editClientsDto.id },
@@ -503,10 +405,7 @@ export class ClientsService {
           kind: dataFields.kind,
           isSupplier: dataFields.isSupplier,
           isActive: true,
-          // A submitted `customFields` REPLACES the stored value wholesale - the same "a submitted form
-          // is a full snapshot, never a patch" convention `payment-methods/persistence.ts`'s own
-          // `config` write already holds - never merged key-by-key. `undefined` (never sent) leaves the
-          // column untouched, Prisma's own "absent key" semantics for `update`.
+          // A submitted value replaces the stored snapshot; `undefined` leaves it untouched.
           customFields: dataFields.customFields,
         },
       });

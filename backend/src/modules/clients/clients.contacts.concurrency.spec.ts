@@ -1,5 +1,5 @@
 /**
- * #478: two saves of the same client's contacts at the same moment. Real Postgres, real concurrent
+ * Two saves of the same client's contacts at the same moment. Real Postgres, real concurrent
  * transactions on separate pool connections, never a mock: the bug lived in how two transactions
  * interleave against the partial unique index `ClientContact_clientId_primary_key`, which only a real
  * database can show.
@@ -68,7 +68,7 @@ async function waitForLockWaiters(count: number): Promise<void> {
   }
 }
 
-describe('ClientsService - concurrent contact saves (#478)', () => {
+describe('ClientsService - concurrent contact saves', () => {
   let companyId: string;
   let service: ClientsService;
 

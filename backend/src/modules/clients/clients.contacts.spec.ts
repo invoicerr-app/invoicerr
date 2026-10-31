@@ -1,12 +1,6 @@
 /**
- * #415 ("several named contacts per client") - `ClientsService.createClient`/`editClientsInfo`'s own
- * contract for the `contacts` relation: real Prisma, `ClientsService` constructed directly (the same
- * "ClientsModule not importable under ts-jest" pattern every other spec in this directory already
- * uses - see `clients.vat-validation.spec.ts`'s own header). Covers the invariant
- * (`writeClientContacts`'s own header): zero, or exactly one primary; reassigning primary; deleting
- * the current primary (through a full `contacts` replace) promotes the next one, or leaves zero; the
- * back-compat flat-field path (`contacts` absent); and the derived read-only flat fields every other
- * reader in this codebase depends on.
+ * The `contacts` relation's contract: zero or exactly one primary, reassignment, promotion after a
+ * deletion, the back-compat flat-field path, and the derived flat fields readers depend on.
  */
 import { vi } from 'vitest';
 
@@ -25,7 +19,7 @@ const fakeWebhookDispatcher = {
 
 const fakeVatValidator = { validate: vi.fn() } as unknown as VatValidationPort;
 
-describe('ClientsService - contacts (#415)', () => {
+describe('ClientsService - contacts', () => {
   let companyId: string;
   let service: ClientsService;
 
@@ -88,7 +82,7 @@ describe('ClientsService - contacts (#415)', () => {
     const primaries = client.contacts.filter((c: { isPrimary: boolean }) => c.isPrimary);
     expect(primaries).toHaveLength(1);
     expect(primaries[0].firstName).toBe('Alice');
-    // Derived flat fields (#415) - resolved from whichever contact ends up primary.
+    // Derived flat fields, resolved from whichever contact ends up primary.
     expect(client.contactFirstname).toBe('Alice');
     expect(client.contactEmail).toBe('alice@example.com');
   });
@@ -287,10 +281,8 @@ describe('ClientsService - contacts (#415)', () => {
     expect(edited?.contactFirstname).toBe('Alice');
   });
 
-  // #415 follow-up review, point 3: the wizard's own blank starter row (`blankPrimaryContact` in
-  // `client-upsert.tsx`) is always resent even when the user typed nothing into the Contact step -
-  // the API must drop it rather than store an empty primary contact, exactly like the migration's
-  // backfill and the CSV import already skip an all-empty legacy contact.
+  // The wizard resends its blank starter row; the API must drop it rather than store an empty
+  // primary, exactly like the migration's backfill and the CSV import.
   it('drops an all-blank contact row rather than creating it as an empty primary', async () => {
     const client = await service.createClient(companyId, {
       name: 'Blank Contact Row SARL',
@@ -330,10 +322,8 @@ describe('ClientsService - contacts (#415)', () => {
     expect(client.contactEmail).toBe('real@example.com');
   });
 
-  // #415 follow-up review, point 4: a COMPANY client created through the legacy flat
-  // `contactFirstname`/`contactLastname` fields (an API/MCP caller that has not adopted `contacts`)
-  // must have them ignored, exactly like the old, pre-#415 API always did for a non-INDIVIDUAL
-  // client - never stored as the primary contact's name.
+  // A COMPANY client created through the legacy flat names must ignore them, never store them as
+  // the primary contact's name.
   it('ignores legacy contactFirstname/contactLastname on a COMPANY client create (no `contacts` sent)', async () => {
     const client = await service.createClient(companyId, {
       name: 'Legacy Names Ignored SARL',
@@ -357,12 +347,9 @@ describe('ClientsService - contacts (#415)', () => {
     expect(client.contactLastname).toBeNull();
   });
 
-  // #415 follow-up review round 2, point 1: for an INDIVIDUAL client the primary contact is always
-  // the identity-step person - another `contacts` row flagged primary under a DIFFERENT name must be
-  // refused, never silently accepted (which used to overwrite that row's own name with the identity's,
-  // or - after that specific overwrite was removed - would otherwise have let the row's real name
-  // become primary and silently rename the client on every future document).
-  describe('INDIVIDUAL identity vs. primary contact (#415 follow-up review, round 2, point 1)', () => {
+  // For an INDIVIDUAL client the primary contact is the identity-step person; another row flagged
+  // primary under a different name must be refused, never silently rename the client.
+  describe('INDIVIDUAL identity vs. primary contact', () => {
     it('rejects flagging a non-identity contact row primary on CREATE', async () => {
       await expect(
         service.createClient(companyId, {
@@ -472,13 +459,9 @@ describe('ClientsService - contacts (#415)', () => {
     });
   });
 
-  // #415 follow-up review round 2, point 2: validation and the write must resolve the SAME primary
-  // contact out of a raw `contacts` array - both now go through `normalizeClientContacts`. Before this
-  // fix, validation looked at the RAW array (finding the blank first row flagged primary and
-  // rejecting for a missing name) while the write already dropped that blank row and promoted Jean -
-  // the exact reviewer's payload below used to 400 with "First name is required" despite being one the
-  // write would gladly have accepted (and did make Jean the primary).
-  it('validation and write agree on the primary contact - a blank row flagged primary falls through to the real one (#415 follow-up review, round 2, point 2)', async () => {
+  // Validation and the write must resolve the same primary out of a raw contacts array, or a
+  // payload the write accepts is rejected by validation.
+  it('validation and write agree on the primary contact - a blank row flagged primary falls through to the real one', async () => {
     const client = await service.createClient(companyId, {
       type: 'INDIVIDUAL',
       address: 'Somewhere',
@@ -495,7 +478,7 @@ describe('ClientsService - contacts (#415)', () => {
     expect(client.contactFirstname).toBe('Jean');
   });
 
-  describe('legacy four-field call clearing the contact (#478)', () => {
+  describe('legacy four-field call clearing the contact', () => {
     const base = {
       address: 'Somewhere',
       postalCode: '10000',
@@ -572,7 +555,7 @@ describe('ClientsService - contacts (#415)', () => {
       expect(phoneOnly?.contacts[0]).toMatchObject({ firstName: 'Rolf', phone: null });
 
       // `role` is invisible to a legacy caller, so clearing its four fields leaves a contact that
-      // still says something: not empty by the #474 rule, kept.
+      // still says something: not empty, kept.
       const roleLeft = await service.editClientsInfo(companyId, {
         id: created.id,
         name: 'Legacy Partial Clear SARL',

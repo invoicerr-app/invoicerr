@@ -9,12 +9,7 @@ import { ClientImportService } from './client-import.service';
 import { buildClientImportTemplateCsv } from './client-import-template';
 import { ClientImportRow } from './client-import.types';
 
-/** `type ClientImportRow[]` is the SAME shape the browser already validated with the shared zod
- *  schema - see `frontend/src/lib/client-schema.ts`. No class-validator here, matching the rest of
- *  this module: `clients.controller.ts`'s own `EditClientsDto` is a plain interface too (no global
- *  `ValidationPipe` runs anywhere in this API - see `editClientsInfo`'s own comment on why every
- *  write path allow-lists its fields by hand instead); the service is the actual authority on
- *  whether a row is well-formed, via `assertClientCreatable`. */
+/** The browser already parsed and validated these rows; `assertClientCreatable` is the authority. */
 export class ClientImportRowsDto {
   rows: ClientImportRow[];
 }
