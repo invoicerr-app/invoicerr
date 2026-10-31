@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useDemoMode } from "@/hooks/queries"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
@@ -40,7 +41,10 @@ interface ApiKey {
 export default function ApiKeysSettings() {
   const { t } = useTranslation()
   const { data: apiKeys, mutate } = useGet<ApiKey[]>("/api/api-keys")
-  const { trigger: createApiKey, loading: creating } = usePost("/api/api-keys")
+  const { trigger: createApiKey, loading: creating } = useMutationWithToast(
+    usePost("/api/api-keys"),
+    t("settings.apiKeys.messages.createError", "Failed to create API key"),
+  )
   const { data: options } = useGet<{ scopes: string[] }>("/api/api-keys/options")
   const [saved, flash] = useSavedFlash()
   const { demoMode } = useDemoMode()
@@ -54,18 +58,15 @@ export default function ApiKeysSettings() {
 
   const handleCreate = form.handleSubmit(async (values) => {
     if (!values.name?.trim()) return
-    try {
-      const res = (await createApiKey(values)) as any
-      if (res?.key) {
-        setCreatedKey(res.key)
-        form.reset({ name: "", scopes: [] })
-        // force remount of MultiSelect so it picks up cleared value
-        setMultiResetKey((k) => k + 1)
-        flash()
-        mutate()
-      }
-    } catch (e) {
-      console.error("Error creating API key:", e)
+    const res = (await createApiKey(values)) as any
+    // Failure is already toasted by `useMutationWithToast`; success is the only path with a key.
+    if (res?.key) {
+      setCreatedKey(res.key)
+      form.reset({ name: "", scopes: [] })
+      // force remount of MultiSelect so it picks up cleared value
+      setMultiResetKey((k) => k + 1)
+      flash()
+      mutate()
     }
   })
 
