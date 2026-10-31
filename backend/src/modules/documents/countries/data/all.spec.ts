@@ -1,13 +1,13 @@
 /**
  * Proves `./all.ts` reads and validates `countries/data/*.json` faithfully (issue #603 step 6: the
- * single composed loader every one of the 14 sections now goes through). Four angles:
+ * single composed loader every section now goes through). Four angles:
  *
  * - deep equality against an INDEPENDENT, from-scratch `readFileSync` + `JSON.parse` of the same
  *   files, never through `./all.ts` itself - the strongest version of the "the loader doesn't alter
  *   or invent a fact" proof `countries/compose.spec.ts` held at step 1 against a second TypeScript
  *   loader fed by the SAME files; this one is independent of any loader at all;
  * - a drop-in invariant: every `*.json` actually sitting in this directory is loaded, no more, no
- *   fewer - the same discovery guarantee every one of the 14 catalogs' own (now-removed) per-country
+ *   fewer - the same discovery guarantee every catalog's own (now-removed) per-country
  *   loader used to hold for its own directory, moved here because this is the one directory that
  *   discovery happens in now;
  * - a country file dropped in at runtime needs zero code change (the literal "adding a country means

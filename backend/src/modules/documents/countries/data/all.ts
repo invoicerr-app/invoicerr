@@ -2,17 +2,17 @@
  * The single composed loader (issue #603 step 6: "one JSON file per country"). Every country now has
  * exactly ONE file here, `countries/data/<cc>.json`, with one optional top-level key per section -
  * the same keys `ComposedCountryView` (`../compose.ts`) already declares, in the same order
- * `COMPOSED_COUNTRY_SECTION_KEYS` does. This is the only place any of the 14 sections is read off
+ * `COMPOSED_COUNTRY_SECTION_KEYS` does. This is the only place any of the sections is read off
  * disk any more: discovery is a single `readdirSync` over this directory (the same
- * `/^[a-z]{2}\.json$/` discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ * `/^[a-z]{2}\.json$/` discipline every catalog's own (now-removed) per-country loader
  * already held), and each section PRESENT in a country's file is validated HERE, once, with that
  * section's own, unchanged validator (`assertValidProvenance`, `assertValidVatRateProvenance`, …) -
  * the exact function each catalog's own `data/<cc>.json`-reading loader used to call on its own file,
  * before this step physically moved the data. A section absent from a country's file is `undefined`,
- * never guessed or defaulted - the same "no permissive fallback" discipline every one of the 14
+ * never guessed or defaulted - the same "no permissive fallback" discipline every one of these
  * catalogs already held on its own.
  *
- * Every one of the 14 catalogs' own `data/all.ts` still exists and still exports its own
+ * Every pre-existing catalog's own `data/all.ts` still exists and still exports its own
  * `ALL_XXX_FILES` array, for the handful of callers (tests, `country-readiness.service.ts`,
  * `reporting/list-declarations.ts`, …) that import it directly instead of going through that
  * catalog's `registry.ts` - but it no longer reads any file itself: it derives its array from
@@ -65,7 +65,7 @@ import { assertValidCodeLists } from '../../code-lists/schema';
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
 /** Every country code with a `data/xx.json` file in `dir`, sorted for a deterministic load order -
- *  the same discovery discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ *  the same discovery discipline every catalog's own (now-removed) per-country loader
  *  already held for its own directory, one level up. Takes `dir` explicitly so tests can use an
  *  isolated directory. */
 function discoverCountryCodes(dir: string): string[] {
@@ -80,8 +80,8 @@ interface LoadContext {
   countryCode: string;
 }
 
-/** One section of a mismatched `countryCode`: the same load-time sanity check every one of the 14
- *  catalogs' own (now-removed) per-country loader already ran on its own file, generalized to a
+/** One section of a mismatched `countryCode`: the same load-time sanity check every catalog's own
+ *  (now-removed) per-country loader already ran on its own file, generalized to a
  *  named section of the single merged file. */
 function assertSectionCountryCode(
   section: { countryCode: string },
@@ -423,6 +423,6 @@ export function loadComposedCountryFilesFrom(dir: string): ComposedCountryView[]
 
 /** One validated composed view per country with a `countries/data/<cc>.json` file - see this
  *  module's own header. This is the single source `compose.ts#ALL_COMPOSED_COUNTRIES` re-exports,
- *  and the single source every one of the 14 catalogs' own (now-derived) `ALL_XXX_FILES` ultimately
+ *  and the single source every catalog's own (now-derived) `ALL_XXX_FILES` ultimately
  *  comes from, through `defaultComposedCountryCatalog`. */
 export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = loadComposedCountryFilesFrom(__dirname);
