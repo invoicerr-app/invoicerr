@@ -149,7 +149,7 @@ this document; they create no separate or additional rights.
   withdrawal applies concerns the purchase, which is Polar's; the Service stays B2B only (Terms of
   Service, Section 1.2). New Sections 7 and 8 say what is ours: what happens when a subscription ends
   (read-only period, archive, deletion) and how to export your data at any time.
-- **2026-10-25**: INVOICERR (SASU) now sells the subscription itself and charges it through Stripe, by
+- **2026-10-25**: INVOICERR (SAS) now sells the subscription itself and charges it through Stripe, by
   card or SEPA direct debit; Polar is removed. Refunds are ours again. New Section 2: a billing period
   already started is not refunded. New Section 3: a founder pre-order is refunded in full if the hosted
   Service is not open on 30 June 2027, and pro rata if the Service stops during a period already paid

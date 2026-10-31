@@ -419,7 +419,7 @@ Nothing in this Section reduces a right the GDPR gives you.
   that page, on Cloudflare rather than on Scaleway, until the hosted version opens. This is a new
   fact, not a restatement: it is the first processing this Policy describes of personal data
   belonging to someone who has no account on the Service.
-- **2026-10-25**: The controller is now **INVOICERR**, a SASU with a share capital of 100 euros,
+- **2026-10-25**: The controller is now **INVOICERR**, a SAS with a share capital of 100 euros,
   registered office in Vénissieux, represented by its president, Roméo Chevrier (Section 1). Section 3:
   Stripe processes the means of payment, and our invoicing records now cover the invoices we issue
   ourselves. Section 4 is rewritten: the sub-processors are OVHcloud (hosting, database, documents,
@@ -437,6 +437,6 @@ Nothing in this Section reduces a right the GDPR gives you.
   optional. Section 14 covers "a translation or a summary" wherever it covered a translation, and adds
   that it reduces no right the GDPR gives the reader. English-only legal texts: the full French
   translation is replaced by a short French summary, and the German, Italian, Polish and Portuguese
-  translations are withdrawn. Section 1 now names the société par actions simplifiée (SAS) rather than a
-  SASU (D-262). Section 6 no longer calls the backups encrypted: they are kept for thirty-five days,
-  and encryption is only claimed where it is true (DPA Annex III).
+  translations are withdrawn. Section 1 now names the société par actions simplifiée (SAS) rather than
+  its single-shareholder form (D-262). Section 6 no longer calls the backups encrypted: they are kept
+  for thirty-five days, and encryption is only claimed where it is true (DPA Annex III).

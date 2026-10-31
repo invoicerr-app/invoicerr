@@ -142,7 +142,7 @@ Nothing in this Section sets aside a mandatory rule of law.
   not a restatement: during the beta programme, participants' Customer Data — real invoices and other
   real business records — resides on the acceptance environment, not on Scaleway's production
   infrastructure — see Privacy Policy, Section 4.
-- **2026-10-25**: The Publisher is now **INVOICERR**, a SASU with a share capital of 100 euros, registered
+- **2026-10-25**: The Publisher is now **INVOICERR**, a SAS with a share capital of 100 euros, registered
   office in Vénissieux, represented by its president, Roméo Chevrier, who is also the publication
   director. Section 1 gives the RCS Lyon and intra-EU VAT numbers as placeholders until registration.
   Section 3 is renamed "Host": the Service, its database, its documents and its backups are hosted in
@@ -152,5 +152,5 @@ Nothing in this Section sets aside a mandatory rule of law.
 - **2026-10-30**: English-only legal texts: the full French translation is replaced by a short French
   summary, and the German, Italian, Polish and Portuguese translations are withdrawn. Section 8 covers
   "a translation or a summary" wherever it covered a translation, and adds that it sets aside no
-  mandatory rule of law. Section 1 now names the société par actions simplifiée (SAS) rather than a
-  SASU (D-262).
+  mandatory rule of law. Section 1 now names the société par actions simplifiée (SAS) rather than its
+  single-shareholder form (D-262).

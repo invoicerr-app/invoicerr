@@ -675,7 +675,7 @@ this document; they create no separate or additional rights.
   stated. The former audit frequency limit (once per twelve months) is gone: Clause 7.6 now governs
   audits. The governing-law cross-reference now points to Terms of Service, Section 20.3.
 - **2026-10-25**: The Clauses are unchanged; only the Annexes change. Annex I: the Processor is now
-  **INVOICERR**, a SASU with a share capital of 100 euros, registered office in Vénissieux, represented by
+  **INVOICERR**, a SAS with a share capital of 100 euros, registered office in Vénissieux, represented by
   its president, Roméo Chevrier. Annex II: the archive is downloaded through a link, and after return
   the Processor deletes everything, archived documents included, keeping nothing for a statutory
   retention period; backups expire after 35 days. Annex III: hosting at OVHcloud in France (managed
@@ -685,5 +685,5 @@ this document; they create no separate or additional rights.
   Google (Gmail) are removed, as is the separate acceptance environment; Cloudflare's entry now
   describes DNS and its proxy. The e-invoicing platforms move to the Notes, as chosen and contracted
   by the Customer; Stripe, GitHub and Weblate are noted as receiving no Customer data.
-- **2026-10-30**: Annex I now names the Processor as a société par actions simplifiée (SAS) rather than a
-  SASU (D-262). No other fact changed.
+- **2026-10-30**: Annex I now names the Processor as a société par actions simplifiée (SAS) rather than
+  its single-shareholder form (D-262). No other fact changed.

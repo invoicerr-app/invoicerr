@@ -609,7 +609,7 @@ concluding this Agreement. Nothing in this Section reduces a right that mandator
   the same cap and window, now described as the price paid to Polar as seller rather than an amount paid
   to Polar "on our behalf". Definition of "Fees", Sections 6.1, 6.4, 7.3, 14.2 and 21.2 reworded to
   match. No section renumbered.
-- **2026-10-25**: The Provider is now **INVOICERR**, a SASU with a share capital of 100 euros, registered
+- **2026-10-25**: The Provider is now **INVOICERR**, a SAS with a share capital of 100 euros, registered
   office in Vénissieux, represented by its president, Roméo Chevrier (Section 1.1; RCS and intra-EU
   VAT numbers left as placeholders until registration). The former Section 1.4 (future transfer to a
   company) is removed, and Section 1.5 becomes Section 1.4: we sell the subscription ourselves, with no
@@ -632,5 +632,6 @@ concluding this Agreement. Nothing in this Section reduces a right that mandator
   professionals the parties derogate from article 1127-1, 3° of the French Civil Code as article 1127-3
   allows: English is the only language offered for concluding the Agreement, and that Section reduces
   no right mandatory law gives the customer. Section 1.1 now names the société par actions simplifiée
-  (SAS) rather than a SASU (D-262). Section 13.3 no longer calls the backups encrypted: they expire after
-  thirty-five days, and encryption is only claimed where it is true (DPA Annex III).
+  (SAS) rather than its single-shareholder form (D-262). Section 13.3 no longer calls the backups
+  encrypted: they expire after thirty-five days, and encryption is only claimed where it is true
+  (DPA Annex III).
