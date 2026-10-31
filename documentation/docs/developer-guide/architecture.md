@@ -23,7 +23,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `country-readiness` | Computes and surfaces how complete a country's data coverage is across the documents catalogues. |
 | `danger` | Sensitive operations requiring OTP verification (e.g. account deletion). |
 | `documents` | The document engine — every document type (quote, invoice, credit note, expense, received invoice, purchase order, goods receipt) is one `DocumentTypeDescriptor` sharing one lifecycle, plus the per-country compliance catalogues and transmission channels. The core of this repository; see the root `CLAUDE.md`'s own "documents module" section for the full breakdown. |
-| `health` | `/api/health` readiness endpoint: Postgres and Redis pings with their latency, running version, server time, uptime. |
+| `health` | `/api/health` readiness endpoint: Postgres and Redis pings with their latency, running version, server time, uptime, and the log-persistence signal (`status: degraded` after repeated failed `Log` writes). |
 | `instance` | Instance-wide settings, first-boot preflight checks, the SaaS instance-reset flow. |
 | `invitations` | Creates and validates invitation codes for multi-user signup. |
 | `logger` | Server-sent event stream of real-time logs, filterable by category/level/user. |
