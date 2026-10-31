@@ -153,11 +153,11 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 		});
 
 		// The automatic "reçue / prise en charge" push-back (fr:202 is the platform's own, never
-		// pushed by us — see pdp-reception.ts's own header; fr:203 IS pushed, automatically, the
+		// pushed by us — see pdp-reception.ts's own header; fr:204 IS pushed, automatically, the
 		// instant this codebase finished importing the deposit).
 		cy.task("getFakePdpLifecycleEvents").then((events) => {
 			const pushed = events as Array<{ invoiceId: string; code: string }>;
-			expect(pushed.some((e) => e.invoiceId === String(APPROVE_LEG_ID) && e.code === "fr:203")).to.eq(true);
+			expect(pushed.some((e) => e.invoiceId === String(APPROVE_LEG_ID) && e.code === "fr:204")).to.eq(true);
 		});
 	});
 
@@ -280,8 +280,8 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 			cy.task("getFakePdpLifecycleEvents").then((events) => {
 				const pushed = events as Array<{ invoiceId: string; code: string }>;
 				expect(
-					pushed.some((e) => e.invoiceId === String(REJECT_LEG_ID) && e.code === "fr:206"),
-					"le statut « refusée » (fr:206) a été renvoyé à la PDP",
+					pushed.some((e) => e.invoiceId === String(REJECT_LEG_ID) && e.code === "fr:210"),
+					"le statut « refusée » (fr:210) a été renvoyé à la PDP",
 				).to.eq(true);
 			});
 		});
