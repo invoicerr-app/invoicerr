@@ -6,6 +6,9 @@
 export interface DocumentFieldOption {
   value: string
   label: string
+  /** Translation key for `label`, for an option whose text comes from a country file. Without it
+   *  lib/descriptor-i18n.ts derives the key from the type id, the field path and the value. */
+  labelKey?: string
 }
 
 export interface DocumentFieldDescriptor {

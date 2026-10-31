@@ -5825,6 +5825,10 @@
       },
       "supplyType": {
         "label": "Supply type",
+        "options": {
+          "goods": "Goods",
+          "services": "Services"
+        },
         "crossBorderTax": {
           "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
         },

@@ -88,6 +88,36 @@ function countryOverlayFields(): CountryFieldText[] {
   );
 }
 
+/** A country overlay's own option labels. Each must name its English key: the frontend derives a
+ *  key only for a native descriptor, and an overlay option has no type id or path of its own to
+ *  derive one from, so an option without `labelKey` renders its country-file English everywhere. */
+function countryOverlayOptionTexts(): Array<{ key?: string; raw: string; where: string }> {
+  const collect = (
+    field: DocumentFieldDescriptor,
+    where: string,
+  ): Array<{ key?: string; raw: string; where: string }> => [
+    ...(field.options ?? []).map((option) => ({
+      key: option.labelKey,
+      raw: option.label,
+      where: `${where} option ${option.value}`,
+    })),
+    ...(field.fields ?? []).flatMap((nested) => collect(nested, `${where}.${nested.key}`)),
+  ];
+  return defaultComposedCountryCatalog.countries().flatMap((countryCode) =>
+    (defaultComposedCountryCatalog.get(countryCode)?.countryFields?.overlays ?? []).flatMap((overlay) =>
+      overlay.operations.flatMap((operation) => {
+        const field =
+          operation.op === 'add' ? operation.field : operation.op === 'modify' ? operation.patch : null;
+        if (!field) return [];
+        const fieldKey = field.key ?? operation.key;
+        if (!fieldKey) return [];
+        const where = `${countryCode} ${overlay.typeId} ${operation.op} ${operation.path || '(root)'}.${fieldKey}`;
+        return collect(field as DocumentFieldDescriptor, where);
+      }),
+    ),
+  );
+}
+
 describe('descriptor text reaches the translation catalog', () => {
   it('every native type, field, action, param and status label and help text has an English key', () => {
     const missing = nativeDescriptorTexts()
@@ -112,6 +142,16 @@ describe('descriptor text reaches the translation catalog', () => {
         ? [`${where}: no English key ${field.helpTextKey}`]
         : []),
     ]);
+    expect(problems).toEqual([]);
+  });
+
+  it('every option label a country overlay adds names an English key with the same text', () => {
+    const problems = countryOverlayOptionTexts().flatMap(({ key, raw, where }) => {
+      if (!key) return [`${where}: option without labelKey`];
+      if (!hasKey(key)) return [`${where}: no English key ${key}`];
+      const value = englishValue(key);
+      return value === raw ? [] : [`${where}: ${key} is "${value}", overlay says "${raw}"`];
+    });
     expect(problems).toEqual([]);
   });
 
