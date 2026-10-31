@@ -65,7 +65,12 @@ import { isActionAvailable, numberingDisplayState, statusLabel } from "@/compone
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
-import { useReferenceResolve, useReferenceSearch, useResolvedCompanyCustomFields } from "@/hooks/queries"
+import {
+  useReferenceResolve,
+  useReferenceSearch,
+  useResolvedCompanyCustomFields,
+  useDemoMode,
+} from "@/hooks/queries"
 import BetterPagination from "@/components/pagination"
 import SearchSelect from "@/components/search-input"
 import { Badge } from "@/components/ui/badge"
@@ -87,6 +92,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
 import { cn } from "@/lib/utils"
 
 /** A row's grid — see DocumentListRow's own comment on why the desktop columns are fixed widths. */
@@ -265,6 +271,7 @@ interface DocumentRowActionsProps {
  */
 function DocumentRowActions({ descriptor, instance, onActionSuccess, children }: DocumentRowActionsProps) {
   const { t } = useTranslation()
+  const { demoMode } = useDemoMode()
   const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false)
   const [shareLinkDialogOpen, setShareLinkDialogOpen] = useState(false)
   const {
@@ -354,6 +361,9 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
   } else if (settled) {
     primarySlot = <SettledMark dataCy={`document-row-settled-${instance.id}`} />
   } else if (primary) {
+    // Issue #592: a demo instance refuses every transmission server-side. Mark it blocked here
+    // before the click, the same pattern account deletion, password change and API keys already use.
+    const demoBlocked = isDemoBlockedAction(primary.id, demoMode)
     primarySlot = (
       // `outline`, never `default`: the page's one filled button is "New <type>" in the header. A
       // disabled primary still shows, carrying its reason in a tooltip — a rule reads as a rule,
@@ -364,21 +374,24 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           variant="outline"
           size="sm"
           className="flex-1 sm:flex-none"
-          disabled={!!primary.policyBlockedReason}
+          disabled={!!primary.policyBlockedReason || demoBlocked}
+          tooltip={demoBlocked ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
           loading={isRunning && pendingAction === undefined}
           onClick={() => handleAction(primary)}
           dataCy={`document-row-action-${primary.id}-${instance.id}`}
         >
           {primary.label}
         </Button>
-        {primary.policyBlockedReason && (
+        {(primary.policyBlockedReason || demoBlocked) && (
           <FieldLock
             id={`document-row-${instance.id}-${primary.id}-lock`}
             label={primary.label}
             describeTrigger
             dataCy={`document-row-blocked-reason-${primary.id}-${instance.id}`}
           >
-            {t("documents.form.actionBlockedByPolicy", { reason: primary.policyBlockedReason })}
+            {demoBlocked
+              ? t("demo.disabledTooltip", "Disabled in this demo.")
+              : t("documents.form.actionBlockedByPolicy", { reason: primary.policyBlockedReason })}
           </FieldLock>
         )}
       </span>
@@ -426,7 +439,8 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
         >
           {secondary.map((action) => {
             const hint = transitionHint(t, descriptor, action, instance.status)
-            const blocked = !!action.policyBlockedReason
+            const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+            const blocked = !!action.policyBlockedReason || demoBlocked
             return (
               <DropdownMenuItem
                 key={action.id}
@@ -442,7 +456,9 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
                       className="max-w-xs text-xs text-muted-foreground"
                       data-cy={`document-row-blocked-reason-${action.id}-${instance.id}`}
                     >
-                      {t("documents.form.actionBlockedTitle")}
+                      {demoBlocked
+                        ? t("demo.disabledTooltip", "Disabled in this demo.")
+                        : t("documents.form.actionBlockedTitle")}
                     </span>
                   )}
                 </div>
