@@ -250,10 +250,7 @@ describe('CompanyService - the company profile its country asks for', () => {
         }),
         expect.objectContaining({
           key: 'vatGroupMember',
-          values: [
-            expect.objectContaining({ value: 'yes' }),
-            expect.objectContaining({ value: 'no' }),
-          ],
+          values: [expect.objectContaining({ value: 'yes' }), expect.objectContaining({ value: 'no' })],
         }),
       ]);
     });
