@@ -118,9 +118,12 @@ right heading in the next release's notes.
 
 A published **pre-release** is announced on Discord by the `announce` job of `docker-publish.yml`,
 through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret. That job declares
-`needs: merge`, so it starts only once the release's manifest list exists at ghcr.io, and it is
-skipped whenever a platform build or the manifest fails. An announcement therefore never points at
-a tag that answers "manifest unknown". Nothing about the `:latest` decision moves: `prepare` still
+`needs: [prepare, merge]`, so it starts only once the release's manifest list exists at ghcr.io.
+Three things suppress it: a platform build that fails, a manifest list that cannot be created, and
+the Trivy gate that closes `merge` (`exit-code: 1` on a fixable CRITICAL finding), which fails the
+job after the image is already published. An announcement therefore never points at a tag that
+answers "manifest unknown"; the price is that a CRITICAL finding also silences the announcement for
+an image a reader can already pull. Nothing about the `:latest` decision moves: `prepare` still
 makes it, and a full release (the pre-release checkbox left unticked) is never announced.
 
 The message itself is built by `.github/scripts/announce-prerelease.sh`. Run it with `DRY_RUN=1` and
@@ -133,6 +136,11 @@ DRY_RUN=1 \
   RELEASE_BODY="$(gh release view v2.0.0-alpha.6 --json body --jq .body)" \
   .github/scripts/announce-prerelease.sh
 ```
+
+`RELEASE_BODY` is the body GitHub generated, which opens with an HTML comment naming
+`.github/release.yml`. GitHub hides that comment, Discord would print it, so the script drops HTML
+comments and the blank lines they leave at the top before cutting to 1500 characters: the printed
+description starts at the first heading (`## What's Changed`), never at the comment.
 
 Without the secret configured, the job logs a notice and skips cleanly rather than failing the
 release.

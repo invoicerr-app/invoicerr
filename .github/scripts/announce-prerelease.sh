@@ -19,8 +19,20 @@ RELEASE_BODY="${RELEASE_BODY:-}"
 # Discord caps an embed description at 4096 characters and rejects the whole request past that.
 # The body is the full generated changelog, so this sends a short prefix and the link carries the
 # rest. jq slices by characters, not bytes, so a multi-byte character is never cut in half.
-SUMMARY=$(jq -nr --arg body "$RELEASE_BODY" \
-  '$body[0:1500] + (if ($body | length) > 1500 then "..." else "" end)')
+#
+# GitHub's generated notes open with an HTML comment naming .github/release.yml; GitHub hides it,
+# Discord does not, so sending the body unchanged puts that line at the top of every announcement.
+# Comments and the blank lines they leave at the start are dropped before the cut, the same way
+# documentation/scripts/changelog-post.mjs drops them for the blog. An unterminated comment is
+# dropped to the end of the body rather than left in place.
+SUMMARY=$(jq -nr --arg body "$RELEASE_BODY" '
+  $body
+  | gsub("(?s)<!--.*?-->"; "")
+  | sub("(?s)<!--.*$"; "")
+  | sub("^\\s+"; "")
+  | . as $text
+  | $text[0:1500] + (if ($text | length) > 1500 then "..." else "" end)
+')
 
 PAYLOAD=$(jq -n \
   --arg content "New pre-release: $RELEASE_NAME" \
