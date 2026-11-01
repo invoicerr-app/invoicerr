@@ -6,6 +6,9 @@
 export interface DocumentFieldOption {
   value: string
   label: string
+  /** Translation key for `label`, for an option whose text comes from a country file. Without it
+   *  lib/descriptor-i18n.ts derives the key from the type id, the field path and the value. */
+  labelKey?: string
 }
 
 export interface DocumentFieldDescriptor {
@@ -50,8 +53,9 @@ export interface DocumentFieldDescriptor {
   suggestSiblingValues?: true
   /** Mirrors the backend's `DocumentFieldDescriptor.suggestedValues` (descriptors/types.ts) - 'text'
    *  only: a fixed list offered through the same `<datalist>`, any other text staying valid. `value`
-   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. */
-  suggestedValues?: DocumentFieldOption[]
+   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. No `labelKey`:
+   *  the backend's mirror has none, and this module always derives the key from the field path. */
+  suggestedValues?: { value: string; label: string }[]
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but

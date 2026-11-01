@@ -102,6 +102,7 @@ declared.
 | Type label | `documents.descriptors.<typeId>.label` |
 | Field label | `documents.descriptors.<typeId>.fields.<fieldKey>.label` |
 | Field help text | `documents.descriptors.<typeId>.fields.<fieldKey>.helpText` |
+| Select option label | `documents.descriptors.<typeId>.fields.<fieldKey>.options.<optionValue>` |
 | Row field of an `array` | `documents.descriptors.<typeId>.fields.<arrayKey>.fields.<rowKey>.label` (or `.helpText`) |
 | Action label | `documents.descriptors.<typeId>.actions.<actionId>.label` |
 | Action param | `documents.descriptors.<typeId>.actions.<actionId>.params.<paramKey>.label` (or `.helpText`) |
@@ -122,8 +123,10 @@ the module and that spec read them.
 
 :::info[Options are not checked]
 
-Select `options` and `suggestedValues` labels take the same derived-key path but are not required to
-have a key: many of them are codes (currencies, unit codes) or come from a per-company catalog.
+Native descriptor `options` and `suggestedValues` labels take the same derived-key path but are not
+required to have a key: many of them are codes (currencies, unit codes) or come from a per-company
+catalog. An option a country overlay adds is different: it must carry a `labelKey` whose English
+text matches its `label`, see [Adding a country](./adding-a-country.md).
 
 :::
 
