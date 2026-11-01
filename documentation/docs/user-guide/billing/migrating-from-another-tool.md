@@ -20,7 +20,7 @@ You can do either on its own, or both.
 
 ## Declaring your last number issued
 
-In **Settings → Company**, the **Declare your last number issued** card lets you tell Invoicerr the
+In **Settings → Company**, the **Declare your last number issued** section lets you tell Invoicerr the
 last number your previous tool printed, and the date it was issued:
 
 1. Choose the **Document type** (Invoice or Credit note).

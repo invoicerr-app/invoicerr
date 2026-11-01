@@ -105,7 +105,8 @@ describe("An invoice's payments — a record, not a document type", () => {
 			cy.get('[data-cy="document-settlement-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");
-			cy.get('[data-cy="document-settlement-badge"]').should("contain.text", "Unpaid");
+			// Its due date is already past, so the unpaid balance reads as late.
+			cy.get('[data-cy="document-settlement-badge"]').should("contain.text", "Late");
 			cy.get('[data-cy="document-settlement-empty"]').should("exist");
 
 			cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })

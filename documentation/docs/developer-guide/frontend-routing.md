@@ -16,6 +16,9 @@ Routes come from the files under `src/pages/`, through
   every page in the sidebar and header.
 - `src/pages/auth/`, `portal/`, `legal/` and `(app)/signature/` are public.
 - A folder or file starting with `_` (for example `_components/`) is not a route.
+- Documents: `documents/[typeId]/index.tsx` is a type's list, `documents/[typeId]/new.tsx` the
+  new-record page and `documents/[typeId]/[id].tsx` a record. The static `new` segment ranks above
+  `[id]`. A caller that opens the new-record page pre-filled passes `state.initialData`.
 
 Each page and layout is its own chunk, loaded the first time the route is visited. The entry
 chunk only holds `main.tsx`, `_app.tsx` and what they import. While a page's chunk downloads,

@@ -23,7 +23,7 @@ export default function BankReconciliationPage() {
   const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null)
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-6" data-cy="bank-reconciliation-page">
+    <div className="page-content space-y-8" data-cy="bank-reconciliation-page">
       <StatementList
         statements={statements}
         loading={isLoading}

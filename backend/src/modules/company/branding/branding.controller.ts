@@ -67,7 +67,7 @@ export class BrandingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('company:write')
   @ApiOperation({
-    summary: 'Set the accent color, font and/or preset',
+    summary: 'Set the accent color, font, preset and/or document template',
     description:
       'A named "preset" sets accentColor/font to that preset\'s own values — UNLESS this same call ' +
       'already carries an explicit accentColor/font, which then wins. Every field is independently ' +
@@ -81,11 +81,15 @@ export class BrandingController {
         preset: { type: 'string', nullable: true, example: 'modern' },
         accentColor: { type: 'string', nullable: true, example: '#1d4ed8' },
         font: { type: 'string', nullable: true, example: 'dmSans' },
+        template: { type: 'string', nullable: true, example: 'atelier' },
       },
     },
   })
   @ApiResponse({ status: 200, description: 'Branding updated' })
-  @ApiResponse({ status: 400, description: 'Unknown preset/font, or accentColor is not a hex color' })
+  @ApiResponse({
+    status: 400,
+    description: 'Unknown preset/font/template, or accentColor is not a hex color',
+  })
   async set(@ActiveCompany() companyId: string, @Body() body: SetBrandingDto) {
     return this.branding.setBranding(companyId, body ?? {});
   }

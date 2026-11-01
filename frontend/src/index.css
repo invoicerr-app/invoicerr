@@ -1,27 +1,72 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Self-hosted fonts (identity "Lagune", decision 2026-09-15) — no Google Fonts runtime call, so the
-   PWA works offline and no font request leaks to a third party. Inter/Space Grotesk ship as variable
-   fonts (one file covers the whole weight axis); Space Mono only ships static 400/700 — italics are
-   never used in this app (numbers and codes only), so neither is imported. */
-@import "@fontsource-variable/inter/index.css";
-@import "@fontsource-variable/space-grotesk/index.css";
-@import "@fontsource/space-mono/400.css";
-@import "@fontsource/space-mono/700.css";
+/* Self-hosted fonts, so the PWA works offline and no font request leaks to a third party. IBM Plex Sans is
+   the interface face, Newsreader the titles and every amount. Weights 400 to 600 (700 for IBM Plex Sans). */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/vietnamese-500.css";
+@import "@fontsource/newsreader/latin-ext-500.css";
+@import "@fontsource/newsreader/600.css";
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src:
+    url("@fontsource/newsreader/files/newsreader-latin-500-normal.woff2") format("woff2"),
+    url("@fontsource/newsreader/files/newsreader-latin-500-normal.woff") format("woff");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  ascent-override: 90%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
 
 @plugin 'tailwind-scrollbar';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
+  /* Radius by role: controls, popovers and dialogs, panels. Squarer than a pill on purpose. */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Newsreader", ui-serif, Georgia, serif;
+  --font-figures: "Newsreader", ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", monospace;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
+  --shadow-sheet: var(--elev-sheet);
+  --shadow-pop: var(--elev-pop);
+  --shadow-press: var(--elev-press);
+  --shadow-press-destructive: var(--elev-press-destructive);
+  --shadow-control: var(--elev-control);
+  --shadow-inset: var(--elev-inset);
+  --color-primary-edge: var(--primary-edge);
+  --color-primary-hover: var(--primary-hover);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --color-ink-2: var(--ink-2);
+  --color-sunken: var(--sunken);
+  --color-raised: var(--raised);
+  --color-link: var(--link);
+  --color-focus: var(--focus);
+  --color-paper: var(--paper-bg);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-mute: var(--paper-mute);
+  --color-paper-line: var(--paper-line);
+  --color-paper-sunken: var(--paper-sunken);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -101,7 +146,6 @@
      boxes in both themes (owner report, "Lagune" redesign). `accent-color` below only tints the
      CHECKED fill; the unchecked box and the OS-drawn tick both come from `color-scheme`. */
   color-scheme: light;
-  --radius: 0.625rem;
   --background: oklch(0.975 0.005 230);
   --foreground: oklch(0.200 0.030 230);
   --card: oklch(0.995 0.003 230);
@@ -138,7 +182,8 @@
   --info: oklch(0.920 0.045 210);
   --info-foreground: oklch(0.300 0.080 225);
   --border: oklch(0.890 0.010 230);
-  --input: oklch(0.890 0.010 230);
+  /* Control edges at 3:1 on card (WCAG 1.4.11); the hairline --border stays for dividers only. */
+  --input: oklch(0.660 0.015 230);
   --ring: oklch(0.760 0.121 230);
   /* Not redefined in .dark — see --color-overlay's own comment on why it stays constant. */
   --overlay: oklch(0 0 0 / 50%);
@@ -147,14 +192,35 @@
   --chart-3: oklch(0.350 0.059 230);
   --chart-4: oklch(0.780 0.119 230);
   --chart-5: oklch(0.550 0.020 230);
-  --sidebar: oklch(0.965 0.006 230);
+  /* The sidebar sits on the page ground, separated by one hairline; the active row is a grey pill. */
+  --sidebar: oklch(0.975 0.005 230);
   --sidebar-foreground: oklch(0.200 0.030 230);
   --sidebar-primary: oklch(0.640 0.130 230);
   --sidebar-primary-foreground: oklch(0.180 0.028 230);
-  --sidebar-accent: oklch(0.910 0.030 230);
-  --sidebar-accent-foreground: oklch(0.280 0.050 230);
+  --sidebar-accent: oklch(0.925 0.010 230);
+  --sidebar-accent-foreground: oklch(0.200 0.030 230);
   --sidebar-border: oklch(0.890 0.010 230);
   --sidebar-ring: oklch(0.760 0.121 230);
+  --ink-2: oklch(0.360 0.026 230);
+  --sunken: oklch(0.955 0.008 230);
+  --raised: oklch(0.999 0.003 230);
+  --link: oklch(0.480 0.130 232);
+  /* 3.4:1 on the ground: the only colour a focus indicator is drawn with. --ring stays decorative. */
+  --focus: oklch(0.600 0.150 230);
+  /* A printed sheet keeps its own ink in both themes, because the PDF it previews is white. */
+  --paper-bg: oklch(0.995 0.002 230);
+  --paper-ink: oklch(0.200 0.030 230);
+  --paper-mute: oklch(0.450 0.020 230);
+  --paper-line: oklch(0.890 0.010 230);
+  --paper-sunken: oklch(0.955 0.012 230);
+  --elev-sheet: 0 1px 2px oklch(0.2 0.03 230 / 8%), 0 8px 24px -12px oklch(0.2 0.03 230 / 18%);
+  --elev-pop: 0 8px 24px -6px oklch(0.2 0.03 230 / 22%), 0 0 0 1px var(--border);
+  --primary-edge: oklch(from var(--primary) calc(l - 0.07) c h);
+  --primary-hover: oklch(from var(--primary) calc(l - 0.03) c h);
+  --elev-press: 0 2px 0 oklch(from var(--primary) calc(l - 0.12) c h);
+  --elev-press-destructive: 0 2px 0 oklch(from var(--destructive) calc(l - 0.12) c h);
+  --elev-control: 0 1px 0 oklch(0.2 0.03 230 / 7%);
+  --elev-inset: inset 0 1px 2px oklch(0.2 0.03 230 / 6%);
 }
 
 .dark {
@@ -195,30 +261,33 @@
   --info: oklch(0.280 0.050 225);
   --info-foreground: oklch(0.850 0.090 210);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 42%);
   --ring: oklch(0.760 0.114 230);
   --chart-1: oklch(0.760 0.136 230);
   --chart-2: oklch(0.600 0.102 230);
   --chart-3: oklch(0.850 0.079 230);
   --chart-4: oklch(0.450 0.076 230);
   --chart-5: oklch(0.680 0.020 230);
-  --sidebar: oklch(0.200 0.016 230);
+  --sidebar: oklch(0.175 0.014 230);
   --sidebar-foreground: oklch(0.950 0.006 230);
   --sidebar-primary: oklch(0.760 0.136 230);
   --sidebar-primary-foreground: oklch(0.160 0.024 230);
-  --sidebar-accent: oklch(0.320 0.045 230);
-  --sidebar-accent-foreground: oklch(0.930 0.012 230);
+  --sidebar-accent: oklch(0.260 0.016 230);
+  --sidebar-accent-foreground: oklch(0.950 0.006 230);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.760 0.114 230);
+  --ink-2: oklch(0.840 0.012 230);
+  --sunken: oklch(0.200 0.014 230);
+  --raised: oklch(0.250 0.017 230);
+  --link: oklch(0.790 0.120 225);
+  --focus: oklch(0.780 0.130 230);
+  --elev-sheet: 0 0 0 1px oklch(1 0 0 / 8%), 0 12px 28px -14px oklch(0 0 0 / 60%);
+  --elev-pop: 0 12px 30px -8px oklch(0 0 0 / 70%), 0 0 0 1px var(--border);
 }
 
 @layer base {
   * {
-    /* thumb/track ride --border/--muted rather than the stock neutral scale, so the scrollbar tints
-       with the Lagune azure hue like everything else instead of a flat, theme-independent grey — one
-       pair of classes works for both themes since those two tokens already redefine themselves
-       under .dark. */
-    @apply border-border outline-ring/50 scrollbar scrollbar-thin scrollbar-thumb-border scrollbar-track-muted;
+    @apply border-border outline-focus scrollbar scrollbar-thin scrollbar-thumb-border scrollbar-track-muted;
   }
   *::-webkit-scrollbar-thumb {
     @apply rounded-xl;
@@ -228,52 +297,36 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
   button,
   a {
     @apply cursor-pointer;
   }
-  /* Space Grotesk for every heading level — Inter stays the body/UI face (better-typography: at most
-     three families, paired for contrast, not similarity). Sizes are unchanged here: they stay set
-     per-component (see AUDIT.md §1 — a full type-scale pass is a later, screen-by-screen lot). */
+  /* Newsreader for page and section titles; h3 and h4 stay in the interface face, they label groups. */
   h1,
-  h2,
+  h2 {
+    @apply font-heading;
+    font-weight: 500;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+  }
   h3,
   h4 {
-    @apply font-heading;
+    text-wrap: balance;
   }
-  /* Dead weight, kept as-is: these two blocks are shadowed by the unlayered :root/.dark above (v4
-     resolves unlayered rules before @layer ones regardless of source order — see
-     tailwind-v4-shadcn skill, error #8), so they have had zero effect since the file was generated.
-     Updated to the same Lagune values anyway rather than removed, since neither block is in scope for
-     this lot and deleting "unreachable" CSS is its own review to do deliberately, not as a drive-by. */
-  :root {
-    --sidebar: oklch(0.965 0.006 230);
-    --sidebar-foreground: oklch(0.200 0.030 230);
-    --sidebar-primary: oklch(0.640 0.130 230);
-    --sidebar-primary-foreground: oklch(0.180 0.028 230);
-    --sidebar-accent: oklch(0.910 0.030 230);
-    --sidebar-accent-foreground: oklch(0.280 0.050 230);
-    --sidebar-border: oklch(0.890 0.010 230);
-    --sidebar-ring: oklch(0.760 0.121 230);
+  p {
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 
-  .dark {
-    --sidebar: oklch(0.200 0.016 230);
-    --sidebar-foreground: oklch(0.950 0.006 230);
-    --sidebar-primary: oklch(0.760 0.136 230);
-    --sidebar-primary-foreground: oklch(0.160 0.024 230);
-    --sidebar-accent: oklch(0.320 0.045 230);
-    --sidebar-accent-foreground: oklch(0.930 0.012 230);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.760 0.114 230);
-  }
-
-  /* Collapses every CSS animation/transition to near-instant rather than hiding them outright — a
-     loading spinner stays a visible, static-looking circle instead of disappearing, which would read
-     as "nothing is happening" rather than "no motion, still loading". Elements already gated by
-     Tailwind's `motion-reduce:` variant (the loading spinner's own `animate-spin`) additionally drop
-     the animation entirely; this rule is the app-wide floor for everything else. */
+  /* Collapses every CSS animation/transition to near-instant rather than hiding them outright, so a
+     loading spinner stays visible instead of reading as "nothing is happening". */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -286,13 +339,94 @@
   }
 }
 
-/* Monetary/numeric cells (identity "Lagune": Space Mono for figures). Tailwind's own `tabular-nums`
-   utility only sets font-variant-numeric — this also switches the face, so a price column digits
-   stay a fixed width AND read in the mono face the identity reserves for numbers. Named after the
-   identity proposal own `td.amount` demo class, for continuity with that source of truth. */
+/* Every amount: the figures face with tabular, lining digits, so a column of prices lines up. */
 @utility amount {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-figures);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 500;
+}
+
+/* Plain selectors rather than nested @utility rules: none of these is used behind a variant. */
+@layer utilities {
+  /* The one focus indicator for custom controls: 2px of --focus, offset so it never touches the edge. */
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* Focus for text fields: the indicator hugs the field and its edge takes the same colour. */
+  .focus-field:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+    border-color: var(--focus);
+  }
+
+  /* An initials avatar tinted by a per-name hue (--tint), with its own dark pair. */
+  .tint-avatar {
+    background-color: oklch(0.9 0.05 var(--tint, 230));
+    color: oklch(0.3 0.07 var(--tint, 230));
+  }
+  .dark .tint-avatar {
+    background-color: oklch(0.34 0.06 var(--tint, 230));
+    color: oklch(0.88 0.08 var(--tint, 230));
+  }
+
+  /* Initials on their optical centre: the box is trimmed to the capitals, so neither face's ascent
+     nor descent pushes the letters off the middle of their disc or badge. */
+  .initials {
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* The one content column every authenticated page opens on: one width, one pair of gutters,
+     one vertical rhythm, so a page change never moves the reading edges. The routed editor's
+     inner container follows the same values so a page-more-than-modal form checks out. */
+  .page-content {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 80rem;
+    padding-inline: 1rem;
+    padding-top: 0.25rem;
+    padding-bottom: 2rem;
+  }
+  @media (min-width: 768px) {
+    .page-content {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  /* Press feedback for buttons. Transform only, never layout, and off under reduced motion. */
+  .press {
+    transition-property: transform, background-color, border-color, color, box-shadow;
+    transition-duration: 120ms;
+    transition-timing-function: var(--ease-out);
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .press:active:not(:disabled) {
+      transform: none;
+    }
+  }
+}
+
+/* A printed sheet: white with its own ink in both themes, and every token inside it follows. */
+@utility paper-sheet {
+  --background: var(--paper-bg);
+  --card: var(--paper-bg);
+  --foreground: var(--paper-ink);
+  --card-foreground: var(--paper-ink);
+  --muted-foreground: var(--paper-mute);
+  --ink-2: var(--paper-mute);
+  --border: var(--paper-line);
+  --muted: var(--paper-sunken);
+  --sunken: var(--paper-sunken);
+  color-scheme: light;
+  background-color: var(--paper-bg);
+  color: var(--paper-ink);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-sheet);
 }
 
 button:disabled {
@@ -488,12 +622,4 @@ button:disabled {
   height: 0;
   color: var(--muted-foreground);
   pointer-events: none;
-}
-
-/* Sonner's light rich colours put toast text under 4.5:1 on its own background (WCAG 1.4.3). */
-:root [data-sonner-toaster][data-sonner-theme="light"] {
-  --success-text: hsl(140, 100%, 22%);
-  --info-text: hsl(210, 92%, 38%);
-  --warning-text: hsl(31, 92%, 30%);
-  --error-text: hsl(360, 100%, 38%);
 }

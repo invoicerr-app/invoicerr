@@ -5,13 +5,14 @@ import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { Alert, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
-import { settlementBadgeInfo, TONE_CLASSES } from "@/components/documents/document-settlement"
+import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
+import { statusPresentation } from "@/components/documents/status-presentation"
+import { StatusMark } from "@/components/ui/status-mark"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { ApiError } from "@/hooks/use-api-query"
 import {
@@ -92,22 +93,24 @@ function PaymentReturnBanner({ kind, onDismiss }: { kind: PaymentReturn; onDismi
 
 function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
-  const { tone, labelKey } = settlementBadgeInfo({
-    totalGrossMinor: row.amountMinor,
-    paidMinor: row.paidMinor,
-    creditedMinor: 0,
-    outstandingMinor: row.outstandingMinor,
-    excessMinor: 0,
-    settled: row.settled,
-  })
+  const { labelKey } = settlementBadgeInfo(
+    {
+      totalGrossMinor: row.amountMinor,
+      paidMinor: row.paidMinor,
+      creditedMinor: 0,
+      outstandingMinor: row.outstandingMinor,
+      excessMinor: 0,
+      settled: row.settled,
+    },
+    { dueDate: row.dueDate, today: localIsoDate() },
+  )
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", TONE_CLASSES[tone])}
+    <StatusMark
+      {...statusPresentation(labelKey.split(".").pop() ?? "")}
       data-cy={`portal-document-status-${row.id}`}
     >
       {t(labelKey)}
-    </Badge>
+    </StatusMark>
   )
 }
 
@@ -115,7 +118,7 @@ function CurrencyTotalsCard({ totals }: { totals: ClientStatementCurrencyTotals 
   const { t } = useTranslation()
   return (
     <div className="space-y-1 rounded-lg border p-4" data-cy={`portal-statement-total-${totals.currency}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{totals.currency}</p>
+      <p className="text-sm font-semibold text-foreground">{totals.currency}</p>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm text-muted-foreground">{t("clientPortal.statement.totalOutstanding")}</span>
         <span className="amount text-lg font-semibold">
@@ -207,24 +210,22 @@ function DocumentRow({ row }: { row: ClientStatementDocumentRow }) {
     >
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{row.displayNumber ?? row.id.slice(0, 8)}</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {row.displayNumber ?? row.id.slice(0, 8)}
+          </span>
           <StatementRowBadge row={row} />
         </div>
-        <p className="text-xs text-muted-foreground">
-          {row.issueDate ?? "—"}
+        <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          <span>{row.issueDate ?? "—"}</span>
           {row.dueDate && (
-            <>
-              {" · "}
-              <span className={cn(overdue && "font-medium text-destructive")}>
-                {t("clientPortal.statement.due")} {row.dueDate}
-              </span>
-            </>
+            <span className={cn(overdue && "font-medium text-destructive")}>
+              {t("clientPortal.statement.due")} {row.dueDate}
+            </span>
           )}
           {row.paidMinor > 0 && !row.settled && (
-            <>
-              {" "}
-              · {t("clientPortal.statement.paidSoFar", { amount: formatMinor(row.paidMinor, row.currency) })}
-            </>
+            <span>
+              {t("clientPortal.statement.paidSoFar", { amount: formatMinor(row.paidMinor, row.currency) })}
+            </span>
           )}
         </p>
       </div>
@@ -311,7 +312,9 @@ function QuoteRow({ quote }: { quote: PortalQuoteRow }) {
     >
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{quote.displayNumber ?? quote.id.slice(0, 8)}</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {quote.displayNumber ?? quote.id.slice(0, 8)}
+          </span>
           {/* The GENERIC status badge (document-status-badge.tsx) — its own tone vocabulary already
               covers "sent"/"signed"/"refused" correctly (info/success/destructive), the same
               component the staff-facing document list uses. Never a second, hand-rolled mapping. */}
@@ -431,7 +434,7 @@ export default function ClientPortalDashboard() {
         )}
 
         <div data-cy="portal-header">
-          <h1 className="font-heading text-xl font-semibold tracking-tight text-balance">
+          <h1 className="font-heading text-xl font-medium text-balance">
             {t("clientPortal.title", { name: profile.data.clientName })}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -440,9 +443,7 @@ export default function ClientPortalDashboard() {
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("clientPortal.statement.title")}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">{t("clientPortal.statement.title")}</h2>
           {statement.isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : !statement.data || statement.data.documents.length === 0 ? (
@@ -468,9 +469,7 @@ export default function ClientPortalDashboard() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("clientPortal.quotes.title")}
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">{t("clientPortal.quotes.title")}</h2>
           {quotes.isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : !quotes.data || quotes.data.length === 0 ? (

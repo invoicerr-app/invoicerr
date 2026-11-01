@@ -63,7 +63,7 @@ export default function LegalDocumentPage() {
         {doc && (
           <article data-cy="legal-document-content">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h1 className="font-heading text-2xl font-semibold tracking-tight">{doc.title}</h1>
+              <h1 className="font-heading text-2xl font-medium">{doc.title}</h1>
               <LegalLanguageSelect
                 value={doc.language}
                 languages={doc.availableLanguages}

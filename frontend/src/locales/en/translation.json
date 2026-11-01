@@ -2,7 +2,8 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred while rendering this page. You can try reloading the page.",
-    "reload": "Reload page"
+    "reload": "Reload page",
+    "details": "Details"
   },
   "clients": {
     "search": {
@@ -287,9 +288,9 @@
           "role": "Role",
           "primaryBadge": "Primary",
           "setPrimary": "Set as primary",
-          "primaryFromIdentity": "Comes from the identity step",
-          "primaryLockedHint": "Only the person on the identity step can be the primary contact of an individual client.",
-          "removeLockedTitle": "The primary contact of an individual client is the person on the identity step and cannot be removed here"
+          "primaryFromIdentity": "Comes from the Identity section",
+          "primaryLockedHint": "Only the person in the Identity section can be the primary contact of an individual client.",
+          "removeLockedTitle": "The primary contact of an individual client is the person in the Identity section and cannot be removed here"
         }
       },
       "stepped": {
@@ -1510,6 +1511,31 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "greeting": "Hello {{name}}. Here is where your invoices stand.",
+    "greetingNoName": "Here is where your invoices stand.",
+    "hello": "Hello {{name}}",
+    "subtitle": "Here is where your invoicing and your collections stand.",
+    "allFigures": "All figures",
+    "overview": {
+      "invoicedIn": "Invoiced in {{month}}",
+      "exclVat": "excl. VAT",
+      "comparisonMore": "{{amount}} more than in {{month}}.",
+      "comparisonLess": "{{amount}} less than in {{month}}.",
+      "comparisonSame": "The same as in {{month}}.",
+      "legendCollected": "Collected",
+      "legendExpected": "Still owed, by due date",
+      "toChase": "To chase",
+      "daysLate": "{{count}} day late",
+      "daysLate_other": "{{count}} days late",
+      "invoiceCount": "{{count}} invoice",
+      "invoiceCount_other": "{{count}} invoices",
+      "seeLate": "See the late invoices",
+      "nothingToChase": "Nobody is late. Nothing to chase.",
+      "thisWeek": "This week",
+      "dueLine": "{{number}}, due",
+      "nothingThisWeek": "Nothing falls due this week.",
+      "noClient": "No client"
+    },
     "period": {
       "label": "Period",
       "options": {
@@ -1854,6 +1880,7 @@
       "error": "Could not import this statement"
     },
     "statements": {
+      "title": "Statements",
       "empty": "No statement imported yet",
       "unmatched": "{{count}} unmatched",
       "reconciled": "{{count}} reconciled"
@@ -1983,6 +2010,14 @@
         "logoRemoveError": "Failed to remove logo",
         "invalidFileType": "Please choose a PNG, JPEG or WebP image",
         "fileTooLarge": "This file is over the 10 MB limit"
+      },
+      "template": {
+        "label": "Document template",
+        "hint": "Changes the layout of your PDFs, never their content. Your colour, font and logo still apply.",
+        "options": {
+          "classic": "Classic",
+          "atelier": "Atelier"
+        }
       }
     },
     "accountingExport": {
@@ -3623,7 +3658,8 @@
       "documents": "Documents"
     },
     "groups": {
-      "data": "Data"
+      "data": "Data",
+      "account": "Account"
     },
     "documents": {
       "empty": "No document type is available for this company's country."
@@ -3654,9 +3690,26 @@
       "label": "{{version}}",
       "updateAvailable": "Update available",
       "updateTooltip": "{{version}} is available. Click to see the release notes"
+    },
+    "mobile": {
+      "more": "More",
+      "navLabel": "Main sections",
+      "home": "Home"
     }
   },
   "auth": {
+    "shell": {
+      "tagline": "Invoicing that keeps your pace.",
+      "sample": {
+        "title": "Invoice",
+        "reference": "INV-2026-0143",
+        "line1": "Brand identity redesign",
+        "line2": "Print materials",
+        "line3": "Brand book, five copies",
+        "approved": "Approved by the client",
+        "currency": "EUR"
+      }
+    },
     "serverUnavailable": {
       "title": "Service temporarily unavailable",
       "description": "The server can't be reached. Check the logs."
@@ -3792,7 +3845,11 @@
       "title": "This is a public demo",
       "description": "Sign in with the account below.",
       "resets": "Data resets every {{count}} hours.",
-      "resets_one": "Data resets every hour."
+      "resets_one": "Data resets every hour.",
+      "copyEmail": "Copy the email",
+      "copyPassword": "Copy the password",
+      "copied": "Copied",
+      "tryButton": "Try it without an account"
     },
     "disabledTooltip": "Disabled in this demo."
   },
@@ -3873,6 +3930,10 @@
       }
     }
   },
+  "offline": {
+    "title": "You are offline.",
+    "description": "What you see may be out of date, and nothing can be saved until the connection is back."
+  },
   "common": {
     "fieldHelp": {
       "trigger": "Show help",
@@ -3886,6 +3947,7 @@
     "finish": "Finish",
     "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
+    "close": "Close",
     "previous": "Previous",
     "next": "Continue",
     "back": "Back",
@@ -3919,7 +3981,12 @@
       "loadErrorTitle": "This list could not be loaded.",
       "loadErrorHint": "Check your connection, then try again.",
       "retry": "Retry"
-    }
+    },
+    "formPage": {
+      "edit": "Edit",
+      "preview": "Preview"
+    },
+    "save": "Save"
   },
   "payments": {
     "breakdown": {
@@ -5266,6 +5333,7 @@
       "array": {
         "addRow": "Add row",
         "removeRow": "Remove row",
+        "foldRow": "Done",
         "readOnlyFromSource": "These lines come from the supplier's e-invoice and cannot be edited."
       },
       "select": {
@@ -5373,7 +5441,12 @@
           "notesTitle": "Notes"
         }
       },
-      "lineTotalWarningsTitle": "The lines do not add up to the stated totals"
+      "lineTotalWarningsTitle": "The lines do not add up to the stated totals",
+      "editor": {
+        "description": "Fill in the form; the document builds itself as you type.",
+        "previewLabel": "Preview, as your client will read it",
+        "recapTitle": "Summary"
+      }
     },
     "list": {
       "title": "Saved",
@@ -5442,7 +5515,8 @@
         "dateTo": "To",
         "clear": "Clear",
         "settlementUnsettled": "Unpaid only",
-        "settlementOverdue": "Overdue only"
+        "settlementOverdue": "Overdue only",
+        "toggle": "Sort and filters"
       }
     },
     "custom": {
@@ -5556,7 +5630,8 @@
       "badge": {
         "unpaid": "Unpaid",
         "partiallyPaid": "Partially paid",
-        "settled": "Settled"
+        "settled": "Settled",
+        "late": "Late"
       }
     },
     "archive": {
@@ -5628,7 +5703,7 @@
       }
     },
     "conformity": {
-      "title": "Compliance tracking",
+      "title": "Transmission",
       "badge": {
         "accepted": "Validated by the platform",
         "rejected": "Rejected",
@@ -5637,7 +5712,9 @@
         "declarationIssue": "Declaration issue"
       },
       "timeline": {
-        "reason": "Reason: {{reason}}"
+        "reason": "Reason: {{reason}}",
+        "created": "Created",
+        "statusUpdate": "Status update from the platform"
       }
     },
     "correction": {
@@ -5793,7 +5870,8 @@
       "totalsTitle": "Totals",
       "notFound": "This document could not be found.",
       "importNotTransmitted": "This document was imported with no transmission evidence declared (no SdI id, KSeF number, accredited platform reference, or ATCUD). It must be regularised with the relevant authority.",
-      "importNotTransmittedTitle": "Not yet transmitted to the tax authority"
+      "importNotTransmittedTitle": "Not yet transmitted to the tax authority",
+      "allFields": "All fields"
     },
     "acceptance": {
       "menuLabel": "Mark as accepted",
@@ -5841,6 +5919,12 @@
     },
     "fieldHelp": {
       "noVatRateCatalog": "No known VAT rate list for this company's country. Enter the applicable rate manually."
+    },
+    "paper": {
+      "ariaLabel": "{{label}} as your client reads it",
+      "for": "For",
+      "amount": "Amount",
+      "vatAt": "VAT {{rate}} %"
     }
   },
   "declarations": {

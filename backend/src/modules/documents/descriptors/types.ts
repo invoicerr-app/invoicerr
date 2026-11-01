@@ -14,6 +14,9 @@ export interface DocumentTypeDescriptor {
    *  the same way `DocumentKindRule.kind` used to be sent as plain data by the (now removed)
    *  compliance engine. */
   label: string;
+  /** Which icon the interface draws for this type, as a key (e.g. "invoice", "purchase-order"). A
+   *  key the frontend does not know, or none, draws the generic document icon. */
+  icon?: string;
   fields: DocumentFieldDescriptor[];
   actions: DocumentActionDescriptor[];
   /**

@@ -8,6 +8,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { FieldLabel } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ApiError } from "@/hooks/use-api-query"
@@ -52,6 +53,7 @@ export default function BrandingSettings() {
 
   const [accentColor, setAccentColor] = useState("")
   const [font, setFont] = useState("")
+  const [template, setTemplate] = useState("")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -72,6 +74,7 @@ export default function BrandingSettings() {
     seededRef.current = true
     setAccentColor(status.accentColor ?? "")
     setFont(status.font ?? "")
+    setTemplate(status.template ?? "")
   }, [status])
 
   // Stable identity (empty deps — only ever touches the ref), the same reason
@@ -156,6 +159,7 @@ export default function BrandingSettings() {
       setBranding.mutateAsync({
         accentColor: accentColor.trim() || null,
         font: font || null,
+        template: template || null,
       }),
     )
   }
@@ -374,6 +378,31 @@ export default function BrandingSettings() {
                       {status.fonts.map((f) => (
                         <SelectItem key={f.key} value={f.key} data-cy={`branding-font-option-${f.key}`}>
                           {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="branding-template" description={t("settings.branding.template.hint")}>
+                    {t("settings.branding.template.label")}
+                  </FieldLabel>
+                  <Select
+                    value={template || "classic"}
+                    onValueChange={(v) => setTemplate(v === "classic" ? "" : v)}
+                  >
+                    <SelectTrigger id="branding-template" data-cy="branding-template-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(status.templates ?? []).map((entry) => (
+                        <SelectItem
+                          key={entry.key}
+                          value={entry.key}
+                          data-cy={`branding-template-option-${entry.key}`}
+                        >
+                          {t(`settings.branding.template.options.${entry.key}`, entry.label)}
                         </SelectItem>
                       ))}
                     </SelectContent>

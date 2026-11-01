@@ -198,10 +198,10 @@ export default function InvitationsSettings() {
                   meta={
                     <>
                       {t("settings.invitations.list.createdAt")}:{" "}
-                      <span className="font-mono tabular-nums">{formatDate(invitation.createdAt)}</span>
+                      <span className="tabular-nums">{formatDate(invitation.createdAt)}</span>
                       {" · "}
                       {t("settings.invitations.list.expiresAt")}:{" "}
-                      <span className="font-mono tabular-nums">
+                      <span className="tabular-nums">
                         {invitation.expiresAt
                           ? formatDate(invitation.expiresAt)
                           : t("settings.invitations.list.noExpiry")}

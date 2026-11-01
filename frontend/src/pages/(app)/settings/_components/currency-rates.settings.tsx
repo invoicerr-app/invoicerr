@@ -138,13 +138,10 @@ export default function CurrencyRatesSettings() {
               }
               meta={
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className="font-mono tabular-nums text-foreground"
-                    data-cy={`currency-rate-row-${r.id}-rate`}
-                  >
+                  <span className="tabular-nums text-foreground" data-cy={`currency-rate-row-${r.id}-rate`}>
                     {r.rate}
                   </span>
-                  <span className="font-mono tabular-nums">{new Date(r.asOf).toLocaleDateString()}</span>
+                  <span className="tabular-nums">{new Date(r.asOf).toLocaleDateString()}</span>
                   <Badge variant="outline">{r.source}</Badge>
                 </span>
               }

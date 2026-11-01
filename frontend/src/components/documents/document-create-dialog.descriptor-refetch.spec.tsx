@@ -7,6 +7,7 @@ import { PageHeaderProvider } from "@/components/page-header-provider"
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
 
 import DocumentTypePage from "@/pages/(app)/documents/[typeId]/index"
+import NewDocumentPage from "@/pages/(app)/documents/[typeId]/new"
 
 /**
  * GitHub issue #451, defect 2 — ROOT CAUSE, established here: the client-aware descriptor refetch
@@ -104,6 +105,7 @@ describe("<DocumentCreateDialog> — an open calendar survives the client-aware 
           <MemoryRouter initialEntries={["/documents/invoice"]}>
             <Routes>
               <Route path="/documents/:typeId" element={<DocumentTypePage />} />
+              <Route path="/documents/:typeId/new" element={<NewDocumentPage />} />
             </Routes>
           </MemoryRouter>
         </PageHeaderProvider>

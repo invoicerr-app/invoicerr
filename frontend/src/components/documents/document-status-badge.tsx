@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { StatusMark } from "@/components/ui/status-mark"
+import { statusPresentation } from "./status-presentation"
 
 /**
  * A document instance's `status` is arbitrary data — no descriptor declares a closed set of
@@ -10,45 +10,9 @@ import { cn } from "@/lib/utils"
  *
  * What IS shared across pretty much any business document's status, regardless of which type
  * produced it, is a small, generic VOCABULARY: something is a draft, in flight, accepted/settled,
- * or refused/void. This maps THAT vocabulary to a color, never a document type. A status that
- * matches nothing still renders — neutral, not hidden — the same "never hide" discipline as an
- * unsupported field kind.
+ * or refused/void. `statusPresentation` maps THAT vocabulary to a tone and a glyph, never a document
+ * type. A status that matches nothing still renders, neutral, not hidden.
  */
-type Tone = "neutral" | "info" | "success" | "warning" | "destructive"
-
-// Order matters: the first pattern to match wins, so a more specific word (e.g. "overdue") should
-// stay ahead of a broader one it could also satisfy. "sending" (the async "send" mechanism's own
-// in-flight status) is matched by "warning" ALONGSIDE "pending" — both mean "not
-// yet settled, something is actively in progress" — deliberately BEFORE "destructive"'s own "fail"
-// pattern would otherwise be reached, even though "send_failed" (a genuinely different status) is
-// correctly caught by that "fail" pattern regardless of this one's own position.
-const TONE_PATTERNS: [Tone, RegExp][] = [
-  ["destructive", /cancel|reject|refus|fail|void|error/i],
-  ["warning", /overdue|pending|await|review|sending/i],
-  ["success", /paid|sign|accept|clear|complete|approved|settl/i],
-  // "imported" (issue #340) reads the same "genuinely issued, historical record" way "sent"/"issued"
-  // already do - a past document recorded from a previous tool, not a draft and not a failure.
-  ["info", /sent|issued|submit|transmit|progress|imported/i],
-  ["neutral", /draft/i],
-]
-
-function toneOf(status: string): Tone {
-  for (const [tone, pattern] of TONE_PATTERNS) {
-    if (pattern.test(status)) return tone
-  }
-  return "neutral"
-}
-
-// Theme tokens (@theme inline in index.css) rather than hardcoded Tailwind stock colors: each one
-// already switches with the .dark class, so no separate dark: variant is needed per tone anymore.
-const TONE_CLASSES: Record<Tone, string> = {
-  neutral: "bg-secondary text-secondary-foreground",
-  info: "bg-info text-info-foreground",
-  success: "bg-success text-success-foreground",
-  warning: "bg-warning text-warning-foreground",
-  destructive: "bg-destructive-soft text-destructive-soft-foreground",
-}
-
 // Generic — never keyed to any one status name: a snake_case id (e.g. "send_failed", the async
 // "send" mechanism's own failure status) reads as space-separated words, the same
 // way a plain one-word status already did before this case existed.
@@ -80,12 +44,8 @@ interface DocumentStatusBadgeProps {
  *  set this app's locale files could ever fully enumerate. */
 export function DocumentStatusBadge({ status, label, className }: DocumentStatusBadgeProps) {
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", TONE_CLASSES[toneOf(status)], className)}
-      data-cy="document-status-badge"
-    >
+    <StatusMark {...statusPresentation(status)} className={className} data-cy="document-status-badge">
       {label ?? capitalize(status)}
-    </Badge>
+    </StatusMark>
   )
 }

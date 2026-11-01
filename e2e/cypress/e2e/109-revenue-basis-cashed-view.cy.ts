@@ -119,7 +119,9 @@ function setLightTheme() {
 }
 
 function selectCustomAugust() {
-	cy.get('[data-cy="dashboard-period-select"]').should("be.visible");
+	// The overview panel above this row keeps the selector under the app's own scroll area at the
+	// default viewport; scroll to it the way cy.openSelect does inside.
+	cy.get('[data-cy="dashboard-period-select"]').scrollIntoView().should("be.visible");
 	cy.openSelect('[data-cy="dashboard-period-select"]', '[data-cy="dashboard-period-option-custom"]');
 	cy.openDatePicker('[data-cy="dashboard-period-custom-from"]');
 	cy.get('select[aria-label="Choose the Year"]').select("2026", { force: true });

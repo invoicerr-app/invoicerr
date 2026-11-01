@@ -1,4 +1,4 @@
-import { CircleAlert, Fingerprint } from "lucide-react"
+import { Check, CircleAlert, Copy, Fingerprint, Info } from "lucide-react"
 import type React from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -14,33 +14,84 @@ import { Label } from "@/components/ui/label"
 import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { authClient } from "@/lib/auth"
+import { copyToClipboard } from "@/lib/clipboard"
 import { hasSignedOutInThisTab } from "@/lib/sign-out"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
 import { useBackendHealth } from "@/hooks/use-backend-health"
 import { type DemoInstanceView, useDemoMode, useRegistrationStatus } from "@/hooks/queries"
-import { Info } from "lucide-react"
 
-function DemoCredentialsNotice({ demo }: Readonly<{ demo: DemoInstanceView }>) {
+function CopyValueButton({ value, label }: Readonly<{ value: string; label: string }>) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-8 text-muted-foreground"
+      aria-label={copied ? t("demo.signIn.copied") : label}
+      onClick={async () => {
+        if (!(await copyToClipboard(value))) return
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+    </Button>
+  )
+}
+
+function DemoCredentialsNotice({
+  demo,
+  onTry,
+  loading,
+}: Readonly<{ demo: DemoInstanceView; onTry: () => void; loading: boolean }>) {
   const { t } = useTranslation()
   return (
-    <Alert variant="default" className="mb-4" data-cy="demo-credentials-notice">
-      <Info />
-      <AlertTitle>{t("demo.signIn.title", "This is a public demo")}</AlertTitle>
-      <AlertDescription>
-        <p>{t("demo.signIn.description")}</p>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3">
-          <dt>{t("auth.login.form.email.label")}</dt>
-          <dd className="font-medium text-foreground select-all" data-cy="demo-credentials-email">
+    <section
+      className="rounded-xl border border-dashed border-primary bg-card/60 p-4"
+      aria-labelledby="demo-credentials-title"
+      data-cy="demo-credentials-notice"
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2
+          id="demo-credentials-title"
+          className="inline-flex items-center gap-1.5 rounded-full bg-info px-2.5 py-0.5 font-sans text-[13px] font-semibold text-info-foreground"
+        >
+          <Info className="size-3.5" aria-hidden="true" />
+          {t("demo.signIn.title", "This is a public demo")}
+        </h2>
+        <p className="text-[13.5px] text-muted-foreground">
+          {t("demo.signIn.resets", { count: demo.resetIntervalHours })}
+        </p>
+      </div>
+      <p className="mt-2 text-[13.5px] text-ink-2">{t("demo.signIn.description")}</p>
+      <dl className="mt-2 divide-y border-y text-sm">
+        <div className="grid grid-cols-[7rem_1fr_auto] items-center gap-2 py-1">
+          <dt className="text-muted-foreground">{t("auth.login.form.email.label")}</dt>
+          <dd className="font-semibold text-foreground select-all" data-cy="demo-credentials-email">
             {demo.email}
           </dd>
-          <dt>{t("auth.login.form.password.label")}</dt>
-          <dd className="font-medium text-foreground select-all" data-cy="demo-credentials-password">
+          <CopyValueButton value={demo.email} label={t("demo.signIn.copyEmail")} />
+        </div>
+        <div className="grid grid-cols-[7rem_1fr_auto] items-center gap-2 py-1">
+          <dt className="text-muted-foreground">{t("auth.login.form.password.label")}</dt>
+          <dd className="font-semibold text-foreground select-all" data-cy="demo-credentials-password">
             {demo.password}
           </dd>
-        </dl>
-        <p>{t("demo.signIn.resets", { count: demo.resetIntervalHours })}</p>
-      </AlertDescription>
-    </Alert>
+          <CopyValueButton value={demo.password} label={t("demo.signIn.copyPassword")} />
+        </div>
+      </dl>
+      <Button
+        type="button"
+        className="mt-3 w-full"
+        loading={loading}
+        onClick={onTry}
+        data-cy="demo-try-button"
+      >
+        {t("demo.signIn.tryButton")}
+      </Button>
+    </section>
   )
 }
 
@@ -196,7 +247,13 @@ export default function LoginPage() {
       dataCy="auth-card"
     >
       {backendUnavailable && <ServerUnavailableBanner />}
-      {demo && <DemoCredentialsNotice demo={demo} />}
+      {demo && (
+        <DemoCredentialsNotice
+          demo={demo}
+          loading={loading}
+          onTry={() => void signInWithPassword(demo.email, demo.password)}
+        />
+      )}
       {signInError && (
         <Alert variant="destructive" className="mb-4" data-cy="auth-signin-error">
           <CircleAlert />

@@ -289,7 +289,6 @@ describe("Free credit note — the screen, browser level", () => {
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]')
 			.first()
 			.click();
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// Lines: "Corrected lines" waits for a source that is never picked; the free "Lines" table
 		// carries the amount.
@@ -313,12 +312,12 @@ describe("Free credit note — the screen, browser level", () => {
 		// Targeted by its own data-cy: credit note lines also carry the "Supply type" select.
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
 		cy.get('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]').first().click();
-		cy.continueDocumentWizard(); // Lines -> Options
 
 		// Options: "notes" (left empty) and "reason", REQUIRED the moment
 		// there is no invoice to correct (the same asterisk convention `43-correction-routes.cy.ts`'s
@@ -328,7 +327,6 @@ describe("Free credit note — the screen, browser level", () => {
 			"Remboursement d'un trop-perçu non rattaché à une facture.",
 			{ force: true },
 		);
-		cy.continueDocumentWizard(); // Options -> Recap
 
 		cy.intercept(
 			"POST",

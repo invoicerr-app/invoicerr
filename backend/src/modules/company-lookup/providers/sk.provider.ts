@@ -1,12 +1,9 @@
 /**
  * Slovakia — RPO (Register právnických osôb, Štatistický úrad SR).
+ * Docs: https://susrrpo.docs.apiary.io/ (no credentials).
  *
- * Endpoint : GET https://api.statistics.sk/rpo/v1/search?identifier={ico}
- * Docs     : https://susrrpo.docs.apiary.io/
- * Credentials: none.
- *
- * The RPO answers with the entity's full history (every name, every seat, each with
- * a validity range), so every field has to be narrowed to the entry in force today.
+ * The register returns the entity's full history, every name and seat with its validity range, so
+ * each field has to be narrowed to the entry in force today.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';

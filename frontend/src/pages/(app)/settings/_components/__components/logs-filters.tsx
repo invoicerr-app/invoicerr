@@ -179,7 +179,7 @@ export function LogsFilters({
         <PopoverContent className="w-auto p-0" align="start">
           <div className="grid gap-2 p-3">
             <div>
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-[13px] font-medium text-muted-foreground">
                 {t("settings.logs.filters.dateFrom")}
               </span>
               <CalendarComponent
@@ -189,7 +189,7 @@ export function LogsFilters({
               />
             </div>
             <div>
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-[13px] font-medium text-muted-foreground">
                 {t("settings.logs.filters.dateTo")}
               </span>
               <CalendarComponent

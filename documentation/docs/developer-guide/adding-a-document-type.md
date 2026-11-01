@@ -52,6 +52,7 @@ summary):
 interface DocumentTypeDescriptor {
   id: string;                          // e.g. "expense" — the registry key and the API/URL segment
   label: string;                       // plain text, not an i18n key (see below)
+  icon?: string;                       // icon key, e.g. 'invoice'; unknown or absent draws the generic document icon
   fields: DocumentFieldDescriptor[];    // the document's own data
   actions: DocumentActionDescriptor[];  // the buttons this type offers
   statuses?: DocumentStatusDescriptor[];// the whole lifecycle — omit to opt out entirely

@@ -1,6 +1,5 @@
 import type * as React from "react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 interface SectionCardProps {
@@ -21,12 +20,12 @@ interface SectionCardProps {
  */
 export function SectionCard({ title, aside, dataCy, className, children }: SectionCardProps) {
   return (
-    <Card className={cn("gap-4 py-5", className)} data-cy={dataCy}>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 px-5">
-        <CardTitle className="text-sm">{title}</CardTitle>
+    <section className={cn("border-t pt-4", className)} data-cy={dataCy}>
+      <div className="mb-3 flex flex-row flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-semibold">{title}</h3>
         {aside}
-      </CardHeader>
-      <CardContent className="px-5">{children}</CardContent>
-    </Card>
+      </div>
+      {children}
+    </section>
   )
 }

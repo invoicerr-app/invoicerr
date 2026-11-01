@@ -1,14 +1,9 @@
 /**
  * France — Annuaire des Entreprises (DINUM), the public front-end over INSEE SIRENE.
+ * Docs: https://recherche-entreprises.api.gouv.fr/docs/ (no credentials, 7 req/s).
  *
- * Endpoint : GET https://recherche-entreprises.api.gouv.fr/search?q={siren|siret}
- * Docs     : https://recherche-entreprises.api.gouv.fr/docs/
- * Credentials: none (7 req/s public quota).
- *
- * Accepts SIRET (14 digits, the establishment), SIREN (9 digits, the legal unit) and
- * the intra-community VAT number (FR + key + SIREN). SIRET queries only match the
- * head office (`siege`); a non-head-office SIRET falls back to its SIREN, which is
- * what the invoicing forms need — the legal unit's identity, not the branch's.
+ * Accepts SIRET, SIREN and the intra-community VAT number. A non-head-office SIRET falls back to its
+ * SIREN, because the invoicing forms need the legal unit's identity, not the branch's.
  */
 import { calculateFrenchVAT, isValidSiret } from '@/modules/sirene/sirene.utils';
 import { defaultLookupCoverage } from '../coverage/registry';

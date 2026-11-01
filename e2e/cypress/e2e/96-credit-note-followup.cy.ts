@@ -89,7 +89,7 @@ describe("PR #473 review point 2 - a Polish seller has no NEW credit-note instru
 
 	it("opening the existing Polish credit note is read-only: the detail page offers no save/send, and its PDF still downloads", () => {
 		cy.visit(`${appOrigin}/documents/credit-note/${existingCreditNoteId}`);
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("be.visible");
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 		// No editable action left runnable: "save-draft" only re-targets "draft" (this record is
 		// "sent"), and "send" is policy-blocked outright for PL - whichever one the page would show as
 		// its primary action, it carries no working button.

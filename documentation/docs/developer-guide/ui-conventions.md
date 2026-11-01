@@ -6,6 +6,158 @@ sidebar_position: 15
 
 Conventions the frontend (`frontend/src`) follows, so every screen behaves the same way.
 
+## Visual system
+
+The interface combines two directions. The shell, the document detail, settings, statuses, toasts and
+confirmations follow **Registre**: a quiet ledger, flat, separated by hairlines, colour only on data
+and on the one primary action. The dashboard, lists, editor, forms, sign-in and empty states follow
+**Atelier**: the same product with a warmer voice, soft panels, and the paper sheet as its recurring
+object. The two share one palette (Lagune), one type system and one set of tokens in
+`frontend/src/index.css`.
+
+### Type
+
+- **IBM Plex Sans** is the interface face (400 to 700). **Newsreader** sets page and section titles (`h1`,
+  `h2`) and every amount, through the `amount` utility (tabular, lining figures). Both are
+  self-hosted through Fontsource, so the PWA works offline.
+- Body text is 15 px; `text-sm` is 14 px and `text-xs` 13 px. Labels are sentence case and never
+  tracked capitals.
+- A monospace face is kept for codes a person copies (API keys, IBAN), never for amounts or document
+  numbers.
+
+### Tokens
+
+Use the tokens, never a raw colour. Besides the Lagune pairs (`background`, `card`, `primary`,
+`muted`, `success`, `warning`, `info`, `destructive-soft` and their `-foreground`), the redesign adds:
+
+| Token | Use |
+| --- | --- |
+| `ink-2` | Secondary text that must stay very readable |
+| `sunken`, `raised` | Wells and hovered rows; popovers one step above a card |
+| `link` | Text links (6:1 on a card) |
+| `focus` | The one colour a focus indicator is drawn with (3:1 or more on every ground) |
+| `input` | Control edges, 3:1 against a card (hairlines use `border`) |
+| `paper-*` | A printed sheet: white with its own ink in both themes (`paper-sheet` utility) |
+| `shadow-sheet`, `shadow-pop` | The only two shadows: panels, and popovers and dialogs |
+
+Radii go by role: 6 px for controls (`rounded-md`), 8 px for popovers and dialogs (`rounded-lg`),
+10 px for panels (`rounded-xl`). Buttons are 38 px high (32 px small), text fields and selects 42 px.
+
+### Focus
+
+Every focusable control shows a 2 px outline in `--focus`, 2 px away from it (`focus-ring` utility),
+or hugging the field with its edge in the same colour for text fields (`focus-field`). Never remove
+an outline without drawing this one.
+
+### Status
+
+A status is always a shape and a word, never a filled pill and never colour alone:
+`components/ui/status-mark.tsx` renders it, `components/documents/status-presentation.ts` maps any
+status id to a tone and a glyph.
+
+| Glyph | Tone | Meaning |
+| --- | --- | --- |
+| Open circle | neutral | Not sent yet (draft), unpaid, unknown |
+| Half disc | info | On its way (sent, deposited, imported) |
+| Half disc | warning | Waiting on someone (sending, pending) |
+| Check | success | Done and fine (approved, accepted, signed) |
+| Disc | success | Paid, settled |
+| Half disc | success | Partly paid |
+| Triangle | destructive | Late |
+| Circled cross | destructive | Rejected by the platform, refused by the buyer, failed |
+| Cross, struck through | neutral | Cancelled |
+
+Statuses are open data: an id the table does not know reads as neutral, never hidden.
+
+### Layouts
+
+- **Page column**: an authenticated page opens its content on one shared column, the `page-content`
+  utility (`frontend/src/index.css`): the same max width, gutters and vertical rhythm everywhere, so
+  changing screens never moves the reading edges. A page file may keep its own internal spacing
+  (`space-y-*`), never its own width or padding; the routed form (`FormPageDialog` with
+  `presentation="page"`) centres its body on the same values.
+- **Sidebar groups**: the sidebar's labelled groups are plain text labels (`SidebarGroupLabel`),
+  with collapsible lists on the toggle mechanic the Documents and Data groups use. The Account group
+  is always visible and opens the signed-in person's own screens (`/account` and its
+  preferences and security tabs); the same destinations sit behind the footer avatar menu.
+- **Lists**: the toolbar sits on the page ground; rows live in panels (`rounded-xl border bg-card
+  shadow-sheet`). A row leads with tinted initials (`InitialsAvatar`) and the name, then a muted
+  line, then status, amount and one quiet action. Filters are a segmented control. The documents
+  list groups consecutive rows by month of the type's own date field and keeps the sort the reader
+  chose; it never prints a page-local total. On a phone a document row shows only the client, the
+  number, the amount and one state (the settlement mark once it says more than unpaid, the status
+  otherwise); every other control stays in the DOM, hidden, so a `data-cy` never moves. Initials carry
+  the `initials` utility, which trims the text box to the capitals so they sit on the disc's optical
+  centre in either face. A titled group of rows (projects, time entries, bank
+  statements) uses `PanelSection` (`pages/(app)/_shared/data-list.tsx`): the title and its one action
+  on the ground, the rows in one panel, a row skeleton while loading.
+- **Type faces**: IBM Plex Sans for the interface, Newsreader for titles and every amount (the `amount`
+  utility: tabular, lining figures). Dates, counts and rates keep `tabular-nums` in the interface face;
+  monospace is kept for what is typed or copied as a code (API keys, secrets, hashes, paths, patterns,
+  identifiers).
+- **Forms**: a large form shows all its sections on one page with `FormPageDialog`
+  (`components/ui/form-page-dialog.tsx`): saving validates the whole form, scrolls to the first
+  invalid section and focuses the field; closing a dirty form asks first. `presentation="page"`
+  renders the same form as the content of a route instead of a modal: the new-document page
+  (`pages/(app)/documents/[typeId]/new.tsx`) uses it, with a `preview` (a live paper sheet beside the
+  form, behind an Edit / Preview switch on a phone) and the action bar held at the bottom. A section
+  may set `foldOnPhone`. On a phone a filled line of a line-items field folds into a one-line summary.
+  Short controls sit two to a row.
+- **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
+  from the descriptor, with the double rule under its total, every field still listed below it.
+- **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a
+  failed load shows a warning disc and a retry. A page that fails to render shows its title, an
+  explanation and a reload button, with the technical message folded behind **Details**.
+- **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
+  sidebar (an ellipsis, never a menu icon); there is no menu button in the header. A list's toolbar
+  keeps the search field and one filters button, which also holds the sort and any import buttons a
+  type adds. The main "New" action becomes an extended floating button. The new-document page hides the tab bar: it has its own close button and action bar. Touch
+  targets stay 44 px.
+- **Offline**: `OfflineBanner` (`components/offline-banner.tsx`) shows a one-line strip above every
+  signed-in page while the browser reports no network.
+
+### Document type icons
+
+Every document type has its own icon, drawn wherever the type is named: the sidebar, the page
+header of its list and of a document, its empty list, the dashboard widgets it contributes and the
+phone's tab bar. The descriptor carries a key (`icon: 'purchase-order'`), and
+`components/documents/document-type-icon.tsx` maps keys to Lucide icons in one table, so no
+component switches on a type id. A key that table does not know, or no key at all, draws the
+generic document icon. To give a new type its own icon, add its key to the descriptor and one row
+to that table; pick a Lucide icon that still reads apart from the others at 16 px.
+
+| Key | Icon |
+| --- | --- |
+| `quote` | `FilePen` |
+| `invoice` | `ReceiptText` |
+| `credit-note` | `FileMinus` |
+| `debit-note` | `FilePlus` |
+| `pro-forma` | `FileClock` |
+| `deposit-invoice` | `Coins` |
+| `final-invoice` | `FileCheck` |
+| `purchase-order` | `ShoppingCart` |
+| `goods-receipt` | `PackageCheck` |
+| `delivery-note` | `Truck` |
+| `expense` | `Wallet` |
+| `received-invoice` | `FileDown` |
+| anything else | `FileText` |
+
+### Motion
+
+Buttons scale to 0.97 for 120 ms when pressed (`press` utility); popovers and dialogs fade and grow
+from 0.97 over 150 ms. Nothing animates on page load, on typing or on row selection, and
+`prefers-reduced-motion` turns every transition off. Never `transition: all`, never animate a width or
+a height.
+
+### Never
+
+- No tracked uppercase labels or eyebrows, no middle-dot meta strings.
+- No grid of identical cards, no card inside a card, no coloured side stripe on a card or a row.
+- No gradient text or wash, no glass, no emoji or unicode character used as an icon.
+- No shadow other than the two tokens, no colour as the only carrier of a status.
+- No placeholder-only label, no exclamation mark in copy, no amount without tabular figures.
+- No second green: green means success, and only that.
+
 ## Field labels and descriptions
 
 A field's label reads `Name *` when the field is required. When the field has a description, a
@@ -184,7 +336,7 @@ A button that hides its label on small screens, such as an icon-only "Import" be
 `aria-label` and marks its icon `aria-hidden`. A link whose visible text is not the whole story keeps
 that text as its name and adds the rest as screen-reader-only text after it, rather than replacing it
 with an `aria-label`. Headings go down one level at a time: a list row or an empty state under a page
-`h1` is an `h2`. A page has one `main`, the layout's: a screen's own content area is a
+`h1` is an `h2`, and a row under a month heading (`h2`) is an `h3`. A page has one `main`, the layout's: a screen's own content area is a
 plain element. A toggle that opens a group carries `aria-expanded`, and the group's list sits inside
 the toggle's own list item.
 

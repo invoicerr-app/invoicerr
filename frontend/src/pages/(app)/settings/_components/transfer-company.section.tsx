@@ -148,10 +148,10 @@ export default function TransferCompanySection() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t("settings.transferCompany.current.requestedAt")}:{" "}
-              <span className="font-mono tabular-nums">{formatDate(current.createdAt)}</span>
+              <span className="tabular-nums">{formatDate(current.createdAt)}</span>
               {" · "}
               {t("settings.transferCompany.current.expiresAt")}:{" "}
-              <span className="font-mono tabular-nums">{formatDate(current.expiresAt)}</span>
+              <span className="tabular-nums">{formatDate(current.expiresAt)}</span>
             </p>
           </div>
           <Button

@@ -547,67 +547,11 @@ Cypress.Commands.add('openSearchSelect', (dataCy: string) => {
 });
 
 /**
- * Advances the document CREATE dialog (document-create-dialog.tsx, built on
- * components/ui/stepped-dialog.tsx) from its current step to the next one. `handleContinue` there is
- * ASYNC (`await form.trigger(step.fields)` before it advances) — a bare
- * `cy.get('[data-cy="...-continue"]').click()` races that, which is exactly why every spec that
- * fills a multi-step create dialog goes through here instead of repeating the wait. Captures the
- * CURRENT step body's own `data-cy` (it carries the step id — `...-step-body-details`,
- * `...-step-body-lines`, ...) before clicking, then waits for that attribute to actually change.
- *
- * Retries the CLICK itself (bounded), not just the wait after it — the same open-side race
- * `openSelect`/`openSearchSelect`/`openDatePicker` above guard against: a "Continue" click fired
- * right after a sibling Radix popover (a `SearchSelect`/`Select` field on the step just filled)
- * closes can be swallowed by that popover's own `DismissableLayer`, still detaching its
- * outside-pointerdown listener on a deferred passive-effect cleanup. CI observed this landing the
- * click with no visible effect at all (05-clients.cy.ts's own "creates an individual client",
- * 36-received-invoices.cy.ts's own "Structured deposit with lines" — both type into a field then
- * call this immediately after, no intervening wait) once the global `force: true` override
- * (support/e2e.ts) that used to paper over it was removed.
- * @example cy.continueDocumentWizard()
- */
-Cypress.Commands.add('continueDocumentWizard', () => {
-    cy.get('[data-cy^="document-create-dialog-step-body-"]')
-        .invoke('attr', 'data-cy')
-        .then((before) => {
-            const POLL_MS = 100;
-            const TIMEOUT_MS = 800;
-            const MAX_ATTEMPTS = 3;
-            const hasAdvanced = () =>
-                cy
-                    .get('[data-cy^="document-create-dialog-step-body-"]', { log: false })
-                    .invoke({ log: false }, 'attr', 'data-cy')
-                    .then((current) => current !== before);
-            const pollForAdvance = (elapsedMs: number): Cypress.Chainable<boolean> =>
-                hasAdvanced().then((advanced) => {
-                    if (advanced || elapsedMs >= TIMEOUT_MS) return cy.wrap(advanced, { log: false });
-                    cy.wait(POLL_MS, { log: false });
-                    return pollForAdvance(elapsedMs + POLL_MS);
-                });
-            const continueWithRetries = (attempt: number): void => {
-                cy.get('[data-cy="document-create-dialog-continue"]').should('be.visible').click();
-                pollForAdvance(0).then((advanced) => {
-                    if (advanced || attempt >= MAX_ATTEMPTS) return;
-                    Cypress.log({
-                        name: 'continueDocumentWizard',
-                        message: `step did not advance on attempt ${attempt} -- retrying the click`,
-                    });
-                    continueWithRetries(attempt + 1);
-                });
-            };
-            continueWithRetries(1);
-            cy.get('[data-cy^="document-create-dialog-step-body-"]', { timeout: 10000 }).should(($el) => {
-                expect($el.attr('data-cy')).not.to.eq(before);
-            });
-        });
-});
-
-/**
- * The generic sibling of `continueDocumentWizard` above for any OTHER `stepped-dialog.tsx` wizard —
+ * Advances any `stepped-dialog.tsx` wizard —
  * takes the dialog's own `dataCy` prefix instead of hardcoding "document-create-dialog", so
  * article-upsert.tsx and time-entry-upsert.tsx (and any later 3-step dialog) share this one command
  * rather than each spec re-deriving the same before/after `data-cy` wait. Same bounded click-retry
- * as `continueDocumentWizard` above, for the identical stale-listener race on the SAME underlying
+ * as a plain click would need, for the stale-listener race on the
  * `stepped-dialog.tsx` primitive.
  * @example cy.continueSteppedDialog('article-dialog')
  */
@@ -824,10 +768,6 @@ Cypress.Commands.add('runDocumentRowAction', (documentId: string, actionId: stri
         }
     });
 });
-
-// The client dialog (client-upsert.tsx) uses the SAME generic `continueSteppedDialog('client-dialog')`
-// above (no dedicated `continueClientWizard` — one dialog-agnostic command for every
-// stepped-dialog.tsx wizard, client included, rather than a copy per dialog).
 
 // `cy.ensureClient` used to live here — unused by any spec (every spec that needs a baseline client
 // gets one from `resetAndSeed` below), and latently broken for the callers it was written for: a

@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router"
 
 import BetterPagination from "@/components/pagination"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { InitialsAvatar } from "@/components/ui/initials-avatar"
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useClient, useClients } from "@/hooks/queries"
@@ -80,42 +80,45 @@ function ClientRow({
       dataCy={`client-row-${rowKey}`}
       onOpen={() => onView(client)}
       identity={
-        <>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="min-w-0 break-words font-medium text-foreground">
-              {/* A real button, the one control a keyboard or screen-reader user can reach to open
+        <div className="flex min-w-0 items-center gap-3.5">
+          <InitialsAvatar name={clientDisplayName(client)} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="min-w-0 break-words font-sans text-[15px] font-semibold text-foreground">
+                {/* A real button, the one control a keyboard or screen-reader user can reach to open
                   the record (the row's own onClick is invisible to both). */}
-              <button
-                type="button"
-                className="rounded-sm text-start outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onView(client)
-                }}
-                data-cy={`view-client-button-${rowKey}`}
-              >
-                {clientDisplayName(client)}
-              </button>
-            </h2>
-            <ClientBadges client={client} />
-          </div>
-          {meta.length > 0 && (
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:text-sm">
-              {meta.map((value) => (
-                <span key={value} className="truncate">
-                  {value}
-                </span>
-              ))}
+                <button
+                  type="button"
+                  className="focus-ring rounded-sm text-start outline-none hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onView(client)
+                  }}
+                  data-cy={`view-client-button-${rowKey}`}
+                >
+                  {clientDisplayName(client)}
+                </button>
+              </h2>
+              <ClientBadges client={client} />
             </div>
-          )}
-        </>
+            {meta.length > 0 && (
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13.5px] text-muted-foreground">
+                {meta.map((value) => (
+                  <span key={value} className="truncate">
+                    {value}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       }
       primary={
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="w-full sm:w-auto"
+          className="w-full text-link hover:text-link sm:w-auto"
           onClick={() => onEdit(client)}
           dataCy={`edit-client-button-${rowKey}`}
         >
@@ -318,80 +321,76 @@ export default function Clients() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
-      <Card className="gap-0">
-        <CardHeader className="gap-3 border-b">
-          <div className="flex items-center gap-2">
-            <ListSearch
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder={t("clients.search.placeholder")}
-              dataCy="clients-search"
-              className="flex-1 sm:max-w-xs"
+    <div className="page-content space-y-5">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <ListSearch
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder={t("clients.search.placeholder")}
+            dataCy="clients-search"
+            className="flex-1 sm:max-w-xs"
+          />
+          <div className="ms-auto flex items-center gap-2">
+            <ClientImportDialog />
+            <Button
+              onClick={() => setCreateClientDialog(true)}
+              aria-label={t("clients.actions.addNew")}
+              dataCy="client-add-button"
+            >
+              <Plus aria-hidden="true" />
+              <span className="hidden md:inline">{t("clients.actions.addNew")}</span>
+            </Button>
+          </div>
+        </div>
+
+        {isLoading && <FilterChipSkeleton />}
+
+        {allClients.length > 0 && (
+          <FilterChipGroup label={t("clients.list.filters.ariaLabel")} dataCy="clients-filters">
+            <FilterChip
+              label={t("clients.list.filters.all")}
+              count={allClients.length}
+              active={!activeFilter && !roleFilter}
+              onClick={() => {
+                setActiveFilter(undefined)
+                setRoleFilter(undefined)
+              }}
+              dataCy="clients-filter-all"
             />
-            <div className="ms-auto flex items-center gap-2">
-              <ClientImportDialog />
-              <Button
-                onClick={() => setCreateClientDialog(true)}
-                aria-label={t("clients.actions.addNew")}
-                dataCy="client-add-button"
-              >
-                <Plus aria-hidden="true" />
-                <span className="hidden md:inline">{t("clients.actions.addNew")}</span>
-              </Button>
-            </div>
-          </div>
-
-          {isLoading && <FilterChipSkeleton />}
-
-          {allClients.length > 0 && (
-            <FilterChipGroup label={t("clients.list.filters.ariaLabel")} dataCy="clients-filters">
-              <FilterChip
-                label={t("clients.list.filters.all")}
-                count={allClients.length}
-                active={!activeFilter && !roleFilter}
-                onClick={() => {
-                  setActiveFilter(undefined)
-                  setRoleFilter(undefined)
-                }}
-                dataCy="clients-filter-all"
-              />
-              {/* Active/Inactive are a STATE (dot), Suppliers a category (no dot) — see FilterChip. */}
-              <FilterChip
-                label={t("clients.stats.active")}
-                count={counts.active}
-                tone="success"
-                active={activeFilter === "active"}
-                onClick={() => setActiveFilter(activeFilter === "active" ? undefined : "active")}
-                dataCy="clients-filter-active"
-              />
-              <FilterChip
-                label={t("clients.stats.inactive")}
-                count={counts.inactive}
-                tone="muted"
-                active={activeFilter === "inactive"}
-                onClick={() => setActiveFilter(activeFilter === "inactive" ? undefined : "inactive")}
-                dataCy="clients-filter-inactive"
-              />
-              <FilterChip
-                label={t("clients.stats.suppliers")}
-                count={counts.suppliers}
-                active={roleFilter === "supplier"}
-                onClick={() => setRoleFilter(roleFilter === "supplier" ? undefined : "supplier")}
-                dataCy="clients-filter-supplier"
-              />
-            </FilterChipGroup>
-          )}
-        </CardHeader>
-
-        <CardContent className="p-0">{body}</CardContent>
-
-        {!isLoading && filteredClients.length > 0 && (clients?.pageCount ?? 1) > 1 && (
-          <div className="border-t p-4">
-            <BetterPagination pageCount={clients?.pageCount || 1} page={page} setPage={setPage} />
-          </div>
+            {/* Active/Inactive are a STATE (dot), Suppliers a category (no dot) — see FilterChip. */}
+            <FilterChip
+              label={t("clients.stats.active")}
+              count={counts.active}
+              tone="success"
+              active={activeFilter === "active"}
+              onClick={() => setActiveFilter(activeFilter === "active" ? undefined : "active")}
+              dataCy="clients-filter-active"
+            />
+            <FilterChip
+              label={t("clients.stats.inactive")}
+              count={counts.inactive}
+              tone="muted"
+              active={activeFilter === "inactive"}
+              onClick={() => setActiveFilter(activeFilter === "inactive" ? undefined : "inactive")}
+              dataCy="clients-filter-inactive"
+            />
+            <FilterChip
+              label={t("clients.stats.suppliers")}
+              count={counts.suppliers}
+              active={roleFilter === "supplier"}
+              onClick={() => setRoleFilter(roleFilter === "supplier" ? undefined : "supplier")}
+              dataCy="clients-filter-supplier"
+            />
+          </FilterChipGroup>
         )}
-      </Card>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sheet">{body}</div>
+
+      {!isLoading && filteredClients.length > 0 && (clients?.pageCount ?? 1) > 1 && (
+        <BetterPagination pageCount={clients?.pageCount || 1} page={page} setPage={setPage} />
+      )}
 
       <ClientUpsert open={createClientDialog} onOpenChange={setCreateClientDialog} />
 

@@ -124,7 +124,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.expiresAt")}:{" "}
-                    <span className="font-mono tabular-nums">{formatDate(transfer.expiresAt)}</span>
+                    <span className="tabular-nums">{formatDate(transfer.expiresAt)}</span>
                   </>
                 }
                 primary={
@@ -169,7 +169,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.createdAt")}:{" "}
-                    <span className="font-mono tabular-nums">{formatDate(transfer.createdAt)}</span>
+                    <span className="tabular-nums">{formatDate(transfer.createdAt)}</span>
                   </>
                 }
               />

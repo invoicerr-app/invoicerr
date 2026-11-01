@@ -1,9 +1,6 @@
 /**
  * Brazil — Receita Federal CNPJ data, served by BrasilAPI.
- *
- * Endpoint : GET https://brasilapi.com.br/api/cnpj/v1/{cnpj}
- * Docs     : https://brasilapi.com.br/docs#tag/CNPJ
- * Credentials: none.
+ * Docs: https://brasilapi.com.br/docs#tag/CNPJ (no credentials).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';

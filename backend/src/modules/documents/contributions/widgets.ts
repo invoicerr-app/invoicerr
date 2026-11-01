@@ -32,6 +32,8 @@ export interface WidgetBase {
   warnings?: string[];
   /** Whether the amounts shown include VAT. Data, not label text, so every locale can render it. */
   basis?: AmountBasis;
+  /** The contributing type's own descriptor `icon`, set by collectWidgets(). */
+  icon?: string;
 }
 
 export type AmountBasis = 'inclVat' | 'exclVat';

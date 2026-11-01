@@ -90,8 +90,10 @@ visitor lands on the sign-in page and is not signed straight back in. Every sign
 
 ### The sign-in page
 
-The sign-in page shows a "This is a public demo" box above the form with the demo account's e-mail
-and password and the reset interval, so a visitor who signed out can sign back in by hand.
+The sign-in page shows a "This is a public demo" box above the form, drawn as a dashed ticket: the
+reset interval, the demo account's e-mail and password each with a copy button, and a **Try it
+without an account** button that signs in with that account in one click, through the same call as
+the automatic sign-in. A visitor who signed out can also type the credentials into the form by hand.
 
 The e-mail, password and reset interval are served by the backend, never written into the frontend
 or into a translation: `GET /api/legal/documents`, the public endpoint that already carries

@@ -69,9 +69,8 @@ const DOT_CLASSES: Record<NonNullable<FilterChipProps["tone"]>, string> = {
   warning: "bg-warning-foreground",
 }
 
-/** One filter as a pressed/unpressed pill — a real `<button aria-pressed>`, never a `Badge` with
- *  an onClick. Active = filled with the foreground ink, not the primary blue, so the header keeps a
- *  single blue control. */
+/** One filter as a segment of a segmented control — a real `<button aria-pressed>`, never a `Badge`
+ *  with an onClick. Active = lifted onto the card, so the header keeps a single blue control. */
 export function FilterChip({ label, count, active, onClick, dataCy, tone }: FilterChipProps) {
   return (
     <button
@@ -79,25 +78,16 @@ export function FilterChip({ label, count, active, onClick, dataCy, tone }: Filt
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "focus-ring inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium outline-none transition-colors duration-150",
         active
-          ? "border-foreground bg-foreground text-background"
-          : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/70",
+          ? "bg-card text-foreground shadow-[0_1px_2px_oklch(0.2_0.03_230/15%)] dark:bg-raised"
+          : "text-ink-2 hover:text-foreground",
       )}
       data-cy={dataCy}
     >
-      {tone && (
-        <span
-          aria-hidden="true"
-          className={cn("size-1.5 rounded-full", active ? "bg-background/80" : DOT_CLASSES[tone])}
-        />
-      )}
+      {tone && <span aria-hidden="true" className={cn("size-1.5 rounded-full", DOT_CLASSES[tone])} />}
       <span>{label}</span>
-      {count !== undefined && (
-        <span className={cn("tabular-nums text-xs", active ? "text-background/70" : "text-muted-foreground")}>
-          {count}
-        </span>
-      )}
+      {count !== undefined && <span className="tabular-nums text-xs text-muted-foreground">{count}</span>}
     </button>
   )
 }
@@ -108,14 +98,13 @@ interface FilterChipGroupProps {
   children: React.ReactNode
 }
 
-/** A single scrolling line of chips on a phone rather than a wrapping cloud: `-mx-6 px-6` lets the
- *  pills run to the card's edge and the scroll start where the header's padding starts. */
+/** A single scrolling segmented control rather than a wrapping cloud of pills. */
 export function FilterChipGroup({ label, dataCy, children }: FilterChipGroupProps) {
   return (
     <div
       role="group"
       aria-label={label}
-      className="-mx-6 flex gap-2 overflow-x-auto px-6 py-0.5 [scrollbar-width:none]"
+      className="flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-lg bg-muted p-[3px] [scrollbar-width:none]"
       data-cy={dataCy}
     >
       {children}
@@ -161,8 +150,8 @@ export function ListRow({
   return (
     <div
       className={cn(
-        "px-4 py-3 transition-colors duration-150 sm:px-6",
-        onOpen && "cursor-pointer hover:bg-accent/40",
+        "px-4 py-3.5 transition-colors duration-150 sm:px-5",
+        onOpen && "cursor-pointer hover:bg-sunken",
         selected && "bg-accent/50",
         className,
       )}
@@ -267,11 +256,30 @@ export function ListSkeleton({ dataCy }: { dataCy?: string }) {
 /** Placeholder pills where the chips will land, so the header keeps its height and the rows below
  *  don't drop by a line once the counts arrive. */
 export function FilterChipSkeleton() {
+  return <Skeleton className="h-[38px] w-72 rounded-lg" aria-hidden="true" />
+}
+
+interface PanelSectionProps {
+  title: React.ReactNode
+  description?: React.ReactNode
+  action?: React.ReactNode
+  dataCy?: string
+  className?: string
+  children: React.ReactNode
+}
+
+/** A titled group of rows: the title and its one action on the page ground, the rows in one panel. */
+export function PanelSection({ title, description, action, dataCy, className, children }: PanelSectionProps) {
   return (
-    <div className="flex gap-2 py-0.5" aria-hidden="true">
-      <Skeleton className="h-8 w-16 rounded-full" />
-      <Skeleton className="h-8 w-20 rounded-full" />
-      <Skeleton className="h-8 w-20 rounded-full" />
-    </div>
+    <section className={cn("space-y-3", className)} data-cy={dataCy}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-xl break-words">{title}</h2>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sheet">{children}</div>
+    </section>
   )
 }

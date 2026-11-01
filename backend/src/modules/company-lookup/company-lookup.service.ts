@@ -1,10 +1,7 @@
 /**
- * CompanyLookupService — one entry point for "fill this form from the official register".
- *
- * Given a country and an identifier, it walks that country's providers in order and
- * returns the first definitive answer. Results are memoised (registers are slow and
- * rate-limited, and the same number gets typed several times during onboarding);
- * transport failures are never cached so a temporary outage does not stick.
+ * Walks a country's providers in order and returns the first definitive answer. Results are
+ * memoised because registers are slow and rate-limited; transport failures are never cached, so a
+ * temporary outage does not stick.
  */
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { CompanyLookupRegistry } from './registry';
@@ -119,8 +116,7 @@ export class CompanyLookupService {
           const company = await provider.lookup(query);
           if (company) {
             hits.push({ provider, company });
-            // A source that only confirms the number (VIES where the member state hides
-            // the name) is worth completing from the next one instead of returned as is.
+            // A source that only confirms the number is worth completing from the next one.
             if (isComplete(company)) return this.merge(hits, countryCode);
           }
         } catch (err) {
@@ -165,10 +161,8 @@ export class CompanyLookupService {
   }
 
   /**
-   * Combines what several sources each knew about the same company, in the order they
-   * were tried: the first non-empty value wins, so a national register is never
-   * overwritten by a directory. Typical case: VIES proves the German VAT number is
-   * live, GLEIF supplies the name and address it does not disclose.
+   * First non-empty value wins, in the order the sources were tried, so a national register is
+   * never overwritten by a directory.
    */
   private merge(
     hits: { provider: CompanyRegistryProvider; company: CompanyLookupCompany }[],

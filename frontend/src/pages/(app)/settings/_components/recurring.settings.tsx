@@ -90,10 +90,10 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
       }
       meta={
         <span className="flex flex-wrap gap-x-4">
-          <span className="font-mono tabular-nums" data-cy={`document-schedule-next-run-${schedule.id}`}>
+          <span className="tabular-nums" data-cy={`document-schedule-next-run-${schedule.id}`}>
             {t("documents.schedules.list.nextRunAt", { date: formatDate(schedule.nextRunAt) })}
           </span>
-          <span className="font-mono tabular-nums" data-cy={`document-schedule-last-run-${schedule.id}`}>
+          <span className="tabular-nums" data-cy={`document-schedule-last-run-${schedule.id}`}>
             {t("documents.schedules.list.lastRunAt", { date: formatDate(schedule.lastRunAt) })}
           </span>
         </span>

@@ -343,10 +343,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
                 <span className="text-muted-foreground">
                   {t("documents.custom.importCsv.result.imported")}
                 </span>
-                <span
-                  className="font-mono tabular-nums font-medium"
-                  data-cy="import-document-csv-result-imported"
-                >
+                <span className="tabular-nums font-medium" data-cy="import-document-csv-result-imported">
                   {result.imported}
                 </span>
               </div>
@@ -354,10 +351,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
                 <span className="text-muted-foreground">
                   {t("documents.custom.importCsv.result.rejected")}
                 </span>
-                <span
-                  className="font-mono tabular-nums font-medium"
-                  data-cy="import-document-csv-result-rejected"
-                >
+                <span className="tabular-nums font-medium" data-cy="import-document-csv-result-rejected">
                   {result.rejected}
                 </span>
               </div>

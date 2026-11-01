@@ -50,8 +50,8 @@ It is printed like every other amount of the PDF, for example `1000.00 EUR`.
 ### Company profile
 
 Some rules of your country depend on facts about your company that only you can declare. When your
-country asks for any, the company settings show a **Company profile** card with one choice per
-question. A country that asks nothing shows no card.
+country asks for any, the company settings show a **Company profile** section with one choice per
+question. A country that asks nothing shows no section.
 
 France asks one question today, the **Company size category**: large enterprise, intermediate-sized
 enterprise (ETI), small or medium-sized enterprise (PME) or micro-enterprise, the categories of the
@@ -90,9 +90,9 @@ its size.
 Document number formats are not a setting. They are fixed per country and per document type, from the
 rules that constrain them: the tax law (a unique, sequential number), the e-invoicing formats (for
 example FatturaPA's 20-character limit in Italy) and the clearance platforms (for example Chorus Pro's
-20 characters for French public buyers). The **Number Formats** card of the company settings shows, for
+20 characters for French public buyers). The **Number Formats** section of the company settings shows, for
 each numbered document type, the format that applies, the next number it will print, and every rule
-behind it with its source. Nothing on that card can be edited, and the API refuses a change.
+behind it with its source. Nothing in that section can be edited, and the API refuses a change.
 
 | Country | Invoice | Credit note | Quote, purchase order, goods receipt |
 | --- | --- | --- | --- |
@@ -103,16 +103,16 @@ behind it with its source. Nothing on that card can be edited, and the API refus
 Germany and Italy read a text that allows a calendar-year series for the invoice (Germany and France
 for the credit note too); Poland and Portugal, and every quote/purchase-order/goods-receipt format in
 every country, stay on one counter that never restarts: `{year}` there only prints the moment of
-issuance. The Number Formats card shows which applies to each type, and the source behind it. The
+issuance. The Number Formats section shows which applies to each type, and the source behind it. The
 restart itself applies only from the first document dated **1 January 2027** or later: a series already
 running keeps its counter exactly where it stood, and a document dated in December but numbered in
 January still belongs to the old year's series.
 
 **A series you started before formats became fixed** is kept, because an issued series has to stay
-continuous. The card marks it "Your running series, kept". The one exception is a series whose format
+continuous. The section marks it "Your running series, kept". The one exception is a series whose format
 breaks a rule of your country (the old credit-note format `CREDIT-NOTE-{year}-{number:4}` is 21
 characters, too long for FatturaPA and Chorus Pro): the country format then applies from the next
-number, the counter going on where it stood, so no number is reused and none is skipped. The card says
+number, the counter going on where it stood, so no number is reused and none is skipped. The section says
 so on that document type.
 
 **A kept series never restarts unless its own printed number carries a year.** The yearly restart above
@@ -121,41 +121,41 @@ applies to the *country's* format; a kept series that never printed a year of it
 country's own format restarts every January: printing the same year-less number again would be a
 duplicate invoice number, which is unlawful everywhere this product ships. A kept series that does print
 its own year (for example `FACT-{year}-{number:5}`) restarts exactly like the country format does. The
-card always shows the reset rule of the series actually in use, whichever it is, next to its pattern.
+section always shows the reset rule of the series actually in use, whichever it is, next to its pattern.
 
 Portuguese sellers register, in the ATCUD section of the settings screen, the AT validation code of each
 series before its first document: the AT issues one per series and document type, so series `FT A` for
 invoices and series `NC A` for credit notes. The ATCUD section shows which series the next document
 belongs to.
 
-**Migrating from another tool?** A **Declare your last number issued** card, right below the Number
-Formats card, lets you tell Invoicerr where your previous tool's own numbering left off, so your next
+**Migrating from another tool?** A **Declare your last number issued** section, right below the Number
+Formats section, lets you tell Invoicerr where your previous tool's own numbering left off, so your next
 invoice or credit note continues from there instead of restarting at 1, usable on its own or together
 with [importing your past invoices](../billing/migrating-from-another-tool.md). It can only be used
 once per document type, before that type's first Invoicerr document.
 
 ### Multi-currency
 
-The **Multi-currency** card's **Reference currency** field turns on one consolidated dashboard total, in the currency you pick, alongside your existing per-currency figures. Leave it empty to keep every total grouped by currency, unchanged.
+The **Multi-currency** section's **Reference currency** field turns on one consolidated dashboard total, in the currency you pick, alongside your existing per-currency figures. Leave it empty to keep every total grouped by currency, unchanged.
 
-The **Exchange rates** card right below it lists the rates that consolidation, and payment currency conversion, use:
+The **Exchange rates** section right below it lists the rates that consolidation, and payment currency conversion, use:
 
 - **Add it yourself**: enter a rate for any currency pair. Correcting one means adding a new rate dated later, since the most recently dated rate for a pair always wins; there is no edit or delete.
-- **Refreshed automatically once a day**: a background job refreshes every pair you have already added, plus every pair your documents, clients and recorded payments actually use against your reference currency and against each other, from the European Central Bank first and, only for a currency the ECB does not quote, from exchangerate-api.com as a fallback (credited on the card when used). A currency neither source quotes stays unconverted until you add it by hand.
-- **Gaps**: a pair neither source has ever been able to refresh is listed separately on the card, so you know its rate is still only whatever you last typed by hand.
+- **Refreshed automatically once a day**: a background job refreshes every pair you have already added, plus every pair your documents, clients and recorded payments actually use against your reference currency and against each other, from the European Central Bank first and, only for a currency the ECB does not quote, from exchangerate-api.com as a fallback (credited on the section when used). A currency neither source quotes stays unconverted until you add it by hand.
+- **Gaps**: a pair neither source has ever been able to refresh is listed separately in the section, so you know its rate is still only whatever you last typed by hand.
 
 The same rates also convert a payment you record in a currency different from its invoice's own; recording it is refused if no rate exists for that pair on the day the payment arrived.
 
 ### Revenue basis
 
-A **Revenue basis** card decides which figure your dashboard and statistics count as revenue, and
+A **Revenue basis** section decides which figure your dashboard and statistics count as revenue, and
 over which period:
 
 - **Revenue basis** - **Invoiced** (counts revenue the moment a document is issued, this product's
   own long-standing behaviour) or **Cashed** (counts it only once a payment actually arrives). Left
   unset, it defaults per your company's country where a clear regime exists: France and Italy
   default to **Cashed** (both have a sourced micro-entrepreneur/regime forfettario basis), every
-  other supported country defaults to **Invoiced**. The card states the sourced reason behind
+  other supported country defaults to **Invoiced**. The section states the sourced reason behind
   whichever default applies to you.
 - **Declaration period** - **Monthly** or **Quarterly**, used to bucket the **Cashed revenue**
   settings tab (below). Defaults to monthly.
@@ -178,11 +178,18 @@ this is an aid, never your official declaration.
 ## Branding
 
 The **Branding** settings tab personalizes every PDF your company issues (quotes, invoices, credit
-notes and the other document types) with three things:
+notes and the other document types) with four things:
 
 - **Logo** (PNG, JPEG or WebP, 10 MB at most), printed at the top left of the first page.
 - **Accent color**, used for the rule under the header and for the small section labels.
 - **Font**: Inter, Source Serif 4, IBM Plex Sans, DM Sans or Lora, or the default system font.
+- **Document template**: **Classic** or **Atelier**. Atelier is the default: new companies start
+  on it and existing companies were moved to it when the template feature shipped. Atelier
+  sets the document title
+  large in a serif face, puts the dates and references in a band tinted with your accent color,
+  shows the totals in a tinted box and frames the payment details. It changes the presentation
+  only: every word, identifier, legal mention and the Factur-X data are the same as with Classic.
+  Your logo, accent color and font apply to both.
 
 Four **Presets** (Classic, Modern, Minimal, Bold) set an accent color and a font in one click. The
 **Preview** renders a sample invoice with your current settings, through the same renderer as a real
@@ -190,11 +197,12 @@ document.
 
 ## PDF layout
 
-The layout itself is the same for every company and cannot be edited: it has to carry the legal
+The order of the content is the same for every company and every template, and cannot be edited: it has to carry the legal
 mentions and identifiers each country requires, and one fixed layout is what keeps that reliable. A
 document reads, from top to bottom:
 
-1. **Header**: your logo on the left; the document type, its number and its date on the right.
+1. **Header**: your logo on the left; the document type, its number and its date on the right (with
+   the Atelier template, the logo sits above the large document title instead).
 2. **Parties**: your company, its company-law mentions and its address on the left, the client (or the supplier, on a purchase
    order or a received invoice) and its address on the right, each followed by the identifiers filled
    in for it (see [Identifiers on the PDF](../billing/invoices.md#identifiers-on-the-pdf)).
