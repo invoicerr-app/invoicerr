@@ -82,8 +82,11 @@ export interface InvoiceCheckoutSessionResult {
  *     event against THIS company's own credentials before this class ever looks at its contents —
  *     a cryptographic signature over the RAW request body for Stripe/PayPal (see `stripe-signature.ts`'s
  *     own header for exactly what that checks), an AUTHENTICATED re-fetch of the payment for Mollie
- *     (which sends no signature at all — see `mollie-provider.ts`'s own header). REPLAY is made inert by
- *     `PaymentCheckoutSession.status`'s own atomic
+ *     (which sends no signature at all — see `mollie-provider.ts`'s own header). That only proves WHO
+ *     sent the event, never WHICH row it may touch: the same company id whose secret verified it is
+ *     passed into every write below, so an event naming another tenant's `cs_...` session id is a
+ *     no-op instead of a cross-tenant settlement (a session id is not secret — it is in the payer's own
+ *     checkout URL). REPLAY is made inert by `PaymentCheckoutSession.status`'s own atomic
  *     PENDING→COMPLETED claim (`claimSessionForCompletion` — the exact same conditional-write shape
  *     `bank-reconciliation/persistence.ts#claimLineForReconciliation` already uses for the identical "an
  *     external event must credit a document AT MOST ONCE" problem): a second delivery of the SAME event
@@ -237,11 +240,13 @@ export class PaymentSessionsService {
    * Ordering, and why it matters (mirrors `BankReconciliationService.reconcileLine`'s own header):
    *  1. Resolve the provider + this company's credentials, then verify the signature. Nothing below
    *     this line runs for an event that fails verification.
-   *  2. Look up the `PaymentCheckoutSession` this event's own `providerSessionId` names. Not found
-   *     means an event this app never opened a session for (a stray/foreign event, or one from before a
-   *     database reset) — logged, answered 200, never an error.
-   *  3. `claimSessionForCompletion` — the atomic claim. Not won means this event was ALREADY processed
-   *     (a replay) or lost a genuine race to a concurrent delivery — either way, a correct no-op.
+   *  2. Look up the `PaymentCheckoutSession` this event's own `providerSessionId` names, WITHIN the
+   *     company whose credentials just verified it. Not found means an event this app never opened a
+   *     session for (a stray/foreign event, one from before a database reset, or another tenant's
+   *     session id) — logged, answered 200, never an error.
+   *  3. `claimSessionForCompletion` — the atomic claim, with `companyId` in its own WHERE. Not won means
+   *     this event was ALREADY processed (a replay), lost a genuine race to a concurrent delivery, or
+   *     named a session another company owns — either way, a correct no-op.
    *  4. Only once claimed: call "record-payment" through the REAL action, exactly like a hand-entered
    *     payment or a reconciled bank line. `paidAt` is "now" (unlike a bank reconciliation's own line
    *     date, a checkout completion has no earlier "when the money actually arrived" fact to defer to).
@@ -286,21 +291,33 @@ export class PaymentSessionsService {
     const event = await provider.parseWebhookEvent(rawBody, headers, config.config);
 
     if (event.type === 'checkout.failed' && event.providerSessionId) {
-      await markSessionFailed(providerId, event.providerSessionId);
+      await markSessionFailed(companyId, providerId, event.providerSessionId);
       return { outcome: 'processed' };
     }
     if (event.type !== 'checkout.completed' || !event.providerSessionId) {
       return { outcome: 'ignored' };
     }
 
-    const claimed = await claimSessionForCompletion(providerId, event.providerSessionId);
+    const claimed = await claimSessionForCompletion(companyId, providerId, event.providerSessionId);
     if (!claimed) {
-      // Either a replay of an event already processed, or a lost race against a concurrent delivery of
-      // the SAME event — both mean "nothing left to do", never an error. Also covers a
-      // `providerSessionId` this app never opened a session for at all (the conditional UPDATE simply
-      // matches zero rows either way) — logged so a genuinely stray event is still findable.
+      // Either a replay of an event already processed, a lost race against a concurrent delivery of the
+      // SAME event, or a `providerSessionId` that belongs to ANOTHER company (the conditional UPDATE is
+      // scoped by `companyId`, so it matches zero rows) — all mean "nothing left to do", never an
+      // error. Logged so a genuinely stray event is still findable.
       this.logger.log(
         `${providerId} checkout ${event.providerSessionId} already processed (or unknown) — replay/no-op.`,
+      );
+      return { outcome: 'unknown_session' };
+    }
+
+    if (claimed.companyId !== companyId) {
+      // Defence in depth: the claim's own WHERE already carries `companyId`, so a mismatch should be
+      // impossible. If it ever happens (a hand-edited row, a future refactor dropping the scope), record
+      // NOTHING and answer exactly like an unknown session — no new oracle, and the owning company's id
+      // is never echoed back to the caller.
+      this.logger.warn(
+        `${providerId} checkout ${event.providerSessionId} claimed for company "${claimed.companyId}" ` +
+          `while company "${companyId}"'s credentials verified it — refusing to record a payment.`,
       );
       return { outcome: 'unknown_session' };
     }
@@ -345,7 +362,7 @@ export class PaymentSessionsService {
       await attachSessionPayment(claimed.id, paymentId);
       return { outcome: 'processed' };
     } catch (error) {
-      await releaseSessionClaim(providerId, event.providerSessionId);
+      await releaseSessionClaim(companyId, providerId, event.providerSessionId);
       this.logger.error(
         `${providerId} checkout ${event.providerSessionId} completed at the provider but "record-payment" ` +
           `failed — released back to PENDING for the provider's own retry. ${

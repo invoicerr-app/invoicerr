@@ -401,7 +401,7 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
     });
 
     expect(result).toEqual({ outcome: 'processed' });
-    expect(markSessionFailed).toHaveBeenCalledWith('stripe', 'cs_1');
+    expect(markSessionFailed).toHaveBeenCalledWith('company-1', 'stripe', 'cs_1');
     expect(documentsService.runAction).not.toHaveBeenCalled();
   });
 
@@ -570,7 +570,7 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       await expect(
         service.handleWebhookEvent('company-1', 'stripe', 'body', { 'stripe-signature': 'sig' }),
       ).rejects.toThrow('country-policy refused this action');
-      expect(releaseSessionClaim).toHaveBeenCalledWith('stripe', 'cs_1');
+      expect(releaseSessionClaim).toHaveBeenCalledWith('company-1', 'stripe', 'cs_1');
       expect(attachSessionPayment).not.toHaveBeenCalled();
     });
 
@@ -583,16 +583,17 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         provider.parseWebhookEvent.mockImplementation((rawBody: string) =>
           rawBody === 'body-A' ? completedEvent('cs_A') : completedEvent('cs_B'),
         );
-        claimSessionForCompletion.mockImplementation((_providerId: string, providerSessionId: string) =>
-          Promise.resolve({
-            id: providerSessionId === 'cs_A' ? 'session-A' : 'session-B',
-            companyId: 'company-1',
-            documentId: 'inv-1',
-            providerId: 'stripe',
-            providerSessionId,
-            amountMinor: providerSessionId === 'cs_A' ? 5000 : 7000,
-            currency: 'EUR',
-          }),
+        claimSessionForCompletion.mockImplementation(
+          (_companyId: string, _providerId: string, providerSessionId: string) =>
+            Promise.resolve({
+              id: providerSessionId === 'cs_A' ? 'session-A' : 'session-B',
+              companyId: 'company-1',
+              documentId: 'inv-1',
+              providerId: 'stripe',
+              providerSessionId,
+              amountMinor: providerSessionId === 'cs_A' ? 5000 : 7000,
+              currency: 'EUR',
+            }),
         );
         documentsService.getDocument.mockResolvedValue({ id: 'inv-1', data: { currency: 'EUR' } });
 
@@ -633,5 +634,106 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
         expect(attachSessionPayment).toHaveBeenCalledWith('session-B', 'pay-B');
       },
     );
+  });
+
+  describe("cross-tenant scope (a company signing an event that names ANOTHER company's session)", () => {
+    function completedEvent(providerSessionId = 'cs_1') {
+      return { type: 'checkout.completed' as const, providerSessionId };
+    }
+
+    it("A's own secret on B's session id settles NOTHING — then B's legitimate event still settles B", async () => {
+      const { service, documentsService, channelCredentials, provider } = buildService();
+      // Company A's OWN webhook secret verifies the forged event — a company can sign anything it
+      // likes with the secret Stripe gave it, so the signature check proves who sent it, never which
+      // row it may touch. `cs_B` is not secret either: it sits in B's payer's own checkout URL.
+      channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_A' } });
+      provider.parseWebhookEvent.mockReturnValue(completedEvent('cs_B'));
+      // The atomic claim carries the URL's companyId, so A's claim matches no row for B's session.
+      claimSessionForCompletion.mockResolvedValueOnce(null);
+
+      const forged = await service.handleWebhookEvent('company-A', 'stripe', 'forged-body', {
+        'stripe-signature': 'sig-A',
+      });
+
+      expect(forged).toEqual({ outcome: 'unknown_session' });
+      expect(claimSessionForCompletion).toHaveBeenCalledWith('company-A', 'stripe', 'cs_B');
+      expect(documentsService.runAction).not.toHaveBeenCalled();
+      expect(attachSessionPayment).not.toHaveBeenCalled();
+
+      // B's OWN delivery, signed with B's secret, is unaffected: it claims and credits B's session.
+      channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_B' } });
+      claimSessionForCompletion.mockResolvedValueOnce({
+        id: 'session-B',
+        companyId: 'company-B',
+        documentId: 'inv-B',
+        providerId: 'stripe',
+        providerSessionId: 'cs_B',
+        amountMinor: 12000,
+        currency: 'EUR',
+      });
+      documentsService.getDocument.mockResolvedValue({ id: 'inv-B', data: { currency: 'EUR' } });
+      documentsService.runAction.mockResolvedValue({
+        document: {},
+        changed: true,
+        message: 'ok',
+        createdPaymentId: 'payment-B',
+      });
+
+      const legitimate = await service.handleWebhookEvent('company-B', 'stripe', 'legit-body', {
+        'stripe-signature': 'sig-B',
+      });
+
+      expect(legitimate).toEqual({ outcome: 'processed' });
+      expect(claimSessionForCompletion).toHaveBeenLastCalledWith('company-B', 'stripe', 'cs_B');
+      expect(documentsService.runAction).toHaveBeenCalledWith(
+        'company-B',
+        'invoice',
+        'record-payment',
+        expect.objectContaining({ documentId: 'inv-B' }),
+      );
+      expect(attachSessionPayment).toHaveBeenCalledWith('session-B', 'payment-B');
+    });
+
+    it("A's forged checkout.failed cannot knock B's PENDING session to FAILED", async () => {
+      const { service, documentsService, channelCredentials, provider } = buildService();
+      channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_A' } });
+      provider.parseWebhookEvent.mockReturnValue({ type: 'checkout.failed', providerSessionId: 'cs_B' });
+
+      const result = await service.handleWebhookEvent('company-A', 'stripe', 'forged-body', {
+        'stripe-signature': 'sig-A',
+      });
+
+      expect(result).toEqual({ outcome: 'processed' });
+      // Scoped to A: `payment-sessions.persistence.spec.ts` proves that updateMany's WHERE cannot match
+      // B's row (count 0), so B's session stays PENDING and its real `completed` event still claims it.
+      expect(markSessionFailed).toHaveBeenCalledWith('company-A', 'stripe', 'cs_B');
+      expect(documentsService.runAction).not.toHaveBeenCalled();
+    });
+
+    it('defence in depth: a claimed row whose companyId does not match the verified company is never credited', async () => {
+      const { service, documentsService, channelCredentials, provider } = buildService();
+      channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_A' } });
+      provider.parseWebhookEvent.mockReturnValue(completedEvent('cs_B'));
+      // Should be impossible now that companyId is in the claim's WHERE — simulated here so the guard
+      // itself is proven, not just assumed.
+      claimSessionForCompletion.mockResolvedValueOnce({
+        id: 'session-B',
+        companyId: 'company-B',
+        documentId: 'inv-B',
+        providerId: 'stripe',
+        providerSessionId: 'cs_B',
+        amountMinor: 12000,
+        currency: 'EUR',
+      });
+
+      const result = await service.handleWebhookEvent('company-A', 'stripe', 'forged-body', {
+        'stripe-signature': 'sig-A',
+      });
+
+      expect(result).toEqual({ outcome: 'unknown_session' });
+      expect(documentsService.getDocument).not.toHaveBeenCalled();
+      expect(documentsService.runAction).not.toHaveBeenCalled();
+      expect(attachSessionPayment).not.toHaveBeenCalled();
+    });
   });
 });

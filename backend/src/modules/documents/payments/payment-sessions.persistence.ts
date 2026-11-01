@@ -5,15 +5,18 @@ import prisma from '@/prisma/prisma.service';
 import { PaymentCheckoutSessionStatus } from '../../../../prisma/generated/prisma/client';
 
 /**
- * Tenant-safe Prisma persistence for `PaymentCheckoutSession` — every query scoped by `companyId`
- * except the two the webhook itself needs (`findSessionByProviderRef`/`claimSessionForCompletion`),
- * which are scoped by `(providerId, providerSessionId)` instead: an inbound webhook carries no
- * `companyId` a browser could be trusted to send, only the provider's own session id (see
- * `payment-sessions.service.ts`'s own header on why the URL's `:companyId` segment is a routing hint,
- * never the thing that actually authorizes the call — the signature check is). Plain functions, not a
- * class — the same "no DI needed for a pure read/write" shape `bank-reconciliation/persistence.ts`
- * already holds throughout, and for the same reason: `PaymentSessionsService` is the one thing here
- * that needs a provider (`DocumentsService`) injected.
+ * Tenant-safe Prisma persistence for `PaymentCheckoutSession` — EVERY query is scoped by `companyId`,
+ * including the webhook path (`findSessionByProviderRef`/`claimSessionForCompletion`/
+ * `releaseSessionClaim`/`markSessionFailed`). The webhook still correlates on
+ * `(providerId, providerSessionId)` because an inbound event names no company, but the URL's
+ * `:companyId` segment — whose OWN webhook secret is what verified the signature — is carried into
+ * every WHERE clause alongside it. Scoping only by the provider's session id was a cross-tenant
+ * settlement hole: any company that knows its own webhook secret could name another company's
+ * `cs_...` id (not secret — it appears in the payer's own checkout URL) and settle, or fail, that
+ * other tenant's invoice. See `payment-sessions.service.ts`'s own header, point 3. Plain functions,
+ * not a class — the same "no DI needed for a pure read/write" shape
+ * `bank-reconciliation/persistence.ts` already holds throughout, and for the same reason:
+ * `PaymentSessionsService` is the one thing here that needs a provider (`DocumentsService`) injected.
  */
 
 /** This company's own chosen payment provider (`Company.paymentProviderId` — see that column's own
@@ -90,18 +93,24 @@ export async function listSessionsForDocument(
   });
 }
 
-/** Looked up by the PROVIDER's own session id — see this file's own header on why a webhook is never
- *  trusted to also name the right `companyId` on its own say-so; `providerId` alone would not be
- *  enough either (Stripe's own session ids are unique to Stripe, but a SECOND provider could — in
- *  theory — reuse the same literal string; this keeps the lookup exact regardless). Returns `null` for
- *  an event this app never opened a session for (a stray/foreign event, a session from a different
- *  environment) — the caller treats that as a no-op, never an error (`payment-sessions.service.ts`). */
+/** Looked up by the PROVIDER's own session id, always WITH the company whose credentials verified the
+ *  webhook — `providerId` alone would not be enough either (Stripe's own session ids are unique to
+ *  Stripe, but a SECOND provider could — in theory — reuse the same literal string; this keeps the
+ *  lookup exact regardless). `companyId` is not optional: two tenants of this app genuinely can hold
+ *  rows that only the company column tells apart once a forged event names someone else's id. Returns
+ *  `null` for an event this app never opened a session for FOR THIS COMPANY (a stray/foreign event, a
+ *  session from a different environment, or another tenant's session id) — the caller treats that as a
+ *  no-op, never an error (`payment-sessions.service.ts`). */
 export async function findSessionByProviderRef(
+  companyId: string,
   providerId: string,
   providerSessionId: string,
 ): Promise<PaymentCheckoutSessionResult | null> {
   return prisma.paymentCheckoutSession.findUnique({
-    where: { providerId_providerSessionId: { providerId, providerSessionId } },
+    where: {
+      companyId,
+      providerId_providerSessionId: { providerId, providerSessionId },
+    },
   });
 }
 
@@ -122,26 +131,34 @@ export async function findOwnedSession(
 }
 
 /**
- * The atomic "at most once" guard: an `UPDATE ... WHERE providerId = ? AND providerSessionId = ? AND
- * status = 'PENDING'`, the exact same conditional-write shape
+ * The atomic "at most once" guard: an `UPDATE ... WHERE companyId = ? AND providerId = ?
+ * AND providerSessionId = ? AND status = 'PENDING'`, the exact same conditional-write shape
  * `bank-reconciliation/persistence.ts#claimLineForReconciliation` already uses for the identical "two
  * concurrent writers racing over the SAME row can never both win" problem — here, TWO deliveries of
  * the SAME webhook event (Stripe's own at-least-once contract) racing to credit the SAME session.
- * Postgres serializes the two `UPDATE`s; the loser's own `WHERE` clause matches zero rows once the
- * winner commits. Returns whether THIS call won (`count === 1`) — `payment-sessions.service.ts` calls
- * this BEFORE ever calling `record-payment`, so a lost race (a replay, or a genuine double-delivery)
- * never runs it twice.
+ * `companyId` is part of the WHERE, never a post-hoc comparison: that is what makes an event signed
+ * with company A's secret but naming company B's session match ZERO rows, instead of claiming B's row
+ * and settling B's invoice with money A never received. Postgres serializes the two `UPDATE`s; the
+ * loser's own `WHERE` clause matches zero rows once the winner commits. Returns whether THIS call won
+ * (`count === 1`) — `payment-sessions.service.ts` calls this BEFORE ever calling `record-payment`, so a
+ * lost race (a replay, a genuine double-delivery, or a foreign tenant's event) never runs it twice.
  */
 export async function claimSessionForCompletion(
+  companyId: string,
   providerId: string,
   providerSessionId: string,
 ): Promise<PaymentCheckoutSessionResult | null> {
   const result = await prisma.paymentCheckoutSession.updateMany({
-    where: { providerId, providerSessionId, status: PaymentCheckoutSessionStatus.PENDING },
+    where: {
+      companyId,
+      providerId,
+      providerSessionId,
+      status: PaymentCheckoutSessionStatus.PENDING,
+    },
     data: { status: PaymentCheckoutSessionStatus.COMPLETED, completedAt: new Date() },
   });
   if (result.count !== 1) return null;
-  return findSessionByProviderRef(providerId, providerSessionId);
+  return findSessionByProviderRef(companyId, providerId, providerSessionId);
 }
 
 /** The SECOND half of a successful completion — records WHICH `DocumentPayment` the claim above
@@ -163,19 +180,40 @@ export async function attachSessionPayment(sessionId: string, paymentId: string)
  * `reconciledPaymentId: null`. See `payment-sessions.service.ts#handleWebhookEvent`'s own header for
  * what this means for a payment that succeeded at Stripe but failed to record here.
  */
-export async function releaseSessionClaim(providerId: string, providerSessionId: string): Promise<void> {
+export async function releaseSessionClaim(
+  companyId: string,
+  providerId: string,
+  providerSessionId: string,
+): Promise<void> {
   await prisma.paymentCheckoutSession.updateMany({
-    where: { providerId, providerSessionId, status: PaymentCheckoutSessionStatus.COMPLETED, paymentId: null },
+    where: {
+      companyId,
+      providerId,
+      providerSessionId,
+      status: PaymentCheckoutSessionStatus.COMPLETED,
+      paymentId: null,
+    },
     data: { status: PaymentCheckoutSessionStatus.PENDING, completedAt: null },
   });
 }
 
 /** A provider-reported failure (an expired session, a declined card) — same conditional shape as the
- *  claim above, so a stray FAILED event arriving after this session was already independently
- *  COMPLETED can never downgrade it. */
-export async function markSessionFailed(providerId: string, providerSessionId: string): Promise<void> {
+ *  claim above, company included, so a forged FAILED event signed with another tenant's secret cannot
+ *  move THIS tenant's PENDING session to FAILED (which would make the real `completed` event find no
+ *  PENDING row and silently drop a real payment), and a stray FAILED event arriving after this session
+ *  was already independently COMPLETED can never downgrade it. */
+export async function markSessionFailed(
+  companyId: string,
+  providerId: string,
+  providerSessionId: string,
+): Promise<void> {
   await prisma.paymentCheckoutSession.updateMany({
-    where: { providerId, providerSessionId, status: PaymentCheckoutSessionStatus.PENDING },
+    where: {
+      companyId,
+      providerId,
+      providerSessionId,
+      status: PaymentCheckoutSessionStatus.PENDING,
+    },
     data: { status: PaymentCheckoutSessionStatus.FAILED },
   });
 }

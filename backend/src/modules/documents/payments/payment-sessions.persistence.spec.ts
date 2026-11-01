@@ -85,12 +85,15 @@ describe('findOwnedSession', () => {
 });
 
 describe('findSessionByProviderRef', () => {
-  it("looks up by the composite (providerId, providerSessionId) key, never by this row's own id", async () => {
+  it('looks up by the composite (providerId, providerSessionId) key AND the company whose secret verified the event', async () => {
     findUnique.mockResolvedValue(null);
-    await findSessionByProviderRef('stripe', 'cs_1');
+    await findSessionByProviderRef('company-1', 'stripe', 'cs_1');
 
     expect(findUnique).toHaveBeenCalledWith({
-      where: { providerId_providerSessionId: { providerId: 'stripe', providerSessionId: 'cs_1' } },
+      where: {
+        companyId: 'company-1',
+        providerId_providerSessionId: { providerId: 'stripe', providerSessionId: 'cs_1' },
+      },
     });
   });
 });
@@ -100,11 +103,17 @@ describe('claimSessionForCompletion', () => {
     updateMany.mockResolvedValue({ count: 1 });
     findUnique.mockResolvedValue({ id: 'session-1', status: PaymentCheckoutSessionStatus.COMPLETED });
 
-    const result = await claimSessionForCompletion('stripe', 'cs_1');
+    const result = await claimSessionForCompletion('company-1', 'stripe', 'cs_1');
 
     expect(updateMany).toHaveBeenCalledWith({
-      where: { providerId: 'stripe', providerSessionId: 'cs_1', status: 'PENDING' },
+      where: { companyId: 'company-1', providerId: 'stripe', providerSessionId: 'cs_1', status: 'PENDING' },
       data: expect.objectContaining({ status: 'COMPLETED' }),
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        providerId_providerSessionId: { providerId: 'stripe', providerSessionId: 'cs_1' },
+      },
     });
     expect(result?.id).toBe('session-1');
   });
@@ -112,8 +121,23 @@ describe('claimSessionForCompletion', () => {
   it('loses the claim (count === 0, a replay or an unknown session) and returns null WITHOUT reading the row', async () => {
     updateMany.mockResolvedValue({ count: 0 });
 
-    const result = await claimSessionForCompletion('stripe', 'cs_1');
+    const result = await claimSessionForCompletion('company-1', 'stripe', 'cs_1');
 
+    expect(result).toBeNull();
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it('claims NOTHING when the session id belongs to another company — companyId is in the atomic WHERE, not a check after it', async () => {
+    // Company A's secret signed the event, but `cs_B` is company B's session: the conditional UPDATE is
+    // scoped by companyId, so it matches zero rows (the DB, not a later comparison, is what refuses).
+    updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await claimSessionForCompletion('company-A', 'stripe', 'cs_B');
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-A', providerId: 'stripe', providerSessionId: 'cs_B', status: 'PENDING' },
+      data: expect.objectContaining({ status: 'COMPLETED' }),
+    });
     expect(result).toBeNull();
     expect(findUnique).not.toHaveBeenCalled();
   });
@@ -130,10 +154,32 @@ describe('attachSessionPayment', () => {
 describe('releaseSessionClaim', () => {
   it('only reverts a COMPLETED session with NO payment attached yet — never an already-finished one', async () => {
     updateMany.mockResolvedValue({ count: 1 });
-    await releaseSessionClaim('stripe', 'cs_1');
+    await releaseSessionClaim('company-1', 'stripe', 'cs_1');
 
     expect(updateMany).toHaveBeenCalledWith({
-      where: { providerId: 'stripe', providerSessionId: 'cs_1', status: 'COMPLETED', paymentId: null },
+      where: {
+        companyId: 'company-1',
+        providerId: 'stripe',
+        providerSessionId: 'cs_1',
+        status: 'COMPLETED',
+        paymentId: null,
+      },
+      data: { status: 'PENDING', completedAt: null },
+    });
+  });
+
+  it("cannot release another company's claim — companyId scopes the rollback too", async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+    await releaseSessionClaim('company-A', 'stripe', 'cs_B');
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-A',
+        providerId: 'stripe',
+        providerSessionId: 'cs_B',
+        status: 'COMPLETED',
+        paymentId: null,
+      },
       data: { status: 'PENDING', completedAt: null },
     });
   });
@@ -142,10 +188,20 @@ describe('releaseSessionClaim', () => {
 describe('markSessionFailed', () => {
   it('only ever moves a PENDING session to FAILED — never downgrades an already-COMPLETED one', async () => {
     updateMany.mockResolvedValue({ count: 1 });
-    await markSessionFailed('stripe', 'cs_1');
+    await markSessionFailed('company-1', 'stripe', 'cs_1');
 
     expect(updateMany).toHaveBeenCalledWith({
-      where: { providerId: 'stripe', providerSessionId: 'cs_1', status: 'PENDING' },
+      where: { companyId: 'company-1', providerId: 'stripe', providerSessionId: 'cs_1', status: 'PENDING' },
+      data: { status: 'FAILED' },
+    });
+  });
+
+  it("cannot fail another company's PENDING session — the forged checkout.failed denial-of-service is closed here", async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+    await markSessionFailed('company-A', 'stripe', 'cs_B');
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-A', providerId: 'stripe', providerSessionId: 'cs_B', status: 'PENDING' },
       data: { status: 'FAILED' },
     });
   });
