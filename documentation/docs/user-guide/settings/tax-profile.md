@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Tax profile
@@ -9,8 +9,10 @@ that only you can answer, such as the size category a French seller falls into. 
 only for a country that declares such questions, and each question disappears once it stops
 applying.
 
-A question you have not answered yet leaves your company in the strictest case the country defines.
-Answering it once is enough for Invoicerr to apply the matching rules afterwards.
+A question you have not answered yet leaves Invoicerr without an answer to rely on, so it applies
+only the rules that do not depend on it. The size category is the exception: left undeclared, a French
+company follows the large-company calendar, the strictest case the country defines. Answering a
+question once is enough for Invoicerr to apply the matching rules afterwards.
 
 ## What each country asks
 

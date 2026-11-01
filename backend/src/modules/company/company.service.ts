@@ -202,15 +202,26 @@ function nextReportingProfile(
     input.countryCode === null ? null : (input.countryCode ?? existing.countryCode),
     input.country ?? existing.country,
   );
-  if (input.reportingProfile === undefined && nextCountry === existingCountry) return undefined;
+  // The VAT exemption switch changes what the profile derives, so a request that only flips it still
+  // has to rewrite the column: otherwise an answer to a question the exemption stops asking survives
+  // in the row and would come back the moment the switch is turned off again.
+  const exemptVat = input.exemptVat ?? existing.exemptVat;
+  const attributes = defaultCompanyProfileCatalog.attributesFor(nextCountry);
+  if (
+    input.reportingProfile === undefined &&
+    nextCountry === existingCountry &&
+    (exemptVat === existing.exemptVat || attributes.length === 0)
+  ) {
+    return undefined;
+  }
   try {
     return applyCompanyProfileInput(
       parseCompanyProfileValues(existing.reportingProfile),
       input.reportingProfile === undefined ? {} : input.reportingProfile,
-      defaultCompanyProfileCatalog.attributesFor(nextCountry),
+      attributes,
       // The VAT exemption switch may change in the same request: the profile it derives is judged
       // against the value the company will have AFTER this write, not the stored one.
-      { exemptVat: input.exemptVat ?? existing.exemptVat },
+      { exemptVat },
     );
   } catch (error) {
     if (error instanceof InvalidCompanyProfileValueError) throw new BadRequestException(error.message);

@@ -142,16 +142,16 @@ export function assertValidCompanyProfile(section: CountryCompanyProfileFile, co
 /** The shape of a condition alone: a non-empty object of non-empty lists of non-blank strings. */
 export function assertWellFormedProfileCondition(condition: unknown, context: string): void {
   if (typeof condition !== 'object' || condition === null || Array.isArray(condition)) {
-    throw new InvalidCompanyProfileError(`${context}: a seller condition must be an object.`);
+    throw new InvalidCompanyProfileError(`${context}: a condition must be an object.`);
   }
   const entries = Object.entries(condition as Record<string, unknown>);
   if (entries.length === 0) {
-    throw new InvalidCompanyProfileError(`${context}: a seller condition names no attribute.`);
+    throw new InvalidCompanyProfileError(`${context}: a condition names no attribute.`);
   }
   for (const [key, values] of entries) {
     if (!Array.isArray(values) || values.length === 0 || !values.every(isNonBlankString)) {
       throw new InvalidCompanyProfileError(
-        `${context}: seller condition "${key}" must list at least one value, each a non-blank string.`,
+        `${context}: condition "${key}" must list at least one value, each a non-blank string.`,
       );
     }
   }

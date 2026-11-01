@@ -104,7 +104,7 @@ describe('company profile schema: askedWhen and derived values', () => {
       /attribute "sizeCategory" declares an "askedWhen" on itself/,
     );
     expect(() => assertValidCompanyProfile(section([sizeCategory, emptyCondition]), 'xx')).toThrow(
-      /"askedWhen": a seller condition names no attribute/,
+      /"askedWhen": a condition names no attribute/,
     );
   });
 

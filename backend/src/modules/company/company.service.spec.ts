@@ -278,6 +278,27 @@ describe('CompanyService - the company profile its country asks for', () => {
     });
   });
 
+  it('revalidates the stored profile when only the VAT exemption switch changes', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { reportingProfile: { vatDebitsOption: 'EXERCISED' } });
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: companyId } })).reportingProfile).toEqual(
+        { vatDebitsOption: 'EXERCISED' },
+      );
+
+      const exempt = await edit(companyId, { exemptVat: true });
+      expect(exempt.reportingProfile).toEqual({});
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
+        vatRegime: 'FRANCHISE',
+      });
+
+      const normal = await edit(companyId, { exemptVat: false });
+      expect(normal.reportingProfile).toEqual({});
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
+        vatRegime: 'NORMAL',
+      });
+    });
+  });
+
   it('a Portuguese company is asked nothing', async () => {
     await withCompany(async (companyId) => {
       await prisma.company.update({

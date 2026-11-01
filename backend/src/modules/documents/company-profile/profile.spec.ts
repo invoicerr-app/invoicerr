@@ -98,8 +98,8 @@ describe('company profile values', () => {
   });
 
   it('never returns a stored answer for a question the derived value no longer asks', () => {
-    // The reviewer's own case: a French company with exemptVat on derives FRANCHISE, so the "VAT on
-    // debits" option is not asked - a value left in the column must not resurface in the profile.
+    // A French company with exemptVat on derives FRANCHISE, so the "VAT on debits" option is not
+    // asked: a value left in the column must not resurface in the profile.
     const values = companyProfileValues(
       { sizeCategory: 'SMALL', vatDebitsOption: 'EXERCISED' },
       [sizeCategory, vatRegime, debitsOption],
@@ -108,6 +108,59 @@ describe('company profile values', () => {
 
     expect(values).toEqual({ sizeCategory: 'SMALL', vatRegime: 'FRANCHISE' });
     expect(values).not.toHaveProperty('vatDebitsOption');
+  });
+
+  it('drops a second-level answer whose dependency is itself no longer asked', () => {
+    const first: CompanyProfileAttribute = {
+      key: 'firstQuestion',
+      label: 'First question',
+      values: [
+        { value: 'NARROW', label: 'Narrow' },
+        { value: 'BROAD', label: 'Broad' },
+      ],
+      provenance,
+    };
+    const second: CompanyProfileAttribute = {
+      key: 'secondQuestion',
+      label: 'Second question',
+      values: [{ value: 'ANSWERED', label: 'Answered' }],
+      askedWhen: { firstQuestion: ['BROAD'] },
+      provenance,
+    };
+    const third: CompanyProfileAttribute = {
+      key: 'thirdQuestion',
+      label: 'Third question',
+      values: [{ value: 'ANSWERED', label: 'Answered' }],
+      askedWhen: { secondQuestion: ['ANSWERED'] },
+      provenance,
+    };
+    const attributes = [first, second, third];
+
+    const dropped = companyProfileValues(
+      { firstQuestion: 'NARROW', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },
+      attributes,
+      { exemptVat: false },
+    );
+    expect(dropped).toEqual({ firstQuestion: 'NARROW' });
+    expect(
+      applyCompanyProfileInput(
+        { firstQuestion: 'NARROW', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },
+        {},
+        attributes,
+        { exemptVat: false },
+      ),
+    ).toEqual({ firstQuestion: 'NARROW' });
+
+    const kept = companyProfileValues(
+      { firstQuestion: 'BROAD', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },
+      attributes,
+      { exemptVat: false },
+    );
+    expect(kept).toEqual({
+      firstQuestion: 'BROAD',
+      secondQuestion: 'ANSWERED',
+      thirdQuestion: 'ANSWERED',
+    });
   });
 
   it('refuses to store an answer for a question the company values do not ask', () => {

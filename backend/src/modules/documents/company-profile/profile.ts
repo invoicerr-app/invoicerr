@@ -51,16 +51,63 @@ export function companyProfileValues(
   sources: CompanyProfileSources,
 ): CompanyProfileValues {
   const derived = derivedProfileValues(attributes, sources);
-  const declared = parseCompanyProfileValues(stored);
-  const context = { ...declared, ...derived };
-  const values: CompanyProfileValues = { ...derived };
-  for (const [key, value] of Object.entries(declared)) {
+  const declared: CompanyProfileValues = {};
+  for (const [key, value] of Object.entries(parseCompanyProfileValues(stored))) {
     const attribute = attributes.find((candidate) => candidate.key === key);
     if (!attribute || attribute.derived) continue;
-    if (!isAttributeAsked(attribute, context)) continue;
-    values[key] = value;
+    declared[key] = value;
   }
+  return { ...derived, ...carriedDeclaredValues(declared, attributes, sources) };
+}
+
+/**
+ * The declared answers actually carried: one whose condition fails is dropped, and so is an answer
+ * that depends on it. The context of every condition is therefore built from the answers that
+ * survive, never from the stored column, which would let a dropped answer keep a second-level
+ * question alive. Dropping is monotone and repeated to a fixed point, so the result does not depend
+ * on the order the attributes are declared in (a condition may form a cycle; a cycle is simply never
+ * satisfied by an answer one of its members no longer has).
+ */
+function carriedDeclaredValues(
+  declared: CompanyProfileValues,
+  attributes: CompanyProfileAttribute[],
+  sources: CompanyProfileSources,
+): CompanyProfileValues {
+  const derived = derivedProfileValues(attributes, sources);
+  const carried = new Set(Object.keys(declared));
+  let dropped = true;
+  while (dropped) {
+    dropped = false;
+    const context: CompanyProfileValues = { ...derived };
+    for (const key of carried) context[key] = declared[key];
+    for (const key of [...carried]) {
+      const attribute = attributes.find((candidate) => candidate.key === key);
+      if (attribute && conditionHolds(attribute, context, declared)) continue;
+      carried.delete(key);
+      dropped = true;
+    }
+  }
+  const values: CompanyProfileValues = {};
+  for (const key of carried) values[key] = declared[key];
   return values;
+}
+
+/**
+ * `askedWhen` read against carried values, with one distinction `isAttributeAsked` does not need:
+ * an answer that was declared and then dropped cannot make another condition hold, while an
+ * attribute never declared leaves its condition open.
+ */
+function conditionHolds(
+  attribute: CompanyProfileAttribute,
+  context: CompanyProfileValues,
+  declared: CompanyProfileValues,
+): boolean {
+  if (!attribute.askedWhen) return true;
+  return Object.entries(attribute.askedWhen).every(([key, allowed]) => {
+    const value = context[key];
+    if (value !== undefined) return allowed.includes(value);
+    return !(key in declared);
+  });
 }
 
 /**
@@ -132,19 +179,15 @@ export function applyCompanyProfileInput(
     declared[key] = value;
     touched.add(key);
   }
-  const context = { ...declared, ...derivedProfileValues(attributes, sources) };
+  const next = carriedDeclaredValues(declared, attributes, sources);
   for (const key of touched) {
+    if (key in next) continue;
     const attribute = attributes.find((candidate) => candidate.key === key);
-    if (!attribute || isAttributeAsked(attribute, context)) continue;
+    if (!attribute) continue;
     throw new InvalidCompanyProfileValueError(
       `reportingProfile.${key} is asked only when ${describeAskedWhen(attribute)}, ` +
         `which the company's own values do not satisfy.`,
     );
-  }
-  const next: CompanyProfileValues = {};
-  for (const [key, value] of Object.entries(declared)) {
-    const attribute = attributes.find((candidate) => candidate.key === key);
-    if (attribute && isAttributeAsked(attribute, context)) next[key] = value;
   }
   return next;
 }

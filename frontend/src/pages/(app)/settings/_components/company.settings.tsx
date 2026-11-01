@@ -47,8 +47,9 @@ import {
   useRequiredIdentifiers,
   withVatIdentifier,
 } from "@/hooks/use-required-identifiers"
-import type { Company, CompanyProfileAttribute, ResolvedRevenueSettings } from "@/types"
+import type { Company, ResolvedRevenueSettings } from "@/types"
 import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
+import { isProfileAttributeAsked, profileValuesForDisplay } from "./company-profile-values"
 
 import { NumberFormatsSection } from "./number-formats.section"
 import { CompanyLawSection } from "./company-law.section"
@@ -70,18 +71,6 @@ const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 const UNDECLARED_PROFILE_VALUE = "__undeclared__"
-
-/** Whether the country still needs this attribute answered; an undeclared dependency keeps it shown. */
-function isProfileAttributeAsked(
-  attribute: CompanyProfileAttribute,
-  values: Record<string, string | undefined>,
-): boolean {
-  if (!attribute.askedWhen) return true
-  return Object.entries(attribute.askedWhen).every(([key, allowed]) => {
-    const value = values[key]
-    return !value || allowed.includes(value)
-  })
-}
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation()
@@ -213,7 +202,7 @@ export default function CompanySettings() {
       .min(0, t("settings.company.form.reconciliationTolerancePercent.errors.min")),
   })
 
-  const { data } = useGet<Company>("/api/company/info")
+  const { data, mutate: refetchCompany } = useGet<Company>("/api/company/info")
   const profileAttributes = data?.companyProfileAttributes ?? []
   // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
   // per-country default) plus whether each is explicit, so the select below can show "using the
@@ -272,11 +261,14 @@ export default function CompanySettings() {
   })
 
   // The attributes the country asks for right now: a condition follows the value on screen, so a
-  // question that stops being relevant disappears without a save.
-  const profileValues = {
-    ...(data?.companyProfileValues ?? {}),
-    ...(form.watch("reportingProfile") ?? {}),
-  }
+  // question that stops being relevant disappears without a save. The derived value is rebuilt from
+  // the live switch, never from the stored one the server computed its values with.
+  const profileValues = profileValuesForDisplay(
+    profileAttributes,
+    data?.companyProfileValues,
+    form.watch("reportingProfile"),
+    form.watch("exemptVat") === true,
+  )
   const askedProfileAttributes = profileAttributes.filter((attribute) =>
     isProfileAttributeAsked(attribute, profileValues),
   )
@@ -589,6 +581,9 @@ export default function CompanySettings() {
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
       refetchResolvedRevenueSettings()
+      // The saved row is the source of the locked rows (the derived VAT regime) and of the values a
+      // condition is read against; without this the screen keeps showing what it loaded.
+      refetchCompany()
     } finally {
       setIsLoading(false)
     }

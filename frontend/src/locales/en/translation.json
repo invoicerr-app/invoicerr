@@ -2160,7 +2160,7 @@
       },
       "profile": {
         "title": "Company profile",
-        "description": "What your country's rules depend on. Until a value is declared, the strictest rule applies.",
+        "description": "What your country's rules depend on. Only the questions your country asks appear here.",
         "notDeclared": "Not declared",
         "derivedReason": "Set by the VAT exemption switch above"
       },
