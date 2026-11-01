@@ -50,7 +50,7 @@ describe('LogPersistenceHealth', () => {
     });
   });
 
-  it('returns to ok after enough successes separate two streaks', () => {
+  it('returns to ok after one success separates two streaks', () => {
     for (let i = 0; i < LOG_PERSIST_FAILURE_THRESHOLD; i++) health.recordFailure();
     expect(health.snapshot().status).toBe('degraded');
 

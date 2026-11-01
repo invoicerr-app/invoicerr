@@ -476,7 +476,10 @@ curl http://localhost:8080/api/health
   line. After 5 consecutive failed writes `status` becomes `degraded` (still HTTP 200, because
   Postgres and Redis are answering): the API keeps serving, but the log screen is not being written
   to. `lastFailureAt` is `null` until the first failure. Each process reports its own counters, so a
-  multi-replica install shows one signal per replica.
+  multi-replica install shows one signal per replica. A worker replica carries the same
+  `logPersistence` object on its own health server at `:3001`: with `WORKER_INLINE=false` the
+  background writes (document actions, pollers, webhooks) happen there, so its counters are the
+  ones to watch for those.
 - `503 {"status":"error","database":"down"}` when Postgres does not answer, whatever Redis says.
 - `503 {"status":"error","database":"up","redis":"down"}` when only Redis does not answer. Every other
   route fails without Redis, so the instance is reported down. A monitor that matches the body

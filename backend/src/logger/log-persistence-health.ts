@@ -8,8 +8,9 @@
  * reports `status: 'degraded'` once the streak reaches `LOG_PERSIST_FAILURE_THRESHOLD` while still
  * answering 200: the API keeps serving, but an operator sees that the log screen is going empty.
  *
- * These counters live in one process: each replica reports its own, which is what a per-pod health
- * probe shows. Nothing is persisted, and no Prometheus metric is exported yet.
+ * These counters live in one process: each API replica reports its own through `GET /api/health`, and
+ * each worker replica through its own `:3001` health server, which is what a per-pod probe sees.
+ * Nothing is persisted, and no Prometheus metric is exported yet.
  */
 export const LOG_PERSIST_FAILURE_THRESHOLD = 5;
 

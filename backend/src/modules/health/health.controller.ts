@@ -24,7 +24,7 @@ export class HealthController {
       'writes have failed several times in a row: the API serves, but its log screen is not being ' +
       'written to.',
   })
-  @ApiResponse({ status: 200, description: 'Service healthy' })
+  @ApiResponse({ status: 200, description: 'Service up (possibly degraded)' })
   @ApiResponse({ status: 503, description: 'Database or Redis unreachable' })
   async check() {
     const result = await this.healthService.check();
