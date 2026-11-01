@@ -72,7 +72,7 @@ async function renderWithCreatedKey() {
   return screen.findByLabelText("Copy")
 }
 
-describe("<ApiKeysSettings> — copy outcome", () => {
+describe("<ApiKeysSettings> — create and copy outcomes", () => {
   const originalClipboard = navigator.clipboard
   const originalExecCommand = document.execCommand
 

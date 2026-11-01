@@ -42,7 +42,7 @@ export default function ApiKeysSettings() {
   const { t } = useTranslation()
   const { data: apiKeys, mutate } = useGet<ApiKey[]>("/api/api-keys")
   const { trigger: createApiKey, loading: creating } = useMutationWithToast(
-    usePost("/api/api-keys"),
+    usePost<{ key: string }>("/api/api-keys"),
     t("settings.apiKeys.messages.createError", "Failed to create API key"),
   )
   const { data: options } = useGet<{ scopes: string[] }>("/api/api-keys/options")
@@ -58,7 +58,7 @@ export default function ApiKeysSettings() {
 
   const handleCreate = form.handleSubmit(async (values) => {
     if (!values.name?.trim()) return
-    const res = (await createApiKey(values)) as any
+    const res = await createApiKey(values)
     // Failure is already toasted by `useMutationWithToast`; success is the only path with a key.
     if (res?.key) {
       setCreatedKey(res.key)
