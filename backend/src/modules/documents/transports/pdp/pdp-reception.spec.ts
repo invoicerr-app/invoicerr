@@ -1,16 +1,26 @@
 import { vi, type Mock } from 'vitest';
+import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
+import { PdpApiError } from './pdp-client';
 import {
   buildPdpReceptionStatusPusher,
   PDP_RECEPTION_APPROVED_CODE,
   PDP_RECEPTION_PAID_CODE,
   PDP_RECEPTION_REJECTED_CODE,
+  PDP_RECEPTION_REJECTED_REASON_CODE,
   PDP_RECEPTION_TAKEN_IN_CHARGE_CODE,
 } from './pdp-reception';
 
+// The real logger persists to Prisma, which a unit test must not need at all (and which fails
+// noisily without a database); the push's own visibility contract is what is asserted instead.
+vi.mock('@/logger/logger.service', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
 const mockPushLifecycleStatus = vi.fn();
 const mockAuthenticate = vi.fn();
+const mockLoggerError = logger.error as Mock;
 
 vi.mock('./pdp-client', async () => {
   // `vi.importActual` is ASYNC (unlike Jest's synchronous `requireActual`) — the factory MUST be
@@ -68,13 +78,16 @@ describe('buildPdpReceptionStatusPusher', () => {
     expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_APPROVED_CODE, undefined);
   });
 
-  it('pushRejected pushes the "refusée" code with the reason as the documented details[].reason', async () => {
+  it('pushRejected pushes the "refusée" code with a ReasonCode and the user text as the motivation', async () => {
     mockPushLifecycleStatus.mockResolvedValue(undefined);
     const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials());
 
     await pusher.pushRejected('company-1', '604667', 'Wrong PO');
 
-    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_REJECTED_CODE, 'Wrong PO');
+    expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_REJECTED_CODE, {
+      reasonCode: PDP_RECEPTION_REJECTED_REASON_CODE,
+      motivation: 'Wrong PO',
+    });
   });
 
   it('pushPaid pushes "payment sent" (this company IS the buyer here) — fr:211, not fr:212', async () => {
@@ -86,11 +99,44 @@ describe('buildPdpReceptionStatusPusher', () => {
     expect(mockPushLifecycleStatus).toHaveBeenCalledWith(604667, PDP_RECEPTION_PAID_CODE, undefined);
   });
 
-  it('never throws when the platform push fails (LIVE-VERIFIED 404 on the sandbox, see pdp-client.ts) — non-fatal', async () => {
-    mockPushLifecycleStatus.mockRejectedValue(new Error('404 Not Found'));
+  it('never throws when the platform push fails, and logs it at error with the platform status and body', async () => {
+    mockPushLifecycleStatus.mockRejectedValue(
+      new PdpApiError(
+        'Validation failed',
+        400,
+        { http_status_code: 400, error: 'invalid reason' },
+        '/v1.beta/invoice_events',
+      ),
+    );
     const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials());
 
-    await expect(pusher.pushTakenInCharge('company-1', '604667')).resolves.toBeUndefined();
+    await expect(pusher.pushRejected('company-1', '604667', 'Wrong PO')).resolves.toBeUndefined();
+
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'PDP reception status push failed: the platform did not receive it',
+      expect.objectContaining({
+        category: 'documents',
+        details: expect.objectContaining({
+          companyId: 'company-1',
+          pdpInboundId: '604667',
+          code: PDP_RECEPTION_REJECTED_CODE,
+          reason: 'Wrong PO',
+          reasonCode: PDP_RECEPTION_REJECTED_REASON_CODE,
+          status: 400,
+          response: { http_status_code: 400, error: 'invalid reason' },
+          message: expect.stringContaining('PDP /v1.beta/invoice_events: 400'),
+        }),
+      }),
+    );
+  });
+
+  it('does not log at error when the push succeeds', async () => {
+    mockPushLifecycleStatus.mockResolvedValue(undefined);
+    const pusher = buildPdpReceptionStatusPusher(buildChannelCredentials());
+
+    await pusher.pushPaid('company-1', '604667');
+
+    expect(mockLoggerError).not.toHaveBeenCalled();
   });
 
   it('is a silent no-op (never even resolves a client) when PDP is not connected for this company', async () => {

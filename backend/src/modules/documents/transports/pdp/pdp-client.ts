@@ -357,10 +357,15 @@ export class PdpClient {
       body?: unknown;
       contentType?: string;
       formData?: FormData;
+      /** `false` makes this call single-attempt. Only for a POST with no idempotency key in the
+       *  OpenAPI, where a timeout after the platform committed would otherwise duplicate the write
+       *  (see `pushLifecycleStatus`'s own header). */
+      retry?: boolean;
     },
   ): Promise<T> {
+    const maxRetries = opts?.retry === false ? 0 : this.maxRetries;
     let lastError: unknown;
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
         await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
       }
@@ -403,7 +408,7 @@ export class PdpClient {
           respBody = text || undefined;
         }
 
-        if (res.status >= 500 && attempt < this.maxRetries) {
+        if (res.status >= 500 && attempt < maxRetries) {
           lastError = new PdpApiError(`Server error ${res.status}`, res.status, respBody, path);
           continue;
         }
@@ -429,7 +434,7 @@ export class PdpClient {
         if (err instanceof PdpApiError && err.status >= 400 && err.status < 500) {
           throw err;
         }
-        if (attempt < this.maxRetries) {
+        if (attempt < maxRetries) {
           lastError = err;
           continue;
         }
@@ -632,8 +637,8 @@ export class PdpClient {
   }
 
   // -----------------------------------------------------------------------
-  // Lifecycle status push (a party notifying the PDP of a status change — outbound seller codes like
-  // fr:211/fr:212, or BUYER-side codes like fr:204/fr:205 pushed from the RECEPTION side — see
+  // Lifecycle status push (a party notifying the PDP of a status change: outbound seller codes like
+  // fr:211/fr:212, or BUYER-side codes like fr:204/fr:205 pushed from the RECEPTION side; see
   // `pdp-reception.ts`'s own header for the received-invoice "approve"/"reject"/"paid" actions)
   // -----------------------------------------------------------------------
 
@@ -643,22 +648,43 @@ export class PdpClient {
    * SuperPDP's own endpoint, per its published OpenAPI (read 2026-10-31):
    * `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`. The path this
    * method used to call, `POST /v1.beta/invoices/{id}/lifecycle_events`, does not exist on the API
-   * at all — every live attempt answered a generic `404 {"http_status_code":404}` (see
+   * at all: every live attempt answered a generic `404 {"http_status_code":404}` (see
    * `documentation/docs/developer-guide/live-testing.md`), which is exactly what an unregistered
    * route returns. The status was therefore never delivered.
    *
-   * `details[].reason` is the documented slot for a motivated refusal (`invoice_event_detail`'s
-   * `reason`, MDT-113), which is why `pushRejected` passes one. The OpenAPI also states that a
-   * `fr:212` event without details reports the invoice's total as the paid amount.
+   * `details[].reason` is NOT a free-text motivation: the OpenAPI types it as a ReasonCode
+   * (MDT-113, the list in AFNOR XP Z12-012), so a sentence sent there is a validation error at
+   * best. The free text belongs in `details[].notes[].contents[].content` (MDG-39), the field
+   * SuperPDP added in 1.28.0 exactly for the motivation of an `fr:210` event. `refusal` therefore
+   * carries both halves, and only a code is ever put in `reason`.
+   *
+   * No retry, deliberately: the OpenAPI exposes no idempotency key for this POST, so a timeout
+   * after the platform created the event would create a second one on the next `request()` retry.
+   * The push is non-fatal by contract (the local status was persisted first), so one attempt plus
+   * an `error` log beats a duplicate lifecycle event. The OpenAPI also states that a `fr:212` event
+   * without details reports the invoice's total as the paid amount.
    */
-  async pushLifecycleStatus(invoiceId: number, code: SuperPdpStatusCreate, reason?: string): Promise<void> {
-    const details = reason?.trim() ? [{ reason: reason.trim() }] : undefined;
+  async pushLifecycleStatus(
+    invoiceId: number,
+    code: SuperPdpStatusCreate,
+    refusal?: { reasonCode: string; motivation?: string },
+  ): Promise<void> {
+    const motivation = refusal?.motivation?.trim();
+    const details = refusal
+      ? [
+          {
+            reason: refusal.reasonCode,
+            ...(motivation ? { notes: [{ contents: [{ content: motivation }] }] } : {}),
+          },
+        ]
+      : undefined;
     await this.request<unknown>('POST', '/v1.beta/invoice_events', {
       body: {
         invoice_id: invoiceId,
         status_code: code,
         ...(details ? { details } : {}),
       },
+      retry: false,
     });
   }
 

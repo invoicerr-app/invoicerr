@@ -35,7 +35,7 @@ Hard-success contract (enforced per-spec):
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef.live.spec.ts` | 🟡 Credentials present, round-trip unverified — `KSEF_AUTH_TOKEN`/`KSEF_NIP` **do** exist as CI secrets today (confirmed by name via `gh secret list`, not by value). The same secrets authenticated successfully against `ksef-test.mf.gov.pl` as recently as 2026-07-14 (a CI run of the pre-refactor `compliance/providers/transmission/ksef/ksef-live.spec.ts`: real submission, a semantic `REJECTED` — code 450 — not an auth failure). No live run has exercised the current, post-refactor spec, and `compliance-live.yml` has not been triggered since the 2026-08-29 engine refactor — so whether the same credentials are still valid today is **unverified**, not proven expired. |
 | PDP superpdp (FR) | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` | `pdp/superpdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
 | PDP superpdp (FR) - credit note (issue #472) | `SUPERPDP_LIVE=1` | same as the row above | `pdp/superpdp-credit-note.live.spec.ts` | ✅ **Accepted live 2026-09-27** - an invoice (TypeCode 380, deposit 766462) then a credit note correcting it (TypeCode 381, BG-3 naming that invoice, deposit 766465), both `fr:200 → fr:201`, no rejection. Proves the 381 + BG-3 CII shape; the fr:202 step was not awaited. |
-| PDP reception (FR) — inbound e-invoices | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING` (same credentials as the row above — one PDP account only, see below) | `pdp/superpdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16** — a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) now targets `POST /v1.beta/invoice_events`** (the route SuperPDP's published OpenAPI documents); the old `/invoices/{id}/lifecycle_events` path does not exist and answered a generic 404 — no live round-trip of the corrected push has been run yet, see the dedicated section below |
+| PDP reception (FR), inbound e-invoices | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING` (same credentials as the row above: one PDP account only, see below) | `pdp/superpdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16**: a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) now targets `POST /v1.beta/invoice_events`** (the route SuperPDP's published OpenAPI documents); the old `/invoices/{id}/lifecycle_events` path does not exist and answered a generic 404; no live round-trip of the corrected push has been run yet, see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | Iopole (FR) | `IOPOLE_LIVE=1` | `PDP_IOPOLE_CLIENT_ID`, `PDP_IOPOLE_CLIENT_SECRET`, `PDP_IOPOLE_CUSTOMER_ID` (`PDP_IOPOLE_API_BASE` / `PDP_IOPOLE_TOKEN_URL` optional - the hosts are fixed constants in `iopole-transport.ts#IOPOLE_URLS`) | `iopole/iopole.live.spec.ts` | ✅ **Round-trip proven 2026-09-24** - real Factur-X deposit accepted (`201 {"type":"INVOICE","id":"01a0d29b-37d0-750d-9f8f-5d35664fca90"}`) and a real positive verdict read back from the platform: `SUBMITTED` (destType `PPF` and `OPERATOR`) → `RECEIVED` (networkCode 202) → `ISSUED`, no rejection. Reproduced on a second, independent deposit before the assertion was tightened. See the dedicated section below. |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
@@ -169,22 +169,28 @@ Hard-success contract (enforced per-spec):
 > version posted to `POST /v1.beta/invoices/{id}/lifecycle_events`, which does not exist: tried live
 > against both the outbound id and its inbound twin, and against every plausible path variant
 > (`lifecycle-events`, `/events`, `/status`, `/statuses`, `/lifecycle`, a plain `PUT` on the invoice
-> itself), every one answered the identical, generic `404 {"http_status_code":404}` — the same shape
+> itself), every one answered the identical, generic `404 {"http_status_code":404}`: the same shape
 > a genuinely unregistered route returns (compare a real validation failure, which answers 400/422
 > with a specific message). SuperPDP's published OpenAPI (`https://api.superpdp.tech/openapi/
 > superpdp.json`, read 2026-10-31) documents `GET` and `POST /v1.beta/invoice_events` instead, with
 > `{ invoice_id, status_code, details? }` and a `status_code_create` enum limited to `fr:204` to
-> `fr:212` plus `fr:220`. `pushLifecycleStatus` now posts there, `pushRejected` sends the user's
-> reason in `details[].reason` (the documented slot, MDT-113), and a failed push is logged at `error`
-> with the platform's own status and body instead of a `warn` nobody reads. The local status change
-> is still persisted first and never rolled back or blocked by a platform failure.
+> `fr:212` plus `fr:220`. `pushLifecycleStatus` now posts there. A refusal sends a valid MDT-113
+> `details[].reason` code (`NON_CONFORME`, the generic member of the `fr:210` list in
+> `BR-FR-CDV-CL-09_MDT-113_210`) and the user's own sentence in `details[].notes[].contents[].content`
+> (MDG-39, the field SuperPDP added for `fr:210`), because `reason` is a ReasonCode and free text
+> there is a validation error. The event POST is deliberately not retried: the OpenAPI exposes no
+> idempotency key, so a timeout after the platform created the event could duplicate it. A failed
+> push is logged at `error` with the platform's own status and body instead of a `warn` nobody reads,
+> and the local status change is still persisted first and never rolled back or blocked.
 >
 > **What remains unverified**: no live sandbox round-trip has been run against
 > `POST /v1.beta/invoice_events` from this codebase yet (the unit test asserts the request the client
 > builds, not the platform's answer), and which code DGFiP's lifecycle expects for a buyer's "prise en
-> charge" is still not named by any source reachable here — `fr:204` ("Acknowledged") is the closest
+> charge" is still not named by any source reachable here: `fr:204` ("Acknowledged") is the closest
 > status the create enum accepts, since `fr:203` ("Made available") is platform-emitted and refused
-> there. A buyer refusal is now `fr:210` ("Refused"), not `fr:206` ("Partly accepted").
+> there. A buyer refusal is now `fr:210` ("Refused"), not `fr:206` ("Partly accepted"), and the
+> rejection dialog captures a single free-text sentence, not a specific MDT-113 motif: every refusal
+> therefore reports the generic `NON_CONFORME` code, with the sentence preserved in the notes.
 >
 > **The buyer-side statuses THEMSELVES are real, not invented**: DGFiP's own "Facturation
 > électronique : guide pratique de démarrage au 1er septembre 2026"

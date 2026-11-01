@@ -80,13 +80,13 @@ function startWebhookReceiver(): Promise<string> {
  * (backend) makes its own server-to-server HTTP calls (OAuth2 token, `listInvoices`,
  * `downloadInvoiceFile`) — a `cy.intercept` only ever sees traffic the BROWSER makes.
  *
- * Answers the exact endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call —
+ * Answers the exact endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call:
  * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
  * (`backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`'s own header has the
  * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
  * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
  * own `contentType`). `POST /v1.beta/invoice_events` (the route SuperPDP's published OpenAPI
- * documents, body `{ invoice_id, status_code }`) answers 200 — this fake stays a well-behaved PDP so
+ * documents, body `{ invoice_id, status_code }`) answers 200: this fake stays a well-behaved PDP so
  * the e2e assertions stay about the SCREEN, not the platform's own event API.
  *
  * The inbox is MUTABLE (`setFakePdpInbox`/`resetFakePdpServer`) rather than a fixed canned response:

@@ -153,7 +153,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 		});
 
 		// The automatic "reçue / prise en charge" push-back (fr:202 is the platform's own, never
-		// pushed by us — see pdp-reception.ts's own header; fr:204 IS pushed, automatically, the
+		// pushed by us, see pdp-reception.ts's own header; fr:204 IS pushed, automatically, the
 		// instant this codebase finished importing the deposit).
 		cy.task("getFakePdpLifecycleEvents").then((events) => {
 			const pushed = events as Array<{ invoiceId: string; code: string }>;

@@ -22,7 +22,7 @@
  *    for the wrong `/file` sub-path an earlier version of this code guessed and the real endpoint
  *    (`GET /v1.beta/invoices/{id}?format=original`, the SAME one `getInvoice()` already calls) found
  *    by testing live.
- *  - `PdpClient.pushLifecycleStatus()` — the route and body now match SuperPDP's published OpenAPI
+ *  - `PdpClient.pushLifecycleStatus()`: the route and body now match SuperPDP's published OpenAPI
  *    (read 2026-10-31): `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`.
  *    The old `POST /v1.beta/invoices/{id}/lifecycle_events` never existed on the API; every live
  *    attempt answered a generic route-not-found `404`, so no status was ever delivered. The push
@@ -35,7 +35,7 @@
  * list and refuses `fr:203` (a platform-emitted status), so "prise en charge" is pushed as `fr:204`
  * and a buyer refusal as `fr:210`, never `fr:206` ("partly accepted"). Which code DGFiP's own
  * lifecycle expects for a buyer's "prise en charge" is still not named by any source this codebase
- * could reach — see `pdp-reception.ts`'s own per-constant notes.
+ * could reach; see each constant's own note below.
  */
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
@@ -54,14 +54,21 @@ export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
  *  create enum accepts ("Acknowledged"); `fr:203` ("Made available") is platform-emitted and refused
  *  by `status_code_create`. Which code DGFiP expects for this buyer act is still unverified. */
 export const PDP_RECEPTION_TAKEN_IN_CHARGE_CODE: SuperPdpStatusCreate = 'fr:204';
-/** Approuvée (par l'acheteur) — pushed by the "approve" action. `fr:205` is documented by SuperPDP's
+/** Approuvée (par l'acheteur): pushed by the "approve" action. `fr:205` is documented by SuperPDP's
  *  own `status_code` schema as "Accepted". */
 export const PDP_RECEPTION_APPROVED_CODE: SuperPdpStatusCreate = 'fr:205';
-/** Refusée (par l'acheteur) — pushed by the "reject" action, always with the user's own `reason` in
- *  the event's `details[].reason` (MDT-113): the DGFiP guide's own Q12 is explicit that this status
- *  is "obligatoirement motivé" — never fired without one. `fr:210` is documented as "Refused";
- *  `fr:206`, used before, is "Partly accepted" and meant the wrong thing. */
+/** Refusée (par l'acheteur): pushed by the "reject" action, always with the user's own motivation in
+ *  the event's `details[].notes` (MDG-39) and a ReasonCode in `details[].reason` (MDT-113). The
+ *  DGFiP guide's own Q12 is explicit that this status is "obligatoirement motivé", never fired
+ *  without one. `fr:210` is documented as "Refused"; `fr:206`, used before, is "Partly accepted" and
+ *  meant the wrong thing. */
 export const PDP_RECEPTION_REJECTED_CODE: SuperPdpStatusCreate = 'fr:210';
+/** The ReasonCode sent with an `fr:210` event. SuperPDP types `details[].reason` as a ReasonCode
+ *  (MDT-113, AFNOR XP Z12-012), so free text there is a validation error, and the create-side list
+ *  for `fr:210` is `BR-FR-CDV-CL-09_MDT-113_210`. `NON_CONFORME` is its generic "invoice not
+ *  compliant" member; the user's own sentence travels in `details[].notes` instead. Capturing a
+ *  specific motif in the reject dialog would be its own screen change, not made here. */
+export const PDP_RECEPTION_REJECTED_REASON_CODE = 'NON_CONFORME';
 /** Payée — pushed by "record-payment" once the recorded payment(s) reach the received invoice's own
  *  stated gross total. `fr:211` ("payment sent") rather than `fr:212` ("payment received") — see
  *  `pdp-client.ts`'s own header: `212` is the SELLER's own code once THEY are paid; this company is
@@ -91,9 +98,9 @@ async function resolveClient(
 }
 
 /**
- * Pushes ONE lifecycle code — NEVER fatal. A received-invoice's own local status change (the actual
+ * Pushes ONE lifecycle code, NEVER fatal. A received-invoice's own local status change (the actual
  * legal/bookkeeping fact this company cares about) is always persisted BEFORE this is even called
- * (see each action's own handler) — a platform that cannot accept the push must never roll back,
+ * (see each action's own handler); a platform that cannot accept the push must never roll back,
  * retry-block, or fail the user-facing action that already succeeded locally. A failure is logged at
  * `error` with the platform's own status and body, so it is visible in the logs instead of swallowed.
  */
@@ -102,34 +109,35 @@ async function pushReceptionStatus(
   companyId: string,
   pdpInboundId: string,
   code: SuperPdpStatusCreate,
-  reason?: string,
+  refusal?: { reasonCode: string; motivation?: string },
 ): Promise<void> {
   const invoiceId = Number(pdpInboundId);
   if (!Number.isFinite(invoiceId)) return; // manually-uploaded received invoices have no PDP id at all
   try {
     const client = await resolveClient(channelCredentials, companyId);
     if (!client) {
-      logger.warn('PDP reception status push skipped — channel not connected any more', {
+      logger.warn('PDP reception status push skipped: channel not connected any more', {
         category: 'documents',
         details: { companyId, pdpInboundId, code },
       });
       return;
     }
-    await client.pushLifecycleStatus(invoiceId, code, reason);
+    await client.pushLifecycleStatus(invoiceId, code, refusal);
     logger.info('PDP reception status pushed', {
       category: 'documents',
       details: { companyId, pdpInboundId, code },
     });
   } catch (error) {
-    // Never fatal — the local status change was persisted before this ran — but never silent either:
+    // Never fatal (the local status change was persisted before this ran), but never silent either:
     // a status the platform never received is a legal fact this company believes it reported.
-    logger.error('PDP reception status push failed — the platform did not receive it', {
+    logger.error('PDP reception status push failed: the platform did not receive it', {
       category: 'documents',
       details: {
         companyId,
         pdpInboundId,
         code,
-        reason,
+        reason: refusal?.motivation,
+        reasonCode: refusal?.reasonCode,
         status: error instanceof PdpApiError ? error.status : undefined,
         response: error instanceof PdpApiError ? error.body : undefined,
         message: error instanceof Error ? error.message : String(error),
@@ -147,7 +155,10 @@ export function buildPdpReceptionStatusPusher(
     pushApproved: (companyId, pdpInboundId) =>
       pushReceptionStatus(channelCredentials, companyId, pdpInboundId, PDP_RECEPTION_APPROVED_CODE),
     pushRejected: (companyId, pdpInboundId, reason) =>
-      pushReceptionStatus(channelCredentials, companyId, pdpInboundId, PDP_RECEPTION_REJECTED_CODE, reason),
+      pushReceptionStatus(channelCredentials, companyId, pdpInboundId, PDP_RECEPTION_REJECTED_CODE, {
+        reasonCode: PDP_RECEPTION_REJECTED_REASON_CODE,
+        motivation: reason,
+      }),
     pushPaid: (companyId, pdpInboundId) =>
       pushReceptionStatus(channelCredentials, companyId, pdpInboundId, PDP_RECEPTION_PAID_CODE),
   };

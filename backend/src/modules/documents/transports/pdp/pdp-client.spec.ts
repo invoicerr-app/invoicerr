@@ -352,20 +352,57 @@ describe('PdpClient', () => {
       expect(JSON.parse(String(opts.body))).toEqual({ invoice_id: 604667, status_code: 'fr:212' });
     });
 
-    it('carries a motivated refusal as details[].reason, and nothing else', async () => {
+    it('sends a ReasonCode in details[].reason and the motivation in details[].notes', async () => {
       mockFetch
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 2 }) as unknown as Response);
 
       const client = new PdpClient(CLIENT_CONFIG);
-      await client.pushLifecycleStatus(604667, 'fr:210', 'Wrong PO number');
+      await client.pushLifecycleStatus(604667, 'fr:210', {
+        reasonCode: 'NON_CONFORME',
+        motivation: 'Wrong PO number',
+      });
 
       const [, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
       expect(JSON.parse(String(opts.body))).toEqual({
         invoice_id: 604667,
         status_code: 'fr:210',
-        details: [{ reason: 'Wrong PO number' }],
+        details: [
+          {
+            reason: 'NON_CONFORME',
+            notes: [{ contents: [{ content: 'Wrong PO number' }] }],
+          },
+        ],
       });
+    });
+
+    it('sends the ReasonCode alone when a refusal has no free-text motivation', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockJsonResponse({ id: 3 }) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+      await client.pushLifecycleStatus(604667, 'fr:210', { reasonCode: 'NON_CONFORME' });
+
+      const [, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(JSON.parse(String(opts.body))).toEqual({
+        invoice_id: 604667,
+        status_code: 'fr:210',
+        details: [{ reason: 'NON_CONFORME' }],
+      });
+    });
+
+    it('does not retry the event POST, which has no idempotency key in the OpenAPI', async () => {
+      mockFetch
+        .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
+        .mockResolvedValueOnce(mockTextResponse('Internal Error', 500) as unknown as Response);
+
+      const client = new PdpClient(CLIENT_CONFIG);
+
+      await expect(client.pushLifecycleStatus(604667, 'fr:211')).rejects.toThrow(PdpApiError);
+      // One token call plus one event POST: a second POST could duplicate an event the platform
+      // already created before its answer was lost.
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('never calls the route SuperPDP does not have', async () => {
