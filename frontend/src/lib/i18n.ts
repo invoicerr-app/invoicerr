@@ -86,6 +86,10 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
 
 export const LANGUAGE_STORAGE_KEY = "i18nextLng"
 
+/** Base codes this app actually renders. A detected tag whose base is not in here is dropped, not
+ *  rewritten to `en` — see `normalizeDetectedLanguage`. */
+const SUPPORTED_LANGUAGE_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code))
+
 /**
  * Issue #559 - the right-to-left locales this app actually recognizes. Deliberately an explicit
  * list, never i18next's own `i18n.dir()`: that helper guesses from a broad, script-based table
@@ -144,13 +148,20 @@ export function normalizeLanguageTag(lang: string | null | undefined): string | 
 /**
  * A detected code reaches i18next as a valid tag, regional subtag intact. `en-GB` keeps its region
  * so `languageToLocale()` can pick date-fns' en-GB, and `["ja-JP", "fr-FR"]` keeps both entries so
- * the supported French still wins i18next's match instead of an injected `en` (issue #733). Only a
- * value that is not a tag at all falls back to `en`. An unsupported language is not rewritten here:
- * `supportedLngs` and `fallbackLng` decide the interface, and `i18n.language` becomes `en`.
+ * the supported French still wins i18next's match (issue #733). A value that is not a tag, or whose
+ * base language this app does not render, becomes an empty entry rather than `en`: injecting `en`
+ * would take a place in the detected list and win over a later supported language, which is the bug
+ * this detector exists to close. Dropping an unsupported language also matters when its catalog
+ * folder exists (`ja`, `ko`): i18next would otherwise adopt it verbatim and leave the dates in that
+ * language while the interface falls back to English. When every entry is empty, `fallbackLng`
+ * resolves the interface to `en`.
  */
 function normalizeDetectedLanguage(lang: string): string {
   if (DEV_RTL_TEST_LOCALE !== null && lang === DEV_RTL_TEST_LOCALE) return DEV_RTL_TEST_LOCALE
-  return normalizeLanguageTag(lang) ?? "en"
+  const normalized = normalizeLanguageTag(lang)
+  if (!normalized) return ""
+  const base = normalized.split("-")[0].toLowerCase()
+  return SUPPORTED_LANGUAGE_CODES.has(base) ? normalized : ""
 }
 
 /** True when `lang` (a resolved i18next language, or the dev-only RTL test locale) reads right-to-left. */
@@ -208,8 +219,10 @@ i18n.on("languageChanged", syncDocumentLanguage)
 // apply once more here to cover that race instead of depending on event-registration order.
 syncDocumentLanguage()
 
-// Supported languages and their regional variants, plus every shipped catalog: i18next adopts a
-// detected code verbatim when a catalog exists for it, even outside `supportedLngs`.
+// Date-fns locales for every supported language and its regional variants, plus the stub catalogs
+// whose folders still exist (da, he, ja, ko, pt-BR, ru, sv, uk). `kab` and `zh-Hans` are absent:
+// their base language is not supported, so the detector drops those codes and `languageToLocale`
+// never receives them, even though their catalog folders exist.
 const DATE_FNS_LOCALES = new Map<string, Locale>([
   ["ar", ar],
   ["ar-DZ", arDZ],

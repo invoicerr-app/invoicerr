@@ -141,7 +141,7 @@ describe("detected browser language", () => {
   // Issue #733: converting each detected code to "en" let English win before the next language.
   it("lets a later supported language win over an unsupported one", async () => {
     const detected = detect(["ja-JP", "fr-FR"])
-    expect([...new Set(detected)]).toEqual(["ja-JP", "fr-FR"])
+    expect(detected.filter(Boolean)).toEqual(["fr-FR"])
 
     await changeLanguageTo(detected)
 
@@ -149,9 +149,42 @@ describe("detected browser language", () => {
     expect(languageToLocale(i18n.language).code).toBe("fr")
   })
 
+  // Issue #733 review: `normalizeLanguageTag(...) ?? "en"` put an `en` in the middle of the
+  // detected list, where it beat the French that followed. An invalid entry must stay empty.
+  it("lets a later supported language win when an earlier detected value is not a tag", async () => {
+    const detected = detect(["not a tag", "fr-FR"])
+    expect(detected).not.toContain("en")
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.resolvedLanguage).toBe("fr")
+    expect(languageToLocale(i18n.language).code).toBe("fr")
+  })
+
+  it("falls back to English when every detected value is not a tag", async () => {
+    const detected = detect(["not a tag", "still not a tag"])
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.language).toBe("en")
+    expect(languageToLocale(i18n.language).code).toBe("en-US")
+  })
+
+  // Issue #733, second case: a stub catalog folder makes i18next adopt a bare "ja" verbatim, so
+  // the interface went English but the dates stayed Japanese. The detector must drop it.
+  it("keeps the dates in English for a stub catalog language such as ja", async () => {
+    const detected = detect(["ja"])
+    expect(detected).not.toContain("ja")
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.language).toBe("en")
+    expect(languageToLocale(i18n.language).code).toBe("en-US")
+  })
+
   it("falls back to English when every detected language is unsupported", async () => {
     const detected = detect(["ja-JP"])
-    expect([...new Set(detected)]).toEqual(["ja-JP"])
+    expect(detected.every((code) => code === "")).toBe(true)
 
     await changeLanguageTo(detected)
 

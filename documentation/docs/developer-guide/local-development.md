@@ -99,11 +99,15 @@ The detector hands i18next a valid tag with its regional subtag intact, so `i18n
 (`fr-FR`, `es-MX`) falls back to its base language's dates. It never rewrites a code to its base
 language or to `en`: an exact code would lose the regional date format, and an injected `en` would
 win i18next's match before a later entry in `navigator.languages`. A language outside
-`SUPPORTED_LANGUAGES` (`ja`, `ko`, `pt-BR`) is left in the detected list for the same reason; when
-nothing matches, i18next falls back to `en`, so `i18n.language` becomes `en` and the dates switch to
-English with the interface. A catalog folder under `frontend/src/locales/` alone does not make a
-language selectable: `SUPPORTED_LANGUAGES` decides. The map also lists the stub catalogs kept there
-(`da`, `he`, `ja`, `ko`, `pt-BR`, `ru`, `sv`, `uk`).
+`SUPPORTED_LANGUAGES` (`ja`, `ko`, `pt-BR`) is dropped to an empty entry instead of becoming `en`,
+so a later supported language can still win and i18next never adopts a stub catalog whose interface
+is English; when no entry remains, `fallbackLng` resolves the interface to `en` and the dates switch
+to English with it. A catalog folder under `frontend/src/locales/` alone does not make a
+language selectable: `SUPPORTED_LANGUAGES` decides. The map also lists every stub catalog kept under
+`frontend/src/locales/` that date-fns has a locale for (`da`, `he`, `ja`, `ko`, `pt-BR`, `ru`, `sv`,
+`uk`). `zh-Hans` is a stub folder too (73 keys, the same shape as `da` and `ja`) but has no entry in
+the map; `kab` is not supported either, so a detected `kab` resolves to English before date
+formatting ever sees it.
 
 ## Right-to-left (RTL) layout
 
