@@ -51,6 +51,33 @@ function buildService() {
   return { service, documentsService, channelCredentials, provider, providerRegistry };
 }
 
+/** One claimed `PaymentCheckoutSession` row, with only the fields these webhook tests read. Pass
+ *  `overrides` for the cross-tenant cases (another company, another document). */
+function sessionClaim(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'session-1',
+    companyId: 'company-1',
+    documentId: 'inv-1',
+    providerId: 'stripe',
+    providerSessionId: 'cs_1',
+    amountMinor: 12000,
+    currency: 'EUR',
+    ...overrides,
+  };
+}
+
+/** Drives a "checkout.failed" delivery end to end. Shared by the same-company test and the
+ *  cross-tenant one so the two do not carry the same eight setup lines twice. */
+async function deliverFailedCheckout(companyId: string, secret: string, providerSessionId: string) {
+  const built = buildService();
+  built.channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: secret } });
+  built.provider.parseWebhookEvent.mockReturnValue({ type: 'checkout.failed', providerSessionId });
+  const result = await built.service.handleWebhookEvent(companyId, 'stripe', 'body', {
+    'stripe-signature': 'sig',
+  });
+  return { ...built, result };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   // Issue #416's own default - see this file's own header on `vi.mock('../payment-methods/persistence')`.
@@ -392,13 +419,7 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
   });
 
   it('marks a session FAILED for a "checkout.failed" event, and never calls record-payment', async () => {
-    const { service, documentsService, channelCredentials, provider } = buildService();
-    channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec' } });
-    provider.parseWebhookEvent.mockReturnValue({ type: 'checkout.failed', providerSessionId: 'cs_1' });
-
-    const result = await service.handleWebhookEvent('company-1', 'stripe', 'body', {
-      'stripe-signature': 'sig',
-    });
+    const { documentsService, result } = await deliverFailedCheckout('company-1', 'whsec', 'cs_1');
 
     expect(result).toEqual({ outcome: 'processed' });
     expect(markSessionFailed).toHaveBeenCalledWith('company-1', 'stripe', 'cs_1');
@@ -662,15 +683,14 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
 
       // B's OWN delivery, signed with B's secret, is unaffected: it claims and credits B's session.
       channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_B' } });
-      claimSessionForCompletion.mockResolvedValueOnce({
-        id: 'session-B',
-        companyId: 'company-B',
-        documentId: 'inv-B',
-        providerId: 'stripe',
-        providerSessionId: 'cs_B',
-        amountMinor: 12000,
-        currency: 'EUR',
-      });
+      claimSessionForCompletion.mockResolvedValueOnce(
+        sessionClaim({
+          id: 'session-B',
+          companyId: 'company-B',
+          documentId: 'inv-B',
+          providerSessionId: 'cs_B',
+        }),
+      );
       documentsService.getDocument.mockResolvedValue({ id: 'inv-B', data: { currency: 'EUR' } });
       documentsService.runAction.mockResolvedValue({
         document: {},
@@ -695,13 +715,7 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
     });
 
     it("A's forged checkout.failed cannot knock B's PENDING session to FAILED", async () => {
-      const { service, documentsService, channelCredentials, provider } = buildService();
-      channelCredentials.resolveActive.mockResolvedValue({ config: { webhookSecret: 'whsec_A' } });
-      provider.parseWebhookEvent.mockReturnValue({ type: 'checkout.failed', providerSessionId: 'cs_B' });
-
-      const result = await service.handleWebhookEvent('company-A', 'stripe', 'forged-body', {
-        'stripe-signature': 'sig-A',
-      });
+      const { documentsService, result } = await deliverFailedCheckout('company-A', 'whsec_A', 'cs_B');
 
       expect(result).toEqual({ outcome: 'processed' });
       // Scoped to A: `payment-sessions.persistence.spec.ts` proves that updateMany's WHERE cannot match
@@ -716,15 +730,14 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       provider.parseWebhookEvent.mockReturnValue(completedEvent('cs_B'));
       // Should be impossible now that companyId is in the claim's WHERE — simulated here so the guard
       // itself is proven, not just assumed.
-      claimSessionForCompletion.mockResolvedValueOnce({
-        id: 'session-B',
-        companyId: 'company-B',
-        documentId: 'inv-B',
-        providerId: 'stripe',
-        providerSessionId: 'cs_B',
-        amountMinor: 12000,
-        currency: 'EUR',
-      });
+      claimSessionForCompletion.mockResolvedValueOnce(
+        sessionClaim({
+          id: 'session-B',
+          companyId: 'company-B',
+          documentId: 'inv-B',
+          providerSessionId: 'cs_B',
+        }),
+      );
 
       const result = await service.handleWebhookEvent('company-A', 'stripe', 'forged-body', {
         'stripe-signature': 'sig-A',
