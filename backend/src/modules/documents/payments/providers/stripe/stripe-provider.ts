@@ -15,7 +15,7 @@ export interface StripeCredentials {
 
 /** Extracts and validates the two fields this provider actually needs out of a resolved
  *  `CompanyChannelConfig` — the same "shared by every caller so neither can drift" shape
- *  `pdp-transport.ts#extractPdpCredentials` already holds for its own three fields. A `publishableKey`
+ *  `superpdp-transport.ts#extractSuperPdpCredentials` already holds for its own three fields. A `publishableKey`
  *  is deliberately NOT required here (or read at all): it is only ever needed by a browser-side Stripe
  *  Elements integration, which this app does not build — see `provider.ts`'s own header, "the payment
  *  page is the provider's own hosted surface". */

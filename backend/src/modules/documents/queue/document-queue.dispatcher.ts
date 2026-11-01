@@ -285,7 +285,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * is already the natural retry for "the sweep didn't run this time"). See `reception-sweep.ts`'s own
    * header for why this is ONE repeatable, not one per company.
    */
-  async registerPdpReceptionSweepRepeatable(): Promise<ConfiguredRepeatable> {
+  async registerSuperPdpReceptionSweepRepeatable(): Promise<ConfiguredRepeatable> {
     const configured: ConfiguredRepeatable = {
       name: RECEPTION_SWEEP_JOB_NAME,
       repeat: { every: readReceptionSweepIntervalMs() },
@@ -408,7 +408,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       await this.registerConformitySweepRepeatable(),
       await this.registerCurrencyRateSweepRepeatable(),
       await this.registerReminderSweepRepeatable(),
-      await this.registerPdpReceptionSweepRepeatable(),
+      await this.registerSuperPdpReceptionSweepRepeatable(),
       await this.registerLogPurgeSweepRepeatable(),
       await this.registerStorageErasureSweepRepeatable(),
       await this.registerArchiveRetrySweepRepeatable(),

@@ -138,7 +138,7 @@ describe('operator catalogue - loaded, not hard-coded', () => {
     // other pdp-family operator (billit, iopole, invopop) has its OWN dedicated transport id instead
     // (see each entry's own data file). "pdp" therefore resolves unconditionally too, right now - the
     // baseUrl-disambiguation branch below exists for when a SECOND operator is seeded under "pdp"
-    // (e.g. a future AFNOR-standard PA, per pdp-transport.ts's own header on the AFNOR XP Z12-013
+    // (e.g. a future AFNOR-standard PA, per superpdp-transport.ts's own header on the AFNOR XP Z12-013
     // path), proven against a bespoke catalog since the shipped data has nothing to disambiguate yet.
     it('the real "pdp" transport resolves to SuperPDP unconditionally today - the only offering seeded under it', () => {
       const resolved = defaultOperatorCatalog.resolveForTransportConfig('pdp', {

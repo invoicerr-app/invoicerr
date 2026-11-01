@@ -7,7 +7,7 @@
  *
  * DB-FREE ON PURPOSE, same choice the reference's own spec made (see its own "(DB-free)" comment): that
  * exact command above never sets DATABASE_URL, so this spec never touches Prisma — it does not call
- * `pdp-transport.ts`'s exported `send()` (which reads `Company`/`Client` rows), it calls the SAME
+ * `superpdp-transport.ts`'s exported `send()` (which reads `Company`/`Client` rows), it calls the SAME
  * underlying, DB-free building blocks that function composes, by hand:
  *
  *   buildInvoiceDescriptor + computeDocumentTotals  (pure — descriptor → totals, no DB)
@@ -20,7 +20,7 @@
  *                                                       call `renderDocumentInstance`, which DOES hit
  *                                                       Prisma + Puppeteer — see its own header)
  *        → newEuInvoiceService().generate(..., 'Factur-X-EN16931', { pdf: <a real, pdf-lib-built PDF> })
- *        → PdpClient (REAL, `pdp/pdp-client.ts`) .authenticate() + .sendInvoice()
+ *        → SuperPdpClient (REAL, `superpdp/superpdp-client.ts`) .authenticate() + .sendInvoice()
  *
  * A minimal, valid PDF from `pdf-lib` stands in for the "human" PDF `rendering/render-instance-pdf.ts`
  * would normally produce — the ONLY piece of the real send() path this spec does not exercise, and
@@ -34,7 +34,7 @@
  * a soft `expect().toBeFalsy()` that could quietly pass on a shrugging response. The original
  * contract stopped at "the deposit was ACCEPTED" (a non-empty id back from `POST /v1.beta/invoices`),
  * deliberately not following the conformity verdict any further at the time — see
- * `pdp-transport.ts`'s own header for that named remainder, and this file's own
+ * `superpdp-transport.ts`'s own header for that named remainder, and this file's own
  * git history for why: a poller that could only ever answer PENDING would have been a false green.
  *
  * STRENGTHENED (BT-23): once the last cited rejection cause

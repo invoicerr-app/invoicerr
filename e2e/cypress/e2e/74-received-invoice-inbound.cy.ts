@@ -5,16 +5,16 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * see `received-invoice.descriptor.ts`'s own "receive" country-policy note for the exact wording).
  * Proven THROUGH THE SCREEN, like 36-received-invoices.cy.ts: the channel is connected via
  * `/settings/channels` (same screen, same selectors, as 31-national-channels.cy.ts's own PDP wave),
- * the reception SWEEP is REAL production code (`PdpReceptionSweepRunner`, triggered on demand as a
+ * the reception SWEEP is REAL production code (`SuperPdpReceptionSweepRunner`, triggered on demand as a
  * REAL BullMQ job rather than waiting on its own 5-minute default interval — see
- * `cypress.config.ts`'s own `triggerPdpReceptionSweep` header), and "approve"/"reject (motif)"/
+ * `cypress.config.ts`'s own `triggerSuperPdpReceptionSweep` header), and "approve"/"reject (motif)"/
  * "record-payment" are all real clicks through the received-invoices list.
  *
  * The ONE thing this spec cannot be: a real network call to superpdp.tech (the real round-trip is
- * `backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`, `SUPERPDP_LIVE=1`, which
+ * `backend/src/modules/documents/transports/superpdp/superpdp-reception.live.spec.ts`, `SUPERPDP_LIVE=1`, which
  * proved this EXACT flow — self-addressed deposit, `direction=in`, download, extract, approve,
  * record-payment — for real, 2026-09-16). Here the backend's own PDP client talks to a REAL local
- * `node:http` server (`cypress.config.ts`'s `startFakePdpServer`) shaped exactly like the sandbox
+ * `node:http` server (`cypress.config.ts`'s `startFakeSuperPdpServer`) shaped exactly like the sandbox
  * (same three endpoints, same JSON/bytes shapes) — a genuine server-to-server HTTP round-trip the
  * backend cannot tell apart from the real one, never a `cy.intercept` (which only sees browser
  * traffic) and never a stubbed backend module.
@@ -55,7 +55,7 @@ function listReceivedInvoices() {
  *  header) until a `received-invoice` carrying `data.pdpInboundId === pdpInboundId` shows up — the
  *  same "real poll loop, ~10s budget" shape `waitForDocumentStatus` (support/commands.ts) already
  *  holds for the identical "an async worker will eventually land this" problem. */
-function waitForPdpImport(pdpInboundId: number, attemptsLeft = 20): Cypress.Chainable<ReceivedInvoiceInstance> {
+function waitForSuperPdpImport(pdpInboundId: number, attemptsLeft = 20): Cypress.Chainable<ReceivedInvoiceInstance> {
 	return listReceivedInvoices().then((instances) => {
 		const found = instances.find((i) => i.data.pdpInboundId === String(pdpInboundId));
 		if (found) return cy.wrap(found);
@@ -63,18 +63,18 @@ function waitForPdpImport(pdpInboundId: number, attemptsLeft = 20): Cypress.Chai
 			throw new Error(`No received-invoice ever carried pdpInboundId ${pdpInboundId} — sweep import failed.`);
 		}
 		cy.wait(500);
-		return waitForPdpImport(pdpInboundId, attemptsLeft - 1);
+		return waitForSuperPdpImport(pdpInboundId, attemptsLeft - 1);
 	});
 }
 
 describe("Received invoices — inbound via the PDP channel (list + approve/reject from the screen)", () => {
-	let fakePdpUrl: string;
+	let fakeSuperPdpUrl: string;
 
 	before(() => {
 		cy.resetAndSeed();
-		cy.task("resetFakePdpServer");
-		cy.task("startFakePdpServer").then((rawUrl) => {
-			fakePdpUrl = rawUrl as string;
+		cy.task("resetFakeSuperPdpServer");
+		cy.task("startFakeSuperPdpServer").then((rawUrl) => {
+			fakeSuperPdpUrl = rawUrl as string;
 		});
 	});
 
@@ -89,7 +89,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 
 		cy.get('[data-cy="channel-pdp-baseurl-input"]', { timeout: 10000 })
 			.clear()
-			.type(fakePdpUrl);
+			.type(fakeSuperPdpUrl);
 		cy.get('[data-cy="channel-pdp-clientid-input"]').clear().type("e2e-fake-client-id");
 		cy.get('[data-cy="channel-pdp-clientsecret-input"]').clear().type("e2e-fake-client-secret");
 		cy.get('[data-cy="channel-pdp-connect-button"]').click();
@@ -99,17 +99,17 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 	});
 
 	it("an empty PDP inbox: the real sweep runs and imports nothing", () => {
-		cy.task("setFakePdpInbox", []);
-		cy.task("triggerPdpReceptionSweep");
+		cy.task("setFakeSuperPdpInbox", []);
+		cy.task("triggerSuperPdpReceptionSweep");
 		// An empty `listReceivedInvoices()` result alone cannot distinguish "the sweep ran and
 		// genuinely found nothing" from "the sweep never started at all" — both look identical. Poll
 		// the fake PDP server's own request counter instead: it only increments on a REAL hit to the
-		// "list inbound invoices" endpoint, so a nonzero count is proof `PdpReceptionSweepRunner`
+		// "list inbound invoices" endpoint, so a nonzero count is proof `SuperPdpReceptionSweepRunner`
 		// actually reached the network, not merely that no row got written. Same bounded-poll shape
-		// `waitForPdpImport` below already holds for the identical "an async worker will eventually do
+		// `waitForSuperPdpImport` below already holds for the identical "an async worker will eventually do
 		// X" problem.
 		function pollForSweepToRun(attemptsLeft: number): Cypress.Chainable<number> {
-			return cy.task<number>("getFakePdpListCallCount").then((count) => {
+			return cy.task<number>("getFakeSuperPdpListCallCount").then((count) => {
 				if (count > 0 || attemptsLeft <= 0) return cy.wrap(count);
 				cy.wait(200);
 				return pollForSweepToRun(attemptsLeft - 1);
@@ -124,7 +124,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 	});
 
 	it("a REAL inbound deposit appears on the received-invoices LIST after the sweep runs, with the real extracted fields", () => {
-		cy.task("setFakePdpInbox", [
+		cy.task("setFakeSuperPdpInbox", [
 			{
 				id: APPROVE_LEG_ID,
 				createdAt: new Date().toISOString(),
@@ -132,9 +132,9 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 				contentType: "application/xml",
 			},
 		]);
-		cy.task("triggerPdpReceptionSweep");
+		cy.task("triggerSuperPdpReceptionSweep");
 
-		waitForPdpImport(APPROVE_LEG_ID).then((created) => {
+		waitForSuperPdpImport(APPROVE_LEG_ID).then((created) => {
 			expect(created.status, "reçue par défaut, jamais 'draft'").to.eq("received");
 			expect(created.data.supplier).to.eq("Fixture Fournisseur SARL");
 			expect(created.data.grossAmount).to.eq(900);
@@ -153,9 +153,9 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 		});
 
 		// The automatic "reçue / prise en charge" push-back (fr:202 is the platform's own, never
-		// pushed by us, see pdp-reception.ts's own header; fr:204 IS pushed, automatically, the
+		// pushed by us, see superpdp-reception.ts's own header; fr:204 IS pushed, automatically, the
 		// instant this codebase finished importing the deposit).
-		cy.task("getFakePdpLifecycleEvents").then((events) => {
+		cy.task("getFakeSuperPdpLifecycleEvents").then((events) => {
 			const pushed = events as Array<{ invoiceId: string; code: string }>;
 			expect(pushed.some((e) => e.invoiceId === String(APPROVE_LEG_ID) && e.code === "fr:204")).to.eq(true);
 		});
@@ -201,7 +201,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 					expect(body.settlement.outstandingMinor).to.eq(0);
 				});
 
-			cy.task("getFakePdpLifecycleEvents").then((events) => {
+			cy.task("getFakeSuperPdpLifecycleEvents").then((events) => {
 				const pushed = events as Array<{ invoiceId: string; code: string }>;
 				expect(
 					pushed.some((e) => e.invoiceId === String(APPROVE_LEG_ID) && e.code === "fr:205"),
@@ -216,7 +216,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 	});
 
 	it("a SECOND real inbound deposit, rejected from the screen WITH a reason, moves to 'Rejected' and pushes PDP's refusal status", () => {
-		cy.task("setFakePdpInbox", [
+		cy.task("setFakeSuperPdpInbox", [
 			{
 				id: APPROVE_LEG_ID, // still present in the fake inbox — already imported, must be SKIPPED
 				createdAt: new Date().toISOString(),
@@ -230,9 +230,9 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 				contentType: "application/pdf",
 			},
 		]);
-		cy.task("triggerPdpReceptionSweep");
+		cy.task("triggerSuperPdpReceptionSweep");
 
-		waitForPdpImport(REJECT_LEG_ID).then((created) => {
+		waitForSuperPdpImport(REJECT_LEG_ID).then((created) => {
 			expect(created.data.supplier).to.eq("Fixture Fournisseur SARL"); // same fixture family, same seller name
 
 			// Dedup proof, in passing: the FIRST leg's own id must still resolve to exactly ONE
@@ -277,7 +277,7 @@ describe("Received invoices — inbound via the PDP channel (list + approve/reje
 					expect(updated.data.rejectionReason).to.eq("Facture non conforme au bon de commande");
 				});
 
-			cy.task("getFakePdpLifecycleEvents").then((events) => {
+			cy.task("getFakeSuperPdpLifecycleEvents").then((events) => {
 				const pushed = events as Array<{ invoiceId: string; code: string }>;
 				expect(
 					pushed.some((e) => e.invoiceId === String(REJECT_LEG_ID) && e.code === "fr:210"),

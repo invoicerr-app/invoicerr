@@ -76,25 +76,25 @@ function startWebhookReceiver(): Promise<string> {
 /**
  * The "PDP sandbox" side for `74-received-invoice-inbound.cy.ts` — a vanilla `node:http` server,
  * same "started once, module-level state, real network-reachable URL" shape as
- * `startWebhookReceiver` just above, for the SAME underlying reason: `PdpReceptionSweepRunner`
+ * `startWebhookReceiver` just above, for the SAME underlying reason: `SuperPdpReceptionSweepRunner`
  * (backend) makes its own server-to-server HTTP calls (OAuth2 token, `listInvoices`,
  * `downloadInvoiceFile`) — a `cy.intercept` only ever sees traffic the BROWSER makes.
  *
- * Answers the exact endpoints `pdp-reception-poller.ts`/`pdp-reception.ts` actually call:
+ * Answers the exact endpoints `superpdp-reception-poller.ts`/`superpdp-reception.ts` actually call:
  * shaped exactly like the REAL superpdp sandbox, LIVE-VERIFIED 2026-09-16
- * (`backend/src/modules/documents/transports/pdp/superpdp-reception.live.spec.ts`'s own header has the
+ * (`backend/src/modules/documents/transports/superpdp/superpdp-reception.live.spec.ts`'s own header has the
  * full evidence): `POST /oauth2/token`, `GET /v1.beta/invoices?direction=in`, and
- * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakePdpInbox`'s
+ * `GET /v1.beta/invoices/{id}?format=original` (raw bytes, `content-type` from `setFakeSuperPdpInbox`'s
  * own `contentType`). `POST /v1.beta/invoice_events` (the route SuperPDP's published OpenAPI
  * documents, body `{ invoice_id, status_code }`) answers 200: this fake stays a well-behaved PDP so
  * the e2e assertions stay about the SCREEN, not the platform's own event API.
  *
- * The inbox is MUTABLE (`setFakePdpInbox`/`resetFakePdpServer`) rather than a fixed canned response:
+ * The inbox is MUTABLE (`setFakeSuperPdpInbox`/`resetFakeSuperPdpServer`) rather than a fixed canned response:
  * the spec drives it to first hold ZERO deposits (proving the sweep is a genuine no-op with nothing
  * to import), then ONE, then a SECOND — the real BullMQ job is triggered fresh each time
- * (`triggerPdpReceptionSweep`, below) rather than relying on the real repeatable's own interval.
+ * (`triggerSuperPdpReceptionSweep`, below) rather than relying on the real repeatable's own interval.
  */
-interface FakePdpInboundInvoice {
+interface FakeSuperPdpInboundInvoice {
   id: number;
   createdAt: string;
   /** Path under `cypress/fixtures/` to the ORIGINAL file bytes this deposit serves — reused real
@@ -103,18 +103,18 @@ interface FakePdpInboundInvoice {
   contentType: string;
 }
 
-let fakePdpServerUrl: string | null = null;
-let fakePdpInbox: FakePdpInboundInvoice[] = [];
-const fakePdpLifecycleEvents: Array<{ invoiceId: string; code: string }> = [];
+let fakeSuperPdpServerUrl: string | null = null;
+let fakeSuperPdpInbox: FakeSuperPdpInboundInvoice[] = [];
+const fakeSuperPdpLifecycleEvents: Array<{ invoiceId: string; code: string }> = [];
 // Counts real hits to the "list inbound invoices" endpoint — `74-received-invoice-inbound.cy.ts`'s
 // own "empty inbox" test needs to tell "the sweep ran and genuinely found nothing" apart from "the
 // sweep never ran at all" (an empty `listReceivedInvoices()` result looks identical either way). A
-// count that actually incremented is proof the REAL `PdpReceptionSweepRunner` reached this fake
+// count that actually incremented is proof the REAL `SuperPdpReceptionSweepRunner` reached this fake
 // server over the network, not merely that no row got written.
-let fakePdpListCallCount = 0;
+let fakeSuperPdpListCallCount = 0;
 
-function startFakePdpServer(): Promise<string> {
-  if (fakePdpServerUrl) return Promise.resolve(fakePdpServerUrl);
+function startFakeSuperPdpServer(): Promise<string> {
+  if (fakeSuperPdpServerUrl) return Promise.resolve(fakeSuperPdpServerUrl);
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       const url = new URL(req.url ?? "/", "http://fake-pdp.local");
@@ -126,17 +126,17 @@ function startFakePdpServer(): Promise<string> {
       }
 
       if (req.method === "GET" && url.pathname === "/v1.beta/invoices" && url.searchParams.get("direction") === "in") {
-        fakePdpListCallCount += 1;
+        fakeSuperPdpListCallCount += 1;
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            data: fakePdpInbox.map((inv) => ({
+            data: fakeSuperPdpInbox.map((inv) => ({
               id: inv.id,
               company_id: 1,
               created_at: inv.createdAt,
               direction: "in",
             })),
-            count: fakePdpInbox.length,
+            count: fakeSuperPdpInbox.length,
             has_before: false,
             has_after: false,
           }),
@@ -146,7 +146,7 @@ function startFakePdpServer(): Promise<string> {
 
       const fileMatch = url.pathname.match(/^\/v1\.beta\/invoices\/(\d+)$/);
       if (req.method === "GET" && fileMatch && url.searchParams.get("format") === "original") {
-        const invoice = fakePdpInbox.find((inv) => String(inv.id) === fileMatch[1]);
+        const invoice = fakeSuperPdpInbox.find((inv) => String(inv.id) === fileMatch[1]);
         if (!invoice) {
           res.writeHead(404, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ http_status_code: 404 }));
@@ -165,10 +165,10 @@ function startFakePdpServer(): Promise<string> {
         req.on("end", () => {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
-            fakePdpLifecycleEvents.push({ invoiceId: String(body.invoice_id), code: body.status_code });
+            fakeSuperPdpLifecycleEvents.push({ invoiceId: String(body.invoice_id), code: body.status_code });
           } catch {
             // A malformed push body is itself not this fake's concern to validate — the real
-            // pdp-client.ts already shapes this request; this fake only records what arrived.
+            // superpdp-client.ts already shapes this request; this fake only records what arrived.
           }
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({}));
@@ -181,8 +181,8 @@ function startFakePdpServer(): Promise<string> {
     });
     server.listen(0, "127.0.0.1", () => {
       const address = server.address() as AddressInfo;
-      fakePdpServerUrl = `http://127.0.0.1:${address.port}`;
-      resolve(fakePdpServerUrl);
+      fakeSuperPdpServerUrl = `http://127.0.0.1:${address.port}`;
+      resolve(fakeSuperPdpServerUrl);
     });
   });
 }
@@ -431,8 +431,8 @@ function startFakeAt(): Promise<FakeAtConfig> {
 /**
  * Enqueues ONE REAL `document-pdp-reception-sweep` job on the SAME BullMQ queue
  * (`document-action`) the backend's own repeatable uses (`document-queue.dispatcher.ts`'s
- * `registerPdpReceptionSweepRepeatable`) — the backend under test's own, already-running
- * `DocumentActionProcessor` picks it up and runs the REAL `PdpReceptionSweepRunner.runSweep()`,
+ * `registerSuperPdpReceptionSweepRepeatable`) - the backend under test's own, already-running
+ * `DocumentActionProcessor` picks it up and runs the REAL `SuperPdpReceptionSweepRunner.runSweep()`,
  * exactly as it would on the repeatable's own schedule. Triggered on demand instead of waiting on
  * that interval (a production default of 5 minutes — `reception-sweep.ts`'s own header) for the SAME
  * reason `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS`/`DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS` are lowered in
@@ -442,7 +442,7 @@ function startFakeAt(): Promise<FakeAtConfig> {
  * own process re-read a freshly-lowered interval. A short, fixed jobId (timestamp-suffixed) avoids
  * colliding with the real repeatable's own `document-pdp-reception-sweep-singleton` id.
  */
-async function triggerPdpReceptionSweep(): Promise<null> {
+async function triggerSuperPdpReceptionSweep(): Promise<null> {
   const connection = { url: process.env.REDIS_URL || "redis://localhost:6399" };
   const queue = new Queue("document-action", { connection });
   try {
@@ -462,7 +462,7 @@ async function triggerPdpReceptionSweep(): Promise<null> {
  * (`document-action`) the backend's own repeatable uses (`document-queue.dispatcher.ts`'s own
  * `registerCurrencyRateSweepRepeatable`) - the backend under test's own, already-running
  * `DocumentActionProcessor` picks it up and runs the REAL `CurrencyRateSweepRunner.runSweep()`,
- * exactly as `triggerPdpReceptionSweep` above does for its own sweep, and for the same reason
+ * exactly as `triggerSuperPdpReceptionSweep` above does for its own sweep, and for the same reason
  * (triggered on demand instead of waiting on an interval).
  *
  * There is an EXTRA reason to prefer this over lowering `CURRENCY_RATE_SWEEP_INTERVAL_MS` the way
@@ -837,27 +837,27 @@ export default defineConfig({
 
         // See this file's own header just above ("PDP sandbox side") for why a real `node:http`
         // server, not a `cy.intercept`, is what the backend's own server-to-server PDP calls need.
-        startFakePdpServer() {
-          return startFakePdpServer();
+        startFakeSuperPdpServer() {
+          return startFakeSuperPdpServer();
         },
-        setFakePdpInbox(invoices: FakePdpInboundInvoice[]) {
-          fakePdpInbox = invoices;
+        setFakeSuperPdpInbox(invoices: FakeSuperPdpInboundInvoice[]) {
+          fakeSuperPdpInbox = invoices;
           return null;
         },
-        getFakePdpLifecycleEvents() {
-          return [...fakePdpLifecycleEvents];
+        getFakeSuperPdpLifecycleEvents() {
+          return [...fakeSuperPdpLifecycleEvents];
         },
-        getFakePdpListCallCount() {
-          return fakePdpListCallCount;
+        getFakeSuperPdpListCallCount() {
+          return fakeSuperPdpListCallCount;
         },
-        resetFakePdpServer() {
-          fakePdpInbox = [];
-          fakePdpLifecycleEvents.length = 0;
-          fakePdpListCallCount = 0;
+        resetFakeSuperPdpServer() {
+          fakeSuperPdpInbox = [];
+          fakeSuperPdpLifecycleEvents.length = 0;
+          fakeSuperPdpListCallCount = 0;
           return null;
         },
-        triggerPdpReceptionSweep() {
-          return triggerPdpReceptionSweep();
+        triggerSuperPdpReceptionSweep() {
+          return triggerSuperPdpReceptionSweep();
         },
 
         triggerCurrencyRateSweep() {

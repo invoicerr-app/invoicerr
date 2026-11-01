@@ -1,6 +1,6 @@
 /**
- * The "pdp" transport in isolation. `PdpClient` and `@/prisma/
- * prisma.service` are mocked wholesale (the real HTTP round-trip is `pdp/superpdp.live.spec.ts`'s job, gated
+ * The "pdp" transport in isolation. `SuperPdpClient` and `@/prisma/
+ * prisma.service` are mocked wholesale (the real HTTP round-trip is `superpdp/superpdp.live.spec.ts`'s job, gated
  * on real sandbox credentials — see that file's own header); this proves the ORCHESTRATION: the
  * preflight gate, the payload build, and the two facts that matter most — that an
  * empty deposit id is NEVER a success and that a disconnected channel blocks BEFORE any network call.
@@ -12,7 +12,7 @@ import prisma from '@/prisma/prisma.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { DocumentFormatProvider } from '../formats/format-provider';
-import { buildPdpTransport } from './pdp-transport';
+import { buildSuperPdpTransport } from './superpdp-transport';
 import { DocumentTransportContext } from './transport-registry';
 
 vi.mock('@/prisma/prisma.service', () => ({
@@ -26,14 +26,14 @@ vi.mock('@/prisma/prisma.service', () => ({
 const mockAuthenticate = vi.fn();
 const mockSendInvoice = vi.fn();
 
-vi.mock('./pdp/pdp-client', () => ({
-  // A `function` expression, NOT an arrow function — production code does `new PdpClient(...)`
-  // (`pdp-transport.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
+vi.mock('./superpdp/superpdp-client', () => ({
+  // A `function` expression, NOT an arrow function - production code does `new SuperPdpClient(...)`
+  // (`superpdp-transport.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
   // implementation (they call it plainly and use the return value), so an arrow function "worked"
   // there; Vitest's mocks DO construct it for real, and an arrow function has no `[[Construct]]` at
   // all — "TypeError: ... is not a constructor".
-  // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest, see above.
-  PdpClient: vi.fn().mockImplementation(function () {
+  // biome-ignore lint/complexity/useArrowFunction: must stay a function expression - an arrow function has no [[Construct]] and breaks `new SuperPdpClient(...)` under Vitest, see above.
+  SuperPdpClient: vi.fn().mockImplementation(function () {
     return { authenticate: mockAuthenticate, sendInvoice: mockSendInvoice };
   }),
 }));
@@ -80,7 +80,7 @@ const CTX: DocumentTransportContext = {
   },
 };
 
-describe('buildPdpTransport', () => {
+describe('buildSuperPdpTransport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedPrisma.company.findUnique.mockResolvedValue({
@@ -106,7 +106,7 @@ describe('buildPdpTransport', () => {
   describe('preflight() — the PREFLIGHT gate, before anything is persisted or queued', () => {
     it('throws (named, for THIS channel) when no PDP channel is connected at all', async () => {
       const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
       await expect(transport.preflight!('company-1')).rejects.toThrow(/PDP channel is not connected/);
@@ -119,13 +119,13 @@ describe('buildPdpTransport', () => {
           config: { baseUrl: 'https://api.superpdp.tech', clientId: 'id-1' },
         }),
       });
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
       await expect(transport.preflight!('company-1')).rejects.toThrow(NotImplementedException);
     });
 
     it('resolves cleanly when fully connected — never touches the network', async () => {
       const deps = buildDeps();
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
       await expect(transport.preflight!('company-1')).resolves.toBeUndefined();
       expect(mockAuthenticate).not.toHaveBeenCalled();
     });
@@ -134,7 +134,7 @@ describe('buildPdpTransport', () => {
   describe('send() — delivery', () => {
     it('blocks (never calls the network) when the channel is not connected — re-checked, not cached from preflight', async () => {
       const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null) });
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
       expect(mockAuthenticate).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe('buildPdpTransport', () => {
         .fn()
         .mockResolvedValue({ bytes: new Uint8Array([7]), validation: { valid: true, errors: [] } });
       const deps = buildDeps({ build });
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
       expect(transport.deliversCreditNotes).toBe(true);
 
       const creditNote = {
@@ -188,7 +188,7 @@ describe('buildPdpTransport', () => {
     it('refuses when the invoice has no valid client on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue(null);
       const deps = buildDeps();
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       expect(mockSendInvoice).not.toHaveBeenCalled();
     });
@@ -199,7 +199,7 @@ describe('buildPdpTransport', () => {
         validation: { valid: false, errors: ['BR-CO-26: seller VAT missing'] },
       });
       const deps = buildDeps({ build });
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       expect(mockAuthenticate).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('buildPdpTransport', () => {
       mockAuthenticate.mockResolvedValue('bearer-token');
       mockSendInvoice.mockResolvedValue({ id: 375037, direction: 'out' });
       const deps = buildDeps();
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       const result = await transport.send(CTX);
 
@@ -232,7 +232,7 @@ describe('buildPdpTransport', () => {
       mockAuthenticate.mockResolvedValue('bearer-token');
       mockSendInvoice.mockResolvedValue({ id: undefined });
       const deps = buildDeps();
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/no deposit id/);
@@ -241,7 +241,7 @@ describe('buildPdpTransport', () => {
     it('wraps a network/auth failure from the PDP client into a named BadRequestException — never swallowed', async () => {
       mockAuthenticate.mockRejectedValue(new Error('ECONNREFUSED'));
       const deps = buildDeps();
-      const transport = buildPdpTransport(deps);
+      const transport = buildSuperPdpTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(/PDP deposit failed: ECONNREFUSED/);
     });

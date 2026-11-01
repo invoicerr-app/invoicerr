@@ -1,14 +1,14 @@
 /**
- * `buildPdpStatusPoller` in isolation — `PdpClient` is mocked (the real HTTP round-trip is
+ * `buildSuperPdpStatusPoller` in isolation - `SuperPdpClient` is mocked (the real HTTP round-trip is
  * `superpdp-conformity.live.spec.ts`'s job, gated on real sandbox credentials). The fixtures below are the
  * ACTUAL raw payloads captured LIVE (`superpdp-conformity.live.spec.ts`, 2026-09-01) — deposit
  * 397536 (accepted, fr:200→201→202) and deposit 397548 (rejected, fr:213, real BR-FR-05/BT-22 reason)
  * — pasted verbatim, not invented.
  *
- * THE MUTATION TARGET this file exists to catch (`pdp-client.ts`'s own
+ * THE MUTATION TARGET this file exists to catch (`superpdp-client.ts`'s own
  * header): reading `invoice.status_code` instead of `invoice.events[]`. Every fixture below has NO
  * top-level `status_code` field at all — exactly what the real superpdp API actually returns (VERIFIED
- * live, see `pdp-client.ts`'s own comment on `SuperPdpInvoice.status_code`) — so a poller mistakenly
+ * live, see `superpdp-client.ts`'s own comment on `SuperPdpInvoice.status_code`) - so a poller mistakenly
  * reading that field would get `undefined` and produce EMPTY results, failing every assertion here
  * that expects populated events.
  */
@@ -16,23 +16,23 @@ import { vi } from 'vitest';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { SuperPdpInvoice } from '../../transports/pdp/pdp-client';
+import { SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
 import { ChannelNotConnectedError } from '../authority-status-poller';
 import {
-  buildPdpStatusPoller,
+  buildSuperPdpStatusPoller,
   PDP_ACCEPTED_STATUS_CODE,
   PDP_REJECTED_STATUS_CODE,
-} from './pdp-status-poller';
+} from './superpdp-status-poller';
 
 const mockGetInvoice = vi.fn();
 const mockAuthenticate = vi.fn();
 
-vi.mock('../../transports/pdp/pdp-client', async () => {
-  const actual = await vi.importActual('../../transports/pdp/pdp-client');
+vi.mock('../../transports/superpdp/superpdp-client', async () => {
+  const actual = await vi.importActual('../../transports/superpdp/superpdp-client');
   return {
     ...actual,
-    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
-    PdpClient: vi.fn().mockImplementation(function () {
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression - an arrow function has no [[Construct]] and breaks `new SuperPdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    SuperPdpClient: vi.fn().mockImplementation(function () {
       return {
         authenticate: mockAuthenticate,
         getInvoice: mockGetInvoice,
@@ -120,12 +120,12 @@ const REJECTED_INVOICE_397548: SuperPdpInvoice = {
   ],
 } as SuperPdpInvoice;
 
-describe('buildPdpStatusPoller', () => {
+describe('buildSuperPdpStatusPoller', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('maps the REAL fr:200→201→202 lifecycle from events[] — the accepted path', async () => {
     mockGetInvoice.mockResolvedValue(ACCEPTED_INVOICE_397536);
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     const events = await poller.poll('company-1', '397536');
 
@@ -143,7 +143,7 @@ describe('buildPdpStatusPoller', () => {
 
   it('maps the REAL fr:213 rejection, with its own reason, from events[] — the rejected path', async () => {
     mockGetInvoice.mockResolvedValue(REJECTED_INVOICE_397548);
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     const events = await poller.poll('company-1', '397548');
 
@@ -164,7 +164,7 @@ describe('buildPdpStatusPoller', () => {
       // would fail: `invoice.status_code` is `undefined` for this exact, real fixture.
       expect((ACCEPTED_INVOICE_397536 as { status_code?: unknown }).status_code).toBeUndefined();
       mockGetInvoice.mockResolvedValue(ACCEPTED_INVOICE_397536);
-      const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+      const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
       const events = await poller.poll('company-1', '397536');
       expect(events.length).toBeGreaterThan(0);
     },
@@ -172,12 +172,12 @@ describe('buildPdpStatusPoller', () => {
 
   it('an invoice with no events yet yields an empty array (nothing to journal this pass)', async () => {
     mockGetInvoice.mockResolvedValue({ ...ACCEPTED_INVOICE_397536, events: [] });
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
     expect(await poller.poll('company-1', '397536')).toEqual([]);
   });
 
   it('throws ChannelNotConnectedError when PDP has no connected credentials for this company', async () => {
-    const poller = buildPdpStatusPoller({
+    const poller = buildSuperPdpStatusPoller({
       channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
     });
     await expect(poller.poll('company-1', '397536')).rejects.toBeInstanceOf(ChannelNotConnectedError);
@@ -186,7 +186,7 @@ describe('buildPdpStatusPoller', () => {
 
   it('throws ChannelNotConnectedError for an incomplete config too (e.g. missing clientSecret)', async () => {
     const incomplete = { ...CONNECTED_CONFIG, config: { baseUrl: 'https://api.superpdp.tech' } };
-    const poller = buildPdpStatusPoller({
+    const poller = buildSuperPdpStatusPoller({
       channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(incomplete)),
     });
     await expect(poller.poll('company-1', '397536')).rejects.toBeInstanceOf(ChannelNotConnectedError);
@@ -196,7 +196,7 @@ describe('buildPdpStatusPoller', () => {
   // which `getInvoice` would interpolate straight into the URL (`/v1.beta/invoices/NaN`) — a 404
   // indistinguishable, downstream, from an ordinary transient failure.
   it('refuses a non-numeric transportRef by name, never reaching getInvoice with a NaN id', async () => {
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     await expect(poller.poll('company-1', 'not-a-number')).rejects.toThrow(
       /transportRef "not-a-number" is not a valid PDP invoice id/,
@@ -205,7 +205,7 @@ describe('buildPdpStatusPoller', () => {
   });
 
   it('refuses a blank transportRef the same way', async () => {
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     await expect(poller.poll('company-1', '')).rejects.toThrow(/is not a valid PDP invoice id/);
     expect(mockGetInvoice).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe('buildPdpStatusPoller', () => {
 
   it('accepts a genuinely numeric transportRef, even if handed as a string', async () => {
     mockGetInvoice.mockResolvedValue({ ...ACCEPTED_INVOICE_397536, events: [] });
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     await poller.poll('company-1', '397536');
 
@@ -229,7 +229,7 @@ describe('buildPdpStatusPoller', () => {
       ...ACCEPTED_INVOICE_397536,
       events: [{ status_code: 'fr:200', status_text: 'x', created_at: 'not-a-real-date' }],
     });
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     const events = await poller.poll('company-1', '397536');
 
@@ -242,7 +242,7 @@ describe('buildPdpStatusPoller', () => {
       ...ACCEPTED_INVOICE_397536,
       events: [{ status_code: 'fr:200', status_text: 'x' }],
     });
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     const events = await poller.poll('company-1', '397536');
 
@@ -250,7 +250,7 @@ describe('buildPdpStatusPoller', () => {
   });
 
   describe('isTerminal', () => {
-    const poller = buildPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
 
     it('fr:202 (accepted) and fr:213 (rejected) are terminal', () => {
       expect(poller.isTerminal(PDP_ACCEPTED_STATUS_CODE)).toBe(true);

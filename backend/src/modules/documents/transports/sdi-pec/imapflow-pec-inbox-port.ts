@@ -22,7 +22,7 @@
  * volume one company's own invoicing mailbox actually sees (a handful of messages a day, not
  * thousands), reconnecting per operation costs nothing that matters, and it sidesteps every
  * connection-lifecycle bug a long-lived, shared connection would risk (a stale session across two
- * calls, a lock left held) — the same trade a `pdp-transport.ts`-style stateless per-call client
+ * calls, a lock left held) - the same trade a `superpdp-transport.ts`-style stateless per-call client
  * already makes for its own HTTPS calls. A future high-volume deployment reusing one connection across
  * a whole poll cycle is a real optimization, just not one this task's own scope needs.
  */

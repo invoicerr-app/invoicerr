@@ -1,6 +1,6 @@
 /**
  * REAL round-trip against the Iopole sandbox (`api.ppd.iopole.fr`). Gated exactly the way
- * `pdp/superpdp.live.spec.ts` is (`live-gate.ts`: an explicit flag AND every credential var present), and
+ * `superpdp/superpdp.live.spec.ts` is (`live-gate.ts`: an explicit flag AND every credential var present), and
  * run the same way:
  *
  *   cd backend && set -a; . /path/to/pdp-sandbox.env; set +a

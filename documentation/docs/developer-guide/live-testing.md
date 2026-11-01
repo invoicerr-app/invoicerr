@@ -33,9 +33,9 @@ Hard-success contract (enforced per-spec):
 | Channel | Flag | Key creds | Spec file | Status |
 |---|---|---|---|---|
 | KSeF (PL) | `KSEF_LIVE=1` | `KSEF_AUTH_TOKEN`, `KSEF_NIP` | `ksef/ksef.live.spec.ts` | 🟡 Credentials present, round-trip unverified — `KSEF_AUTH_TOKEN`/`KSEF_NIP` **do** exist as CI secrets today (confirmed by name via `gh secret list`, not by value). The same secrets authenticated successfully against `ksef-test.mf.gov.pl` as recently as 2026-07-14 (a CI run of the pre-refactor `compliance/providers/transmission/ksef/ksef-live.spec.ts`: real submission, a semantic `REJECTED` — code 450 — not an auth failure). No live run has exercised the current, post-refactor spec, and `compliance-live.yml` has not been triggered since the 2026-08-29 engine refactor — so whether the same credentials are still valid today is **unverified**, not proven expired. |
-| PDP superpdp (FR) | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` | `pdp/superpdp.live.spec.ts` | ✅ **Round-trip proven** — `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
-| PDP superpdp (FR) - credit note (issue #472) | `SUPERPDP_LIVE=1` | same as the row above | `pdp/superpdp-credit-note.live.spec.ts` | ✅ **Accepted live 2026-09-27** - an invoice (TypeCode 380, deposit 766462) then a credit note correcting it (TypeCode 381, BG-3 naming that invoice, deposit 766465), both `fr:200 → fr:201`, no rejection. Proves the 381 + BG-3 CII shape; the fr:202 step was not awaited. |
-| PDP reception (FR), inbound e-invoices | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING` (same credentials as the row above: one PDP account only, see below) | `pdp/superpdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16**: a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `PdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) now targets `POST /v1.beta/invoice_events`** (the route SuperPDP's published OpenAPI documents); the old `/invoices/{id}/lifecycle_events` path does not exist and answered a generic 404; no live round-trip of the corrected push has been run yet, see the dedicated section below |
+| PDP superpdp (FR) | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING`, `SUPERPDP_BUYER_ROUTING` | `superpdp/superpdp.live.spec.ts` | ✅ **Round-trip proven** - `fr:200 → fr:201 → fr:202`, deposit 375037, 2026-08-29 |
+| PDP superpdp (FR) - credit note (issue #472) | `SUPERPDP_LIVE=1` | same as the row above | `superpdp/superpdp-credit-note.live.spec.ts` | ✅ **Accepted live 2026-09-27** - an invoice (TypeCode 380, deposit 766462) then a credit note correcting it (TypeCode 381, BG-3 naming that invoice, deposit 766465), both `fr:200 → fr:201`, no rejection. Proves the 381 + BG-3 CII shape; the fr:202 step was not awaited. |
+| PDP reception (FR), inbound e-invoices | `SUPERPDP_LIVE=1` | `SUPERPDP_CLIENT_ID`, `SUPERPDP_CLIENT_SECRET`, `SUPERPDP_SELLER_ROUTING` (same credentials as the row above: one PDP account only, see below) | `superpdp/superpdp-reception.live.spec.ts` | ✅ **Listing + download proven live 2026-09-16**: a self-addressed deposit's own INBOUND twin (`direction=in`, a DIFFERENT id from the outbound one) was listed, downloaded (real `%PDF-` bytes), extracted, and turned into a real `received-invoice` `DocumentInstance` by the REAL `SuperPdpReceptionSweepRunner`; then "approve" and a full "record-payment" ran for real too. 🟡 **the buyer-side lifecycle PUSH (`pushLifecycleStatus`) now targets `POST /v1.beta/invoice_events`** (the route SuperPDP's published OpenAPI documents); the old `/invoices/{id}/lifecycle_events` path does not exist and answered a generic 404; no live round-trip of the corrected push has been run yet, see the dedicated section below |
 | Email (document "send" SMTP delivery) | `DOCUMENTS_MAIL_LIVE=1` | _(none — hits the local Mailpit container the dev/test stack already runs, SMTP `:1025` / API `:8025`; needs `DATABASE_URL` for one throwaway `Company` row)_ | `actions/send-quote.live.spec.ts` | ✅ Proven live (2026-08-31) — a real message read back from Mailpit's own API, with the PDF attachment actually present and the subject genuinely interpolated |
 | Iopole (FR) | `IOPOLE_LIVE=1` | `PDP_IOPOLE_CLIENT_ID`, `PDP_IOPOLE_CLIENT_SECRET`, `PDP_IOPOLE_CUSTOMER_ID` (`PDP_IOPOLE_API_BASE` / `PDP_IOPOLE_TOKEN_URL` optional - the hosts are fixed constants in `iopole-transport.ts#IOPOLE_URLS`) | `iopole/iopole.live.spec.ts` | ✅ **Round-trip proven 2026-09-24** - real Factur-X deposit accepted (`201 {"type":"INVOICE","id":"01a0d29b-37d0-750d-9f8f-5d35664fca90"}`) and a real positive verdict read back from the platform: `SUBMITTED` (destType `PPF` and `OPERATOR`) → `RECEIVED` (networkCode 202) → `ISSUED`, no rejection. Reproduced on a second, independent deposit before the assertion was tightened. See the dedicated section below. |
 | SdI (IT) | `SDI_LIVE=1` | `SDI_ID_TRASMITTENTE`, `SDI_ENDPOINT`, `SDI_CERTIFICATE`, `SDI_CERT_PASSWORD` | `sdi/sdicoop.live.spec.ts` | 🔴 Deferred (AdE accreditation) — code implemented-awaiting-accreditation, never yet run |
@@ -126,11 +126,11 @@ Hard-success contract (enforced per-spec):
 > France's e-invoicing reform requires every company in scope to be able to RECEIVE structured
 > e-invoices through an accredited platform from 2026-09-01 (CGI art. 289 bis, I — see
 > `received-invoice.descriptor.ts`'s own "receive" country-policy note for the raw-text citation).
-> This session wired the READ side of the existing "pdp" channel: `transports/pdp/pdp-reception.ts`
+> This session wired the READ side of the existing "pdp" channel: `transports/superpdp/superpdp-reception.ts`
 > (buyer-side lifecycle codes + the non-fatal status pusher), `conformity/pollers/
-> pdp-reception-poller.ts` (list + download + extract, reusing the SAME structural extraction the
+> superpdp-reception-poller.ts` (list + download + extract, reusing the SAME structural extraction the
 > manual upload screen already uses), `conformity/reception-sweep-runner.ts` (a BullMQ repeatable,
-> `PdpReceptionSweepRunner`, mirroring `ConformitySweepRunner`'s own "pure core / thin persistence
+> `SuperPdpReceptionSweepRunner`, mirroring `ConformitySweepRunner`'s own "pure core / thin persistence
 > shell" split), and two new received-invoice actions (`reject` now takes a REQUIRED `reason`;
 > `record-payment` mirrors the invoice's own, minus cross-currency conversion).
 >
@@ -147,7 +147,7 @@ Hard-success contract (enforced per-spec):
 > deposit was used instead — this company (`GET /v1.beta/companies/me` resolves to "Burger Queen",
 > VAT `FR18000000002`, SIREN-ish `000000002`, routing `315143296_1422`) depositing an invoice to its
 > OWN identifiers. Proven live, in one continuous run
-> (`pdp/superpdp-reception.live.spec.ts`):
+> (`superpdp/superpdp-reception.live.spec.ts`):
 >
 > 1. `POST /v1.beta/invoices` (multipart Factur-X) — a real deposit, e.g. id `604994`.
 > 2. `GET /v1.beta/invoices?direction=in&limit=…` — lists the deposit's own INBOUND TWIN, a
@@ -156,7 +156,7 @@ Hard-success contract (enforced per-spec):
 > 3. `GET /v1.beta/invoices/{id}?format=original` — **the correct download endpoint** (an EARLIER
 >    version of this code guessed a `/file` sub-path that does not exist — a real, live 404 — before
 >    testing revealed this is the SAME endpoint `getInvoice()` already calls, just answered with
->    `content-type: application/pdf` and real bytes instead of JSON). `PdpClient.downloadInvoiceFile()`
+>    `content-type: application/pdf` and real bytes instead of JSON). `SuperPdpClient.downloadInvoiceFile()`
 >    reads this response as `arrayBuffer()`, never `res.text()` (which would UTF-8-corrupt the binary).
 > 4. The downloaded bytes ran through the EXACT SAME `received-invoices/extraction.ts` the manual
 >    upload dialog uses, and the result (`supplier`, `currency`, `grossAmount`, …) became a real
@@ -203,9 +203,9 @@ Hard-success contract (enforced per-spec):
 >
 > E2E coverage (`e2e/cypress/e2e/74-received-invoice-inbound.cy.ts`) proves the SCREEN side offline:
 > a real local `node:http` server shaped like the three endpoints above (`cypress.config.ts`'s
-> `startFakePdpServer`) stands in for superpdp, and the REAL `PdpReceptionSweepRunner` is triggered
+> `startFakeSuperPdpServer`) stands in for superpdp, and the REAL `SuperPdpReceptionSweepRunner` is triggered
 > on demand as a REAL BullMQ job on the backend's own `document-action` queue
-> (`triggerPdpReceptionSweep`, using the `bullmq` package directly — never a stub of the sweep
+> (`triggerSuperPdpReceptionSweep`, using the `bullmq` package directly - never a stub of the sweep
 > runner itself) rather than waiting on its own 5-minute default interval.
 
 ### Iopole (FR) - a second French transmission platform, 2026-09-24

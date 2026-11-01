@@ -64,7 +64,7 @@ export { CHORUS_PRO_PROVIDER_ID };
 /** A `statutFlux` is terminal exactly when `mapChorusProStatus` calls it CLEARED
  *  (VALIDE/MISE_EN_PAIEMENT/MANDATEE/COMPTABILISEE/IN_INTEGRE) or REJECTED (REJETE/IN_REJETE) — the
  *  same "predicate over the provider's own vocabulary" shape `ksef-status-poller.ts`'s own
- *  `isTerminalKsefCode` already holds, never a fixed two-code list the way `pdp-status-poller.ts` can afford
+ *  `isTerminalKsefCode` already holds, never a fixed two-code list the way `superpdp-status-poller.ts` can afford
  *  (PDP's own vocabulary never grew past fr:202/fr:213 in live proof — Chorus Pro's is wider, per the
  *  reference's own client). PENDING and UNKNOWN are BOTH non-terminal here, deliberately the same way:
  *  an unrecognized value has no more basis to be read as a success or a failure than a recognized
@@ -181,7 +181,7 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
 
       // Chorus Pro's own `consulterCRDetaille` carries no "when did this status itself change" field
       // (only the CURRENT `etatCourantDepotFlux`) — "now" is the only honest value for "when THIS poll
-      // observed it", the same fallback `pdp-status-poller.ts`/`ksef-status-poller.ts` both use for an
+      // observed it", the same fallback `superpdp-status-poller.ts`/`ksef-status-poller.ts` both use for an
       // event with no platform-supplied timestamp.
       return [
         {

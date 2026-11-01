@@ -1,12 +1,12 @@
 /**
- * PDP RECEPTION sweep's own pure decisions/constants — split from `reception-sweep-runner.ts` (the
+ * SuperPDP reception sweep's own pure decisions/constants - split from `reception-sweep-runner.ts` (the
  * Prisma/`DocumentsService`/BullMQ-touching half) for the exact same reason `conformity-sweep.ts` is
  * split from `conformity-sweep-runner.ts` (see that file's own header): "what job name/id does this
  * mechanism use" and "how often does it run" are both plain facts, testable without a broker, a
  * database, or a real PDP client.
  *
  * ONE repeatable job, not one per company — same reasoning as the conformity sweep and the
- * recurrence sweep before it: the repeatable is a metronome; `PdpReceptionSweepRunner.runSweep()`
+ * recurrence sweep before it: the repeatable is a metronome; `SuperPdpReceptionSweepRunner.runSweep()`
  * itself re-derives "which companies have PDP connected" (`ChannelCredentialsService.
  * listActiveByProvider`) fresh, every pass, from the database — nothing about a company's own
  * connection state is cached in the job or the repeatable definition.

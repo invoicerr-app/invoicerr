@@ -166,7 +166,7 @@ export class PaymentSessionsService {
     const provider = this.providerRegistry.resolve(providerId);
     const config = await this.channelCredentials.resolveActive(companyId, providerId);
     if (!provider || !config) {
-      // Same 501 shape `pdp-transport.ts#requireConnectedPdp` already uses for "no channel connected" —
+      // Same 501 shape `superpdp-transport.ts#requireConnectedSuperPdp` already uses for "no channel connected" -
       // a company has simply never filled in Settings → Payments (or picked a provider it never
       // actually connected credentials for) — never a server-side bug.
       throw new NotImplementedException(

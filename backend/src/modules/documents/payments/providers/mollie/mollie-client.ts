@@ -42,7 +42,7 @@ const MOLLIE_API_BASE = 'https://api.mollie.com/v2';
  * `GET /v2/payments/{id}`. That is a SMALLER surface than `stripe-checkout-client.ts`'s own single call,
  * and this codebase's own established answer for "one or two focused REST calls" is a plain `fetch`
  * client, not a dependency — see that file's own header, and every national channel client in
- * `transports/` (`pdp-client.ts`, `ksef-client.ts`): none of them pull in a vendor SDK either. Adding
+ * `transports/` (`superpdp-client.ts`, `ksef-client.ts`): none of them pull in a vendor SDK either. Adding
  * `@mollie/api-client` would also mean a `package.json`/`package-lock.json` change on a branch two other
  * agents are actively working on in parallel (Polar billing, Cypress specs) — a real, avoidable
  * merge-conflict surface for zero functional gain, since `fetch` already covers everything this

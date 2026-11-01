@@ -1,7 +1,7 @@
 /**
  * HTTP client for the Invopop platform API (`api.invopop.com`) - the transmission platform behind
  * `transports/invopop-transport.ts`. Dependency-free (bare `fetch`), the same shape
- * `pdp/pdp-client.ts` already holds for superpdp, so nothing here needs a vendor SDK.
+ * `superpdp/superpdp-client.ts` already holds for superpdp, so nothing here needs a vendor SDK.
  *
  * THE MODEL, in the platform's own words (https://docs.invopop.com/llms.md, read 2026-09-24): a GOBL
  * document is PUT into the SILO, which wraps it in an envelope and stores it as an ENTRY; a JOB is
@@ -14,7 +14,7 @@
  *
  *  1. NO SEPARATE SANDBOX HOST. `https://api.invopop.com` serves every workspace and the TOKEN
  *     decides which one; `GET /access/v1/workspace` answers `"sandbox": true` or `false`. A base URL
- *     is still a per-company credential here (same as `pdp-client.ts`) rather than a constant, so a
+ *     is still a per-company credential here (same as `superpdp-client.ts`) rather than a constant, so a
  *     self-hoster can point at a proxy - which is also why the SSRF guard below is not optional.
  *
  *  2. A 403 FROM THIS API IS NOT AN AUTHENTICATION FAILURE. Their edge sits behind Cloudflare, which
@@ -27,7 +27,7 @@
  *     like a credentials problem.
  *
  *  3. THE TOKEN DOES NOT EXPIRE. The workspace API key is a JWT carrying `scope: admin` and `exp: 0`.
- *     There is deliberately NO refresh cycle in this client - unlike `pdp-client.ts`'s OAuth2
+ *     There is deliberately NO refresh cycle in this client - unlike `superpdp-client.ts`'s OAuth2
  *     `authenticate()`, there is nothing to renew, and inventing a renewal would be inventing a
  *     protocol the platform does not speak.
  *
@@ -42,7 +42,7 @@
  * SSRF: `baseUrl` is a company-supplied credential, so every entry point re-validates it through
  * `@/utils/outbound-url` and connects through `pinnedDispatcher(resolved)` - DNS re-resolved on every
  * call, never trusted once at rest. Identical reasoning, and identical deliberate divergences
- * (both schemes, no port restriction), to `pdp/pdp-client.ts`'s own header: read that one for the
+ * (both schemes, no port restriction), to `superpdp/superpdp-client.ts`'s own header: read that one for the
  * full argument rather than re-deriving it here.
  */
 import {
@@ -173,7 +173,7 @@ export class InvopopClient {
    * Re-checked at the top of every request rather than once at construction - `baseUrl` came from a
    * tenant's own channel configuration and DNS is not a fact fixed at connect time. The thrown
    * message is deliberately generic (the transport folds it into a user-facing error, so naming the
-   * reason would turn this guard into a network-scanning oracle). See `pdp/pdp-client.ts`.
+   * reason would turn this guard into a network-scanning oracle). See `superpdp/superpdp-client.ts`.
    */
   private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
     try {

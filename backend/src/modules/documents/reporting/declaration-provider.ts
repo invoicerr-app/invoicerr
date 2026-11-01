@@ -12,7 +12,7 @@
  *
  * A poller answers "what does the platform now say about a deposit I ALREADY MADE" — it needs only
  * `(companyId, transportRef)`, because the deposit itself already happened through a TRANSPORT
- * (`transports/pdp-transport.ts`, …). A `DeclarationProvider` answers a different question: "declare
+ * (`transports/superpdp-transport.ts`, …). A `DeclarationProvider` answers a different question: "declare
  * THIS invoice's data to the tax authority" — there is no prior deposit to reference (NAV/myDATA are
  * never how the invoice reaches the buyer, see `report-on-send.ts`'s own header), so it needs the
  * invoice's own DATA instead of a `transportRef`, and it produces exactly ONE event per call rather

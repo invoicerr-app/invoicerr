@@ -17,7 +17,7 @@ import * as supplierReconciliation from './received-invoices/supplier-reconcilia
 import * as settlementPayments from './settlement/payments';
 import * as receivedExtraction from './received-invoices/extraction';
 import * as receivedStorage from './received-invoices/storage';
-import { PdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
+import { SuperPdpReceptionStatusPusher } from './transports/superpdp/superpdp-reception';
 import { TransportRegistry } from './transports/transport-registry';
 
 vi.mock('./persistence');
@@ -48,17 +48,17 @@ vi.mock('./received-invoices/extraction', async (importOriginal) => ({
  * Same wiring discipline as documents.service.credit-note.spec.ts (the THIRD): a real descriptor,
  * real core field kinds, real action registration, only persistence.ts and country-policy.ts mocked.
  */
-/** A bare stub, never a real `ChannelCredentialsService`/`PdpClient` — the same "depend on the
- *  narrow interface" discipline `transports/pdp/pdp-reception.ts`'s own header documents; tests that
+/** A bare stub, never a real `ChannelCredentialsService`/`SuperPdpClient` - the same "depend on the
+ *  narrow interface" discipline `transports/superpdp/superpdp-reception.ts`'s own header documents; tests that
  *  care which method fired pass their own `vi.fn()`-backed stub instead. */
-const NOOP_PDP_STATUS_PUSHER: PdpReceptionStatusPusher = {
+const NOOP_PDP_STATUS_PUSHER: SuperPdpReceptionStatusPusher = {
   pushTakenInCharge: async () => {},
   pushApproved: async () => {},
   pushRejected: async () => {},
   pushPaid: async () => {},
 };
 
-function buildService(pdpStatusPusher: PdpReceptionStatusPusher = NOOP_PDP_STATUS_PUSHER) {
+function buildService(superPdpStatusPusher: SuperPdpReceptionStatusPusher = NOOP_PDP_STATUS_PUSHER) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildReceivedInvoiceDescriptor());
 
@@ -66,7 +66,7 @@ function buildService(pdpStatusPusher: PdpReceptionStatusPusher = NOOP_PDP_STATU
   registerCoreFieldKinds(fieldKindRegistry);
 
   const actionRegistry = new ActionRegistry();
-  registerReceivedInvoiceActions(actionRegistry, undefined, pdpStatusPusher);
+  registerReceivedInvoiceActions(actionRegistry, undefined, superPdpStatusPusher);
 
   const service = new DocumentsService(
     typeRegistry,
@@ -304,7 +304,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     (persistence.updateDocumentStatus as Mock).mockResolvedValue(
       fakeRecord({ status: 'approved', data: { pdpInboundId: '604667' } }),
     );
-    const pusher: PdpReceptionStatusPusher = {
+    const pusher: SuperPdpReceptionStatusPusher = {
       pushTakenInCharge: vi.fn(),
       pushApproved: vi.fn(),
       pushRejected: vi.fn(),
@@ -322,7 +322,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
   it('"approve" pushes NOTHING to PDP for a manually-uploaded record (no `pdpInboundId`)', async () => {
     (persistence.findOwnedDocument as Mock).mockResolvedValue(fakeRecord({ status: 'received' }));
     (persistence.updateDocumentStatus as Mock).mockResolvedValue(fakeRecord({ status: 'approved' }));
-    const pusher: PdpReceptionStatusPusher = {
+    const pusher: SuperPdpReceptionStatusPusher = {
       pushTakenInCharge: vi.fn(),
       pushApproved: vi.fn(),
       pushRejected: vi.fn(),
@@ -345,7 +345,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       if (calls === 1) return fakeRecord({ status: 'approved', data: { pdpInboundId: '604667' } });
       throw new ConflictException('Document "ri-1" is no longer in one of the expected statuses.');
     });
-    const pusher: PdpReceptionStatusPusher = {
+    const pusher: SuperPdpReceptionStatusPusher = {
       pushTakenInCharge: vi.fn(),
       pushApproved: vi.fn(),
       pushRejected: vi.fn(),
@@ -377,7 +377,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
         data: { pdpInboundId: '604667', rejectionReason: 'Wrong purchase order' },
       }),
     );
-    const pusher: PdpReceptionStatusPusher = {
+    const pusher: SuperPdpReceptionStatusPusher = {
       pushTakenInCharge: vi.fn(),
       pushApproved: vi.fn(),
       pushRejected: vi.fn(),
@@ -417,7 +417,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       }
       throw new ConflictException('Document "ri-1" is no longer in one of the expected statuses.');
     });
-    const pusher: PdpReceptionStatusPusher = {
+    const pusher: SuperPdpReceptionStatusPusher = {
       pushTakenInCharge: vi.fn(),
       pushApproved: vi.fn(),
       pushRejected: vi.fn(),
@@ -532,7 +532,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     });
 
     it('pushes PDP\'s "paid" buyer status the pass the payment reaches the full gross amount', async () => {
-      const pusher: PdpReceptionStatusPusher = {
+      const pusher: SuperPdpReceptionStatusPusher = {
         pushTakenInCharge: vi.fn(),
         pushApproved: vi.fn(),
         pushRejected: vi.fn(),
@@ -549,7 +549,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
     });
 
     it('does NOT push "paid" for a partial payment that does not reach the full gross amount', async () => {
-      const pusher: PdpReceptionStatusPusher = {
+      const pusher: SuperPdpReceptionStatusPusher = {
         pushTakenInCharge: vi.fn(),
         pushApproved: vi.fn(),
         pushRejected: vi.fn(),

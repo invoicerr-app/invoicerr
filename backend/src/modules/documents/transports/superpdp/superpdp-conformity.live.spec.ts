@@ -22,9 +22,9 @@
  *    same pure, DB-free building blocks, not a copy of PRODUCTION CODE (`facturx-provider.ts`) since
  *    that needs a companyId to render a human PDF via Puppeteer — same substitution `superpdp.live.spec.ts`
  *    already documents (a minimal `pdf-lib` PDF stands in for the human-readable page).
- *  - The DEPOSIT is a REAL `PdpClient.sendInvoice()` call against the real superpdp sandbox.
- *  - THE POLLER IS THE REAL PRODUCTION CODE — `buildPdpStatusPoller` (`../../conformity/pollers/
- *    pdp-status-poller.ts`) and `ConformitySweepRunner.runPoll` (`../../conformity/
+ *  - The DEPOSIT is a REAL `SuperPdpClient.sendInvoice()` call against the real superpdp sandbox.
+ *  - THE POLLER IS THE REAL PRODUCTION CODE - `buildSuperPdpStatusPoller` (`../../conformity/pollers/
+ *    superpdp-status-poller.ts`) and `ConformitySweepRunner.runPoll` (`../../conformity/
  *    conformity-sweep-runner.ts`), imported and called exactly as `document-action.processor.ts`
  *    would when a real poll job runs. NOT a copy, NOT a hand-rolled re-implementation.
  *  - The ONE substitution: `ChannelCredentialsService` is a plain stub object handing back the SAME
@@ -53,9 +53,9 @@ import prisma from '@/prisma/prisma.service';
 import { listAuthorityEvents } from '../../conformity/authority-events.persistence';
 import { AuthorityStatusPollerRegistry } from '../../conformity/authority-status-poller';
 import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner';
-import { buildPdpStatusPoller } from '../../conformity/pollers/pdp-status-poller';
+import { buildSuperPdpStatusPoller } from '../../conformity/pollers/superpdp-status-poller';
 import { liveDescribe } from '../live-gate';
-import { PdpApiError, PdpClient } from './pdp-client';
+import { SuperPdpApiError, SuperPdpClient } from './superpdp-client';
 import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -70,7 +70,7 @@ const describeLive = liveDescribe('SUPERPDP_LIVE', [...SUPERPDP_LIVE_ENV, ...SUP
 
 /** Same stub `ChannelCredentialsService` reasoning as this file's own header — hands the REAL
  *  credentials straight from `process.env` (exactly what `superpdp.live.spec.ts` itself reads) to the
- *  REAL `buildPdpStatusPoller`, without needing a real encrypted `CompanyChannelConfig` row. */
+ *  REAL `buildSuperPdpStatusPoller`, without needing a real encrypted `CompanyChannelConfig` row. */
 function buildRealCredentialsStub(): ChannelCredentialsService {
   const resolved: ResolvedChannelConfig = {
     providerId: 'pdp',
@@ -121,7 +121,7 @@ async function createSentDocument(name: string, email: string, depositId: string
  *  5s, exactly what successive sweep passes would do. */
 async function pollUntilTerminal(companyId: string, documentId: string, depositId: string) {
   const registry = new AuthorityStatusPollerRegistry();
-  registry.register(buildPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
+  registry.register(buildSuperPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
   const runner = new ConformitySweepRunner(registry, {} as never); // runPoll never touches the queue
   const job = { companyId, documentId, providerId: 'pdp', transportRef: depositId };
   let sawTerminal = false;
@@ -146,7 +146,7 @@ async function pollUntilTerminal(companyId: string, documentId: string, depositI
 /** The gated plain CII is always fixed; with `includeMentions: false` the EMBEDDED artifact actually
  *  sent skips the BG-1 note split and BT-23, reproducing the documented historical rejection cause.
  *  `facturx-provider.ts` never has this gap; it exists only in this test artifact. */
-async function buildFacturxBytes(client: PdpClient, includeMentions: boolean, timestamp: number) {
+async function buildFacturxBytes(client: SuperPdpClient, includeMentions: boolean, timestamp: number) {
   return buildLiveFacturx({
     displayNumber: `INV-CONFORMITY-${timestamp}`,
     seller: await resolveSandboxCompany(client),
@@ -227,7 +227,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     const client = superpdpLiveClient();
     await client.authenticate();
     const facturxPdf = await buildFacturxBytes(client, false, timestamp);
-    let invoice: Awaited<ReturnType<PdpClient['sendInvoice']>>;
+    let invoice: Awaited<ReturnType<SuperPdpClient['sendInvoice']>>;
     try {
       invoice = await client.sendInvoice(Buffer.from(facturxPdf), {
         externalId: `INV-CONFORMITY-REJECT-${timestamp}`,
@@ -235,7 +235,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     } catch (error) {
       // The platform may refuse this artifact at upload, before any conformity verdict: that refusal
       // must itself be the schema error the unsplit BG-1 notes cause.
-      if (!(error instanceof PdpApiError)) throw error;
+      if (!(error instanceof SuperPdpApiError)) throw error;
       console.log('NON-COMPLIANT DEPOSIT REFUSED AT UPLOAD:', error.message);
       expect(error.status).toBe(400);
       expect(`${error.message} ${JSON.stringify(error.body)}`).toMatch(/IncludedNote|\}Content'/);

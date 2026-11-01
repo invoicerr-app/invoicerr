@@ -11,7 +11,7 @@
  * gets created from a REAL PDP inbound deposit, not merely that a poller function returns a
  * plausible-looking array in memory.
  *
- * ## What this spec proves LIVE, and how — see `pdp-reception.ts`'s own header for the full,
+ * ## What this spec proves LIVE, and how - see `superpdp-reception.ts`'s own header for the full,
  * dated evidence this recipe is built from:
  *
  *  1. ONLY ONE PDP account is available to this session (`.env.test.local` carries ONE client_id/
@@ -20,10 +20,10 @@
  *     this company depositing an invoice to its OWN identifiers: name and SIREN as
  *     `GET /v1.beta/companies/me` answers them for these credentials, addressed at
  *     `SUPERPDP_SELLER_ROUTING`.
- *  2. `PdpClient.listInvoices({direction:'in'})` genuinely lists the deposit's own INBOUND twin — a
- *     DIFFERENT id from the outbound deposit's own, proven live (`pdp-reception.ts`'s own header).
- *  3. THE POLLER AND THE RUNNER ARE REAL PRODUCTION CODE — `buildPdpReceptionPoller`
- *     (`../../conformity/pollers/pdp-reception-poller.ts`) and `PdpReceptionSweepRunner`
+ *  2. `SuperPdpClient.listInvoices({direction:'in'})` genuinely lists the deposit's own INBOUND twin - a
+ *     DIFFERENT id from the outbound deposit's own, proven live (`superpdp-reception.ts`'s own header).
+ *  3. THE POLLER AND THE RUNNER ARE REAL PRODUCTION CODE - `buildSuperPdpReceptionPoller`
+ *     (`../../conformity/pollers/superpdp-reception-poller.ts`) and `SuperPdpReceptionSweepRunner`
  *     (`../../conformity/reception-sweep-runner.ts`), imported and run exactly as the BullMQ
  *     repeatable would. NOT a copy, NOT a hand-rolled re-implementation.
  *  4. `DocumentsService` is ALSO real production code (real descriptor, real
@@ -39,12 +39,12 @@
  *
  * ## The lifecycle-status PUSH: corrected route, not re-asserted live here
  *
- * `pdp-client.ts#pushLifecycleStatus`'s own header documents the correction: the old
+ * `superpdp-client.ts#pushLifecycleStatus`'s own header documents the correction: the old
  * `POST /v1.beta/invoices/{id}/lifecycle_events` never existed (multiple path variants, all a generic
  * 404), and the push now targets `POST /v1.beta/invoice_events` as SuperPDP's published OpenAPI
  * declares. No live round-trip of the corrected push is asserted here: this spec's own
  * "approve"/"record-payment" steps below still exercise the REAL push call (through the REAL
- * `pdpStatusPusher`), proving it does not crash the action, and a failure is now logged at `error`.
+ * `superPdpStatusPusher`), proving it does not crash the action, and a failure is now logged at `error`.
  */
 
 import { ActionExtensionRegistry } from '../../actions/action-extensions';
@@ -55,7 +55,7 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 import { ContributionRegistry } from '../../contributions/contribution-registry';
-import { PdpReceptionSweepRunner } from '../../conformity/reception-sweep-runner';
+import { SuperPdpReceptionSweepRunner } from '../../conformity/reception-sweep-runner';
 import { DocumentsService } from '../../documents.service';
 import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
 import { FieldKindRegistry, registerCoreFieldKinds } from '../../descriptors/field-kinds';
@@ -65,7 +65,7 @@ import { TransportRegistry } from '../../transports/transport-registry';
 import prisma from '@/prisma/prisma.service';
 import { detectAndReseedCountryPolicyDrift } from '../../country-policy/boot-reseed';
 import { liveDescribe } from '../live-gate';
-import { buildPdpReceptionStatusPusher } from './pdp-reception';
+import { buildSuperPdpReceptionStatusPusher } from './superpdp-reception';
 import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -103,13 +103,15 @@ function buildRealCredentialsStub(companyId: string): ChannelCredentialsService 
  *  `documents.service.received-invoice.spec.ts#buildService` already makes for its own unit coverage,
  *  except NOTHING is mocked here (see this file's own header, point 4): every write below is a real
  *  Prisma write, gated by the REAL country-policy catalog. */
-function buildRealDocumentsService(pdpStatusPusher: ReturnType<typeof buildPdpReceptionStatusPusher>) {
+function buildRealDocumentsService(
+  superPdpStatusPusher: ReturnType<typeof buildSuperPdpReceptionStatusPusher>,
+) {
   const typeRegistry = new DocumentTypeRegistry();
   typeRegistry.register(buildReceivedInvoiceDescriptor());
   const fieldKindRegistry = new FieldKindRegistry();
   registerCoreFieldKinds(fieldKindRegistry);
   const actionRegistry = new ActionRegistry();
-  registerReceivedInvoiceActions(actionRegistry, undefined, pdpStatusPusher);
+  registerReceivedInvoiceActions(actionRegistry, undefined, superPdpStatusPusher);
   return new DocumentsService(
     typeRegistry,
     fieldKindRegistry,
@@ -211,9 +213,9 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     });
 
     const credentialsStub = buildRealCredentialsStub(companyId);
-    const pdpStatusPusher = buildPdpReceptionStatusPusher(credentialsStub);
-    const documentsService = buildRealDocumentsService(pdpStatusPusher);
-    const runner = new PdpReceptionSweepRunner(credentialsStub, documentsService);
+    const superPdpStatusPusher = buildSuperPdpReceptionStatusPusher(credentialsStub);
+    const documentsService = buildRealDocumentsService(superPdpStatusPusher);
+    const runner = new SuperPdpReceptionSweepRunner(credentialsStub, documentsService);
 
     const sweepResult = await runner.runSweep();
     console.log('REAL sweep result:', JSON.stringify(sweepResult));
@@ -248,7 +250,7 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     expect(typeof data.fileRef).toBe('string');
     expect((data.fileRef as string).length).toBeGreaterThan(0);
     // The self-addressed identity's own name, structurally extracted from the REAL downloaded
-    // Factur-X (never invented) — see `pdp-reception-poller.ts`'s own header on why this reuses the
+    // Factur-X (never invented) - see `superpdp-reception-poller.ts`'s own header on why this reuses the
     // SAME extraction the manual upload screen uses.
     expect(data.supplier).toBe(self.name);
     expect(data.currency).toBe('EUR');

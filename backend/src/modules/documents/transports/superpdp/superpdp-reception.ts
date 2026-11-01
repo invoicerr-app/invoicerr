@@ -1,5 +1,6 @@
 /**
- * PDP RECEPTION — the read side of the "pdp" transport. `pdp-transport.ts` only ever SENDS (this
+ * SUPERPDP RECEPTION - the read side of the SuperPDP transport (registered as "pdp").
+ * `superpdp-transport.ts` only ever SENDS (this
  * company depositing an outbound invoice); this file is what lets an INBOUND deposit — an invoice a
  * supplier sent TO this company, arriving on the SAME superpdp account this company already connected
  * for sending — become a `received-invoice` `DocumentInstance`, and what lets the buyer-side lifecycle
@@ -12,17 +13,17 @@
  *
  * ## What is LIVE-VERIFIED here, and what is not (2026-09-16, `superpdp-reception.live.spec.ts`)
  *
- *  - `PdpClient.listInvoices({ direction: 'in' })` genuinely returns inbound deposits — proven by a
+ *  - `SuperPdpClient.listInvoices({ direction: 'in' })` genuinely returns inbound deposits - proven by a
  *    SELF-ADDRESSED deposit (seller and buyer both this same sandbox tenant's own connected
  *    identifiers, `315143296_1422` / VAT `FR18000000002` / SIREN-ish `000000002`, exactly the
  *    "send to our own SIREN" self-test the task named): the OUTBOUND id and the INBOUND
  *    twin the platform creates for it are two DIFFERENT ids, `direction=in` lists the SECOND one.
- *  - `PdpClient.downloadInvoiceFile()` genuinely returns the real bytes (`content-type:
- *    application/pdf`, real `%PDF-` magic bytes) — see that method's own header in `pdp-client.ts`
+ *  - `SuperPdpClient.downloadInvoiceFile()` genuinely returns the real bytes (`content-type:
+ *    application/pdf`, real `%PDF-` magic bytes) - see that method's own header in `superpdp-client.ts`
  *    for the wrong `/file` sub-path an earlier version of this code guessed and the real endpoint
  *    (`GET /v1.beta/invoices/{id}?format=original`, the SAME one `getInvoice()` already calls) found
  *    by testing live.
- *  - `PdpClient.pushLifecycleStatus()`: the route and body now match SuperPDP's published OpenAPI
+ *  - `SuperPdpClient.pushLifecycleStatus()`: the route and body now match SuperPDP's published OpenAPI
  *    (read 2026-10-31): `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`.
  *    The old `POST /v1.beta/invoices/{id}/lifecycle_events` never existed on the API; every live
  *    attempt answered a generic route-not-found `404`, so no status was ever delivered. The push
@@ -40,14 +41,14 @@
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { extractPdpCredentials } from '../pdp-transport';
-import { PdpApiError, PdpClient, SuperPdpStatusCreate } from './pdp-client';
+import { extractSuperPdpCredentials } from '../superpdp-transport';
+import { SuperPdpApiError, SuperPdpClient, SuperPdpStatusCreate } from './superpdp-client';
 
 export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
 
 /** Reçue — emitted BY THE PLATFORM ITSELF the instant an inbound deposit reaches this company's own
  *  account (proven live on the "in" twin's own `events[0]`, `superpdp-reception.live.spec.ts`) — this
- *  code is NEVER pushed by this codebase, only ever read (`pdp-reception-poller.ts`). */
+ *  code is NEVER pushed by this codebase, only ever read (`superpdp-reception-poller.ts`). */
 export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the
  *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `fr:204` is the closest status the
@@ -71,7 +72,7 @@ export const PDP_RECEPTION_REJECTED_CODE: SuperPdpStatusCreate = 'fr:210';
 export const PDP_RECEPTION_REJECTED_REASON_CODE = 'NON_CONFORME';
 /** Payée — pushed by "record-payment" once the recorded payment(s) reach the received invoice's own
  *  stated gross total. `fr:211` ("payment sent") rather than `fr:212` ("payment received") — see
- *  `pdp-client.ts`'s own header: `212` is the SELLER's own code once THEY are paid; this company is
+ *  `superpdp-client.ts`'s own header: `212` is the SELLER's own code once THEY are paid; this company is
  *  the BUYER here, so the code for the buyer's own act of paying is the one that applies. */
 export const PDP_RECEPTION_PAID_CODE: SuperPdpStatusCreate = 'fr:211';
 
@@ -80,7 +81,7 @@ export const PDP_RECEPTION_PAID_CODE: SuperPdpStatusCreate = 'fr:211';
  *  the interface, not the concrete class" discipline `DocumentActionQueueDispatcher`
  *  (`queue/queue.constants.ts`) already holds: a jest spec can pass a bare stub, no
  *  `ChannelCredentialsService`/Prisma/network involved at all. */
-export interface PdpReceptionStatusPusher {
+export interface SuperPdpReceptionStatusPusher {
   pushTakenInCharge(companyId: string, pdpInboundId: string): Promise<void>;
   pushApproved(companyId: string, pdpInboundId: string): Promise<void>;
   pushRejected(companyId: string, pdpInboundId: string, reason?: string): Promise<void>;
@@ -90,11 +91,11 @@ export interface PdpReceptionStatusPusher {
 async function resolveClient(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
-): Promise<PdpClient | null> {
+): Promise<SuperPdpClient | null> {
   const resolved = await channelCredentials.resolveActive(companyId, PDP_RECEPTION_PROVIDER_ID);
-  const credentials = resolved && extractPdpCredentials(resolved);
+  const credentials = resolved && extractSuperPdpCredentials(resolved);
   if (!credentials) return null;
-  return new PdpClient({ ...credentials, apiStyle: 'superpdp' });
+  return new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
 }
 
 /**
@@ -116,21 +117,21 @@ async function pushReceptionStatus(
   try {
     const client = await resolveClient(channelCredentials, companyId);
     if (!client) {
-      logger.warn('PDP reception status push skipped: channel not connected any more', {
+      logger.warn('SuperPDP reception status push skipped: channel not connected any more', {
         category: 'documents',
         details: { companyId, pdpInboundId, code },
       });
       return;
     }
     await client.pushLifecycleStatus(invoiceId, code, refusal);
-    logger.info('PDP reception status pushed', {
+    logger.info('SuperPDP reception status pushed', {
       category: 'documents',
       details: { companyId, pdpInboundId, code },
     });
   } catch (error) {
     // Never fatal (the local status change was persisted before this ran), but never silent either:
     // a status the platform never received is a legal fact this company believes it reported.
-    logger.error('PDP reception status push failed: the platform did not receive it', {
+    logger.error('SuperPDP reception status push failed: the platform did not receive it', {
       category: 'documents',
       details: {
         companyId,
@@ -138,17 +139,17 @@ async function pushReceptionStatus(
         code,
         reason: refusal?.motivation,
         reasonCode: refusal?.reasonCode,
-        status: error instanceof PdpApiError ? error.status : undefined,
-        response: error instanceof PdpApiError ? error.body : undefined,
+        status: error instanceof SuperPdpApiError ? error.status : undefined,
+        response: error instanceof SuperPdpApiError ? error.body : undefined,
         message: error instanceof Error ? error.message : String(error),
       },
     });
   }
 }
 
-export function buildPdpReceptionStatusPusher(
+export function buildSuperPdpReceptionStatusPusher(
   channelCredentials: ChannelCredentialsService,
-): PdpReceptionStatusPusher {
+): SuperPdpReceptionStatusPusher {
   return {
     pushTakenInCharge: (companyId, pdpInboundId) =>
       pushReceptionStatus(channelCredentials, companyId, pdpInboundId, PDP_RECEPTION_TAKEN_IN_CHARGE_CODE),

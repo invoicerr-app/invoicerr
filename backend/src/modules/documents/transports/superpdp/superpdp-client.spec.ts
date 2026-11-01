@@ -9,7 +9,7 @@
 import { vi, type Mock, type MockedFunction } from 'vitest';
 import * as dns from 'node:dns';
 
-import { PdpClient, PdpApiError } from './pdp-client';
+import { SuperPdpClient, SuperPdpApiError } from './superpdp-client';
 
 vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
@@ -73,12 +73,12 @@ const CLIENT_CONFIG = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('PdpClient', () => {
+describe('SuperPdpClient', () => {
   describe('OAuth2', () => {
     it('authenticate() sends client_credentials grant', async () => {
       mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const token = await client.authenticate();
 
       expect(token).toBe('mock-bearer-token');
@@ -94,7 +94,7 @@ describe('PdpClient', () => {
     it('authenticate() caches token until near expiry', async () => {
       mockFetch.mockResolvedValueOnce(mockTokenResponse({ expires_in: 3600 }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const t1 = await client.authenticate();
       const t2 = await client.authenticate();
 
@@ -107,20 +107,20 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse({ expires_in: 0 }) as unknown as Response) // expires immediately
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.authenticate();
       await client.authenticate(); // should re-auth
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('authenticate() throws PdpApiError on failure', async () => {
+    it('authenticate() throws SuperPdpApiError on failure', async () => {
       mockFetch.mockResolvedValueOnce(
         mockJsonResponse({ error: 'invalid_client' }, 401) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
     });
 
     it('clearToken() forces re-authentication', async () => {
@@ -128,7 +128,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockTokenResponse({ access_token: 'new-token' }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.authenticate();
       client.clearToken();
       const token = await client.authenticate();
@@ -146,16 +146,16 @@ describe('PdpClient', () => {
       // exactly the property under test), so each is a fresh fetch.
       mockFetch.mockResolvedValue(mockTokenResponse({ access_token: undefined }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
       await expect(client.authenticate()).rejects.toThrow(/no usable access_token/);
     });
 
     it('authenticate() refuses a 200 response with a blank access_token the same way', async () => {
       mockFetch.mockResolvedValue(mockTokenResponse({ access_token: '' }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
     });
 
     it('a refused (no access_token) authentication never caches anything — the NEXT call re-authenticates too', async () => {
@@ -163,8 +163,8 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse({ access_token: undefined }) as unknown as Response)
         .mockResolvedValueOnce(mockTokenResponse({ access_token: 'recovered-token' }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
       const token = await client.authenticate();
 
       expect(token).toBe('recovered-token');
@@ -178,8 +178,8 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse({ access_token: 'fresh-token' }) as unknown as Response) // re-auth
         .mockResolvedValueOnce(mockJsonResponse({ id: 'inv-1' }) as unknown as Response); // succeeds now
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.request('GET', '/v1/invoices/inv-1')).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.request('GET', '/v1/invoices/inv-1')).rejects.toThrow(SuperPdpApiError);
       const result = await client.request('GET', '/v1/invoices/inv-1');
 
       expect(result).toEqual({ id: 'inv-1' });
@@ -197,7 +197,7 @@ describe('PdpClient', () => {
         mockJsonResponse({ id: 42, status_code: ['api:uploaded'] }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const result = await client.sendInvoice(Buffer.from('%PDF-1.4 test'), { externalId: 'my-ref-123' });
 
       expect(result.id).toBe(42);
@@ -213,7 +213,7 @@ describe('PdpClient', () => {
         }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const result = await client.getInvoice(42);
 
       expect(result.id).toBe(42);
@@ -230,7 +230,7 @@ describe('PdpClient', () => {
           pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength),
       } as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const result = await client.downloadInvoiceFile(42);
 
       expect(result.contentType).toBe('application/pdf');
@@ -239,13 +239,13 @@ describe('PdpClient', () => {
       expect(url).toBe('https://api.superpdp.tech/v1.beta/invoices/42?format=original');
     });
 
-    it('downloadInvoiceFile() throws PdpApiError on a non-OK response, reading the JSON error body', async () => {
+    it('downloadInvoiceFile() throws SuperPdpApiError on a non-OK response, reading the JSON error body', async () => {
       mockFetch
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ errorMessage: 'not found' }, 404) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.downloadInvoiceFile(999)).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.downloadInvoiceFile(999)).rejects.toThrow(SuperPdpApiError);
     });
 
     it('getCompany() fetches current company', async () => {
@@ -255,7 +255,7 @@ describe('PdpClient', () => {
           mockJsonResponse({ id: 1, name: 'Test FR', number: '123456789' }) as unknown as Response,
         );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const result = await client.getCompany();
 
       expect(result.name).toBe('Test FR');
@@ -276,7 +276,7 @@ describe('PdpClient', () => {
         }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const flow = await client.submitFlow(Buffer.from('%PDF test'), {
         flowSyntax: 'Factur-X',
         name: 'invoice',
@@ -296,7 +296,7 @@ describe('PdpClient', () => {
         }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const result = await client.searchFlows({ trackingId: 'track-123' });
 
       expect(result.results).toHaveLength(1);
@@ -312,7 +312,7 @@ describe('PdpClient', () => {
         }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const flow = await client.getFlow('uuid-123');
 
       expect(flow.acknowledgement?.status).toBe('Pending');
@@ -327,7 +327,7 @@ describe('PdpClient', () => {
         }) as unknown as Response,
       );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       const entries = await client.lookupDirectoryEntries('123456789');
 
       expect(entries).toHaveLength(1);
@@ -343,7 +343,7 @@ describe('PdpClient', () => {
           mockJsonResponse({ id: 1, invoice_id: 604667, status_code: 'fr:212' }) as unknown as Response,
         );
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.pushLifecycleStatus(604667, 'fr:212');
 
       const [url, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
@@ -357,7 +357,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 2 }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.pushLifecycleStatus(604667, 'fr:210', {
         reasonCode: 'NON_CONFORME',
         motivation: 'Wrong PO number',
@@ -381,7 +381,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 3 }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.pushLifecycleStatus(604667, 'fr:210', { reasonCode: 'NON_CONFORME' });
 
       const [, opts] = mockFetch.mock.calls[1] as [string, RequestInit];
@@ -397,9 +397,9 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockTextResponse('Internal Error', 500) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
 
-      await expect(client.pushLifecycleStatus(604667, 'fr:211')).rejects.toThrow(PdpApiError);
+      await expect(client.pushLifecycleStatus(604667, 'fr:211')).rejects.toThrow(SuperPdpApiError);
       // One token call plus one event POST: a second POST could duplicate an event the platform
       // already created before its answer was lost.
       expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -410,7 +410,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 1 }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.pushLifecycleStatus(604667, 'fr:211');
 
       for (const call of mockFetch.mock.calls) {
@@ -420,13 +420,13 @@ describe('PdpClient', () => {
   });
 
   describe('Error handling', () => {
-    it('throws PdpApiError with response body on 4xx', async () => {
+    it('throws SuperPdpApiError with response body on 4xx', async () => {
       mockFetch
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ errorMessage: 'Invalid XML' }, 422) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
-      await expect(client.getInvoice(1)).rejects.toThrow(PdpApiError);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
+      await expect(client.getInvoice(1)).rejects.toThrow(SuperPdpApiError);
     });
 
     it('retries on 5xx errors', async () => {
@@ -435,7 +435,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTextResponse('Internal Error', 500) as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 1, status_code: [] }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG, { maxRetries: 1 });
+      const client = new SuperPdpClient(CLIENT_CONFIG, { maxRetries: 1 });
       const result = await client.getInvoice(1);
 
       expect(result.id).toBe(1);
@@ -446,41 +446,41 @@ describe('PdpClient', () => {
   describe('SSRF guard on baseUrl (a tenant-supplied channel credential)', () => {
     it('refuses a baseUrl that resolves to a private address, without ever calling fetch', async () => {
       lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
-      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
+      const client = new SuperPdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
 
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('refuses a literal internal IP with no DNS lookup at all', async () => {
-      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://169.254.169.254' });
+      const client = new SuperPdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://169.254.169.254' });
 
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
       expect(lookup).not.toHaveBeenCalled();
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('never echoes the internal validation reason into the thrown message (no scanning oracle)', async () => {
       lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
-      const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
+      const client = new SuperPdpClient({ ...CLIENT_CONFIG, baseUrl: 'https://internal.example.com' });
 
       try {
         await client.authenticate();
         throw new Error('expected authenticate() to reject');
       } catch (err) {
-        expect(err).toBeInstanceOf(PdpApiError);
-        expect((err as PdpApiError).message).not.toContain('private');
-        expect((err as PdpApiError).message).not.toContain('10.0.0.5');
+        expect(err).toBeInstanceOf(SuperPdpApiError);
+        expect((err as SuperPdpApiError).message).not.toContain('private');
+        expect((err as SuperPdpApiError).message).not.toContain('10.0.0.5');
       }
     });
 
     it('re-validates on every call — a token cached from before a rebind does not skip the guard', async () => {
       mockFetch.mockResolvedValueOnce(mockTokenResponse({ expires_in: 3600 }) as unknown as Response);
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.authenticate(); // caches a token while the baseUrl still resolves public
 
       lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]); // "DNS rebinding"
-      await expect(client.authenticate()).rejects.toThrow(PdpApiError);
+      await expect(client.authenticate()).rejects.toThrow(SuperPdpApiError);
     });
 
     it("every fetch call this client makes sets redirect: 'manual' — a validated host must not be able to bounce the request", async () => {
@@ -488,7 +488,7 @@ describe('PdpClient', () => {
         .mockResolvedValueOnce(mockTokenResponse() as unknown as Response)
         .mockResolvedValueOnce(mockJsonResponse({ id: 1, status_code: [] }) as unknown as Response);
 
-      const client = new PdpClient(CLIENT_CONFIG);
+      const client = new SuperPdpClient(CLIENT_CONFIG);
       await client.getInvoice(1);
 
       for (const call of mockFetch.mock.calls) {
@@ -502,7 +502,7 @@ describe('PdpClient', () => {
       process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
       try {
         mockFetch.mockResolvedValueOnce(mockTokenResponse() as unknown as Response);
-        const client = new PdpClient({ ...CLIENT_CONFIG, baseUrl: 'http://127.0.0.1:1' });
+        const client = new SuperPdpClient({ ...CLIENT_CONFIG, baseUrl: 'http://127.0.0.1:1' });
 
         await expect(client.authenticate()).resolves.toBe('mock-bearer-token');
         expect(lookup).not.toHaveBeenCalled();

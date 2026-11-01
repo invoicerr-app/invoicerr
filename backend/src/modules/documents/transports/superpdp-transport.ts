@@ -1,10 +1,11 @@
 /**
- * The "pdp" transport — France's Plateforme de
- * Dématérialisation Partenaire. Same `DocumentTransport` interface `email-transport.ts` implements
+ * The SuperPDP transport - one of France's Plateformes de
+ * Dématérialisation Partenaires, registered under the persisted id "pdp". Same `DocumentTransport`
+ * interface `email-transport.ts` implements
  * (registered under `TransportRegistry` exactly like it — see that file's own header on why a
  * company opts in via `Company.invoiceTransportId`, nothing here treated specially).
  *
- * The client (`pdp/pdp-client.ts`) and the round-trip shape are REPRISED from git tag
+ * The client (`superpdp/superpdp-client.ts`) and the round-trip shape are REPRISED from git tag
  * `avant-refonte-documents` — a real deposit was proven end-to-end there (fr:200→201→202, superpdp
  * sandbox, 2026-08-29). This transport's contract is narrower than what that engine eventually
  * reached: a deposit SUCCEEDS the moment superpdp ACCEPTS the upload (a non-empty invoice id back
@@ -34,7 +35,7 @@ import prisma from '@/prisma/prisma.service';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
-import { PdpClient } from './pdp/pdp-client';
+import { SuperPdpClient } from './superpdp/superpdp-client';
 import {
   CredentialFieldDescriptor,
   DocumentTransport,
@@ -43,9 +44,9 @@ import {
   formatBuildInputOf,
 } from './transport-registry';
 
-/** Issue #526 - exactly the three fields `extractPdpCredentials` below reads, replacing the
+/** Issue #526 - exactly the three fields `extractSuperPdpCredentials` below reads, replacing the
  *  frontend's own hard-coded `pdp` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
-export const PDP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+export const SUPER_PDP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'baseUrl',
     kind: 'text',
@@ -70,7 +71,7 @@ export const PDP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   },
 ];
 
-export interface PdpTransportDeps {
+export interface SuperPdpTransportDeps {
   channelCredentials: ChannelCredentialsService;
   /** The Factur-X provider (`formats/facturx-provider.ts`) — the PDP payload (see this
    *  file's own header: the round-trip's PROVEN artifact at the reference was raw CII, but Factur-X is
@@ -88,7 +89,7 @@ const PROVIDER_ID = 'pdp';
  *  payload for. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
-export interface PdpCredentials {
+export interface SuperPdpCredentials {
   baseUrl: string;
   clientId: string;
   clientSecret: string;
@@ -96,21 +97,21 @@ export interface PdpCredentials {
 
 /** Extracts and validates the three fields this transport actually needs out of a resolved config —
  *  shared by `preflight()` and `send()` so neither can drift from what "complete enough to try" means. */
-export function extractPdpCredentials(resolved: ResolvedChannelConfig): PdpCredentials | null {
+export function extractSuperPdpCredentials(resolved: ResolvedChannelConfig): SuperPdpCredentials | null {
   const { baseUrl, clientId, clientSecret } = resolved.config;
   if (typeof baseUrl !== 'string' || !baseUrl || typeof clientId !== 'string' || !clientId) return null;
   if (typeof clientSecret !== 'string' || !clientSecret) return null;
   return { baseUrl, clientId, clientSecret };
 }
 
-async function requireConnectedPdp(
+async function requireConnectedSuperPdp(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
-): Promise<PdpCredentials> {
+): Promise<SuperPdpCredentials> {
   const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractPdpCredentials(resolved);
+  const credentials = resolved && extractSuperPdpCredentials(resolved);
   if (!credentials) {
-    logger.warn('PDP transport blocked: channel not connected (or incomplete config)', {
+    logger.warn('SuperPDP transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
       details: { companyId },
     });
@@ -122,27 +123,27 @@ async function requireConnectedPdp(
   return credentials;
 }
 
-export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
+export function buildSuperPdpTransport(deps: SuperPdpTransportDeps): DocumentTransport {
   return {
     // Runs BEFORE anything is persisted or queued (see this file's own header) — checks ONLY that a
     // usable connection exists; the actual deposit is attempted in `send()` below, at delivery time.
     async preflight(companyId: string): Promise<void> {
-      await requireConnectedPdp(deps.channelCredentials, companyId);
+      await requireConnectedSuperPdp(deps.channelCredentials, companyId);
     },
 
     // Issue #499 - see `DocumentTransport.deliversCreditNotes`.
     deliversCreditNotes: true,
 
     // Issue #526 - see `DocumentTransport.credentialFields`'s own header.
-    credentialFields: PDP_CREDENTIAL_FIELDS,
-    parseCredentials: extractPdpCredentials,
+    credentialFields: SUPER_PDP_CREDENTIAL_FIELDS,
+    parseCredentials: extractSuperPdpCredentials,
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning
       // `resolveInvoiceTransport` already documents for its own re-resolution in `deliver()`: the
       // company's configuration could have changed in the (possibly long, retried) time between the
       // two calls.
-      const credentials = await requireConnectedPdp(deps.channelCredentials, ctx.companyId);
+      const credentials = await requireConnectedSuperPdp(deps.channelCredentials, ctx.companyId);
 
       // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
       // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
@@ -189,18 +190,18 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
         });
       }
 
-      const pdpClient = new PdpClient({ ...credentials, apiStyle: 'superpdp' });
+      const superPdpClient = new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
 
       let depositId: string;
       try {
-        await pdpClient.authenticate();
-        const invoice = await pdpClient.sendInvoice(buildResult.bytes, {
+        await superPdpClient.authenticate();
+        const invoice = await superPdpClient.sendInvoice(buildResult.bytes, {
           externalId: ctx.document.displayNumber ?? ctx.document.id,
         });
         depositId = invoice?.id != null ? String(invoice.id) : '';
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.warn('PDP deposit failed', {
+        logger.warn('SuperPDP deposit failed', {
           category: 'documents',
           details: { companyId: ctx.companyId, documentId: ctx.document.id, message },
         });
@@ -219,7 +220,7 @@ export function buildPdpTransport(deps: PdpTransportDeps): DocumentTransport {
         );
       }
 
-      logger.info('PDP deposit accepted', {
+      logger.info('SuperPDP deposit accepted', {
         category: 'documents',
         details: { companyId: ctx.companyId, documentId: ctx.document.id, depositId },
       });

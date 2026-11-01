@@ -1,5 +1,5 @@
 /**
- * The RECEPTION poller for PDP — the read side of `pdp-status-poller.ts`'s own write-status-of-what-
+ * The reception poller for SuperPDP - the read side of `superpdp-status-poller.ts`'s own write-status-of-what-
  * WE-sent role. Same "one small interface, resolved from `ChannelCredentialsService`" shape as that
  * file, deliberately NOT an `AuthorityStatusPoller` (`authority-status-poller.ts`): that interface
  * polls the CURRENT VERDICT of one document THIS company already deposited (`poll(companyId,
@@ -10,18 +10,18 @@
  * not exist yet, which is backwards — a genuinely different interface, used by
  * `reception-sweep-runner.ts` instead of `ConformitySweepRunner`, is the honest shape.
  *
- * See `transports/pdp/pdp-reception.ts`'s own header for what is LIVE-VERIFIED here (list + download)
- * and `pdp-client.ts#downloadInvoiceFile`'s own header for the exact endpoint this reads.
+ * See `transports/superpdp/superpdp-reception.ts`'s own header for what is LIVE-VERIFIED here (list + download)
+ * and `superpdp-client.ts#downloadInvoiceFile`'s own header for the exact endpoint this reads.
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { extractPdpCredentials } from '../../transports/pdp-transport';
-import { PdpClient, SuperPdpInvoice } from '../../transports/pdp/pdp-client';
+import { extractSuperPdpCredentials } from '../../transports/superpdp-transport';
+import { SuperPdpClient, SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
 import { extractReceivedInvoiceFields, ExtractionResult } from '../../received-invoices/extraction';
 import { extFor } from '../../received-invoices/storage';
-import { PDP_RECEPTION_PROVIDER_ID } from '../../transports/pdp/pdp-reception';
+import { PDP_RECEPTION_PROVIDER_ID } from '../../transports/superpdp/superpdp-reception';
 
-export interface PdpInboundFile {
+export interface SuperPdpInboundFile {
   bytes: Buffer;
   mime: string;
   fileName: string;
@@ -44,21 +44,21 @@ export interface ReceptionPoller {
    *  `extractReceivedInvoiceFields`'s own filename-sniffing branch (`.xml`/`.pdf`) has something to
    *  read — the ACTUAL bytes/mime are what decide the outcome, never the synthetic name alone.
    */
-  downloadAndExtract(companyId: string, pdpInboundId: number): Promise<PdpInboundFile>;
+  downloadAndExtract(companyId: string, pdpInboundId: number): Promise<SuperPdpInboundFile>;
 }
 
-export interface PdpReceptionPollerDeps {
+export interface SuperPdpReceptionPollerDeps {
   channelCredentials: ChannelCredentialsService;
 }
 
 async function resolveClient(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
-): Promise<PdpClient | null> {
+): Promise<SuperPdpClient | null> {
   const resolved = await channelCredentials.resolveActive(companyId, PDP_RECEPTION_PROVIDER_ID);
-  const credentials = resolved && extractPdpCredentials(resolved);
+  const credentials = resolved && extractSuperPdpCredentials(resolved);
   if (!credentials) return null;
-  return new PdpClient({ ...credentials, apiStyle: 'superpdp' });
+  return new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
 }
 
 export const RECEPTION_PAGE_SIZE = 100;
@@ -66,7 +66,7 @@ export const RECEPTION_PAGE_SIZE = 100;
 // drained over the following passes without skipping anything.
 export const RECEPTION_MAX_PAGES = 10;
 
-export function buildPdpReceptionPoller(deps: PdpReceptionPollerDeps): ReceptionPoller {
+export function buildSuperPdpReceptionPoller(deps: SuperPdpReceptionPollerDeps): ReceptionPoller {
   return {
     providerId: PDP_RECEPTION_PROVIDER_ID,
 
@@ -91,7 +91,7 @@ export function buildPdpReceptionPoller(deps: PdpReceptionPollerDeps): Reception
       return inbound;
     },
 
-    async downloadAndExtract(companyId: string, pdpInboundId: number): Promise<PdpInboundFile> {
+    async downloadAndExtract(companyId: string, pdpInboundId: number): Promise<SuperPdpInboundFile> {
       const client = await resolveClient(deps.channelCredentials, companyId);
       if (!client) {
         throw new Error(

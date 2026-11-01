@@ -43,7 +43,7 @@
  * rate-limiting ITSELF: a company with even a handful of documents awaiting a verdict could exhaust
  * KSeF's own auth quota well before any of them ever see a terminal status, and keep failing every
  * poll (`poll:blocked`) until `poll:gave-up` at the max poll age. `accessTokenCache` below fixes this
- * the same way `transports/pdp/pdp-client.ts`'s own `PdpClient.token` already does for PDP: cache the
+ * the same way `transports/superpdp/superpdp-client.ts`'s own `SuperPdpClient.token` already does for PDP: cache the
  * token in memory, keyed by `${companyId}:${environment}:${credentialFingerprint}` (never companyId
  * alone, and never `${companyId}:${environment}` alone — a company can hold
  * BOTH TEST and PROD KSeF credentials over its lifetime, and a TEST token must never reach the PROD
@@ -74,7 +74,7 @@ import {
 export const KSEF_PROVIDER_ID = 'ksef';
 
 /** Refreshed this far ahead of the cached token's own `expiresAt` — the identical 60s safety margin
- *  `transports/pdp/pdp-client.ts`'s own token cache already applies, so a token technically still
+ *  `transports/superpdp/superpdp-client.ts`'s own token cache already applies, so a token technically still
  *  valid by KSeF's clock is never handed to a poll that might cross the expiry boundary mid-flight. */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 60_000;
 
@@ -108,7 +108,7 @@ function credentialFingerprint(credentials: KsefCredentials): string {
  *  while it stays valid — see this file's own header, "Mutualized handshake". Evicted eagerly
  *  whenever using it fails (a 401 the cached token no longer satisfies, a network error mid-call): the
  *  NEXT poll re-authenticates fresh rather than retrying the exact same bad value until it happens to
- *  expire on its own — the identical discipline `transports/pdp/pdp-client.ts`'s own 401-triggered
+ *  expire on its own - the identical discipline `transports/superpdp/superpdp-client.ts`'s own 401-triggered
  *  `clearToken()` already holds. Also evicted IMPLICITLY the moment credentials are rotated: the
  *  fingerprint changes, so the OLD cache entry (still keyed under the OLD fingerprint) is simply never
  *  looked up again — see this file's own header for why that self-invalidation matters here. */
@@ -150,7 +150,7 @@ function mapKsefStatus(response: InvoiceStatusResponse): RawAuthorityEvent {
     // KSeF's own `InvoiceStatusResponse` carries no "when did this status itself change" field (only
     // `acquisitionDate`/`permanentStorageDate`, both about the INVOICE's own lifecycle milestones,
     // not this particular status read) — "now" is the only honest value for "when THIS poll observed
-    // it", the same fallback `pdp-status-poller.ts` uses for a PDP event missing `created_at`.
+    // it", the same fallback `superpdp-status-poller.ts` uses for a PDP event missing `created_at`.
     observedAt: new Date(),
     rawPayload: response,
   };

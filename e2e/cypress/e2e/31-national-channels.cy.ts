@@ -9,7 +9,7 @@ import { companyLawFor } from "../fixtures/company-law";
  * that does not exist (a closed port locally), we pick `pdp` as the invoicing transport, and we
  * observe the queue's real failure (BullMQ retry then "send_failed", the error naming the channel).
  * The REAL PDP deposit (superpdp sandbox) is proven elsewhere, for real, by
- * `backend/src/modules/documents/transports/pdp/superpdp.live.spec.ts` (jest, `SUPERPDP_LIVE=1`) — never by
+ * `backend/src/modules/documents/transports/superpdp/superpdp.live.spec.ts` (jest, `SUPERPDP_LIVE=1`) - never by
  * this spec, which never talks to any real server FOR PDP.
  *
  * Wave 2 (KSeF/PL, SdI/IT) extends this file with the SAME pattern — country suggestion → connect
@@ -393,7 +393,7 @@ describe("National transports — the PDP channel, connected/disconnected via th
 			cy.runDocumentRowAction(invoiceId, "send");
 
 			// PREFLIGHT blocks BEFORE any persistence — even the transition to "sending" never
-			// happens (see async-send.ts / pdp-transport.ts's own header): a visible toast says so
+			// happens (see async-send.ts / superpdp-transport.ts's own header): a visible toast says so
 			// right away, no waiting on the queue.
 			cy.get("[data-sonner-toast]", { timeout: 10000 }).should(
 				"contain.text",
