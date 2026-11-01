@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest"
+import i18n from "i18next"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { languageToLocale, normalizeLanguageTag, resolveAppLanguage, SUPPORTED_LANGUAGES } from "./i18n"
+import { languageToLocale, normalizeLanguageTag, SUPPORTED_LANGUAGES } from "./i18n"
 
 // Every value `i18n.language` can take that resolves to a locale other than en-US, with that locale.
 const EXPECTED_DATE_LOCALE: Record<string, string> = {
@@ -81,6 +82,7 @@ describe("normalizeLanguageTag", () => {
   it.each([
     ["en-US@posix", "en-US"],
     ["en_US@euro", "en-US"],
+    ["fr_FR.UTF-8", "fr-FR"],
     ["FR-fr", "fr-FR"],
     ["fr", "fr"],
   ])("normalizes %j to %j", (raw, expected) => {
@@ -100,46 +102,80 @@ describe("normalizeLanguageTag", () => {
   })
 })
 
-describe("resolveAppLanguage", () => {
-  // Issue #718: the POSIX suffix never reaches i18n or Intl.
-  it("strips a POSIX locale suffix", () => {
-    expect(resolveAppLanguage("en-US@posix")).toBe("en")
-  })
+describe("detected browser language", () => {
+  const detector = i18n.services.languageDetector as { detect: () => string[] }
 
-  // Issue #733: the interface and the dates must agree.
-  it.each([
-    ["fr-FR", "fr"],
-    ["de-CH", "de"],
-    ["es-MX", "es"],
-    ["en-US", "en"],
-  ])("maps the regional code %s to the supported base %s", (raw, expected) => {
-    expect(resolveAppLanguage(raw)).toBe(expected)
-  })
+  // i18next's runtime applies the detector's whole list (that is how init uses it), but its type
+  // only advertises a single code.
+  const changeLanguageTo = (languages: string[]) =>
+    (i18n.changeLanguage as unknown as (lng: string[]) => Promise<unknown>)(languages)
 
-  it.each([
-    "ja",
-    "ko",
-    "ru",
-    "pt-BR",
-    "zh-Hans",
-    "xx",
-    "",
-    "not a tag",
-  ])("falls back to en for the unsupported language %j", (raw) => {
-    expect(resolveAppLanguage(raw)).toBe("en")
-  })
-
-  it("keeps every supported language unchanged", () => {
-    for (const { code } of SUPPORTED_LANGUAGES) {
-      expect(resolveAppLanguage(code)).toBe(code)
+  function detect(languages: string[]): string[] {
+    localStorage.clear()
+    vi.spyOn(window.navigator, "languages", "get").mockReturnValue(languages)
+    vi.spyOn(window.navigator, "language", "get").mockReturnValue(languages[0])
+    try {
+      return detector.detect()
+    } finally {
+      vi.restoreAllMocks()
     }
+  }
+
+  afterEach(async () => {
+    localStorage.clear()
+    await i18n.changeLanguage("en")
   })
 
-  it("produces a tag every Intl constructor accepts", () => {
-    for (const raw of ["en-US@posix", "fr-FR", "ja", "", "xx", "not a tag"]) {
-      const resolved = resolveAppLanguage(raw)
-      expect(() => new Intl.DisplayNames([resolved], { type: "region" })).not.toThrow()
-      expect(() => new Intl.ListFormat(resolved)).not.toThrow()
-    }
+  // Issue #733: the regional code must reach languageToLocale, which maps en-GB to date-fns' en-GB.
+  it("keeps en-GB so its dates stay en-GB", async () => {
+    const detected = detect(["en-GB"])
+    expect([...new Set(detected)]).toEqual(["en-GB"])
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.language).toBe("en-GB")
+    expect(i18n.resolvedLanguage).toBe("en")
+    expect(languageToLocale(i18n.language).code).toBe("en-GB")
+  })
+
+  // Issue #733: converting each detected code to "en" let English win before the next language.
+  it("lets a later supported language win over an unsupported one", async () => {
+    const detected = detect(["ja-JP", "fr-FR"])
+    expect([...new Set(detected)]).toEqual(["ja-JP", "fr-FR"])
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.resolvedLanguage).toBe("fr")
+    expect(languageToLocale(i18n.language).code).toBe("fr")
+  })
+
+  it("falls back to English when every detected language is unsupported", async () => {
+    const detected = detect(["ja-JP"])
+    expect([...new Set(detected)]).toEqual(["ja-JP"])
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.language).toBe("en")
+    expect(languageToLocale(i18n.language).code).toBe("en-US")
+  })
+
+  // Issue #718: the POSIX suffix never reaches i18n or an Intl constructor.
+  it("turns en-US@posix into a tag Intl accepts", async () => {
+    const detected = detect(["en-US@posix"])
+    expect([...new Set(detected)]).toEqual(["en-US"])
+
+    await changeLanguageTo(detected)
+
+    expect(() => new Intl.DisplayNames([i18n.language], { type: "region" })).not.toThrow()
+    expect(languageToLocale(i18n.language).code).toBe("en-US")
+  })
+
+  it("turns a POSIX codeset into a tag Intl accepts", async () => {
+    const detected = detect(["fr_FR.UTF-8"])
+    expect([...new Set(detected)]).toEqual(["fr-FR"])
+
+    await changeLanguageTo(detected)
+
+    expect(i18n.resolvedLanguage).toBe("fr")
   })
 })

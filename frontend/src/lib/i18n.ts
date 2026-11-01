@@ -123,19 +123,16 @@ if (DEV_RTL_TEST_LOCALE !== null) {
   resources[DEV_RTL_TEST_LOCALE] = { translation: resources.en.translation }
 }
 
-/** The codes this app ships a real catalog for. `pt-BR`/`ja`/`ko`/`ru` and the other stub
- *  folders are deliberately absent (see `SUPPORTED_LANGUAGES`'s own comment). */
-const SUPPORTED_LANGUAGE_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code))
-
 /**
  * Browsers report things that are not BCP 47 tags. A POSIX-locale OS makes headless Chromium send
- * `en-US@posix`, which every `Intl` constructor rejects with `RangeError: Invalid language tag`
- * (issue #718). Strip the POSIX modifier (`@posix`, `@euro`, ...), accept an underscore separator,
- * then let `Intl.getCanonicalLocales` decide whether what is left is a tag at all.
+ * `en-US@posix`, and a POSIX codeset adds `.UTF-8` (`fr_FR.UTF-8`); every `Intl` constructor
+ * rejects both with `RangeError: Invalid language tag` (issue #718). Strip the modifier and the
+ * codeset, accept an underscore separator, then let `Intl.getCanonicalLocales` decide whether what
+ * is left is a tag at all.
  */
 export function normalizeLanguageTag(lang: string | null | undefined): string | null {
   if (!lang) return null
-  const withoutPosix = lang.trim().replace(/_/g, "-").split("@")[0]
+  const withoutPosix = lang.trim().replace(/_/g, "-").split("@")[0].split(".")[0]
   if (!withoutPosix) return null
   try {
     return Intl.getCanonicalLocales(withoutPosix)[0] ?? null
@@ -145,18 +142,15 @@ export function normalizeLanguageTag(lang: string | null | undefined): string | 
 }
 
 /**
- * The language the interface actually renders in, from whatever the detector read. Only a supported
- * base language survives: `fr-FR`, `fr-CA` and `fr` all resolve to `fr`, and a language this app has
- * no (non-stub) catalog for (`ja`, `ko`, `pt-BR`, `xx`) resolves to `en`, i18next's own fallback.
- * That is what keeps `i18n.language` and the dates in the same language (issue #733): the interface
- * falls back to English for a `ja` browser, so the dates must too.
+ * A detected code reaches i18next as a valid tag, regional subtag intact. `en-GB` keeps its region
+ * so `languageToLocale()` can pick date-fns' en-GB, and `["ja-JP", "fr-FR"]` keeps both entries so
+ * the supported French still wins i18next's match instead of an injected `en` (issue #733). Only a
+ * value that is not a tag at all falls back to `en`. An unsupported language is not rewritten here:
+ * `supportedLngs` and `fallbackLng` decide the interface, and `i18n.language` becomes `en`.
  */
-export function resolveAppLanguage(lang: string | null | undefined): string {
+function normalizeDetectedLanguage(lang: string): string {
   if (DEV_RTL_TEST_LOCALE !== null && lang === DEV_RTL_TEST_LOCALE) return DEV_RTL_TEST_LOCALE
-  const normalized = normalizeLanguageTag(lang)
-  if (!normalized) return "en"
-  const base = normalized.split("-")[0].toLowerCase()
-  return SUPPORTED_LANGUAGE_CODES.has(base) ? base : "en"
+  return normalizeLanguageTag(lang) ?? "en"
 }
 
 /** True when `lang` (a resolved i18next language, or the dev-only RTL test locale) reads right-to-left. */
@@ -173,10 +167,11 @@ i18n
       order: ["localStorage", "navigator"],
       lookupLocalStorage: LANGUAGE_STORAGE_KEY,
       caches: [],
-      // A detected value must already be a language this app renders in, never the raw browser tag:
-      // `en-US@posix` is not BCP 47 (issue #718), and a regional/unsupported code whose interface
-      // falls back to English must not leave its dates in another language (issue #733).
-      convertDetectedLanguage: (lng) => resolveAppLanguage(lng),
+      // A detected value must be a valid tag before it reaches i18next or an `Intl` constructor
+      // (issue #718), and it keeps its regional subtag so the date locale stays regional (issue
+      // #733). An unsupported language stays in the list: `fallbackLng` decides, and an injected
+      // `en` would win `getBestMatchFromCodes` before a later supported language.
+      convertDetectedLanguage: (lng) => normalizeDetectedLanguage(lng),
     }),
   )
   .use(initReactI18next)
