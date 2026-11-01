@@ -14,6 +14,7 @@ vi.mock('@/prisma/prisma.service', () => ({
 import prisma from '@/prisma/prisma.service';
 import { runWithCompanyId } from '@/lib/request-context';
 
+import { LOG_PERSIST_FAILURE_THRESHOLD, logPersistenceHealth } from './log-persistence-health';
 import { logger } from './logger.service';
 
 const createLog = prisma.log.create as Mock;
@@ -22,6 +23,7 @@ describe('LoggerService — companyId resolution', () => {
   beforeEach(() => {
     createLog.mockReset();
     createLog.mockResolvedValue({ id: 'log-1' });
+    logPersistenceHealth.reset();
   });
 
   it('outside any context, an omitted companyId resolves to null, the instance-level case', () => {
@@ -129,5 +131,45 @@ describe('LoggerService — companyId resolution', () => {
         data: expect.objectContaining({ level: 'INFO', message: 'quote accepted' }),
       }),
     );
+  });
+
+  it('counts a failed log write on the health signal, without failing the caller', async () => {
+    createLog.mockRejectedValueOnce(new Error('permission denied for table Log'));
+
+    expect(() => logger.info('still served', { category: 'documents' })).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(logPersistenceHealth.snapshot()).toMatchObject({
+      status: 'ok',
+      failures: 1,
+      consecutiveFailures: 1,
+    });
+  });
+
+  it('reports degraded once log writes keep failing, still without failing the caller', async () => {
+    createLog.mockRejectedValue(new Error('permission denied for table Log'));
+
+    for (let i = 0; i < LOG_PERSIST_FAILURE_THRESHOLD; i++) {
+      expect(() => logger.warn('dropped', { category: 'documents' })).not.toThrow();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(logPersistenceHealth.snapshot()).toMatchObject({
+      status: 'degraded',
+      failures: LOG_PERSIST_FAILURE_THRESHOLD,
+      consecutiveFailures: LOG_PERSIST_FAILURE_THRESHOLD,
+    });
+  });
+
+  it('a successful write clears the failure streak but keeps the total', async () => {
+    createLog.mockRejectedValueOnce(new Error('boom'));
+    logger.error('failed', { category: 'documents' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    createLog.mockResolvedValueOnce({ id: 'log-2' });
+    logger.info('written', { category: 'documents' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(logPersistenceHealth.snapshot()).toMatchObject({ failures: 1, consecutiveFailures: 0 });
   });
 });
