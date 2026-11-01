@@ -14,6 +14,9 @@ function needsRevalidation(row?: { validationStatus: string | null; validatedAt:
 /** Keeps the duplicate match a fixed-cost equality check; longer values are treated as absent. */
 const MAX_MATCH_VALUE_LENGTH = 300;
 
+/** Trims `value` and returns it only if non-empty and within `MAX_MATCH_VALUE_LENGTH`; an oversized
+ *  input is treated exactly like an absent one, never a thrown 400, so a garbage query parameter
+ *  does not get a different error experience from an empty one. */
 function boundedOrUndefined(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed || trimmed.length > MAX_MATCH_VALUE_LENGTH) return undefined;
@@ -149,7 +152,9 @@ export class ClientsService {
     return results.map(withDerivedContactFields);
   }
 
-  /** Duplicate detection only informs, never blocks: matching primary email, or name + country. */
+  /** Duplicate detection only informs, never blocks: matching primary email, or name + country. An
+   *  unusable value is dropped rather than refused, so the endpoint stays a pure hint a caller cannot
+   *  get a 400 stuck on. */
   async findDuplicates(companyId: string, query: FindDuplicatesQuery): Promise<ClientDuplicateMatch[]> {
     const email = boundedOrUndefined(query.email);
     const name = boundedOrUndefined(query.name);

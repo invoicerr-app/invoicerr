@@ -1,9 +1,11 @@
 /**
  * Server side of the client CSV import. The browser parses the file, but `preview` and `confirm`
- * re-run every check from scratch and are the authority, exactly like `POST /clients`.
- * Identifiers use open-ended `identifier:<SCHEME>` columns; custom fields are out of scope; duplicate
- * detection reuses `ClientsService.findDuplicates`; VIES runs after the confirm transaction, never
- * inside it.
+ * re-run every check from scratch and are the authority, exactly like `POST /clients`: a stale
+ * client bundle or a scripted caller that bypasses the browser can send a row its zod pass would
+ * have refused. A CSV row carries only the four flat contact fields, which still mean "the primary
+ * contact". Identifiers use open-ended `identifier:<SCHEME>` columns; custom fields are out of
+ * scope; duplicate detection reuses `ClientsService.findDuplicates`; VIES runs after the confirm
+ * transaction, never inside it.
  */
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 

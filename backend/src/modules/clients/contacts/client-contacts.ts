@@ -1,8 +1,12 @@
 /**
  * Writes a client's contacts in one place, enforcing "zero, or exactly one primary". `contacts` is
- * authoritative when present; the legacy flat fields merge into the primary; neither is a no-op.
- * `SELECT ... FOR UPDATE` serializes concurrent saves (last writer wins) instead of racing the
- * partial unique index.
+ * authoritative when present; the legacy flat fields merge into the primary; neither shape present is
+ * a no-op. `SELECT ... FOR UPDATE` serializes concurrent saves (last writer wins) instead of racing
+ * the partial unique index.
+ *
+ * Last-writer-wins rather than a 409: the client form is already a full-snapshot write, `Client`
+ * carries no version a caller could send back, so a 409 would only tell the caller to retry, which
+ * the lock does instead.
  */
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { ClientContactDto } from '../dto/clients.dto';
