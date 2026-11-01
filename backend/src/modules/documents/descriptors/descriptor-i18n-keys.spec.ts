@@ -88,9 +88,11 @@ function countryOverlayFields(): CountryFieldText[] {
   );
 }
 
-/** A country overlay's own option labels. Each must name its English key: the frontend derives a
- *  key only for a native descriptor, and an overlay option has no type id or path of its own to
- *  derive one from, so an option without `labelKey` renders its country-file English everywhere. */
+/** A country overlay's own option labels. Each must name its English key: the derived key is
+ *  type-scoped, so the same two labels would need eight duplicate keys across invoice, quote,
+ *  credit-note and received-invoice. One `labelKey` lets a shared
+ *  `documents.countryFields.supplyType.options.*` key serve every type and country, and gives the
+ *  guard a canonical key to check. */
 function countryOverlayOptionTexts(): Array<{ key?: string; raw: string; where: string }> {
   const collect = (
     field: DocumentFieldDescriptor,
