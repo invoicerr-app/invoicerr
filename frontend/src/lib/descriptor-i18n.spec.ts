@@ -33,12 +33,16 @@ const TRANSLATIONS: Record<string, string> = {
   "documents.descriptors.invoice.fields.lines.fields.unit.helpText": "Unité de mesure",
   "documents.descriptors.invoice.fields.lines.fields.supplyType.label": "Libellé dérivé",
   "documents.descriptors.invoice.fields.lines.fields.supplyType.helpText": "Aide dérivée",
+  "documents.descriptors.invoice.fields.lines.fields.supplyType.options.GOODS": "Marchandises dérivées",
+  "documents.descriptors.invoice.fields.lines.fields.supplyType.options.SERVICES": "Prestations dérivées",
   "documents.countryFields.supplyType.variant.label": "Nature de la livraison",
   "documents.countryFields.supplyType.variant.helpText": "Aide propre au pays",
   "documents.countryFields.supplyType.options.goods": "Marchandises",
   "documents.descriptors.invoice.actions.send.label": "Envoyer",
   "documents.descriptors.invoice.actions.record-payment.params.method.label": "Moyen",
-  "documents.descriptors.invoice.actions.record-payment.params.method.options.card": "Carte",
+  "documents.descriptors.invoice.actions.record-payment.params.method.options.card": "Carte dérivée",
+  "documents.descriptors.invoice.actions.record-payment.params.method.options.cash": "Espèces",
+  "documents.countryFields.paymentMethod.options.card": "Carte du pays",
   "documents.descriptors.invoice.statuses.sent": "Envoyée",
   "documents.descriptors.invoice.widgets.invoice:pending.label": "Factures en attente",
 }
@@ -79,7 +83,7 @@ describe("descriptor-i18n", () => {
       )
       expect(
         descriptorActionParamOptionLabel(fakeT, "invoice", "record-payment", ["method"], "card", "Card"),
-      ).toBe("Carte")
+      ).toBe("Carte dérivée")
     })
 
     it("descriptorStatusLabel", () => {
@@ -192,7 +196,11 @@ describe("descriptor-i18n", () => {
               label: "Method",
               helpText: "How it was paid",
               options: [
-                { value: "card", label: "Card" },
+                {
+                  value: "card",
+                  label: "Card",
+                  labelKey: "documents.countryFields.paymentMethod.options.card",
+                },
                 { value: "cash", label: "Cash" },
               ],
             },
@@ -231,13 +239,17 @@ describe("descriptor-i18n", () => {
       expect(currencyField?.options?.[0]).toEqual({ value: "EUR", label: "EUR" })
     })
 
-    it("translates an action's own label and its params (label translated, cash falls back)", () => {
+    it("translates an action's own label and its params, option labelKey first then derived", () => {
       const action = translated.actions[0]
       expect(action.label).toBe("Record payment") // no key added for the action's OWN label here
       expect(action.params?.[0].label).toBe("Moyen")
       expect(action.params?.[0].options).toEqual([
-        { value: "card", label: "Carte" },
-        { value: "cash", label: "Cash" }, // no matching key — untouched
+        {
+          value: "card",
+          label: "Carte du pays", // its own labelKey wins over the derived key
+          labelKey: "documents.countryFields.paymentMethod.options.card",
+        },
+        { value: "cash", label: "Espèces" }, // no labelKey: the derived action-param key applies
       ])
     })
 
@@ -253,15 +265,15 @@ describe("descriptor-i18n", () => {
       expect(supplyType?.helpText).toBe("Aide propre au pays")
     })
 
-    it("an option's own labelKey wins over the derived key, and one without it keeps its text", () => {
+    it("an option's own labelKey wins over the derived key, and one without it uses the derived text", () => {
       const supplyType = translated.fields[1].fields?.find((field) => field.key === "supplyType")
       expect(supplyType?.options).toEqual([
         {
           value: "GOODS",
-          label: "Marchandises",
+          label: "Marchandises", // labelKey wins over ...options.GOODS ("Marchandises dérivées")
           labelKey: "documents.countryFields.supplyType.options.goods",
         },
-        { value: "SERVICES", label: "Services" },
+        { value: "SERVICES", label: "Prestations dérivées" }, // no labelKey: derived key applies
       ])
     })
 
