@@ -479,7 +479,8 @@ curl http://localhost:8080/api/health
   multi-replica install shows one signal per replica. A worker replica carries the same
   `logPersistence` object on its own health server at `:3001`: with `WORKER_INLINE=false` the
   background writes (document actions, pollers, webhooks) happen there, so its counters are the
-  ones to watch for those.
+  ones to watch for those. Its `status` mirrors the nested `status` and the response stays 200, so a
+  monitor that tests `status != "ok"` covers a worker the same way it covers an API replica.
 - `503 {"status":"error","database":"down"}` when Postgres does not answer, whatever Redis says.
 - `503 {"status":"error","database":"up","redis":"down"}` when only Redis does not answer. Every other
   route fails without Redis, so the instance is reported down. A monitor that matches the body

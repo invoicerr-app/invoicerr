@@ -16,7 +16,8 @@ import { WorkerModule } from './worker.module';
  * health-check HTTP server on port 3001 for container healthchecks (docker-compose.scale.yml's own
  * `worker` service healthcheck targets exactly this port). Its body carries this process's own
  * `logPersistence` counters: with `WORKER_INLINE=false` the background log writes land here, not in
- * an API replica.
+ * an API replica. `status` mirrors that nested signal, still with a 200, so the HTTP code stays the
+ * process's liveness for the probes.
  *
  * `NestFactory.createApplicationContext` runs every `OnModuleInit` hook in the graph, INCLUDING
  * `DocumentQueueRedisRequiredGuard` (queue/redis-required.guard.ts) — so an unreachable Redis fails
@@ -32,8 +33,9 @@ async function bootstrap() {
   const port = 3001;
   http
     .createServer((_req, res) => {
+      const logPersistence = logPersistenceHealth.snapshot();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', logPersistence: logPersistenceHealth.snapshot() }));
+      res.end(JSON.stringify({ status: logPersistence.status, logPersistence }));
     })
     .listen(port);
 

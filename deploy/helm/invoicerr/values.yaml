@@ -152,8 +152,9 @@ worker:
       # Same reason as api.resources.
       ephemeral-storage: 4Gi
   # The worker's own bootstrap (backend/src/worker.ts) starts a minimal HTTP server on :3001
-  # answering `{"status":"ok"}` on ANY path — plain TCP or an HTTP GET both work equally well; GET is
-  # used here so a failing response body would also show up in `kubectl describe pod`.
+  # answering `{"status":"ok","logPersistence":{...}}` on ANY path (`status` becomes "degraded" once
+  # Log writes keep failing, still with a 200) — plain TCP or an HTTP GET both work equally well; GET
+  # is used here so a failing response body would also show up in `kubectl describe pod`.
   readinessProbe:
     httpGet:
       path: /
