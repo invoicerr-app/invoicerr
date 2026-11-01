@@ -149,7 +149,7 @@ jobs:
     # imagetools create` reads back the per-platform digests `build` pushed and writes the manifest
     # list at `:<image-tag>` (plus `:latest` when `prepare` said so), all against ghcr.io under
     # GITHUB_TOKEN.
-    # And NOTHING else — no `contents: read`, unlike its two siblings, because a job-level block
+    # And NOTHING else — no `contents: read`, unlike its three siblings, because a job-level block
     # REPLACES the top-level floor rather than adding to it and this job never reads the repository:
     # it does not check out (the manifest is assembled from digests, not from source), and none of
     # its four steps reaches GITHUB_TOKEN for anything but the registry. Each was checked against its
@@ -160,7 +160,7 @@ jobs:
     # (login takes the password explicitly, below), and neither is `docker/build-push-action`, whose
     # `github-token` default IS the reason `build` above keeps its own `contents: read`.
     # If that ever stops holding, the symptom is a 403 on repository metadata in this job alone, and
-    # the fix is to add the line back here — not to widen the floor for all three.
+    # the fix is to add the line back here — not to widen the floor for all four.
     # `security-events: write` was added on top of that reasoning for the Trivy scan at the end of
     # this job: `github/codeql-action/upload-sarif` needs it to write findings to the Security tab,
     # and nothing else in the job touches repository metadata because of it.
@@ -227,10 +227,11 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-  # Announces a pre-release on Discord, but only here: `needs: merge` means this job starts after
-  # the manifest list exists at ghcr.io, and never runs at all when a build or the manifest failed,
-  # so an announcement can no longer send readers to a tag that answers "manifest unknown" (or
-  # never will exist). It is a job of this workflow rather than a `workflow_run` listener on it
+  # Announces a pre-release on Discord, but only here: `needs: [prepare, merge]` means this job
+  # starts after the manifest list exists at ghcr.io, and never runs at all when a platform build
+  # fails, the manifest list cannot be created, or the Trivy gate closes `merge`, so an announcement
+  # can no longer send readers to a tag that answers "manifest unknown" (or never will exist). It is
+  # a job of this workflow rather than a `workflow_run` listener on it
   # because the release event is right here: tag, name, body and the pre-release flag come from
   # `github.event.release`, where a `workflow_run` payload would have to rediscover the tag and
   # re-read the release through the API. See `.github/scripts/announce-prerelease.sh`.
