@@ -734,6 +734,9 @@ describe('PaymentSessionsService.handleWebhookEvent', () => {
       expect(documentsService.getDocument).not.toHaveBeenCalled();
       expect(documentsService.runAction).not.toHaveBeenCalled();
       expect(attachSessionPayment).not.toHaveBeenCalled();
+      // The claim had already moved B's row to COMPLETED; the guard must release it back to PENDING
+      // with B's own scope, or B's real event would never find a PENDING session again.
+      expect(releaseSessionClaim).toHaveBeenCalledWith('company-B', 'stripe', 'cs_B');
     });
   });
 });

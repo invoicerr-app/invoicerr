@@ -319,6 +319,11 @@ export class PaymentSessionsService {
         `${providerId} checkout ${event.providerSessionId} claimed for company "${claimed.companyId}" ` +
           `while company "${companyId}"'s credentials verified it — refusing to record a payment.`,
       );
+      // The claim above already moved the row to COMPLETED. Release it back to PENDING, scoped on the
+      // ROW's company and not the URL's: a release scoped on `companyId` would match no row, since the
+      // row belongs to the other company, and the session would stay COMPLETED with no payment — the
+      // exact failure this PR closes. The real event, replayed, then finds a PENDING row again.
+      await releaseSessionClaim(claimed.companyId, providerId, event.providerSessionId);
       return { outcome: 'unknown_session' };
     }
 
