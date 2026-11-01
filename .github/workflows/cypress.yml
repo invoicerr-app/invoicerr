@@ -205,7 +205,8 @@ jobs:
         run: cd backend && ./node_modules/.bin/vitest run --maxWorkers=2
 
   queue-integration:
-    runs-on: ubuntu-latest
+    # TRIAL ONLY: this job was moved to the self-hosted zima/e2e runners to measure whether they can host it; dev stays on GitHub-hosted runners until the trial proves out.
+    runs-on: [self-hosted, zima, e2e]
     env:
       DATABASE_URL: postgresql://postgres@localhost:5432/invoicerr_test?schema=public
       REDIS_URL: redis://localhost:6379
@@ -377,7 +378,8 @@ jobs:
   # the reason its comment records — a spec that passes at position 7 and fails at position 2 is not
   # testing the product.
   cypress-run:
-    runs-on: ubuntu-latest
+    # TRIAL ONLY: this job was moved to the self-hosted zima/e2e runners to measure whether they can host it; dev stays on GitHub-hosted runners until the trial proves out.
+    runs-on: [self-hosted, zima, e2e]
     timeout-minutes: 45
     strategy:
       # Same shape, and the same reason, as scenarios.yml's own six-leg matrix: one shard going red
@@ -621,7 +623,8 @@ jobs:
   # webhook, never pushed to Polar). `polar-env.ts#assertPolarEnvConfiguredForBoot` only checks these
   # vars are non-blank at boot; nothing in either spec's path calls the real Polar API.
   cypress-run-saas:
-    runs-on: ubuntu-latest
+    # TRIAL ONLY: this job was moved to the self-hosted zima/e2e runners to measure whether they can host it; dev stays on GitHub-hosted runners until the trial proves out.
+    runs-on: [self-hosted, zima, e2e]
     timeout-minutes: 20
     env:
       REDIS_URL: redis://localhost:6379
@@ -743,7 +746,8 @@ jobs:
   # the "Build & seed the demo dataset" step below reproduces it explicitly: `npm run build`, then a
   # copy of the raw script placed next to the compiled output it now runs from.
   cypress-run-demo:
-    runs-on: ubuntu-latest
+    # TRIAL ONLY: this job was moved to the self-hosted zima/e2e runners to measure whether they can host it; dev stays on GitHub-hosted runners until the trial proves out.
+    runs-on: [self-hosted, zima, e2e]
     timeout-minutes: 20
     env:
       REDIS_URL: redis://localhost:6379
