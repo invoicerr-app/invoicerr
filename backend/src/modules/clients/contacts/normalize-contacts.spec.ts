@@ -1,9 +1,6 @@
 /**
- * Test-only case table for `normalizeClientContacts` (no dedicated spec existed before this - the
- * behavior was only ever exercised indirectly, through `clients.contacts.spec.ts`'s own
- * create/edit-level assertions). Pinned here so `frontend/src/lib/normalize-client-contacts.spec.ts`
- * can run the EXACT same cases against its frontend twin (#415 follow-up review round 3, point 3) -
- * see that function's own header for why the frontend cannot simply import this module.
+ * Case table for `normalizeClientContacts`, mirrored by the frontend's own twin spec because the
+ * frontend cannot import this module.
  */
 import { normalizeClientContacts } from './normalize-contacts';
 import { ClientContactDto } from '../dto/clients.dto';

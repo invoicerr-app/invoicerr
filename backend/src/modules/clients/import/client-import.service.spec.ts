@@ -1,10 +1,6 @@
 /**
- * `ClientImportService` constructed directly against the real test Postgres - same discipline
- * `clients.identifier-pattern.spec.ts` already holds for the same reason (`ClientsModule` cannot be
- * imported under ts-jest). Covers the parity claims the issue calls out explicitly: a FR row missing
- * its required identifier is rejected with the same message the wizard would show, a pattern
- * mismatch is rejected likewise, duplicates (existing AND within-file) are detected without one query
- * per row, the row cap is enforced, and a forced mid-transaction failure leaves zero rows created.
+ * `ClientImportService` against the real test Postgres. Covers parity with the create wizard,
+ * duplicate detection, the row cap and all-or-nothing confirm.
  */
 import { vi } from 'vitest';
 
@@ -116,7 +112,6 @@ describe('ClientImportService', () => {
           companyId,
           type: 'COMPANY',
           name: 'Existing Co',
-          // #415: the primary contact's own email, not a `Client` column any more.
           contacts: { create: { email: 'Billing@Existing.example', isPrimary: true, position: 0 } },
           address: 'a',
           postalCode: '75000',
@@ -337,10 +332,8 @@ describe('ClientImportService', () => {
     });
   });
 
-  // #415: the CSV import's four contact columns still mean "the primary contact" - a row's
-  // contactFirstname/contactLastname/contactEmail/contactPhone become ONE `ClientContact` row,
-  // flagged primary, never a legacy `Client` column (which no longer exists).
-  describe('primary contact created from the row (#415)', () => {
+  // The four contact columns mean "the primary contact": one ClientContact row, flagged primary.
+  describe('primary contact created from the row', () => {
     it("creates a primary ClientContact from a COMPANY row's four contact columns", async () => {
       const row = frRow({
         name: 'Contact Import SARL',

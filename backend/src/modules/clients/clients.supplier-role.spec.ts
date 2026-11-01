@@ -1,8 +1,4 @@
-/**
- * `Client.isSupplier`, the reused-role decision. `ClientsService` constructed
- * DIRECTLY (never `ClientsModule` — see `clients.vat-validation.spec.ts`'s own header, "ClientsModule
- * not importable under ts-jest"), real Prisma.
- */
+/** `Client.isSupplier`, against the real test Postgres. */
 
 import { vi } from 'vitest';
 
