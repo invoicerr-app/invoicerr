@@ -197,7 +197,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
   });
 
-  it('refuses a declared province the block cannot carry instead of dropping IscrizioneREA', async () => {
+  it('refuses the export on a declared province the block cannot carry, rather than dropping IscrizioneREA silently', async () => {
     const seller: DocumentFormatParty = {
       ...SELLER,
       companyLaw: {
@@ -215,6 +215,48 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
 
     expect(result.validation.valid).toBe(false);
     expect(result.validation.errors.join(' ')).toContain('registerOfficeProvince');
+    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+  });
+
+  it('refuses the export on a register number longer than the block can carry, rather than dropping IscrizioneREA silently', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      companyLaw: {
+        legalForm: 'IT_SRL',
+        values: {
+          registerOfficeProvince: 'MI',
+          registerNumber: '012345678901234567890',
+          shareCapital: { amount: '10000', currency: 'EUR' },
+          liquidationStatus: 'LN',
+        },
+      },
+    };
+
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors.join(' ')).toContain('registerNumber');
+    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+  });
+
+  it('refuses the export on a liquidation status that is neither LN nor LS, rather than dropping IscrizioneREA silently', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      companyLaw: {
+        legalForm: 'IT_SRL',
+        values: {
+          registerOfficeProvince: 'MI',
+          registerNumber: '01234567890',
+          shareCapital: { amount: '10000', currency: 'EUR' },
+          liquidationStatus: 'XX',
+        },
+      },
+    };
+
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors.join(' ')).toContain('liquidationStatus');
     expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
   });
 
@@ -668,6 +710,25 @@ describe('fatturapa-provider - accepted by the SdI, not only by the XSD', () => 
       expect(xml).toContain('<CessionarioCommittente><DatiAnagrafici><IdFiscaleIVA><IdPaese>DE</IdPaese>');
       expect(sdiRejections(xml)).toEqual([]);
       expect(result.validation.errors).toEqual([]);
+    });
+
+    it('reads the stored ISO countryCode before the free-text country, for the seller and the buyer', async () => {
+      // Neither "Italia" nor "Deutschland" is in the name-to-ISO table: only the stored countryCode
+      // can route them. Before this, a German buyer was announced to the SdI as an Italian one.
+      const seller: DocumentFormatParty = { ...SELLER, country: 'Italia', countryCode: 'IT' };
+      const buyer: DocumentFormatParty = { ...GERMAN_BUSINESS, country: 'Deutschland', countryCode: 'DE' };
+
+      const { result, xml } = await buildSent(VALID_DATA, seller, buyer);
+
+      expect(result.validation.valid).toBe(true);
+      expect(result.validation.errors).toEqual([]);
+      expect(extractTag(xml, 'CodiceDestinatario')).toBe('XXXXXXX');
+      expect(xml).toContain('<CedentePrestatore><DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese>');
+      expect(xml).toContain('<CessionarioCommittente><DatiAnagrafici><IdFiscaleIVA><IdPaese>DE</IdPaese>');
+      expect(xml).toContain(
+        '<CessionarioCommittente><DatiAnagrafici><IdFiscaleIVA><IdPaese>DE</IdPaese><IdCodice>DE136695976</IdCodice></IdFiscaleIVA><Anagrafica><Denominazione>Schmidt GmbH</Denominazione></Anagrafica></DatiAnagrafici><Sede><Indirizzo>Corso Italia 20</Indirizzo><CAP>00100</CAP><Comune>Roma</Comune><Nazione>DE</Nazione>',
+      );
+      expect(sdiRejections(xml)).toEqual([]);
     });
   });
 

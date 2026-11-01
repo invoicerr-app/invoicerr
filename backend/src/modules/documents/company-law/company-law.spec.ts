@@ -1,5 +1,13 @@
 import { companyLawSettings, demoCompanyLaw, normalizeCompanyLawDetails } from './company-law';
-import { assertValidCompanyLawSection, CountryCompanyLawFile } from './schema';
+import { assertValidCompanyLawSection, CompanyLawDemo, CountryCompanyLawFile } from './schema';
+
+function demo(overrides: Partial<CompanyLawDemo> = {}): CompanyLawDemo {
+  return {
+    legalFormByNameSuffix: { Ltd: 'XX_LTD' },
+    values: { shareCapital: { amount: '10000', currency: 'EUR' } },
+    ...overrides,
+  };
+}
 
 function section(overrides: Partial<CountryCompanyLawFile> = {}): CountryCompanyLawFile {
   return {
@@ -64,6 +72,36 @@ describe('a country companyLaw section is refused at load time when', () => {
     file.mentions[0].provenance = { kind: 'legal', sourceText: '', sourceCheckedAt: '2026-10-25' };
 
     expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(/quotes no sourceText/);
+  });
+
+  it('the demo cityProvinces is not a city-to-province map', () => {
+    const file = section({ demo: demo({ cityProvinces: 'MI' as unknown as Record<string, string> }) });
+
+    expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(
+      /demo\.cityProvinces must map a city to a province/,
+    );
+  });
+
+  it('the demo cityProvinces maps a city to no province', () => {
+    const file = section({ demo: demo({ cityProvinces: { Milano: '' } }) });
+
+    expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(
+      /demo\.cityProvinces maps "Milano" to no province/,
+    );
+  });
+
+  it('the demo uses {province} but declares no cityProvinces', () => {
+    const file = section({
+      fields: [
+        { key: 'shareCapital', kind: 'money', label: 'Share capital' },
+        { key: 'registerOfficeProvince', kind: 'text', label: 'Province' },
+      ],
+      demo: demo({ values: { registerOfficeProvince: '{province}' } }),
+    });
+
+    expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(
+      /demo uses \{province\} but declares no cityProvinces/,
+    );
   });
 });
 
@@ -151,7 +189,7 @@ describe('the demo company-law values follow the city the demo seeds', () => {
 
   it('follows every city the demo can draw', () => {
     const provinces = ['Milano', 'Torino', 'Bologna'].map(
-      (city) => demoCompanyLaw('IT', 'Milano Servizi SRL', city)?.values.registerOfficeProvince,
+      (city) => demoCompanyLaw('IT', 'Milano Servizi SRL', city)?.values?.registerOfficeProvince,
     );
 
     expect(provinces).toEqual(['MI', 'TO', 'BO']);

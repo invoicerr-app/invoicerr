@@ -247,7 +247,6 @@ describe('facturx-provider — embed a CII gated the SAME way cii-provider.ts ga
         data: VALID_DATA,
         displayNumber: 'INV-2026-0001',
         status: 'sent',
-        createdAt: new Date(),
       },
       seller,
       BUYER,

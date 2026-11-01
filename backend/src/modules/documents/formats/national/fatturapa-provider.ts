@@ -69,7 +69,6 @@
  * page), byte for byte identical: its `FormatoTrasmissioneType` enumerates both values and its
  * `CodiceDestinatarioType` is `[A-Z0-9]{6,7}`.
  */
-import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
@@ -250,12 +249,12 @@ async function build(
   const vatId = getIdentifier(company, 'VAT') || '';
   const formatCountry = nationalFormatCountry(fatturapaFormatId);
   const codes = einvoiceCodesFor(formatCountry);
-  const vatCountry = guessCountryCode(company.country) ?? formatCountry;
+  const vatCountry = resolvePartyCountryCode(company) ?? formatCountry;
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
   const iscrizioneRea = iscrizioneReaFor(company);
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
-  const clienteVatCountry = guessCountryCode(client.country) ?? '';
+  const clienteVatCountry = resolvePartyCountryCode(client) ?? '';
   const clienteCf = getIdentifier(client, 'LEGAL_ID') || '';
 
   // ── ProgressivoInvio: unique per invoice ─────────────────────────
