@@ -68,9 +68,8 @@ describe('API Keys Settings E2E', () => {
         }).as('createApiKeyFailure');
 
         cy.visit('/settings/apiKeys');
-        cy.wait(1000);
 
-        cy.get('input[name="name"]').clear().type('Cypress failing key');
+        cy.get('input[name="name"]', { timeout: 15000 }).clear().type('Cypress failing key');
         cy.contains('button', /create api key/i).click();
 
         cy.wait('@createApiKeyFailure');
