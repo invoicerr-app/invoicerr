@@ -17,6 +17,8 @@ export interface CompanyRowForFormat {
   city: string;
   postalCode: string;
   country: string;
+  /** `Company.countryCode`: the stored ISO override; sent to the format party ahead of `country`. */
+  countryCode?: string | null;
   email?: string | null;
   phone?: string | null;
   /** BT-84 — see Company.iban's own schema comment. Absent for a Client on purpose: a BUYER's own
@@ -43,6 +45,8 @@ export interface ClientRowForFormat {
   city: string | null;
   postalCode: string | null;
   country: string;
+  /** `Client.countryCode`: the stored ISO override; sent to the format party ahead of `country`. */
+  countryCode?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
   /** `Client.language`: the recipient's own document language, first of the fallback chain. */
   language?: string | null;
@@ -56,6 +60,7 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
     city: company.city,
     postalCode: company.postalCode,
     country: company.country,
+    countryCode: company.countryCode,
     email: company.email,
     phone: company.phone,
     iban: company.iban,
@@ -79,6 +84,7 @@ export function clientToFormatParty(client: ClientRowForFormat): DocumentFormatP
     city: client.city,
     postalCode: client.postalCode,
     country: client.country,
+    countryCode: client.countryCode,
     email: primary.contactEmail,
     phone: primary.contactPhone,
     partyIdentifiers: client.partyIdentifiers,

@@ -169,7 +169,14 @@ company is not in liquidation.
 | `StatoLiquidazione` | `liquidationStatus`, declared as `LN` or `LS` |
 
 `registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`, so the company
-settings collect them even though no printed mention quotes them.
+settings collect them even though no printed mention quotes them. An `asked` field is only asked for
+a legal form the section covers with a printed mention: a ditta individuale or an unlisted form is
+never asked for facts only a register entry carries.
+
+The demo company's `registerOfficeProvince` follows the city it is seeded with (`cityProvinces` in
+`it.json`: Milano MI, Torino TO, Bologna BO). A declared value the block cannot carry (a province
+that is not two letters, a register number over 20 characters, a liquidation status other than LN or
+LS) refuses the export with an error naming the field, rather than dropping `IscrizioneREA` silently.
 
 **The `NumeroREA` decision.** The issue left open whether `NumeroREA` could carry the registro delle
 imprese registration number or needed a second field. The specification settles it: Specifiche

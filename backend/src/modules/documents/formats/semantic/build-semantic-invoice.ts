@@ -188,6 +188,9 @@ export interface SemanticPartyInput {
   postalCode: string | null;
   /** Free text, as stored on Company/Client — resolved via `guessCountryCode`. */
   country: string | null;
+  /** `Company.countryCode`/`Client.countryCode`: the stored ISO 3166-1 alpha-2 override, preferred
+   *  over `country` when set. */
+  countryCode?: string | null;
   email?: string | null;
   phone?: string | null;
   /** BT-84 (Payment account identifier), SELLER side only — see `Company.iban`'s own schema comment
@@ -551,6 +554,18 @@ function sellerPaymentMeans(seller: SemanticPartyInput): Record<string, unknown>
   ];
 }
 
+/** The stored ISO override wins over the free-text country, the priority the settings and the PDF
+ *  already give it (`country-policy.ts#resolveCompanyCountryCode`). */
+export function resolvePartyCountryCode(
+  party: Pick<SemanticPartyInput, 'country' | 'countryCode'>,
+): string | undefined {
+  return (
+    (party.countryCode ?? '').trim().toUpperCase() ||
+    guessCountryCode(party.country ?? undefined) ||
+    undefined
+  );
+}
+
 function postalAddress(party: SemanticPartyInput, fallbackCountry: string) {
   return {
     'cbc:StreetName': party.address || 'N/A',
@@ -558,7 +573,7 @@ function postalAddress(party: SemanticPartyInput, fallbackCountry: string) {
     'cbc:CityName': party.city || '',
     'cbc:PostalZone': party.postalCode || '',
     'cac:Country': {
-      'cbc:IdentificationCode': guessCountryCode(party.country ?? undefined) ?? fallbackCountry,
+      'cbc:IdentificationCode': resolvePartyCountryCode(party) ?? fallbackCountry,
     },
   };
 }
@@ -602,7 +617,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   // wrong on its own terms — every seller-country-derived fact below (postal address country, country-
   // mandated mentions via `sellerCountryCode`, BT-23's business-process code, the SIREN-vs-bare-id
   // branching) would silently assert a French identity for a company that was never confirmed French.
-  const sellerCountryCode = guessCountryCode(input.seller.country ?? undefined);
+  const sellerCountryCode = resolvePartyCountryCode(input.seller);
   if (!sellerCountryCode) {
     throw new SemanticBuildError(
       "Cannot build an EN 16931 export: the seller's own country could not be determined — refusing " +
@@ -613,7 +628,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         'Complete the country field on this company in Settings before exporting.',
     );
   }
-  const buyerCountryCode = guessCountryCode(input.buyer.country ?? undefined);
+  const buyerCountryCode = resolvePartyCountryCode(input.buyer);
   if (!buyerCountryCode) {
     // Same principle as the seller block just above, now enshrined on BOTH parties: the send path
     // already hard-blocks an unresolvable buyer at tax resolution (resolve-invoice-tax.ts), so the

@@ -9,7 +9,6 @@
 import { InvoiceService as EuInvoiceService } from '@e-invoice-eu/core';
 
 import { logger } from '@/logger/logger.service';
-import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { companyLawMentions } from '../company-law/company-law';
@@ -19,6 +18,7 @@ import { computeDocumentTotals } from '../totals/compute-totals';
 import { CorrectedInvoiceReference, DocumentFormatParty } from './format-provider';
 import {
   buildSemanticInvoice,
+  resolvePartyCountryCode,
   SemanticBuildError,
   SemanticLineInput,
 } from './semantic/build-semantic-invoice';
@@ -226,7 +226,7 @@ export function buildEuInvoiceForDocument(
   // the document's language. A line with a gap is a working copy's business (the PDF prints it with
   // a marker); an e-invoice only carries complete lines, and the send preflight already refuses a
   // required gap. Joined with "; " because UBL-SR-14 allows one `CompanyLegalForm`.
-  const sellerCountryCode = guessCountryCode(company.country ?? undefined);
+  const sellerCountryCode = resolvePartyCountryCode(company);
   const sellerAdditionalLegalInformation = sellerCountryCode
     ? companyLawMentions({
         countryCode: sellerCountryCode,

@@ -1,4 +1,4 @@
-import { companyLawSettings, normalizeCompanyLawDetails } from './company-law';
+import { companyLawSettings, demoCompanyLaw, normalizeCompanyLawDetails } from './company-law';
 import { assertValidCompanyLawSection, CountryCompanyLawFile } from './schema';
 
 function section(overrides: Partial<CountryCompanyLawFile> = {}): CountryCompanyLawFile {
@@ -122,8 +122,45 @@ describe('the company settings ask, for each legal form, the values its mentions
     ]);
   });
 
+  it('does not ask an Italian sole trader or unlisted form for facts only a register entry carries', () => {
+    const ditta = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_DITTA_INDIVIDUALE');
+    const other = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_OTHER');
+
+    expect(ditta?.fields).toEqual([]);
+    expect(other?.fields).toEqual([]);
+  });
+
   it('a country with no companyLaw section asks for nothing', () => {
     expect(companyLawSettings('ES')).toEqual({ legalForms: [] });
+  });
+});
+
+describe('the demo company-law values follow the city the demo seeds', () => {
+  it('gives the province of the seeded city', () => {
+    expect(demoCompanyLaw('IT', 'Torino Componenti SRL', 'Torino')).toEqual({
+      legalForm: 'IT_SRL',
+      values: {
+        registerOffice: 'Torino',
+        registerOfficeProvince: 'TO',
+        registerNumber: '01234567890',
+        shareCapital: { amount: '10000', currency: 'EUR' },
+        liquidationStatus: 'LN',
+      },
+    });
+  });
+
+  it('follows every city the demo can draw', () => {
+    const provinces = ['Milano', 'Torino', 'Bologna'].map(
+      (city) => demoCompanyLaw('IT', 'Milano Servizi SRL', city)?.values.registerOfficeProvince,
+    );
+
+    expect(provinces).toEqual(['MI', 'TO', 'BO']);
+  });
+
+  it('leaves the province out when the city is not in the demo table', () => {
+    const details = demoCompanyLaw('IT', 'Torino Componenti SRL', 'Roma');
+
+    expect(details?.values).not.toHaveProperty('registerOfficeProvince');
   });
 });
 

@@ -493,6 +493,7 @@ describe('BT-33: the seller company-law mentions reach both EN 16931 syntaxes', 
       expect(result.validation.valid).toBe(true);
       const xml = new TextDecoder().decode(result.bytes);
       expect(xml).toContain(`${open}SAS with a share capital of 10000.00 EUR; RCS Paris${close}`);
+      expect(xml.split(open)).toHaveLength(2);
     }, 180_000);
   });
 });

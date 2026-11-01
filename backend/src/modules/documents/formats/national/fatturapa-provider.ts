@@ -74,13 +74,18 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
-import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
+import {
+  defaultCompanyLawCatalog,
+  companyLawFormIsCovered,
+  readCompanyLawDetails,
+} from '../../company-law/company-law';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { einvoiceCodesFor, exemptionCodeFor, taxRegimeCodeFor } from '../../einvoice-codes/registry';
 import { CountryEinvoiceCodesFile, ExemptionCodeFact } from '../../einvoice-codes/schema';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
+import { resolvePartyCountryCode } from '../semantic/build-semantic-invoice';
 import {
   DocumentFormatBuildOptions,
   DocumentFormatBuildResult,
@@ -113,7 +118,10 @@ function fmtRate(n: number): string {
  * mapped onto FatturaPA's own block. Every required element must be declared for the block to be
  * emitted (`Ufficio`, `NumeroREA`, `StatoLiquidazione`); a missing one omits the whole block
  * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the
- * company is not in liquidation.
+ * company is not in liquidation. A value that IS declared but cannot be carried by the block is a
+ * different matter: it refuses the export with an error naming the field, never dropping the block
+ * in silence. Only a legal form the section covers with a printed mention has a register entry to
+ * declare here.
  *
  * The `NumeroREA` question the issue left open is settled by the specification itself: Specifiche
  * tecniche del formato della FatturaPA v1.4 §3.3.4 defines it as « il numero di repertorio con il
@@ -121,12 +129,16 @@ function fmtRate(n: number): string {
  * civile art. 2250 already requires and this catalog already stores as `registerNumber`. It is not a
  * second, distinct number.
  */
-function iscrizioneReaFor(company: DocumentFormatParty): Record<string, string> | undefined {
-  const countryCode = guessCountryCode(company.country) ?? '';
-  const file = defaultCompanyLawCatalog.fileFor(countryCode);
-  if (!file) return undefined;
+interface IscrizioneRea {
+  block?: Record<string, string>;
+  errors: string[];
+}
+
+function iscrizioneReaFor(company: DocumentFormatParty): IscrizioneRea {
+  const file = defaultCompanyLawCatalog.fileFor(resolvePartyCountryCode(company) ?? '');
+  if (!file) return { errors: [] };
   const details = readCompanyLawDetails(company.companyLaw);
-  if (!details.legalForm) return undefined;
+  if (!details.legalForm || !companyLawFormIsCovered(file, details.legalForm)) return { errors: [] };
 
   const stringValue = (key: string): string => {
     const value = details.values?.[key];
@@ -135,9 +147,26 @@ function iscrizioneReaFor(company: DocumentFormatParty): Record<string, string> 
   const province = stringValue('registerOfficeProvince').toUpperCase();
   const number = stringValue('registerNumber');
   const liquidation = stringValue('liquidationStatus').toUpperCase();
-  if (!/^[A-Z]{2}$/.test(province)) return undefined;
-  if (!number || number.length > 20) return undefined;
-  if (liquidation !== 'LN' && liquidation !== 'LS') return undefined;
+
+  const errors: string[] = [];
+  if (province && !/^[A-Z]{2}$/.test(province))
+    errors.push(
+      'The company register office ("registerOfficeProvince") must be a two-letter province code, ' +
+        'for example MI: IscrizioneREA was not emitted.',
+    );
+  if (number.length > 20)
+    errors.push(
+      'The company register number ("registerNumber") must be at most 20 characters: ' +
+        'IscrizioneREA was not emitted.',
+    );
+  if (liquidation && liquidation !== 'LN' && liquidation !== 'LS')
+    errors.push(
+      'The liquidation status ("liquidationStatus") must be LN or LS: IscrizioneREA was not emitted.',
+    );
+  if (errors.length > 0) return { errors };
+
+  if (!/^[A-Z]{2}$/.test(province) || !number) return { errors: [] };
+  if (liquidation !== 'LN' && liquidation !== 'LS') return { errors: [] };
 
   const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
   const capital = details.values?.shareCapital;
@@ -148,17 +177,20 @@ function iscrizioneReaFor(company: DocumentFormatParty): Record<string, string> 
   const capitalAmount = capitalAmountText ? Number(capitalAmountText) : undefined;
 
   return {
-    Ufficio: province,
-    NumeroREA: number,
-    ...(capitalAmount !== undefined && Number.isFinite(capitalAmount)
-      ? { CapitaleSociale: fmtAmount(capitalAmount, 2) }
-      : {}),
-    ...(form?.singleMember === true
-      ? { SocioUnico: 'SU' }
-      : form?.singleMember === false
-        ? { SocioUnico: 'SM' }
+    errors: [],
+    block: {
+      Ufficio: province,
+      NumeroREA: number,
+      ...(capitalAmount !== undefined && Number.isFinite(capitalAmount)
+        ? { CapitaleSociale: fmtAmount(capitalAmount, 2) }
         : {}),
-    StatoLiquidazione: liquidation,
+      ...(form?.singleMember === true
+        ? { SocioUnico: 'SU' }
+        : form?.singleMember === false
+          ? { SocioUnico: 'SM' }
+          : {}),
+      StatoLiquidazione: liquidation,
+    },
   };
 }
 
@@ -338,7 +370,7 @@ async function build(
             Comune: company.city || 'N/A',
             Nazione: vatCountry,
           },
-          ...(iscrizioneRea ? { IscrizioneREA: iscrizioneRea } : {}),
+          ...(iscrizioneRea.block ? { IscrizioneREA: iscrizioneRea.block } : {}),
           ...(Object.keys(contatti).length > 0 ? { Contatti: contatti } : {}),
         },
         CessionarioCommittente: {
@@ -411,7 +443,7 @@ async function build(
   const xml: string = await fpa2xml(escapeXmlTree(fattura) as Record<string, unknown>);
 
   const xsd = await validateXsd(xml, FATTURAPA_XSD);
-  const errors = [...naturaErrors, ...xsd.errors];
+  const errors = [...naturaErrors, ...iscrizioneRea.errors, ...xsd.errors];
   return { bytes: new TextEncoder().encode(xml), validation: { valid: errors.length === 0, errors } };
 }
 

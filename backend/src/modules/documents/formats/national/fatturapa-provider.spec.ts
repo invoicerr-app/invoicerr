@@ -159,7 +159,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     );
   });
 
-  it('omits IscrizioneREA rather than asserting a liquidation status or a province it was not given', async () => {
+  it('omits IscrizioneREA rather than asserting a liquidation status it was not given', async () => {
     const seller: DocumentFormatParty = {
       ...SELLER,
       companyLaw: {
@@ -168,6 +168,65 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
           registerOfficeProvince: 'MI',
           registerNumber: '01234567890',
           shareCapital: { amount: '10000', currency: 'EUR' },
+        },
+      },
+    };
+
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+
+    expect(result.validation.valid).toBe(true);
+    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+  });
+
+  it('omits IscrizioneREA rather than inventing a province it was not given', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      companyLaw: {
+        legalForm: 'IT_SRL',
+        values: {
+          registerNumber: '01234567890',
+          shareCapital: { amount: '10000', currency: 'EUR' },
+          liquidationStatus: 'LN',
+        },
+      },
+    };
+
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+
+    expect(result.validation.valid).toBe(true);
+    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+  });
+
+  it('refuses a declared province the block cannot carry instead of dropping IscrizioneREA', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      companyLaw: {
+        legalForm: 'IT_SRL',
+        values: {
+          registerOfficeProvince: 'Milano',
+          registerNumber: '01234567890',
+          shareCapital: { amount: '10000', currency: 'EUR' },
+          liquidationStatus: 'LN',
+        },
+      },
+    };
+
+    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.validation.errors.join(' ')).toContain('registerOfficeProvince');
+    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+  });
+
+  it('ignores register facts on a legal form the section covers with no mention', async () => {
+    const seller: DocumentFormatParty = {
+      ...SELLER,
+      companyLaw: {
+        legalForm: 'IT_DITTA_INDIVIDUALE',
+        values: {
+          registerOfficeProvince: 'MI',
+          registerNumber: '01234567890',
+          liquidationStatus: 'LN',
         },
       },
     };

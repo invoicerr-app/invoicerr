@@ -28,7 +28,8 @@ export interface CompanyLawField {
   /** The country's own name for it, shown beside the input and in a missing marker. */
   label: string;
   /** Ask for it even when no printed mention of the selected form quotes it, for a fact an
-   *  electronic format needs but the document itself does not print. */
+   *  electronic format needs but the document itself does not print. Only asked for a legal form the
+   *  section covers with at least one mention. */
   asked?: boolean;
 }
 
@@ -55,10 +56,13 @@ export interface CompanyLawMention {
   notes?: string;
 }
 
-/** What a demo company of this country is seeded with; `{city}` in a text value is the company's city. */
+/** What a demo company of this country is seeded with; `{city}` in a text value is the company's city
+ *  and `{province}` the province `cityProvinces` gives for it. */
 export interface CompanyLawDemo {
   /** Legal form by the suffix that ends the demo company's name. */
   legalFormByNameSuffix: Record<string, string>;
+  /** The province a city belongs to, for a `{province}` placeholder (Italy's two-letter code). */
+  cityProvinces?: Record<string, string>;
   values: Record<string, string | { amount: string; currency: string }>;
 }
 
@@ -216,6 +220,19 @@ function assertValidDemo(
   if (unknownForm) fail(`demo names undeclared legal form "${unknownForm}".`);
   const unknownField = Object.keys(file.demo.values ?? {}).find((key) => !fieldKeys.has(key));
   if (unknownField) fail(`demo fills undeclared field "${unknownField}".`);
+  const provinces = file.demo.cityProvinces;
+  if (provinces !== undefined) {
+    if (typeof provinces !== 'object' || provinces === null || Array.isArray(provinces))
+      fail('demo.cityProvinces must map a city to a province.');
+    for (const [city, province] of Object.entries(provinces)) {
+      if (!city.trim() || typeof province !== 'string' || !province.trim())
+        fail(`demo.cityProvinces maps "${city}" to no province.`);
+    }
+  }
+  const usesProvince = Object.values(file.demo.values ?? {}).some(
+    (value) => typeof value === 'string' && value.includes('{province}'),
+  );
+  if (usesProvince && provinces === undefined) fail('demo uses {province} but declares no cityProvinces.');
 }
 
 /** Refused at load time: a section the resolver could only half read would print a wrong mention. */

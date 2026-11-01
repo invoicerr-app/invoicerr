@@ -205,11 +205,18 @@ function quotesField(mention: CompanyLawMention, key: string): boolean {
   );
 }
 
+/** Whether the section covers this legal form with at least one printed mention. A form it names no
+ *  mention for (a sole trader, an unlisted form) is outside the obligations those mentions serve. */
+export function companyLawFormIsCovered(file: CountryCompanyLawFile, formCode: string): boolean {
+  return file.mentions.some((mention) => mention.legalForms.includes(formCode));
+}
+
 function fieldsFor(file: CountryCompanyLawFile, formCode: string): CompanyLawFormField[] {
   const mentions = file.mentions.filter((mention) => mention.legalForms.includes(formCode));
+  const covered = companyLawFormIsCovered(file, formCode);
   return file.fields.flatMap((field) => {
     const quoting = mentions.filter((mention) => quotesField(mention, field.key));
-    if (quoting.length === 0 && !field.asked) return [];
+    if (quoting.length === 0 && !(field.asked && covered)) return [];
     return [
       { key: field.key, kind: field.kind, label: field.label, required: quoting.some((m) => m.required) },
     ];
@@ -247,8 +254,14 @@ export function demoCompanyLaw(
     .find((candidate) => companyName.endsWith(` ${candidate}`));
   if (!suffix) return undefined;
   const values: Record<string, CompanyLawValue> = {};
+  const province = demo.cityProvinces?.[city];
   for (const [key, value] of Object.entries(demo.values)) {
-    values[key] = typeof value === 'string' ? value.replaceAll('{city}', city) : value;
+    if (typeof value !== 'string') {
+      values[key] = value;
+      continue;
+    }
+    const text = value.replaceAll('{city}', city).replaceAll('{province}', province ?? '');
+    if (text) values[key] = text;
   }
   return { legalForm: demo.legalFormByNameSuffix[suffix], values };
 }

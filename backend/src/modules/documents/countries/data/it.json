@@ -1589,9 +1589,14 @@
         "SRL": "IT_SRL",
         "SRLS": "IT_SRL"
       },
+      "cityProvinces": {
+        "Milano": "MI",
+        "Torino": "TO",
+        "Bologna": "BO"
+      },
       "values": {
         "registerOffice": "{city}",
-        "registerOfficeProvince": "MI",
+        "registerOfficeProvince": "{province}",
         "registerNumber": "01234567890",
         "shareCapital": {
           "amount": "10000",
