@@ -307,7 +307,7 @@ describe('ChannelCredentialsService', () => {
         mockedPrisma.company.findUnique.mockResolvedValue({
           country: 'France',
           countryCode: 'FR',
-          reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+          reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' },
         });
         const facts = await service.suggestedChannels('company-1');
         expect(facts).toEqual([
@@ -333,7 +333,7 @@ describe('ChannelCredentialsService', () => {
         mockedPrisma.company.findUnique.mockResolvedValue({
           country: 'France',
           countryCode: 'FR',
-          reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'yes' },
+          reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'MEMBER' },
         });
         const facts = await service.suggestedChannels('company-1');
         expect(facts).toEqual([

@@ -187,7 +187,7 @@ describe('Validate, against each shipped channel mandate, for a private and a bu
 
   it('France, micro-enterprise that is not a member, selling to a business before 2027-09-01: validates without a PDP', async () => {
     const result = await validate(FRANCE, 'COMPANY', {
-      reportingProfile: { sizeCategory: 'MICRO', vatGroupMember: 'no' },
+      reportingProfile: { sizeCategory: 'MICRO', vatGroupMember: 'NOT_MEMBER' },
     });
 
     expect(result.document).toMatchObject({ status: 'validated' });
@@ -197,7 +197,7 @@ describe('Validate, against each shipped channel mandate, for a private and a bu
   it('France, SME that is not a member, selling to a business before 2027-09-01: the Validate dialog announces no transmission', async () => {
     expect(
       await transmissionPreview(FRANCE, 'COMPANY', {
-        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' },
       }),
     ).toEqual({ transmits: false });
   });
@@ -205,7 +205,7 @@ describe('Validate, against each shipped channel mandate, for a private and a bu
   it('France, SME that is not a member, selling to a business from 2027-09-01: refused without a PDP', async () => {
     const error = await rejection(
       validate(FRANCE, 'COMPANY', {
-        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' },
         issueDate: '2027-09-01',
       }),
     );
@@ -217,7 +217,7 @@ describe('Validate, against each shipped channel mandate, for a private and a bu
   it('France, SME that is a member of a VAT group: refused without a PDP from 2026-09-01, whatever its size', async () => {
     const error = await rejection(
       validate(FRANCE, 'COMPANY', {
-        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'yes' },
+        reportingProfile: { sizeCategory: 'SME', vatGroupMember: 'MEMBER' },
         issueDate: '2026-09-01',
       }),
     );

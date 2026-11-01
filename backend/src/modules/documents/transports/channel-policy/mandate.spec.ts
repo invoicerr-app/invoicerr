@@ -338,7 +338,7 @@ describe('activeChannelMandateForOperation - the French PDP mandate follows the 
       activeChannelMandateForOperation({
         ...domesticBusinessSale,
         issueDate: '2026-10-25',
-        sellerProfile: { sizeCategory: 'MICRO', vatGroupMember: 'no' },
+        sellerProfile: { sizeCategory: 'MICRO', vatGroupMember: 'NOT_MEMBER' },
       }),
     ).toBeUndefined();
   });
@@ -346,7 +346,7 @@ describe('activeChannelMandateForOperation - the French PDP mandate follows the 
   it('an SME that is not a member is not bound on 2027-08-31 and is bound from 2027-09-01', () => {
     const sme = {
       ...domesticBusinessSale,
-      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'no' },
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' },
     };
 
     expect(activeChannelMandateForOperation({ ...sme, issueDate: '2027-08-31' })).toBeUndefined();
@@ -356,7 +356,7 @@ describe('activeChannelMandateForOperation - the French PDP mandate follows the 
   it('an SME that is a member is bound from 2026-09-01 whatever its size', () => {
     const member = {
       ...domesticBusinessSale,
-      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'yes' },
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'MEMBER' },
     };
 
     expect(activeChannelMandateForOperation({ ...member, issueDate: '2026-08-31' })).toBeUndefined();
@@ -401,8 +401,8 @@ describe('activeChannelMandateForOperation - the French PDP mandate follows the 
     const startDate = (sellerProfile: { sizeCategory?: string; vatGroupMember?: string }) =>
       channelFactsForSeller('FR', sellerProfile).find((fact) => fact.providerId === 'pdp')?.mandatedFrom;
 
-    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'no' })).toBe('2027-09-01');
-    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'yes' })).toBe('2026-09-01');
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' })).toBe('2027-09-01');
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'MEMBER' })).toBe('2026-09-01');
     expect(startDate({ sizeCategory: 'SME' })).toBe('2026-09-01');
   });
 });

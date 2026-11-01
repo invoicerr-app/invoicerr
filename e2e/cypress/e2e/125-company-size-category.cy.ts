@@ -57,13 +57,13 @@ describe("Company size category and the French PDP calendar", () => {
 		cy.get('[data-cy="company-profile-sizeCategory-select"]').click();
 		cy.get('[data-cy="company-profile-sizeCategory-option-SME"]').click();
 		cy.get('[data-cy="company-profile-vatGroupMember-select"]').click();
-		cy.get('[data-cy="company-profile-vatGroupMember-option-no"]').click();
+		cy.get('[data-cy="company-profile-vatGroupMember-option-NOT_MEMBER"]').click();
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.get("[data-sonner-toast]", { timeout: 15000 }).should("exist");
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
-			.should("deep.equal", { sizeCategory: "SME", vatGroupMember: "no" });
+			.should("deep.equal", { sizeCategory: "SME", vatGroupMember: "NOT_MEMBER" });
 
 		cy.reload();
 		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 })

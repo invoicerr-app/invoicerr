@@ -21,7 +21,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
         providerId: 'pdp',
         requirement: 'mandated',
         mandatedFrom: '2026-09-01',
-        scope: expect.objectContaining({ seller: { vatGroupMember: ['yes'] } }),
+        scope: expect.objectContaining({ seller: { vatGroupMember: ['MEMBER'] } }),
         provenance: expect.objectContaining({ kind: 'legal' }),
       }),
       expect.objectContaining({
@@ -29,7 +29,7 @@ describe('channel policy files — loaded, not hard-coded', () => {
         requirement: 'mandated',
         mandatedFrom: '2027-09-01',
         scope: expect.objectContaining({
-          seller: { sizeCategory: ['SME', 'MICRO'], vatGroupMember: ['no'] },
+          seller: { sizeCategory: ['SME', 'MICRO'], vatGroupMember: ['NOT_MEMBER'] },
         }),
         provenance: expect.objectContaining({ kind: 'legal' }),
       }),

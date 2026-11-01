@@ -776,10 +776,10 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   section, with the listed values, or the file is refused at load. A mandate whose start date depends
   on the seller is written as one fact per start date, each with its own `seller` condition, as
   France does for its size categories; a seller that has not declared the attribute matches every
-  such fact, so the earliest date binds it. When the earliest date is the fail-closed side of an
-  unanswered question, give the attribute an `assumedWhenUndeclared` value instead of relying on
-  "undeclared matches everything": France's `vatGroupMember` assumes `yes`, so an SME that never
-  answered is bound from 2026-09-01 and only a declared `no` reads the 2027-09-01 fact. `scope` is a **closed** shape:
+  such fact, so the earliest date binds it, which is also the fail-closed side of an unanswered
+  question: France's `vatGroupMember` is declared in one fact from 2026-09-01 and in the deferred
+  fact only as `NOT_MEMBER`, so an SME that never answered is bound from 2026-09-01. `scope` is a
+  **closed** shape:
   any other key, or any other value, throws at load rather than being ignored, because a silently
   ignored narrowing is a legal block left armed (or disarmed) by accident. Every other kind of
   conditional or partial exception - a turnover threshold, a transaction type, a seller fact no

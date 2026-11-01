@@ -252,7 +252,7 @@ describe('CompanyService - the company profile its country asks for', () => {
         whenFalse: 'NORMAL',
       });
       expect(attributes[2].askedWhen).toEqual({ vatRegime: ['NORMAL'] });
-      expect(attributes[3].values.map((value) => value.value)).toEqual(['yes', 'no']);
+      expect(attributes[3].values.map((value) => value.value)).toEqual(['MEMBER', 'NOT_MEMBER']);
       expect(info?.companyProfileValues).toEqual({ vatRegime: 'NORMAL' });
     });
   });
