@@ -348,6 +348,24 @@ export default function CompanySettings() {
         }
       }
 
+      // The dirty guard above copies the whole reportingProfile object when one sub-field changed,
+      // which would put back an answer the refetched row no longer carries (the exemption switch just
+      // made its question irrelevant). Keep only the sub-keys the country still asks, so the value
+      // cannot reappear or leave again in a later payload.
+      const profileAttributesForMerge = data.companyProfileAttributes ?? []
+      if (profileAttributesForMerge.length > 0) {
+        const profile = (merged.reportingProfile ?? {}) as Record<string, string | undefined>
+        const carried = profileValuesForDisplay(
+          profileAttributesForMerge,
+          data.companyProfileValues,
+          profile,
+          !!merged.exemptVat,
+        )
+        merged.reportingProfile = Object.fromEntries(
+          Object.entries(profile).filter(([key]) => carried[key] !== undefined),
+        )
+      }
+
       form.reset(merged as typeof nextValues)
     }
   }, [data, form])
@@ -1355,35 +1373,39 @@ export default function CompanySettings() {
               description={t("settings.company.profile.description")}
               contentClassName="grid gap-5 sm:grid-cols-2"
             >
-              {askedProfileAttributes.map((attribute) =>
-                attribute.derived ? (
-                  <div key={attribute.key} className="space-y-1.5">
-                    <FieldLabel
-                      htmlFor={`company-profile-${attribute.key}-derived`}
-                      description={attribute.help}
-                      lockReason={t("settings.company.profile.derivedReason")}
-                    >
-                      {attribute.label}
-                    </FieldLabel>
-                    <Select value={profileValues[attribute.key] ?? ""} disabled>
-                      <SelectTrigger
-                        id={`company-profile-${attribute.key}-derived`}
-                        className="w-full"
-                        aria-describedby={`${fieldHelpId(`company-profile-${attribute.key}-derived`)} ${fieldLockId(`company-profile-${attribute.key}-derived`)}`}
-                        data-cy={`company-profile-${attribute.key}-derived`}
+              {askedProfileAttributes.map((attribute) => {
+                if (attribute.derived) {
+                  const fieldId = `company-profile-${attribute.key}-derived`
+                  return (
+                    <div key={attribute.key} className="space-y-1.5">
+                      <FieldLabel
+                        htmlFor={fieldId}
+                        description={attribute.help}
+                        lockReason={t("settings.company.profile.derivedReason")}
                       >
-                        <SelectValue placeholder={t("settings.company.profile.notDeclared")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {attribute.values.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
+                        {attribute.label}
+                      </FieldLabel>
+                      <Select value={profileValues[attribute.key] ?? ""} disabled>
+                        <SelectTrigger
+                          id={fieldId}
+                          className="w-full disabled:opacity-100"
+                          aria-describedby={`${fieldHelpId(fieldId)} ${fieldLockId(fieldId)}`}
+                          data-cy={fieldId}
+                        >
+                          <SelectValue placeholder={t("settings.company.profile.notDeclared")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {attribute.values.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )
+                }
+                return (
                   <FormField
                     key={attribute.key}
                     control={form.control}
@@ -1426,8 +1448,8 @@ export default function CompanySettings() {
                       </FormItem>
                     )}
                   />
-                ),
-              )}
+                )
+              })}
             </SettingsSection>
           )}
 

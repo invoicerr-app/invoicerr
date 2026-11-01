@@ -55,4 +55,39 @@ describe("company profile values on the settings screen", () => {
   it("keeps an undeclared dependency's question visible", () => {
     expect(isProfileAttributeAsked(vatDebitsOption, {})).toBe(true)
   })
+
+  it("does not let a hidden answer satisfy a second-level condition", () => {
+    const first: CompanyProfileAttribute = {
+      key: "firstQuestion",
+      label: "First question",
+      values: [
+        { value: "NARROW", label: "Narrow" },
+        { value: "BROAD", label: "Broad" },
+      ],
+    }
+    const second: CompanyProfileAttribute = {
+      key: "secondQuestion",
+      label: "Second question",
+      values: [{ value: "ANSWERED", label: "Answered" }],
+      askedWhen: { firstQuestion: ["BROAD"] },
+    }
+    const third: CompanyProfileAttribute = {
+      key: "thirdQuestion",
+      label: "Third question",
+      values: [{ value: "ANSWERED", label: "Answered" }],
+      askedWhen: { secondQuestion: ["ANSWERED"] },
+    }
+    const chained = [first, second, third]
+
+    const values = profileValuesForDisplay(
+      chained,
+      {},
+      { firstQuestion: "NARROW", secondQuestion: "ANSWERED", thirdQuestion: "ANSWERED" },
+      false,
+    )
+
+    expect(values).toEqual({ firstQuestion: "NARROW", thirdQuestion: "ANSWERED" })
+    expect(isProfileAttributeAsked(second, values)).toBe(false)
+    expect(isProfileAttributeAsked(third, values)).toBe(true)
+  })
 })

@@ -110,7 +110,7 @@ describe('company profile values', () => {
     expect(values).not.toHaveProperty('vatDebitsOption');
   });
 
-  it('drops a second-level answer whose dependency is itself no longer asked', () => {
+  it('keeps a second-level question open when the answer it depends on is no longer carried', () => {
     const first: CompanyProfileAttribute = {
       key: 'firstQuestion',
       label: 'First question',
@@ -136,20 +136,24 @@ describe('company profile values', () => {
     };
     const attributes = [first, second, third];
 
-    const dropped = companyProfileValues(
+    // `secondQuestion` is dropped, and reads as undeclared to `thirdQuestion`, exactly as the screen
+    // and `isAttributeAsked` read it: the third question stays open instead of the write refusing an
+    // answer the screen still offers.
+    const values = companyProfileValues(
       { firstQuestion: 'NARROW', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },
       attributes,
       { exemptVat: false },
     );
-    expect(dropped).toEqual({ firstQuestion: 'NARROW' });
+    expect(values).toEqual({ firstQuestion: 'NARROW', thirdQuestion: 'ANSWERED' });
+    expect(isAttributeAsked(third, values)).toBe(true);
     expect(
       applyCompanyProfileInput(
         { firstQuestion: 'NARROW', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },
-        {},
+        { thirdQuestion: 'ANSWERED' },
         attributes,
         { exemptVat: false },
       ),
-    ).toEqual({ firstQuestion: 'NARROW' });
+    ).toEqual({ firstQuestion: 'NARROW', thirdQuestion: 'ANSWERED' });
 
     const kept = companyProfileValues(
       { firstQuestion: 'BROAD', secondQuestion: 'ANSWERED', thirdQuestion: 'ANSWERED' },

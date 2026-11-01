@@ -61,12 +61,11 @@ export function companyProfileValues(
 }
 
 /**
- * The declared answers actually carried: one whose condition fails is dropped, and so is an answer
- * that depends on it. The context of every condition is therefore built from the answers that
- * survive, never from the stored column, which would let a dropped answer keep a second-level
- * question alive. Dropping is monotone and repeated to a fixed point, so the result does not depend
- * on the order the attributes are declared in (a condition may form a cycle; a cycle is simply never
- * satisfied by an answer one of its members no longer has).
+ * The declared answers actually carried: one whose condition fails is dropped. The context of every
+ * condition is built from the answers that survive, never from the stored column, so a dropped answer
+ * cannot satisfy a condition. An attribute no longer carried reads as undeclared there, which is the
+ * same open condition `isAttributeAsked` and the settings screen use: a question stays visible rather
+ * than the screen offering an answer the write refuses.
  */
 function carriedDeclaredValues(
   declared: CompanyProfileValues,
@@ -82,7 +81,7 @@ function carriedDeclaredValues(
     for (const key of carried) context[key] = declared[key];
     for (const key of [...carried]) {
       const attribute = attributes.find((candidate) => candidate.key === key);
-      if (attribute && conditionHolds(attribute, context, declared)) continue;
+      if (attribute && isAttributeAsked(attribute, context)) continue;
       carried.delete(key);
       dropped = true;
     }
@@ -90,24 +89,6 @@ function carriedDeclaredValues(
   const values: CompanyProfileValues = {};
   for (const key of carried) values[key] = declared[key];
   return values;
-}
-
-/**
- * `askedWhen` read against carried values, with one distinction `isAttributeAsked` does not need:
- * an answer that was declared and then dropped cannot make another condition hold, while an
- * attribute never declared leaves its condition open.
- */
-function conditionHolds(
-  attribute: CompanyProfileAttribute,
-  context: CompanyProfileValues,
-  declared: CompanyProfileValues,
-): boolean {
-  if (!attribute.askedWhen) return true;
-  return Object.entries(attribute.askedWhen).every(([key, allowed]) => {
-    const value = context[key];
-    if (value !== undefined) return allowed.includes(value);
-    return !(key in declared);
-  });
 }
 
 /**
