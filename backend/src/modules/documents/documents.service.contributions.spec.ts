@@ -102,7 +102,7 @@ describe('DocumentsService.collectWidgets', () => {
         id: 'document-schedule:upcoming',
         kind: 'shortList',
         label: 'Upcoming recurrences',
-        warnings: [expect.stringContaining('does not apply')],
+        warnings: [{ key: 'documents.messages.widgets.schedulesPeriodIgnored' }],
         items: [],
       },
     ]);
