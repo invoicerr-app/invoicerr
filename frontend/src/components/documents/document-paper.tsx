@@ -52,8 +52,8 @@ export function DocumentPaper({
   const unitPrice = lineField?.fields?.find((field) => field.kind === "money")
 
   const totals = useMemo(
-    () => (derivedTotals ? fromDerivedTotals(derivedTotals) : computeDocumentTotals(descriptor, data)),
-    [descriptor, data, derivedTotals],
+    () => (derivedTotals ? fromDerivedTotals(derivedTotals, t) : computeDocumentTotals(descriptor, data)),
+    [descriptor, data, derivedTotals, t],
   )
   const currency = totals?.currency || ""
 
