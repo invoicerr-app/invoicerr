@@ -72,14 +72,16 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 (needs :4000/:6284/:5433/:6379/:8025 up, per the E2E section above).
 
 ### CI (`.github/workflows/`)
-- `cypress.yml` ("Tests", on PR) — eight jobs: `lint` (biome on both projects + frontend vitest),
+- `cypress.yml` ("Tests", on PR) -- nine jobs: `lint` (biome on both projects + frontend vitest),
   `i18n-check`, `e2e-typecheck` (`tsc --noEmit` over the Cypress specs), `backend-tests` (backend
   vitest against a real Postgres — 13+ spec files need one), a **queue-integration** job (real Redis +
   Postgres, runs `modules/documents/queue/__tests__` **and** `modules/webhooks/queue/__tests__`, plus
-  the migration-vs-schema enum tripwire), `cypress-run` (the numbered suites, 6-way sharded),
+  the migration-vs-schema enum tripwire), `cypress-run` (the numbered suites, 3-way sharded),
   `cypress-run-saas` (the hosted-billing-only specs, `WARNING__ENABLE_BILLING_FOR_USERS__WARNING=true`),
-  and `tests-green` — a fixed-name aggregator job branch protection targets instead of the six
-  `cypress-run` shard names, `needs` every other job and fails on any failure/cancellation/skip.
+  `cypress-run-demo` (`DEMO_MODE=true` and its own seeded dataset), `main-promotion-only` (refuses a
+  pull request into `main` whose source is not this repository's `dev`), and `tests-green`, a fixed-name
+  aggregator job branch protection targets instead of the six `cypress-run` shard names, `needs` every
+  other job and fails on any failure/cancellation/skip.
 - `scenarios.yml` ("Business Scenarios", on PR) — matrix `fr-pl de-fr it-it pt-de it-pt pl-de` (the
   5-country prune, 2026-09-10, re-pointed fr-be/es-pt/mx-us/us-us onto kept-country pairs — see
   `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping), each leg driving
