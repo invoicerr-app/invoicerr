@@ -21,13 +21,22 @@ import { useDocumentType, useReferenceFields } from "@/hooks/queries"
  * line-totals-check.ts` is the only writer today; any future type could reuse the same key
  * and get this same rendering for free, exactly the "a country/type is data" discipline the rest of
  * this module already holds).
+ *
+ * BOTH stored shapes are accepted: records written before the message-key switch carry plain
+ * `string[]` (the only writer, `received-invoices/received-invoice-actions.ts`, never rewrites the
+ * JSONB on read), so an old received invoice keeps showing its warning instead of silently losing it.
+ * Same "old column, new column" split `document-archive-section.tsx` already makes for
+ * `retentionBasisMessage`/`retentionBasis`.
  */
-export function extractLineTotalWarnings(data: Record<string, unknown> | undefined): ServerMessage[] {
+export type LineTotalWarning = ServerMessage | string
+
+export function extractLineTotalWarnings(data: Record<string, unknown> | undefined): LineTotalWarning[] {
   const warnings = data?.lineTotalWarnings
   if (!Array.isArray(warnings)) return []
   return warnings.filter(
-    (w): w is ServerMessage =>
-      typeof w === "object" && w !== null && typeof (w as ServerMessage).key === "string",
+    (w): w is LineTotalWarning =>
+      typeof w === "string" ||
+      (typeof w === "object" && w !== null && typeof (w as ServerMessage).key === "string"),
   )
 }
 

@@ -3,8 +3,8 @@ import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Form } from "@/components/ui/form"
-import { DocumentFormFields } from "@/components/documents/document-form"
-import { useDocumentForm } from "@/components/documents/use-document-form"
+import { DocumentFormFields, LineTotalWarnings } from "@/components/documents/document-form"
+import { extractLineTotalWarnings, useDocumentForm } from "@/components/documents/use-document-form"
 import type { DocumentTypeDescriptor } from "@/components/documents/types"
 
 /**
@@ -98,5 +98,60 @@ describe("<DocumentFormFields> — an open popover survives the client-aware des
 
     // The popover must still be open: nothing about what this field IS actually changed.
     expect(screen.getByTestId("date-picker-today")).toBeInTheDocument()
+  })
+})
+
+/** `data.lineTotalWarnings` is persisted JSONB the backend never rewrites on read: a received invoice
+ *  saved before the message-key switch still carries `string[]`, and must keep its warning. */
+describe("extractLineTotalWarnings - both stored shapes stay readable", () => {
+  it("keeps a legacy bare-string warning exactly as it was written", () => {
+    const data = { lineTotalWarnings: ["Lines add up to 600.00, the invoice states 650.00."] }
+
+    expect(extractLineTotalWarnings(data)).toEqual(["Lines add up to 600.00, the invoice states 650.00."])
+  })
+
+  it("keeps message objects, dropping anything that is neither a string nor a keyed object", () => {
+    const message = {
+      key: "documents.messages.lineTotals.mismatch",
+      params: { total: "gross / TTC" },
+    }
+
+    expect(extractLineTotalWarnings({ lineTotalWarnings: [message, 42, null, { key: 3 }] })).toEqual([
+      message,
+    ])
+  })
+
+  it("accepts a mix of both shapes, in their stored order", () => {
+    const message = { key: "documents.messages.lineTotals.mismatch", params: {} }
+
+    expect(extractLineTotalWarnings({ lineTotalWarnings: ["legacy", message] })).toEqual(["legacy", message])
+  })
+
+  it("returns nothing when the key is absent or not a list", () => {
+    expect(extractLineTotalWarnings(undefined)).toEqual([])
+    expect(extractLineTotalWarnings({})).toEqual([])
+    expect(extractLineTotalWarnings({ lineTotalWarnings: "legacy" })).toEqual([])
+  })
+})
+
+describe("<LineTotalWarnings> - the banner the reader actually sees", () => {
+  it("shows a legacy bare-string warning rather than silently dropping it", () => {
+    render(<LineTotalWarnings warnings={["Lines add up to 600.00 EUR, the invoice states 650.00 EUR."]} />)
+
+    fireEvent.click(screen.getByTestId("document-line-total-warnings-help-trigger"))
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Lines add up to 600.00 EUR, the invoice states 650.00 EUR.",
+    )
+  })
+
+  it("shows a current message object through the active language's catalog", () => {
+    render(
+      <LineTotalWarnings
+        warnings={[{ key: "documents.messages.lineTotals.mismatch", params: { total: "gross / TTC" } }]}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId("document-line-total-warnings-help-trigger"))
+    expect(screen.getByRole("dialog")).toHaveTextContent("Line total mismatch (gross / TTC)")
   })
 })
