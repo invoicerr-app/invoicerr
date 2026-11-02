@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { ProseHelp } from "@/components/ui/prose-help"
 import { Separator } from "@/components/ui/separator"
 import { ApiError, useApiMutation } from "@/hooks/use-api-query"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
@@ -326,17 +327,13 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
             ) : null}
 
             {prefill && prefill.warnings.length > 0 ? (
-              <div
-                className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm"
-                data-cy="import-document-prefill-warnings"
+              <ProseHelp
+                tone="warning"
+                title={t("documents.custom.importDocument.prefillWarnings")}
+                dataCy="import-document-prefill-warnings"
               >
-                <p className="font-medium">{t("documents.custom.importDocument.prefillWarnings")}</p>
-                <ul className="list-disc ps-5 text-muted-foreground">
-                  {prefill.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              </div>
+                {prefill.warnings}
+              </ProseHelp>
             ) : null}
 
             {descriptor.id === "invoice" &&

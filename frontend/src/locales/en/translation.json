@@ -5550,7 +5550,7 @@
       "importDocument": {
         "button": "Import",
         "uploadTitle": "Import a past document",
-        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it. A Factur-X, CII or UBL e-invoice pre-fills the form; anything else is attached as the original and typed by hand.",
+        "uploadDescription": "Upload the original file (PDF or XML) as the previous tool produced it. A Factur-X, CII or UBL e-invoice pre-fills the form; any other file is attached and typed by hand.",
         "dropHint": "Drag and drop a PDF, or an XML invoice, here",
         "maxSize": "Maximum 10 MB",
         "browse": "Browse files",
