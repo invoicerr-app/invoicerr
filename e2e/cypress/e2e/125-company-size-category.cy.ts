@@ -69,6 +69,46 @@ describe("Company size category and the French PDP calendar", () => {
 			.should("contain.text", "Small or medium-sized enterprise (PME)");
 	});
 
+	it("drops the option for VAT on debits when the exemption switch turns on, and saves without a 400", () => {
+		cy.intercept("POST", "**/api/company/info").as("saveCompany");
+		cy.visit("/settings/company");
+		cy.get('[data-cy="company-profile-vatDebitsOption-select"]', { timeout: 20000 })
+			.scrollIntoView()
+			.click();
+		cy.get('[data-cy="company-profile-vatDebitsOption-option-EXERCISED"]').click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body.reportingProfile")
+			.should("deep.include", { vatDebitsOption: "EXERCISED" });
+
+		cy.get('[data-cy="company-exemptvat-switch"]', { timeout: 20000 }).scrollIntoView().click();
+		cy.get('[data-cy="company-profile-vatRegime-derived"]').should(
+			"contain.text",
+			"Franchise in base",
+		);
+		cy.get('[data-cy="company-profile-vatDebitsOption-select"]').should("not.exist");
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body.reportingProfile")
+			.should("not.have.property", "vatDebitsOption");
+
+		// Turning the exemption off brings the question back; it must be empty, since the answer the
+		// first save dropped was never kept in the form. Turning it on again must not send it back.
+		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
+		cy.get('[data-cy="company-profile-vatDebitsOption-select"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("contain.text", "Not declared");
+		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
+		cy.get('[data-cy="company-profile-vatDebitsOption-select"]').should("not.exist");
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		cy.request({ url: `${api}/api/company/info` })
+			.its("body.reportingProfile")
+			.should("not.have.property", "vatDebitsOption");
+	});
+
 	it("an SME validates a domestic business invoice dated before 2027-09-01 without a PDP, and the dialog announces no transmission", () => {
 		createDraftInvoice("2026-10-25").then((invoiceId) => {
 			cy.intercept("GET", "**/actions/validate/transmission-preview*").as("preview");

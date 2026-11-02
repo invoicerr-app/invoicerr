@@ -247,13 +247,11 @@ describe('channel policy files — loaded, not hard-coded', () => {
         'fixture',
       );
 
-    expect(withSeller(['SME'])).toThrow(/a seller condition must be an object/);
-    expect(withSeller({})).toThrow(/a seller condition names no attribute/);
-    expect(withSeller({ sizeCategory: [] })).toThrow(
-      /seller condition "sizeCategory" must list at least one value/,
-    );
+    expect(withSeller(['SME'])).toThrow(/a condition must be an object/);
+    expect(withSeller({})).toThrow(/a condition names no attribute/);
+    expect(withSeller({ sizeCategory: [] })).toThrow(/condition "sizeCategory" must list at least one value/);
     expect(withSeller({ sizeCategory: 'SME' })).toThrow(
-      /seller condition "sizeCategory" must list at least one value/,
+      /condition "sizeCategory" must list at least one value/,
     );
   });
 

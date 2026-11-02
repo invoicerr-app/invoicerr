@@ -1,13 +1,13 @@
 /**
  * Proves `./all.ts` reads and validates `countries/data/*.json` faithfully (issue #603 step 6: the
- * single composed loader every one of the 14 sections now goes through). Four angles:
+ * single composed loader every section now goes through). Four angles:
  *
  * - deep equality against an INDEPENDENT, from-scratch `readFileSync` + `JSON.parse` of the same
  *   files, never through `./all.ts` itself - the strongest version of the "the loader doesn't alter
  *   or invent a fact" proof `countries/compose.spec.ts` held at step 1 against a second TypeScript
  *   loader fed by the SAME files; this one is independent of any loader at all;
  * - a drop-in invariant: every `*.json` actually sitting in this directory is loaded, no more, no
- *   fewer - the same discovery guarantee every one of the 14 catalogs' own (now-removed) per-country
+ *   fewer - the same discovery guarantee every catalog's own (now-removed) per-country
  *   loader used to hold for its own directory, moved here because this is the one directory that
  *   discovery happens in now;
  * - a country file dropped in at runtime needs zero code change (the literal "adding a country means
@@ -433,6 +433,110 @@ describe('countries/data: the company profile and the seller conditions that rea
     ];
     for (const [companyProfile, error] of cases) {
       writeCountry(companyProfile);
+      expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(error);
+    }
+  });
+});
+
+describe('countries/data: askedWhen and the code lists are checked at load time', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'countries-data-conditions-'));
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const provenance = { kind: 'legal', sourceText: 'Fixture statutory text.', sourceCheckedAt: '2026-10-25' };
+  const sizeCategory = {
+    key: 'sizeCategory',
+    label: 'Size category',
+    values: [
+      { value: 'LARGE', label: 'Large' },
+      { value: 'SMALL', label: 'Small' },
+    ],
+    provenance,
+  };
+  const list = {
+    id: 'exemptionCodes',
+    label: 'Why a line carries no VAT',
+    provenance,
+    entries: [{ code: 'N1', label: 'Excluded' }],
+  };
+
+  function writeCountry(section: Record<string, unknown>): void {
+    writeFileSync(join(tmpDir, 'zz.json'), JSON.stringify({ countryCode: 'ZZ', ...section }), 'utf-8');
+  }
+
+  it('loads an attribute asked under a condition and a country code list', () => {
+    writeCountry({
+      companyProfile: {
+        countryCode: 'ZZ',
+        attributes: [
+          sizeCategory,
+          {
+            key: 'debitsOption',
+            label: 'Option for debits',
+            values: [{ value: 'YES', label: 'Yes' }],
+            askedWhen: { sizeCategory: ['LARGE'] },
+            provenance,
+          },
+        ],
+      },
+      codeLists: { countryCode: 'ZZ', lists: [list] },
+    });
+
+    const [zz] = loadComposedCountryFilesFrom(tmpDir);
+
+    expect(zz.companyProfile?.attributes[1].askedWhen).toEqual({ sizeCategory: ['LARGE'] });
+    expect(zz.codeLists?.lists.map((candidate) => candidate.id)).toEqual(['exemptionCodes']);
+  });
+
+  it('refuses an empty code list, a duplicate list id, and a list with a mismatched countryCode', () => {
+    const cases: [unknown, RegExp][] = [
+      [{ countryCode: 'ZZ', lists: [] }, /#codeLists: "lists" must be a non-empty array/],
+      [
+        { countryCode: 'ZZ', lists: [{ ...list, entries: [] }] },
+        /list "exemptionCodes" declares no "entries"/,
+      ],
+      [{ countryCode: 'ZZ', lists: [list, list] }, /list "exemptionCodes" is declared twice/],
+      [{ countryCode: 'YY', lists: [list] }, /"codeLists.countryCode" \("YY"\) must match/],
+    ];
+    for (const [codeLists, error] of cases) {
+      writeCountry({ codeLists });
+      expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(error);
+    }
+  });
+
+  it('refuses an askedWhen on an unknown attribute and on an unknown value', () => {
+    const cases: [Record<string, string[]>, RegExp][] = [
+      [
+        { headcount: ['LARGE'] },
+        /"askedWhen" names attribute "headcount", which this country's "companyProfile" does not declare/,
+      ],
+      [
+        { sizeCategory: ['HUGE'] },
+        /"askedWhen" "sizeCategory" names value "HUGE".*expected one of LARGE, SMALL/,
+      ],
+    ];
+    for (const [askedWhen, error] of cases) {
+      writeCountry({
+        companyProfile: {
+          countryCode: 'ZZ',
+          attributes: [
+            sizeCategory,
+            {
+              key: 'debitsOption',
+              label: 'Option for debits',
+              values: [{ value: 'YES', label: 'Yes' }],
+              askedWhen,
+              provenance,
+            },
+          ],
+        },
+      });
       expect(() => loadComposedCountryFilesFrom(tmpDir)).toThrow(error);
     }
   });

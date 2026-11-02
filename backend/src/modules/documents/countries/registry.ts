@@ -32,7 +32,7 @@ export class ComposedCountryCatalog {
     return Object.keys(this.views).sort(byCodeUnit);
   }
 
-  /** The composed view for a country, or `undefined` if none of the 14 catalogs has any file for it
+  /** The composed view for a country, or `undefined` if no catalog has any file for it
    *  at all. The same "no permissive fallback" discipline every sibling catalog's own getter holds. */
   get(countryCode: string): ComposedCountryView | undefined {
     return this.views[(countryCode ?? '').toUpperCase()];

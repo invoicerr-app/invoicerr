@@ -40,6 +40,7 @@ import { defaultCountryPolicyCatalog } from '@/modules/documents/country-policy/
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 import {
   applyCompanyProfileInput,
+  companyProfileValues,
   InvalidCompanyProfileValueError,
   parseCompanyProfileValues,
 } from '@/modules/documents/company-profile/profile';
@@ -170,20 +171,39 @@ function normalizeCompanyLaw(value: unknown): Prisma.InputJsonValue | typeof Pri
  * change drops the values the new country does not ask for.
  */
 function nextReportingProfile(
-  existing: { country: string; countryCode: string | null; reportingProfile: unknown },
-  input: Pick<EditCompanyDto, 'country' | 'countryCode' | 'reportingProfile'>,
+  existing: {
+    country: string;
+    countryCode: string | null;
+    reportingProfile: unknown;
+    exemptVat: boolean;
+  },
+  input: Pick<EditCompanyDto, 'country' | 'countryCode' | 'reportingProfile' | 'exemptVat'>,
 ): CompanyProfileValues | undefined {
   const existingCountry = resolveCountryCode(existing.countryCode, existing.country);
   const nextCountry = resolveCountryCode(
     input.countryCode === null ? null : (input.countryCode ?? existing.countryCode),
     input.country ?? existing.country,
   );
-  if (input.reportingProfile === undefined && nextCountry === existingCountry) return undefined;
+  // The VAT exemption switch changes what the profile derives, so a request that only flips it still
+  // has to rewrite the column: otherwise an answer to a question the exemption stops asking survives
+  // in the row and would come back the moment the switch is turned off again.
+  const exemptVat = input.exemptVat ?? existing.exemptVat;
+  const attributes = defaultCompanyProfileCatalog.attributesFor(nextCountry);
+  if (
+    input.reportingProfile === undefined &&
+    nextCountry === existingCountry &&
+    (exemptVat === existing.exemptVat || attributes.length === 0)
+  ) {
+    return undefined;
+  }
   try {
     return applyCompanyProfileInput(
       parseCompanyProfileValues(existing.reportingProfile),
       input.reportingProfile === undefined ? {} : input.reportingProfile,
-      defaultCompanyProfileCatalog.attributesFor(nextCountry),
+      attributes,
+      // The VAT exemption switch may change in the same request: the profile it derives is judged
+      // against the value the company will have AFTER this write, not the stored one.
+      { exemptVat },
     );
   } catch (error) {
     if (error instanceof InvalidCompanyProfileValueError) throw new BadRequestException(error.message);
@@ -284,12 +304,21 @@ export class CompanyService {
     // The country's own `documentValidationCode` fact (ATCUD for Portugal) belongs here, so the
     // frontend never maps country codes to it.
     const countryCode = resolveCountryCode(result.countryCode, result.country);
+    const profileAttributes = defaultCompanyProfileCatalog.attributesFor(countryCode);
     return {
       ...result,
       documentValidationCode: defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode) ?? null,
-      companyProfileAttributes: defaultCompanyProfileCatalog
-        .attributesFor(countryCode)
-        .map(({ key, label, help, values }) => ({ key, label, help, values })),
+      companyProfileAttributes: profileAttributes.map(({ key, label, help, values, askedWhen, derived }) => ({
+        key,
+        label,
+        help,
+        values,
+        askedWhen,
+        derived,
+      })),
+      companyProfileValues: companyProfileValues(result.reportingProfile, profileAttributes, {
+        exemptVat: result.exemptVat,
+      }),
     };
   }
 
