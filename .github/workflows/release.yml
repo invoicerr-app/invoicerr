@@ -67,38 +67,7 @@ jobs:
           fi
           gh release create "$TAG" "${args[@]}"
 
-      # The Discord announcement lives here rather than in its own `release: published` workflow:
-      # this release is created with GITHUB_TOKEN, and GitHub does not start a new workflow run for
-      # events that token produces. A separate workflow would simply never fire. Pre-releases only,
-      # like before: a stable release is what the README already tells self-hosters to watch.
-      - name: Announce the pre-release on Discord
-        if: contains(github.ref_name, '-')
-        env:
-          WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
-          TAG: ${{ github.ref_name }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -z "$WEBHOOK" ]; then
-            echo "::notice::DISCORD_RELEASES_WEBHOOK is not set, skipping the Discord notification for this pre-release."
-            exit 0
-          fi
-
-          RELEASE=$(gh release view "$TAG" --json name,url,body)
-          TITLE=$(jq -r '.name // .tagName' <<<"$RELEASE")
-          URL=$(jq -r '.url' <<<"$RELEASE")
-          BODY=$(jq -r '.body' <<<"$RELEASE")
-
-          # Discord caps an embed description at 4096 characters and rejects the whole request past
-          # that, so this stays a short summary with the link carrying the rest.
-          SUMMARY=$(printf '%s' "$BODY" | head -c 1500)
-          if [ "${#BODY}" -gt 1500 ]; then SUMMARY="${SUMMARY}..."; fi
-
-          PAYLOAD=$(jq -n \
-            --arg content "New pre-release: $TITLE" \
-            --arg title "$TITLE" \
-            --arg url "$URL" \
-            --arg description "$SUMMARY" \
-            '{content: $content, embeds: [{title: $title, url: $url, description: $description, color: 15844367}]}')
-
-          curl --fail --silent --show-error \
-            -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK"
+      # No Discord step here: the announcement is the `announce` job of docker-publish.yml, gated on
+      # the manifest list existing at ghcr.io. Announcing from this job would fire minutes before the
+      # image build finishes, and even when it fails, which is what the job over there exists to
+      # prevent.

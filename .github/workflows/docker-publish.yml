@@ -243,27 +243,54 @@ jobs:
   # starts after the manifest list exists at ghcr.io, and never runs at all when a platform build
   # fails, the manifest list cannot be created, or the Trivy gate closes `merge`, so an announcement
   # can no longer send readers to a tag that answers "manifest unknown" (or never will exist). It is
-  # a job of this workflow rather than a `workflow_run` listener on it
-  # because the release event is right here: tag, name, body and the pre-release flag come from
-  # `github.event.release`, where a `workflow_run` payload would have to rediscover the tag and
-  # re-read the release through the API. See `.github/scripts/announce-prerelease.sh`.
+  # a job of this workflow rather than a `workflow_run` listener on it because the image being
+  # announced is the one `merge` just published: `channel == beta` is the same condition that put
+  # the `beta` tag on it, so a stable release is never announced. See
+  # `.github/scripts/announce-prerelease.sh`.
   announce:
     needs: [prepare, merge]
     if: >-
       !cancelled()
-      && github.event_name == 'release'
-      && github.event.release.prerelease == true
+      && needs.prepare.outputs.channel == 'beta'
       && needs.merge.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # release.yml creates the GitHub release for this same tag, in its own workflow run: it can
+      # still be missing when this job starts, so wait for it instead of skipping the announcement.
+      - name: Read the release created for this tag
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.image-tag }}
+        run: |
+          for attempt in $(seq 1 20); do
+            if gh release view "$TAG" --json name,url,body > /tmp/release.json 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              echo "::error::no GitHub release found for ${TAG} after five minutes; release.yml did not create it."
+              exit 1
+            fi
+            echo "release ${TAG} not published yet (attempt ${attempt}/20), retrying in 15s"
+            sleep 15
+          done
+          {
+            echo "name=$(jq -r '.name // ""' /tmp/release.json)"
+            echo "url=$(jq -r '.url' /tmp/release.json)"
+            echo "body<<RELEASE_BODY"
+            jq -r '.body // ""' /tmp/release.json
+            echo "RELEASE_BODY"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Post the pre-release summary to Discord
         env:
           DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
-          RELEASE_NAME: ${{ github.event.release.name }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
-          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_NAME: ${{ steps.release.outputs.name }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.image-tag }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          RELEASE_BODY: ${{ steps.release.outputs.body }}
         run: .github/scripts/announce-prerelease.sh
