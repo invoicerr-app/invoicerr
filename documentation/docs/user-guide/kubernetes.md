@@ -12,7 +12,8 @@ Ingress.
 
 :::info[The chart needs a CalVer image tag]
 The chart has no default image: `helm install` and `helm template` fail until `image.tag` (or
-`image.digest`) is set. It only works with 2.x images, published in CalVer (`26.11.0`). A 1.x image
+`image.digest`) is set. It only works with images from the v2 line onwards, published in CalVer
+(`26.11.0`). A 1.x image
 has neither the `worker` role nor the `catalogs:release` script the chart's hook Job runs. See
 "Which tag?" below to choose one.
 :::
@@ -507,8 +508,8 @@ your own values file unchanged:
 - **`image.tag` no longer defaults to `latest`; it has no default at all.** A values file that
   sets no tag now fails at `helm upgrade` with `Set image.tag (for example 26.11.0)`, before
   anything changes in the cluster. Such an install was pulling `:latest`, a 1.x image this chart
-  cannot run (no `worker` role, no `catalogs:release` script). Set `image.tag` to a 2.x release and
-  upgrade again. If you also set `image.digest`, change both together: the digest decides what is
+  cannot run (no `worker` role, no `catalogs:release` script). Set `image.tag` to a current release
+  and upgrade again. If you also set `image.digest`, change both together: the digest decides what is
   pulled.
 - **The service account token is no longer mounted** in any pod
   (`automountServiceAccountToken: false`). Invoicerr never calls the Kubernetes API. Set

@@ -20,7 +20,7 @@ image:
   # moving branch tag (e.g. `:compliance-engine-v2`) could only be GUESSED by correlating the image's
   # build timestamp against the git log to within two minutes — reading it from GHCR needed a token
   # scope nobody had. Pin an exact tag, ideally with its digest, for anything you intend to operate.
-  # Required, no default: this chart runs Invoicerr 2.x, published in CalVer
+  # Required, no default: this chart runs the v2 line, published in CalVer
   # (for example 26.11.0). A digest alone, or a repository ending in @sha256:..., also works.
   tag: ""
   # Optional "sha256:..." appended to the reference; the runtime pulls by digest when it is set.

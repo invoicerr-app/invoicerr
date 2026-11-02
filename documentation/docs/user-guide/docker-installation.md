@@ -16,8 +16,8 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 
 :::warning[32-bit ARM is no longer supported]
 `linux/arm/v7` was dropped from the image's multi-arch manifest. Node.js stopped publishing
-`linux-armv7l` binaries starting with Node 24, which both this image and its base image
-(`server-image`) now run on. If you were running Invoicerr on a 32-bit ARM board (Raspberry Pi
+`linux-armv7l` binaries starting with Node 24, and both this image and its base image
+(`server-image`) run Node 26 today. If you were running Invoicerr on a 32-bit ARM board (Raspberry Pi
 2/3/Zero on the 32-bit OS), install a 64-bit OS on the same board and pull the image again: any
 board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image unchanged.
 :::
