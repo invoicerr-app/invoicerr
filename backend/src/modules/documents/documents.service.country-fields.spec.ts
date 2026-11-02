@@ -317,12 +317,49 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
       expect(buyerReference).toMatchObject({
         kind: 'text',
         label: 'Buyer reference (Leitweg-ID)',
+        labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
         required: true,
         helpText: '§ 5 ERechV.',
+        helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
       });
       // The company's OWN overlay (FR_OVERLAY, "siren") is untouched — the two sources compose,
       // neither replaces the other.
       expect(descriptor.fields.find((f) => f.key === 'siren')).toBeDefined();
+    });
+
+    it('a FRENCH GOVERNMENT client whose chorus-pro rule requires "buyerReference" carries the code-service keys, never the German ones', async () => {
+      (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
+        applies: true,
+        countryCode: 'FR',
+        rule: {
+          countryCode: 'FR',
+          transportId: 'chorus-pro',
+          formatSyntax: 'facturx',
+          requiredClientIdentifiers: [],
+          requiredDocumentFields: [
+            {
+              field: 'buyerReference',
+              label: 'Code service (destinataire)',
+              labelKey: 'documents.countryFields.buyerReference.codeService.label',
+              helpTextKey: 'documents.countryFields.buyerReference.codeService.helpText',
+              why: 'Chorus Pro routes an invoice inside a public entity by a "code service".',
+              required: false,
+            },
+          ],
+          provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
+        },
+        missingIdentifierSchemes: [],
+      });
+
+      const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
+      expect(descriptor.fields.find((f) => f.key === 'buyerReference')).toMatchObject({
+        kind: 'text',
+        label: 'Code service (destinataire)',
+        labelKey: 'documents.countryFields.buyerReference.codeService.label',
+        required: false,
+        helpText: 'Chorus Pro routes an invoice inside a public entity by a "code service".',
+        helpTextKey: 'documents.countryFields.buyerReference.codeService.helpText',
+      });
     });
 
     it('a field the rule requires that ALREADY exists on the descriptor is left alone — never a duplicate/throwing "add"', async () => {

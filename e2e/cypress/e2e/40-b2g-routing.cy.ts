@@ -505,7 +505,7 @@ describe("B2G routing — the GOVERNMENT client imposes the channel/format of IT
 	// B2G rule blocked at the preflight never gets numbered, and "download-xml" requires a number; the
 	// proof that this Leitweg-ID genuinely lands in BT-10 therefore stays at the Jest level
 	// (`xrechnung-provider.spec.ts`, same value "04011000-1234512345-06").
-	it("DE — the Leitweg-ID field (buyerReference) appears REACTIVELY on screen as soon as a German GOVERNMENT client is chosen in the form (never before, never for a BUSINESS client), with its sourced hint; sending still blocks by name on zre-ozgre", () => {
+	it("DE - the Leitweg-ID field (buyerReference) appears REACTIVELY on screen as soon as a German GOVERNMENT client is chosen in the form (never before, never for a BUSINESS client), with its short translated help text; sending still blocks by name on zre-ozgre", () => {
 		setInvoiceTransport("email");
 
 		createBusinessClient("Client Ordinaire SARL").then((businessClientId) => {
