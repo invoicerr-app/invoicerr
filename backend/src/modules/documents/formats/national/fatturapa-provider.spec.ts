@@ -84,6 +84,17 @@ function document(data: unknown, displayNumber = 'FT-2026-0001') {
   return { id: 'doc-1', data, displayNumber, status: 'sending' };
 }
 
+const REGISTERED_SRL = {
+  registerOfficeProvince: 'MI',
+  registerNumber: '01234567890',
+  shareCapital: { amount: '10000', currency: 'EUR' },
+  liquidationStatus: 'LN',
+};
+
+function registeredSeller(legalForm: string, values: Record<string, unknown>): DocumentFormatParty {
+  return { ...SELLER, companyLaw: { legalForm, values } };
+}
+
 describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFPR12.xsd', () => {
   it('declares itself correctly for the format registry / download-xml param', () => {
     expect(fatturapaFormatProvider.id).toBe('fatturapa');
@@ -112,24 +123,11 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
   });
 
   it('carries the seller company-law facts in IscrizioneREA when they are declared', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerOffice: 'Milano',
-          registerOfficeProvince: 'MI',
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'LN',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', { ...REGISTERED_SRL, registerOffice: 'Milano' });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    const xml = flatten(new TextDecoder().decode(result.bytes));
     expect(xml).toContain(
       '<IscrizioneREA><Ufficio>MI</Ufficio><NumeroREA>01234567890</NumeroREA>' +
         '<CapitaleSociale>10000.00</CapitaleSociale><SocioUnico>SM</SocioUnico>' +
@@ -138,145 +136,84 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
   });
 
   it('marks a single-member capital company SU', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL_SOCIO_UNICO',
-        values: {
-          registerOfficeProvince: 'MI',
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'LS',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL_SOCIO_UNICO', { ...REGISTERED_SRL, liquidationStatus: 'LS' });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    expect(flatten(new TextDecoder().decode(result.bytes))).toContain(
-      '<SocioUnico>SU</SocioUnico><StatoLiquidazione>LS</StatoLiquidazione>',
-    );
+    expect(xml).toContain('<SocioUnico>SU</SocioUnico><StatoLiquidazione>LS</StatoLiquidazione>');
   });
 
   it('omits IscrizioneREA rather than asserting a liquidation status it was not given', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerOfficeProvince: 'MI',
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', {
+      registerOfficeProvince: 'MI',
+      registerNumber: '01234567890',
+      shareCapital: { amount: '10000', currency: 'EUR' },
+    });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('omits IscrizioneREA rather than inventing a province it was not given', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'LN',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', {
+      registerNumber: '01234567890',
+      shareCapital: { amount: '10000', currency: 'EUR' },
+      liquidationStatus: 'LN',
+    });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('refuses the export on a declared province the block cannot carry, rather than dropping IscrizioneREA silently', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerOfficeProvince: 'Milano',
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'LN',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', { ...REGISTERED_SRL, registerOfficeProvince: 'Milano' });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(false);
     expect(result.validation.errors.join(' ')).toContain('registerOfficeProvince');
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('refuses the export on a register number longer than the block can carry, rather than dropping IscrizioneREA silently', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerOfficeProvince: 'MI',
-          registerNumber: '012345678901234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'LN',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', {
+      ...REGISTERED_SRL,
+      registerNumber: '012345678901234567890',
+    });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(false);
     expect(result.validation.errors.join(' ')).toContain('registerNumber');
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('refuses the export on a liquidation status that is neither LN nor LS, rather than dropping IscrizioneREA silently', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_SRL',
-        values: {
-          registerOfficeProvince: 'MI',
-          registerNumber: '01234567890',
-          shareCapital: { amount: '10000', currency: 'EUR' },
-          liquidationStatus: 'XX',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_SRL', { ...REGISTERED_SRL, liquidationStatus: 'XX' });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(false);
     expect(result.validation.errors.join(' ')).toContain('liquidationStatus');
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('ignores register facts on a legal form the section covers with no mention', async () => {
-    const seller: DocumentFormatParty = {
-      ...SELLER,
-      companyLaw: {
-        legalForm: 'IT_DITTA_INDIVIDUALE',
-        values: {
-          registerOfficeProvince: 'MI',
-          registerNumber: '01234567890',
-          liquidationStatus: 'LN',
-        },
-      },
-    };
+    const seller = registeredSeller('IT_DITTA_INDIVIDUALE', {
+      registerOfficeProvince: 'MI',
+      registerNumber: '01234567890',
+      liquidationStatus: 'LN',
+    });
 
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), seller, BUYER);
+    const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    expect(new TextDecoder().decode(result.bytes)).not.toContain('<IscrizioneREA>');
+    expect(xml).not.toContain('<IscrizioneREA>');
   });
 
   it('1. valid 7-char IT_SDI code wins → CodiceDestinatario = that code, no PECDestinatario', async () => {
@@ -284,8 +221,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       ...BUYER,
       partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_SDI', value: 'abc123x' }],
     };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
+    const { xml } = await buildSent(VALID_DATA, SELLER, buyer);
     expect(extractTag(xml, 'CodiceDestinatario')).toBe('ABC123X');
     expect(xml).not.toContain('PECDestinatario');
   });
@@ -298,8 +234,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
         { scheme: 'PEC', value: 'bianchi@pec.it' },
       ],
     };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
+    const { result, xml } = await buildSent(VALID_DATA, SELLER, buyer);
     expect(extractTag(xml, 'CodiceDestinatario')).toBe('0000000');
     expect(extractTag(xml, 'PECDestinatario')).toBe('bianchi@pec.it');
     expect(result.validation.valid).toBe(true);
@@ -313,8 +248,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       ...BUYER,
       partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_PA_CODE', value: 'abc123' }],
     };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
+    const { result, xml } = await buildSent(VALID_DATA, SELLER, buyer);
 
     expect(xml).toMatch(/versione="FPA12"/);
     expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPA12');
@@ -339,8 +273,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
         { scheme: 'IT_PA_CODE', value: 'UFE0A1' },
       ],
     };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
+    const { result, xml } = await buildSent(VALID_DATA, SELLER, buyer);
     expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPA12');
     expect(extractTag(xml, 'CodiceDestinatario')).toBe('UFE0A1');
     expect(result.validation.valid).toBe(true);
@@ -351,8 +284,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
       ...BUYER,
       partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_PA_CODE', value: 'TOOLONG7' }],
     };
-    const result = await fatturapaFormatProvider.build(descriptor, document(VALID_DATA), SELLER, buyer);
-    const xml = new TextDecoder().decode(result.bytes);
+    const { xml } = await buildSent(VALID_DATA, SELLER, buyer);
     expect(extractTag(xml, 'FormatoTrasmissione')).toBe('FPR12');
     expect(extractTag(xml, 'CodiceDestinatario')).toBe('0000000');
   });
