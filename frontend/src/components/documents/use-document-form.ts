@@ -23,7 +23,7 @@ import { useDocumentType, useReferenceFields } from "@/hooks/queries"
  * this module already holds).
  *
  * BOTH stored shapes are accepted: records written before the message-key switch carry plain
- * `string[]` (the only writer, `received-invoices/received-invoice-actions.ts`, never rewrites the
+ * `string[]` (the only writer, `actions/received-invoice-actions.ts`, never rewrites the
  * JSONB on read), so an old received invoice keeps showing its warning instead of silently losing it.
  * Same "old column, new column" split `document-archive-section.tsx` already makes for
  * `retentionBasisMessage`/`retentionBasis`.
