@@ -268,6 +268,20 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
    * this field... has no SCREEN control for it today".
    */
   describe('describeTypeForCompany(companyId, typeId, clientId) — the B2G document-field hint bridge', () => {
+    /**
+     * Mocks `resolveClientB2gRouting` for a GOVERNMENT client whose rule carries the given document
+     * fields. Only the rule's own data varies between tests; the decision envelope and the empty
+     * identifier list are the same everywhere.
+     */
+    function mockB2gRule(rule: Omit<b2gRouting.B2gRoutingRuleView, 'requiredClientIdentifiers'>) {
+      (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
+        applies: true,
+        countryCode: rule.countryCode,
+        rule: { requiredClientIdentifiers: [], ...rule },
+        missingIdentifierSchemes: [],
+      });
+    }
+
     beforeEach(() => {
       (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
     });
@@ -289,27 +303,21 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
     });
 
     it('a GOVERNMENT client whose rule requires "buyerReference" — the field is ADDED, label/required/helpText straight from the rule', async () => {
-      (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
-        applies: true,
+      mockB2gRule({
         countryCode: 'DE',
-        rule: {
-          countryCode: 'DE',
-          transportId: 'zre-ozgre',
-          formatSyntax: 'xrechnung',
-          requiredClientIdentifiers: [],
-          requiredDocumentFields: [
-            {
-              field: 'buyerReference',
-              label: 'Buyer reference (Leitweg-ID)',
-              labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
-              helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
-              why: '§ 5 ERechV.',
-              required: true,
-            },
-          ],
-          provenanceDescription: '"§ 4/§ 5 ERechV" (checked 2026-09-01)',
-        },
-        missingIdentifierSchemes: [],
+        transportId: 'zre-ozgre',
+        formatSyntax: 'xrechnung',
+        requiredDocumentFields: [
+          {
+            field: 'buyerReference',
+            label: 'Buyer reference (Leitweg-ID)',
+            labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
+            helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
+            why: '§ 5 ERechV.',
+            required: true,
+          },
+        ],
+        provenanceDescription: '"§ 4/§ 5 ERechV" (checked 2026-09-01)',
       });
 
       const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
@@ -328,27 +336,21 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
     });
 
     it('a FRENCH GOVERNMENT client whose chorus-pro rule requires "buyerReference" carries the code-service keys, never the German ones', async () => {
-      (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
-        applies: true,
+      mockB2gRule({
         countryCode: 'FR',
-        rule: {
-          countryCode: 'FR',
-          transportId: 'chorus-pro',
-          formatSyntax: 'facturx',
-          requiredClientIdentifiers: [],
-          requiredDocumentFields: [
-            {
-              field: 'buyerReference',
-              label: 'Code service (destinataire)',
-              labelKey: 'documents.countryFields.buyerReference.codeService.label',
-              helpTextKey: 'documents.countryFields.buyerReference.codeService.helpText',
-              why: 'Chorus Pro routes an invoice inside a public entity by a "code service".',
-              required: false,
-            },
-          ],
-          provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
-        },
-        missingIdentifierSchemes: [],
+        transportId: 'chorus-pro',
+        formatSyntax: 'facturx',
+        requiredDocumentFields: [
+          {
+            field: 'buyerReference',
+            label: 'Code service (destinataire)',
+            labelKey: 'documents.countryFields.buyerReference.codeService.label',
+            helpTextKey: 'documents.countryFields.buyerReference.codeService.helpText',
+            why: 'Chorus Pro routes an invoice inside a public entity by a "code service".',
+            required: false,
+          },
+        ],
+        provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
       });
 
       const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
@@ -363,28 +365,22 @@ describe('DocumentsService — wiring the country field overlay + VAT rate catal
     });
 
     it('a field the rule requires that ALREADY exists on the descriptor is left alone — never a duplicate/throwing "add"', async () => {
-      (b2gRouting.resolveClientB2gRouting as Mock).mockResolvedValue({
-        applies: true,
+      mockB2gRule({
         countryCode: 'FR',
-        rule: {
-          countryCode: 'FR',
-          transportId: 'chorus-pro',
-          formatSyntax: 'facturx',
-          requiredClientIdentifiers: [],
-          // "notes" already exists on the trunk invoice descriptor — must not collide.
-          requiredDocumentFields: [
-            {
-              field: 'notes',
-              label: 'Notes',
-              labelKey: 'documents.descriptors.invoice.fields.notes.label',
-              helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
-              why: 'already exists',
-              required: false,
-            },
-          ],
-          provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
-        },
-        missingIdentifierSchemes: [],
+        transportId: 'chorus-pro',
+        formatSyntax: 'facturx',
+        // "notes" already exists on the trunk invoice descriptor — must not collide.
+        requiredDocumentFields: [
+          {
+            field: 'notes',
+            label: 'Notes',
+            labelKey: 'documents.descriptors.invoice.fields.notes.label',
+            helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
+            why: 'already exists',
+            required: false,
+          },
+        ],
+        provenanceDescription: '"Code de la commande publique" (checked 2026-09-01)',
       });
 
       const descriptor = await buildService().describeTypeForCompany('company-1', 'invoice', 'client-1');
