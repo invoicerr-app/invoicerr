@@ -157,7 +157,7 @@ jobs:
       DATABASE_URL: postgresql://postgres@localhost:5432/invoicerr_test?schema=public
     services:
       postgres:
-        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -229,7 +229,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       postgres:
-        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -242,7 +242,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+        image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
         ports:
           - "8025:8025"
           - "1025:1025"
@@ -412,7 +412,7 @@ jobs:
       ADDRESS_AUTOCOMPLETE_URL: http://127.0.0.1:19876
     services:
       postgres-test:
-        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -424,7 +424,7 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+        image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
         ports:
           - "8025:8025"
           - "1025:1025"
@@ -705,7 +705,7 @@ jobs:
       POLAR_SERVER: sandbox
     services:
       postgres-test:
-        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -717,7 +717,7 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+        image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
         ports:
           - "8025:8025"
           - "1025:1025"
@@ -881,7 +881,7 @@ jobs:
       DEMO_MODE: "true"
     services:
       postgres-test:
-        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -893,7 +893,7 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+        image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
         ports:
           - "8025:8025"
           - "1025:1025"
