@@ -2838,7 +2838,8 @@
       },
       "messages": {
         "copied": "Copied to clipboard",
-        "copyFailed": "Couldn't copy — select the key above and copy it manually."
+        "copyFailed": "Couldn't copy — select the key above and copy it manually.",
+        "createError": "Failed to create API key"
       }
     },
     "channels": {

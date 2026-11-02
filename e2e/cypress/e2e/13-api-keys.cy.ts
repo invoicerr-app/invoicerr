@@ -58,6 +58,30 @@ describe('API Keys Settings E2E', () => {
         cy.contains('[data-cy^="api-key-row-"]', keyName).should('not.exist');
     });
 
+    it('shows an error toast when the create request fails', () => {
+        // Issue #708: a failed create used to land in `console.error` only, with no visible feedback.
+        // A real 500 here (rather than a mocked frontend fetch) is what proves the screen's own
+        // failure path reaches the toast a user actually sees.
+        cy.intercept('POST', '**/api/api-keys', {
+            statusCode: 500,
+            body: { message: 'Internal server error' },
+        }).as('createApiKeyFailure');
+
+        cy.visit('/settings/apiKeys');
+
+        cy.get('input[name="name"]', { timeout: 15000 }).clear().type('Cypress failing key');
+        cy.contains('button', /create api key/i).click();
+
+        cy.wait('@createApiKeyFailure');
+        cy.get('[data-sonner-toast][data-type="error"]', { timeout: 10000 })
+            .should('be.visible')
+            .and('contain.text', 'Failed to create API key');
+
+        // Nothing was created, so neither the one-time key notice nor a new row may appear.
+        cy.contains(/this key will be shown only once/i).should('not.exist');
+        cy.get('[data-cy^="api-key-row-"]').should('not.exist');
+    });
+
     it('does not create a key with an empty name', () => {
         cy.visit('/settings/apiKeys');
         cy.wait(1000);
