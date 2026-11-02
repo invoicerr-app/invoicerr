@@ -363,7 +363,7 @@ describe('DocumentsService#downloadDocumentFormat - a credit note (issue #472)',
     );
   });
 
-  it('400: a FREE credit note (no invoice) has no buyer, so no file - and says so', async () => {
+  it('400: a FREE credit note without its own client has no buyer, so no file - and says so', async () => {
     mockDocuments({
       data: {
         issueDate: '2026-09-20',
@@ -374,7 +374,7 @@ describe('DocumentsService#downloadDocumentFormat - a credit note (issue #472)',
     });
     const { service } = buildService();
     await expect(service.downloadDocumentFormat('company-1', 'credit-note', 'cn-1', 'ubl')).rejects.toThrow(
-      /FREE credit note/,
+      /no valid client/,
     );
   });
 

@@ -177,7 +177,7 @@ function assertCreditNoteHasRecipient(data: Record<string, unknown>): void {
   if (hasOriginInvoice(data)) return;
   if (typeof data.client === 'string' && data.client.length > 0) return;
   throw new BadRequestException(
-    'This free credit note names no client, so there is nobody to send it to. It was not sent. ' +
+    'This free credit note names no client to send it to. It was not sent. ' +
       'Set "Client" to the client it is for, then send it.',
   );
 }
