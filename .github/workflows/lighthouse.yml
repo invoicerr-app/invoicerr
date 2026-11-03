@@ -149,8 +149,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # A pull request opened from a fork gets a read-only token: `pull-requests: write` is not granted,
+      # and the comment call answers 403 after every audit has already passed. The score table is in the
+      # step summary and in the artifact either way, so only the comment itself is skipped there.
       - name: Comment the scores on the pull request
-        if: always() && github.event_name == 'pull_request' && hashFiles('.lighthouseci/comment.md') != ''
+        if: >-
+          always()
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && hashFiles('.lighthouseci/comment.md') != ''
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |

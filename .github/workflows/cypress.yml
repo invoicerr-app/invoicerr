@@ -33,7 +33,7 @@ on:
   push:
     branches: [main]
 
-# None of the eight jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
+# None of the nine jobs below pushes a package, comments on a PR, or otherwise calls the GitHub API
 # for anything beyond the checkout every job already does — `actions/upload-artifact`/`actions/cache`
 # authenticate through their own runtime token, not GITHUB_TOKEN permissions, so this is the whole ask.
 permissions:
@@ -1044,6 +1044,40 @@ jobs:
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
 
+  # `main` is fed by one thing only: the promotion of `dev`. A pull request opened into `main` from
+  # any other branch would put work there that `dev` never saw, and the next promotion would have to
+  # rediscover it, which is exactly how the two branches drifted apart once already. Branch protection
+  # cannot express "this base, not that head", so the rule lives here as a check instead; the check is
+  # a job rather than a job-level `if:` for the reason `tests-green` gives below: a skipped job is a
+  # failed required job, so this one always runs and only its step decides.
+  #
+  # `merge_group` and `push` pass by construction: the queue builds `gh-readonly-queue/...` branches,
+  # and a `push` to `main` is the merge commit the promotion already produced.
+  main-promotion-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse a pull request into main unless its source is this repository's dev
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$BASE_REF" != "main" ]; then
+            echo "$EVENT_NAME into ${BASE_REF:-no branch}: not a pull request into main, nothing to gate"
+            exit 0
+          fi
+          # A fork can name its branch `dev` too: the repository has to be this one as well.
+          if [ "$HEAD_REF" = "dev" ] && [ "$HEAD_REPO" = "$THIS_REPO" ]; then
+            echo "dev -> main promotion, allowed"
+            exit 0
+          fi
+          echo "::error::a pull request into main must come from this repository's dev branch, not from ${HEAD_REPO}:${HEAD_REF}"
+          exit 1
+
   # Branch protection can only require a STABLE list of check names, and this workflow's own names
   # are not stable: `cypress-run` fans out into `cypress-run (1)` .. `(3)` through its own matrix, and
   # reshaping that matrix breaks protection either way -- shrinking it leaves required shards that
@@ -1058,7 +1092,7 @@ jobs:
   # PR forever rather than failing it closed. This job exists specifically to avoid that trap, so it
   # has to run no matter what its dependencies did, and decide pass/fail itself from their results.
   #
-  # None of the seven jobs above carries a job-level `if:` -- every one of them runs unconditionally
+  # None of the eight jobs above carries a job-level `if:` -- every one of them runs unconditionally
   # off this workflow's own triggers -- so none of them has a legitimate reason to be skipped. A
   # `skipped` result here can therefore only mean something external interrupted the run (e.g. the
   # workflow run was cancelled), not an expected outcome, so it is treated the same as
@@ -1070,6 +1104,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       [
+        main-promotion-only,
         lint,
         i18n-check,
         e2e-typecheck,

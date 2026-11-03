@@ -35,6 +35,15 @@ SonarCloud's automatic analysis only analyzes pull requests and the default bran
 reports on a queue branch. Its result gates the pull request itself, before it is queued.
 :::
 
+## Promotion to main
+
+`main` only receives `dev`: a pull request targeting `main` has to come from this repository's `dev`
+branch. The `main-promotion-only` job in `cypress.yml` fails every other pull request into `main`, and
+`tests-green` depends on it, so the rule is enforced through the check `main` already requires instead
+of a branch protection rule kept somewhere out of sight. The promotion itself, `merge_group` runs and
+pushes to `main` all pass: the job only judges a `pull_request` whose base is `main`. A fork naming its
+own branch `dev` is refused too, since the head repository must be this one.
+
 ## Workflow rules
 
 SonarCloud analyzes `.github/workflows/` too. A step added to a workflow follows the same rules as
