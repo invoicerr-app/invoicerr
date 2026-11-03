@@ -404,13 +404,9 @@ export function DocumentCreateDialog({
         submitDataCy={primaryAction ? `document-action-${primaryAction.id}` : undefined}
         submitting={state.runner.isRunning && state.runner.pendingAction === undefined}
         submitDisabled={!primaryAction || primaryDemoBlocked}
-        submitTooltip={
-          primaryAction
-            ? primaryDemoBlocked
-              ? t("demo.disabledTooltip", "Disabled in this demo.")
-              : undefined
-            : t("documents.form.actionBlockedTitle")
-        }
+        // No submit tooltip: a disabled button cannot be hovered or focused, so the reason is the
+        // visible BlockedActionReason above instead (demo refusal or country policy, same as the
+        // secondary actions).
         onSubmit={() => {
           // handleAction reports every failure through a toast.
           if (primaryAction) void state.runner.handleAction(primaryAction)
