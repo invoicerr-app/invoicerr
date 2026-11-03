@@ -26,8 +26,9 @@ import { Button } from "@/components/ui/button"
 import { LtrValue } from "@/components/ui/ltr-value"
 import { type FormPageSection, FormPageDialog } from "@/components/ui/form-page-dialog"
 import { cn } from "@/lib/utils"
-import { useClient, useCompany, useReferenceResolve } from "@/hooks/queries"
+import { useClient, useCompany, useDemoMode, useReferenceResolve } from "@/hooks/queries"
 import { useDomesticInvoiceCurrencyRule } from "@/hooks/use-domestic-invoice-currency"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
 
 interface DocumentCreateDialogProps {
   descriptor: DocumentTypeDescriptor
@@ -247,6 +248,7 @@ export function DocumentCreateDialog({
 }: DocumentCreateDialogProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { demoMode } = useDemoMode()
 
   const state = useDocumentForm({
     descriptor,
@@ -312,6 +314,7 @@ export function DocumentCreateDialog({
   // The first runnable action is the ONE filled button (the type's own "Save draft"/"Save");
   // anything else a never-saved record can already run is offered at the start of the footer.
   const primaryAction = state.availableActions.find((action) => !action.policyBlockedReason)
+  const primaryDemoBlocked = !!primaryAction && isDemoBlockedAction(primaryAction.id, demoMode)
   const secondaryActions = state.availableActions.filter((action) => action.id !== primaryAction?.id)
   const pendingAction = state.runner.pendingAction
 
@@ -364,31 +367,50 @@ export function DocumentCreateDialog({
         footerSummary={<DocumentFooterTotal descriptor={effectiveDescriptor} />}
         footerStart={
           <>
-            {secondaryActions.map((action) => (
-              <Button
-                key={action.id}
-                type="button"
-                variant="ghost"
-                loading={state.runner.isRunning && state.runner.pendingAction === undefined}
-                disabled={!!action.policyBlockedReason}
-                tooltip={action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : undefined}
-                onClick={() => state.runner.handleAction(action)}
-                dataCy={`document-action-${action.id}`}
-              >
-                {action.label}
-              </Button>
-            ))}
-            {secondaryActions.map(
-              (action) =>
-                action.policyBlockedReason && <BlockedActionReason key={action.id} action={action} />,
+            {secondaryActions.map((action) => {
+              const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+              return (
+                <Button
+                  key={action.id}
+                  type="button"
+                  variant="ghost"
+                  loading={state.runner.isRunning && state.runner.pendingAction === undefined}
+                  disabled={!!action.policyBlockedReason || demoBlocked}
+                  tooltip={action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : undefined}
+                  onClick={() => state.runner.handleAction(action)}
+                  dataCy={`document-action-${action.id}`}
+                >
+                  {action.label}
+                </Button>
+              )
+            })}
+            {secondaryActions.map((action) => {
+              const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+              // One boolean for both gates: the prose guard reads a bare `policyBlockedReason` in
+              // JSX as permanently rendered prose, and naming the test keeps the field out of it.
+              const blocked = !!action.policyBlockedReason || demoBlocked
+              return (
+                blocked && <BlockedActionReason key={action.id} action={action} demoBlocked={demoBlocked} />
+              )
+            })}
+            {primaryDemoBlocked && primaryAction && (
+              // The footer's one filled button has no room for a caption of its own, so its demo
+              // refusal sits here, beside the secondary actions and still visible before submitting.
+              <BlockedActionReason action={primaryAction} demoBlocked />
             )}
           </>
         }
         submitLabel={primaryAction?.label ?? t("common.save")}
         submitDataCy={primaryAction ? `document-action-${primaryAction.id}` : undefined}
         submitting={state.runner.isRunning && state.runner.pendingAction === undefined}
-        submitDisabled={!primaryAction}
-        submitTooltip={primaryAction ? undefined : t("documents.form.actionBlockedTitle")}
+        submitDisabled={!primaryAction || primaryDemoBlocked}
+        submitTooltip={
+          primaryAction
+            ? primaryDemoBlocked
+              ? t("demo.disabledTooltip", "Disabled in this demo.")
+              : undefined
+            : t("documents.form.actionBlockedTitle")
+        }
         onSubmit={() => {
           // handleAction reports every failure through a toast.
           if (primaryAction) void state.runner.handleAction(primaryAction)
