@@ -192,8 +192,9 @@ describe("Demo mode (issue #533)", () => {
 			"contain.text",
 			"resets every 4 hours",
 		);
-		// Issue #592: the copy names payments, not only "nothing is kept or sent".
-		cy.get('[data-cy="demo-banner"]').should("contain.text", "payments are disabled");
+		// Issue #592: the copy names card and online payments, not only "nothing is kept or sent";
+		// recording a manual payment stays allowed in the demo.
+		cy.get('[data-cy="demo-banner"]').should("contain.text", "card and online payments are disabled");
 
 		// The banner is not a per-page fluke of the dashboard: it is mounted once, for the whole
 		// authenticated shell.

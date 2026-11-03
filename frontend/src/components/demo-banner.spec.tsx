@@ -45,12 +45,12 @@ describe("<DemoBanner>", () => {
   })
 
   // Issue #592: a generic "nothing is kept or sent" left payments looking live.
-  it("names the outbound actions the demo disables, payments included", async () => {
+  it("names the outbound actions the demo disables, card and online payments included", async () => {
     installLegalDocuments(demo)
     renderBanner()
 
     expect(await screen.findByTestId("demo-banner")).toHaveTextContent(
-      "Sending documents, e-invoicing declarations and payments are disabled in this demo.",
+      "Sending documents, e-invoicing declarations and card and online payments are disabled in this demo.",
     )
   })
 
