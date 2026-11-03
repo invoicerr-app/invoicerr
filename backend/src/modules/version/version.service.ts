@@ -18,7 +18,7 @@
  *    operator who wants zero outbound calls as a matter of policy, not because the above is unsafe.
  *
  * ## The pre-release policy — the "honest comparison" the issue asks for
- * This product ships pre-releases (`v2.0.0-alpha.1` today, marked pre-release on GitHub) — a
+ * This product ships pre-releases (`26.11.0-beta.1`, marked pre-release on GitHub) — a
  * pre-release must never be announced as an update to someone running a stable version. The rule
  * this enforces:
  *   - Current version is a STABLE release (no pre-release identifier) -> only ever compared against

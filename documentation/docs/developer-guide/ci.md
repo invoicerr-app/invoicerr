@@ -131,9 +131,9 @@ the `RELEASE_*` variables to print the exact payload without posting anything:
 
 ```bash
 DRY_RUN=1 \
-  RELEASE_TAG=v2.0.0-alpha.6 \
-  RELEASE_URL="$(gh release view v2.0.0-alpha.6 --json url --jq .url)" \
-  RELEASE_BODY="$(gh release view v2.0.0-alpha.6 --json body --jq .body)" \
+  RELEASE_TAG=26.11.0-beta.1 \
+  RELEASE_URL="$(gh release view 26.11.0-beta.1 --json url --jq .url)" \
+  RELEASE_BODY="$(gh release view 26.11.0-beta.1 --json body --jq .body)" \
   .github/scripts/announce-prerelease.sh
 ```
 
