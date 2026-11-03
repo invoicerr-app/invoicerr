@@ -26,7 +26,7 @@ export function DemoBanner() {
       data-cy="demo-banner"
     >
       <Info className="size-3.5 shrink-0" aria-hidden="true" />
-      <p className="min-w-0 truncate">
+      <p className="min-w-0 sm:truncate">
         <span className="font-semibold">{t("demo.banner.title", { count: demo.resetIntervalHours })}</span>{" "}
         <span>{t("demo.banner.description", "Nothing you enter is kept or sent.")}</span>
       </p>
