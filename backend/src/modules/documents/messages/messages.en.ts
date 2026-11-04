@@ -15,7 +15,7 @@ export const SERVER_MESSAGES_EN = {
   'documents.messages.tax.buyerVatInvalid':
     'Buyer VAT number "{{vatNumber}}" is not syntactically valid for {{country}}, so this buyer is treated as B2C, never a silent B2B.',
   'documents.messages.tax.buyerVatUnverified':
-    'Buyer VAT number "{{vatNumber}}" has not been confirmed valid yet (status: {{status}}), so this buyer is treated as B2C until it is verified, never a silent B2B.',
+    'Buyer VAT number "{{vatNumber}}" has not been confirmed valid by the tax authority, so this buyer is treated as B2C until it is verified, never a silent B2B.',
   'documents.messages.tax.buyerVatNotChecked':
     'Buyer VAT number "{{vatNumber}}" has no stored verification verdict yet, so this buyer is treated as B2C until it is verified, never a silent B2B.',
   'documents.messages.tax.supplyTypeMissing':
