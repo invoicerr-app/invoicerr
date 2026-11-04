@@ -308,14 +308,18 @@ export class CompanyService {
     return {
       ...result,
       documentValidationCode: defaultCountryPolicyCatalog.documentValidationCodeFor(countryCode) ?? null,
-      companyProfileAttributes: profileAttributes.map(({ key, label, help, values, askedWhen, derived }) => ({
-        key,
-        label,
-        help,
-        values,
-        askedWhen,
-        derived,
-      })),
+      companyProfileAttributes: profileAttributes.map(
+        ({ key, label, labelKey, help, helpTextKey, values, askedWhen, derived }) => ({
+          key,
+          label,
+          labelKey,
+          help,
+          helpTextKey,
+          values,
+          askedWhen,
+          derived,
+        }),
+      ),
       companyProfileValues: companyProfileValues(result.reportingProfile, profileAttributes, {
         exemptVat: result.exemptVat,
       }),

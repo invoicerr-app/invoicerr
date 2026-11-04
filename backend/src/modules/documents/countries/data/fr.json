@@ -1591,15 +1591,19 @@
       {
         "key": "vatGroupMember",
         "label": "VAT group membership",
+        "labelKey": "settings.company.profile.attributes.vatGroupMember.label",
         "help": "Whether this company is a member of an assujetti unique, the French VAT group of CGI art. 256 C. A member is bound by the accredited-platform mandate from 2026-09-01 whatever its size; only SMEs and micro-enterprises that are not members are deferred to 2027-09-01. A company that has not answered is treated as a member, so it is not deferred.",
+        "helpTextKey": "settings.company.profile.attributes.vatGroupMember.help",
         "values": [
           {
             "value": "MEMBER",
-            "label": "Member of an assujetti unique"
+            "label": "Member of an assujetti unique",
+            "labelKey": "settings.company.profile.attributes.vatGroupMember.options.MEMBER"
           },
           {
             "value": "NOT_MEMBER",
-            "label": "Not a member"
+            "label": "Not a member",
+            "labelKey": "settings.company.profile.attributes.vatGroupMember.options.NOT_MEMBER"
           }
         ],
         "provenance": {

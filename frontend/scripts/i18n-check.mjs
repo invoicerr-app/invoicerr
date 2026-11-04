@@ -82,6 +82,8 @@ function parseArgs(argv) {
             // labelKey/helpTextKey; the backend's company view names documents.fieldHelp.* the same way.
             'documents.countryFields.',
             'documents.fieldHelp.',
+            // The company-profile catalog names these as its attributes' labelKey/helpTextKey.
+            'settings.company.profile.attributes.',
         ]
     }
     return opts

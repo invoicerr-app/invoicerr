@@ -2197,7 +2197,17 @@
         "title": "Company profile",
         "description": "What your country's rules depend on. Only the questions your country asks appear here.",
         "notDeclared": "Not declared",
-        "derivedReason": "Set by the VAT exemption switch above"
+        "derivedReason": "Set by the VAT exemption switch above",
+        "attributes": {
+          "vatGroupMember": {
+            "label": "VAT group membership",
+            "help": "Whether this company is a member of an assujetti unique, the French VAT group of CGI art. 256 C. A member is bound by the accredited-platform mandate from 2026-09-01 whatever its size; only SMEs and micro-enterprises that are not members are deferred to 2027-09-01. A company that has not answered is treated as a member, so it is not deferred.",
+            "options": {
+              "MEMBER": "Member of an assujetti unique",
+              "NOT_MEMBER": "Not a member"
+            }
+          }
+        }
       },
       "approval": {
         "title": "Approval workflow",

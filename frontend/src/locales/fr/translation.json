@@ -2242,7 +2242,17 @@
             "profile": {
                 "title": "Profil de l'entreprise",
                 "description": "Ce dont dépendent les règles de votre pays et que vous seul pouvez déclarer. Tant que vous ne déclarez pas de valeur, la règle la plus stricte s'applique.",
-                "notDeclared": "Non déclaré"
+                "notDeclared": "Non déclaré",
+                "attributes": {
+                    "vatGroupMember": {
+                        "label": "Appartenance à un assujetti unique",
+                        "help": "Indique si cette entreprise est membre d'un assujetti unique, le groupe de TVA français prévu à l'article 256 C du CGI. Un membre est soumis à l'obligation de recourir à une plateforme agréée dès le 1er septembre 2026, quelle que soit sa taille ; seules les PME et micro-entreprises qui n'en sont pas membres sont reportées au 1er septembre 2027. Une entreprise qui n'a pas répondu est traitée comme membre : son obligation n'est donc pas reportée.",
+                        "options": {
+                            "MEMBER": "Membre d'un assujetti unique",
+                            "NOT_MEMBER": "N'est pas membre"
+                        }
+                    }
+                }
             },
             "approval": {
                 "title": "Circuit d'approbation",

@@ -253,6 +253,12 @@ describe('CompanyService - the company profile its country asks for', () => {
       });
       expect(attributes[2].askedWhen).toEqual({ vatRegime: ['NORMAL'] });
       expect(attributes[3].values.map((value) => value.value)).toEqual(['MEMBER', 'NOT_MEMBER']);
+      expect(attributes[3].labelKey).toBe('settings.company.profile.attributes.vatGroupMember.label');
+      expect(attributes[3].helpTextKey).toBe('settings.company.profile.attributes.vatGroupMember.help');
+      expect(attributes[3].values.map((value) => value.labelKey)).toEqual([
+        'settings.company.profile.attributes.vatGroupMember.options.MEMBER',
+        'settings.company.profile.attributes.vatGroupMember.options.NOT_MEMBER',
+      ]);
       expect(info?.companyProfileValues).toEqual({ vatRegime: 'NORMAL' });
     });
   });
