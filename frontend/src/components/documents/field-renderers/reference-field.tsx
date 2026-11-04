@@ -76,11 +76,12 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
   const lockedSourceValue = lockedFrom ? watch(lockedFrom.field) : undefined
   const lockedSourceId = lockedFrom && typeof lockedSourceValue === "string" ? lockedSourceValue : undefined
   const { data: lockedFields } = useReferenceFields(lockedFrom?.entity, lockedSourceId)
+  const lockedFieldValue = lockedFrom ? lockedFields?.[lockedFrom.sourceKey] : undefined
   const lockedValue =
-    lockedFrom && lockedSourceId && lockedFields && typeof lockedFields[lockedFrom.sourceKey] !== "undefined"
-      ? String(lockedFields[lockedFrom.sourceKey])
-      : undefined
-  const isLocked = !multiTarget && lockedValue !== undefined
+    lockedFrom && lockedSourceId && typeof lockedFieldValue === "string" ? lockedFieldValue : undefined
+  // Disabled from the moment the source is picked, not only once /fields answers: the picker
+  // must not stay editable during that fetch, where a value typed then would be overwritten.
+  const isLocked = !multiTarget && lockedSourceId !== undefined
 
   useEffect(() => {
     if (lockedValue === undefined) return
@@ -150,6 +151,7 @@ export function ReferenceField({ field, name }: FieldRendererProps) {
             description={field.helpText}
             helpDataCy={`document-field-${field.key}-help`}
             lockReason={isLocked ? t("documents.form.select.lockedFromReference") : undefined}
+            lockDataCy={`document-field-${field.key}-lock`}
           >
             {field.label}
           </FormLabel>

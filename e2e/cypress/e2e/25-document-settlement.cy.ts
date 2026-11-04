@@ -377,6 +377,8 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 					"le jeu d'essai contient un client",
 				).to.have.length.greaterThan(0);
 				const client = clients[0];
+				expect(client.label, "le client a un nom affichable").to.be.a("string").and.not
+					.be.empty;
 
 				const data = {
 					client: client.id,
@@ -461,6 +463,33 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 						.then((id) => {
 							cy.get(
 								`[data-cy="document-field-currency-input"] button[aria-describedby~="${id}"]`,
+							).should("exist");
+						});
+
+					// The client follows the invoice the same way, and for the same reason: a linked
+					// credit note must name the invoice's own client, so the picker is prefilled from
+					// the invoice, disabled, and carries its own lock pill.
+					cy.get('[data-cy="document-field-client-input"] button', {
+						timeout: 10000,
+					})
+						.should("be.disabled")
+						.and("contain.text", client.label);
+
+					const clientLock = "document-field-client-lock";
+					cy.get(`[data-cy="${clientLock}-trigger"]`)
+						.should("be.visible")
+						.and("have.attr", "aria-label", "Why is Client locked?")
+						.click();
+					cy.get(`[data-cy="${clientLock}-content"]`)
+						.should("be.visible")
+						.and("contain.text", "cannot be edited directly");
+					cy.get("body").type("{esc}");
+					cy.get(`[data-cy="${clientLock}-content"]`).should("not.exist");
+					cy.get(`[data-cy="${clientLock}"]`)
+						.invoke("attr", "id")
+						.then((id) => {
+							cy.get(
+								`[data-cy="document-field-client-input"] button[aria-describedby~="${id}"]`,
 							).should("exist");
 						});
 
