@@ -477,6 +477,7 @@ describe("A credit note created ON SCREEN follows the currency of the invoice it
 
 					const clientLock = "document-field-client-lock";
 					cy.get(`[data-cy="${clientLock}-trigger"]`)
+						.scrollIntoView()
 						.should("be.visible")
 						.and("have.attr", "aria-label", "Why is Client locked?")
 						.click();
