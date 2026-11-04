@@ -110,7 +110,7 @@ export type ConformityDecision = { action: 'poll' } | { action: 'gave-up' } | { 
 /**
  * Pure eligibility — see this file's own header for the three outcomes. `isTerminal` is THIS
  * document's OWN provider's own terminal predicate (`AuthorityStatusPoller.isTerminal` —
- * `pollers/pdp-status-poller.ts`/`pollers/ksef-status-poller.ts` each know their own vocabulary),
+ * `pollers/superpdp-status-poller.ts`/`pollers/ksef-status-poller.ts` each know their own vocabulary),
  * passed in rather than looked up here so this function stays free of any registry/provider
  * knowledge at all — a plain function of data already in hand, exactly like its recurrence-sweep
  * counterpart (`schedules/schedule-sweep.ts#selectDueSchedules`).

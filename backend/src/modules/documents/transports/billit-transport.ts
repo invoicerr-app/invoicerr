@@ -1,7 +1,7 @@
 /**
  * The "billit" transport - Billit (`billit.be`), a Belgian Peppol access point that is also
  * registered by the DGFiP as a French "plateforme agreee". Same `DocumentTransport` interface
- * `pdp-transport.ts` implements, registered the same way (`TransportRegistry.register` - see that
+ * `superpdp-transport.ts` implements, registered the same way (`TransportRegistry.register` - see that
  * file's own header on why nothing here treats a platform specially, and why a company opts in
  * through `Company.invoiceTransportId` alone).
  *
@@ -22,7 +22,7 @@
  *
  * ## Two distinct failure shapes, both loud, neither silent
  *
- * The same split `pdp-transport.ts`'s own header documents:
+ * The same split `superpdp-transport.ts`'s own header documents:
  *  - `preflight()` - no Billit channel connected for this company, or a configuration missing any of
  *    the three fields - thrown BEFORE anything is persisted or queued.
  *  - `send()` - connected, but the deposit itself fails (network error, Billit refusing the document
@@ -112,14 +112,14 @@ export interface BillitTransportDeps {
 
 const PROVIDER_ID = 'billit';
 
-/** Same "the invoice's OWN base descriptor, module-level constant" choice `pdp-transport.ts` makes
+/** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes
  *  for the identical reason - this transport is reached ONLY through `invoiceTransportId`, so it is
  *  always an invoice, never another document type, that it ever builds a payload for. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /** Extracts and validates the three fields this transport actually needs out of a resolved config -
  *  shared by `preflight()` and `send()` so neither can drift from what "complete enough to try"
- *  means, the same discipline `extractPdpCredentials` holds. `partyId` is NOT optional and has no
+ *  means, the same discipline `extractSuperPdpCredentials` holds. `partyId` is NOT optional and has no
  *  default: Billit's PartyID differs between sandbox and production, and an account covering several
  *  companies has one per company while the key stays the same, so guessing one would silently file
  *  an invoice under the wrong company. */
@@ -168,7 +168,7 @@ export function buildBillitTransport(deps: BillitTransportDeps): DocumentTranspo
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration
       // could have changed in the (possibly long, retried) time between the two calls, the same
-      // reasoning `pdp-transport.ts` already documents for its own re-resolution.
+      // reasoning `superpdp-transport.ts` already documents for its own re-resolution.
       const credentials = await requireConnectedBillit(deps.channelCredentials, ctx.companyId);
 
       // Issue #499: built from `ctx.formatSource` when the caller set one (a credit note, built from the
@@ -178,7 +178,7 @@ export function buildBillitTransport(deps: BillitTransportDeps): DocumentTranspo
       const clientId = typeof data.client === 'string' ? data.client : undefined;
       const [company, client] = await Promise.all([
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
-        // Scoped by companyId for the reason `pdp-transport.ts`'s own identical query documents:
+        // Scoped by companyId for the reason `superpdp-transport.ts`'s own identical query documents:
         // `clientId` comes straight off the document's own `data.client` and is never checked for
         // existence at write time, so a bare `findUnique` would happily hand back another tenant's
         // client. A `null` result lands on the same "no valid client on file" refusal below that a

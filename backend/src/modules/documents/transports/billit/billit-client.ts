@@ -1,7 +1,7 @@
 /**
  * HTTP client for Billit (`billit.be`) - a Belgian Peppol access point, also registered by the DGFiP
  * as a French "plateforme agreee". Dependency-free (bare `fetch`), the same shape
- * `transports/pdp/pdp-client.ts` and `transports/ksef/ksef-client.ts` already hold: one client per
+ * `transports/superpdp/superpdp-client.ts` and `transports/ksef/ksef-client.ts` already hold: one client per
  * platform, parameterized entirely by what the company configured, never by a module-level constant.
  *
  * ## Authentication - two headers, not one

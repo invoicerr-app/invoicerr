@@ -8,7 +8,7 @@
  * credit note.
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   SUPERPDP_LIVE=1 npx vitest run src/modules/documents/transports/pdp/superpdp-credit-note.live.spec.ts
+ *   SUPERPDP_LIVE=1 npx vitest run src/modules/documents/transports/superpdp/superpdp-credit-note.live.spec.ts
  *
  * HARD-SUCCESS CONTRACT, same as the invoice spec: an empty deposit id, or any event whose text reads as a
  * rejection, throws.

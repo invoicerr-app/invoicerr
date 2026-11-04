@@ -26,7 +26,7 @@
  *  - Authority: AIFE / DGFiP — Chorus Pro is the mandatory B2G invoicing portal (see
  *    `countries/data/fr.json (section "b2gRouting")`'s own sourced legal text: Code de la commande publique L.2192-1/-2/-5).
  *  - Scope: invoices FROM suppliers TO public entities (B2G); B2B goes via PDP (a separate channel,
- *    `transports/pdp-transport.ts`).
+ *    `transports/superpdp-transport.ts`).
  *
  * Auth (two-layer, unchanged):
  *  1. PISTE OAuth2 client_credentials → Bearer token for API access.
@@ -509,7 +509,7 @@ export class ChorusProClient {
     // seconds would then send `Authorization: Bearer ` (empty) and fail PISTE auth, without this
     // client ever knowing WHY or re-authenticating on its own. Refusing loudly HERE, before caching
     // anything, turns that into one immediate, diagnosable failure instead — same fix as
-    // `pdp-client.ts#authenticate()`'s own header explains for the identical shape of bug.
+    // `superpdp-client.ts#authenticate()`'s own header explains for the identical shape of bug.
     if (!token) {
       throw new Error('Chorus Pro PISTE authentication response carried no usable access_token.');
     }
@@ -622,7 +622,7 @@ export function mapChorusProStatus(statutFlux: string): 'CLEARED' | 'REJECTED' |
 // unlike KSeF's own port, `ChorusProHttpPort` has exactly one verb (`post`), and Chorus Pro's own
 // 4xx responses are NEVER retried here (`ChorusProClient` itself decides pass/fail from `resp.status`)
 // — retrying belongs to BullMQ's own job-level backoff (`async-send.ts`), not this transport-level
-// HTTP leaf, the same division `pdp-transport.ts`/`sdi-transport.ts` already hold for their own ports.
+// HTTP leaf, the same division `superpdp-transport.ts`/`sdi-transport.ts` already hold for their own ports.
 // ---------------------------------------------------------------------------
 
 export interface FetchChorusProHttpPortOpts {

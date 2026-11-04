@@ -1,14 +1,14 @@
 /**
- * The FIRST `AuthorityStatusPoller` — France's PDP. Proven LIVE: a real deposit reaches
+ * The FIRST `AuthorityStatusPoller` - SuperPDP, France's PDP. Proven LIVE: a real deposit reaches
  * `fr:202` ("Reçue par la plateforme") within ~1s of upload, past `fr:200` ("Déposée (validée)") and
  * `fr:201` ("Émise par la plateforme"), reproduced five times against the superpdp sandbox (see
- * `pdp/superpdp-conformity.live.spec.ts`). A rejection surfaces as `fr:213`, carrying `data.reason` on the
+ * `superpdp/superpdp-conformity.live.spec.ts`). A rejection surfaces as `fr:213`, carrying `data.reason` on the
  * event itself — also reproduced live (see that same live spec for how, since a
  * deliberately non-compliant deposit had become hard to produce once the content
  * requirements matured — this file's own poll/journal MECHANICS are proven against the real fr:213
  * payload captured then, not invented).
  *
- * CRITICAL LESSON (`pdp/pdp-client.ts`'s own header): the old
+ * CRITICAL LESSON (`superpdp/superpdp-client.ts`'s own header): the old
  * poller read `invoice.status_code` — a field the API does NOT return — which is why "PDP proven
  * live" stayed green while every real deposit was silently PENDING forever. The lifecycle lives in
  * `events[]`, and ONLY there. This poller reads `events[]` and nothing else.
@@ -18,8 +18,8 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 
-import { extractPdpCredentials } from '../../transports/pdp-transport';
-import { PdpClient, SuperPdpInvoiceEvent } from '../../transports/pdp/pdp-client';
+import { extractSuperPdpCredentials } from '../../transports/superpdp-transport';
+import { SuperPdpClient, SuperPdpInvoiceEvent } from '../../transports/superpdp/superpdp-client';
 import {
   AuthorityStatusPoller,
   ChannelNotConnectedError,
@@ -31,12 +31,12 @@ export const PDP_PROVIDER_ID = 'pdp';
 /** fr:202 ("Reçue par la plateforme" — the platform's own final ACCEPTANCE) and fr:213 ("Rejetée") —
  *  the only two codes the live proof ever observed ending a deposit's lifecycle. Every
  *  other code PDP emits (fr:200, fr:201, and any lifecycle-push code like fr:211/fr:212 a SELLER might
- *  push — `pdp-client.ts#pushLifecycleStatus` — which this poller never sends) is intermediate: still
+ *  push - `superpdp-client.ts#pushLifecycleStatus` - which this poller never sends) is intermediate: still
  *  journaled (the whole point of a timeline), just never terminal. */
 export const PDP_ACCEPTED_STATUS_CODE = 'fr:202';
 export const PDP_REJECTED_STATUS_CODE = 'fr:213';
 
-export interface PdpStatusPollerDeps {
+export interface SuperPdpStatusPollerDeps {
   channelCredentials: ChannelCredentialsService;
 }
 
@@ -67,7 +67,7 @@ function parseEventDate(rawCreatedAt: string | null | undefined): Date {
  * send time — always a genuine SuperPDP invoice id in practice, but nothing enforces that STATICALLY
  * (it is a bare `string` end to end). `Number(transportRef)` on anything that isn't cleanly numeric
  * (blank, whitespace, a non-numeric external id) silently produces `NaN`, which
- * `PdpClient#getInvoice` would then interpolate straight into the URL
+ * `SuperPdpClient#getInvoice` would then interpolate straight into the URL
  * (`/v1.beta/invoices/NaN`) — PDP 404s, and the sweep runner's own generic `catch` (
  * `conformity-sweep-runner.ts`) journals that as an ordinary `poll:blocked`, indistinguishable from a
  * transient outage, retried every sweep for as long as this deposit keeps being polled. Refusing HERE,
@@ -88,28 +88,28 @@ function parseInvoiceId(transportRef: string): number {
   return invoiceId;
 }
 
-async function resolvePdpConfig(
+async function resolveSuperPdpConfig(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<ResolvedChannelConfig> {
   const resolved = await channelCredentials.resolveActive(companyId, PDP_PROVIDER_ID);
-  if (!resolved || !extractPdpCredentials(resolved)) {
+  if (!resolved || !extractSuperPdpCredentials(resolved)) {
     throw new ChannelNotConnectedError(PDP_PROVIDER_ID);
   }
   return resolved;
 }
 
-export function buildPdpStatusPoller(deps: PdpStatusPollerDeps): AuthorityStatusPoller {
+export function buildSuperPdpStatusPoller(deps: SuperPdpStatusPollerDeps): AuthorityStatusPoller {
   return {
     providerId: PDP_PROVIDER_ID,
     isTerminal: (statusCode) =>
       statusCode === PDP_ACCEPTED_STATUS_CODE || statusCode === PDP_REJECTED_STATUS_CODE,
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
-      const resolved = await resolvePdpConfig(deps.channelCredentials, companyId);
-      const credentials = extractPdpCredentials(resolved)!; // resolvePdpConfig already proved non-null
+      const resolved = await resolveSuperPdpConfig(deps.channelCredentials, companyId);
+      const credentials = extractSuperPdpCredentials(resolved)!; // resolveSuperPdpConfig already proved non-null
 
-      const client = new PdpClient({ ...credentials, apiStyle: 'superpdp' });
+      const client = new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
       const invoiceId = parseInvoiceId(transportRef);
       const invoice = await client.getInvoice(invoiceId);
 

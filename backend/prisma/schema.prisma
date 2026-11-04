@@ -1682,7 +1682,7 @@ model DocumentInstance {
   lastActionError String?
 
   // The identifier a TRANSPORT handed back on successful delivery — e.g. the PDP deposit id
-  // (`transports/pdp-transport.ts`) or superpdp's own invoice id. Generic on this table (like
+  // (`transports/superpdp-transport.ts`) or superpdp's own invoice id. Generic on this table (like
   // `lastActionError` above) rather than a PDP-specific column: any future transport that hands back
   // a reference gets the same slot, no schema change. Absent for the "email" transport (nothing to
   // record) and for every type with no transport at all (quote/credit-note) — set by
@@ -2588,7 +2588,7 @@ model PendingStorageErasure {
 // A platform's OWN lifecycle is itself an append-only sequence of facts (fr:200 does not stop being
 // true the moment fr:201 arrives); recording it any other way (e.g. one row per document, overwritten
 // on every poll) would throw away the very history a rejection's own root cause needs ("was BT-23
-// ever cited before the final verdict flipped?" — see `pdp/superpdp.live.spec.ts`'s own header for exactly
+// ever cited before the final verdict flipped?" — see `transports/superpdp/superpdp.live.spec.ts`'s own header for exactly
 // that kind of question, asked for real during this branch's own work).
 //
 // ## Why the document's own `status` NEVER changes because of a row here
@@ -2608,7 +2608,7 @@ model PendingStorageErasure {
 //
 // ## Dedup key: (documentId, providerId, statusCode) — not the platform's own per-event id
 //
-// SuperPDP's own `events[]` (`transports/pdp/pdp-client.ts#SuperPdpInvoiceEvent`) carries an OPTIONAL
+// SuperPDP's own `events[]` (`transports/superpdp/superpdp-client.ts#SuperPdpInvoiceEvent`) carries an OPTIONAL
 // numeric `id` per event — not guaranteed present on every payload shape the client already
 // tolerates (see that interface's own comment), and no such per-event id exists at all for a
 // a provider whose own API instead answers with a single current-status SNAPSHOT on each call (KSeF's
@@ -2635,7 +2635,7 @@ model DocumentAuthorityEvent {
   providerId String
 
   // The platform's own code, verbatim — 'fr:200'/'fr:201'/'fr:202'/'fr:213' for PDP (see
-  // `pollers/pdp-status-poller.ts`), a KSeF status code for 'ksef' (see that poller's own header for
+  // `pollers/superpdp-status-poller.ts`), a KSeF status code for 'ksef' (see that poller's own header for
   // how it maps a KSeF response, and the honesty note on why it is NOT live-verified), OR one of the
   // two SWEEP-OWNED synthetic codes this table also carries: 'poll:gave-up' (the max poll age was
   // exceeded — `DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS` — with NO terminal verdict ever observed) and

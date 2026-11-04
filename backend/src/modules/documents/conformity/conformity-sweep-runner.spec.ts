@@ -48,7 +48,7 @@ const mockedJournalSynthetic = journalSyntheticEvent as Mock;
 const mockedArchiveVerdict = archiveTerminalAuthorityVerdictIfAny as Mock;
 const mockedMarkResolved = markConformityResolved as Mock;
 
-function buildPdpPoller(overrides: Partial<AuthorityStatusPoller> = {}): AuthorityStatusPoller {
+function buildSuperPdpPoller(overrides: Partial<AuthorityStatusPoller> = {}): AuthorityStatusPoller {
   return {
     providerId: 'pdp',
     isTerminal: (code) => code === 'fr:202' || code === 'fr:213',
@@ -67,7 +67,7 @@ describe('ConformitySweepRunner.runSweep', () => {
     enqueueConformityPoll = vi.fn().mockResolvedValue(true);
     dispatcher = { enqueueConformityPoll } as unknown as DocumentQueueDispatcher;
     registry = new AuthorityStatusPollerRegistry();
-    registry.register(buildPdpPoller());
+    registry.register(buildSuperPdpPoller());
   });
 
   it('dispatches ONE poll job for an eligible, non-terminal candidate', async () => {
@@ -225,7 +225,7 @@ describe('ConformitySweepRunner.runPoll', () => {
       { statusCode: 'fr:200', observedAt: new Date() },
       { statusCode: 'fr:202', observedAt: new Date() },
     ];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(2);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -242,7 +242,7 @@ describe('ConformitySweepRunner.runPoll', () => {
 
   it('journals poll:blocked (never throws) when the channel has no connected credentials', async () => {
     registry.register(
-      buildPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
+      buildSuperPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
     );
     mockedJournalSynthetic.mockResolvedValue(1);
 
@@ -261,7 +261,7 @@ describe('ConformitySweepRunner.runPoll', () => {
   });
 
   it('NEVER THROWS even for a totally unexpected failure (network error, malformed response, …)', async () => {
-    registry.register(buildPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) }));
     mockedJournalSynthetic.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -291,7 +291,7 @@ describe('ConformitySweepRunner.runPoll', () => {
   // colliding with a PREVIOUS 'poll:blocked' row for the same document). `runPoll` must survive that
   // too, never propagate it.
   it('NEVER THROWS even when journaling poll:blocked itself fails', async () => {
-    const poller = buildPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) });
+    const poller = buildSuperPdpPoller({ poll: vi.fn().mockRejectedValue(new Error('ECONNRESET')) });
     registry.register(poller);
     mockedJournalSynthetic.mockRejectedValue(new Error('db unreachable'));
 
@@ -328,7 +328,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
         rawPayload: { raw: true },
       },
     ];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(3);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -354,7 +354,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
 
   it('archives nothing at all when every observed event is non-terminal', async () => {
     const events = [{ statusCode: 'fr:200', statusText: 'Déposée', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -372,7 +372,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
     const events = [
       { statusCode: 'fr:213', statusText: 'Rejetée', reason: 'BR-01 missing', observedAt: new Date() },
     ];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -393,7 +393,7 @@ describe('ConformitySweepRunner.runPoll — verdict archiving', () => {
   // guarantee must not turn a successful poll into a failed one from `runPoll`'s own point of view.
   it('never lets an archiving failure affect the poll’s own result', async () => {
     const events = [{ statusCode: 'fr:202', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(1);
     mockedArchiveVerdict.mockRejectedValue(new Error('disk full'));
 
@@ -425,7 +425,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
       { statusCode: 'fr:200', observedAt: new Date('2026-09-06T10:00:00Z') },
       { statusCode: 'fr:202', observedAt: new Date('2026-09-06T10:00:02Z') },
     ];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(events) }));
     mockedCreateEvents.mockResolvedValue(2);
 
     const runner = new ConformitySweepRunner(registry, dispatcher);
@@ -441,7 +441,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
 
   it('never marks the document resolved when every observed event is non-terminal', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
@@ -460,7 +460,7 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
 
   it('never lets a failure marking conformityResolvedAt affect the poll’s own result', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:202', observedAt: new Date() }]),
       }),
     );
@@ -495,13 +495,13 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
     // NO default poller registered here, deliberately: the `runPoll` tests below each register their
     // OWN poller (a specific `poll` mock per scenario) — registering one here too would collide with
     // `AuthorityStatusPollerRegistry.register`'s own "already registered" guard the moment they do.
-    // The `runSweep` tests register the plain `buildPdpPoller()` themselves, right where they need it.
+    // The `runSweep` tests register the plain `buildSuperPdpPoller()` themselves, right where they need it.
     registry = new AuthorityStatusPollerRegistry();
     events = { publish: vi.fn().mockResolvedValue(undefined) };
   });
 
   it('runSweep: publishes an authority-event nudge when a candidate genuinely gives up', async () => {
-    registry.register(buildPdpPoller());
+    registry.register(buildSuperPdpPoller());
     process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
     mockedFindCandidates.mockResolvedValue([
       {
@@ -532,7 +532,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
   });
 
   it('runSweep: never publishes when giving up was a dedup no-op (already journaled by another pass)', async () => {
-    registry.register(buildPdpPoller());
+    registry.register(buildSuperPdpPoller());
     process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
     mockedFindCandidates.mockResolvedValue([
       {
@@ -559,7 +559,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
   });
 
   it("runSweep: threads the candidate's own typeId into the enqueued poll job", async () => {
-    registry.register(buildPdpPoller());
+    registry.register(buildSuperPdpPoller());
     mockedFindCandidates.mockResolvedValue([
       {
         id: 'doc-1',
@@ -593,7 +593,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: publishes an authority-event nudge when new events are genuinely journaled', async () => {
     const pollEvents = [{ statusCode: 'fr:200', observedAt: new Date() }];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
     mockedCreateEvents.mockResolvedValue(1);
 
     const runner = new ConformitySweepRunner(
@@ -618,7 +618,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: never publishes when nothing new was journaled (a re-poll rediscovering known events)', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
@@ -642,7 +642,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: never publishes when the job data carries no typeId (nothing to invalidate a query for)', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
@@ -665,7 +665,7 @@ describe('ConformitySweepRunner — events (the worker→API SSE bridge)', () =>
 
   it('runPoll: publishes on a NEWLY-journaled poll:blocked verdict too', async () => {
     registry.register(
-      buildPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
+      buildSuperPdpPoller({ poll: vi.fn().mockRejectedValue(new ChannelNotConnectedError('pdp')) }),
     );
     mockedJournalSynthetic.mockResolvedValue(1);
 
@@ -716,7 +716,7 @@ describe('ConformitySweepRunner — webhooks', () => {
   });
 
   it('runSweep: dispatches DOCUMENT_AUTHORITY_EVENT (GAVE_UP_STATUS_CODE) when a candidate genuinely gives up', async () => {
-    registry.register(buildPdpPoller());
+    registry.register(buildSuperPdpPoller());
     process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS = String(24 * 60 * 60 * 1000);
     mockedFindCandidates.mockResolvedValue([
       {
@@ -751,7 +751,7 @@ describe('ConformitySweepRunner — webhooks', () => {
       { statusCode: 'fr:200', observedAt: new Date('2026-08-10T00:00:00Z') },
       { statusCode: 'fr:202', observedAt: new Date('2026-08-10T00:05:00Z') },
     ];
-    registry.register(buildPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
+    registry.register(buildSuperPdpPoller({ poll: vi.fn().mockResolvedValue(pollEvents) }));
     mockedCreateEvents.mockResolvedValue(2);
     const webhooks = { dispatch: vi.fn().mockResolvedValue(undefined) };
 
@@ -772,7 +772,7 @@ describe('ConformitySweepRunner — webhooks', () => {
 
   it('runPoll: never dispatches when nothing new was journaled (a re-poll rediscovering known events)', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );
@@ -795,7 +795,7 @@ describe('ConformitySweepRunner — webhooks', () => {
   // poll itself failed.
   it('a dispatch failure NEVER propagates — runPoll still returns normally', async () => {
     registry.register(
-      buildPdpPoller({
+      buildSuperPdpPoller({
         poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
       }),
     );

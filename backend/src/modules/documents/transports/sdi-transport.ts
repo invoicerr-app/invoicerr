@@ -1,6 +1,6 @@
 /**
  * The "sdi" transport — Italy's Sistema di
- * Interscambio. Same `DocumentTransport` interface `pdp-transport.ts`/`ksef-transport.ts` implement,
+ * Interscambio. Same `DocumentTransport` interface `superpdp-transport.ts`/`ksef-transport.ts` implement,
  * registered the same way.
  *
  * STATUS: **implemented-awaiting-accreditation** (explicit user decision —
@@ -226,7 +226,7 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
       const xmlBytes = Buffer.from(buildResult.bytes);
       // Canonical SdI filename pattern: IT{VAT}_{progressive}.xml — the progressive here is derived
       // from the document's own id, the same "derived from the invoice, never invented" convention
-      // `pdp-transport.ts` uses for its own `externalId`.
+      // `superpdp-transport.ts` uses for its own `externalId`.
       const filename = `${credentials.idTrasmittente}_${ctx.document.id.slice(-10).replace(/[^a-zA-Z0-9]/g, '0')}.xml`;
 
       // `deps.httpPort` is the jest-only seam (see this file's own header); a production caller gets
@@ -285,7 +285,7 @@ export function buildSdiTransport(deps: SdiTransportDeps): DocumentTransport {
         providerId: PROVIDER_ID,
         // Legal archiving — the ONLY artifact this transport ever delivers is
         // the FatturaPA actually submitted (`xmlBytes`, already gated valid above), same reasoning as
-        // `pdp-transport.ts`'s own `artifacts`.
+        // `superpdp-transport.ts`'s own `artifacts`.
         artifacts: [
           {
             role: deps.fatturapaFormatProvider.id,

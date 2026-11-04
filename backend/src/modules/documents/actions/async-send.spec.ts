@@ -619,7 +619,7 @@ describe('runAsyncSendAction', () => {
     // (the deposit id) AND a `providerId` alongside `message`; this proves BOTH reach
     // `updateDocumentStatus` as `transportRef`/`channelProviderId`, on the SAME write that records
     // "sent" — see `DocumentInstance.transportRef`/`.channelProviderId`'s own schema comments and
-    // `transports/pdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
+    // `transports/superpdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
     // sweep (`conformity/`) later reads to know which channel this document actually went through.
     it('threads a deliver() `reference`/`providerId` through to updateDocumentStatus as `transportRef`/`channelProviderId`', async () => {
       mockFound({

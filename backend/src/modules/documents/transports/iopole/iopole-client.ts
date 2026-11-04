@@ -7,11 +7,11 @@
  * Not the prose documentation, which is a client-rendered page and, on the three points below,
  * disagrees with what the platform actually does.
  *
- * Shape, same split every sibling client in this directory holds (`pdp/pdp-client.ts`,
+ * Shape, same split every sibling client in this directory holds (`superpdp/superpdp-client.ts`,
  * `chorus-pro/choruspro-client.ts`): this file speaks the platform's wire protocol and nothing else;
  * resolving a company's credentials, building the payload and enforcing the hard-success contract is
  * `transports/iopole-transport.ts`'s job. Dependency-free (bare `fetch`/`FormData`/`Blob`), the same
- * choice `pdp-client.ts` documents for itself.
+ * choice `superpdp-client.ts` documents for itself.
  *
  * THREE THINGS THE DOCUMENTATION DOES NOT SAY, each verified live against the sandbox on 2026-09-24
  * and each one a bug waiting to happen if "fixed" back to what the documentation claims:
@@ -37,7 +37,7 @@
  *     appears in the token's own `scope` claim (`iopole_<8 chars>`): the two look alike and are
  *     different values, and swapping them fails late, on a call that will not say why.
  *
- * SSRF: unlike `pdp-client.ts`, this client's hosts are NOT a company-supplied credential. They are
+ * SSRF: unlike `superpdp-client.ts`, this client's hosts are NOT a company-supplied credential. They are
  * fixed per environment in `iopole-transport.ts#IOPOLE_URLS` (the same convention
  * `chorus-pro-transport.ts#CHORUS_PRO_URLS` and `ksef-transport.ts#BASE_URLS` already hold), so a
  * tenant cannot repoint this client at an internal address and there is no authenticated SSRF
@@ -147,7 +147,7 @@ export function iopoleFileExtensionFor(mime: string): 'pdf' | 'xml' {
  * Copies into a fresh `ArrayBuffer` so the result is a `Uint8Array<ArrayBuffer>`, which is what
  * `BlobPart` accepts - a plain `Uint8Array` is typed over `ArrayBufferLike`, which TypeScript will
  * not narrow for `new Blob([...])` because it could be a `SharedArrayBuffer`. The same copy
- * `pdp/pdp-client.ts#toUint8Array` makes, for the same reason.
+ * `superpdp/superpdp-client.ts#toUint8Array` makes, for the same reason.
  */
 function toBlobBytes(data: Buffer | Uint8Array): Uint8Array<ArrayBuffer> {
   const buffer = new ArrayBuffer(data.byteLength);
@@ -230,7 +230,7 @@ export class IopoleClient {
 
     const accessToken = typeof json.access_token === 'string' ? json.access_token : '';
     if (!accessToken) {
-      // Same refusal `pdp-client.ts#authenticate` documents for the identical case: caching an
+      // Same refusal `superpdp-client.ts#authenticate` documents for the identical case: caching an
       // empty/undefined token would make every later call fail Bearer auth silently until the cache
       // happened to expire, with nothing pointing at this response.
       throw new IopoleApiError(
@@ -255,7 +255,7 @@ export class IopoleClient {
 
   /** Drops whatever token this instance holds. Called on a 401 by `request()` below, so a token
    *  revoked server-side mid-TTL self-heals on the very next call instead of failing every call
-   *  until this process happens to restart - the same reasoning `pdp-client.ts#clearToken` holds. */
+   *  until this process happens to restart - the same reasoning `superpdp-client.ts#clearToken` holds. */
   clearToken(): void {
     this.token = null;
   }

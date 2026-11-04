@@ -35,21 +35,21 @@
  *    (docs.acubeapi.com/documentation/italy/gov-it/invoices/sending-invoice). The deposit is
  *    ASYNCHRONOUS: the uuid comes back immediately, the SdI verdict lands later.
  *
- * ## Why there is no outbound-URL guard here, unlike `pdp/pdp-client.ts`
+ * ## Why there is no outbound-URL guard here, unlike `superpdp/superpdp-client.ts`
  *
  * That client validates its `baseUrl` through `@/utils/outbound-url` on every call because the URL
  * is a TENANT-SUPPLIED credential (`PUT /api/company/channels/pdp`) and could be pointed at an
  * internal address. Nothing here is tenant-supplied: the login URL and both jurisdiction hosts are
  * module constants below, exactly the way `ksef/ksef-client.ts` hardcodes its own two environments.
  * There is no address for a tenant to influence, so there is no SSRF primitive to close. What IS
- * kept from `pdp-client.ts` is `redirect: 'manual'` - a host answering 30x must never have this
+ * kept from `superpdp-client.ts` is `redirect: 'manual'` - a host answering 30x must never have this
  * request, carrying a bearer token, followed somewhere else automatically.
  *
  * ## Deliberately NOT built here
  *
  * Following the SdI verdict past the deposit (the `waiting → sent → invoice-error` marking A-Cube
  * exposes, and the webhooks it can push) needs a poller in `conformity/pollers/`, which is separate
- * work from the deposit itself - the same named remainder `pdp-transport.ts` and `ksef-transport.ts`
+ * work from the deposit itself - the same named remainder `superpdp-transport.ts` and `ksef-transport.ts`
  * already carry. `getInvoice()` below is the read side such a poller would build on; nothing calls it
  * in production today, and it is kept rather than trimmed for exactly that reason.
  */
@@ -216,7 +216,7 @@ export class AcubeClient {
       }),
       signal: AbortSignal.timeout(this.timeoutMs),
       // Never follow a redirect automatically: this request carries the account's own password, and
-      // a 30x would hand it to whatever the new Location names. Same discipline `pdp-client.ts`
+      // a 30x would hand it to whatever the new Location names. Same discipline `superpdp-client.ts`
       // holds for its own token endpoint.
       redirect: 'manual',
     });
@@ -231,7 +231,7 @@ export class AcubeClient {
       // A 200 carrying no usable token is a malformed response, not an edge case worth papering
       // over: caching an empty string here would make every subsequent call fail Bearer auth with
       // no explanation until the cache happened to expire. Refuse loudly, before caching anything -
-      // the exact failure `pdp-client.ts#authenticate` documents having been burned by.
+      // the exact failure `superpdp-client.ts#authenticate` documents having been burned by.
       throw new AcubeApiError(
         'login answered 200 but carried no usable token - refusing to cache an unusable value.',
         res.status,

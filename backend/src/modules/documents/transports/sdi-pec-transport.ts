@@ -33,7 +33,7 @@
  *
  * ## The reference this transport hands back
  *
- * Unlike `pdp-transport.ts`/`ksef-transport.ts`/`sdi-transport.ts`, which all get an authoritative
+ * Unlike `superpdp-transport.ts`/`ksef-transport.ts`/`sdi-transport.ts`, which all get an authoritative
  * platform-assigned id SYNCHRONOUSLY on submission, a PEC send only ever proves "handed to the next
  * mail hop" — SdI's own `IdentificativoSdI` is assigned LATER and arrives asynchronously, in the first
  * notifica (`transports/sdi-pec/pec-notifiche.service.ts`). So `reference` here is the FILENAME this

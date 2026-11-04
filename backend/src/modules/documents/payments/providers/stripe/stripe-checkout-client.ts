@@ -19,7 +19,7 @@ const STRIPE_API_BASE = 'https://api.stripe.com/v1';
 /**
  * A hand-rolled REST call, not the `stripe` npm SDK — the same "no dependency for something this
  * focused" reasoning `stripe-signature.ts`'s own header gives for the webhook check, and the same
- * shape every OTHER national channel client in this codebase already holds (`pdp/pdp-client.ts`,
+ * shape every OTHER national channel client in this codebase already holds (`superpdp/superpdp-client.ts`,
  * `ksef/ksef-client.ts`: a plain `fetch` call, form/JSON body, bearer or basic auth). Stripe's
  * Checkout Sessions API takes `application/x-www-form-urlencoded`, with bracket notation for nested
  * objects/arrays (`line_items[0][price_data][currency]`) — there is exactly one call this client ever

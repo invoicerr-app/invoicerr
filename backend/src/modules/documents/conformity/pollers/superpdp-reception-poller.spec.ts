@@ -1,25 +1,29 @@
 /**
- * `buildPdpReceptionPoller` in isolation — `PdpClient` is mocked (the real HTTP round-trip is
+ * `buildSuperPdpReceptionPoller` in isolation - `SuperPdpClient` is mocked (the real HTTP round-trip is
  * `superpdp-reception.live.spec.ts`'s job). `listInvoices({direction:'in'})`'s own response shape below is
  * the ACTUAL raw payload captured LIVE (2026-09-16, self-addressed sandbox deposit — see
- * `pdp-reception.ts`'s own header), pasted verbatim.
+ * `superpdp-reception.ts`'s own header), pasted verbatim.
  */
 import { vi } from 'vitest';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { buildPdpReceptionPoller, RECEPTION_MAX_PAGES, RECEPTION_PAGE_SIZE } from './pdp-reception-poller';
+import {
+  buildSuperPdpReceptionPoller,
+  RECEPTION_MAX_PAGES,
+  RECEPTION_PAGE_SIZE,
+} from './superpdp-reception-poller';
 
 const mockListInvoices = vi.fn();
 const mockDownloadInvoiceFile = vi.fn();
 const mockAuthenticate = vi.fn();
 
-vi.mock('../../transports/pdp/pdp-client', async () => {
-  const actual = await vi.importActual('../../transports/pdp/pdp-client');
+vi.mock('../../transports/superpdp/superpdp-client', async () => {
+  const actual = await vi.importActual('../../transports/superpdp/superpdp-client');
   return {
     ...actual,
-    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression — an arrow function has no [[Construct]] and breaks `new PdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
-    PdpClient: vi.fn().mockImplementation(function () {
+    // biome-ignore lint/complexity/useArrowFunction: must stay a function expression - an arrow function has no [[Construct]] and breaks `new SuperPdpClient(...)` under Vitest (Jest's own mock never actually invoked [[Construct]], so an arrow function silently "worked" there).
+    SuperPdpClient: vi.fn().mockImplementation(function () {
       return {
         authenticate: mockAuthenticate,
         listInvoices: mockListInvoices,
@@ -63,13 +67,13 @@ const MINIMAL_CII_XML = Buffer.from(
   'utf-8',
 );
 
-describe('buildPdpReceptionPoller', () => {
+describe('buildSuperPdpReceptionPoller', () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe('listInbound', () => {
     it('lists every inbound deposit for a connected company (direction=in)', async () => {
       mockListInvoices.mockResolvedValue(INBOUND_LIST_RESPONSE);
-      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+      const poller = buildSuperPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
 
       const inbound = await poller.listInbound('company-1');
 
@@ -104,7 +108,7 @@ describe('buildPdpReceptionPoller', () => {
 
     it('returns a new deposit that sits beyond the first page of a long inbox', async () => {
       fakeInbox(120);
-      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+      const poller = buildSuperPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
 
       const inbound = await poller.listInbound('company-1', 110);
 
@@ -113,7 +117,7 @@ describe('buildPdpReceptionPoller', () => {
 
     it('walks every page when nothing was imported yet, up to its per-pass bound', async () => {
       fakeInbox(250);
-      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+      const poller = buildSuperPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
 
       const all = await poller.listInbound('company-1');
       expect(all.map((d) => d.id)).toEqual(Array.from({ length: 250 }, (_, i) => i + 1));
@@ -124,7 +128,7 @@ describe('buildPdpReceptionPoller', () => {
     });
 
     it('returns an EMPTY array (never throws) when PDP is not connected for this company', async () => {
-      const poller = buildPdpReceptionPoller({
+      const poller = buildSuperPdpReceptionPoller({
         channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
       });
 
@@ -136,7 +140,7 @@ describe('buildPdpReceptionPoller', () => {
   describe('downloadAndExtract', () => {
     it('downloads the original bytes and runs them through the SAME structural extraction the manual upload screen uses', async () => {
       mockDownloadInvoiceFile.mockResolvedValue({ bytes: MINIMAL_CII_XML, contentType: 'application/xml' });
-      const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+      const poller = buildSuperPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
 
       const result = await poller.downloadAndExtract('company-1', 604667);
 
@@ -150,7 +154,7 @@ describe('buildPdpReceptionPoller', () => {
     });
 
     it('throws (never silently returns empty) when PDP is not connected for this company', async () => {
-      const poller = buildPdpReceptionPoller({
+      const poller = buildSuperPdpReceptionPoller({
         channelCredentials: buildChannelCredentials(vi.fn().mockResolvedValue(null)),
       });
 
@@ -160,7 +164,7 @@ describe('buildPdpReceptionPoller', () => {
   });
 
   it('providerId is "pdp" — the same id `transports/transport-registry.ts` already uses for delivery', () => {
-    const poller = buildPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
+    const poller = buildSuperPdpReceptionPoller({ channelCredentials: buildChannelCredentials() });
     expect(poller.providerId).toBe('pdp');
   });
 });

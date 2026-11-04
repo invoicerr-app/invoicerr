@@ -1,6 +1,6 @@
 import { calculateFrenchVAT } from '../../../sirene/sirene.utils';
 import { SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
-import { PdpClient } from './pdp-client';
+import { SuperPdpClient } from './superpdp-client';
 
 /** Env vars every superpdp live spec needs: the OAuth client and the routing id of the sandbox
  *  company that client belongs to. */
@@ -14,8 +14,8 @@ export const SUPERPDP_BASE_URL = process.env.SUPERPDP_BASE_URL || 'https://api.s
 
 const ROUTING_SCHEME = '0225';
 
-export function superpdpLiveClient(): PdpClient {
-  return new PdpClient({
+export function superpdpLiveClient(): SuperPdpClient {
+  return new SuperPdpClient({
     baseUrl: SUPERPDP_BASE_URL,
     clientId: process.env.SUPERPDP_CLIENT_ID ?? '',
     clientSecret: process.env.SUPERPDP_CLIENT_SECRET ?? '',
@@ -29,7 +29,7 @@ function text(value: unknown, fallback: string): string {
 
 /** The authenticated company as `GET /v1.beta/companies/me` describes it, addressed at
  *  SUPERPDP_SELLER_ROUTING. The client must already be authenticated. */
-export async function resolveSandboxCompany(client: PdpClient): Promise<SemanticPartyInput> {
+export async function resolveSandboxCompany(client: SuperPdpClient): Promise<SemanticPartyInput> {
   const me = await client.getCompany();
   const name = text(me?.formal_name, text(me?.name, ''));
   const legalId = text(me?.number, '');

@@ -1,5 +1,5 @@
 /**
- * HTTP client for the France PDP API — supports both:
+ * HTTP client for the SuperPDP API - supports both:
  *   1. SuperPDP proprietary API (v1.beta) — rich lifecycle statuses (fr:200–fr:213)
  *   2. AFNOR Flow Service (XP Z12-013 standard) — portable across PDPs
  *
@@ -13,7 +13,7 @@
  * REPRISED VERBATIM (byte-for-byte, only this header changed) from git tag
  * `avant-refonte-documents` (`compliance/providers/transmission/pdp/pdp-client.ts`): this client is
  * dependency-free (bare `fetch`/`FormData`/`Blob`), so nothing about the document-engine rebuild
- * required touching it. `pdp-transport.ts` only calls `authenticate()` + `sendInvoice()` — the AFNOR
+ * required touching it. `superpdp-transport.ts` only calls `authenticate()` + `sendInvoice()` - the AFNOR
  * Flow / directory / lifecycle-push methods below are kept unused rather than trimmed: another
  * transport (KSeF/SdI reuse the same "one client per jurisdiction" shape) or a PDP polling follow-up
  * can reach for them without a second port of this file.
@@ -32,7 +32,7 @@
  * Deliberately NOT the same https-only/port-443-only policy `sso.service.ts` applies to a company's
  * OIDC endpoints: this client's own e2e coverage
  * (`74-received-invoice-inbound.cy.ts`) drives the real reception sweep against a genuine local
- * `node:http` server standing in for the sandbox (`cypress.config.ts#startFakePdpServer`), and
+ * `node:http` server standing in for the sandbox (`cypress.config.ts#startFakeSuperPdpServer`), and
  * `31-national-channels.cy.ts` connects the channel UI against a plain-HTTP closed port — restricting
  * scheme/port here would make both fail on infrastructure this fix has no mandate to rebuild (a real
  * TLS-terminated fake PDP), for a threat (plaintext transport to a LEGITIMATE public PDP) genuinely
@@ -57,7 +57,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface PdpClientConfig {
+export interface SuperPdpClientConfig {
   /** API root, e.g. "https://api.superpdp.tech". */
   baseUrl: string;
   /** OAuth2 client credentials. */
@@ -67,7 +67,31 @@ export interface PdpClientConfig {
   apiStyle?: 'superpdp' | 'afnor';
 }
 
-export type PdpApiStyle = 'superpdp' | 'afnor';
+export type SuperPdpApiStyle = 'superpdp' | 'afnor';
+
+/**
+ * The status codes SuperPDP accepts on `POST /v1.beta/invoice_events`, exactly as its published
+ * OpenAPI declares them (`status_code_create`, read 2026-10-31 from
+ * `https://api.superpdp.tech/openapi/superpdp.json`). The platform refuses anything outside this
+ * enum with a 400, so a code is a compile-time choice here rather than a bare string.
+ *
+ * The read-side `status_code` schema documents what each one means: `fr:204` acknowledged,
+ * `fr:205` accepted, `fr:206` partly accepted, `fr:207` disputed, `fr:208` on hold, `fr:209`
+ * completed, `fr:210` refused, `fr:211` payment sent, `fr:212` payment received, `fr:220` (not
+ * described in the read-side list). `fr:203` ("made available") is a PLATFORM-emitted status and is
+ * deliberately absent from the create enum.
+ */
+export type SuperPdpStatusCreate =
+  | 'fr:204'
+  | 'fr:205'
+  | 'fr:206'
+  | 'fr:207'
+  | 'fr:208'
+  | 'fr:209'
+  | 'fr:210'
+  | 'fr:211'
+  | 'fr:212'
+  | 'fr:220';
 
 // --- SuperPDP proprietary types ---
 
@@ -171,15 +195,15 @@ export interface DirectoryLineSearchResult {
 
 // --- Error type ---
 
-export class PdpApiError extends Error {
+export class SuperPdpApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
     public readonly body: unknown,
     public readonly endpoint: string,
   ) {
-    super(`PDP ${endpoint}: ${status} — ${message}`);
-    this.name = 'PdpApiError';
+    super(`SuperPDP ${endpoint}: ${status} - ${message}`);
+    this.name = 'SuperPdpApiError';
   }
 }
 
@@ -197,17 +221,17 @@ interface TokenState {
 const DEFAULT_TIMEOUT = 30_000;
 const DEFAULT_MAX_RETRIES = 3;
 
-export class PdpClient {
+export class SuperPdpClient {
   private readonly baseUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
-  private readonly apiStyle: PdpApiStyle;
+  private readonly apiStyle: SuperPdpApiStyle;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
   private token: TokenState | null = null;
 
-  constructor(config: PdpClientConfig, opts?: { timeoutMs?: number; maxRetries?: number }) {
+  constructor(config: SuperPdpClientConfig, opts?: { timeoutMs?: number; maxRetries?: number }) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
@@ -222,7 +246,7 @@ export class PdpClient {
    * tenant's own channel configuration, and DNS is not a fact fixed at connect time — a hostname that
    * resolved to a public IP then can be repointed at an internal one by the time an invoice is
    * actually sent ("DNS rebinding" — see this file's own header). The message thrown here is
-   * deliberately generic: `pdp-transport.ts` folds a caught error's `.message` straight into the
+   * deliberately generic: `superpdp-transport.ts` folds a caught error's `.message` straight into the
    * `BadRequestException` it returns to the API caller, so leaking WHY (which reason, which address)
    * would turn this guard into a network-scanning oracle for whoever controls the channel config.
    *
@@ -243,7 +267,7 @@ export class PdpClient {
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {
-        throw new PdpApiError('PDP baseUrl failed outbound-URL validation.', 0, null, this.baseUrl);
+        throw new SuperPdpApiError('PDP baseUrl failed outbound-URL validation.', 0, null, this.baseUrl);
       }
       throw err;
     }
@@ -284,7 +308,7 @@ export class PdpClient {
 
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
-      throw new PdpApiError(
+      throw new SuperPdpApiError(
         `OAuth token error: ${(json as { error_description?: string }).error_description ?? res.statusText}`,
         res.status,
         json,
@@ -300,7 +324,7 @@ export class PdpClient {
     // loudly HERE, before caching anything, turns that into one immediate, diagnosable failure instead.
     const accessToken = typeof json.access_token === 'string' ? json.access_token : '';
     if (!accessToken) {
-      throw new PdpApiError(
+      throw new SuperPdpApiError(
         'OAuth token response carried no usable access_token — refusing to cache an unusable token.',
         res.status,
         json,
@@ -333,10 +357,15 @@ export class PdpClient {
       body?: unknown;
       contentType?: string;
       formData?: FormData;
+      /** `false` makes this call single-attempt. Only for a POST with no idempotency key in the
+       *  OpenAPI, where a timeout after the platform committed would otherwise duplicate the write
+       *  (see `pushLifecycleStatus`'s own header). */
+      retry?: boolean;
     },
   ): Promise<T> {
+    const maxRetries = opts?.retry === false ? 0 : this.maxRetries;
     let lastError: unknown;
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
         await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
       }
@@ -379,8 +408,8 @@ export class PdpClient {
           respBody = text || undefined;
         }
 
-        if (res.status >= 500 && attempt < this.maxRetries) {
-          lastError = new PdpApiError(`Server error ${res.status}`, res.status, respBody, path);
+        if (res.status >= 500 && attempt < maxRetries) {
+          lastError = new SuperPdpApiError(`Server error ${res.status}`, res.status, respBody, path);
           continue;
         }
 
@@ -397,15 +426,15 @@ export class PdpClient {
           // in the "never retry" 4xx range just below), but the NEXT call re-authenticates instead of
           // repeating it.
           if (res.status === 401) this.clearToken();
-          throw new PdpApiError(msg, res.status, respBody, path);
+          throw new SuperPdpApiError(msg, res.status, respBody, path);
         }
 
         return respBody as T;
       } catch (err: unknown) {
-        if (err instanceof PdpApiError && err.status >= 400 && err.status < 500) {
+        if (err instanceof SuperPdpApiError && err.status >= 400 && err.status < 500) {
           throw err;
         }
-        if (attempt < this.maxRetries) {
+        if (attempt < maxRetries) {
           lastError = err;
           continue;
         }
@@ -463,7 +492,7 @@ export class PdpClient {
    * that method's own body above), and `res.text()` decodes as UTF-8, which silently corrupts a
    * binary PDF the moment a byte sequence isn't valid UTF-8. Added for RECEPTION (a poller downloading
    * an INBOUND deposit's own original/Factur-X artifact to attach to a `received-invoice` — see
-   * `pdp-reception.ts`): `sendInvoice()`/`getInvoice()` above never needed this because outbound
+   * `superpdp-reception.ts`): `sendInvoice()`/`getInvoice()` above never needed this because outbound
    * `send()` already holds the bytes it uploaded, in memory, before ever calling superpdp.
    *
    * `format` mirrors `getInvoice`'s own enum (`?format=` query param), same endpoint
@@ -508,7 +537,7 @@ export class PdpClient {
           (body as { message?: string }).message ??
           res.statusText)
         : res.statusText;
-      throw new PdpApiError(msg, res.status, body, path);
+      throw new SuperPdpApiError(msg, res.status, body, path);
     }
     const arrayBuffer = await res.arrayBuffer();
     return { bytes: Buffer.from(arrayBuffer), contentType };
@@ -608,35 +637,54 @@ export class PdpClient {
   }
 
   // -----------------------------------------------------------------------
-  // Lifecycle status push (a party notifying the PDP of a status change — outbound seller codes like
-  // fr:211/fr:212, or BUYER-side codes like fr:203/fr:205 pushed from the RECEPTION side — see
-  // `pdp-reception.ts`'s own header for the received-invoice "approve"/"reject"/"paid" actions)
+  // Lifecycle status push (a party notifying the PDP of a status change: outbound seller codes like
+  // fr:211/fr:212, or BUYER-side codes like fr:204/fr:205 pushed from the RECEPTION side; see
+  // `superpdp-reception.ts`'s own header for the received-invoice "approve"/"reject"/"paid" actions)
   // -----------------------------------------------------------------------
 
   /**
    * Push a lifecycle status event to the PDP for a deposited invoice.
    *
-   * SuperPDP proprietary endpoint (as documented, never independently confirmed until now):
-   * POST /v1.beta/invoices/{id}/lifecycle_events, body `{ code: "fr:211" }` (XP Z12-012 lifecycle
-   * code, e.g. fr:211 = payment sent, fr:212 = payment received, fr:205 = accepted by buyer).
+   * SuperPDP's own endpoint, per its published OpenAPI (read 2026-10-31):
+   * `POST /v1.beta/invoice_events` with `{ invoice_id, status_code, details? }`. The path this
+   * method used to call, `POST /v1.beta/invoices/{id}/lifecycle_events`, does not exist on the API
+   * at all: every live attempt answered a generic `404 {"http_status_code":404}` (see
+   * `documentation/docs/developer-guide/live-testing.md`), which is exactly what an unregistered
+   * route returns. The status was therefore never delivered.
    *
-   * LIVE PROOF, 2026-09-16 (`superpdp-reception.live.spec.ts`): this endpoint answers a real, generic
-   * `404 {"http_status_code":404}` on the current superpdp sandbox — tried against a freshly deposited
-   * invoice (both its "out" id AND its "in" twin, see `pdp-reception.ts`'s own header on why a
-   * self-addressed deposit yields two distinct ids), and against every plausible path variant
-   * (`lifecycle-events`, `/events`, `/status`, `/statuses`, `/lifecycle`, a plain `PUT` on the invoice
-   * itself) — all 404, the identical shape a genuinely unregistered route returns (compare
-   * `authenticate()`'s own 4xx/5xx error shaping: a validation failure on a REAL route answers 400/422
-   * with a specific message, not this generic body). Conclusion, not a guess: the sandbox's "API Flux"
-   * does not expose ANY lifecycle-status-push route today, under any of the names this codebase or the
-   * XP Z12-012 naming convention suggested. This method is kept (never deleted) — a real production PA
-   * may still implement it, and `pdp-reception.ts`'s own status-push calls degrade to a LOGGED, non-fatal
-   * no-op on a 404 specifically, never a crashed poll — see `documentation/docs/developer-guide/
-   * live-testing.md`'s own PDP reception section for the full evidence and what remains unverified.
+   * `details[].reason` is NOT a free-text motivation: the OpenAPI types it as a ReasonCode
+   * (MDT-113, the list in AFNOR XP Z12-012), so a sentence sent there is a validation error at
+   * best. The free text belongs in `details[].notes[].contents[].content` (MDG-39), the field
+   * SuperPDP added in 1.28.0 exactly for the motivation of an `fr:210` event. `refusal` therefore
+   * carries both halves, and only a code is ever put in `reason`.
+   *
+   * No retry, deliberately: the OpenAPI exposes no idempotency key for this POST, so a timeout
+   * after the platform created the event would create a second one on the next `request()` retry.
+   * The push is non-fatal by contract (the local status was persisted first), so one attempt plus
+   * an `error` log beats a duplicate lifecycle event. The OpenAPI also states that a `fr:212` event
+   * without details reports the invoice's total as the paid amount.
    */
-  async pushLifecycleStatus(invoiceId: number, code: string): Promise<void> {
-    await this.request<unknown>('POST', `/v1.beta/invoices/${invoiceId}/lifecycle_events`, {
-      body: { code },
+  async pushLifecycleStatus(
+    invoiceId: number,
+    code: SuperPdpStatusCreate,
+    refusal?: { reasonCode: string; motivation?: string },
+  ): Promise<void> {
+    const motivation = refusal?.motivation?.trim();
+    const details = refusal
+      ? [
+          {
+            reason: refusal.reasonCode,
+            ...(motivation ? { notes: [{ contents: [{ content: motivation }] }] } : {}),
+          },
+        ]
+      : undefined;
+    await this.request<unknown>('POST', '/v1.beta/invoice_events', {
+      body: {
+        invoice_id: invoiceId,
+        status_code: code,
+        ...(details ? { details } : {}),
+      },
+      retry: false,
     });
   }
 
@@ -668,7 +716,7 @@ export class PdpClient {
   // Helpers
   // -----------------------------------------------------------------------
 
-  getApiStyle(): PdpApiStyle {
+  getApiStyle(): SuperPdpApiStyle {
     return this.apiStyle;
   }
 }

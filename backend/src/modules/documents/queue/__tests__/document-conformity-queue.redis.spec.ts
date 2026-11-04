@@ -33,15 +33,15 @@
  * that file's own header): there, whichever process's `DocumentsService` ends up running a job, it
  * calls the SAME real action registrations against the SAME database, so the outcome never depends on
  * who actually ran it. Here that means registering the REAL 'pdp' provider
- * (`buildPdpStatusPoller` — the exact function `documents-core.module.ts` uses in production) in THIS
+ * (`buildSuperPdpStatusPoller` - the exact function `documents-core.module.ts` uses in production) in THIS
  * spec's own registry too, resolving credentials via the SAME `ChannelCredentialsService` against the
  * SAME database row, for the SAME test company, that the real backend's own registry would also
  * resolve. Those credentials point at a real `node:http` server this file starts itself, on
- * `127.0.0.1`, an ephemeral port — serving the OAuth2 token exchange `PdpClient` always authenticates
+ * `127.0.0.1`, an ephemeral port - serving the OAuth2 token exchange `SuperPdpClient` always authenticates
  * with first, and `GET /v1.beta/invoices/:id` answering with the exact `events[]` shape
- * `pdp-status-poller.spec.ts`'s own real, session-captured superpdp fixtures use (never a top-level
+ * `superpdp-status-poller.spec.ts`'s own real, session-captured superpdp fixtures use (never a top-level
  * `status_code` — see that file's own header on why that distinction is the whole point). Whichever
- * worker's `PdpClient` calls out, it hits this SAME stub and gets the SAME two events back — the race
+ * worker's `SuperPdpClient` calls out, it hits this SAME stub and gets the SAME two events back - the race
  * disappears by construction, not by hoping the timing works out, and this file now also exercises the
  * real credential-resolution path, not merely the poll/journal mechanics.
  *
@@ -67,7 +67,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { AuthorityStatusPollerRegistry } from '../../conformity/authority-status-poller';
 import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner';
-import { buildPdpStatusPoller, PDP_PROVIDER_ID } from '../../conformity/pollers/pdp-status-poller';
+import { buildSuperPdpStatusPoller, PDP_PROVIDER_ID } from '../../conformity/pollers/superpdp-status-poller';
 import { DocumentsService } from '../../documents.service';
 import { DocumentQueueDispatcher } from '../document-queue.dispatcher';
 import { DocumentQueueModule } from '../document-queue.module';
@@ -94,7 +94,7 @@ async function waitFor<T>(check: () => Promise<T | undefined>, timeoutMs = 20000
 }
 
 /** The two events this file's stub server always answers with — the SAME `fr:200`/`fr:202` pair
- *  (id/timestamp/text lifted VERBATIM from `pdp-status-poller.spec.ts`'s own real, session-captured
+ *  (id/timestamp/text lifted VERBATIM from `superpdp-status-poller.spec.ts`'s own real, session-captured
  *  `ACCEPTED_INVOICE_397536` fixture, never invented) every assertion below already expected before
  *  this fix. `isTerminal('fr:202')` is `true` on the REAL poller (`PDP_ACCEPTED_STATUS_CODE`), which is
  *  what lets the racing test below still prove "never four rows, however the race lands". */
@@ -113,14 +113,14 @@ const STUB_INVOICE_EVENTS = [
   },
 ];
 
-interface PdpStubServer {
+interface SuperPdpStubServer {
   baseUrl: string;
   close: () => Promise<void>;
 }
 
 /**
  * A REAL local HTTP server standing in for the superpdp sandbox — never an in-process mock (see this
- * file's own header for why). Serves only the two endpoints `PdpClient` actually calls for a poll: the
+ * file's own header for why). Serves only the two endpoints `SuperPdpClient` actually calls for a poll: the
  * OAuth2 token exchange `authenticate()` runs before every request, and `GET /v1.beta/invoices/:id`
  * itself — regardless of the id (this stub has exactly one canned deposit, never inspects
  * `transportRef`). Any other path/method 404s.
@@ -130,7 +130,7 @@ interface PdpStubServer {
  * this spec's own assertions have already run, so the handler never throws for an unrecognized id and
  * never assumes the test's own database rows still exist.
  */
-function startPdpStub(): Promise<PdpStubServer> {
+function startSuperPdpStub(): Promise<SuperPdpStubServer> {
   return new Promise((resolvePromise, reject) => {
     const server = http.createServer((req, res) => {
       try {
@@ -197,11 +197,11 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
   let sweepRunner: ConformitySweepRunner;
   let queue: Queue;
   let companyId: string;
-  let pdpStub: PdpStubServer;
+  let superPdpStub: SuperPdpStubServer;
   const channelCredentials = new ChannelCredentialsService();
 
   beforeAll(async () => {
-    pdpStub = await startPdpStub();
+    superPdpStub = await startSuperPdpStub();
 
     moduleRef = await Test.createTestingModule({
       imports: [DocumentQueueModule],
@@ -216,7 +216,7 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
             // The REAL production poller, not a stand-in — see this file's own header for why this is
             // the whole fix: whichever registry (this one, or the real backend's own) resolves 'pdp',
             // it runs this exact function against the SAME database.
-            registry.register(buildPdpStatusPoller({ channelCredentials }));
+            registry.register(buildSuperPdpStatusPoller({ channelCredentials }));
             return registry;
           },
         },
@@ -260,12 +260,16 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
 
     // Real credentials, encrypted at rest exactly like production (`CREDENTIALS_ENCRYPTION_KEY` —
     // `.env.test`'s own copy is a throwaway test key, see that file's own comment). Whichever process's
-    // `PdpClient` resolves this row — this spec's own worker, or the real :4000 backend's — it gets the
+    // `SuperPdpClient` resolves this row - this spec's own worker, or the real :4000 backend's - it gets the
     // SAME `baseUrl` and therefore hits the SAME stub above.
     await channelCredentials.upsertChannelConfig(companyId, PDP_PROVIDER_ID, {
       environment: 'TEST',
       isActive: true,
-      config: { baseUrl: pdpStub.baseUrl, clientId: 'stub-client-id', clientSecret: 'stub-client-secret' },
+      config: {
+        baseUrl: superPdpStub.baseUrl,
+        clientId: 'stub-client-id',
+        clientSecret: 'stub-client-secret',
+      },
     });
   });
 
@@ -276,7 +280,7 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
     // registration too.
     //
     // Deliberately NOT a wider purge to also stop the real backend from ever polling these documents
-    // again after `pdpStub` closes below: this file's own header already establishes that a late hit
+    // again after `superPdpStub` closes below: this file's own header already establishes that a late hit
     // against a closed stub is expected and harmless (the stub server's own `close()` only runs after
     // this cleanup, and any poll that DID land earlier already went through `DocumentAuthorityEvent`'s
     // `@@unique([documentId, providerId, statusCode])`, which absorbs a repeat without a duplicate row)
@@ -288,15 +292,15 @@ describeWithRedis('document-conformity sweep — real Redis, real Postgres', () 
       await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
     }
     await moduleRef?.close();
-    // Closed LAST — see `startPdpStub`'s own header on why a late retry from the real backend must
+    // Closed LAST - see `startSuperPdpStub`'s own header on why a late retry from the real backend must
     // never crash this process, however long after this file's own assertions it arrives.
-    await pdpStub?.close().catch(() => undefined);
+    await superPdpStub?.close().catch(() => undefined);
   });
 
   it('the real sweep finds an eligible document and journals a REAL event through a REAL job', async () => {
     // `transportRef` must be a real PDP invoice id (a non-negative integer, as string) — the REAL
     // poller resolved into this spec's own registry (see this file's own header) parses it with
-    // `pdp-status-poller.ts#parseInvoiceId`, which refuses anything else BY NAME rather than let it
+    // `superpdp-status-poller.ts#parseInvoiceId`, which refuses anything else BY NAME rather than let it
     // silently become `/v1.beta/invoices/NaN`. This stub never inspects the id either way, but a
     // non-numeric placeholder here would never even reach it: `poll()` throws before the HTTP call,
     // and the sweep's own generic catch journals that as `poll:blocked`, not the two events below.

@@ -3,7 +3,7 @@
  * national transports: a deposit today succeeds
  * the moment the platform ACCEPTS the upload (`DocumentInstance.transportRef`), and nothing ever
  * follows up on the platform's own LATER verdict (PDP: fr:200 deposited → fr:201 issued → fr:202
- * received, or fr:213 rejected — proven live in ~1s, five times, see `pollers/pdp-status-poller.ts`'s
+ * received, or fr:213 rejected - proven live in ~1s, five times, see `pollers/superpdp-status-poller.ts`'s
  * own header). Same "one small interface, a registry, a provider registers itself" shape
  * `transports/transport-registry.ts` already holds for delivery — this is its read-side twin.
  *

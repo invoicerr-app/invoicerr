@@ -34,7 +34,7 @@
  * remaining risk window — see `confirmDeliveryWithRetry`'s own header for exactly how narrow that is
  * and why it is accepted rather than hidden.
  *
- * None of the transports wired today (`transports/email-transport.ts`, `pdp-transport.ts`,
+ * None of the transports wired today (`transports/email-transport.ts`, `superpdp-transport.ts`,
  * `ksef-transport.ts`, `sdi-transport.ts`, `chorus-pro-transport.ts`) accept a caller-supplied
  * idempotency key that the RECEIVING system could use to recognize and collapse a genuine duplicate
  * submission on its own side — every reference `deliver()` gets back (a PDP deposit id, a KSeF session

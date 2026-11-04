@@ -1,6 +1,6 @@
 /**
  * `buildKsefStatusPoller` in isolation. Every response payload below is SYNTHETIC — labeled as such
- * deliberately, unlike `pdp-status-poller.spec.ts`'s own REAL, session-captured fixtures: NO KSeF
+ * deliberately, unlike `superpdp-status-poller.spec.ts`'s own REAL, session-captured fixtures: NO KSeF
  * credentials are available in this checkout (`KSEF_AUTH_TOKEN` is absent — see
  * `ksef-status-poller.ts`'s own header, and `ksef-status-poller.live.spec.ts`, which SKIPS cleanly
  * for exactly that reason). These fixtures prove the MAPPING MECHANICS against the

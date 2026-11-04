@@ -57,7 +57,7 @@ export interface DocumentTransportContext {
    * OPTIONAL — a `formats/format-registry.ts` id this send must build INSTEAD OF whatever a transport
    * builds by DEFAULT. Exists for exactly one reason today: B2G routing (`b2g-routing/schema.ts`'s own
    * `B2gRoutingRuleFact.formatSyntax`) already decides, per COUNTRY, both the transport AND the format
-   * a government recipient is owed — but a transport can be format-fixed (`transports/pdp-transport.ts`
+   * a government recipient is owed - but a transport can be format-fixed (`transports/superpdp-transport.ts`
    * only ever builds Factur-X, `sdi-transport.ts` only FatturaPA) while the SAME channel could
    * legitimately carry more than one content format. `actions/invoice-actions.ts`'s
    * `resolveB2gInvoiceTransport` sets this to `rule.formatSyntax` whenever a B2G rule is what selected
@@ -88,7 +88,7 @@ export interface DocumentTransportResult {
   /** Human-facing outcome string — same convention as ActionResult.message. */
   message: string;
   /** An authority/platform-assigned reference the transport got back on delivery — e.g. the PDP
-   *  deposit id (`transports/pdp-transport.ts`). Optional: the "email" transport has no such concept
+   *  deposit id (`transports/superpdp-transport.ts`). Optional: the "email" transport has no such concept
    *  and never sets it. When present, `actions/async-send.ts`'s phase-2 delivery persists it onto
    *  `DocumentInstance.transportRef` (see that column's own schema comment) on the SAME write that
    *  moves the record to "sent". */
@@ -133,7 +133,7 @@ export interface DocumentTransport {
    * instead of) `resolveInvoiceTransport`'s "is a transport even chosen and registered" check — for a
    * transport whose OWN readiness is a separate fact the registry cannot see (e.g. "pdp": a company
    * can pick `invoiceTransportId: 'pdp'` without ever having connected PDP credentials —
-   * `transports/pdp-transport.ts`'s own header). Absent for the "email" transport: nothing about an
+   * `transports/superpdp-transport.ts`'s own header). Absent for the "email" transport: nothing about an
    * email address is knowable before a specific document names a client, so there is nothing this
    * hook could check ahead of `send()` itself. Throwing here runs BEFORE the record is ever persisted
    * or queued — the exact same "blocked, and says so, before touching anything" behavior a missing/
@@ -160,7 +160,7 @@ export interface DocumentTransport {
   credentialFields?: CredentialFieldDescriptor[];
   /**
    * The SAME function this transport's own `preflight()`/`send()` call to turn a resolved channel
-   * config into typed credentials (e.g. `pdp-transport.ts#extractPdpCredentials`) - wired here too,
+   * config into typed credentials (e.g. `superpdp-transport.ts#extractSuperPdpCredentials`) - wired here too,
    * ONLY so `validateTransportCredentialFields` can run it against a synthetic, fully-populated
    * config built from `credentialFields` and prove the two never drift apart. Never called by
    * anything else in this registry; the transport's own `send()`/`preflight()` keep calling their

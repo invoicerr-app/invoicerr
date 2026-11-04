@@ -16,7 +16,7 @@ import { newEuInvoiceService } from '../../formats/shared-build';
 import { validateStructural } from '../../formats/structural-check';
 import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
 import { computeDocumentTotals } from '../../totals/compute-totals';
-import { PdpClient, SuperPdpInvoice, SuperPdpInvoiceEvent } from './pdp-client';
+import { SuperPdpClient, SuperPdpInvoice, SuperPdpInvoiceEvent } from './superpdp-client';
 
 /**
  * How BT-23 (business process) is applied:
@@ -125,7 +125,7 @@ export async function buildLiveFacturx(opts: LiveFacturxOptions): Promise<Uint8A
 
 /** Deposits the bytes and throws on a missing deposit id. */
 export async function depositLiveFacturx(
-  client: PdpClient,
+  client: SuperPdpClient,
   facturx: Uint8Array,
   externalId: string,
 ): Promise<SuperPdpInvoice> {
@@ -139,7 +139,7 @@ export async function depositLiveFacturx(
 
 /** Re-reads a deposit every 500ms, up to 5s, until it carries an `fr:2xx` event. */
 export async function awaitLiveVerdict(
-  client: PdpClient,
+  client: SuperPdpClient,
   depositId: number,
 ): Promise<SuperPdpInvoiceEvent[]> {
   let refetched = await client.getInvoice(depositId);

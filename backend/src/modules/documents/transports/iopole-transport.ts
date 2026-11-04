@@ -1,7 +1,7 @@
 /**
  * The "iopole" transport - Iopole (`iopole.com`), a French, DGFiP-registered transmission platform.
  *
- * Same `DocumentTransport` interface `pdp-transport.ts` / `chorus-pro-transport.ts` /
+ * Same `DocumentTransport` interface `superpdp-transport.ts` / `chorus-pro-transport.ts` /
  * `ksef-transport.ts` implement, registered the same way (`TransportRegistry.register` in
  * `documents-core.module.ts`), opted into the same way (`Company.invoiceTransportId`). Nothing about
  * this platform is special-cased anywhere else - see `transport-registry.ts`'s own header: the
@@ -17,14 +17,14 @@
  * the verdict (the platform's own SUBMITTED → ISSUED → RECEIVED lifecycle, or a REJECTED /
  * UNACCEPTABLE) needs a poller in `conformity/pollers/`, which is SEPARATE work and is deliberately
  * not attempted here: a poller that could only ever answer PENDING is exactly the false green this
- * repository has already been burned by once (see `pdp/superpdp.live.spec.ts`'s own header for that
+ * repository has already been burned by once (see `superpdp/superpdp.live.spec.ts`'s own header for that
  * history). This transport's contract therefore stops, honestly, at "accepted, here is the id".
  * `providerId` below is still set for the record's own honesty - the sweep simply never selects it,
  * since eligibility is gated on the POLLER REGISTRY knowing the id (see
  * `DocumentTransportResult.providerId`'s own header, and "sdi", which holds the same position).
  *
  * THE PAYLOAD is Factur-X (`formats/facturx-provider.ts`), the same deliberate choice
- * `pdp-transport.ts` makes and for the same reason: the platform accepts UBL, CII and Factur-X
+ * `superpdp-transport.ts` makes and for the same reason: the platform accepts UBL, CII and Factur-X
  * alike, and the format provider already gates the embedded CII through the REAL vendored EN 16931
  * Schematron, so an artifact that fails that gate is never deposited, only refused, named.
  *
@@ -109,7 +109,7 @@ export interface IopoleTransportDeps {
 export const IOPOLE_PROVIDER_ID = 'iopole';
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
- *  makes for the identical reason - see `pdp-transport.ts`'s own header. */
+ *  makes for the identical reason - see `superpdp-transport.ts`'s own header. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**

@@ -83,7 +83,7 @@ const RECORD_PAYMENT_PARAMS: DocumentFieldDescriptor[] = [
  * "reject"'s own single param — a free-text MOTIF, required: the DGFiP practical guide for the
  * 2026-09-01 e-invoicing reform ("Facturation électronique : guide pratique de démarrage",
  * impots.gouv.fr, Q12 "Que faire si l'acheteur refuse ma facture ?", read as raw PDF text — see
- * `transports/pdp/pdp-reception.ts`'s own header for the full citation) is explicit that a buyer's
+ * `transports/superpdp/superpdp-reception.ts`'s own header for the full citation) is explicit that a buyer's
  * "refusée" status is "obligatoirement motivé et ne peut être utilisé que pour les motifs prévus par
  * la norme" — REQUIRED here for every received-invoice rejection, not only a PDP-linked one: an
  * unexplained rejection is a poor audit trail regardless of the channel it arrived on, and this

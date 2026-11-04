@@ -1,6 +1,6 @@
 /**
  * The "acube" transport - A-Cube (`acubeapi.com`), an Italian e-invoicing provider that is also a
- * Peppol access point. Same `DocumentTransport` interface `pdp-transport.ts`, `ksef-transport.ts`
+ * Peppol access point. Same `DocumentTransport` interface `superpdp-transport.ts`, `ksef-transport.ts`
  * and `sdi-transport.ts` implement, registered the same way (`TransportRegistry.register` in
  * `documents-core.module.ts`) - nothing anywhere special-cases it, a company opts in through
  * `Company.invoiceTransportId` like for any other channel.
@@ -56,7 +56,7 @@
  *
  * ## The deposit succeeds at acceptance, not at the SdI verdict
  *
- * Exactly the narrower contract `pdp-transport.ts`'s own header defines: `send()` SUCCEEDS the moment
+ * Exactly the narrower contract `superpdp-transport.ts`'s own header defines: `send()` SUCCEEDS the moment
  * A-Cube ACCEPTS the deposit (a non-empty `uuid` back from `POST /invoices`, HTTP 202). The deposit
  * is asynchronous by A-Cube's own design - the SdI outcome lands later, as a change of the invoice's
  * marking - and following it needs a poller in `conformity/pollers/`, which is separate work from the
@@ -148,7 +148,7 @@ export interface AcubeTransportDeps {
 
 const PROVIDER_ID = 'acube';
 
-/** Same "the invoice's OWN base descriptor, module-level constant" choice `pdp-transport.ts` makes
+/** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes
  *  for the identical reason: this transport is reached ONLY through `invoiceTransportId`, so it is
  *  always an invoice, never another document type, that it ever builds a payload for. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();

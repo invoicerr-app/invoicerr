@@ -99,7 +99,7 @@ export interface PaymentProvider {
    *  (already resolved and decrypted by the caller — see `ChannelCredentialsService`, never handled by
    *  this interface itself). Throws on any failure — a provider implementation never invents a session
    *  id or URL for a call that did not actually succeed (the same hard-success discipline
-   *  `pdp-transport.ts`'s own header holds for a national channel deposit). */
+   *  `superpdp-transport.ts`'s own header holds for a national channel deposit). */
   createCheckoutSession(
     credentials: Record<string, unknown>,
     input: CreateCheckoutSessionInput,

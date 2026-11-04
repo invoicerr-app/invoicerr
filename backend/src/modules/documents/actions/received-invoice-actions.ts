@@ -9,7 +9,7 @@ import { checkReceivedInvoiceLineTotals } from '../received-invoices/line-totals
 import { readInboundFile } from '../received-invoices/storage';
 import { markClientAsSupplier } from '../received-invoices/supplier-reconciliation';
 import { listPayments, recordPayment, toSettlementPaymentInputs } from '../settlement/payments';
-import { PdpReceptionStatusPusher } from '../transports/pdp/pdp-reception';
+import { SuperPdpReceptionStatusPusher } from '../transports/superpdp/superpdp-reception';
 import { ActionRegistry } from './action-registry';
 import { registerDeleteAction } from './generic-actions';
 
@@ -19,7 +19,7 @@ import { registerDeleteAction } from './generic-actions';
  * this type is never SENT anywhere (see received-invoice.descriptor.ts's own header). "record-payment"
  * is the exception to "never touches a transport": it does not deliver anything itself, but — like
  * "approve"/"reject" — it CAN reach out to PDP, one-way, best-effort, to report a buyer-side lifecycle
- * status back to the platform a PDP-sourced deposit actually came from (`pdpStatusPusher`, below).
+ * status back to the platform a PDP-sourced deposit actually came from (`superPdpStatusPusher`, below).
  *
  * `webhooks` only reaches the generic "delete" below — "receive" (this
  * type's OWN create/edit action, not `registerSaveDraftAction`) deliberately does NOT dispatch
@@ -27,7 +27,7 @@ import { registerDeleteAction } from './generic-actions';
  * inbound deposit, and wiring `DOCUMENT_CREATED` here too, ahead of that decision, would give a
  * receiver two different "this arrived" signals for the same fact.
  *
- * `pdpStatusPusher` (`transports/pdp/pdp-reception.ts#PdpReceptionStatusPusher`) is OPTIONAL and
+ * `superPdpStatusPusher` (`transports/superpdp/superpdp-reception.ts#SuperPdpReceptionStatusPusher`) is OPTIONAL and
  * narrow-interfaced on purpose — the same "depend on the interface, not the concrete class" discipline
  * `webhooks` above already holds: every EXISTING jest spec constructs this registry without one, and a
  * record with no `data.pdpInboundId` (every manually-uploaded received-invoice, and any before this
@@ -38,7 +38,7 @@ import { registerDeleteAction } from './generic-actions';
 export function registerReceivedInvoiceActions(
   registry: ActionRegistry,
   webhooks?: DocumentWebhookEmitter,
-  pdpStatusPusher?: PdpReceptionStatusPusher,
+  superPdpStatusPusher?: SuperPdpReceptionStatusPusher,
 ): void {
   // Same "pre-fill paidAt/currency" resolver `invoice-actions.ts`'s own "record-payment" already
   // registers, for the identical reason: `paidAt`/`currency` are both `required: true`
@@ -129,7 +129,7 @@ export function registerReceivedInvoiceActions(
    *
    * Both ALSO push a buyer-side lifecycle status back to PDP when this record actually came from
    * there (`data.pdpInboundId`, set by the reception sweep — `conformity/reception-sweep-runner.ts`)
-   * — best-effort, see `pdpStatusPusher`'s own header above: a push failure NEVER undoes or blocks the
+   * - best-effort, see `superPdpStatusPusher`'s own header above: a push failure NEVER undoes or blocks the
    * local status change, which is already persisted by the time the push is even attempted.
    */
   registry.register('received-invoice', 'approve', async ({ companyId, documentId }) => {
@@ -140,7 +140,7 @@ export function registerReceivedInvoiceActions(
     // "approve" racing a "reject" on the same record) would otherwise both pass the earlier
     // `availableWhen: ['received']` read and both commit, each pushing its OWN "approved" status to
     // PDP for the same deposit. The compare-and-swap lets only the first through; the second gets a
-    // named 409 before `pdpStatusPusher` is ever reached.
+    // named 409 before `superPdpStatusPusher` is ever reached.
     const document = await updateDocumentStatus(
       companyId,
       'received-invoice',
@@ -154,7 +154,7 @@ export function registerReceivedInvoiceActions(
 
     const pdpInboundId = readPdpInboundId(document.data);
     if (pdpInboundId) {
-      await pdpStatusPusher?.pushApproved(companyId, pdpInboundId);
+      await superPdpStatusPusher?.pushApproved(companyId, pdpInboundId);
     }
 
     return { document, changed: true, message: 'Approved.' };
@@ -188,7 +188,7 @@ export function registerReceivedInvoiceActions(
 
     const pdpInboundId = readPdpInboundId(document.data);
     if (pdpInboundId) {
-      await pdpStatusPusher?.pushRejected(companyId, pdpInboundId, reason);
+      await superPdpStatusPusher?.pushRejected(companyId, pdpInboundId, reason);
     }
 
     return { document, changed: true, message: 'Rejected.' };
@@ -273,7 +273,7 @@ export function registerReceivedInvoiceActions(
 
     const pdpInboundId = readPdpInboundId(documentData);
     if (justSettled && pdpInboundId) {
-      await pdpStatusPusher?.pushPaid(companyId, pdpInboundId);
+      await superPdpStatusPusher?.pushPaid(companyId, pdpInboundId);
     }
 
     return {
