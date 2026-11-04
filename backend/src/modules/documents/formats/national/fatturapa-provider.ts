@@ -73,11 +73,7 @@ import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
-import {
-  defaultCompanyLawCatalog,
-  companyLawFormIsCovered,
-  readCompanyLawDetails,
-} from '../../company-law/company-law';
+import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
@@ -119,8 +115,9 @@ function fmtRate(n: number): string {
  * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the
  * company is not in liquidation. A value that IS declared but cannot be carried by the block is a
  * different matter: it refuses the export with an error naming the field, never dropping the block
- * in silence. Only a legal form the section covers with a printed mention has a register entry to
- * declare here.
+ * in silence. Whether a legal form holds a register entry is declared by the country file itself
+ * (`hasRegisterEntry`), not inferred from a printed mention: a ditta individuale is registered under
+ * art. 2188 c.c. even though art. 2250 prints nothing for it.
  *
  * The `NumeroREA` question the issue left open is settled by the specification itself: Specifiche
  * tecniche del formato della FatturaPA v1.4 §3.3.4 defines it as « il numero di repertorio con il
@@ -137,7 +134,8 @@ function iscrizioneReaFor(company: DocumentFormatParty): IscrizioneRea {
   const file = defaultCompanyLawCatalog.fileFor(resolvePartyCountryCode(company) ?? '');
   if (!file) return { errors: [] };
   const details = readCompanyLawDetails(company.companyLaw);
-  if (!details.legalForm || !companyLawFormIsCovered(file, details.legalForm)) return { errors: [] };
+  const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
+  if (!form?.hasRegisterEntry) return { errors: [] };
 
   const stringValue = (key: string): string => {
     const value = details.values?.[key];
@@ -167,7 +165,6 @@ function iscrizioneReaFor(company: DocumentFormatParty): IscrizioneRea {
   if (!/^[A-Z]{2}$/.test(province) || !number) return { errors: [] };
   if (liquidation !== 'LN' && liquidation !== 'LS') return { errors: [] };
 
-  const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
   const capital = details.values?.shareCapital;
   const capitalAmountText =
     capital && typeof capital === 'object' && capital.currency.toUpperCase() === 'EUR'

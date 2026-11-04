@@ -153,6 +153,11 @@ quotes, credit notes and purchase orders (atti e corrispondenza), from codice ci
 The sede is the company address. Text read at normattiva.it on 2026-10-25 (in force since
 29-7-2009).
 
+Art. 2250 prints nothing for a sole trader or an unlisted form, but that says nothing about the
+registro delle imprese: art. 2188 c.c. makes registration compulsory for every imprenditore. The
+`hasRegisterEntry` flag on each legal form of `it.json` states that fact separately from the printed
+mentions, and is `true` for every Italian form.
+
 ## FatturaPA `IscrizioneREA`
 
 The FatturaPA export fills `CedentePrestatore/IscrizioneREA` from the same `companyLaw` section. The
@@ -169,9 +174,11 @@ company is not in liquidation.
 | `StatoLiquidazione` | `liquidationStatus`, declared as `LN` or `LS` |
 
 `registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`, so the company
-settings collect them even though no printed mention quotes them. An `asked` field is only asked for
-a legal form the section covers with a printed mention: a ditta individuale or an unlisted form is
-never asked for facts only a register entry carries.
+settings collect them even though no printed mention quotes them. An `asked` field is collected for a
+legal form the section covers with a printed mention **or** one that declares `hasRegisterEntry`.
+A ditta individuale and an unlisted Italian form therefore collect the register office province and
+the liquidation status too, and `IscrizioneREA` is filled from them: the two questions are
+independent, since a form with no printed mention still has a register entry.
 
 The demo company's `registerOfficeProvince` follows the city it is seeded with (`cityProvinces` in
 `it.json`: Milano MI, Torino TO, Bologna BO). A declared value the block cannot carry (a province

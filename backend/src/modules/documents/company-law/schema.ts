@@ -29,7 +29,7 @@ export interface CompanyLawField {
   label: string;
   /** Ask for it even when no printed mention of the selected form quotes it, for a fact an
    *  electronic format needs but the document itself does not print. Only asked for a legal form the
-   *  section covers with at least one mention. */
+   *  section covers with at least one mention, or one that declares a register entry. */
   asked?: boolean;
 }
 
@@ -41,6 +41,9 @@ export interface CompanyLegalForm {
   designation: string;
   /** Whether the form has a single member. `undefined` when the question does not apply to it. */
   singleMember?: boolean;
+  /** Whether the form is entered in the country's trade register, independently of any printed
+   *  mention. An `asked` field is collected for such a form even when art. 2250 prints nothing. */
+  hasRegisterEntry?: boolean;
   notes?: string;
 }
 
@@ -171,6 +174,8 @@ function assertValidLegalForms(file: CountryCompanyLawFile, fail: Fail): Set<str
     if (!form.code.startsWith(`${file.countryCode}_`))
       fail(`legal form "${form.code}" must start with "${file.countryCode}_".`);
     if (codes.has(form.code)) fail(`legal form "${form.code}" is declared twice.`);
+    if (form.hasRegisterEntry !== undefined && typeof form.hasRegisterEntry !== 'boolean')
+      fail(`legal form "${form.code}" has a hasRegisterEntry that is not a boolean.`);
     codes.add(form.code);
   }
   return codes;

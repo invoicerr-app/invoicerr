@@ -203,7 +203,7 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     expect(xml).not.toContain('<IscrizioneREA>');
   });
 
-  it('ignores register facts on a legal form the section covers with no mention', async () => {
+  it('carries IscrizioneREA for a ditta individuale, whose register entry art. 2250 does not print', async () => {
     const seller = registeredSeller('IT_DITTA_INDIVIDUALE', {
       registerOfficeProvince: 'MI',
       registerNumber: '01234567890',
@@ -213,7 +213,10 @@ describe('fatturapa-provider — FatturaPA gated by the REAL vendored Schema_VFP
     const { result, xml } = await buildSent(VALID_DATA, seller, BUYER);
 
     expect(result.validation.valid).toBe(true);
-    expect(xml).not.toContain('<IscrizioneREA>');
+    expect(xml).toContain(
+      '<IscrizioneREA><Ufficio>MI</Ufficio><NumeroREA>01234567890</NumeroREA>' +
+        '<StatoLiquidazione>LN</StatoLiquidazione></IscrizioneREA>',
+    );
   });
 
   it('1. valid 7-char IT_SDI code wins → CodiceDestinatario = that code, no PECDestinatario', async () => {

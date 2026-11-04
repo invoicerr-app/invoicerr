@@ -1,4 +1,9 @@
-import { companyLawSettings, demoCompanyLaw, normalizeCompanyLawDetails } from './company-law';
+import {
+  CompanyLawCatalog,
+  companyLawSettings,
+  demoCompanyLaw,
+  normalizeCompanyLawDetails,
+} from './company-law';
 import { assertValidCompanyLawSection, CompanyLawDemo, CountryCompanyLawFile } from './schema';
 
 function demo(overrides: Partial<CompanyLawDemo> = {}): CompanyLawDemo {
@@ -65,6 +70,15 @@ describe('a country companyLaw section is refused at load time when', () => {
     file.mentions[0].legalForms = ['LTD'];
 
     expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(/must start with "XX_"/);
+  });
+
+  it('a legal form declares a hasRegisterEntry that is not a boolean', () => {
+    const file = section();
+    file.legalForms[0].hasRegisterEntry = 'yes' as unknown as boolean;
+
+    expect(() => assertValidCompanyLawSection(file, 'xx.json')).toThrow(
+      /hasRegisterEntry that is not a boolean/,
+    );
   });
 
   it('a mention carries no source', () => {
@@ -160,12 +174,46 @@ describe('the company settings ask, for each legal form, the values its mentions
     ]);
   });
 
-  it('does not ask an Italian sole trader or unlisted form for facts only a register entry carries', () => {
+  it('asks an Italian sole trader and an unlisted form for the register facts their entry carries', () => {
     const ditta = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_DITTA_INDIVIDUALE');
     const other = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_OTHER');
+    const registerFacts = [
+      {
+        key: 'registerOfficeProvince',
+        kind: 'text',
+        label: "Sigla della provincia dell'ufficio del registro delle imprese (due lettere, e.g. MI)",
+        required: false,
+      },
+      {
+        key: 'liquidationStatus',
+        kind: 'text',
+        label: 'Stato di liquidazione: LN (non in liquidazione) o LS (in liquidazione)',
+        required: false,
+      },
+    ];
 
-    expect(ditta?.fields).toEqual([]);
-    expect(other?.fields).toEqual([]);
+    expect(ditta?.fields).toEqual(registerFacts);
+    expect(other?.fields).toEqual(registerFacts);
+  });
+
+  it('asks an asked field for a form with a register entry even when no printed mention covers it', () => {
+    const file = section({
+      legalForms: [
+        { code: 'XX_LTD', name: 'Limited company', designation: 'Ltd' },
+        { code: 'XX_SOLE', name: 'Sole trader', designation: 'Sole trader', hasRegisterEntry: true },
+      ],
+      fields: [
+        { key: 'shareCapital', kind: 'money', label: 'Share capital' },
+        { key: 'registerProvince', kind: 'text', label: 'Register province', asked: true },
+      ],
+      mentions: [],
+    });
+    const settings = companyLawSettings('XX', new CompanyLawCatalog([file]));
+
+    expect(settings.legalForms.find((form) => form.code === 'XX_LTD')?.fields).toEqual([]);
+    expect(settings.legalForms.find((form) => form.code === 'XX_SOLE')?.fields).toEqual([
+      { key: 'registerProvince', kind: 'text', label: 'Register province', required: false },
+    ]);
   });
 
   it('a country with no companyLaw section asks for nothing', () => {

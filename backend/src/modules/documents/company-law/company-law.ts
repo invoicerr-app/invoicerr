@@ -206,7 +206,9 @@ function quotesField(mention: CompanyLawMention, key: string): boolean {
 }
 
 /** Whether the section covers this legal form with at least one printed mention. A form it names no
- *  mention for (a sole trader, an unlisted form) is outside the obligations those mentions serve. */
+ *  mention for (a sole trader, an unlisted form) carries none of the obligations those mentions
+ *  serve, but it may still hold a register entry (`hasRegisterEntry`) that an electronic format
+ *  needs, which is a separate question. */
 export function companyLawFormIsCovered(file: CountryCompanyLawFile, formCode: string): boolean {
   return file.mentions.some((mention) => mention.legalForms.includes(formCode));
 }
@@ -214,9 +216,12 @@ export function companyLawFormIsCovered(file: CountryCompanyLawFile, formCode: s
 function fieldsFor(file: CountryCompanyLawFile, formCode: string): CompanyLawFormField[] {
   const mentions = file.mentions.filter((mention) => mention.legalForms.includes(formCode));
   const covered = companyLawFormIsCovered(file, formCode);
+  const hasRegisterEntry = file.legalForms.some(
+    (form) => form.code === formCode && form.hasRegisterEntry === true,
+  );
   return file.fields.flatMap((field) => {
     const quoting = mentions.filter((mention) => quotesField(mention, field.key));
-    if (quoting.length === 0 && !(field.asked && covered)) return [];
+    if (quoting.length === 0 && !(field.asked && (covered || hasRegisterEntry))) return [];
     return [
       { key: field.key, kind: field.kind, label: field.label, required: quoting.some((m) => m.required) },
     ];

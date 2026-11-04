@@ -1437,52 +1437,61 @@
         "code": "IT_SRL",
         "name": "Società a responsabilità limitata",
         "designation": "S.r.l.",
+        "hasRegisterEntry": true,
         "singleMember": false
       },
       {
         "code": "IT_SRL_SOCIO_UNICO",
         "name": "Società a responsabilità limitata con unico socio",
         "designation": "S.r.l.",
+        "hasRegisterEntry": true,
         "singleMember": true
       },
       {
         "code": "IT_SPA",
         "name": "Società per azioni",
         "designation": "S.p.A.",
+        "hasRegisterEntry": true,
         "singleMember": false
       },
       {
         "code": "IT_SPA_SOCIO_UNICO",
         "name": "Società per azioni con unico socio",
         "designation": "S.p.A.",
+        "hasRegisterEntry": true,
         "singleMember": true
       },
       {
         "code": "IT_SAPA",
         "name": "Società in accomandita per azioni",
-        "designation": "S.a.p.a."
+        "designation": "S.a.p.a.",
+        "hasRegisterEntry": true
       },
       {
         "code": "IT_SNC",
         "name": "Società in nome collettivo",
-        "designation": "S.n.c."
+        "designation": "S.n.c.",
+        "hasRegisterEntry": true
       },
       {
         "code": "IT_SAS",
         "name": "Società in accomandita semplice",
-        "designation": "S.a.s."
+        "designation": "S.a.s.",
+        "hasRegisterEntry": true
       },
       {
         "code": "IT_DITTA_INDIVIDUALE",
         "name": "Ditta individuale",
         "designation": "Ditta individuale",
-        "notes": "No mention: art. 2250 binds società, not a sole trader."
+        "hasRegisterEntry": true,
+        "notes": "Art. 2250 prints no mention for a sole trader, but art. 2188 c.c. makes registration compulsory for an imprenditore: the register entry exists even though nothing is printed from it."
       },
       {
         "code": "IT_OTHER",
         "name": "Altra forma",
         "designation": "Altra forma",
-        "notes": "No mention is declared for a form this catalog does not list."
+        "hasRegisterEntry": true,
+        "notes": "No mention is declared for a form this catalog does not list; an Italian impresa still holds a register entry under art. 2188 c.c."
       }
     ],
     "fields": [
