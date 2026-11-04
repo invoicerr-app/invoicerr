@@ -67,7 +67,9 @@ export interface ImportPrefillResult {
   syntax: "CII" | "UBL" | "FACTURX_CII"
   originalNumber: string
   fields: Record<string, unknown>
-  clientMatch: ImportClientMatch
+  /** Present for an invoice only: a credit note has no client field (it names its corrected
+   *  invoice's client, or nobody when free), so there is nothing to match or propose. */
+  clientMatch?: ImportClientMatch
   clientProposal?: ImportClientProposal
   totals: { net: number; vat: number; gross: number; linesNet?: number; linesVat?: number }
   warnings: string[]

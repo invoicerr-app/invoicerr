@@ -338,7 +338,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
 
             {descriptor.id === "invoice" &&
             prefill?.clientProposal &&
-            prefill.clientMatch.outcome !== "matched" &&
+            prefill.clientMatch?.outcome !== "matched" &&
             !form.watch("client") ? (
               <div
                 className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm"
