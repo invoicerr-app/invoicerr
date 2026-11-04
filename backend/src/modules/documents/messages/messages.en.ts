@@ -23,7 +23,7 @@ export const SERVER_MESSAGES_EN = {
   'documents.messages.tax.rateNotInCatalog':
     "Line {{line}}'s chosen VAT rate (\"{{rate}}\") is not one of {{country}}'s known VAT rates, so this cross-border B2C line is taxed in {{country}}, at {{country}}'s own standard rate instead, since there is no known rate on this invoice to honour.",
   'documents.messages.tax.exemptCountryUnsupported':
-    'This company is marked "{{scheme}}" (VAT-exempt), but no VAT/GST tax system is known for its own country ({{country}}) in this catalog, so this invoice was left at the rate the user chose, since a small-business VAT exemption is not something this catalog can safely apply for a country with an unknown or non-VAT tax system, guessed either way.',
+    'This company is covered by the small-business VAT exemption, but no VAT/GST tax system is known for its own country ({{country}}) in this catalog, so this invoice was left at the rate the user chose, since a small-business VAT exemption is not something this catalog can safely apply for a country with an unknown or non-VAT tax system, guessed either way.',
   'documents.messages.tax.ossStandardRate':
     "This invoice is an intra-Community distance sale taxed in {{country}} (EU One-Stop-Shop, Directive 2006/112/EC art. 33(a)), so {{country}}'s STANDARD VAT rate ({{rate}}%) was applied. {{country}}'s own reduced rates are not modelled here and an invoice line carries nothing that says which products they cover. Check the destination rate yourself if what you are selling is reduced-rated there, or this invoice over-charges the customer.",
 
