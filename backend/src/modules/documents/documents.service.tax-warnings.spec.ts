@@ -120,7 +120,7 @@ describe('DocumentsService.getTaxWarnings — the caveats the tax engine records
     const { warnings } = await buildService().getTaxWarnings('company-1', 'invoice', 'doc-1');
 
     expect(warnings).toHaveLength(1);
-    expect(formatServerMessage(warnings[0])).toMatch(/has not been confirmed valid yet/);
+    expect(formatServerMessage(warnings[0])).toMatch(/has no stored verification verdict yet/);
     // The consequence, not just the fact: this is the half that changes the tax.
     expect(formatServerMessage(warnings[0])).toMatch(/treated as B2C/);
     // Pinned WHOLE, unusually for this codebase, and only for the two warnings a user can actually
@@ -129,8 +129,8 @@ describe('DocumentsService.getTaxWarnings — the caveats the tax engine records
     // faithfully while the two literals agree. Rewording the engine's message is fine — it fails
     // here first, pointing at the copy that has to move with it.
     expect(formatServerMessage(warnings[0])).toBe(
-      'Buyer VAT number "DE136695976" has not been confirmed valid yet (status: not checked), so this ' +
-        'buyer is treated as B2C until it is verified, never a silent B2B.',
+      'Buyer VAT number "DE136695976" has no stored verification verdict yet, so this buyer is ' +
+        'treated as B2C until it is verified, never a silent B2B.',
     );
   });
 

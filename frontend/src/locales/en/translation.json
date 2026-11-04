@@ -5962,8 +5962,9 @@
     },
     "messages": {
       "tax": {
-        "buyerVatInvalid": "Buyer VAT number \"{{vatNumber}}\" is not syntactically valid for {{country}} ({{reason}}), so this buyer is treated as B2C, never a silent B2B.",
+        "buyerVatInvalid": "Buyer VAT number \"{{vatNumber}}\" is not syntactically valid for {{country}}, so this buyer is treated as B2C, never a silent B2B.",
         "buyerVatUnverified": "Buyer VAT number \"{{vatNumber}}\" has not been confirmed valid yet (status: {{status}}), so this buyer is treated as B2C until it is verified, never a silent B2B.",
+        "buyerVatNotChecked": "Buyer VAT number \"{{vatNumber}}\" has no stored verification verdict yet, so this buyer is treated as B2C until it is verified, never a silent B2B.",
         "supplyTypeMissing": "Line {{line}} has no declared supply type (goods/services), so it is treated as SERVICES for cross-border VAT purposes; declare it explicitly if this line is actually a delivery of goods.",
         "rateNotInCatalog": "Line {{line}}'s chosen VAT rate (\"{{rate}}\") is not one of {{country}}'s known VAT rates, so this cross-border B2C line is taxed in {{country}}, at {{country}}'s own standard rate instead, since there is no known rate on this invoice to honour.",
         "ossStandardRate": "This invoice is an intra-Community distance sale taxed in {{country}} (EU One-Stop-Shop, Directive 2006/112/EC art. 33(a)), so {{country}}'s STANDARD VAT rate ({{rate}}%) was applied. {{country}}'s own reduced rates are not modelled here and an invoice line carries nothing that says which products they cover. Check the destination rate yourself if what you are selling is reduced-rated there, or this invoice over-charges the customer.",
@@ -5976,7 +5977,9 @@
         "vatRateMissing": "line {{line}} has no usable VAT rate, counted in net only"
       },
       "lineTotals": {
-        "mismatch": "Line total mismatch ({{total}}): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed."
+        "mismatchNet": "Line total mismatch (net / HT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+        "mismatchVat": "Line total mismatch (VAT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+        "mismatchGross": "Line total mismatch (gross / TTC): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed."
       },
       "credits": {
         "currencyMismatch": "Credit note \"{{label}}\" declares its own currency as {{noteCurrency}}, different from invoice's own {{invoiceCurrency}}. The credited amount is always computed from, and expressed in, the invoice's own currency; counted as {{invoiceCurrency}}, never converted (there is nothing to convert)."

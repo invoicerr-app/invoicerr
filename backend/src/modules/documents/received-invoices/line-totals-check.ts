@@ -40,6 +40,7 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
 import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
+import { ServerMessageKey } from '../messages/messages.en';
 import { ServerMessage, serverMessage } from '../messages/server-message';
 import { computeDocumentTotals } from '../totals/compute-totals';
 
@@ -56,7 +57,9 @@ function fmt(minor: number, currency: string): string {
 
 interface StatedTotal {
   key: 'netAmount' | 'vatAmount' | 'grossAmount';
-  label: string;
+  /** The catalog key that names THIS total: the label ("net / HT", "VAT", "gross / TTC") is part of
+   *  the sentence, so it is translated with it, never passed as a param. */
+  messageKey: ServerMessageKey;
   computedMinor: number;
 }
 
@@ -76,12 +79,24 @@ export function checkReceivedInvoiceLineTotals(data: Record<string, unknown>): S
   const warnings: ServerMessage[] = [];
 
   const statedTotals: StatedTotal[] = [
-    { key: 'netAmount', label: 'net / HT', computedMinor: totals.netMinor },
-    { key: 'vatAmount', label: 'VAT', computedMinor: totals.vatMinor },
-    { key: 'grossAmount', label: 'gross / TTC', computedMinor: totals.grossMinor },
+    {
+      key: 'netAmount',
+      messageKey: 'documents.messages.lineTotals.mismatchNet',
+      computedMinor: totals.netMinor,
+    },
+    {
+      key: 'vatAmount',
+      messageKey: 'documents.messages.lineTotals.mismatchVat',
+      computedMinor: totals.vatMinor,
+    },
+    {
+      key: 'grossAmount',
+      messageKey: 'documents.messages.lineTotals.mismatchGross',
+      computedMinor: totals.grossMinor,
+    },
   ];
 
-  for (const { key, label, computedMinor } of statedTotals) {
+  for (const { key, messageKey, computedMinor } of statedTotals) {
     const stated = data[key];
     if (typeof stated !== 'number') continue; // nothing typed/extracted for this total — nothing to compare
 
@@ -90,8 +105,7 @@ export function checkReceivedInvoiceLineTotals(data: Record<string, unknown>): S
     if (deltaMinor <= tolerance) continue;
 
     warnings.push(
-      serverMessage('documents.messages.lineTotals.mismatch', {
-        total: label,
+      serverMessage(messageKey, {
         lines: totals.lines.length,
         computed: fmt(computedMinor, currency),
         stated: fmt(statedMinor, currency),

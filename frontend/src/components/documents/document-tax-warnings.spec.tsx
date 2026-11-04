@@ -16,7 +16,7 @@ const mockedUseDocumentTaxWarnings = vi.mocked(useDocumentTaxWarnings)
 
 const UNCONFIRMED_VAT_WARNING = {
   key: "documents.messages.tax.buyerVatUnverified",
-  params: { vatNumber: "DE136695976", status: "not checked" },
+  params: { vatNumber: "DE136695976", status: "UNAVAILABLE" },
 }
 
 const OSS_STANDARD_RATE_WARNING = {

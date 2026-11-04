@@ -112,8 +112,8 @@ describe("extractLineTotalWarnings - both stored shapes stay readable", () => {
 
   it("keeps message objects, dropping anything that is neither a string nor a keyed object", () => {
     const message = {
-      key: "documents.messages.lineTotals.mismatch",
-      params: { total: "gross / TTC" },
+      key: "documents.messages.lineTotals.mismatchGross",
+      params: { lines: 1, computed: "600.00 EUR", stated: "650.00 EUR" },
     }
 
     expect(extractLineTotalWarnings({ lineTotalWarnings: [message, 42, null, { key: 3 }] })).toEqual([
@@ -122,7 +122,7 @@ describe("extractLineTotalWarnings - both stored shapes stay readable", () => {
   })
 
   it("accepts a mix of both shapes, in their stored order", () => {
-    const message = { key: "documents.messages.lineTotals.mismatch", params: {} }
+    const message = { key: "documents.messages.lineTotals.mismatchGross", params: {} }
 
     expect(extractLineTotalWarnings({ lineTotalWarnings: ["legacy", message] })).toEqual(["legacy", message])
   })
@@ -146,9 +146,7 @@ describe("<LineTotalWarnings> - the banner the reader actually sees", () => {
 
   it("shows a current message object through the active language's catalog", () => {
     render(
-      <LineTotalWarnings
-        warnings={[{ key: "documents.messages.lineTotals.mismatch", params: { total: "gross / TTC" } }]}
-      />,
+      <LineTotalWarnings warnings={[{ key: "documents.messages.lineTotals.mismatchGross", params: {} }]} />,
     )
 
     fireEvent.click(screen.getByTestId("document-line-total-warnings-help-trigger"))

@@ -340,11 +340,13 @@ function resolveBuyerRole(
 
   const syntax = validateVat(buyerVat.value, buyerCountryCode);
   if (!syntax.valid) {
+    // `syntax.reason` is a developer-facing English sentence from the syntax validators, shared with
+    // every other caller of `validateVat`; the user-facing warning names the fact and the country,
+    // and its own sentence lives in the catalog.
     warnings.push(
       serverMessage('documents.messages.tax.buyerVatInvalid', {
         vatNumber: buyerVat.value,
         country: buyerCountryCode,
-        reason: syntax.reason ?? 'failed format check',
       }),
     );
     return { role: 'B2C', validated: false };
@@ -354,11 +356,17 @@ function resolveBuyerRole(
     return { role: 'B2B', validated: true };
   }
 
+  // A stored verdict ('INVALID' | 'UNAVAILABLE') is a code, safe as a param; a null one means no
+  // verdict was ever stored, which is its own sentence rather than a made-up status value.
   warnings.push(
-    serverMessage('documents.messages.tax.buyerVatUnverified', {
-      vatNumber: buyerVat.value,
-      status: buyerVat.validationStatus ?? 'not checked',
-    }),
+    buyerVat.validationStatus === null
+      ? serverMessage('documents.messages.tax.buyerVatNotChecked', {
+          vatNumber: buyerVat.value,
+        })
+      : serverMessage('documents.messages.tax.buyerVatUnverified', {
+          vatNumber: buyerVat.value,
+          status: buyerVat.validationStatus,
+        }),
   );
   return { role: 'B2C', validated: false };
 }

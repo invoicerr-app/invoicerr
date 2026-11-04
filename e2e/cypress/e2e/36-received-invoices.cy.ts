@@ -444,8 +444,8 @@ describe("Receiving invoices", () => {
 				params?: Record<string, unknown>;
 			}[];
 			expect(warnings, "un avertissement NOMMÉ est porté par le document").to.have.length(1);
-			expect(warnings[0].key).to.eq("documents.messages.lineTotals.mismatch");
-			expect(warnings[0].params?.total).to.eq("gross / TTC");
+			expect(warnings[0].key).to.eq("documents.messages.lineTotals.mismatchGross");
+			expect(warnings[0].params?.stated).to.contain("650");
 
 			// … and it is VISIBLE ON SCREEN when reopening the document from the list (not only at
 			// creation time — the document CARRIES it).

@@ -13,9 +13,11 @@
  */
 export const SERVER_MESSAGES_EN = {
   'documents.messages.tax.buyerVatInvalid':
-    'Buyer VAT number "{{vatNumber}}" is not syntactically valid for {{country}} ({{reason}}), so this buyer is treated as B2C, never a silent B2B.',
+    'Buyer VAT number "{{vatNumber}}" is not syntactically valid for {{country}}, so this buyer is treated as B2C, never a silent B2B.',
   'documents.messages.tax.buyerVatUnverified':
     'Buyer VAT number "{{vatNumber}}" has not been confirmed valid yet (status: {{status}}), so this buyer is treated as B2C until it is verified, never a silent B2B.',
+  'documents.messages.tax.buyerVatNotChecked':
+    'Buyer VAT number "{{vatNumber}}" has no stored verification verdict yet, so this buyer is treated as B2C until it is verified, never a silent B2B.',
   'documents.messages.tax.supplyTypeMissing':
     'Line {{line}} has no declared supply type (goods/services), so it is treated as SERVICES for cross-border VAT purposes; declare it explicitly if this line is actually a delivery of goods.',
   'documents.messages.tax.rateNotInCatalog':
@@ -32,8 +34,12 @@ export const SERVER_MESSAGES_EN = {
     'line {{line}} has a non-numeric unit price (received {{value}}), counted as 0',
   'documents.messages.totals.vatRateMissing': 'line {{line}} has no usable VAT rate, counted in net only',
 
-  'documents.messages.lineTotals.mismatch':
-    "Line total mismatch ({{total}}): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+  'documents.messages.lineTotals.mismatchNet':
+    "Line total mismatch (net / HT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+  'documents.messages.lineTotals.mismatchVat':
+    "Line total mismatch (VAT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+  'documents.messages.lineTotals.mismatchGross':
+    "Line total mismatch (gross / TTC): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
 
   'documents.messages.credits.currencyMismatch':
     'Credit note "{{label}}" declares its own currency as {{noteCurrency}}, different from invoice\'s own {{invoiceCurrency}}. The credited amount is always computed from, and expressed in, the invoice\'s own currency; counted as {{invoiceCurrency}}, never converted (there is nothing to convert).',

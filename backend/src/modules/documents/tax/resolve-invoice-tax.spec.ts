@@ -496,7 +496,24 @@ describe('resolveInvoiceCrossBorderTax — a syntactically wrong VAT number neve
     });
     const line = (result.data.lines as Record<string, unknown>[])[0];
     expect(line.__crossBorderCategory).not.toBe('AE');
-    expect(formatServerMessages(result.warnings).join(' ')).toMatch(/has not been confirmed valid yet/);
+    expect(formatServerMessages(result.warnings).join(' ')).toMatch(/has no stored verification verdict yet/);
+    // The params carry values only: the sentence itself lives in the catalog, so no English phrase
+    // travels as a param (see `messages.en.ts`'s own header).
+    expect(result.warnings[0].params).toEqual({ vatNumber: FR_DE_VALID_VAT });
+  });
+
+  it('a VAT number the member state did not confirm carries the stored status CODE, never a phrase', () => {
+    const data = dataWithLines([
+      { description: 'Consulting', quantity: 1, unitPrice: 500, vatRate: '20', supplyType: 'SERVICES' },
+    ]);
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      buyerVat: { value: FR_DE_VALID_VAT, validationStatus: 'INVALID' },
+      data,
+    });
+    expect(result.warnings[0].key).toBe('documents.messages.tax.buyerVatUnverified');
+    expect(result.warnings[0].params).toEqual({ vatNumber: FR_DE_VALID_VAT, status: 'INVALID' });
   });
 });
 
