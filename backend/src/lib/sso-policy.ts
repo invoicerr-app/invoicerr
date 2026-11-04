@@ -21,6 +21,7 @@
  */
 
 import type { BetterAuthOptions, ValidateUserInfoResult } from 'better-auth';
+import type { GenericOAuthConfig } from 'better-auth/plugins';
 
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 
@@ -173,6 +174,51 @@ export function resolveOidcEndpoints(env: NodeJS.ProcessEnv = process.env): Oidc
   }
 
   return config;
+}
+
+/**
+ * The instance-wide provider config `lib/auth.ts` hands better-auth's `genericOAuth` plugin, built
+ * from the environment in one testable place.
+ *
+ * This used to be an inline `createOidcConfig` in `lib/auth.ts`, where no spec could reach it: that
+ * module builds a live Prisma adapter and reads the real `.env` at import time (see this module's
+ * own header), so the wiring itself (which id is registered, when a client secret is set, whether
+ * discovery wins over the manual endpoints) had no test at all. The shape is deliberately the same
+ * as `resolveOidcEndpoints` above: a pure function of the env it is given, returning the exact
+ * array the plugin consumes.
+ *
+ * `provider` is passed separately so `lib/auth.ts` keeps resolving the instance provider ONCE at
+ * boot (its identity cannot change without a restart) instead of this function silently re-deriving
+ * it. Its default is that same resolution, so a caller that only cares about the env gets the same
+ * answer.
+ *
+ * `clientId: 'TEMP'` when `OIDC_CLIENT_ID` is unset is preserved on purpose: the plugin only gets
+ * registered when `envOidcProvider.registered` is true, but a spec or a future caller building the
+ * config unconditionally must still see a stable, non-empty placeholder rather than `undefined`.
+ */
+export function createEnvOidcConfig(
+  env: NodeJS.ProcessEnv = process.env,
+  provider: EnvOidcProvider = resolveEnvOidcProvider(env),
+): GenericOAuthConfig[] {
+  const config: GenericOAuthConfig = {
+    // `resolveEnvOidcProvider` owns this id so the backend, `entrypoint.sh`'s config.json, and the
+    // sign-in page cannot disagree about it, and so the default is URL-safe (the old
+    // `'Generic OIDC'` default carried a SPACE into a callback path segment).
+    providerId: provider.providerId,
+    clientId: env.OIDC_CLIENT_ID || 'TEMP',
+    scopes: ['openid', 'profile', 'email'],
+    mapProfileToUser: mapOidcProfileToUser,
+  };
+
+  if (env.OIDC_CLIENT_SECRET) {
+    config.clientSecret = env.OIDC_CLIENT_SECRET;
+  }
+
+  // Discovery-vs-manual endpoint selection, the `OIDC_JWKS_URI` legacy alias, and
+  // `OIDC_END_SESSION_ENDPOINT` (RP-Initiated Logout) are all decided in `resolveOidcEndpoints`.
+  Object.assign(config, resolveOidcEndpoints(env));
+
+  return [config];
 }
 
 // ---------------------------------------------------------------------------
