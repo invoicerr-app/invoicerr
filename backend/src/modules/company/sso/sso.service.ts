@@ -7,11 +7,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-// Namespace import, not a default one — see `modules/webhooks/webhook-url-guard.ts`'s own comment for
-// why: `import dns from 'node:dns'` compiles under `nest build`'s CommonJS interop helper but resolves
-// to `undefined` under this project's ts-jest config (no `esModuleInterop`), which would make
-// `dns.promises.resolveTxt` crash in every test rather than hit the `jest.mock('node:dns', ...)` this
-// file's own spec relies on. `import * as dns` behaves identically under both compilers.
+// Namespace import, not a default one: `import dns from 'node:dns'` resolves to undefined under
+// ts-jest, breaking the `jest.mock('node:dns')` this file's spec relies on.
 import * as dns from 'node:dns';
 
 import prisma from '@/prisma/prisma.service';
@@ -35,10 +32,8 @@ import { credentialAudit } from '@/utils/credential-access-audit';
 import { OutboundUrlValidationError, assertPublicOutboundUrl } from '@/utils/outbound-url';
 
 /**
- * The secret half of a company's SSO configuration — the ONLY thing that lives inside the encrypted
- * blob. A client id is not strictly a secret, but it belongs to the same credential pair and storing
- * it alongside the secret means there is exactly ONE ciphertext to manage, rotate and audit, the same
- * discipline `CompanyChannelConfig.config` holds for a whole credentials blob.
+ * The secret half of an SSO configuration, the only thing inside the encrypted blob. The client id
+ * lives here too, so there is one ciphertext to manage, rotate and audit.
  */
 interface SsoCredentials {
   clientId: string;
@@ -47,9 +42,8 @@ interface SsoCredentials {
 }
 
 /**
- * Everything needed to BUILD a better-auth provider, decrypted. Server-side only: this is handed to
- * `sso-registrar.service.ts`, never to a controller. See `SsoProviderStatus` below for the only shape
- * an HTTP response may carry.
+ * Everything needed to build a better-auth provider, decrypted. Server-side only, never handed to a
+ * controller; `SsoProviderStatus` is the only shape a response may carry.
  */
 export interface SsoProviderResolved {
   companyId: string;
@@ -65,10 +59,9 @@ export interface SsoProviderResolved {
 }
 
 /**
- * What the boot/registration path reads: enough to decide whether a row is worth registering, and
- * under which id — and deliberately NOT the credentials. Decryption is deferred to the moment the
- * provider is actually built (see the registrar's thunk), so booting the API never decrypts every
- * tenant's secret just to learn that a row exists.
+ * What the boot path reads: enough to decide whether a row is worth registering, never the
+ * credentials. Decryption waits until the provider is actually built, so a boot never decrypts every
+ * tenant's secret just to learn a row exists.
  */
 export interface SsoRegistrationRow {
   companyId: string;
@@ -80,16 +73,12 @@ export interface SsoRegistrationRow {
 }
 
 /**
- * What GET returns — status ONLY. The surest way to honour "an SSO response never carries a
- * credential" is for the response TYPE to have nowhere to put one, rather than trusting a masking
- * step to run correctly on every call site forever. Exactly the reasoning
- * `channels.service.ts`'s `ChannelConfigStatus` and `signing-certificates`' `toMeta()` already apply;
- * `sso.service.spec.ts` carries the mutation proof.
+ * What GET returns: status only. The response type has nowhere to put a credential, which is sturdier
+ * than trusting a masking step to run on every call site.
  *
- * `issuerHost` is a HOST, never a full URL with its query string: it answers "which IdP is this
- * pointed at" for an admin checking their own configuration, without echoing back a configuration
- * value. `redirectUri` is derived purely from `APP_URL` and the provider id — it contains nothing from
- * the encrypted blob, and the customer needs it to register this application at their own IdP.
+ * `issuerHost` is a host, never a full URL with its query string, so an admin can see which IdP is
+ * configured without echoing a stored value back. `redirectUri` comes from `APP_URL` and the provider
+ * id only, and the customer needs it to register this application at their own IdP.
  */
 export interface SsoProviderStatus {
   providerId: string;
@@ -98,12 +87,8 @@ export interface SsoProviderStatus {
   isActive: boolean;
   redirectUri: string;
   /**
-   * Every domain this company has claimed, and its verification state — see `SsoDomainStatus` below.
-   * Replaces what used to be a single `domainsVerified: boolean` covering a WHOLE `emailDomains: []`
-   * array: that shape could not express "acme.com is proven, gmail.com (added later) is not" — see
-   * `CompanySsoDomain`'s own schema comment for the full reasoning. Not a secret list: the company
-   * typed every one of these domains itself, and the DNS record values are meant to be published in
-   * PUBLIC DNS by design.
+   * Every claimed domain with its verification state, so "acme.com is proven, gmail.com is not" can be
+   * expressed. Not a secret list: the company typed these, and the DNS values are public by design.
    */
   domains: SsoDomainStatus[];
 }
@@ -154,30 +139,19 @@ const blank = (value: string | undefined | null): string | undefined => {
 };
 
 /**
- * SSRF guard for the four IdP endpoints a company types into this form itself — `discoveryUrl`,
- * `authorizationUrl`, `tokenUrl`, `userInfoUrl` are handed unchanged to better-auth's `genericOAuth`
- * (`sso-registrar.service.ts#buildCompanyProvider`), which fetches the discovery document and later
- * POSTs this tenant's own `clientId`/`clientSecret` to whichever `token_endpoint` that document names
- * — a SECOND, equally attacker-controlled hop. https-only and port-443-only (an IdP endpoint has no
- * legitimate reason to be plain HTTP or a non-standard port); the private/loopback/link-local block
- * and the DNS re-resolution live in the shared `@/utils/outbound-url.ts` guard, same as the webhook
- * and PDP/SdI transport guards.
+ * SSRF guard for the four IdP endpoints a company types in: they are handed to better-auth's
+ * `genericOAuth`, which fetches the discovery document and then POSTs this tenant's client credentials
+ * to whichever `token_endpoint` that document names, a second attacker-controlled hop. https and port
+ * 443 only; the private-range block and DNS re-resolution come from the shared outbound-URL guard.
  *
- * Re-run again in `sso-registrar.service.ts#buildCompanyProvider`, right before better-auth actually
- * dials one of these URLs — this write-time check alone would leave a DNS-rebinding window (a hostname
- * resolving to a public IP now, repointed at an internal one by the time a real sign-in attempt
- * triggers the lazy provider build).
+ * Re-run in `sso-registrar.service.ts#buildCompanyProvider` right before better-auth dials a URL: the
+ * write-time check alone leaves a DNS-rebinding window.
  *
- * UNLIKE the webhook/PDP/SdI guards, neither call site can PIN the actual connection to the address
- * just validated (`@/utils/outbound-url.ts#pinnedDispatcher`/`pinnedNodeLookup`): the real network
- * calls (discovery fetch, then the token/userinfo exchange during an actual sign-in) happen entirely
- * inside better-auth's `genericOAuth` plugin and `@better-auth/core/oauth2` — both call `betterFetch`
- * directly with no `dispatcher`/custom-`fetch` override exposed through the plugin's own config
- * surface (checked directly against this project's installed `better-auth` version, not assumed). A
- * residual DNS-rebinding window therefore remains here — narrowed to the few milliseconds between this
- * re-validation and better-auth's own resolution, never eliminated. Closing it fully would mean
- * vendoring/monkey-patching those library internals, which is its own, disproportionate piece of work
- * for this fix; re-validating immediately before every use is the mitigation actually shipped.
+ * Unlike the webhook and transport guards, this cannot pin the connection to the validated address:
+ * the real calls happen inside better-auth's `genericOAuth` and `betterFetch`, with no dispatcher or
+ * fetch override exposed. A residual rebinding window therefore remains between this validation and
+ * the library's own resolution, narrowed but not eliminated; closing it would mean patching the
+ * library.
  */
 async function assertEndpointsArePublic(endpoints: {
   discoveryUrl?: string;
@@ -192,8 +166,7 @@ async function assertEndpointsArePublic(endpoints: {
       await assertPublicOutboundUrl(url, { allowPrivateForTesting });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {
-        // Never echo `err.reason` or the URL itself back to the client — see outbound-url.ts's own
-        // header on why that would turn the guard into a network-scanning oracle.
+        // Never echo the reason or the URL: either would make this a scanning oracle.
         throw new BadRequestException(`${field} must be a public https:// endpoint on port 443.`);
       }
       throw err;
@@ -219,14 +192,10 @@ const issuerHostOf = (row: {
 };
 
 /**
- * Per-company OIDC single sign-on — the stored rows behind the "SSO" company-settings screen and
- * behind the runtime provider registration.
- *
- * `Controller → Service → Prisma`: this is the ONE place `CompanySsoProvider` rows are read or
- * written. Modelled field-for-field on `channels/channels.service.ts`: secrets in one AES-256-GCM
- * blob via `utils/secret-crypto.ts` (the same `CREDENTIALS_ENCRYPTION_KEY`, never a second scheme),
- * non-secret columns in the clear so the screen can render without decrypting, and a
- * `credentialAudit.emit(...)` on every resolve and every write.
+ * Per-company OIDC single sign-on: the rows behind the SSO settings screen and the runtime provider
+ * registration. The only place `CompanySsoProvider` rows are read or written. Secrets in one
+ * AES-256-GCM blob with the shared key, non-secret columns in the clear so the screen renders without
+ * decrypting, and an audit event on every resolve and write.
  */
 @Injectable()
 export class SsoService {
@@ -254,11 +223,9 @@ export class SsoService {
   }
 
   /**
-   * The redirect URI the customer must register at their own IdP.
-   *
-   * This is the whole reason the company id lives inside the provider id: better-auth's callback route
-   * is `/callback/:id`, so the URI is fully determined by the company. Built from `APP_URL` — the same
-   * base better-auth itself uses (`lib/auth.ts`'s `baseURL`), so the two cannot disagree.
+   * The redirect URI the customer registers at their IdP. better-auth's callback is `/callback/:id`, so
+   * the company id in the provider id is what makes the URI company-specific. Built from `APP_URL`, the
+   * same base better-auth uses, so the two cannot disagree.
    */
   redirectUriFor(companyId: string): string {
     const base = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -266,17 +233,11 @@ export class SsoService {
   }
 
   /**
-   * Create or update this company's SSO provider.
+   * Creates or updates the SSO provider. Credentials are encrypted at rest and the return value is
+   * status-only, so no response ever echoes a secret.
    *
-   * The credentials are encrypted at rest and the RETURN VALUE is status-only: a caller that just
-   * supplied the secret does not need it echoed back, which keeps "no response ever carries a
-   * credential" true of every response this service hands a controller, not just the plain GET.
-   *
-   * This write NEVER touches `CompanySsoDomain` — not to insert a row, not to clear one, not even to
-   * touch an unrelated column on an existing one. Domain claims and their verification live entirely
-   * behind the dedicated `/company/sso/domains` routes below, so that editing this provider's label or
-   * rotating its client secret can never, as a side effect, grant or revoke a domain's verified state.
-   * `sso.service.spec.ts` carries the mutation proof.
+   * This write never touches `CompanySsoDomain`: domain claims live behind their own routes, so
+   * editing a label or rotating a secret can never grant or revoke a domain's verified state.
    */
   async upsert(companyId: string, body: UpsertSsoProviderBody): Promise<SsoProviderStatus> {
     if (!isEncryptionAvailable()) {
@@ -362,35 +323,22 @@ export class SsoService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Which provider an email address should be sent to — `{ providerId, label }` or null.
+   * Which provider an email domain should sign in to, or null.
    *
-   * Anonymous and rate-limited, so it reads only the columns the decision needs and hands them to the
-   * pure `resolveSsoLookup`, which matches exclusively on an ACTIVE row where the SPECIFIC domain
-   * asked for is VERIFIED. The query is already narrowed to `CompanySsoDomain` rows claiming this
-   * exact domain string, under an active provider, so a non-matching address cannot be used to
-   * enumerate anything — `resolveSsoLookup` still re-checks both `isActive` and verification itself,
-   * the same belt-and-suspenders structure this method held before the domain table existed, so the
-   * security property is provable from the pure function alone, without trusting this query to be
-   * exactly right.
+   * Anonymous and rate-limited: it reads only the columns the decision needs and leaves matching to
+   * the pure `resolveSsoLookup`, which requires an active provider and a verified domain for that exact
+   * host, so a non-matching address cannot enumerate anything.
    */
   async lookupByEmail(email: string): Promise<SsoLookupResult | null> {
-    // `emailDomain` is the ONE place the "what counts as a domain" rule lives, and reusing it here is
-    // what keeps the row this QUERIES for identical to the row `resolveSsoLookup` will then ACCEPT.
-    // This line used to do its own split, which accepted "alice@ acme.com" and went looking for
-    // " acme.com" — two slightly different rules for the same question.
+    // `emailDomain` is the one place the "what counts as a domain" rule lives, so the row queried here
+    // is exactly the row `resolveSsoLookup` will accept.
     const domain = emailDomain(email);
     if (!domain) return null;
 
     const rows = await prisma.companySsoDomain.findMany({
       where: { domain, provider: { isActive: true } },
-      // Oldest verification wins. In the ordinary case there is at most one VERIFIED row for a given
-      // domain (see `verifyDomain`'s advisory lock, which is what actually enforces that), so this
-      // ordering changes nothing day to day — but if the database is ever in the pathological state
-      // where two rows are both verified for the same domain (a pre-existing race predating that
-      // lock, or a future bug), this is what makes routing a DETERMINISTIC, explainable pick — the
-      // earliest `verifiedAt` — rather than whatever order Postgres happens to return matching rows
-      // in, which is unspecified and can change between calls. Ties among unverified rows (null
-      // `verifiedAt`) don't matter: `resolveSsoLookup` never matches them.
+      // Oldest verification wins, so routing stays deterministic if two rows ever end up verified for
+      // the same domain.
       orderBy: { verifiedAt: 'asc' },
       select: {
         domain: true,
@@ -403,9 +351,7 @@ export class SsoService {
       providerId: companyProviderId(row.provider.companyId),
       label: row.provider.label,
       isActive: row.provider.isActive,
-      // Only ever ONE domain per candidate here (the query is already narrowed to `domain`), but the
-      // pure function's contract is "a row's verified domains", so the shape stays a list rather than
-      // adding a second, single-domain-only path just for this call site.
+      // One domain per candidate here, but the pure function takes a row's verified domains as a list.
       verifiedDomains: row.verifiedAt != null ? [row.domain] : [],
     }));
 
@@ -447,11 +393,9 @@ export class SsoService {
   }
 
   /**
-   * One company's full, decrypted provider configuration — for building the better-auth provider.
-   *
-   * Null (never a throw) when the row is absent, inactive, incomplete, corrupted, or encryption itself
-   * is unavailable: the registrar treats every one of those identically as "this company has no usable
-   * SSO", exactly as a transport's preflight treats an unresolvable channel.
+   * One company's decrypted provider configuration, for building the better-auth provider. Null rather
+   * than a throw when the row is absent, inactive, incomplete, corrupted, or encryption is unavailable:
+   * the registrar treats all of those as "no usable SSO".
    */
   async resolveForRegistration(companyId: string): Promise<SsoProviderResolved | null> {
     const providerId = companyProviderId(companyId);
@@ -525,22 +469,17 @@ export class SsoService {
       where: { companyId },
       select: { domains: { orderBy: { createdAt: 'asc' } } },
     });
-    // No provider row yet is not an error here (unlike `addDomain`, which must refuse it): a company
-    // that has configured nothing simply has no domains to list, the same way an empty list is not an
-    // error for `webhooks.service.ts#list`.
+    // No provider row yet is not an error here: a company that configured nothing simply has no
+    // domains to list.
     return provider ? provider.domains.map(toDomainStatus) : [];
   }
 
   /**
-   * Claim a domain: mints a verification token and returns the DNS record to publish. Requires an
-   * existing provider row (`CompanySsoDomain.providerId` is a foreign key to it, and a claim with no
-   * OIDC configuration behind it could never be signed into anyway) — configure the provider first via
-   * `upsert()`.
+   * Claims a domain: mints a verification token and returns the DNS record to publish. Requires an
+   * existing provider row, since a claim with no OIDC configuration could never be signed into.
    *
-   * Re-adding a domain that is already claimed but UNVERIFIED re-mints its token rather than erroring:
-   * the caller may simply have lost the original value, or be rotating it for hygiene, and refusing a
-   * harmless retry would only push them toward "remove, then re-add" for the exact same effect. A
-   * domain that is already VERIFIED is left untouched — see the branch below for why.
+   * Re-adding an unverified domain re-mints its token, because the caller may have lost it; a verified
+   * domain is left untouched.
    */
   async addDomain(companyId: string, rawDomain: string): Promise<SsoDomainStatus> {
     const [domain] = normalizeDomains(rawDomain);
@@ -557,10 +496,8 @@ export class SsoService {
       where: { providerId_domain: { providerId: provider.id, domain } },
     });
 
-    // An already-VERIFIED domain must not be handed a fresh, unpublished token just because the same
-    // claim was submitted again — that would silently downgrade a proven domain back to "not verified
-    // in practice" (the OLD token is still what the caller's DNS zone carries) until they notice and
-    // re-publish, for zero benefit.
+    // Re-minting a verified domain would downgrade it in practice: the caller's DNS zone still
+    // carries the old token.
     const row =
       existing?.verifiedAt != null
         ? existing
@@ -583,10 +520,8 @@ export class SsoService {
 
   /** Removes a domain claim outright — an unverified claim is nobody's business to keep around. */
   async removeDomain(companyId: string, id: string): Promise<{ deleted: boolean }> {
-    // Scoped through the relation, exactly like every other per-company lookup in this codebase: `id`
-    // arrives untrusted off the wire, and matching it against `provider.companyId` in the SAME query is
-    // what makes it impossible for company A to delete company B's claim by guessing or enumerating ids
-    // — there is no separate "does this belong to me" check to forget to add later.
+    // Scoped through the relation: `id` arrives untrusted, and matching it against `provider.companyId`
+    // in the same query is what stops company A deleting company B's claim.
     const { count } = await prisma.companySsoDomain.deleteMany({ where: { id, provider: { companyId } } });
     credentialAudit.emit({
       companyId,
@@ -599,30 +534,17 @@ export class SsoService {
   }
 
   /**
-   * Runs the DNS TXT challenge for one claimed domain and, on success, writes `verifiedAt` — the ONLY
-   * place in this codebase that column is ever written.
+   * Runs the DNS TXT challenge for one claim and, on success, writes `verifiedAt`.
    *
-   * Three distinct failure shapes, all surfaced as an actionable 4xx rather than a 500: the record does
-   * not exist yet (the ordinary "haven't published it yet" case), the record exists but does not carry
-   * the expected value (a typo, or a stale token from before a re-mint), and a genuine DNS failure
-   * (timeout, resolver outage) — none of these may ever be mistaken for a pass.
-   *
-   * Every branch — success, each failure shape above, the 409 conflict, and a transaction failure —
-   * calls `credentialAudit.emit(...)`, the same "log every reason, not just the win" discipline
-   * `resolveForRegistration`'s `miss()` helper holds elsewhere in this file. A domain-verification
-   * attempt is itself a security-relevant event (someone is trying to prove control of a domain to
-   * route sign-ins at it), so an operator investigating "why is our domain not verifying" or "who kept
-   * trying to claim this domain" needs the failed attempts in the log, not only the eventual success.
-   * None of these events carry a token, a client secret, or ciphertext — only `companyId`, an opaque
-   * `credentialRef` (built from the company's own provider id and the domain it typed in), and a short
-   * machine-readable `reason` string.
+   * The three failure shapes are 4xx, never a 500 and never a pass: record missing, record without the
+   * expected value, and a genuine DNS failure. Every branch audits the attempt, since proving control
+   * of a domain is security-relevant; the events carry no token, secret or ciphertext.
    */
   async verifyDomain(companyId: string, id: string): Promise<SsoDomainStatus> {
     const claim = await prisma.companySsoDomain.findFirst({ where: { id, provider: { companyId } } });
     if (!claim) {
-      // Audited like every other failure branch below (see this method's own header on why they all
-      // are now) — `id` is the only fact known at this point, since there is no row to read a domain
-      // off of; that alone is not a secret (it is the exact value the caller itself just supplied).
+      // Audited like every other failure branch; `id` is the only fact known, and the caller just
+      // supplied it.
       credentialAudit.emit({
         companyId,
         credentialRef: `sso-domain:${companyProviderId(companyId)}:${id}`,
@@ -634,9 +556,7 @@ export class SsoService {
       throw new NotFoundException('No such domain claim for this company.');
     }
 
-    // Idempotent: a caller re-clicking "Verify" on an already-proven domain should see the same
-    // success again, not pay for a fresh DNS round-trip and a fresh pass through the conflict
-    // transaction below for a fact that is already settled.
+    // Idempotent: re-clicking Verify on a proven domain answers success without a DNS round trip.
     if (claim.verifiedAt != null) {
       return toDomainStatus(claim);
     }
@@ -644,9 +564,7 @@ export class SsoService {
     const recordName = buildVerificationRecordName(claim.domain);
     const expectedValue = buildVerificationRecordValue(claim.token);
 
-    // The credentialRef every audit event below for THIS claim shares — same shape as the success
-    // event at the bottom of this method, so a log search for one `sso-domain:...` ref surfaces every
-    // attempt, failed or not.
+    // One credentialRef for every audit event of this claim, so a log search surfaces every attempt.
     const credentialRef = `sso-domain:${companyProviderId(companyId)}:${claim.domain}`;
 
     let records: string[][];
@@ -702,44 +620,15 @@ export class SsoService {
 
     try {
       await prisma.$transaction(async (tx) => {
-        // First verified wins. There is deliberately no database constraint stopping two DIFFERENT
-        // providers from both holding an UNVERIFIED row for the same domain string (see
-        // `CompanySsoDomain`'s own schema comment for why a global unique index would itself be a
-        // hazard) — so this is the one place that actually enforces "at most one company may be
-        // VERIFIED for a given domain at a time", inside a transaction so the check-then-write is
-        // atomic. The refusal message names only the domain, never the other company: this route is
-        // reachable by anyone who can claim a domain, and confirming that some OTHER named tenant holds
-        // it would itself be information this endpoint has no business revealing.
+        // First verified wins. No database constraint stops two providers holding an unverified row for
+        // the same domain (the unique index is (providerId, domain)), so this check enforces "one
+        // verified company per domain". The refusal names only the domain: naming the other tenant
+        // would reveal information to anyone who can claim a domain.
         //
-        // "Atomic" needs a lock, not just a transaction: `prisma.service.ts` opens this client with no
-        // isolation override, so this transaction runs at Postgres's default READ COMMITTED, under
-        // which a `findFirst` followed by an `update` is NOT atomic against another transaction doing
-        // the same thing concurrently — each can run its `findFirst` before the other's `update`
-        // commits, see no conflict, and both write `verifiedAt`. That is a real race: two DIFFERENT
-        // `CompanySsoDomain` rows (different `providerId`, i.e. different companies) can share the same
-        // `domain` string, since the unique index is `(providerId, domain)`, never a bare `domain` (see
-        // that index's own comment) — and both racers can only reach this code at all by having
-        // independently passed the real DNS TXT challenge above, so this is not a way to steal a domain
-        // without owning it, only a way to end the race with two "winners" instead of one.
-        //
-        // A transaction-scoped Postgres advisory lock keyed on the domain string closes the window:
-        // this call blocks the SECOND racer until the FIRST racer's transaction commits (releasing the
-        // lock automatically — `_xact_lock` variants always release at transaction end, never needing
-        // an explicit unlock) or rolls back, so by the time the second racer's `findFirst` below runs,
-        // the first racer's `update` has either landed or been undone. Scoped to THIS domain only:
-        // verifying "other.example" never waits on anyone verifying "acme.com".
-        //
-        // `hashtext()` is a 32-bit hash, so two unrelated domain strings can collide onto the same lock
-        // key. That is harmless and must stay harmless: a collision only ever makes two UNRELATED
-        // verification attempts briefly serialize against each other (one waits a moment longer than
-        // strictly necessary) — it can never make either of them SKIP the conflict check below, because
-        // that check still queries by the real `domain` string, not by the hash. Do not "improve" this
-        // into a wider hash or a two-key `pg_advisory_xact_lock(int, int)` form to chase the collision
-        // away: there is no correctness bug here for a wider key to fix, only a false sense that one
-        // exists. The alternative of a `Serializable` transaction plus an application-level retry loop
-        // on Postgres's `40001` serialization-failure error would be equally correct but strictly more
-        // code for no extra safety in this specific race (a single conflict-then-write, not a multi-step
-        // read pattern), so it is not used here.
+        // A transaction is not enough: at READ COMMITTED a findFirst then update is not atomic against
+        // another racer, and both can write `verifiedAt`. A transaction-scoped advisory lock on the
+        // domain serializes the second racer until the first commits. A hashtext collision only makes
+        // two unrelated verifications wait a moment; the conflict check still queries the real domain.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${claim.domain}))`;
 
         const conflict = await tx.companySsoDomain.findFirst({

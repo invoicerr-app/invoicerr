@@ -32,20 +32,17 @@ describe("Client contacts (#415)", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Contacts Demo SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue des Contacts");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("552100554");
 		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		// The Contact step already carries ONE blank contact row (client-upsert.tsx's own
 		// `blankPrimaryContact` default) - filled in as contact #1, then two more added.
@@ -72,7 +69,6 @@ describe("Client contacts (#415)", () => {
 
 		cy.screenshot("415-after-form-contacts", { capture: "viewport" });
 
-		cy.continueSteppedDialog("client-dialog");
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 
@@ -111,20 +107,17 @@ describe("Client contacts (#415)", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Middle Removal SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue du Milieu");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("552100554");
 		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.firstName"]').clear().type("First");
 		cy.get('[name="contacts.0.lastName"]').clear().type("Contact");
@@ -157,7 +150,6 @@ describe("Client contacts (#415)", () => {
 		cy.get('[name="contacts.1.firstName"]').should("have.value", "Third");
 		cy.get('[data-cy="client-contact-row-1"]').should("not.contain.text", "Second Contact");
 
-		cy.continueSteppedDialog("client-dialog");
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 
@@ -246,12 +238,8 @@ describe("Client contacts (#415)", () => {
 				// Bob's, since the previous test made him primary.
 				cy.get('[data-cy="edit-client-button-bob@contacts-demo.example"]').click();
 				cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
-				cy.continueSteppedDialog("client-dialog");
-				cy.continueSteppedDialog("client-dialog");
-				cy.continueSteppedDialog("client-dialog");
 				cy.get('[data-cy="client-contact-primary-radio-2"]', { timeout: 10000 }).click();
 				cy.get('[data-cy="client-contact-row-2"]').should("contain.text", "Primary");
-				cy.continueSteppedDialog("client-dialog");
 				cy.get('[data-cy="client-submit"]').click();
 				cy.get('[data-cy="client-dialog"]').should("not.exist");
 

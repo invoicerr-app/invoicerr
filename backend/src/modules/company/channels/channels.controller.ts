@@ -45,12 +45,10 @@ export class ChannelsController {
     const [configured, suggested, reportingObligations, legal] = await Promise.all([
       this.channels.listCompanyChannels(companyId),
       this.channels.suggestedChannels(companyId),
-      // Declarative reporting — a categorically different fact from `suggested` above: never a
-      // transport hint, always "declare this invoice's data to this authority" — see
-      // `channels.service.ts#reportingObligations`'s own header.
+      // Declarative reporting: never a transport hint, always "declare this invoice's data to this
+      // authority".
       this.channels.reportingObligations(companyId),
-      // Issue #527 - the settings screen's own level-1 nav + banner verdict, see
-      // `channels.service.ts#legalChannels`'s own header.
+      // The legal-channel nav and banner verdict, computed server-side.
       this.channels.legalChannels(companyId),
     ]);
     return {

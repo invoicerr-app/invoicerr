@@ -481,6 +481,21 @@ export class DocumentsController {
     return this.documentsService.collectWidgets(companyId, 'dashboard', parseDashboardQuery(rawQuery));
   }
 
+  @Get('dashboard/overview')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'Invoicing overview for the dashboard',
+    description:
+      'What was invoiced this month and last month (net, in the company currency), money collected ' +
+      'month by month this year with what is still owed by due month after the current one, the ' +
+      'clients with overdue invoices (one row per client and currency) and the invoices due in the ' +
+      'next seven days.',
+  })
+  @ApiResponse({ status: 200, description: 'Overview computed' })
+  invoiceOverview(@ActiveCompany() companyId: string) {
+    return this.documentsService.invoiceOverview(companyId);
+  }
+
   @Get('statistics')
   @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({

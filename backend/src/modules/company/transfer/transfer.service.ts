@@ -1,16 +1,10 @@
 /**
- * Company ownership transfer (product decision 2026-09-17) — an OWNER hands the OWNER role to another
- * user's account; the recipient must explicitly accept before anything changes. See this module's
- * `transfer.module.ts` header for the full shape (controllers, sweep, mail).
+ * Company ownership transfer: an OWNER hands the role to another account, and nothing changes until
+ * the recipient accepts.
  *
- * ## Anti-enumeration, by construction
- * `initiateTransfer` returns the SAME `{ message }` whether or not `toEmail` resolves to an existing
- * account, and — this is the part a response shape alone can't fake — creates NO row at all when it
- * doesn't. The two branches still diverge in local work after that (one extra company lookup and one
- * row insert on the "exists" branch) — negligible against a local Postgres — but the one difference
- * that would actually be WORTH timing (a real network round-trip to the mail provider, only ever on
- * the "exists" branch) is closed by never awaiting that send before responding — see the `void
- * this.mailService.sendForCompany(...)` below.
+ * Anti-enumeration: the response is identical whether or not the email resolves to an account, and no
+ * row is created when it does not. The mail send is never awaited, so timing cannot tell the two
+ * branches apart either.
  */
 import {
   BadRequestException,

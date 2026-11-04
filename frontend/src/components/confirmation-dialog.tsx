@@ -78,10 +78,10 @@ export function ConfirmationDialog({
             <span className="font-semibold text-foreground">{detailValue}</span>
           </div>
         ) : null}
-        <DialogFooter className="flex !flex-col-reverse gap-2 justify-end">
+        <DialogFooter>
           <Button
             variant="outline"
-            className="w-full bg-transparent"
+            className="bg-transparent"
             onClick={() => onOpenChange(false)}
             disabled={loading}
             dataCy={`${dataCy}-cancel`}
@@ -89,7 +89,6 @@ export function ConfirmationDialog({
             {cancelLabel}
           </Button>
           <Button
-            className="w-full"
             variant={destructive ? "destructive" : "default"}
             onClick={onConfirm}
             disabled={loading}

@@ -58,6 +58,22 @@ describe("Accessibility check and animations", () => {
 		});
 	});
 
+	// Issue #715: Radix's modal menu marked the page behind it (sidebar included) aria-hidden while
+	// its buttons stayed focusable. The whole page is measured on purpose: the regression is on a
+	// sibling of the menu, not inside it.
+	it("passes a whole-page axe check while a row menu is open", () => {
+		createDraftInvoice().then((invoiceId) => {
+			cy.visit("/documents/invoice");
+			cy.get(`[data-cy="document-list-row-${invoiceId}"]`, { timeout: 15000 }).should("exist");
+			cy.get('[data-cy="sidebar-user-menu-trigger"]', { timeout: 15000 }).should("be.visible");
+
+			cy.openDocumentRowMenu(invoiceId);
+			cy.get(`[data-cy="document-row-menu-content-${invoiceId}"]`).should("be.visible");
+
+			cy.assertAccessible();
+		});
+	});
+
 	it("waits for a menu to finish fading out", () => {
 		createDraftInvoice().then((invoiceId) => {
 			cy.visit("/documents/invoice");

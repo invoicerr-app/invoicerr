@@ -5,14 +5,9 @@ beforeEach(() => {
 });
 
 /**
- * The client dialog (client-upsert.tsx) is a components/ui/stepped-dialog.tsx wizard: Identity
- * (type, name/first+last name, description, founded date, supplier) -> Address (country, street,
- * postal/city/state) -> Tax & identifiers (kind, currency, country-specific identifiers, Peppol) ->
- * Contact & portal (email, phone, language) -> Summary. Every "fills the whole form then submits" test
- * below walks that same order, `cy.continueSteppedDialog('client-dialog')` between steps (the command
- * awaits `handleContinue`'s own async `form.trigger(...)` rather than racing a bare click) — and a
- * validation test now only fills UP TO the step that owns the field under test, since an earlier
- * step's own "Continue" already blocks before a later step ever mounts.
+ * The client dialog (client-upsert.tsx) shows every section on one page (form-page-dialog.tsx):
+ * Identity, Address, Tax & identifiers, Contact & portal, Summary. Saving validates the whole form
+ * first, so a validation test fills what it needs and clicks save.
  */
 function expectClientDetail(label: string, value: string): void {
 	cy.get('[data-cy="client-view-dialog"]')
@@ -48,13 +43,11 @@ describe("Clients E2E", () => {
 			cy.get('[name="description"]')
 				.clear()
 				.type("A leading technology company");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("123 Tech Boulevard");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("San Francisco");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
@@ -69,12 +62,10 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 			cy.get('[data-cy="client-currency-select"] input').type("Euro");
 			cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("contact@acme.org");
 			cy.get('[name="contacts.0.phone"]').clear().type("+1 23 456 7890");
 			cy.assertAccessible();
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -97,13 +88,11 @@ describe("Clients E2E", () => {
 			cy.get('[name="contactFirstname"]').clear().type("Jane");
 			cy.get('[name="contactLastname"]').clear().type("Doe");
 			cy.get('[name="description"]').clear().type("Freelance developer");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "United States");
 			cy.get('[name="address"]').clear().type("456 Developer Lane");
 			cy.get('[name="postalCode"]').clear().type("67890");
 			cy.get('[name="city"]').clear().type("Los Angeles");
-			cy.continueSteppedDialog("client-dialog");
 
 			// The United States has no per-country identifiers catalog of its own (only the five
 			// in-scope countries — FR/DE/IT/PL/PT — have one) — the Tax & identifiers step must show
@@ -125,11 +114,9 @@ describe("Clients E2E", () => {
 			cy.get(
 				'[data-cy="client-currency-select-option-united-states-dollar-($)"]',
 			).click();
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("jane.doe@freelance.org");
 			cy.get('[name="contacts.0.phone"]').clear().type("+1 98 765 4321");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -153,7 +140,7 @@ describe("Clients E2E", () => {
 			// "name" is validated on the Identity step's own "Continue" — no need to reach any later
 			// step at all.
 			cy.get('[name="name"]').clear();
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|nom/i);
 		});
@@ -169,16 +156,14 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Test Company");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear();
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|siret|legal/i);
 		});
@@ -200,7 +185,7 @@ describe("Clients E2E", () => {
 			cy.get('[name="contactFirstname"]').clear();
 			cy.get('[name="contactLastname"]').clear().type("Smith");
 
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|firstname|prénom/i);
 		});
@@ -220,7 +205,7 @@ describe("Clients E2E", () => {
 			cy.get('[name="contactFirstname"]').clear().type("John");
 			cy.get('[name="contactLastname"]').clear();
 
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/required|requis|lastname|nom/i);
 		});
@@ -247,24 +232,20 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("No Email At All SARL");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			// The email field, left BLANK — no error, no block, the Contact step's own "Continue"
 			// accepts it exactly like a filled one.
 			cy.get('[name="contacts.0.email"]').clear();
 			cy.get('[name="contacts.0.phone"]').clear().type("+1 23 456 7890");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -284,22 +265,19 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Test Company");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.continueSteppedDialog("client-dialog");
 
 			// A VALID SIREN — see the previous test's identical comment.
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("not-an-email");
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/format|invalid|invalide|email/i);
 		});
@@ -315,7 +293,6 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Test Company");
-			cy.continueSteppedDialog("client-dialog");
 
 			// "postalCode" is validated on the Address step's own "Continue" — no need to reach Tax &
 			// identifiers or Contact at all.
@@ -323,7 +300,7 @@ describe("Clients E2E", () => {
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("AB");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.get('[data-cy="client-dialog-continue"]').click();
+			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("be.visible");
 			cy.contains(/format|invalid|invalide|postal|code/i);
 		});
@@ -349,22 +326,18 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Bad VAT Syntax SARL");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("123 Test St");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("123456");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("bad-vat-syntax@example.com");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -408,21 +381,17 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type(originalName);
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("1 Original Street");
 			cy.get('[name="postalCode"]').clear().type("12345");
 			cy.get('[name="city"]').clear().type("Test City");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type(duplicateEmail);
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 			cy.wait("@createOriginal").its("response.statusCode").should("eq", 201);
@@ -449,18 +418,15 @@ describe("Clients E2E", () => {
 
 			// A DIFFERENT name and address — the collision under test is the EMAIL alone.
 			cy.get('[name="name"]').clear().type("Duplicate Check Second SARL");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("2 Second Street");
 			cy.get('[name="postalCode"]').clear().type("54321");
 			cy.get('[name="city"]').clear().type("Other City");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("987654321");
-			cy.continueSteppedDialog("client-dialog");
 
 			// The SAME email as the previous test's client — the debounced check fires once typing
 			// settles.
@@ -472,7 +438,6 @@ describe("Clients E2E", () => {
 				.and("contain.text", originalName);
 
 			// Non-blocking: "Continue" and "Create" both still work with the warning on screen.
-			cy.continueSteppedDialog("client-dialog");
 			cy.get('[data-cy="client-submit"]').click();
 
 			cy.wait("@createDuplicate").its("response.statusCode").should("eq", 201);
@@ -493,7 +458,6 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Tech Innovations LLC");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("456 Innovation Drive");
@@ -501,15 +465,12 @@ describe("Clients E2E", () => {
 			cy.get('[name="postalCode"]').clear().type("94105");
 			cy.get('[name="city"]').clear().type("San Francisco");
 			cy.get('[name="state"]').clear().type("CA");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("112233445");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("info@techinnovations.com");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -537,22 +498,18 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("European Solutions GmbH");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "Germany");
 			cy.get('[name="address"]').clear().type("Hauptstrasse 42");
 			cy.get('[name="addressLine2"]').clear().type("3. Etage");
 			cy.get('[name="postalCode"]').clear().type("10115");
 			cy.get('[name="city"]').clear().type("Berlin");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("DE987654321");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("contact@eusolutions.de");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -571,21 +528,17 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Simple Company Ltd");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("10 Downing Street");
 			cy.get('[name="postalCode"]').clear().type("SW1A 2AA");
 			cy.get('[name="city"]').clear().type("London");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("info@simple.co.uk");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -602,11 +555,7 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should(
 				"be.visible",
 			);
-			// Editing opens every step chip already "done" (SteppedDialog's own `initialMaxReached`) —
-			// jump straight to Address rather than walking Identity -> Address first.
-			cy.get('[data-cy="client-dialog-step-address"]').click();
 			cy.get('[name="addressLine2"]').clear().type("Building B");
-			cy.get('[data-cy="client-dialog-step-recap"]').click();
 			cy.get('[data-cy="client-submit"]').click();
 
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -629,21 +578,17 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("O'Reilly & Associates, Inc.");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("789 Publishing Way");
 			cy.get('[name="postalCode"]').clear().type("11111");
 			cy.get('[name="city"]').clear().type("New York");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("987654321");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("info@oreilly.com");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -662,13 +607,11 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Société Française SAS");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("1 Rue de la Paix");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
-			cy.continueSteppedDialog("client-dialog");
 
 			// SIREN is nine digits and nothing else (countries/data/fr.json (section "identifiers"), sourced to INSEE),
 			// and that shape is now enforced on save. The VAT field keeps its FR-prefixed value: VAT is
@@ -677,10 +620,8 @@ describe("Clients E2E", () => {
 				.clear()
 				.type("123456789");
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("FR12345678901");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("contact@societe.fr");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -704,21 +645,17 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("SIREN Seul SARL");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("2 Rue de la Paix");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("contact@siren-seul.fr");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -737,22 +674,18 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("German Company GmbH");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "Germany");
 			cy.get('[name="address"]').clear().type("Hauptstrasse 1");
 			cy.get('[name="postalCode"]').clear().type("10115");
 			cy.get('[name="city"]').clear().type("Berlin");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("DE123456789");
 			cy.get('[data-cy="client-identifier-VAT"]').clear().type("DE123456789");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("contact@german.de");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 
@@ -776,12 +709,10 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Peppol Scheme Test SARL");
-			cy.continueSteppedDialog("client-dialog");
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("1 Rue Test");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-peppol-scheme-select"]')
 				.scrollIntoView()
@@ -830,12 +761,10 @@ describe("Clients E2E", () => {
 			);
 
 			cy.get('[name="name"]').clear().type("Peppol Scheme Test 2 SARL");
-			cy.continueSteppedDialog("client-dialog");
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("1 Rue Test");
 			cy.get('[name="postalCode"]').clear().type("75001");
 			cy.get('[name="city"]').clear().type("Paris");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-peppol-scheme-select"]')
 				.scrollIntoView()
@@ -892,8 +821,6 @@ describe("Clients E2E", () => {
 			// "description" lives on the Identity step, the wizard's own default landing step — no
 			// navigation needed to reach it, even in edit mode.
 			cy.get('[name="description"]').clear().type("A global technology leader");
-			// Every step is already "done" in edit mode — jump straight to Summary to save.
-			cy.get('[data-cy="client-dialog-step-recap"]').click();
 			cy.get('[data-cy="client-submit"]').click();
 
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -938,21 +865,17 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 			cy.get('[name="name"]').clear().type("Client À Supprimer SARL");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.selectCountry("client-country-select", "France");
 			cy.get('[name="address"]').clear().type("1 Rue Delete");
 			cy.get('[name="postalCode"]').clear().type("75000");
 			cy.get('[name="city"]').clear().type("Paris");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 				.clear()
 				.type("999888777");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type("delete-me@example.com");
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -1004,21 +927,17 @@ describe("Supplier role", () => {
 
 		cy.get('[name="name"]').clear().type("Fournisseur T5b SARL");
 		cy.get('[data-cy="client-is-supplier-switch"]').scrollIntoView().click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue Fournisseur");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 			.clear()
 			.type("555666777");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type("fournisseur-t5b@example.com");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -1045,23 +964,19 @@ describe("Supplier role", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Client Ordinaire T5b SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("2 Rue Ordinaire");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 })
 			.clear()
 			.type("112233446");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]')
 			.clear()
 			.type("client-ordinaire-t5b@example.com");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -1107,20 +1022,16 @@ describe("Supplier role", () => {
 
 		cy.get('[name="name"]').clear().type("Typed Fields Co");
 		cy.get('[data-cy="client-is-supplier-switch"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "Germany");
 		cy.get('[name="address"]').clear().type("Hauptstrasse 9");
 		cy.get('[name="postalCode"]').clear().type("10115");
 		cy.get('[name="city"]').clear().type("Berlin");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-kind-select"]').click();
 		cy.get('[data-cy="client-kind-government"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type("typed-fields@example.com");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -1150,7 +1061,6 @@ describe("Supplier role", () => {
 		cy.get('[data-cy="edit-client-button-typed-fields@example.com"]', { timeout: 10000 }).click();
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 		cy.get('[data-cy="client-is-supplier-switch"]').click();
-		cy.get('[data-cy="client-dialog-step-recap"]').click();
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
 
@@ -1209,13 +1119,11 @@ describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Ditta Italiana SdI Srl");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "Italy");
 		cy.get('[name="address"]').clear().type("Via Roma 10");
 		cy.get('[name="postalCode"]').clear().type("00100");
 		cy.get('[name="city"]').clear().type("Roma");
-		cy.continueSteppedDialog("client-dialog");
 
 		// The field only exists on screen because countries/data/it.json (section "identifiers") declares IT_SDI —
 		// this is the exact screen that catalog change unlocks (see it.json's own top-level notes).
@@ -1231,10 +1139,8 @@ describe("Italian recipient identifiers (IT_SDI) — FatturaPA routing", () => {
 		cy.openSearchSelect("client-currency-select");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type("fatturazione@ditta-sdi.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -1323,17 +1229,13 @@ describe("A French private client", () => {
 		cy.get('[data-cy="client-type-individual"]').click();
 		cy.get('[name="contactFirstname"]').clear().type("Jeanne");
 		cy.get('[name="contactLastname"]').clear().type("Martin");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("8 Rue des Tilleuls");
 		cy.get('[name="postalCode"]').clear().type("69003");
 		cy.get('[name="city"]').clear().type("Lyon");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).should("have.value", "");
-		cy.continueSteppedDialog("client-dialog");
-		cy.continueSteppedDialog("client-dialog");
 		cy.get('[data-cy="client-submit"]').click();
 
 		cy.wait("@createPrivateClient").its("response.statusCode").should("eq", 201);

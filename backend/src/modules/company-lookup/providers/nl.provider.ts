@@ -1,12 +1,7 @@
 /**
  * Netherlands — KVK Handelsregister.
- *
- * Endpoint : GET https://api.kvk.nl/api/v2/zoeken?kvkNummer={n}   (header `apikey`)
- * Docs     : https://developers.kvk.nl/
- * Credentials: KVK_API_KEY (free test key, paid production key).
- *
- * The KVK number is not the VAT number: Dutch VAT (BTW-id) is issued separately by
- * the Belastingdienst, so it is left to VIES.
+ * Docs: https://developers.kvk.nl/ (KVK_API_KEY). The KVK number is not the VAT number, which VIES
+ * covers.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';

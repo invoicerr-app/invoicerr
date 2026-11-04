@@ -343,8 +343,8 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
         >
           <DialogTitle className="sr-only">{title}</DialogTitle>
 
-          <div className="border-b px-4 py-3 sm:px-6 sm:py-4">
-            <h2 className="hidden text-lg font-semibold sm:block">{title}</h2>
+          <div className="px-4 pt-4 pb-2 sm:px-7 sm:pt-6">
+            <h2 className="hidden text-[26px] leading-tight sm:block">{title}</h2>
 
             {/* Compact "2/4 · Lines" — the only header a phone-width step gets room for. */}
             <p className="text-sm font-medium text-foreground sm:hidden" aria-live="polite">
@@ -357,45 +357,39 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
 
             <nav
               aria-label={t("documents.form.stepped.stepsNav", "Steps")}
-              className="mt-3 hidden items-center gap-1 sm:flex sm:flex-wrap"
+              className="mt-4 hidden auto-cols-fr grid-flow-col gap-2 sm:grid"
               data-cy={dataCy && `${dataCy}-steps`}
             >
               {steps.map((step, i) => {
                 const status = stepStatus({ index: currentIndex, maxReached }, i)
                 const clickable = status !== "upcoming"
                 return (
-                  <div key={step.id} className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={!clickable}
-                      aria-current={status === "current" ? "step" : undefined}
-                      onClick={() => setState((s) => stepperJumpTo(s, i))}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors disabled:cursor-default",
-                        status === "current" && "bg-accent text-accent-foreground",
-                        status === "done" && "text-foreground hover:bg-accent",
-                        status === "upcoming" && "text-muted-foreground",
-                      )}
-                      data-cy={dataCy && `${dataCy}-step-${step.id}`}
-                    >
-                      <span
-                        className={cn(
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px]",
-                          status === "done"
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : status === "current"
-                              ? "border-primary"
-                              : "border-muted-foreground/30",
-                        )}
-                      >
-                        {status === "done" ? <Check className="h-3 w-3" /> : i + 1}
-                      </span>
-                      {step.label}
-                    </button>
-                    {i < steps.length - 1 && (
-                      <div className="h-px w-3 shrink-0 bg-border" aria-hidden="true" />
+                  <button
+                    key={step.id}
+                    type="button"
+                    disabled={!clickable}
+                    aria-current={status === "current" ? "step" : undefined}
+                    onClick={() => setState((s) => stepperJumpTo(s, i))}
+                    className={cn(
+                      "focus-ring flex min-w-0 flex-col items-start gap-1.5 rounded-sm text-start text-[13px] font-medium transition-colors disabled:cursor-default",
+                      status === "current" && "text-foreground",
+                      status === "done" && "text-ink-2 hover:text-foreground",
+                      status === "upcoming" && "text-muted-foreground",
                     )}
-                  </div>
+                    data-cy={dataCy && `${dataCy}-step-${step.id}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "h-[3px] w-full rounded-full transition-colors duration-200",
+                        status === "upcoming" ? "bg-border" : "bg-primary",
+                      )}
+                    />
+                    <span className="flex max-w-full items-center gap-1 truncate">
+                      {status === "done" && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+                      {step.label}
+                    </span>
+                  </button>
                 )
               })}
             </nav>
@@ -404,7 +398,7 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
           <div
             ref={focusFirstField}
             key={current.id}
-            className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
+            className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-7 sm:py-5"
             data-cy={dataCy && `${dataCy}-step-body-${current.id}`}
           >
             {/* `useFormContext()` — every field renderer in the documents module reads it — needs a
@@ -413,7 +407,7 @@ export const SteppedDialog = forwardRef<SteppedDialogHandle, SteppedDialogProps>
             <Form {...form}>{current.render()}</Form>
           </div>
 
-          <div className="flex items-center justify-between gap-2 border-t px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-2 border-t bg-sunken px-4 py-3 sm:rounded-b-lg sm:px-7 sm:py-4">
             <Button
               type="button"
               variant="outline"

@@ -295,13 +295,8 @@ describe('SsoService', () => {
     });
 
     it('NEVER touches CompanySsoDomain — saving provider settings must not grant or clear verification', async () => {
-      // THE MUTATION PROOF for the domain-claim hole: this used to assert that `upsert` never wrote a
-      // whole-array `domainsVerifiedAt` column, because doing so would have made every typed-in domain
-      // instantly authoritative. That column is gone — verification now lives on its own
-      // `CompanySsoDomain` row, written ONLY by `verifyDomain()` — so the property this test protects
-      // is the same one restated for the new shape: NOTHING about a provider-settings save (label,
-      // endpoints, secret rotation, activation) may create, update, or delete a domain claim's
-      // verification state as a side effect.
+      // Mutation proof: nothing about a provider-settings save may create, update or delete a domain
+      // claim's verification as a side effect; only `verifyDomain` writes it.
       mockedPrisma.companySsoProvider.upsert.mockImplementation(async ({ create }) =>
         row({ credentials: create.credentials }),
       );
@@ -748,12 +743,8 @@ describe('SsoService', () => {
       await expect(service.verifyDomain(COMPANY_ID, 'domain-2')).rejects.toBeInstanceOf(ConflictException);
       expect(mockedPrisma.companySsoDomain.update).not.toHaveBeenCalled();
 
-      // THE MUTATION PROOF this test used to be missing: `mockResolvedValueOnce` chains return their
-      // queued value no matter what the mock was actually called with, so without this assertion a
-      // regression that mis-scoped the SECOND `findFirst` (e.g. adding `providerId: claim.providerId`
-      // to its `where`, which would make the conflict check only ever look at the CALLER'S OWN
-      // provider and therefore never detect another company holding the domain) would leave this test
-      // green. Pinning the exact `where` of call #2 is what makes it catch that regression.
+      // Pins the exact `where` of the second lookup: a `mockResolvedValueOnce` chain answers regardless
+      // of its arguments, so a mis-scoped conflict check would otherwise stay green.
       expect(mockedPrisma.companySsoDomain.findFirst).toHaveBeenNthCalledWith(2, {
         where: { domain: 'acme.com', verifiedAt: { not: null }, NOT: { id: 'domain-2' } },
       });

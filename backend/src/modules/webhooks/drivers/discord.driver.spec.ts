@@ -1,12 +1,7 @@
 /**
- * Pins `DiscordDriver`'s observable behavior after the `@teever/ez-hook` removal (the
- * "ClientsModule inimportable sous ts-jest" item — see `discord.driver.ts`'s own header): the exact
- * JSON payload Discord's webhook API receives (`POST /webhooks/{id}/{token}` —
- * https://discord.com/developers/docs/resources/webhook#execute-webhook), and the bounded-retry
- * handling of a 429 response (https://discord.com/developers/docs/topics/rate-limits: `Retry-After`
- * header in seconds, mirrored by a `retry_after` float in the JSON body). Field-for-field this
- * matches what the removed `@teever/ez-hook` version sent (`Webhook.toObject()`/`Embed.toObject()`
- * in the now-uninstalled package) — only the transport changed.
+ * Pins the payload Discord's webhook API receives (POST /webhooks/{id}/{token}) and the bounded retry
+ * on a 429. Docs: https://discord.com/developers/docs/resources/webhook#execute-webhook and
+ * https://discord.com/developers/docs/topics/rate-limits.
  */
 
 import { vi } from 'vitest';
@@ -33,10 +28,8 @@ describe('DiscordDriver', () => {
   });
 
   it('posts the exact Discord payload shape for a known event', async () => {
-    // The avatar and the author link come from THIS instance, never from the project's public site:
-    // a self-hosted deployment must not send its users to a domain where they have no account, and a
-    // chat server on a closed network cannot fetch an image from the open internet at all. Set here
-    // rather than asserted as a literal so the test proves the derivation, not a constant.
+    // The icon and author link come from THIS instance, so a self-hosted deployment never points at
+    // a site where its users have no account. Set here so the test proves the derivation.
     const previousAppUrl = process.env.APP_URL;
     process.env.APP_URL = 'https://billing.example.test';
 
@@ -54,8 +47,7 @@ describe('DiscordDriver', () => {
     expect(calledUrl).toBe('https://discord.com/api/webhooks/1/abc');
     expect(options?.method).toBe('POST');
     expect((options?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
-    // SSRF hardening (webhook-driver.interface.ts's own contract) — see also
-    // webhook-fetch-hardening.spec.ts, which covers this driver alongside the others.
+    // SSRF hardening (webhook-driver.interface.ts); webhook-fetch-hardening.spec.ts covers this driver too.
     expect(options?.redirect).toBe('manual');
     expect(options?.signal).toBeInstanceOf(AbortSignal);
 

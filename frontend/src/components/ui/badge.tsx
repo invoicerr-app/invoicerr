@@ -4,21 +4,23 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+// A tone variant is a status: a disc and a word in the tone's ink, never a filled pill. The neutral
+// variants stay small chips for counts and categories.
+const TONE_MARK =
+  "border-0 bg-transparent px-0 py-0 text-[13px] before:size-2 before:shrink-0 before:rounded-full before:bg-current before:content-[''] has-[>svg]:before:hidden"
+
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-sm border px-1.5 py-px text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus) [&>svg]:pointer-events-none [&>svg]:size-3",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary: "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive:
-          "border-transparent bg-destructive text-destructive-foreground [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        // Soft fill + saturated text, same recipe as `secondary` above but on the three semantic
-        // tones (@theme inline in index.css) — for status content, never a stand-in for `default`.
-        success: "border-transparent bg-success text-success-foreground [a&]:hover:bg-success/90",
-        warning: "border-transparent bg-warning text-warning-foreground [a&]:hover:bg-warning/90",
-        info: "border-transparent bg-info text-info-foreground [a&]:hover:bg-info/90",
+        default: "border-transparent bg-foreground text-background [a&]:hover:bg-foreground/90",
+        secondary: "border-transparent bg-muted text-ink-2 [a&]:hover:bg-muted/80",
+        outline: "text-ink-2 [a&]:hover:bg-sunken",
+        destructive: `${TONE_MARK} font-semibold text-destructive-soft-foreground`,
+        success: `${TONE_MARK} font-semibold text-success-foreground`,
+        warning: `${TONE_MARK} font-semibold text-warning-foreground`,
+        info: `${TONE_MARK} font-semibold text-info-foreground`,
       },
     },
     defaultVariants: {

@@ -392,22 +392,19 @@ export function ClientImportDialog() {
             <div className="space-y-3" data-cy="clients-import-result">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.created")}</span>
-                <span className="font-mono tabular-nums font-medium" data-cy="clients-import-result-created">
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-created">
                   {result.created}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.duplicates")}</span>
-                <span
-                  className="font-mono tabular-nums font-medium"
-                  data-cy="clients-import-result-duplicates"
-                >
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-duplicates">
                   {result.duplicates}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.rejected")}</span>
-                <span className="font-mono tabular-nums font-medium" data-cy="clients-import-result-rejected">
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-rejected">
                   {result.rejected}
                 </span>
               </div>

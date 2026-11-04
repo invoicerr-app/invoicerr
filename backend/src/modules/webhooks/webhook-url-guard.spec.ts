@@ -1,12 +1,6 @@
 /**
- * SSRF via an outbound webhook URL — the guard's own decision logic. `webhooks.service.spec.ts`
- * proves the guard is actually CALLED at create/update/send; this file proves what it decides: scheme
- * filtering, every private/loopback/link-local IP range a webhook target must not resolve to, and
- * real DNS resolution (mocked at `node:dns`) including the "reject if ANY resolved address is
- * private" and "re-resolve on every call" properties the anti-rebinding defense relies on.
- *
- * Removing the guard (or gutting any one of its checks) must turn one of these tests red — that is
- * the point of testing a security control this way rather than only asserting the happy path.
+ * The guard's decision logic: scheme filtering, every private range a target must not resolve to, and
+ * mocked DNS showing that any private answer rejects and that every call re-resolves.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -15,10 +9,8 @@ import * as dns from 'node:dns';
 
 import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url-guard';
 
-// `webhook-url-guard.ts` imports `node:dns` as a namespace (`import * as dns`, not a default import —
-// see that file's own comment on why), so the mock must match that shape exactly: no `__esModule`/
-// `default` wrapper, or the guard's `dns.promises.lookup` call would see `undefined` and never reach
-// this mock at all.
+// The guard imports `node:dns` as a namespace (`import * as dns`), so the mock must match that shape:
+// no `__esModule`/`default` wrapper, or `dns.promises.lookup` would be `undefined` here.
 vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
 const lookup = dns.promises.lookup as unknown as Mock;

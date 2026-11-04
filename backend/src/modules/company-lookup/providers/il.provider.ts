@@ -1,14 +1,9 @@
 /**
  * Israel — רשם החברות (Registrar of Companies), published as a data.gov.il dataset.
+ * Docs: https://data.gov.il/dataset/ico_gis (no credentials).
  *
- * Endpoint : GET https://data.gov.il/api/3/action/datastore_search
- *            ?resource_id={COMPANIES_RESOURCE}&filters={"מספר חברה":510000011}&limit=1
- * Docs     : https://data.gov.il/dataset/ico_gis
- * Credentials: none.
- *
- * The dataset is the register itself (~730k rows), so the field names are Hebrew and
- * the address arrives split across columns. Israeli VAT (מספר עוסק) equals the company
- * number, so no separate VAT lookup is needed.
+ * The field names are Hebrew and the address arrives split across columns. Israeli VAT equals the
+ * company number, so no separate VAT lookup is needed.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson } from '../http';

@@ -112,7 +112,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
           </span>
           <span data-cy={`signing-cert-row-${cert.id}-validity`}>
             {t("settings.signing.expires", "Expires")}:{" "}
-            <span className="font-mono tabular-nums">{formatDate(cert.notAfter)}</span>
+            <span className="tabular-nums">{formatDate(cert.notAfter)}</span>
             {" · "}
             {t("settings.signing.serial", "Serial")}:{" "}
             <span className="font-mono tabular-nums">{cert.serial}</span>

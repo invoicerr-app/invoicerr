@@ -1,22 +1,8 @@
 /**
- * The outbound-webhook queue's real end-to-end proof — real Redis, a real BullMQ worker consuming
- * exactly what `WebhookDispatcherService.dispatch` enqueues, and a REAL local HTTP receiver (never a
- * mock of the HTTP client) standing in for a customer's own endpoint. Self-gated the same way, and on
- * the SAME flag, as the sibling `modules/documents/queue/__tests__/*.redis.spec.ts` specs
- * (`DOCUMENTS_QUEUE_REDIS_TESTS=1`) — this repository already has one convention for "run the real-infra
- * queue specs", and reusing it (rather than inventing `WEBHOOKS_QUEUE_REDIS_TESTS`) is what lets the
- * exact command this project's own CI/verification instructions already give — no second flag to learn
- * or wire into CI separately.
- *
- * Three proofs:
- *  - `dispatch()` resolves — and the triggering caller moves on — WHILE the (deliberately slow)
- *    receiver has not answered yet: the request that triggers a webhook no longer waits on delivery.
- *  - A receiver that fails every attempt is retried the configured number of times, then genuinely
- *    given up on — and that give-up is a real ERROR-level `Log` row, scoped to the right company, the
- *    same `category: 'webhook-dispatcher'` a pre-queue, single-shot dispatch failure already used —
- *    so a failed delivery stays exactly as visible as it always was.
- *  - A receiver that fails twice, then succeeds, actually recovers via the SAME job (proving the
- *    retry mechanism itself, not just its failure path).
+ * End-to-end proof of the queue against real Redis and a real HTTP receiver: `dispatch` returns while
+ * a slow receiver is still silent, a failing receiver is retried then given up on with an ERROR log,
+ * and a receiver that fails twice then succeeds recovers on the same job. Self-gated on
+ * `DOCUMENTS_QUEUE_REDIS_TESTS=1`, like the sibling queue specs.
  */
 import { vi } from 'vitest';
 import * as http from 'node:http';
@@ -52,11 +38,8 @@ function closeServer(server: http.Server): Promise<void> {
   return new Promise((resolve) => server.close(() => resolve()));
 }
 
-/** Every state a job on this queue could plausibly be sitting in — same broad list
- *  `queue-test-cleanup.ts` (the sibling document-action specs) uses, for the identical reason: a
- *  targeted removal by this spec's own `companyId`, never a `queue.obliterate()` that could reach
- *  another test's or a live backend's own jobs. This queue registers no repeatable at all, so there is
- *  nothing here that removing every one of this spec's OWN jobs could accidentally erase. */
+/** Every state a job could be sitting in, removed by this spec's own companyId; never `obliterate`,
+ *  which could reach another test's or a live backend's jobs. */
 const ALL_JOB_STATES = [
   'completed',
   'failed',
@@ -94,9 +77,7 @@ describeWithRedis('outbound-webhook queue — real Redis, a real BullMQ worker, 
   let companyId: string;
 
   beforeAll(async () => {
-    // Test-only escape hatches: the receiver is on 127.0.0.1, and the shared outbound-URL guard
-    // rejects a private/loopback target by default (see `webhook-url-guard.ts`'s own header — this is
-    // the SAME flag `.env.test`/the `queue-integration` CI job already set for the identical reason).
+    // Test-only escape hatch: the receiver is on 127.0.0.1, which the guard rejects by default.
     process.env.ALLOW_PRIVATE_WEBHOOK_URLS = '1';
     process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
     // Small, fast numbers so "retried, then given up on" is observable in a test, never the real
@@ -192,17 +173,14 @@ describeWithRedis('outbound-webhook queue — real Redis, a real BullMQ worker, 
     try {
       await dispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, { companyId });
 
-      // WEBHOOK_QUEUE_ATTEMPTS=3 above — every attempt fails, so this converges on exactly 3 requests,
-      // never more (BullMQ genuinely stops) and never fewer (a single attempt is not "retried").
+      // WEBHOOK_QUEUE_ATTEMPTS=3 and every attempt fails: exactly 3 requests, never more, never fewer.
       await waitFor(async () => requestCount >= 3, 20000);
-      // Give BullMQ's own `failed` event (and this queue's `onFailed` handler) a moment to run past
-      // the 3rd request landing.
+      // Let the terminal `failed` event and its `onFailed` log settle.
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(requestCount).toBe(3);
 
-      // Scoped by event, not just companyId: this describe block shares ONE company across all three
-      // tests (a real `Log` row, unlike a queue job, is never cleaned up between `it()`s), so a bare
-      // `{ companyId, level: 'ERROR' }` filter would also match ANOTHER test's own terminal failure.
+      // Scoped by event: this describe block shares one company, and Log rows are never cleaned up, so
+      // a bare companyId+level filter would match another test's terminal failure.
       const failureLog = await prisma.log.findFirst({
         where: {
           companyId,
@@ -239,9 +217,8 @@ describeWithRedis('outbound-webhook queue — real Redis, a real BullMQ worker, 
       await dispatcher.dispatch(WebhookEvent.CLIENT_DELETED, { companyId });
 
       await waitFor(async () => requestCount >= 3, 20000);
-      // The recovery is a SUCCESS log, never the terminal-failure ERROR the previous test proves —
-      // confirms this genuinely recovered rather than also exhausting its attempts. Scoped by event
-      // (see the previous test's own comment) since this company's `Log` rows accumulate across tests.
+      // Success only: the recovery did not also exhaust its attempts. Scoped by event because this
+      // company's Log rows accumulate across tests.
       await waitFor(async () => {
         const success = await prisma.log.findFirst({
           where: {
@@ -271,10 +248,7 @@ describeWithRedis('outbound-webhook queue — real Redis, a real BullMQ worker, 
   });
 
   it('two subscribers on the same event: a retry against the failing one never redelivers to its healthy sibling', async () => {
-    // The bug this proves fixed: before jobs were scoped to ONE subscriber each
-    // (`webhook-queue.constants.ts#WebhookDeliveryJobData`'s own header), a single event fanned out to
-    // every subscriber inside ONE job — retrying that job (because ONE of them was down) would have
-    // redelivered to the ALREADY-SUCCEEDED healthy one too.
+    // One job per subscriber: a retry against the failing one must never redeliver to the healthy one.
     let healthyRequestCount = 0;
     let failingRequestCount = 0;
     const healthy = await startStubReceiver((_req, res) => {
@@ -308,14 +282,12 @@ describeWithRedis('outbound-webhook queue — real Redis, a real BullMQ worker, 
     try {
       await dispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, { companyId });
 
-      // WEBHOOK_QUEUE_ATTEMPTS=3 — the failing endpoint converges on exactly 3 requests, same as the
-      // single-subscriber "always fails" test above.
+      // Same 3 attempts as the test above.
       await waitFor(async () => failingRequestCount >= 3, 20000);
       await new Promise((resolve) => setTimeout(resolve, 500)); // let onFailed's own log settle
 
       expect(failingRequestCount).toBe(3);
-      // THE proof: the healthy sibling was reached EXACTLY once — its own success, never a
-      // retry-driven duplicate caused by the OTHER subscriber's own failure.
+      // The healthy sibling was reached exactly once: no retry-driven duplicate.
       expect(healthyRequestCount).toBe(1);
     } finally {
       await closeServer(healthy.server);

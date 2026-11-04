@@ -6,14 +6,14 @@
  *
  * Step 6 physically moved the data: every section below now comes from ONE file per country,
  * `countries/data/<cc>.json`, loaded and validated by `./data/all.ts` (`ALL_COMPOSED_COUNTRY_FILES`)
- * - the single place any of these 14 sections is read off disk, replacing the 14 independent
+ * - the single place any of these sections is read off disk, replacing the independent
  * per-catalog loaders this file used to import directly (steps 1-5, see git history for that
- * shape). Every one of the 14 catalogs' own `registry.ts` already reads THIS file's own
+ * shape). Every catalog that has a `registry.ts` already reads THIS file's own
  * `ALL_COMPOSED_COUNTRIES` (through `./registry.ts`'s `defaultComposedCountryCatalog`), so moving
  * where the data physically lives changed nothing downstream of here.
  *
  * A section is `undefined` for a country whose file has no such key at all, never a guessed or
- * defaulted value: the same "no permissive fallback" discipline every one of these 14 catalogs
+ * defaulted value: the same "no permissive fallback" discipline every one of these catalogs
  * already holds on its own (see e.g. `country-policy/country-policy.ts`'s own header).
  * `has()`/`countries()`/`get()` convenience lives in `registry.ts` next to this file, not here.
  */
@@ -38,6 +38,7 @@ import { CountryPaymentTermsFile } from '../payment-terms/schema';
 import { CountryEinvoiceCodesFile } from '../einvoice-codes/schema';
 import { CountryCompanyLawFile } from '../company-law/schema';
 import { CountryCompanyProfileFile } from '../company-profile/schema';
+import { CountryCodeListsFile } from '../code-lists/schema';
 
 /** One composed view per country, one optional field per existing catalog: see this module's own
  *  header. A field is present if and only if that catalog's own `data/<cc>.json` exists for this
@@ -64,6 +65,7 @@ export interface ComposedCountryView {
   einvoiceCodes?: CountryEinvoiceCodesFile;
   companyLaw?: CountryCompanyLawFile;
   companyProfile?: CountryCompanyProfileFile;
+  codeLists?: CountryCodeListsFile;
 }
 
 /** Every section key `ComposedCountryView` declares besides `countryCode` itself, in the same order
@@ -90,10 +92,11 @@ export const COMPOSED_COUNTRY_SECTION_KEYS: ReadonlyArray<keyof Omit<ComposedCou
   'einvoiceCodes',
   'companyLaw',
   'companyProfile',
+  'codeLists',
 ];
 
 /** One composed view per country with a `countries/data/<cc>.json` file: see this module's own
- * header. `./data/all.ts` is now the only place that reads or validates any of these 14 sections -
+ * header. `./data/all.ts` is now the only place that reads or validates any of these sections -
  *  this is a direct pass-through of its output, sorted by `countryCode` the same way that loader's
  *  own `discoverCountryCodes()` already sorts its file discovery. */
 export const ALL_COMPOSED_COUNTRIES: ComposedCountryView[] = [...ALL_COMPOSED_COUNTRY_FILES].sort((a, b) =>

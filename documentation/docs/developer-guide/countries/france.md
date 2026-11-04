@@ -57,6 +57,12 @@ invoice to a client of type Individual is outside the PDP mandate. The `pdp` fac
 next to `scope.parties: "domestic"`. Such an invoice is validated and sent like an invoice from a
 country with no mandate: no PDP is needed, and Validate only numbers and locks it.
 
+Ordonnance n° 2026-671 renumbers these provisions in the CIBS book II, with effect from 2027-01-01: the successor of
+CGI art. 289 bis is L. 215-39 together with the first paragraph of L. 216-36 (formerly L. 216-44),
+and the successor of art. 290 is L. 215-39 with the second paragraph of L. 216-48 (formerly
+L. 216-56) and the last paragraph of L. 216-47 (formerly L. 216-55). The CGI articles themselves
+stay in force until 2026-12-31, so the citations above remain the ones in force today.
+
 :::info[E-reporting is not transmitted]
 A sale to a private person falls under e-reporting (CGI art. 290 A), a separate obligation to
 declare the transaction data. Invoicerr records it in the `reporting` section of `fr.json` but does

@@ -308,7 +308,7 @@ export default function ChannelsSettings() {
                     isSelected ? "border-primary bg-accent text-accent-foreground" : "hover:bg-muted/50",
                   )}
                 >
-                  <span className="flex items-center justify-between gap-2 font-heading text-sm font-semibold">
+                  <span className="flex items-center justify-between gap-2 font-sans text-sm font-semibold">
                     <span className="flex items-center gap-1.5">
                       {hasConnected && (
                         <CheckCircle2

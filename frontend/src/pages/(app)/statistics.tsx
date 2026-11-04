@@ -5,7 +5,7 @@ import { WidgetGrid } from "@/components/widgets/widget-grid"
 import type { TableWidget, Widget } from "@/components/widgets/types"
 import { useStatisticsWidgets } from "@/hooks/queries"
 import { usePageHeader } from "@/hooks/use-page-header"
-import { cn } from "@/lib/utils"
+import { FilterChip, FilterChipGroup } from "./_shared/data-list"
 
 type Period = "thisMonth" | "last3Months" | "last12Months" | "allTime"
 
@@ -54,34 +54,6 @@ function applyPeriod(widgets: Widget[], period: Period): Widget[] {
   })
 }
 
-interface PeriodChipProps {
-  label: string
-  active: boolean
-  onClick: () => void
-  dataCy: string
-}
-
-/** A real `<button aria-pressed>`, not a static badge — same convention as document-list.tsx's own
- *  status filter chips, so the two "pill filter" controls in this app read identically. */
-function PeriodChip({ label, active, onClick, dataCy }: PeriodChipProps) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        active
-          ? "border-foreground bg-foreground text-background"
-          : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/70",
-      )}
-      data-cy={dataCy}
-    >
-      {label}
-    </button>
-  )
-}
-
 /**
  * Statistics — the SAME widget-contribution mechanism as the dashboard (see dashboard.tsx and the
  * backend's contributions/collect-widgets.ts), pulled from a SECOND location ("statistics") a
@@ -104,16 +76,11 @@ export default function Statistics() {
   const filteredWidgets = useMemo(() => applyPeriod(widgets, period), [widgets, period])
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-6">
+    <div className="page-content space-y-5">
       {!isLoading && widgets.length > 0 && (
-        <div
-          role="group"
-          aria-label={t("widgets.period.ariaLabel")}
-          className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 [scrollbar-width:none]"
-          data-cy="statistics-period-filters"
-        >
+        <FilterChipGroup label={t("widgets.period.ariaLabel")} dataCy="statistics-period-filters">
           {PERIODS.map((value) => (
-            <PeriodChip
+            <FilterChip
               key={value}
               label={t(`widgets.period.${value}`)}
               active={period === value}
@@ -121,7 +88,7 @@ export default function Statistics() {
               dataCy={`statistics-period-${value}`}
             />
           ))}
-        </div>
+        </FilterChipGroup>
       )}
       <WidgetGrid
         widgets={filteredWidgets}

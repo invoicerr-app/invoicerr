@@ -275,7 +275,10 @@ describe("Dashboard period filter (#418)", () => {
 	it("a custom range restricts the request, the tile figure, and what the tile's own link opens", () => {
 		cy.visit("/dashboard");
 
-		cy.get('[data-cy="dashboard-period-select"]').should("be.visible");
+		// Round 2 puts the invoice-overview panel above this row: at the default viewport the
+		// period selector opens under the app's own scroll area, so scroll to it first (the way
+		// cy.openSelect already does inside).
+		cy.get('[data-cy="dashboard-period-select"]').scrollIntoView().should("be.visible");
 		cy.openSelect(
 			'[data-cy="dashboard-period-select"]',
 			'[data-cy="dashboard-period-option-custom"]',
@@ -365,7 +368,8 @@ describe("Dashboard period filter (#418)", () => {
 		cy.visit("/dashboard");
 		cy.wait("@dashboardInitial", { timeout: 20000 });
 		cy.intercept({ method: "GET", pathname: "/api/documents/dashboard" }).as("dashboardYear");
-		cy.get('[data-cy="dashboard-period-select"]').should("be.visible");
+		// Same below-the-overview-panel rule as the custom-range test above.
+		cy.get('[data-cy="dashboard-period-select"]').scrollIntoView().should("be.visible");
 		cy.openSelect(
 			'[data-cy="dashboard-period-select"]',
 			'[data-cy="dashboard-period-option-this-year"]',

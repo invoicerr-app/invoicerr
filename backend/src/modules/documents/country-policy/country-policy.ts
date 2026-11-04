@@ -18,7 +18,8 @@
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
-import { parseCompanyProfileValues } from '../company-profile/profile';
+import { companyProfileValues } from '../company-profile/profile';
+import { defaultCompanyProfileCatalog } from '../company-profile/registry';
 import { CompanyProfileValues } from '../company-profile/schema';
 import { PartyType } from '../country-identifiers/schema';
 import { defaultCountryPolicyCatalog } from './registry';
@@ -123,13 +124,21 @@ export async function resolveClientType(
   return client?.type;
 }
 
-/** The issuing company's declared profile values; empty when it declared none. */
+/** The issuing company's declared profile values, as the profile itself reads them: the derived
+ *  ones included, an answer whose question no longer applies left out. */
 export async function resolveCompanyProfile(companyId: string): Promise<CompanyProfileValues> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { reportingProfile: true },
+    select: { country: true, countryCode: true, exemptVat: true, reportingProfile: true },
   });
-  return parseCompanyProfileValues(company?.reportingProfile);
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+  return companyProfileValues(
+    company?.reportingProfile,
+    defaultCompanyProfileCatalog.attributesFor(resolvedCode),
+    { exemptVat: company?.exemptVat ?? false },
+  );
 }
 
 type DocumentCountryActionRuleRow = Awaited<

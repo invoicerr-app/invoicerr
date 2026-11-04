@@ -59,10 +59,10 @@ function InputBase({ autoFocus, disabled, className, onClick, error, ...props }:
           }
         })}
         className={cn(
-          "border-input selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex min-h-9 cursor-text items-center gap-2 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm",
-          disabled && "pointer-events-none cursor-not-allowed opacity-50",
-          focused && "border-ring ring-ring/50 ring-[3px]",
-          error && "ring-destructive/20 dark:ring-destructive/40 border-destructive",
+          "border border-input bg-card rounded-md shadow-inset dark:shadow-none selection:bg-primary selection:text-primary-foreground flex min-h-[42px] cursor-text items-center gap-2 px-3.5 py-1 text-base outline-none md:text-[15px]",
+          disabled && "pointer-events-none cursor-not-allowed bg-sunken text-muted-foreground shadow-none",
+          focused && "border-focus outline-2 outline-offset-1 outline-focus",
+          error && "border-destructive",
           className,
         )}
         {...props}

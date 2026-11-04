@@ -1,13 +1,7 @@
 /**
  * United Kingdom — Companies House public data API.
- *
- * Endpoint : GET https://api.company-information.service.gov.uk/company/{number}
- *            HTTP Basic, the API key as the username and an empty password.
- * Docs     : https://developer.company-information.service.gov.uk/
- * Credentials: COMPANIES_HOUSE_API_KEY (free registration).
- *
- * Companies House holds no VAT data — HMRC's VAT checker is a separate service —
- * so this provider only answers on the company number.
+ * Docs: https://developer.company-information.service.gov.uk/ (COMPANIES_HOUSE_API_KEY, HTTP Basic
+ * with an empty password). Holds no VAT data, so it only answers on the company number.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { fetchJson, toDate } from '../http';

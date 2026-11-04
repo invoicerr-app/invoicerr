@@ -1,18 +1,11 @@
 /**
- * The WRITE side (plus status + test-send) of a company's own mail-server override — the
- * company-level step of the mail-server cascade (company → instance → named refusal). Backs
- * `PUT`/`DELETE`/`GET`/`POST test` on `company.controller.ts`
- * (`Controller → Service → Prisma`: this is the only place that touches `ChannelCredentialsService`
- * for the `'mail'` provider id — the controller never does). The READ side used at actual send time
- * lives in the sibling `company-mail-settings.resolver.ts` — split there specifically so
- * `mail/mail.service.ts` can call it without a `mail/` ⇄ `modules/company/` circular import (this file
- * DOES import `MailService`, for `sendTest`; the resolver never imports this file or `MailService`).
+ * The write side (plus status and test send) of a company's own mail-server override, the company-level
+ * step of the mail-server cascade. The read side used at send time lives in
+ * `company-mail-settings.resolver.ts`, split so `mail/mail.service.ts` can call it without a circular
+ * import.
  *
- * `setReplyTo`/`getStatus`'s own `replyTo` field back this company's Reply-To OVERRIDE
- * (`Company.mailReplyTo`) — a plain, unencrypted `prisma.company` write (via the shared `prisma`
- * singleton, unlike the mail-server override above, which goes through `ChannelCredentialsService`
- * because it carries a secret and this does not), independent of whether the company also has its own
- * SMTP/Resend server configured.
+ * `replyTo` backs `Company.mailReplyTo`, a plain column written through the shared client, since it
+ * carries no secret; the server override goes through `ChannelCredentialsService`.
  */
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 

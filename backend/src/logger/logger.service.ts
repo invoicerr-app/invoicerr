@@ -3,6 +3,7 @@ import { Log, LogLevel } from 'prisma/generated/prisma/client';
 import { Logger } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 import { getContextCompanyId } from '@/lib/request-context';
+import { logPersistenceHealth } from './log-persistence-health';
 
 interface LogOptions {
   userId?: string;
@@ -87,11 +88,18 @@ export class LoggerService {
           companyId,
         },
       });
+      logPersistenceHealth.recordSuccess();
     } catch (error) {
       // Report through the Nest logger only. Calling logger.error() here would funnel
       // straight back into createLog(), so a database that cannot accept logs — exactly
       // what happens when the schema is being rebuilt under a running app — turned one
       // failure into an endless chain of failing writes.
+      //
+      // The counter is what makes a persisting failure visible to an operator: one console
+      // line per write is easy to miss, `GET /api/health` reports the streak (see
+      // `log-persistence-health.ts`). Still never rethrown: a lost log line must not cost
+      // the request that produced it.
+      logPersistenceHealth.recordFailure();
       this.inLogger.error(`Failed to persist a ${level} log entry: ${message}`, error as Error);
     }
   }

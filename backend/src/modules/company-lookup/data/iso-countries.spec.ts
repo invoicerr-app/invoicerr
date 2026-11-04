@@ -22,9 +22,7 @@ describe('ISO_COUNTRIES', () => {
 
   it('includes the countries the rest of the backend already assumes exist', () => {
     const codes = new Set(ISO_COUNTRY_CODES);
-    // FR/PL/IT: the primary markets. US/DE/GB: the biggest "no dedicated register" gaps.
-    // TW/LI: named explicitly in provider country lists. TV: has no provider at all —
-    // the case this file exists to cover (registry.spec.ts exercises it as PARTIAL).
+    // Primary markets, the biggest no-dedicated-register gaps, and TV which has no provider at all.
     for (const cc of ['FR', 'PL', 'IT', 'US', 'DE', 'GB', 'TW', 'LI', 'TV']) {
       expect(codes.has(cc)).toBe(true);
     }

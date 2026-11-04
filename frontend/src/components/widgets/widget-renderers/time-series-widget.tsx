@@ -1,4 +1,5 @@
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
@@ -23,9 +24,12 @@ export function TimeSeriesWidgetRenderer({ widget }: WidgetRendererProps) {
   return (
     <Card data-cy={`widget-${series.id}`} data-widget-kind="timeSeries">
       <CardHeader className="gap-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{series.label}</CardTitle>
+        <CardTitle className="font-heading text-xl font-normal text-foreground">
+          <DocumentTypeIcon icon={series.icon} className="me-2 inline align-[-1px] text-muted-foreground" />
+          {series.label}
+        </CardTitle>
         <WidgetValue>
-          <p className="amount text-xl font-semibold text-foreground">
+          <p className="amount mt-1 text-[34px] leading-tight text-foreground">
             {total.toLocaleString()}
             {series.unit ? (
               <span className="ms-1 text-sm font-normal text-muted-foreground">{series.unit}</span>
@@ -36,19 +40,22 @@ export function TimeSeriesWidgetRenderer({ widget }: WidgetRendererProps) {
       <CardContent>
         <WidgetValue>
           <ChartContainer config={CHART_CONFIG} className="aspect-auto h-48 w-full">
-            <LineChart data={series.points} margin={{ left: 8, right: 8 }}>
-              <CartesianGrid vertical={false} stroke="var(--border)" />
+            <AreaChart data={series.points} margin={{ left: 8, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="2 4" />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Line
+              <Area
                 dataKey="value"
-                type="monotone"
+                type="linear"
                 stroke="var(--color-value)"
                 strokeWidth={2}
-                dot={{ r: 3, fill: "var(--color-value)", strokeWidth: 0 }}
+                fill="var(--color-value)"
+                fillOpacity={0.14}
+                dot={false}
                 activeDot={{ r: 4 }}
+                isAnimationActive={false}
               />
-            </LineChart>
+            </AreaChart>
           </ChartContainer>
         </WidgetValue>
       </CardContent>

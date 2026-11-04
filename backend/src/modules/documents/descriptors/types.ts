@@ -14,6 +14,9 @@ export interface DocumentTypeDescriptor {
    *  the same way `DocumentKindRule.kind` used to be sent as plain data by the (now removed)
    *  compliance engine. */
   label: string;
+  /** Which icon the interface draws for this type, as a key (e.g. "invoice", "purchase-order"). A
+   *  key the frontend does not know, or none, draws the generic document icon. */
+  icon?: string;
   fields: DocumentFieldDescriptor[];
   actions: DocumentActionDescriptor[];
   /**
@@ -415,7 +418,13 @@ export interface DocumentFieldDescriptor {
    */
   suggestedValues?: readonly { value: string; label: string }[];
   /** 'select': the choices offered. */
-  options?: { value: string; label: string }[];
+  options?: {
+    value: string;
+    label: string;
+    /** Translation key for `label`, for an option whose text comes from a country file. Without it
+     *  the frontend derives the key from the type id, the field path and the value. */
+    labelKey?: string;
+  }[];
   /**
    * 'select' only: additional values the VALIDATOR (field-kinds.ts) still accepts, but the frontend
    * never renders as a choice — backward compatibility for a value ALREADY PERSISTED under a

@@ -1,9 +1,7 @@
 /**
- * What the company lookup knows about one country: which registry providers serve it, and the note
- * that tells the user what the lookup there is limited to. A country with its own
- * `documents/countries/data/<cc>.json` declares it in that file's `companyLookup` section; every
- * other country is an entry of `company-lookup/data/coverage.json`. The worldwide directories are
- * never listed here, they serve every country.
+ * Per-country lookup facts: a country with its own `documents/countries/data/<cc>.json` declares them
+ * in that file, every other country is an entry of `company-lookup/data/coverage.json`. The worldwide
+ * directories are never listed here.
  */
 export interface CompanyLookupFacts {
   /** Provider ids, in the order they are tried, before the worldwide directories. */

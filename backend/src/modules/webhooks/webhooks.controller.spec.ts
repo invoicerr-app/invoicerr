@@ -1,22 +1,13 @@
 /**
- * `WebhooksService.create`'s own response deliberately still carries the plaintext HMAC secret ONCE,
- * for the caller who just created it (the settings screen's "shown once" reveal). That same object
- * must never be forwarded UNCHANGED into `webhookDispatcher.dispatch(...)`, which fans it out over
- * HTTP to every OTHER webhook of the company subscribed to WEBHOOK_CREATED/UPDATED/DELETED — that
- * would leak this brand-new secret to a THIRD receiver that has no business seeing it. Encrypting the
- * column at rest would be undermined if the plaintext still traveled out through this side door, so
- * these three routes strip `secret` from the dispatch payload while leaving the direct HTTP response
- * (the one legitimate reveal) untouched.
+ * `create` returns the plaintext secret once, for the caller who just created it. That same object must
+ * never reach `dispatch`, which would fan it out to every other webhook of the company: the three routes
+ * strip `secret` from the dispatch payload while leaving the direct HTTP response untouched.
  */
 
 import { vi, type Mock } from 'vitest';
 
-// `@thallesp/nestjs-better-auth` and `@/guards/auth.guard`'s own `@/lib/auth`/`better-auth/node`
-// imports all ship or pull in an ESM-only transitive dependency (better-auth/dist/plugins/index.mjs)
-// jest's ts-jest transform doesn't parse. `WebhooksController` imports `AuthGuard` for every one of
-// its routes — the exact same barrier `requires-scope.controllers.spec.ts` already documents and
-// mocks around the same way, rather than widening jest's transformIgnorePatterns for decorators this
-// file never exercises.
+// The auth imports pull in an ESM-only transitive dependency ts-jest does not parse; mocking them here
+// avoids widening transformIgnorePatterns for decorators this file never exercises.
 vi.mock('@/lib/auth', () => ({
   auth: { api: { getSession: vi.fn().mockResolvedValue(null) } },
 }));

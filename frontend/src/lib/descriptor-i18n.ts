@@ -264,7 +264,9 @@ function translateDocumentFields(
       )
     const options = field.options?.map((option) => ({
       ...option,
-      label: descriptorFieldOptionLabel(t, typeId, path, option.value, option.label),
+      label: explicitOrDerived(t, option.labelKey, option.label, () =>
+        descriptorFieldOptionLabel(t, typeId, path, option.value, option.label),
+      ),
     }))
     const suggestedValues = field.suggestedValues?.map((entry) => ({
       ...entry,
@@ -305,7 +307,9 @@ function translateActionParams(
       )
     const options = field.options?.map((option) => ({
       ...option,
-      label: descriptorActionParamOptionLabel(t, typeId, actionId, path, option.value, option.label),
+      label: explicitOrDerived(t, option.labelKey, option.label, () =>
+        descriptorActionParamOptionLabel(t, typeId, actionId, path, option.value, option.label),
+      ),
     }))
     const nestedFields = field.fields
       ? translateActionParams(t, typeId, actionId, field.fields, path)

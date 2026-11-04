@@ -1,24 +1,11 @@
 import { Company, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 /**
- * The per-type `QUOTE_*`/`INVOICE_*`/`PAYMENT_*`(document)/`RECEIPT_*`/
- * `SIGNATURE_*`/`PAYMENT_METHOD_*`/`PAYMENT_RECEIVED` formatters this file used to carry are GONE —
- * every one of those enum members was purged (see the migration's own header for the grep proof, one
- * value at a time) because none had a real emitter, INVOICE_SENT/QUOTE_SENT included (the two
- * exceptions, whose sole emitter is replaced by the generic `DOCUMENT_*` formatters
- * right below). `documentLabel`/`documentNumber` read the UNIFORM payload contract
- * (`queue/document-webhooks.ts#buildDocumentWebhookPayload`) so ONE formatter per `DOCUMENT_*` event
- * covers every document type, whatever `typeId` a future one adds.
- *
- * The 2026-09-03 purge — the CLIENT_ACTIVATED, CLIENT_DEACTIVATED, COMPANY_PDF_CONFIG_UPDATED,
- * COMPANY_INFO_VIEWED, WEBHOOK_TRIGGERED, WEBHOOK_FAILED, and every RECURRING_INVOICE_, PLUGIN_,
- * USER_, EMAIL_, DASHBOARD_, etc. entry this file used to carry are GONE THE SAME WAY: each had a
- * style AND a formatter here despite dispatching NOTHING, ever (see the migration's own header for
- * the full per-family grep proof) — dead weight for an event no webhook could ever actually receive.
- * `EVENT_STYLES`/`formatters` below are `Record<WebhookEvent, ...>`, so TypeScript itself now
- * enforces the invariant this purge restores: exactly one style and one formatter per LIVE event, no
- * more, no less — the compiler errors if a future enum member is added here without a mapping, or if
- * a stale mapping outlives its enum member.
+ * Event styles and message formatters for the live webhook events. Both records are typed
+ * `Record<WebhookEvent, ...>`, so the compiler requires exactly one entry per enum member.
+ * `documentLabel`/`documentNumber` read the uniform payload contract from
+ * `queue/document-webhooks.ts#buildDocumentWebhookPayload`, so one formatter per `DOCUMENT_*` event
+ * covers every document type.
  */
 function documentLabel(typeId: unknown): string {
   if (typeof typeId !== 'string' || !typeId) return 'Document';
@@ -46,24 +33,20 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
   [WebhookEvent.DOCUMENT_SEND_FAILED]: { color: '#ef4444', emoji: '⚠️', title: 'Document Send Failed' },
   [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: { color: '#6366f1', emoji: '🏛️', title: 'Authority Event' },
   [WebhookEvent.DOCUMENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Document Deleted' },
-  // See settlement/document-settled.ts's own header for when this fires.
+  // See settlement/document-settled.ts for when this fires.
   [WebhookEvent.DOCUMENT_SETTLED]: { color: '#10b981', emoji: '✅', title: 'Document Settled' },
-  // See actions/invoice-actions.ts's own "cancel" handler for when this fires.
+  // See actions/invoice-actions.ts's "cancel" handler for when this fires.
   [WebhookEvent.DOCUMENT_CANCELLED]: { color: '#ef4444', emoji: '🚫', title: 'Document Cancelled' },
-  // See signatures/signatures.service.ts's own "markSigned" for when this
-  // fires (the public OTP-verification flow, never an authenticated action).
+  // Fires from the public OTP-verification flow, never an authenticated action.
   [WebhookEvent.DOCUMENT_SIGNED]: { color: '#10b981', emoji: '✍️', title: 'Document Signed' },
 
-  // Client events - Pink (only the four with a real emitter, see schema.prisma's
-  // own comment on this enum for the CLIENT_ACTIVATED/CLIENT_DEACTIVATED purge)
+  // Client events - Pink
   [WebhookEvent.CLIENT_CREATED]: { color: '#ec4899', emoji: '👤', title: 'Client Created' },
   [WebhookEvent.CLIENT_UPDATED]: { color: '#ec4899', emoji: '✏️', title: 'Client Updated' },
   [WebhookEvent.CLIENT_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Client Deleted' },
   [WebhookEvent.CLIENT_SEARCHED]: { color: '#6b7280', emoji: '🔍', title: 'Client Searched' },
 
-  // Company events - Orange (only the three with a real emitter, see
-  // schema.prisma's own comment on this enum for the COMPANY_PDF_CONFIG_UPDATED/COMPANY_INFO_VIEWED
-  // purge)
+  // Company events - Orange
   [WebhookEvent.COMPANY_CREATED]: { color: '#f97316', emoji: '🏢', title: 'Company Created' },
   [WebhookEvent.COMPANY_UPDATED]: { color: '#f97316', emoji: '✏️', title: 'Company Updated' },
   [WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED]: {
@@ -72,20 +55,15 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
     title: 'Email Template Updated',
   },
 
-  // Webhook events - Purple (only the three lifecycle events on the subscription
-  // row itself, see schema.prisma's own comment on this enum for the WEBHOOK_TRIGGERED/WEBHOOK_FAILED
-  // purge)
+  // Webhook events - Purple
   [WebhookEvent.WEBHOOK_CREATED]: { color: '#8b5cf6', emoji: '🪝', title: 'Webhook Created' },
   [WebhookEvent.WEBHOOK_UPDATED]: { color: '#8b5cf6', emoji: '✏️', title: 'Webhook Updated' },
   [WebhookEvent.WEBHOOK_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Webhook Deleted' },
 };
 
 export function formatPayloadForEvent(event: WebhookEvent, payload: any): string {
-  // Format specific data based on event type
   const formatters: Record<WebhookEvent, (p: any) => string | null> = {
-    // Document events (generic) — `documentLabel`/`documentNumber` (this
-    // file's own header) read the uniform payload contract, so ONE formatter per event covers every
-    // document type.
+    // Document events (generic)
     [WebhookEvent.DOCUMENT_CREATED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nCreated`,
     [WebhookEvent.DOCUMENT_SENT]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nSent`,
     [WebhookEvent.DOCUMENT_SEND_FAILED]: (p) =>
@@ -93,17 +71,14 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
     [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: (p) =>
       `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🏛️ ${p.providerId || 'N/A'}: ${p.statusCode || 'N/A'}`,
     [WebhookEvent.DOCUMENT_DELETED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nDeleted`,
-    // `settlement` is the extra fact `buildDocumentWebhookPayload` carries for
-    // this event (settlement/document-settled.ts's own `emitDocumentSettled`).
+    // `settlement` is the extra fact the payload carries for this event.
     [WebhookEvent.DOCUMENT_SETTLED]: (p) =>
       `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✅ Settled (paid: ${p.settlement?.paidMinor ?? 'N/A'}, credited: ${p.settlement?.creditedMinor ?? 'N/A'})`,
-    // See actions/invoice-actions.ts's own "cancel" handler.
     [WebhookEvent.DOCUMENT_CANCELLED]: (p) =>
       `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🚫 Cancelled`,
-    // See signatures/signatures.service.ts's own "markSigned".
     [WebhookEvent.DOCUMENT_SIGNED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✍️ Signed`,
 
-    // Client events (only the four with a real emitter)
+    // Client events
     [WebhookEvent.CLIENT_CREATED]: (p) =>
       `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
     [WebhookEvent.CLIENT_UPDATED]: (p) =>
@@ -112,14 +87,14 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
       `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**`,
     [WebhookEvent.CLIENT_SEARCHED]: (_p) => null,
 
-    // Company events (only the three with a real emitter)
+    // Company events
     [WebhookEvent.COMPANY_CREATED]: (p: { company: Company }) => `**${p.company?.name || 'N/A'}**`,
     [WebhookEvent.COMPANY_UPDATED]: (p: { company: Company }) =>
       `**${p.company?.name || 'N/A'}**\nUpdate completed`,
     [WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED]: (p: { company: Company }) =>
       `**${p.company?.name || 'N/A'}**\nEmail template updated`,
 
-    // Webhook events (only the three lifecycle events on the subscription row)
+    // Webhook events
     [WebhookEvent.WEBHOOK_CREATED]: (p) =>
       `Type: ${p.webhook?.type || 'N/A'}\nURL: ${p.webhook?.url || 'N/A'}`,
     [WebhookEvent.WEBHOOK_UPDATED]: (p) =>
@@ -139,6 +114,5 @@ export function formatPayloadForEvent(event: WebhookEvent, payload: any): string
     }
   }
 
-  // Default formatting for events without specific formatter
   return `Event triggered successfully`;
 }

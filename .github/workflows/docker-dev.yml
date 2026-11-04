@@ -19,6 +19,12 @@ name: Publish Docker Image on dev push
 # Until then, "never reused" is the guarantee that keeps a tag as trustworthy as a digest here, and
 # the step below enforces it instead of merely assuming it.
 #
+# This build also moves `:nightly`, the third and last channel: latest = stable tags
+# (docker-publish.yml), beta = tagged beta/rc (same file), nightly = every commit on dev (here). It
+# is deliberately NOT a GitHub release, and it is a moving tag like `latest`: nothing should pin it.
+# The immutable dev-... tag above stays, because that is what invoicerr-infra's beta environment
+# follows today; moving that environment to `:nightly` is an invoicerr-infra change, not this one.
+#
 # NEVER add `latest` or a release tag here -- docker-publish.yml is the only workflow allowed to
 # publish either, and a wrong `:latest` ships to every self-hoster. Read its own header before
 # touching that boundary.
@@ -92,7 +98,9 @@ jobs:
           build-args: |
             GIT_REVISION=${{ github.sha }}
             GIT_REF_NAME=${{ steps.vars.outputs.tag }}
-          tags: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          tags: |
+            ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.image }}:nightly
           push: true
           cache-from: type=gha,scope=dev-linux-amd64
           cache-to: type=gha,mode=max,scope=dev-linux-amd64
@@ -124,7 +132,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy report to the Security tab
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4 (4.38.2)
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4 (4.38.2)
         with:
           sarif_file: trivy-results.sarif
           category: trivy-dev

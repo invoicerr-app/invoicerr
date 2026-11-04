@@ -1,0 +1,73 @@
+name: Release
+
+# Every CalVer tag that reaches this repository becomes a GitHub release, and nothing else does.
+# The tag is the release: stable tags are cut on main, beta/rc tags are cut on dev, and a tag that
+# is not AA.M.N / AA.M.N-beta.N / AA.M.N-rc.N is refused here and in docker-publish.yml, which
+# triggers on the same push. SemVer tags (v2.0.0-alpha.8 and friends) are refused on purpose: the
+# transition to CalVer is a one-way door, and an accidental semver tag must fail loudly rather than
+# publish an image nobody meant to ship.
+on:
+  push:
+    tags:
+      # Every tag, including SemVer ones: an accidental v2.0.0-alpha.8 must fail here with an explicit
+      # message, not disappear because the trigger filtered it out. The validation below is the gate.
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # `contents: write` is for `gh release create` and nothing else: this job checks out the tag and
+    # writes one release, it never pushes a commit or an image.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          CALVER='^[0-9]{2}\.(1[0-2]|[1-9])\.[0-9]+(-(beta|rc)\.[0-9]+)?$'
+
+          if [[ ! "$TAG" =~ $CALVER ]]; then
+            echo "::error::'${TAG}' is not a CalVer tag. Expected AA.M.N, AA.M.N-beta.N or AA.M.N-rc.N (for example 26.11.0 or 26.11.0-beta.1). SemVer tags are no longer accepted."
+            exit 1
+          fi
+
+          git fetch --no-tags origin main dev
+          if [[ "$TAG" == *-beta.* || "$TAG" == *-rc.* ]]; then
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/dev && ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::pre-release '${TAG}' must be tagged on a commit contained in dev (or main)."
+              exit 1
+            fi
+          else
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::stable '${TAG}' must be tagged on a commit contained in main; tag a beta or rc on dev first."
+              exit 1
+            fi
+          fi
+
+          echo "Tag '${TAG}' is a valid CalVer $( [[ "$TAG" == *-* ]] && echo pre-release || echo release )."
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # --verify-tag: the tag already exists (this workflow was triggered by it), so a typo can
+          # never create a release on a branch HEAD. --generate-notes keeps the changelog automatic.
+          args=(--verify-tag --generate-notes --title "$TAG")
+          if [[ "$TAG" == *-beta.* || "$TAG" == *-rc.* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$TAG" "${args[@]}"
+
+      # No Discord step here: the announcement is the `announce` job of docker-publish.yml, gated on
+      # the manifest list existing at ghcr.io. Announcing from this job would fire minutes before the
+      # image build finishes, and even when it fails, which is what the job over there exists to
+      # prevent.

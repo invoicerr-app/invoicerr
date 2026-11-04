@@ -1,27 +1,11 @@
 /**
- * `CURRENCY_RATE_FAKE=1` (set only in a test env file, the SAME opt-in shape
- * `vat-currency/fake-rate-clients.ts`'s own `VAT_CURRENCY_RATE_FAKE` already holds for an unrelated
- * ECB call, and `clients.module.ts`'s `VAT_VALIDATION_FAKE`/`version.module.ts`'s
- * `GITHUB_RELEASES_FAKE` hold for theirs) swaps the two REAL rate clients this sweep calls
- * (`ecb-rates-client.ts`/`open-er-api-rates-client.ts`) for these network-free, deterministic
- * fakes, checked and branched on inside `currency-rate-sweep-runner.ts#runSweep` itself.
+ * `CURRENCY_RATE_FAKE=1` (test env only) swaps the two real rate clients for these network-free,
+ * deterministic fakes, branched on inside the runner's `runSweep`.
  *
- * Needed starting with issue #574: before it, this module's daily sweep only ever refreshed pairs a
- * company had ALREADY typed by hand, and its default interval (24h,
- * `readCurrencyRateSweepIntervalMs()`) meant no CI/Cypress run was ever long enough to see it fire
- * even once - so this module never needed a fake gate. A Cypress spec that LOWERS the interval to
- * observe the sweep auto-derive a pair (the same `*_SWEEP_INTERVAL_MS` pattern
- * `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS`/`DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS` already use for their
- * own sweeps) would otherwise make EVERY such run a LIVE call to the real ECB feed - exactly what
- * `vat-currency/fake-rate-clients.ts`'s own header already refuses for its unrelated call ("a CI job
- * must never depend on [a real feed] being up").
- *
- * Deliberately narrow, not a general mock: EUR-based rates for USD/GBP only on the ECB fake (every
- * OTHER currency returns `undefined`/absent, the honest "not quoted" shape the real feed would also
- * produce for an exotic code), plus ONE currency (MAD) the ECB fake deliberately leaves uncovered so
- * a spec can exercise the open.er-api.com FALLBACK path from the exact same gate - the same
- * "exercise both the happy path and the uncovered-currency path from one flag" discipline the
- * vat-currency fake already holds for its own two outcomes.
+ * A Cypress spec that lowers the sweep interval to observe an auto-derived pair would otherwise make
+ * every run a live call to the real feed. Deliberately narrow: EUR-based rates for USD/GBP only, and
+ * every other currency absent, the honest "not quoted" shape the real feed would also give), plus MAD,
+ * which the ECB fake leaves uncovered so a spec can exercise the fallback path through the same flag.
  */
 
 /** 1 EUR = this many units of `currency` - same shape `ecb-rates-client.ts#EcbDailyRates.rates`

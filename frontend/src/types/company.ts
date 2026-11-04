@@ -103,6 +103,8 @@ export interface Company {
   reportingProfile?: Record<string, string> | null
   /** The attributes this company's country asks it to declare (its `companyProfile` section). */
   companyProfileAttributes?: CompanyProfileAttribute[]
+  /** Every profile value the company currently carries, the derived ones included. */
+  companyProfileValues?: Record<string, string>
 }
 
 export interface CompanyProfileAttribute {
@@ -110,6 +112,10 @@ export interface CompanyProfileAttribute {
   label: string
   help?: string
   values: { value: string; label: string }[]
+  /** Asked only when the company's own declared values satisfy every entry; absent means always. */
+  askedWhen?: Record<string, string[]>
+  /** Set when the company does not answer: the value follows from a setting it already made. */
+  derived?: { source: "exemptVat"; whenTrue: string; whenFalse: string }
 }
 
 /** `GET /api/company/payment-terms`. Mirrors the backend's

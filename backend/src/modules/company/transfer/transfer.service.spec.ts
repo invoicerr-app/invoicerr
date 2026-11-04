@@ -9,21 +9,8 @@ import { vi } from 'vitest';
 
 import { randomUUID } from 'node:crypto';
 
-// Every test below drives `TransferService` through several SEQUENTIAL real Postgres round trips
-// (OTP lookup/consume, a pending-transfer check, a user lookup, a company lookup, the transfer
-// insert, sometimes a seat reservation and two more user lookups for the finalize mail) — there is
-// no faster, event-driven signal to wait on instead of the promise itself, unlike a UI dialog whose
-// close can be gated on intercepting its own mutation. On PR #427 (2026-09-23), one of these tests
-// hit Vitest's own 5s default `testTimeout` with no underlying Prisma/pg error surfaced — the query
-// was still queued, not failed, when the timeout fired — while 520 other spec files and every OTHER
-// test in this same file passed, some already taking 400-2300ms for a similar chain of round trips.
-// That is a shared CI runner's own transient latency on a real database connection, not a bug in this
-// service: re-running this exact file alone, with the whole suite, and under deliberate CPU
-// contention (taskset + a CPU-bound stress loop) never reproduced a stall tied to this file's own
-// logic. `migration-fresh-schema.spec.ts`'s own header sets the same precedent for the same reason:
-// headroom over the runner's 5s default so a slow CI runner does not turn a passing spec into a flaky
-// one. 20s is generous over every real timing observed here without hiding an actual regression (a
-// genuinely hung call still fails, just no longer on an arbitrary unit-test clock).
+// Each test drives several sequential real Postgres round trips with no faster signal to wait on, so
+// the 20s timeout gives a slow CI runner headroom without hiding a genuinely hung call.
 vi.setConfig({ testTimeout: 20_000, hookTimeout: 20_000 });
 
 import {
@@ -164,12 +151,8 @@ describe('TransferService', () => {
 
     it('never blocks its own response on the notification e-mail actually being sent — a real network wait on ONLY the "account exists" branch is itself a timing side-channel', async () => {
       let releaseMailSend: () => void = () => {};
-      // Whether the gate has been opened — the ONE fact this test reads to know the response did not
-      // wait for the send. It replaces a `Promise.race` against a 200ms `setTimeout`, which asked the
-      // wrong question: it compared the mail send to a WALL CLOCK, so a CI worker whose Postgres
-      // round-trips (this service really writes rows) took longer than 200ms reported 'timeout' and
-      // failed a service that had behaved perfectly (run 35989078564, 2026-09-24, on a PR touching
-      // e2e specs only). Nothing here measures time any more.
+      // The gate is the one fact this test reads: it never compares against a wall clock, since a slow
+      // CI database would fail a service that behaved correctly.
       let mailSendReleased = false;
       const mailGate = new Promise<void>((resolve) => {
         releaseMailSend = () => {

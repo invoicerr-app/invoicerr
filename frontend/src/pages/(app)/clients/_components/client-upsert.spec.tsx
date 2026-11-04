@@ -85,7 +85,7 @@ function renderDialog(client: Client | null) {
   )
 }
 
-/** `SteppedDialog`'s `DialogContent` (Radix) teleports into a portal appended straight to
+/** The dialog's `DialogContent` (Radix) teleports into a portal appended straight to
  *  `document.body` — see `article-upsert.spec.tsx`'s own identical helper for why `container` alone
  *  can't reach it. */
 function fieldInput(name: string): HTMLInputElement {
@@ -94,18 +94,14 @@ function fieldInput(name: string): HTMLInputElement {
   return input as HTMLInputElement
 }
 
-/** Drives a brand-new CREATE dialog from the Identity step to the Address step — the minimum every
- *  language-suggestion test below needs before it can pick a country. Company name is the only
- *  thing Identity requires with the default COMPANY type. */
-async function advanceToAddressStep() {
+/** Opens a brand-new CREATE form with the one field Identity requires for the default COMPANY type. */
+async function startWithName() {
   await screen.findByTestId("client-dialog-step-body-identity")
   fireEvent.change(fieldInput("name"), { target: { value: "Nowa Firma" } })
-  fireEvent.click(screen.getByTestId("client-dialog-continue"))
-  await screen.findByTestId("client-dialog-step-body-address")
 }
 
 /** Picks `label` (the exact `Intl.DisplayNames` English label `CountrySelect` renders — i18n is
- *  pinned to "en" in `test/setup.ts`) from the country popover the Address step renders. */
+ *  pinned to "en" in `test/setup.ts`) from the country popover of the Address section. */
 function pickCountry(label: string) {
   fireEvent.click(within(screen.getByTestId("client-country-select")).getByRole("button"))
   fireEvent.click(
@@ -113,13 +109,11 @@ function pickCountry(label: string) {
   )
 }
 
-/** Picks a country on the Address step, fills the rest of it, and lands on the Fiscal step. */
-async function advanceToFiscalStep(countryLabel: string) {
+/** Picks a country in the Address section and fills the rest of it. */
+function fillAddress(countryLabel: string) {
   pickCountry(countryLabel)
   fireEvent.change(fieldInput("address"), { target: { value: "1 Rue Test" } })
   fireEvent.change(fieldInput("city"), { target: { value: "Warszawa" } })
-  fireEvent.click(screen.getByTestId("client-dialog-continue"))
-  await screen.findByTestId("client-dialog-step-body-fiscal")
 }
 
 const CREATE_HANDLERS: Record<string, FetchHandler> = {
@@ -146,7 +140,7 @@ describe("<ClientUpsert>", () => {
     Element.prototype.scrollIntoView = vi.fn()
   })
 
-  it("does not save an emptied required field after jumping past it via a header chip to the Summary step", async () => {
+  it("does not save an emptied required field, and takes the reader to it", async () => {
     const patch = vi.fn()
     installFetchMock({
       "GET /api/custom-fields/resolved": () => [],
@@ -158,30 +152,15 @@ describe("<ClientUpsert>", () => {
 
     renderDialog(CLIENT)
 
-    // Editing an already-valid client opens every step's header chip clickable from the start
-    // (`initialMaxReached`) — no need to walk forward through the wizard first. The dialog opens on
-    // the Identity step, which already renders "name" for a COMPANY client.
     await screen.findByTestId("client-dialog-step-body-identity")
     fireEvent.change(fieldInput("name"), { target: { value: "" } })
-
-    // Jump STRAIGHT to the read-only Summary step via its header chip — `stepperJumpTo` never
-    // revalidates a step it lands ON, so Identity's own emptied, now-invalid "name" is never
-    // re-checked on the way, and the Summary step itself declares `fields: []` (nothing of its own
-    // to validate against).
-    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
     fireEvent.click(await screen.findByTestId("client-submit"))
 
-    // No silent save with the invalid value: `SteppedDialog` itself re-validates the WHOLE form on
-    // the last step's submit and jumps back to the step actually carrying the error BEFORE this
-    // component's own `onSubmit` (and its `safeParse` last-line-of-defense) ever runs.
+    // The whole form is validated before this component's own `onSubmit` ever runs.
     await waitFor(() => expect(patch).not.toHaveBeenCalled())
     expect(toast.error).not.toHaveBeenCalled()
-
-    // The error is visible RIGHT NOW: the wizard jumped back to Identity (the step that actually
-    // renders "name"), instead of leaving the user on a Summary screen whose own "Continue" button
-    // just silently refused to do anything.
     expect(await screen.findByText("Company name is required")).toBeInTheDocument()
-    expect(screen.getByTestId("client-dialog-step-body-identity")).toBeInTheDocument()
+    await waitFor(() => expect(fieldInput("name")).toHaveFocus())
   })
 
   it("saves with a BLANK email — the field is optional, not a client-side block", async () => {
@@ -196,12 +175,8 @@ describe("<ClientUpsert>", () => {
     })
 
     renderDialog(CLIENT)
-
-    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
     fireEvent.change(fieldInput("contacts.0.email"), { target: { value: "" } })
-
-    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
     fireEvent.click(await screen.findByTestId("client-submit"))
 
     await waitFor(() => expect(patch).toHaveBeenCalled())
@@ -238,13 +213,11 @@ describe("<ClientUpsert>", () => {
         },
       ],
     })
-
-    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
     const lock = screen.getByRole("button", { name: "Why is Set as primary locked?" })
     expect(lock).toHaveAttribute("data-cy", "client-contact-primary-locked-1-trigger")
     expect(screen.getByTestId("client-contact-primary-radio-1")).toHaveAccessibleDescription(
-      "Only the person on the identity step can be the primary contact of an individual client.",
+      "Only the person in the Identity section can be the primary contact of an individual client.",
     )
   })
 
@@ -268,16 +241,13 @@ describe("<ClientUpsert>", () => {
     })
 
     renderDialog(CLIENT)
-
-    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
 
     // Visible: the warning names the OTHER client the email collides with.
     const warning = await screen.findByTestId("client-duplicate-warning")
     expect(warning.textContent).toContain("Existing Dupe SARL")
 
-    // Non-blocking: the warning being on screen does not stop "Continue"/"Save".
-    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
+    // Non-blocking: the warning being on screen does not stop the save.
     fireEvent.click(await screen.findByTestId("client-submit"))
 
     await waitFor(() => expect(patch).toHaveBeenCalled())
@@ -292,9 +262,8 @@ describe("<ClientUpsert>", () => {
     })
 
     renderDialog(null)
-    await advanceToAddressStep()
-    await advanceToFiscalStep("Poland")
-    fireEvent.click(screen.getByTestId("client-dialog-continue"))
+    await startWithName()
+    fillAddress("Poland")
 
     await screen.findByTestId("client-dialog-step-body-contact")
     expect(screen.getByTestId("client-language-select")).toHaveTextContent("Polski")
@@ -309,14 +278,12 @@ describe("<ClientUpsert>", () => {
     })
 
     renderDialog(null)
-    await advanceToAddressStep()
+    await startWithName()
 
     pickCountry("Poland")
     fireEvent.change(fieldInput("address"), { target: { value: "1 Rue Test" } })
     fireEvent.change(fieldInput("city"), { target: { value: "Warszawa" } })
-    fireEvent.click(screen.getByTestId("client-dialog-continue"))
     await screen.findByTestId("client-dialog-step-body-fiscal")
-    fireEvent.click(screen.getByTestId("client-dialog-continue"))
     await screen.findByTestId("client-dialog-step-body-contact")
 
     // "Polski" was suggested (proven above) — now the user picks a language BY HAND.
@@ -325,12 +292,10 @@ describe("<ClientUpsert>", () => {
     expect(screen.getByTestId("client-language-select")).toHaveTextContent("Deutsch")
     expect(screen.queryByTestId("client-language-suggested-hint")).not.toBeInTheDocument()
 
-    // Back to Address, switch to a country with its OWN clear suggestion (Italy → "it") — the
-    // hand-picked "de" must survive untouched, and the suggestion hint must stay gone.
-    fireEvent.click(screen.getByTestId("client-dialog-step-address"))
+    // Another country with its OWN clear suggestion (Italy → "it"): the hand-picked "de" must
+    // survive untouched, and the suggestion hint must stay gone.
     await screen.findByTestId("client-dialog-step-body-address")
     pickCountry("Italy")
-    fireEvent.click(screen.getByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
 
     expect(screen.getByTestId("client-language-select")).toHaveTextContent("Deutsch")
@@ -359,14 +324,10 @@ describe("<ClientUpsert>", () => {
     })
 
     renderDialog(germanClientNoLanguage)
-
-    fireEvent.click(await screen.findByTestId("client-dialog-step-contact"))
     await screen.findByTestId("client-dialog-step-body-contact")
 
     expect(screen.getByTestId("client-language-select")).toHaveTextContent("Automatic")
     expect(screen.queryByTestId("client-language-suggested-hint")).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByTestId("client-dialog-step-recap"))
     fireEvent.click(await screen.findByTestId("client-submit"))
 
     await waitFor(() => expect(patch).toHaveBeenCalled())
@@ -378,8 +339,8 @@ describe("<ClientUpsert>", () => {
     try {
       installFetchMock(CREATE_HANDLERS)
       renderDialog(null)
-      await advanceToAddressStep()
-      await advanceToFiscalStep("Allemagne")
+      await startWithName()
+      fillAddress("Allemagne")
 
       expect(screen.getByTestId("client-currency-select")).toHaveTextContent("Euro")
     } finally {
@@ -390,8 +351,8 @@ describe("<ClientUpsert>", () => {
   it("pre-fills the national currency of a country outside the euro area", async () => {
     installFetchMock(CREATE_HANDLERS)
     renderDialog(null)
-    await advanceToAddressStep()
-    await advanceToFiscalStep("Poland")
+    await startWithName()
+    fillAddress("Poland")
 
     expect(screen.getByTestId("client-currency-select")).toHaveTextContent("Polish")
   })
@@ -399,8 +360,6 @@ describe("<ClientUpsert>", () => {
   it("keeps an existing client's currency when the dialog opens", async () => {
     installFetchMock(CREATE_HANDLERS)
     renderDialog({ ...CLIENT, currency: "USD" })
-
-    fireEvent.click(await screen.findByTestId("client-dialog-step-fiscal"))
     await screen.findByTestId("client-dialog-step-body-fiscal")
 
     expect(screen.getByTestId("client-currency-select")).toHaveTextContent("United States Dollar")
@@ -477,7 +436,7 @@ describe("<ClientUpsert quick>", () => {
     expect(post).not.toHaveBeenCalled()
   })
 
-  it("opens the full wizard, keeping what was typed", async () => {
+  it("opens the full form, keeping what was typed", async () => {
     installFetchMock(quickHandlers(vi.fn()))
     renderQuick()
 

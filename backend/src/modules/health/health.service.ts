@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import type Redis from 'ioredis';
 
+import { logPersistenceHealth, LogPersistenceSnapshot } from '@/logger/log-persistence-health';
 import { getInstalledVersion } from '@/lib/app-version';
 import { createIoredisClient } from '@/modules/documents/queue/redis.config';
 import prisma from '@/prisma/prisma.service';
@@ -10,7 +11,8 @@ export const HEALTH_CHECK_TIMEOUT_MS = 2000;
 export const HEALTH_PROBE_REUSE_MS = 1000;
 
 export interface HealthReport {
-  status: 'ok';
+  /** 'degraded' once `Log` writes have failed `LOG_PERSIST_FAILURE_THRESHOLD` times in a row. */
+  status: 'ok' | 'degraded';
   database: 'up';
   databaseLatencyMs: number;
   redis: 'up';
@@ -18,6 +20,8 @@ export interface HealthReport {
   version: string;
   time: string;
   uptimeSeconds: number;
+  /** Failed `Log` row writes, surfaced so a database that rejects them does not go unnoticed. */
+  logPersistence: LogPersistenceSnapshot;
 }
 
 export type HealthFailure =
@@ -59,10 +63,11 @@ export class HealthService implements OnModuleDestroy {
     if (!redis.up) {
       return { healthy: false, body: { status: 'error', database: 'up', redis: 'down' } };
     }
+    const logPersistence = logPersistenceHealth.snapshot();
     return {
       healthy: true,
       report: {
-        status: 'ok',
+        status: logPersistence.status,
         database: 'up',
         databaseLatencyMs: database.latencyMs,
         redis: 'up',
@@ -70,6 +75,7 @@ export class HealthService implements OnModuleDestroy {
         version: getInstalledVersion().version,
         time: new Date().toISOString(),
         uptimeSeconds: Math.floor(process.uptime()),
+        logPersistence,
       },
     };
   }

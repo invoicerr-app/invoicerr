@@ -1,13 +1,9 @@
 /**
  * Norway — Enhetsregisteret (Brønnøysundregistrene).
+ * Docs: https://data.brreg.no/enhetsregisteret/api/dokumentasjon/ (no credentials).
  *
- * Endpoint : GET https://data.brreg.no/enhetsregisteret/api/enheter/{orgnr}
- * Docs     : https://data.brreg.no/enhetsregisteret/api/dokumentasjon/
- * Credentials: none.
- *
- * The Norwegian VAT number is the organisation number followed by "MVA", but only
- * for entities actually entered in the VAT register — the `registrertIMvaregisteret`
- * flag is what decides, never the number's shape.
+ * The VAT number is the organisation number plus "MVA", but only for entities in the VAT register:
+ * the `registrertIMvaregisteret` flag decides, never the number's shape.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, toDate } from '../http';

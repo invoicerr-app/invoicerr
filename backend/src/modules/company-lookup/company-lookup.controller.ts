@@ -9,11 +9,8 @@ import { LookupScheme } from '@/modules/company-lookup/types';
 
 const SCHEMES: LookupScheme[] = ['LEGAL_ID', 'VAT'];
 
-// AuthGuard (src/guards/auth.guard.ts) bypasses handlers carrying the 'PUBLIC' key.
-// Same reasoning as compliance/nest/required-fields.controller.ts: the capability
-// matrix is static reference data the onboarding form needs before a company (and a
-// fully settled session) exists, and a transient 401 there redirects the user to
-// sign-in. The lookup itself stays authenticated — it spends external API quota.
+// Static reference data the onboarding form needs before a session exists.
+// The lookup itself stays authenticated.
 const Public = () => SetMetadata('PUBLIC', true);
 
 @ApiTags('company-lookup')

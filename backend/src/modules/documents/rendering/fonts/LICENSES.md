@@ -20,7 +20,15 @@ license verbatim — reused here as this table's own "Copyright" column, not re-
 | DM Sans | `dm-sans/` | `dm-sans-400.woff2`, `dm-sans-700.woff2` | 2014 The DM Sans Project Authors — https://github.com/googlefonts/dm-fonts | https://fonts.google.com/specimen/DM+Sans · https://www.npmjs.com/package/@fontsource/dm-sans |
 | Lora | `lora/` | `lora-400.woff2`, `lora-700.woff2` | 2011 The Lora Project Authors — https://github.com/cyrealtype/Lora-Cyrillic | https://fonts.google.com/specimen/Lora · https://www.npmjs.com/package/@fontsource/lora |
 
-Full OFL 1.1 license text (identical for all five, only the copyright line above differs):
+The "Atelier" document template (`branding/templates.ts`) adds two more families of its own, Latin
+and Latin Extended subsets, from the same `@fontsource/*` packages (version `5.3.0`):
+
+| Family | Directory | Files | Copyright (from the font's own `LICENSE`) | Upstream |
+| --- | --- | --- | --- | --- |
+| Figtree | `figtree/` | `figtree-{latin,latin-ext}-{400,600}.woff2` | 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree) | https://fonts.google.com/specimen/Figtree · https://www.npmjs.com/package/@fontsource/figtree |
+| Newsreader | `newsreader/` | `newsreader-{latin,latin-ext}-{400,500}.woff2` | 2020 The Newsreader Project Authors (http://github.com/productiontype/Newsreader) | https://fonts.google.com/specimen/Newsreader · https://www.npmjs.com/package/@fontsource/newsreader |
+
+Full OFL 1.1 license text (identical for all seven, only the copyright line above differs):
 https://openfontlicense.org/open-font-license-official-text/
 
 ## Why these five

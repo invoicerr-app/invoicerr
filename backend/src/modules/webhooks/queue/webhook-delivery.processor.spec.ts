@@ -1,10 +1,6 @@
 /**
- * `WebhookDeliveryProcessor` — proves offline what
- * `__tests__/webhook-delivery-queue.redis.spec.ts` proves again end-to-end against a real queue and a
- * real (deliberately failing) receiver: a job stays quiet while retries remain, and once every attempt
- * is spent the failure is logged loudly — the same `category: 'webhook-dispatcher'`, ERROR-severity
- * signal a pre-queue, single-shot dispatch failure already produced (see
- * `webhook-dispatcher.service.ts`'s own header for that contract).
+ * Offline counterpart of the redis spec: a job stays quiet while retries remain, and the last attempt
+ * logs the terminal ERROR.
  */
 import { vi, type Mock } from 'vitest';
 

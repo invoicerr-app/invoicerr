@@ -1,5 +1,33 @@
 {
   "countryCode": "DZ",
+  "companyProfile": {
+    "countryCode": "DZ",
+    "attributes": [
+      {
+        "key": "taxRegime",
+        "label": "Tax regime",
+        "help": "The regime under which the company is taxed on its turnover.",
+        "values": [
+          {
+            "value": "REAL",
+            "label": "Real regime"
+          },
+          {
+            "value": "SIMPLIFIED",
+            "label": "Simplified regime"
+          },
+          {
+            "value": "FORFAITAIRE",
+            "label": "Forfait regime"
+          }
+        ],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Code des impôts directs et taxes assimilées art. 282 (régimes d'imposition): read the consolidated article and quote the regimes before this attribute gates anything. No accessible primary source was found on 2026-10-31."
+        }
+      }
+    ]
+  },
   "policy": {
     "countryCode": "DZ",
     "documentTypes": [

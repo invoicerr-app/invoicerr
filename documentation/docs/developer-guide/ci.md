@@ -35,6 +35,15 @@ SonarCloud's automatic analysis only analyzes pull requests and the default bran
 reports on a queue branch. Its result gates the pull request itself, before it is queued.
 :::
 
+## Promotion to main
+
+`main` only receives `dev`: a pull request targeting `main` has to come from this repository's `dev`
+branch. The `main-promotion-only` job in `cypress.yml` fails every other pull request into `main`, and
+`tests-green` depends on it, so the rule is enforced through the check `main` already requires instead
+of a branch protection rule kept somewhere out of sight. The promotion itself, `merge_group` runs and
+pushes to `main` all pass: the job only judges a `pull_request` whose base is `main`. A fork naming its
+own branch `dev` is refused too, since the head repository must be this one.
+
 ## Workflow rules
 
 SonarCloud analyzes `.github/workflows/` too. A step added to a workflow follows the same rules as
@@ -116,6 +125,35 @@ above (or leave it unlabeled for "Other") before it merges if you want it to sho
 right heading in the next release's notes.
 :::
 
+A published **pre-release** is announced on Discord by the `announce` job of `docker-publish.yml`,
+through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret. That job declares
+`needs: [prepare, merge]`, so it starts only once the release's manifest list exists at ghcr.io.
+Three things suppress it: a platform build that fails, a manifest list that cannot be created, and
+the Trivy gate that closes `merge` (`exit-code: 1` on a fixable CRITICAL finding), which fails the
+job after the image is already published. An announcement therefore never points at a tag that
+answers "manifest unknown"; the price is that a CRITICAL finding also silences the announcement for
+an image a reader can already pull. Nothing about the `:latest` decision moves: `prepare` still
+makes it, and a full release (the pre-release checkbox left unticked) is never announced.
+
+The message itself is built by `.github/scripts/announce-prerelease.sh`. Run it with `DRY_RUN=1` and
+the `RELEASE_*` variables to print the exact payload without posting anything:
+
+```bash
+DRY_RUN=1 \
+  RELEASE_TAG=26.11.0-beta.1 \
+  RELEASE_URL="$(gh release view 26.11.0-beta.1 --json url --jq .url)" \
+  RELEASE_BODY="$(gh release view 26.11.0-beta.1 --json body --jq .body)" \
+  .github/scripts/announce-prerelease.sh
+```
+
+`RELEASE_BODY` is the body GitHub generated, which opens with an HTML comment naming
+`.github/release.yml`. GitHub hides that comment, Discord would print it, so the script drops HTML
+comments and the blank lines they leave at the top before cutting to 1500 characters: the printed
+description starts at the first heading (`## What's Changed`), never at the comment.
+
+Without the secret configured, the job logs a notice and skips cleanly rather than failing the
+release.
+
 ## Documentation build
 
 The changelog at `/changelog` is generated at build time: `documentation/scripts/fetch-changelog.mjs`
@@ -141,17 +179,6 @@ none of them can run `git commit -s`. The failing run names each offending commi
 It also runs on every merge queue entry, reading the pull request number from the queue branch
 name, so it can be a required check of the queue.
 
-`release-discord.yml` posts a short summary of every published **pre-release** to the Discord
-announcements channel, through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret.
-A full release (the pre-release checkbox left unticked) never posts here; see
-`docker-publish.yml` for why only an unchecked pre-release box is what ships an image to
-`:latest`, which this workflow does not touch.
-
-Without the secret configured, the workflow logs a notice and skips cleanly rather than failing
-the run. `workflow_dispatch` can simulate a pre-release publish (with made-up release details) to
-exercise that skip path, or the real posting once the secret is set, without waiting for an actual
-release.
-
 ## Backend dependency updates
 
 Two rules for anyone, Renovate included, who changes `backend/package.json` or its lockfile:
@@ -165,6 +192,29 @@ Two rules for anyone, Renovate included, who changes `backend/package.json` or i
   `FileInterceptor` parses uploads with that copy, not with the backend's own dependency. The
   `overrides` entry `"multer": "$multer"` makes both the version `backend/package.json` names. After a
   `multer` update, `npm ls multer` shows a single version, `deduped` under `@nestjs/platform-express`.
+
+## Preview images
+
+To deploy a pull request somewhere and test it, add the `preview` label to it. `docker-pr.yml` then
+builds the pull request (amd64 and arm64) and publishes `ghcr.io/invoicerr-app/invoicerr:pr-<number>`.
+Every later push to the pull request rebuilds the same tag while the label stays, and a new push
+cancels the build still running for the previous one. The run summary gives the `docker pull`
+command and the digest.
+
+- Without the label, nothing is built. Removing the label stops later rebuilds and leaves the last
+  image in place.
+- A pull request from a fork never publishes: its token cannot write packages, so the build is
+  skipped rather than failed. A maintainer who wants an image of it pushes the branch to this
+  repository first.
+- A branch with no pull request open gets an image from **Actions** > **Verify Docker Build (PR)** >
+  **Run workflow**, tagged with the branch name or with the tag typed in the form.
+
+:::info[The image is the merge result]
+Like every `pull_request` run, the build checks out the pull request merged into its base branch, not
+the branch alone. A pull request with merge conflicts gets no run at all until they are resolved.
+:::
+
+Old `pr-*` tags are not deleted automatically.
 
 ## Docker image vulnerability scanning (Trivy)
 

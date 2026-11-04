@@ -1,17 +1,10 @@
 /**
- * `CompanyService` constructed DIRECTLY (never `CompanyModule` — same reason
- * `clients.vat-validation.spec.ts` gives for `ClientsService`), real Prisma.
+ * `CompanyService` built directly, against real Prisma.
  *
- * Covers the mass-assignment close on `createCompany` — the sibling of `company.service.spec.ts`'s own
- * `editCompanyInfo` coverage, but for the OTHER write path: `createCompany` used to spread the raw
- * `EditCompanyDto` body (minus `identifiers`) straight into `prisma.company.create`. `EditCompanyDto`
- * is a TypeScript interface, erased at compile time, and this API has no `ValidationPipe`, so that
- * spread accepted every key `CompanyCreateInput` knows about — including a nested write on any of
- * `Company`'s ~30 relations. Because the foreign key on those relations lives on the CHILD row, a
- * `connect` there REASSIGNS an existing row rather than merely failing, and a `create` fabricates one
- * with no upstream fact behind it (no Polar customer for a fabricated `subscription`, in particular).
- * `pickCompanyInput` (`company.service.ts`) is the fix: the single scalar allow-list both `createCompany`
- * and `editCompanyInfo` now write through.
+ * Covers the mass-assignment close on `createCompany`: spreading the raw body into Prisma would accept
+ * any key, including a nested write, and because the foreign key lives on the child row a `connect`
+ * reassigns another tenant's row while a `create` fabricates one with no upstream fact (a subscription
+ * with no Polar customer). `pickCompanyInput` is the single scalar allow-list both write paths use.
  */
 
 import { vi } from 'vitest';

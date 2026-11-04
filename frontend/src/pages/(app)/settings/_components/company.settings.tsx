@@ -48,6 +48,8 @@ import {
   withVatIdentifier,
 } from "@/hooks/use-required-identifiers"
 import type { Company, ResolvedRevenueSettings } from "@/types"
+import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
+import { isProfileAttributeAsked, profileValuesForDisplay } from "./company-profile-values"
 
 import { NumberFormatsSection } from "./number-formats.section"
 import { CompanyLawSection } from "./company-law.section"
@@ -200,7 +202,7 @@ export default function CompanySettings() {
       .min(0, t("settings.company.form.reconciliationTolerancePercent.errors.min")),
   })
 
-  const { data } = useGet<Company>("/api/company/info")
+  const { data, mutate: refetchCompany } = useGet<Company>("/api/company/info")
   const profileAttributes = data?.companyProfileAttributes ?? []
   // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
   // per-country default) plus whether each is explicit, so the select below can show "using the
@@ -257,6 +259,19 @@ export default function CompanySettings() {
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
     },
   })
+
+  // The attributes the country asks for right now: a condition follows the value on screen, so a
+  // question that stops being relevant disappears without a save. The derived value is rebuilt from
+  // the live switch, never from the stored one the server computed its values with.
+  const profileValues = profileValuesForDisplay(
+    profileAttributes,
+    data?.companyProfileValues,
+    form.watch("reportingProfile"),
+    form.watch("exemptVat") === true,
+  )
+  const askedProfileAttributes = profileAttributes.filter((attribute) =>
+    isProfileAttributeAsked(attribute, profileValues),
+  )
 
   // A SEPARATE data source from `/api/company/info` above (see this field's own zod comment) — its
   // own small sync effect, the same "don't clobber a value the user already touched" guard the main
@@ -331,6 +346,24 @@ export default function CompanySettings() {
         if (dirtyFields[key as keyof typeof nextValues]) {
           merged[key] = currentValues[key]
         }
+      }
+
+      // The dirty guard above copies the whole reportingProfile object when one sub-field changed,
+      // which would put back an answer the refetched row no longer carries (the exemption switch just
+      // made its question irrelevant). Keep only the sub-keys the country still asks, so the value
+      // cannot reappear or leave again in a later payload.
+      const profileAttributesForMerge = data.companyProfileAttributes ?? []
+      if (profileAttributesForMerge.length > 0) {
+        const profile = (merged.reportingProfile ?? {}) as Record<string, string | undefined>
+        const carried = profileValuesForDisplay(
+          profileAttributesForMerge,
+          data.companyProfileValues,
+          profile,
+          !!merged.exemptVat,
+        )
+        merged.reportingProfile = Object.fromEntries(
+          Object.entries(profile).filter(([key]) => carried[key] !== undefined),
+        )
       }
 
       form.reset(merged as typeof nextValues)
@@ -505,10 +538,13 @@ export default function CompanySettings() {
       reportingProfile:
         sameCountry && profileAttributes.length > 0
           ? Object.fromEntries(
-              profileAttributes.map((attribute) => [
-                attribute.key,
-                reportingProfile?.[attribute.key] || null,
-              ]),
+              profileAttributes
+                // Only the questions this country still asks are sent: the API refuses an answer for
+                // a question the company's own values no longer make relevant (its `askedWhen`).
+                .filter(
+                  (attribute) => !attribute.derived && isProfileAttributeAsked(attribute, profileValues),
+                )
+                .map((attribute) => [attribute.key, reportingProfile?.[attribute.key] || null]),
             )
           : undefined,
       identifiers: [
@@ -563,6 +599,9 @@ export default function CompanySettings() {
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
       refetchResolvedRevenueSettings()
+      // The saved row is the source of the locked rows (the derived VAT regime) and of the values a
+      // condition is read against; without this the screen keeps showing what it loaded.
+      refetchCompany()
     } finally {
       setIsLoading(false)
     }
@@ -1334,50 +1373,83 @@ export default function CompanySettings() {
               description={t("settings.company.profile.description")}
               contentClassName="grid gap-5 sm:grid-cols-2"
             >
-              {profileAttributes.map((attribute) => (
-                <FormField
-                  key={attribute.key}
-                  control={form.control}
-                  name={`reportingProfile.${attribute.key}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel description={attribute.help}>{attribute.label}</FormLabel>
-                      <Select
-                        value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
-                        // Radix fires a spurious "" when the stored value arrives after mount; a
-                        // real pick is never "", so it is dropped (same as invoiceTransportId).
-                        onValueChange={(value) => {
-                          if (value) field.onChange(value === UNDECLARED_PROFILE_VALUE ? "" : value)
-                        }}
+              {askedProfileAttributes.map((attribute) => {
+                if (attribute.derived) {
+                  const fieldId = `company-profile-${attribute.key}-derived`
+                  return (
+                    <div key={attribute.key} className="space-y-1.5">
+                      <FieldLabel
+                        htmlFor={fieldId}
+                        description={attribute.help}
+                        lockReason={t("settings.company.profile.derivedReason")}
                       >
-                        <FormControl>
-                          <SelectTrigger
-                            className="w-full"
-                            data-cy={`company-profile-${attribute.key}-select`}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
+                        {attribute.label}
+                      </FieldLabel>
+                      <Select value={profileValues[attribute.key] ?? ""} disabled>
+                        <SelectTrigger
+                          id={fieldId}
+                          className="w-full disabled:opacity-100"
+                          aria-describedby={`${fieldHelpId(fieldId)} ${fieldLockId(fieldId)}`}
+                          data-cy={fieldId}
+                        >
+                          <SelectValue placeholder={t("settings.company.profile.notDeclared")} />
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={UNDECLARED_PROFILE_VALUE}>
-                            {t("settings.company.profile.notDeclared")}
-                          </SelectItem>
                           {attribute.values.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              data-cy={`company-profile-${attribute.key}-option-${option.value}`}
-                            >
+                            <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ))}
+                    </div>
+                  )
+                }
+                return (
+                  <FormField
+                    key={attribute.key}
+                    control={form.control}
+                    name={`reportingProfile.${attribute.key}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel description={attribute.help}>{attribute.label}</FormLabel>
+                        <Select
+                          value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
+                          // Radix fires a spurious "" when the stored value arrives after mount; a
+                          // real pick is never "", so it is dropped (same as invoiceTransportId).
+                          onValueChange={(value) => {
+                            if (value) field.onChange(value === UNDECLARED_PROFILE_VALUE ? "" : value)
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger
+                              className="w-full"
+                              data-cy={`company-profile-${attribute.key}-select`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={UNDECLARED_PROFILE_VALUE}>
+                              {t("settings.company.profile.notDeclared")}
+                            </SelectItem>
+                            {attribute.values.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                data-cy={`company-profile-${attribute.key}-option-${option.value}`}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )
+              })}
             </SettingsSection>
           )}
 

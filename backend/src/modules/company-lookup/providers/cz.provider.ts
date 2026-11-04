@@ -1,9 +1,6 @@
 /**
  * Czechia — ARES (Administrativní registr ekonomických subjektů, Ministerstvo financí).
- *
- * Endpoint : GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{ico}
- * Docs     : https://ares.gov.cz/stranky/vyvojar-info
- * Credentials: none.
+ * Docs: https://ares.gov.cz/stranky/vyvojar-info (no credentials).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { digits, fetchJson, stripVatPrefix, toDate } from '../http';

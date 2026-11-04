@@ -14,17 +14,17 @@ export interface ClientSchemaIdentifierRequirement {
 }
 
 /**
- * The client create/edit wizard's own zod schema, extracted out of `client-upsert.tsx` (where it used
+ * The client create/edit form's own zod schema, extracted out of `client-upsert.tsx` (where it used
  * to be built inline, around what was lines 930-1070) so a SECOND caller - the CSV import's per-row
  * validation, `frontend/src/lib/csv-import/client-rows.ts` - can validate against the exact same
- * rules instead of a hand-copied twin that could silently drift. The wizard itself now calls this
- * too; its own behaviour is unchanged (see `client-upsert.spec.tsx`, which still exercises the wizard
+ * rules instead of a hand-copied twin that could silently drift. The form itself now calls this
+ * too; its own behaviour is unchanged (see `client-upsert.spec.tsx`, which still exercises the form
  * through its public behaviour, not this function directly).
  *
- * `requiredIdentifiers`/`originalIdentifierValues` are the two pieces of external state the wizard's
+ * `requiredIdentifiers`/`originalIdentifierValues` are the two pieces of external state the form's
  * own `superRefine` used to read off `requiredIdentifiersRef`/`originalIdentifierValuesRef` - passed
  * in explicitly here instead, since a plain builder function has no render cycle to hang a ref off
- * of. The wizard passes its refs' `.current`; the import passes the per-row country's own
+ * of. The form passes its refs' `.current`; the import passes the per-row country's own
  * requirements and an empty map (a freshly imported row has no "value already on file" to
  * grandfather - see `validate-identifier-value.ts`'s own DECISION 2 for what that grandfather clause
  * is for on an EDIT, which an import row never is). `optionalAddress` is the quick-create form, which
@@ -65,10 +65,10 @@ export function buildClientSchema(
           if (!val) return true
           return z.email().safeParse(val).success
         }, t("clients.upsert.validation.contactEmail.format")),
-      // Several named contacts per client (#415) - the wizard's own CONTACT step
+      // Several named contacts per client (#415) - the form's own CONTACT section
       // (`client-upsert.tsx`'s `ContactsSection`). Optional/absent for the CSV import's row schema
       // (a row still carries only the four flat fields above, which stay meaning "the primary
-      // contact" - see `client-import.service.ts`'s own header); the wizard always sends this array,
+      // contact" - see `client-import.service.ts`'s own header); the form always sends this array,
       // never the flat fields, once at least one contact row exists.
       contacts: z
         .array(
@@ -114,7 +114,7 @@ export function buildClientSchema(
     })
     .superRefine((val, ctx) => {
       if (val.type === "INDIVIDUAL") {
-        // The wizard folds the identity step's contactFirstname/contactLastname into the primary
+        // The form folds the Identity section's contactFirstname/contactLastname into the primary
         // contact at submit time (#415 - see `client-upsert.tsx`'s own `buildClientPayload`), so
         // those two top-level fields are still the right thing to validate here regardless of
         // whether `contacts` is also present.

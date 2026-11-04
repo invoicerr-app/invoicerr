@@ -6,11 +6,9 @@ import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/c
 import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
 
 /**
- * The icon and link a chat message carries, taken from THIS instance rather than from
- * `invoicerr.app`. A self-hosted deployment that posts a webhook pointing at the project's own
- * public site sends its users somewhere they have no account, and asks a private chat server to
- * fetch an image from the open internet — which a closed network simply cannot do. `favicon.svg`
- * because that is the file every deployment actually serves.
+ * The icon and link a chat message carries, taken from THIS instance: a self-hosted deployment must
+ * not send its users to a site where they have no account, nor ask a closed network to fetch an
+ * image from the open internet. `favicon.svg` because every deployment serves it.
  */
 export const instanceUrl = (): string => (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
 export const instanceIcon = (): string => `${instanceUrl()}/favicon.svg`;
@@ -31,8 +29,7 @@ interface ChatAttachmentData {
 }
 
 /**
- * Shared attachment builder for Slack-compatible chat webhooks
- * (Slack, Mattermost, Rocket.Chat all accept the same attachment shape).
+ * Shared attachment builder: Slack, Mattermost and Rocket.Chat all accept this shape.
  */
 export class ChatAttachment {
   private data: ChatAttachmentData = {};
@@ -70,9 +67,8 @@ export class ChatAttachment {
 }
 
 /**
- * Shared webhook sender. The only per-platform variance in the payload is the
- * key used for the bot icon (`icon_url` for Slack/Mattermost, `avatar` for
- * Rocket.Chat).
+ * Shared sender: platforms differ only by the key carrying the bot icon (`icon_url` for
+ * Slack/Mattermost, `avatar` for Rocket.Chat).
  */
 export class ChatWebhook {
   private attachments: ChatAttachment[] = [];
@@ -120,7 +116,7 @@ export class ChatWebhook {
       body: JSON.stringify(payload),
       redirect: 'manual',
       signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-      // See `webhook-driver.interface.ts`'s own header on why this must never be omitted.
+      // Pins the address validated by the guard; see webhook-driver.interface.ts.
       dispatcher,
     } as RequestInit);
 
@@ -134,9 +130,7 @@ export class ChatWebhook {
 }
 
 /**
- * Common driver logic for Slack-compatible chat platforms: event styling,
- * payload formatting and the attachment layout are identical — subclasses only
- * declare their WebhookType, the fallback color and the icon payload key.
+ * Common logic for Slack-compatible platforms: only the type, fallback colour and icon key differ.
  */
 export abstract class ChatWebhookDriver implements WebhookDriver {
   protected abstract readonly type: WebhookType;

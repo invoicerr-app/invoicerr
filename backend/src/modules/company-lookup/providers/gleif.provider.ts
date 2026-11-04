@@ -1,19 +1,10 @@
 /**
  * GLEIF — the Global LEI Index (Global Legal Entity Identifier Foundation).
+ * Docs: https://www.gleif.org/en/lei-data/gleif-api (no credentials).
  *
- * Endpoint : GET https://api.gleif.org/api/v1/lei-records
- *            ?filter[entity.registeredAs]={id}&filter[entity.legalAddress.country]={cc}
- *            GET https://api.gleif.org/api/v1/lei-records/{lei}
- * Docs     : https://www.gleif.org/en/lei-data/gleif-api
- * Credentials: none, no registration, no quota key.
- *
- * Worldwide, not per country: ~2.8 M legal entities across ~200 jurisdictions, each
- * carrying the number it is registered as in its own national register. That makes it
- * the keyless fallback for every country that has no open register API of its own.
- *
- * Coverage is PARTIAL by nature — an entity is in the index only if it obtained an LEI
- * (anyone trading securities, most mid/large companies, few micro-businesses), so a miss
- * here is not evidence that the company does not exist.
+ * The keyless fallback for countries without an open register: each LEI record carries the number
+ * the entity has in its own national register. PARTIAL by nature, since only entities that obtained
+ * an LEI are indexed, so a miss here is not evidence the company does not exist.
  */
 import { alnum, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import {

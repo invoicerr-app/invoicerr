@@ -7,38 +7,29 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 import { Loader2Icon } from "lucide-react"
 
 const buttonVariants = cva(
-  // disabled:opacity-70, not the old 50: a UNIFORM fade converges a colored surface AND its own
-  // paired text toward the same page-background color, collapsing their contrast (measured: the
-  // filled variants below fell to ~2-4:1 at 50%, under AA, on both themes — scratchpad). 70% keeps
-  // outline/ghost/link (whose disabled state only fades foreground text over an unchanged
-  // background) at 6.5:1+; the three filled variants override opacity back to 100% and swap to the
-  // muted pair instead, which does not have that convergence problem (~5.2-5.7:1 either theme).
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-70 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  // Filled variants never fade when disabled: a uniform fade collapses a fill and its own text toward
+  // the page colour, so they swap to the muted pair instead.
+  "press focus-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent text-sm font-semibold disabled:pointer-events-none disabled:opacity-70 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
+          "bg-primary text-primary-foreground border-primary-edge shadow-press hover:bg-primary-hover disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:border-transparent disabled:shadow-none",
         destructive:
-          // text-destructive-solid-foreground, not text-destructive-foreground: the latter flips to
-          // dark ink in the dark theme (correct for destructive used as plain text) but this button's
-          // dark:bg-destructive/60 composites at partial opacity, staying too dark for that ink to
-          // clear AA — see index.css's own comment on that token. Disabled falls back to the same
-          // neutral muted pair as every other filled variant (a disabled delete button has nothing
-          // destructive left to warn about).
-          "bg-destructive text-destructive-solid-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
+          // The solid ink stays near-white in both themes; see index.css on --destructive-solid-foreground.
+          "bg-destructive text-destructive-solid-foreground shadow-press-destructive hover:bg-destructive/90 dark:bg-destructive/60 disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+          "border-input bg-card text-foreground shadow-control dark:shadow-none hover:bg-secondary dark:bg-transparent dark:hover:bg-secondary",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
-        ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground hover:bg-accent disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground",
+        ghost: "text-foreground hover:bg-secondary",
+        link: "h-auto border-0 px-0 text-link underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
+        default: "h-[38px] px-4 has-[>svg]:px-3.5",
+        sm: "h-8 gap-1.5 px-3 text-[13.5px] has-[>svg]:px-2.5",
+        lg: "h-[42px] px-5 text-[15px] has-[>svg]:px-4",
+        icon: "size-[38px]",
       },
     },
     defaultVariants: {
@@ -72,7 +63,7 @@ function ButtonWithoutTooltip({
   // `<button>` path (`asChild` false) is untouched, `Slottable` being a no-op wrapper there.
   return (
     <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props}>
-      {loading && <Loader2Icon className="me-2 animate-spin" />}
+      {loading && <Loader2Icon className="animate-spin motion-reduce:animate-none" />}
       {asChild ? <Slottable>{props.children}</Slottable> : props.children}
     </Comp>
   )

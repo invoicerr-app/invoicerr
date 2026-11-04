@@ -42,3 +42,45 @@ export function useStatisticsWidgets() {
   const select = useCallback((data: Widget[]) => data.map((widget) => translateWidget(t, widget)), [t])
   return useApiQuery<Widget[]>(["widgets", "statistics"], "/api/documents/statistics", { select })
 }
+
+export interface InvoiceOverviewMonth {
+  month: string
+  collected: number | null
+  expected: number | null
+}
+
+export interface InvoiceOverviewChaseRow {
+  clientId: string | null
+  client: string | null
+  invoiceCount: number
+  daysLate: number
+  outstanding: number
+  currency: string
+}
+
+export interface InvoiceOverviewDueRow {
+  documentId: string
+  displayNumber: string | null
+  client: string | null
+  dueDate: string
+  outstanding: number
+  currency: string
+}
+
+export interface InvoiceOverview {
+  currency: string
+  month: string
+  invoicedThisMonth: number
+  invoicedLastMonth: number
+  months: InvoiceOverviewMonth[]
+  toChase: InvoiceOverviewChaseRow[]
+  thisWeek: InvoiceOverviewDueRow[]
+}
+
+/** The dashboard's invoicing overview (backend contributions/invoice-overview.ts). */
+export function useInvoiceOverview() {
+  return useApiQuery<InvoiceOverview>(
+    ["widgets", "dashboard", "overview"],
+    "/api/documents/dashboard/overview",
+  )
+}

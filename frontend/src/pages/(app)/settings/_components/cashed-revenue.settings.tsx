@@ -166,7 +166,7 @@ export default function CashedRevenueSettings() {
                           <span
                             key={amount.currency}
                             dir="ltr"
-                            className="font-mono tabular-nums"
+                            className="amount"
                             data-cy={`cashed-revenue-period-${period.key}-amount-${amount.currency}`}
                           >
                             {formatAmount(amount.totalMinor, amount.currency)}
@@ -179,7 +179,7 @@ export default function CashedRevenueSettings() {
                     period.consolidated ? (
                       <span
                         dir="ltr"
-                        className="font-mono tabular-nums text-sm"
+                        className="amount text-sm"
                         title={period.consolidated.notes.join(" ")}
                         data-cy={`cashed-revenue-period-${period.key}-consolidated`}
                       >

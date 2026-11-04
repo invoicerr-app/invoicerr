@@ -1,12 +1,10 @@
 /**
- * Live registry lookups — opt-in, real HTTP, no credentials.
+ * Live registry lookups: opt-in, real HTTP, keyless registers only.
  *
  *   COMPANY_LOOKUP_LIVE=1 npx vitest run src/modules/company-lookup/company-lookup.live.spec.ts
  *
- * Skipped by default (CI and offline runs). Only the keyless registers are covered:
- * every credentialed provider (GB, IE, NL, CH, AU) needs its env vars and is exercised
- * by its unit test instead. Each case queries a well-known public entity, so a failure
- * means the registry changed its contract — not that the data moved.
+ * Each case queries a well-known public entity, so a failure means the registry changed its
+ * contract rather than the data moving.
  */
 
 import { vi } from 'vitest';

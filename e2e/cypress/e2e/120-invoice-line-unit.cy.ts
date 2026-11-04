@@ -16,7 +16,6 @@ function startInvoiceAtLines() {
 	cy.pickToday('[data-cy="document-field-issueDate-input"]');
 	cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
 	cy.pickDocumentFieldOption("currency", "eur");
-	cy.continueDocumentWizard();
 }
 
 function addLine(index: number, unit: string) {
@@ -53,8 +52,6 @@ describe("Invoice line `unit` picklist and VAT rate label", () => {
 			.and("contain.text", "Hour");
 		cy.get('input[name="lines.0.unit"]').type("{esc}");
 
-		cy.continueDocumentWizard();
-		cy.continueDocumentWizard();
 
 		cy.intercept("POST", `${api}/api/documents/types/invoice/actions/save-draft`).as("saveDraft");
 		cy.get('[data-cy="document-action-save-draft"]').click();

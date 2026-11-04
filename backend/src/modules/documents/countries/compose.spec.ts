@@ -31,7 +31,7 @@ describe('countries/compose: a pure pass-through of data/all.ts, never a copy or
 });
 
 // Pinned by hand on purpose (2026-10-01, issue #603 step 1; re-verified step 6, 2026-10-02, against
-// the new single `countries/data/<cc>.json` files rather than the 14 old directories). A catalog that
+// the new single `countries/data/<cc>.json` files rather than the old per-catalog directories). A catalog that
 // ships a new country's section, or drops one, must change this table in the SAME pull request as the
 // data change. A silent diff here is exactly the failure mode this test exists to catch.
 describe('countries/compose: section coverage per country (pinned on purpose, see comment above)', () => {
@@ -58,6 +58,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'companyLookup',
         'paymentTerms',
         'companyLaw',
+        'companyProfile',
       ],
       DZ: [
         'policy',
@@ -68,6 +69,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'channelPolicy',
         'retention',
         'companyLaw',
+        'companyProfile',
       ],
       FR: [
         'policy',
@@ -122,6 +124,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'companyLookup',
         'paymentTerms',
         'companyLaw',
+        'companyProfile',
       ],
       PT: [
         'policy',
