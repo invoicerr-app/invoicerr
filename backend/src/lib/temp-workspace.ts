@@ -12,7 +12,7 @@
  * done with them; the age-based pass only catches the crash case.
  */
 import type { Dirent } from 'node:fs';
-import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -23,9 +23,54 @@ export const TEMP_WORKSPACE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /** Set to move the root (a tmpfs mount, a volume with a size cap). Default: `<tmp>/invoicerr-temp`. */
 export const TEMP_WORKSPACE_DIR_ENV = 'DOCUMENTS_TEMP_DIR';
 
+/**
+ * Empty file every workspace this module creates carries. The sweep deletes a directory only when
+ * this marker is present, so a foreign directory that happens to live under the same root (an
+ * operator's own scratch directory, another tool's cache) is never removed, however old it is.
+ */
+export const TEMP_WORKSPACE_MARKER = '.invoicerr-workspace';
+
 export function tempWorkspaceRoot(env: NodeJS.ProcessEnv = process.env): string {
   const configured = env[TEMP_WORKSPACE_DIR_ENV]?.trim();
   return configured ? configured : join(tmpdir(), 'invoicerr-temp');
+}
+
+/**
+ * Refuses a root that is not a directory this process may treat as private.
+ *
+ * The root used to be passed straight to `mkdir({ recursive: true })`, which silently accepts a
+ * symlink already sitting at that path: every workspace then landed in whatever the link pointed at,
+ * and `rm({ recursive: true })` during the sweep could erase a directory the application never
+ * created. `lstat`, never `stat`, so the link itself is what gets inspected. The owner and mode
+ * checks are the same guarantee one level up: a root readable by another local user exposes every
+ * company export written under it, so it is refused rather than quietly used.
+ *
+ * A missing root is not an error here: the caller creates it and checks again.
+ */
+async function assertSafeRoot(root: string): Promise<void> {
+  const info = await lstat(root).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (info === null) return;
+
+  if (info.isSymbolicLink()) {
+    throw new Error(`Temp workspace root ${root} is a symbolic link; refusing to use it.`);
+  }
+  if (!info.isDirectory()) {
+    throw new Error(`Temp workspace root ${root} is not a directory; refusing to use it.`);
+  }
+  if (typeof process.getuid === 'function' && info.uid !== process.getuid()) {
+    throw new Error(
+      `Temp workspace root ${root} is owned by uid ${info.uid}, not by this process (uid ${process.getuid()}); refusing to use it.`,
+    );
+  }
+  const mode = info.mode & 0o777;
+  if (mode !== 0o700) {
+    throw new Error(
+      `Temp workspace root ${root} has mode 0o${mode.toString(8)}; it must be 0700. Run: chmod 0700 ${root}`,
+    );
+  }
 }
 
 export interface SweepOptions {
@@ -35,14 +80,25 @@ export interface SweepOptions {
 }
 
 /**
- * Deletes directories under the root older than `maxAgeMs`. Returns how many it removed. Never
- * throws: a missing root is not an error (nothing has been written yet), and a directory that cannot
- * be read or removed is skipped rather than aborting the caller.
+ * Deletes directories this module created under the root when they are older than `maxAgeMs`.
+ * Returns how many it removed. Never throws: a missing root is not an error (nothing has been written
+ * yet), an unsafe root is left alone, and a directory that cannot be read or removed is skipped
+ * rather than aborting the caller.
+ *
+ * Only marked directories are candidates (`TEMP_WORKSPACE_MARKER`). Directories created before the
+ * marker existed are therefore never swept; they are a one-off cleanup for the operator, not
+ * something this function can safely guess at.
  */
 export async function sweepStaleTempWorkspaces(options: SweepOptions = {}): Promise<{ removed: number }> {
   const root = options.root ?? tempWorkspaceRoot();
   const maxAgeMs = options.maxAgeMs ?? TEMP_WORKSPACE_MAX_AGE_MS;
   const now = options.now ?? Date.now;
+
+  try {
+    await assertSafeRoot(root);
+  } catch {
+    return { removed: 0 };
+  }
 
   let entries: Dirent[];
   try {
@@ -53,9 +109,13 @@ export async function sweepStaleTempWorkspaces(options: SweepOptions = {}): Prom
 
   let removed = 0;
   for (const entry of entries) {
+    // `withFileTypes` reports the link itself, so a symlink to a directory is skipped here rather
+    // than followed and recursively deleted.
     if (!entry.isDirectory()) continue;
     const path = join(root, entry.name);
-    const info = await stat(path).catch(() => null);
+    const marker = await lstat(join(path, TEMP_WORKSPACE_MARKER)).catch(() => null);
+    if (!marker?.isFile()) continue;
+    const info = await lstat(path).catch(() => null);
     if (!info || now() - info.mtimeMs < maxAgeMs) continue;
     await rm(path, { recursive: true, force: true }).catch(() => undefined);
     removed++;
@@ -66,23 +126,39 @@ export async function sweepStaleTempWorkspaces(options: SweepOptions = {}): Prom
 let sweptThisProcess = false;
 
 /**
- * Creates a fresh `0700` directory for one unit of work. The first call in a process also runs the
- * stale-artifact sweep once, asynchronously — the caller's own directory is freshly created and thus
- * never a candidate, so the sweep cannot race what it is about to return.
+ * Creates a fresh `0700` directory for one unit of work, carrying the marker the sweep looks for. The
+ * first call in a process also runs the stale-artifact sweep once, asynchronously: the caller's own
+ * directory is freshly created and thus never a candidate, so the sweep cannot race what it is about
+ * to return.
+ *
+ * The root is checked with `lstat` BEFORE `mkdir`: `mkdir({ recursive: true })` on a pre-existing
+ * symlink succeeds silently and would put every workspace behind that link.
  */
 export async function createTempWorkspace(
   prefix: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<string> {
   const root = tempWorkspaceRoot(env);
+  await assertSafeRoot(root);
   await mkdir(root, { recursive: true, mode: 0o700 });
+  // Check what actually exists now, not what we asked for: `mode` is filtered by the umask, and a
+  // path swapped between the first check and the `mkdir` would otherwise go unnoticed.
+  await assertSafeRoot(root);
 
   if (!sweptThisProcess) {
     sweptThisProcess = true;
     void sweepStaleTempWorkspaces({ root }).catch(() => undefined);
   }
 
-  return mkdtemp(join(root, `${prefix}-`));
+  const dir = await mkdtemp(join(root, `${prefix}-`));
+  try {
+    await writeFile(join(dir, TEMP_WORKSPACE_MARKER), '', { mode: 0o600 });
+  } catch (error) {
+    // Without its marker the directory would never be swept, so a failed write removes it here.
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+  return dir;
 }
 
 /** Test seam: lets a spec exercise the once-per-process sweep again. */

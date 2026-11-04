@@ -96,6 +96,31 @@ describe('redactLogValue', () => {
     });
   });
 
+  it.each([
+    'jwtSecret',
+    'apiToken',
+    'csrfToken',
+    'secretKey',
+    'encryptionKey',
+    'sessionId',
+  ])('redacts %s, a credential the bare token/secret rules used to miss', (key) => {
+    // The review that found these: a suffix-only rule (`token`, `secret`) plus an exact list that
+    // stopped at `token`/`secret`/`apikey` left six obvious names readable. `encryptionKey` still
+    // needs its own fragment; the other five now match `secret`/`token`/`sessionid`.
+    expect(redactLogValue({ [key]: 'super-secret-value' })).toEqual({ [key]: REDACTED });
+  });
+
+  it('still keeps the short -Code keys readable while redacting the six above', () => {
+    // The documented reason those keys are exact matches rather than a `code` fragment: `countryCode`,
+    // `statusCode` and `errorCode` are the context a log line needs. Widening the credential rules
+    // must not turn them into `[redacted]`.
+    expect(redactLogValue({ countryCode: 'FR', statusCode: 403, errorCode: 'NO_FREE_SEAT' })).toEqual({
+      countryCode: 'FR',
+      statusCode: 403,
+      errorCode: 'NO_FREE_SEAT',
+    });
+  });
+
   it('flattens an Error to name, message and stack, all redacted', () => {
     const error = new Error('cannot mail ada@acme.test');
     const redacted = redactLogValue(error) as Record<string, unknown>;
