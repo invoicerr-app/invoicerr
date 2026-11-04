@@ -59,6 +59,11 @@ export interface RequiredClientIdentifierFact {
 export interface RequiredDocumentFieldFact {
   field: string;
   label: string;
+  /** English catalog key for the label a user sees. The `label` above stays the raw fallback. */
+  labelKey: string;
+  /** English catalog key for a SHORT user-facing help text. The legal rationale belongs in `why`,
+   *  which is provenance for a maintainer and the send-time refusal, never the form popover. */
+  helpTextKey: string;
   why: string;
   required: boolean;
 }
@@ -134,10 +139,16 @@ export function assertValidB2gRoutingFact(fact: B2gRoutingRuleFact, context: str
     }
   }
   for (const field of fact.requiredDocumentFields ?? []) {
-    if (!field.field?.trim() || !field.label?.trim() || !field.why?.trim()) {
+    if (
+      !field.field?.trim() ||
+      !field.label?.trim() ||
+      !field.labelKey?.trim() ||
+      !field.helpTextKey?.trim() ||
+      !field.why?.trim()
+    ) {
       throw new InvalidB2gRoutingProvenanceError(
         `${context} (${fact.countryCode}): a "requiredDocumentFields" entry needs a non-empty ` +
-          '"field", "label" and "why" — never a silently blank one.',
+          '"field", "label", "labelKey", "helpTextKey" and "why" — never a silently blank one.',
       );
     }
     if (typeof field.required !== 'boolean') {
