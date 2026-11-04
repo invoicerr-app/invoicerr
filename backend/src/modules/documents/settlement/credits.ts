@@ -144,12 +144,14 @@ export function creditsForInvoiceFromNotes(
 
     const label = note.displayNumber ?? note.id;
     const noteCurrency = typeof noteData.currency === 'string' ? noteData.currency : undefined;
-    if (!noteCurrency || noteCurrency !== invoiceCurrency) {
+    if (!noteCurrency || !invoiceCurrency) {
+      warnings.push(serverMessage('documents.messages.credits.currencyUnrecorded', { label }));
+    } else if (noteCurrency !== invoiceCurrency) {
       warnings.push(
         serverMessage('documents.messages.credits.currencyMismatch', {
           label,
-          noteCurrency: noteCurrency ?? 'unrecorded',
-          invoiceCurrency: invoiceCurrency ?? 'unrecorded currency',
+          noteCurrency,
+          invoiceCurrency,
         }),
       );
     }

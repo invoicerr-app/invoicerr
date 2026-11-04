@@ -41,6 +41,8 @@ export const SERVER_MESSAGES_EN = {
   'documents.messages.lineTotals.mismatchGross':
     "Line total mismatch (gross / TTC): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
 
+  'documents.messages.credits.currencyUnrecorded':
+    'Credit note "{{label}}" has no recorded currency to compare with its invoice\'s own, so the credited amount is taken from the invoice\'s own priced lines as they stand, never converted.',
   'documents.messages.credits.currencyMismatch':
     'Credit note "{{label}}" declares its own currency as {{noteCurrency}}, different from invoice\'s own {{invoiceCurrency}}. The credited amount is always computed from, and expressed in, the invoice\'s own currency; counted as {{invoiceCurrency}}, never converted (there is nothing to convert).',
 

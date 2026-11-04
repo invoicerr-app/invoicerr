@@ -127,6 +127,10 @@ describe('creditsForInvoiceFromNotes', () => {
     expect(warnings).toHaveLength(1);
     // The warning still NAMES the credit note (by displayNumber when it has one) and both currencies
     // — never silent about the mismatch, even though it no longer blocks anything.
+    expect(warnings[0]).toEqual({
+      key: 'documents.messages.credits.currencyMismatch',
+      params: { label: 'CN-2026-0001', noteCurrency: 'USD', invoiceCurrency: 'EUR' },
+    });
     expect(formatServerMessage(warnings[0])).toContain('CN-2026-0001');
     expect(formatServerMessage(warnings[0])).toContain('USD');
     expect(formatServerMessage(warnings[0])).toContain('EUR');
@@ -143,6 +147,18 @@ describe('creditsForInvoiceFromNotes', () => {
     const { warnings } = creditsForInvoiceFromNotes(notes, 'inv-1', INVOICE_DESCRIPTOR, invoiceData);
 
     expect(formatServerMessage(warnings[0])).toContain('cn-raw-id');
+  });
+
+  it('a credit note with no recorded currency says so through a value-only param, never an English phrase', () => {
+    const notes = [creditNote({ id: 'cn-nocur', data: { invoice: 'inv-1', correctedLines: ['line-1'] } })];
+
+    const { credits, warnings } = creditsForInvoiceFromNotes(notes, 'inv-1', INVOICE_DESCRIPTOR, invoiceData);
+
+    expect(credits).toHaveLength(1);
+    expect(warnings[0]).toEqual({
+      key: 'documents.messages.credits.currencyUnrecorded',
+      params: { label: 'cn-nocur' },
+    });
   });
 
   it('a mix of matching, foreign-currency-labeled, draft, and unrelated credit notes resolves each independently — the foreign-labeled one still counts', () => {

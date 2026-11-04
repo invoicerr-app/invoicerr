@@ -456,6 +456,7 @@ function applyDomesticTaxScheme(
   rows: Record<string, unknown>[],
   taxSystemRegistry: TaxSystemRegistry,
   vatValidator: VatValidator,
+  scheme: TaxScheme,
 ): ResolveInvoiceCrossBorderTaxResult {
   const sellerProfile = taxSystemRegistry.resolve(sellerCC);
   if (!sellerProfile || (sellerProfile.taxSystem.kind !== 'VAT' && sellerProfile.taxSystem.kind !== 'GST')) {
@@ -464,7 +465,7 @@ function applyDomesticTaxScheme(
       crossBorder: false,
       warnings: [
         serverMessage('documents.messages.tax.exemptCountryUnsupported', {
-          scheme: input.seller.taxScheme ?? 'not declared',
+          scheme,
           country: sellerCC,
         }),
       ],
@@ -559,7 +560,14 @@ export function resolveInvoiceCrossBorderTax(
     // to before this scheme existed, including the SAME OBJECT REFERENCE (see this file's own
     // `ResolveInvoiceCrossBorderTaxResult.data` doc comment on why that identity is deliberate).
     if (input.seller.taxScheme && input.seller.taxScheme !== 'STANDARD') {
-      return applyDomesticTaxScheme(input, sellerCC, rows, taxSystemRegistry, vatValidator);
+      return applyDomesticTaxScheme(
+        input,
+        sellerCC,
+        rows,
+        taxSystemRegistry,
+        vatValidator,
+        input.seller.taxScheme,
+      );
     }
     assertDomesticRatesKnown(sellerCC, rows, vatRateCatalog);
     return { data: input.data, crossBorder: false, warnings: [] };

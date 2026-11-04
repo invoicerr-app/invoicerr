@@ -122,6 +122,11 @@ describe('resolveInvoiceCrossBorderTax — domestic seller under a non-STANDARD 
     expect(formatServerMessages(result.warnings).join(' ')).toMatch(
       /no VAT\/GST tax system is known for its own country/,
     );
+    // The params carry values only: the scheme and the country, never a sentence or a fallback phrase.
+    expect(result.warnings[0]).toEqual({
+      key: 'documents.messages.tax.exemptCountryUnsupported',
+      params: { scheme: 'FRANCHISE_BASE', country: 'US' },
+    });
   });
 
   // NON-REGRESSION — DoD's own requirement: an ORDINARY (non-exempt) domestic seller must be
