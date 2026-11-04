@@ -12,9 +12,9 @@
  *    net / VAT);
  *  - a line states a net amount its quantity x unit price cannot represent (a line-level charge,
  *    which the import form has no field for).
- * Everything else that is merely ABSENT (a due date, the lines of a MINIMUM profile, a buyer that
- * matches no client) becomes a warning and an empty field for the human to fill, never an invented
- * value.
+ * Everything else that is merely ABSENT (a due date, the lines of a MINIMUM profile, an invoice
+ * buyer that matches no client) becomes a warning and an empty field for the human to fill, never an
+ * invented value. A credit note has no client field, so its buyer is never matched or proposed.
  */
 import { BadRequestException } from '@nestjs/common';
 
@@ -238,24 +238,29 @@ export function buildPrefillDraft(
           lines: built.lines,
         };
 
-  const proposalCountryCode = fields.buyerCountry ? guessCountryCode(fields.buyerCountry) : undefined;
+  // A credit note has no client field (`descriptors/credit-note.descriptor.ts`: a linked note names
+  // its invoice's client, a free one names nobody), so offering to create one would be an action the
+  // form cannot use. The proposal is therefore an invoice-only courtesy.
+  const proposalCountryCode =
+    typeId === 'invoice' && fields.buyerCountry ? guessCountryCode(fields.buyerCountry) : undefined;
   const proposalCountryName =
     proposalCountryCode && fields.buyerCountry
       ? (new Intl.DisplayNames(['en'], { type: 'region' }).of(proposalCountryCode) ?? fields.buyerCountry)
       : fields.buyerCountry;
-  const clientProposal: ImportClientProposal | undefined = fields.buyer
-    ? {
-        name: fields.buyer,
-        ...(fields.buyerVatId ? { vatId: fields.buyerVatId } : {}),
-        ...(fields.buyerAddress ? { address: fields.buyerAddress } : {}),
-        ...(fields.buyerCity ? { city: fields.buyerCity } : {}),
-        ...(fields.buyerPostalCode ? { postalCode: fields.buyerPostalCode } : {}),
-        ...(proposalCountryName ? { country: proposalCountryName } : {}),
-        ...(proposalCountryCode ? { countryCode: proposalCountryCode } : {}),
-        ...(fields.buyerEmail ? { email: fields.buyerEmail } : {}),
-        currency: fields.currency,
-      }
-    : undefined;
+  const clientProposal: ImportClientProposal | undefined =
+    typeId === 'invoice' && fields.buyer
+      ? {
+          name: fields.buyer,
+          ...(fields.buyerVatId ? { vatId: fields.buyerVatId } : {}),
+          ...(fields.buyerAddress ? { address: fields.buyerAddress } : {}),
+          ...(fields.buyerCity ? { city: fields.buyerCity } : {}),
+          ...(fields.buyerPostalCode ? { postalCode: fields.buyerPostalCode } : {}),
+          ...(proposalCountryName ? { country: proposalCountryName } : {}),
+          ...(proposalCountryCode ? { countryCode: proposalCountryCode } : {}),
+          ...(fields.buyerEmail ? { email: fields.buyerEmail } : {}),
+          currency: fields.currency,
+        }
+      : undefined;
 
   return {
     syntax: extraction.syntax,
@@ -288,8 +293,22 @@ export async function buildImportPrefill(
   const extraction = await extractImportFields(bytes, mime, fileName);
   const draft = buildPrefillDraft(typeId, extraction);
 
+  // A credit note has no client field at all (see `descriptors/credit-note.descriptor.ts`): running
+  // the match and asking the user to create or pick a client would demand an action the form cannot
+  // carry out. Only an invoice resolves its buyer against the client book.
+  if (typeId !== 'invoice') {
+    return {
+      typeId,
+      syntax: draft.syntax,
+      originalNumber: draft.originalNumber,
+      fields: draft.fields,
+      totals: draft.totals,
+      warnings: draft.warnings,
+    };
+  }
+
   const clientMatch: ImportClientMatch = await matchBuyerClient(companyId, draft.buyer);
-  if (clientMatch.outcome === 'matched' && typeId === 'invoice') {
+  if (clientMatch.outcome === 'matched') {
     draft.fields.client = clientMatch.clientId;
   }
   if (clientMatch.outcome === 'unmatched') {

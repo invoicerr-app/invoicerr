@@ -48,9 +48,9 @@ numbering has already started, and nothing may silently move it.
 From the **Invoices** or **Credit notes** page, two entry points sit next to **Add New**:
 
 - **Import**: for one document at a time. Upload the original file (PDF, or the XML your previous
-  tool produced), then fill in the usual fields (client, date, lines…) plus the document's **original
-  number** and, if you have it, **transmission evidence** (see below). A Factur-X, CII or UBL
-  e-invoice pre-fills the form, see below.
+  tool produced), then fill in the usual fields (client for an invoice, date, lines…) plus the
+  document's **original number** and, if you have it, **transmission evidence** (see below). A
+  Factur-X, CII or UBL e-invoice pre-fills the form, see below.
 - **Import CSV**: for many at once. Upload every original file first, then a CSV listing one row per
   document, each naming the file it goes with by filename. A preview shows which rows will be
   imported and which are rejected, with the reason, before anything is written. A CSV row carries at
@@ -65,10 +65,11 @@ When the original you upload is a structured e-invoice, Invoicerr reads it and s
 - a **Factur-X PDF** (the CII XML embedded in the PDF), a bare **CII** XML, or a bare **UBL** XML;
 - the document number, issue date, due date when the file carries one, currency, notes, buyer
   reference, lines, VAT rates and totals;
-- the **client**, matched against your client book by VAT identifier first, then by exact name. When
-  nothing matches, the screen proposes the buyer it read (name, VAT, address, country, currency) and
-  offers to create that client before you confirm. When several clients match, it says so and asks
-  you to pick one: it never picks for you.
+- for an **invoice**, the **client**, matched against your client book by VAT identifier first, then
+  by exact name. When nothing matches, the screen proposes the buyer it read (name, VAT, address,
+  country, currency) and offers to create that client before you confirm. When several clients match,
+  it says so and asks you to pick one: it never picks for you. A **credit note** has no client field
+  to fill (it corrects an invoice, or is free), so the pre-fill neither matches nor proposes one.
 
 Every field stays editable and the original file is still stored unchanged as the legal archive.
 The pre-fill is a reading aid, never an automatic import.

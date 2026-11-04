@@ -126,7 +126,9 @@ export interface ImportPrefillResult {
   syntax: 'CII' | 'UBL' | 'FACTURX_CII';
   originalNumber: string;
   fields: Record<string, unknown>;
-  clientMatch: ImportClientMatch;
+  /** Present for an invoice only: a credit note has no client field (it names its corrected
+   *  invoice's client, or nobody when free), so there is nothing to match or propose. */
+  clientMatch?: ImportClientMatch;
   clientProposal?: ImportClientProposal;
   totals: ImportPrefillTotals;
   /** Honest, user-facing facts the file itself does not settle (no due date, no lines in a MINIMUM
