@@ -6,6 +6,18 @@ import { InvitationsService } from '@/modules/invitations/invitations.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { logger } from '@/logger/logger.service';
+import { hashInvitationCode, invitationCodePrefix } from '@/lib/invitation-code';
+
+/** The shape a row has once only a digest is stored — what every mocked `findUnique` returns for a
+ *  code created (or already migrated) under the hashed scheme. */
+function storedRow(code: string, overrides: Record<string, unknown> = {}) {
+  return {
+    code: null,
+    codeHash: hashInvitationCode(code),
+    codePrefix: invitationCodePrefix(code),
+    ...overrides,
+  };
+}
 
 vi.mock('@/logger/logger.service', () => ({
   logger: {
@@ -103,6 +115,21 @@ describe('InvitationsService', () => {
       });
     });
 
+    it('persists only the digest and the preview, and returns the plaintext exactly once', async () => {
+      prisma.invitationCode.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'inv1', createdAt: new Date(), expiresAt: null, ...data }),
+      );
+
+      const result = await service.createInvitation('user1', 'company1', CompanyRole.MEMBER);
+
+      expect(result.code).toMatch(/^[0-9A-F]{32}$/);
+      const stored = prisma.invitationCode.create.mock.calls[0][0].data;
+      expect(stored).not.toHaveProperty('code');
+      expect(stored.codeHash).toBe(hashInvitationCode(result.code));
+      expect(stored.codePrefix).toBe(result.code.slice(0, 8));
+      expect(JSON.stringify(logger.info.mock.calls)).not.toContain(result.code);
+    });
+
     it('rejects a non-owner trying to create an OWNER-role invitation', async () => {
       prisma.userCompany.findUnique.mockResolvedValue({ role: CompanyRole.ADMIN });
 
@@ -133,7 +160,7 @@ describe('InvitationsService', () => {
     it("attaches the user to the invitation's company with its role", async () => {
       prisma.invitationCode.findUnique.mockResolvedValue({
         id: 'inv1',
-        code: 'CODE123',
+        ...storedRow('CODE123'),
         usedAt: null,
         expiresAt: null,
         companyId: 'company1',
@@ -179,7 +206,7 @@ describe('InvitationsService', () => {
       async () => {
         prisma.invitationCode.findUnique.mockResolvedValue({
           id: 'inv1',
-          code: 'CODE123',
+          ...storedRow('CODE123'),
           usedAt: null,
           expiresAt: null,
           companyId: 'company1',
@@ -199,7 +226,7 @@ describe('InvitationsService', () => {
     it('refuses, named NO_FREE_SEAT, when the company has no free seat — the invitation stays unused', async () => {
       prisma.invitationCode.findUnique.mockResolvedValue({
         id: 'inv1',
-        code: 'CODE123',
+        ...storedRow('CODE123'),
         usedAt: null,
         expiresAt: null,
         companyId: 'full-company',
@@ -241,7 +268,7 @@ describe('InvitationsService', () => {
       // blocked company's own subscription status is simply never consulted on this path.
       prisma.invitationCode.findUnique.mockResolvedValue({
         id: 'inv2',
-        code: 'CODE456',
+        ...storedRow('CODE456'),
         usedAt: null,
         expiresAt: null,
         companyId: 'blocked-company',
@@ -268,7 +295,7 @@ describe('InvitationsService', () => {
     it('rejects an already-used invitation without touching membership', async () => {
       prisma.invitationCode.findUnique.mockResolvedValue({
         id: 'inv1',
-        code: 'CODE123',
+        ...storedRow('CODE123'),
         usedAt: new Date(),
         expiresAt: null,
         companyId: 'company1',
@@ -281,6 +308,68 @@ describe('InvitationsService', () => {
         category: 'invitation',
         details: { id: 'inv1' },
       });
+    });
+
+    it('looks the code up by digest, so the database never needs the plaintext to accept it', async () => {
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        id: 'inv1',
+        ...storedRow('CODE123'),
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'company1',
+        role: CompanyRole.MEMBER,
+      });
+      prisma.invitationCode.findUniqueOrThrow.mockResolvedValue({ id: 'inv1' });
+      prisma.userCompany.upsert.mockResolvedValue({});
+
+      await service.useInvitation('CODE123', 'user2');
+
+      expect(prisma.invitationCode.findUnique).toHaveBeenCalledTimes(1);
+      expect(prisma.invitationCode.findUnique).toHaveBeenCalledWith({
+        where: { codeHash: hashInvitationCode('CODE123') },
+      });
+    });
+
+    it('accepts a code issued before the switch and digests it in place on first presentation', async () => {
+      const legacy = {
+        id: 'inv-legacy',
+        code: 'LEGACY00000000000000000000000001',
+        codeHash: null,
+        codePrefix: null,
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'company1',
+        role: CompanyRole.MEMBER,
+      };
+      prisma.invitationCode.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(legacy);
+      prisma.invitationCode.findUniqueOrThrow.mockResolvedValue({ id: 'inv-legacy' });
+      prisma.userCompany.upsert.mockResolvedValue({});
+
+      await expect(service.useInvitation(legacy.code, 'user2')).resolves.toBeDefined();
+
+      expect(prisma.invitationCode.updateMany).toHaveBeenNthCalledWith(1, {
+        where: { id: 'inv-legacy', code: { not: null } },
+        data: {
+          code: null,
+          codeHash: hashInvitationCode(legacy.code),
+          codePrefix: legacy.code.slice(0, 8),
+        },
+      });
+      expect(prisma.userCompany.upsert).toHaveBeenCalled();
+    });
+
+    it('refuses a row whose stored digest is not the digest of the presented code', async () => {
+      prisma.invitationCode.findUnique.mockResolvedValue({
+        id: 'inv1',
+        ...storedRow('SOMEOTHERCODE'),
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'company1',
+        role: CompanyRole.MEMBER,
+      });
+
+      await expect(service.useInvitation('CODE123', 'user2')).rejects.toThrow(NotFoundException);
+      expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
     });
   });
 
@@ -348,6 +437,19 @@ describe('InvitationsService', () => {
 
       expect(result.allowed).toBe(false);
       expect(result.message).toMatch(/invalid/i);
+    });
+
+    it('treats a repeated query key (an array, never a string) as no code supplied at all', async () => {
+      delete process.env.DISABLE_AUTH;
+      prisma.user.count.mockResolvedValue(5);
+
+      // `?code=a&code=b` reaches `@Query('code')` as an array; this value ends up digested, and a
+      // digest whose input may be an array is a type confusion. Not a string means no code, so the
+      // open-signup path decides — the lookup is never even attempted.
+      const result = await service.canRegister(['CODE123', 'CODE456']);
+
+      expect(result.allowed).toBe(true);
+      expect(prisma.invitationCode.findUnique).not.toHaveBeenCalled();
     });
 
     it('rejects an expired code even though it exists and is unused', async () => {

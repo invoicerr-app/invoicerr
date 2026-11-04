@@ -11,6 +11,7 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { Public } from '@thallesp/nestjs-better-auth';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from '@/lib/pending-signup-store';
+import { hashInvitationCode } from '@/lib/invitation-code';
 
 // A second, independent connection to the same Redis-backed store `lib/auth.ts` writes through — not
 // a shared singleton, deliberately: this controller runs inside Nest DI (unlike `lib/auth.ts`, which
@@ -34,8 +35,10 @@ export class InvitationsController {
   })
   @ApiQuery({ name: 'code', required: false, type: String, description: 'Invitation code to validate' })
   @ApiResponse({ status: 200, description: 'Registration status retrieved', type: CanRegisterResponseDto })
-  async canRegister(@Query('code') code?: string) {
-    return this.invitationsService.canRegister(code);
+  async canRegister(@Query('code') code?: unknown) {
+    // A query key repeated in the URL (`?code=a&code=b`) arrives as an array, exactly like a
+    // repeated body field: only a string ever names an invitation, so anything else is "no code".
+    return this.invitationsService.canRegister(typeof code === 'string' ? code : undefined);
   }
 
   @Get('is-first-user')
@@ -66,18 +69,24 @@ export class InvitationsController {
       'Validates an invitation code and email pair, storing the code for the registration flow (public).',
   })
   @ApiResponse({ status: 201, description: 'Invitation code validated' })
-  async validateInvitation(@Body() body: { code: string; email: string }) {
-    if (!body.code || !body.email) {
+  async validateInvitation(@Body() body: { code?: unknown; email?: unknown }) {
+    // A JSON body is attacker-shaped: a repeated field arrives as an array, and the code is then fed
+    // to a digest. Reading only a string keeps the digest's input a string by construction.
+    const code = typeof body.code === 'string' ? body.code : '';
+    const email = typeof body.email === 'string' ? body.email : '';
+    if (!code || !email) {
       throw new BadRequestException('Code and email are required');
     }
 
-    const result = await this.invitationsService.canRegister(body.code);
+    const result = await this.invitationsService.canRegister(code);
 
     if (!result.allowed) {
       throw new BadRequestException(result.message || 'Invalid invitation code');
     }
 
-    await pendingSignupStore.setPendingInvitationCode(body.email.toLowerCase(), body.code);
+    // The digest, never the code: the Redis entry only has to survive until the signup hook reads it
+    // back, and a Redis dump must not be any more replayable than a Postgres one.
+    await pendingSignupStore.setPendingInvitationCode(email.toLowerCase(), hashInvitationCode(code));
 
     return { valid: true, message: 'Invitation code validated' };
   }

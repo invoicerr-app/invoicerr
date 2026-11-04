@@ -8,6 +8,7 @@ import { createSwaggerBasicAuthMiddleware } from './lib/swagger-basic-auth';
 import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
 import { insecureAppUrlWarning } from './lib/app-url-scheme';
+import { redactLogValue } from './logger/redaction';
 
 async function bootstrap() {
   // Refuse to boot on a known-placeholder or empty auth secret: docker-compose.yml's example
@@ -35,7 +36,7 @@ async function bootstrap() {
     try {
       await syncDatabaseSchema();
     } catch (err) {
-      console.error('[bootstrap] database sync failed, aborting startup:', err);
+      console.error('[bootstrap] database sync failed, aborting startup:', redactLogValue(err));
       process.exit(1);
     }
   }
@@ -74,6 +75,6 @@ async function bootstrap() {
 // ever imports it from here: `./create-app` carries the function alone, with no such side effect. See
 // that file's own header for the incident that made this distinction matter.
 bootstrap().catch((err) => {
-  console.error('Error during backend bootstrap:', err);
+  console.error('Error during backend bootstrap:', redactLogValue(err));
   process.exit(1);
 });

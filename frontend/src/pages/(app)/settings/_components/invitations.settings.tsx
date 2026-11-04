@@ -46,16 +46,18 @@ export default function InvitationsSettings() {
 
   const { data: invitations, loading, mutate } = useGet<InvitationCode[]>("/api/invitations")
   const { trigger: createInvitationApi, loading: creating } = usePost<InvitationCode>("/api/invitations")
+  // The plaintext code leaves the API exactly once, in the create response. Keeping it here is the
+  // only place a human can still read it: the list below is fed by rows that hold a digest.
+  const [createdCode, setCreatedCode] = useState<string | null>(null)
 
   const createInvitation = async () => {
     const result = await createInvitationApi({ expiresInDays: expiresInDays || undefined, role })
     if (result) {
+      setCreatedCode(result.code)
       toast.success(t("settings.invitations.messages.createSuccess"))
       setExpiresInDays("")
       mutate()
 
-      // Copy code to clipboard — the code stays readable in the list below either way (see
-      // `copyCode`), so a rejected/unsupported copy only downgrades the toast, never the outcome.
       if (await copyToClipboard(result.code)) {
         toast.info(t("settings.invitations.messages.codeCopied"))
       } else {
@@ -152,6 +154,36 @@ export default function InvitationsSettings() {
         </div>
       </SettingsSection>
 
+      {createdCode && (
+        <SettingsSection
+          tone="warning"
+          title={t("settings.invitations.create.createdCode")}
+          dataCy="invitation-created-code-panel"
+        >
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-muted p-2">
+              <code className="min-w-0 flex-1 break-all font-mono text-sm" data-cy="invitation-created-code">
+                {createdCode}
+              </code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("settings.common.copy")}
+                tooltip={t("settings.common.copy")}
+                onClick={() => copyCode(createdCode)}
+                data-cy="invitation-created-code-copy"
+              >
+                <CopyIcon />
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {t("settings.invitations.create.createdCodeHint")}
+            </p>
+          </div>
+        </SettingsSection>
+      )}
+
       <SettingsSection
         title={t("settings.invitations.list.title")}
         description={t("settings.invitations.list.description")}
@@ -214,19 +246,6 @@ export default function InvitationsSettings() {
                         </>
                       )}
                     </>
-                  }
-                  primary={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label={t("settings.common.copy")}
-                      tooltip={t("settings.common.copy")}
-                      onClick={() => copyCode(invitation.code)}
-                      data-cy={`invitation-copy-${invitation.id}`}
-                    >
-                      <CopyIcon />
-                    </Button>
                   }
                   menu={
                     !invitation.usedAt ? (
