@@ -84,6 +84,9 @@ function parseArgs(argv) {
             'documents.fieldHelp.',
             // The company-profile catalog names these as its attributes' labelKey/helpTextKey.
             'settings.company.profile.attributes.',
+            // The backend's own server-message catalog (documents/messages/messages.en.ts) holds the
+            // sentences the API sends as {key, params}; no frontend file writes those keys literally.
+            'documents.messages.',
         ]
     }
     return opts
