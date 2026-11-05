@@ -8,8 +8,13 @@ function leadingKeys(descriptor: DocumentTypeDescriptor, count: number): string[
 }
 
 describe('a document created from another one asks for that source document first', () => {
-  it('credit note: the corrected invoice, then the date, then the currency', () => {
-    expect(leadingKeys(buildCreditNoteDescriptor(), 3)).toEqual(['invoice', 'issueDate', 'currency']);
+  it('credit note: the corrected invoice, then its client, then the date and the currency', () => {
+    expect(leadingKeys(buildCreditNoteDescriptor(), 4)).toEqual([
+      'invoice',
+      'client',
+      'issueDate',
+      'currency',
+    ]);
   });
 
   it('goods receipt: the purchase order, then the receipt date', () => {

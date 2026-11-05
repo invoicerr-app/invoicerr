@@ -157,6 +157,7 @@ async function build(
   const issueDate = toDateOnly(data.issueDate);
   // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
   const invoiceNumber = requireDisplayNumber(document);
+  const isCreditNote = !!options?.creditNote;
   const correctedInvoice = options?.creditNote?.correctedInvoice;
 
   // ── identifiers ──────────────────────────────────────────────────
@@ -311,8 +312,8 @@ async function build(
       FatturaElettronicaBody: {
         DatiGenerali: {
           DatiGeneraliDocumento: {
-            // TD04 "Nota di credito" for a credit note - see this file's own header, "TD04".
-            TipoDocumento: correctedInvoice ? 'TD04' : 'TD01',
+            // TD04 "Nota di credito" for a credit note, including a free one with no reference.
+            TipoDocumento: isCreditNote ? 'TD04' : 'TD01',
             Divisa: currency,
             Data: issueDate,
             Numero: invoiceNumber,
@@ -331,7 +332,7 @@ async function build(
           DatiRiepilogo: riepilogoList,
         },
         // Omitted for TD04 - see this file's own header, "TD04".
-        ...(correctedInvoice
+        ...(isCreditNote
           ? {}
           : {
               DatiPagamento: {

@@ -505,14 +505,16 @@ describe('describeDocumentEmailVocabulary — derived per type, never a fixed li
       'typeLabel',
     ]);
     expect(keysFor(buildInvoiceDescriptor())).toContain('totalGross');
-    // A credit note points at an invoice, not a client — no `recipientName` — but DOES now have a
-    // real money source of its own ('lines', the FREE-credit-note shape, credit-note.descriptor.ts's
-    // own header): `totalGross` is offered, even though a LINKED note's own `lines` stays empty by
-    // construction and still totals zero for that instance (descriptorHasLineTotals only asks
-    // whether the TYPE has a source of money reachable at all, not whether this one instance does).
+    // A credit note now carries its own optional `client` field (issue #710), so `recipientName` is
+    // offered alongside the money source it already had ('lines', the FREE-credit-note shape,
+    // credit-note.descriptor.ts's own header): `totalGross` is offered, even though a LINKED note's
+    // own `lines` stays empty by construction and still totals zero for that instance
+    // (descriptorHasLineTotals only asks whether the TYPE has a source of money reachable at all, not
+    // whether this one instance does).
     expect(keysFor(buildCreditNoteDescriptor())).toEqual([
       'companyName',
       'displayNumber',
+      'recipientName',
       'totalGross',
       'typeLabel',
     ]);

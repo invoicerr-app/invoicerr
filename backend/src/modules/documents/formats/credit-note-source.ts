@@ -1,8 +1,8 @@
 /**
- * Issue #472 - what a CREDIT NOTE hands a format provider: the same five things an invoice hands it
- * (descriptor, document, seller, buyer, company id), resolved from the invoice it corrects, plus the
- * two facts that make the file a credit note (`DocumentFormatBuildOptions.creditNote` - BT-3 381 and
- * BG-3 in EN 16931, TD04 and `DatiFattureCollegate` in FatturaPA).
+ * What a CREDIT NOTE hands a format provider, plus the facts that make the file a credit note
+ * (`DocumentFormatBuildOptions.creditNote` - BT-3 381 and, for a linked note, BG-3 in EN 16931; TD04
+ * and `DatiFattureCollegate` in FatturaPA). A linked note is resolved from the invoice it corrects; a
+ * free one from its own client and lines.
  *
  * ## Why the invoice's descriptor prices a credit note
  *
@@ -17,20 +17,20 @@
  *
  * ## What is refused, and why
  *
- *  - A FREE credit note (no `invoice`). This type has no `client` field (`credit-note.descriptor.ts`,
- *    "Actions"): its buyer is the corrected invoice's client, so a free note has no buyer at all, and
- *    EN 16931 makes the buyer mandatory (BT-44 Buyer name, BG-8 Buyer postal address, both 1..1) - as
- *    does FatturaPA (`CessionarioCommittente`, 1..1 in the vendored XSD). No file can be built without
- *    inventing a buyer; the refusal says so instead.
  *  - A corrected invoice with no number of its own. BG-3's BT-25 is 1..1 inside BG-3, and a reference
  *    to "an invoice" with no number is not the "référence à la facture initiale de façon spécifique et
- *    non équivoque" CGI art. 289, I, 5 asks of a correcting document.
+ *    non équivoque" CGI art. 289, I, 5 asks of a correcting document. A FREE credit note emits no
+ *    BG-3 at all, so this refusal only applies to the linked shape.
  *  - The credit note's own missing number is refused by `shared-build.ts#requireDisplayNumber` and by
  *    `documents.service.ts#downloadDocumentFormat`'s own gate, not here.
+ *
+ * A FREE credit note (no `invoice`) is priced from its OWN `lines`, and its buyer is its own `client`
+ * (both declared by `credit-note.descriptor.ts`), so it needs no corrected invoice to build a file.
  */
 import { BadRequestException } from '@nestjs/common';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveLinkedCreditNote } from '../totals/linked-credit-note';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
@@ -47,11 +47,12 @@ export interface CreditNoteFormatSource {
    * credit note's OWN issue date, currency and notes. In memory only, never persisted.
    */
   pricingData: Record<string, unknown>;
-  /** The corrected invoice's own issue date, as stored - what cross-border tax is resolved against
-   *  (`documents.service.ts#downloadDocumentFormat`): a reduction follows the tax treatment of the
-   *  supply it reduces, not whatever the rules say on the day the note is issued. */
+  /** The date cross-border tax is resolved against (`documents.service.ts#downloadDocumentFormat`):
+   *  the corrected invoice's own issue date for a linked note (a reduction follows the tax treatment
+   *  of the supply it reduces), the note's own date for a free one. */
   correctedInvoiceIssueDate: unknown;
-  correctedInvoice: CorrectedInvoiceReference;
+  /** Absent for a FREE credit note: there is no preceding invoice to reference (BG-3). */
+  correctedInvoice?: CorrectedInvoiceReference;
 }
 
 /**
@@ -67,12 +68,12 @@ export async function resolveCreditNoteFormatSource(
   const data = (creditNote.data ?? {}) as Record<string, unknown>;
   const linked = await resolveLinkedCreditNote(companyId, data);
   if (!linked) {
-    throw new BadRequestException(
-      'Cannot build an electronic credit note for a FREE credit note: it corrects no invoice, so it ' +
-        'has no buyer (a credit note takes its buyer from the invoice it corrects), and every ' +
-        'electronic invoice format requires one (EN 16931 BT-44/BG-8, FatturaPA ' +
-        'CessionarioCommittente). Only a credit note linked to an invoice can be exported.',
-    );
+    // A free credit note prices itself and names its own client, so it needs no corrected invoice.
+    return {
+      pricingDescriptor: buildCreditNoteDescriptor(),
+      pricingData: data,
+      correctedInvoiceIssueDate: data.issueDate,
+    };
   }
 
   if (!linked.invoice.displayNumber) {
@@ -136,7 +137,7 @@ export async function resolveCreditNoteDeliverySource(
     descriptor: source.pricingDescriptor,
     document: { ...creditNote, data: { ...resolvedData, issueDate: source.pricingData.issueDate } },
     options: {
-      creditNote: { correctedInvoice: source.correctedInvoice },
+      creditNote: source.correctedInvoice ? { correctedInvoice: source.correctedInvoice } : {},
       humanReadable: { descriptor: creditNoteDescriptor, document: creditNote },
     },
   };

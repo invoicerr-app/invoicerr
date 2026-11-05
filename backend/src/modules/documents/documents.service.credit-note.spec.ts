@@ -357,22 +357,23 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
 
-  describe('"send" of a FREE credit note: it names no client, so it is never sent', () => {
+  describe('"send" of a FREE credit note: it names its own client', () => {
     const freeData = {
       issueDate: '2026-02-01',
       currency: 'EUR',
       reason: 'Goodwill gesture',
       lines: [{ description: 'Refund', quantity: 1, unitPrice: 10, vatRate: '0' }],
     };
-    const freeNote = (status: string) => ({
+    const freeDataWithClient = { ...freeData, client: 'client-1' };
+    const freeNote = (status: string, data: Record<string, unknown> = freeData) => ({
       ...invoiceDocument('cn-2', []),
       id: 'cn-2',
       typeId: 'credit-note',
       status,
-      data: freeData,
+      data,
     });
 
-    it('is refused before it is numbered, queued or rendered', async () => {
+    it('is refused before it is numbered, queued or rendered when it names no client', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue(freeNote('draft'));
       const { service, queueDispatcher, emailTransport } = buildService();
 
@@ -382,7 +383,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       });
 
       await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
-      await expect(attempt).rejects.toThrow(/corrects no invoice, so it has no client to send it to/);
+      await expect(attempt).rejects.toThrow(/free credit note names no client/);
       expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
       expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
@@ -390,13 +391,13 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       expect(renderDocumentInstance).not.toHaveBeenCalled();
     });
 
-    it('never reaches "sent" when the worker replays one already "sending"', async () => {
+    it('never reaches "sent" when the worker replays one already "sending" and it names no client', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue(freeNote('sending'));
       const { service, emailTransport } = buildService();
 
       await expect(
         service.runAction('company-1', 'credit-note', 'send', { documentId: 'cn-2', data: freeData }),
-      ).rejects.toThrow(/no client to send it to/);
+      ).rejects.toThrow(/free credit note names no client/);
       expect(persistence.updateDocumentStatus).not.toHaveBeenCalledWith(
         expect.anything(),
         expect.anything(),
@@ -406,6 +407,45 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       );
       expect(emailTransport.send).not.toHaveBeenCalled();
       expect(archiveDeliveredArtifactsIfAny).not.toHaveBeenCalled();
+    });
+
+    it('is delivered and archived once it names a client', async () => {
+      (persistence.findOwnedDocument as Mock).mockResolvedValue(freeNote('sending', freeDataWithClient));
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue({
+        ...freeNote('sent', freeDataWithClient),
+      });
+
+      const { service, emailTransport } = buildService();
+      const result = await service.runAction('company-1', 'credit-note', 'send', {
+        documentId: 'cn-2',
+        data: freeDataWithClient,
+      });
+
+      expect(result.document).toMatchObject({ id: 'cn-2', status: 'sent' });
+      expect(emailTransport.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          label: 'Credit note',
+          document: expect.objectContaining({ status: 'sending' }),
+          formatSource: deliverySource,
+        }),
+      );
+      expect(archiveDeliveredArtifactsIfAny).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'company-1',
+          documentId: 'cn-2',
+          artifacts: [expect.objectContaining({ role: 'pdf', mime: 'application/pdf' })],
+        }),
+      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
+        'company-1',
+        'credit-note',
+        'cn-2',
+        'sent',
+        null,
+        undefined,
+        undefined,
+      );
     });
   });
 

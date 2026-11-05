@@ -110,12 +110,13 @@ describe('DocumentsService — per-document-type email templates', () => {
         'totalGross',
         'typeLabel',
       ]);
-      // A credit note points at an invoice rather than a client — no `recipientName` — but DOES now
-      // have a real money source of its own ("lines", the FREE-credit-note shape,
-      // credit-note.descriptor.ts's own header): `totalGross` is offered, even though a LINKED
-      // note's own `lines` stays empty by construction and still totals zero for that instance (see
-      // `actions/email-template.spec.ts`'s own identical fix for the full "why").
-      expect(creditNote.variables).not.toHaveProperty('recipientName');
+      // A credit note now carries its own optional `client` field (issue #710), so `recipientName` is
+      // offered like it is for a quote or an invoice, and it DOES have a real money source of its own
+      // ("lines", the FREE-credit-note shape, credit-note.descriptor.ts's own header): `totalGross`
+      // is offered, even though a LINKED note's own `lines` stays empty by construction and still
+      // totals zero for that instance (see `actions/email-template.spec.ts`'s own identical fix for
+      // the full "why").
+      expect(creditNote.variables).toHaveProperty('recipientName');
       expect(creditNote.variables).toHaveProperty('totalGross');
     });
   });

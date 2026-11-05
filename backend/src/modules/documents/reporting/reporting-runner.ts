@@ -264,6 +264,11 @@ export class ReportingRunner {
       }
       throw error;
     }
+    if (!source.correctedInvoice) {
+      throw new UndeclarableDocumentError(
+        `Refusing to declare credit note ${data.documentId}: it has no corrected invoice to identify.`,
+      );
+    }
     return {
       descriptor: source.pricingDescriptor,
       pricingData: source.pricingData,

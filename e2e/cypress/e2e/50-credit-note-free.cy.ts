@@ -1,5 +1,6 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 import { companyLawFor } from "../fixtures/company-law";
+import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
 
 /**
  * The FREE credit note: no `invoice` field at all — a commercial gesture, a refund of
@@ -46,11 +47,15 @@ function createClient(name: string) {
 			url: `${api}/api/clients`,
 			body: {
 				name,
+				contactEmail: `free-credit-${Date.now()}@example.com`,
 				address: "1 Rue Quelconque",
 				postalCode: "75002",
 				city: "Paris",
 				country: "France",
+				countryCode: "FR",
 				currency: "EUR",
+				type: "COMPANY",
+				identifiers: FRENCH_BUYER_IDENTIFIERS,
 				isActive: true,
 			},
 		})
@@ -83,6 +88,48 @@ describe("Free credit note (API) — no invoice to correct, France (open CREDIT_
 			expect(doc?.data?.reason, "le motif est conservé").to.contain(
 				"trop-perçu",
 			);
+		});
+	});
+
+	it("is sent once it names a client, delivered through that client's transport", () => {
+		createClient("Client Avoir Libre Envoi SARL").then((clientId) => {
+			cy.request({
+				method: "POST",
+				url: `${api}/api/company/info`,
+				body: { invoiceTransportId: "email" },
+			})
+				.its("status")
+				.should("be.oneOf", [200, 201]);
+
+			// Before France's e-invoicing mandate date, so the client's email transport is lawful.
+			const data = freeCreditNoteData({
+				client: clientId,
+				issueDate: "2026-08-31",
+			});
+			cy.request({
+				method: "POST",
+				url: `${api}/api/documents/types/credit-note/actions/save-draft`,
+				body: { data },
+			}).then((saved) => {
+				expect(saved.status, "the free credit note is created with a client").to.be.oneOf(
+					[200, 201],
+				);
+				expect(saved.body.document.data.client, "the client is kept").to.eq(
+					clientId,
+				);
+				const id = saved.body.document.id as string;
+				cy.request({
+					method: "POST",
+					url: `${api}/api/documents/types/credit-note/actions/send`,
+					body: { documentId: id, data: saved.body.document.data },
+				})
+					.its("status")
+					.should("be.oneOf", [200, 201]);
+				cy.waitForDocumentStatus(
+					`${api}/api/documents/${id}?typeId=credit-note`,
+					["sent"],
+				);
+			});
 		});
 	});
 
@@ -271,85 +318,93 @@ describe("Free credit note — the screen, browser level", () => {
 	});
 
 	it('is created from the credit-note list\'s own "New" button — wizard-driven, no invoice ever picked', () => {
-		cy.visit("/documents/credit-note");
-		cy.get('[data-cy="document-create-button"]').click();
-		cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
+		createClient("Client Avoir Libre Écran SARL").then((clientId) => {
+			cy.visit("/documents/credit-note");
+			cy.get('[data-cy="document-create-button"]').click();
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
+				"be.visible",
+			);
 
-		// Details: the optional "invoice" (left empty), the date, and "currency", a normal editable
-		// select since no invoice locks it.
-		cy.pickToday('[data-cy="document-field-issueDate-input"]');
-		cy.get('[data-cy="document-field-currency-input"] button')
-			.should("not.be.disabled")
-			.click({ force: true });
-		cy.get('[data-cy="document-field-currency-input-options"]', {
-			timeout: 10000,
-		}).should("be.visible");
-		cy.get('[data-cy^="document-field-currency-input-option-eur"]')
-			.first()
-			.click();
+			// Details: the optional "invoice" (left empty), its own client, the date, and "currency", a
+			// normal editable select since no invoice locks it.
+			cy.openSearchSelect("document-field-client-input");
+			cy.contains(
+				'[data-cy="document-field-client-input-options"] button',
+				"Client Avoir Libre Écran SARL",
+			).click();
+			cy.pickToday('[data-cy="document-field-issueDate-input"]');
+			cy.get('[data-cy="document-field-currency-input"] button')
+				.should("not.be.disabled")
+				.click({ force: true });
+			cy.get('[data-cy="document-field-currency-input-options"]', {
+				timeout: 10000,
+			}).should("be.visible");
+			cy.get('[data-cy^="document-field-currency-input-option-eur"]')
+				.first()
+				.click();
 
-		// Lines: "Corrected lines" waits for a source that is never picked; the free "Lines" table
-		// carries the amount.
-		cy.get('[data-cy="document-field-correctedLines-no-source"]').should(
-			"be.visible",
-		);
-		cy.get('[data-cy="document-field-lines-add-row"]').click();
-		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
-		cy.get('input[name="lines.0.description"]').type("Geste commercial", {
-			force: true,
-		});
-		cy.get('input[name="lines.0.quantity"]')
-			.clear({ force: true })
-			.type("1", { force: true });
-		cy.get('input[name="lines.0.unitPrice"]')
-			.clear({ force: true })
-			.type("42", { force: true });
-		// The VAT rate is a real SearchSelect (countries/data/fr.json (section "vatRates")'s own catalog) — the exact rate
-		// picked is irrelevant here (only the totals engine's own arithmetic is covered by jest), so
-		// the first offered option is enough to move on.
-		// Targeted by its own data-cy: credit note lines also carry the "Supply type" select.
-		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
-			.first()
-			.scrollIntoView()
-			.click({ force: true });
-		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should(
-			"be.visible",
-		);
-		cy.get('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]').first().click();
+			// Lines: "Corrected lines" waits for a source that is never picked; the free "Lines" table
+			// carries the amount.
+			cy.get('[data-cy="document-field-correctedLines-no-source"]').should(
+				"be.visible",
+			);
+			cy.get('[data-cy="document-field-lines-add-row"]').click();
+			cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
+			cy.get('input[name="lines.0.description"]').type("Geste commercial", {
+				force: true,
+			});
+			cy.get('input[name="lines.0.quantity"]')
+				.clear({ force: true })
+				.type("1", { force: true });
+			cy.get('input[name="lines.0.unitPrice"]')
+				.clear({ force: true })
+				.type("42", { force: true });
+			// The VAT rate is a real SearchSelect (countries/data/fr.json (section "vatRates")'s own catalog) - the exact rate
+			// picked is irrelevant here (only the totals engine's own arithmetic is covered by jest), so
+			// the first offered option is enough to move on.
+			// Targeted by its own data-cy: credit note lines also carry the "Supply type" select.
+			cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
+				.first()
+				.scrollIntoView()
+				.click({ force: true });
+			cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should(
+				"be.visible",
+			);
+			cy.get('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]').first().click();
 
-		// Options: "notes" (left empty) and "reason", REQUIRED the moment
-		// there is no invoice to correct (the same asterisk convention `43-correction-routes.cy.ts`'s
-		// own Polish "correctionReason" test already proves for the sibling `requiredIfPresent` hint).
-		cy.get('[data-cy="document-field-reason"]').should("contain.text", "*");
-		cy.get('[data-cy="document-field-reason-input"]').type(
-			"Remboursement d'un trop-perçu non rattaché à une facture.",
-			{ force: true },
-		);
+			// Options: "notes" (left empty) and "reason", REQUIRED the moment
+			// there is no invoice to correct (the same asterisk convention `43-correction-routes.cy.ts`'s
+			// own Polish "correctionReason" test already proves for the sibling `requiredIfPresent` hint).
+			cy.get('[data-cy="document-field-reason"]').should("contain.text", "*");
+			cy.get('[data-cy="document-field-reason-input"]').type(
+				"Remboursement d'un trop-perçu non rattaché à une facture.",
+				{ force: true },
+			);
 
-		cy.intercept(
-			"POST",
-			`${api}/api/documents/types/credit-note/actions/save-draft`,
-		).as("saveFreeCreditNote");
-		cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
-		cy.wait("@saveFreeCreditNote").then((interception) => {
-			expect(
-				interception.response?.statusCode,
-				"l'avoir libre se crée depuis l'écran",
-			).to.be.oneOf([200, 201]);
-			const savedId = interception.response?.body?.document?.id as string;
-			expect(savedId, "l'avoir créé a un identifiant").to.be.a("string");
+			cy.intercept(
+				"POST",
+				`${api}/api/documents/types/credit-note/actions/save-draft`,
+			).as("saveFreeCreditNote");
+			cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();
+			cy.wait("@saveFreeCreditNote").then((interception) => {
+				expect(
+					interception.response?.statusCode,
+					"l'avoir libre se crée depuis l'écran",
+				).to.be.oneOf([200, 201]);
+				const savedId = interception.response?.body?.document?.id as string;
+				expect(savedId, "l'avoir créé a un identifiant").to.be.a("string");
 
-			// Assertion via l'API, jamais via l'écran seul — même discipline que le reste de la suite.
-			// `typeId` is not optional here: it is the only thing that carries the document TYPE into
-			// the lookup, in the scope check and in the SQL alike, so a call that omits it is refused.
-			cy.request(`${api}/api/documents/${savedId}?typeId=credit-note`).then((res) => {
-				expect(res.status).to.eq(200);
-				expect(res.body?.data?.invoice, "toujours aucune facture d'origine").to
-					.be.undefined;
-				expect(res.body?.data?.reason).to.contain("trop-perçu");
-				expect(res.body?.data?.lines).to.have.length(1);
+				// Assertion via l'API, jamais via l'écran seul - même discipline que le reste de la suite.
+				// `typeId` is not optional here: it is the only thing that carries the document TYPE into
+				// the lookup, in the scope check and in the SQL alike, so a call that omits it is refused.
+				cy.request(`${api}/api/documents/${savedId}?typeId=credit-note`).then((res) => {
+					expect(res.status).to.eq(200);
+					expect(res.body?.data?.invoice, "toujours aucune facture d'origine").to
+						.be.undefined;
+					expect(res.body?.data?.reason).to.contain("trop-perçu");
+					expect(res.body?.data?.client, "the chosen client is kept").to.eq(clientId);
+					expect(res.body?.data?.lines).to.have.length(1);
+				});
 			});
 		});
 	});

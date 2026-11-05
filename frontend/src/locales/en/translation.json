@@ -4859,7 +4859,11 @@
         "fields": {
           "invoice": {
             "label": "Invoice",
-            "helpText": "The invoice this credit note corrects. A credit note without an invoice can be saved but not sent yet: it has no client to send it to. Without an invoice, a reason is required below, and some countries do not recognise a credit note with nothing to reference (this screen refuses those with the country's own rule once you try to save)."
+            "helpText": "The invoice this credit note corrects. A credit note without an invoice is a free credit note: it needs its own client and reason, and some countries do not recognise one at all (this screen refuses those with the country's own rule once you try to save)."
+          },
+          "client": {
+            "label": "Client",
+            "helpText": "The client this credit note is for. Required to send a free credit note; filled from the invoice when one is chosen."
           },
           "issueDate": {
             "label": "Date"
