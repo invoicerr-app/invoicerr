@@ -135,7 +135,8 @@ export function buildInvoiceOverview(input: InvoiceOverviewInput): InvoiceOvervi
     const key = `${year}-${String(index + 1).padStart(2, '0')}`;
     const collected = amount(collectedByMonth.get(key) ?? 0, currency);
     if (index < monthIndex) return { month: key, collected, expected: null };
-    if (index === monthIndex) return { month: key, collected, expected: collected };
+    if (index === monthIndex)
+      return { month: key, collected, expected: amount(expectedByMonth.get(key) ?? 0, currency) };
     return { month: key, collected: null, expected: amount(expectedByMonth.get(key) ?? 0, currency) };
   });
 
