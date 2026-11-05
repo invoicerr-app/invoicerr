@@ -311,4 +311,27 @@ describe('validateSchematron: malformed XML', () => {
     expect(result.errors[0].flag).toBe('fatal');
     expect(result.errors[0].message).toContain('Malformed XML');
   });
+
+  it('rejects a raw ampersand, which xmldom would otherwise parse and hand to the rules', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ubl-invoice:Invoice
+    xmlns:ubl-invoice="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+    xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:Note>A & B</cbc:Note>
+</ubl-invoice:Invoice>`;
+    const result = validateSchematron(xml, PEPPOL_BIS_UBL_SCH);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warnings).toEqual([]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].id).toBe('malformed-xml');
+    expect(result.errors[0].flag).toBe('fatal');
+    expect(result.errors[0].message).toContain("unescaped '&'");
+
+    // The same document with the ampersand escaped is well-formed: the guard must not reject it,
+    // and only the ordinary Schematron violations (if any) remain.
+    const escaped = validateSchematron(xml.replace('A & B', 'A &amp; B'), PEPPOL_BIS_UBL_SCH);
+    expect(escaped.errors.map((error) => error.id)).not.toContain('malformed-xml');
+  });
 });

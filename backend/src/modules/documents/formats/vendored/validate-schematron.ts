@@ -576,6 +576,46 @@ function validateParsedDocument(
 }
 
 /**
+ * Returns the offset of the first raw `&` that does not start a character or entity reference, or
+ * null when every `&` is escaped. xmldom is lenient here: it returns a document for
+ * `<cbc:Note>A & B</cbc:Note>` (no `onError` call), so the Schematron rules would run on a document
+ * that is not well-formed and could even report it `valid`. node-schematron (slimdom) throws on the
+ * same input, which is the behaviour callers expect, hence this explicit pre-parse guard.
+ *
+ * The scan skips comments, CDATA sections and processing instructions, where `&` is literal text and
+ * perfectly legal; everything else is markup or character data, where XML only accepts `&` as the
+ * start of `&name;`, `&#123;` or `&#x7B;`.
+ */
+function findBareAmpersand(xml: string): number | null {
+  let offset = 0;
+  while (offset < xml.length) {
+    if (xml.startsWith('<!--', offset)) {
+      const end = xml.indexOf('-->', offset + 4);
+      if (end === -1) return null; // an unterminated comment is left to xmldom's own parser
+      offset = end + 3;
+      continue;
+    }
+    if (xml.startsWith('<![CDATA[', offset)) {
+      const end = xml.indexOf(']]>', offset + 9);
+      if (end === -1) return null; // likewise for an unterminated CDATA section
+      offset = end + 3;
+      continue;
+    }
+    if (xml.startsWith('<?', offset)) {
+      const end = xml.indexOf('?>', offset + 2);
+      if (end === -1) return null; // likewise for an unterminated processing instruction
+      offset = end + 2;
+      continue;
+    }
+    if (xml[offset] === '&' && !/^&(?:[A-Za-z_:][\w.:-]*|#[0-9]+|#x[0-9a-fA-F]+);/.test(xml.slice(offset))) {
+      return offset;
+    }
+    offset++;
+  }
+  return null;
+}
+
+/**
  * Validates an XML document against a Schematron .sch file (via node-schematron). Pass the
  * PREPROCESSED .sch (all `<sch:include>`s already resolved) — e.g.
  * 'en16931/EN16931-CII-validation-preprocessed.sch'.
@@ -592,6 +632,10 @@ export function validateSchematron(xml: string, schRelPath: string): SchematronR
   const schema = loadSchema(schRelPath);
   const severity = loadSeverityMap(schRelPath);
   const parseErrors: string[] = [];
+  const bareAmpersand = findBareAmpersand(xml);
+  if (bareAmpersand !== null) {
+    parseErrors.push(`unescaped '&' at offset ${bareAmpersand} (write &amp; for a literal ampersand)`);
+  }
   let documentDom: { documentElement?: unknown } | undefined;
   try {
     documentDom = new DOMParser({
