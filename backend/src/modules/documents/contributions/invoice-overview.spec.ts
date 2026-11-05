@@ -52,7 +52,7 @@ describe('buildInvoiceOverview', () => {
     expect(overview.invoicedLastMonth).toBe(800);
   });
 
-  it('draws twelve months of the year: collected up to this month, expected from due dates after it', () => {
+  it('draws twelve months of the year: collected up to this month, expected from due dates from this month on', () => {
     const late = invoice('a', {
       ...line(100),
       currency: 'EUR',
@@ -81,10 +81,33 @@ describe('buildInvoiceOverview', () => {
     expect(overview.months).toHaveLength(12);
     expect(overview.months[0]).toEqual({ month: '2026-01', collected: 0, expected: null });
     expect(overview.months[2]).toEqual({ month: '2026-03', collected: 300, expected: null });
-    // The dashed line starts on this month's own point, so the two read as one curve.
-    expect(overview.months[9]).toEqual({ month: '2026-10', collected: 1200, expected: 1200 });
+    // Nothing is due this month, so this month's expected is 0 — not a copy of what was collected.
+    expect(overview.months[9]).toEqual({ month: '2026-10', collected: 1200, expected: 0 });
     expect(overview.months[10]).toEqual({ month: '2026-11', collected: null, expected: 120 });
     expect(overview.months[11]).toEqual({ month: '2026-12', collected: null, expected: 240 });
+  });
+
+  it('shows what is still owed due this month as this month expected, above what was collected', () => {
+    const dueThisMonth = invoice('m', {
+      ...line(450),
+      currency: 'EUR',
+      issueDate: '2026-10-05',
+      dueDate: '2026-10-30',
+    });
+    const payments: OverviewPayment[] = [
+      { documentId: 'x', amountMinor: 10000, currency: 'EUR', paidAt: new Date('2026-10-12T10:00:00Z') },
+    ];
+    const overview = buildInvoiceOverview({
+      currency: 'EUR',
+      today: TODAY,
+      invoices: [dueThisMonth],
+      unsettled: [balance(dueThisMonth, 45000)],
+      payments,
+      clientLabels: new Map(),
+    });
+    const current = overview.months[9];
+    expect(current).toEqual({ month: '2026-10', collected: 100, expected: 450 });
+    expect(current.expected).toBeGreaterThan(current.collected ?? 0);
   });
 
   it('lists the clients to chase, one row per client and currency, the largest amount first', () => {
