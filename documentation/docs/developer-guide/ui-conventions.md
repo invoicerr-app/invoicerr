@@ -357,9 +357,10 @@ Call it once the screen has settled, after the element the test waits for, and a
 opens or a step changes. It first waits until no finite CSS animation or transition is running on
 the page and every visible toast has reached full opacity, since a menu, dialog or toast measured
 mid-fade reads as low contrast; infinite ones, such as spinners, are ignored. That wait runs twice,
-one frame apart: an element mounted by the same render as the one the test just waited for starts
-its transition on the next frame, so a single check would see a quiet page and then measure it
-mid-fade. To run it locally, start the e2e stack and run one spec:
+100 ms apart: an element mounted by the same render as the one the test just waited for may only
+start its transition on the next frame, so a single check would see a quiet page and then measure it
+mid-fade; the second check runs after that window. To run it locally, start the e2e stack and run one
+spec:
 
 ```bash
 cd e2e

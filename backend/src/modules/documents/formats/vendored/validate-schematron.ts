@@ -408,7 +408,7 @@ interface SchematronAssertion {
  * Why this is not `schema.validateString()`: node-schematron selects each rule's context with
  * `//(context)` (see `Pattern.prototype.validateDocument` in its own dist bundle). For an ABSOLUTE
  * context (`//ram:...`, most of the EN 16931 rules) that re-evaluates the whole document once per
- * descendant node — O(n²) XPath work for a set identical to evaluating the context once. On the CII
+ * descendant node: O(n²) XPath work for a set identical to evaluating the context once. On the CII
  * export that dominated the request time. Relative contexts are rewritten with the `//` prefix when
  * they are a plain path (or a union of plain paths), and fall back to the library's own per-node
  * semantics otherwise. Pattern/phase/variable handling and the first-rule-wins flattening are the
@@ -529,6 +529,10 @@ function validateParsedDocument(
   const results: SchematronAssertion[] = [];
 
   const phaseId = schema.defaultPhase ?? '#ALL';
+  // A named defaultPhase that the schema does not declare runs nothing in node-schematron
+  // (`phase?.active... || []`). Falling back to every pattern would validate rules the schema says
+  // are inactive, so match the library instead.
+  if (phaseId !== '#ALL' && !schema.phases.some((entry) => entry.id === phaseId)) return [];
   const phase = phaseId === '#ALL' ? undefined : schema.phases.find((entry) => entry.id === phaseId);
   const patterns = phase
     ? phase.active
@@ -546,10 +550,16 @@ function validateParsedDocument(
     const ruleContexts = pattern.rules.map((rule) =>
       contextNodes(rule.context, documentDom, variables, options),
     );
+    // node-schematron applies the FIRST rule whose context matched a node; the Map keeps that order
+    // without scanning every rule context for every node.
+    const ruleByNode = new Map<SchematronNode, number>();
+    ruleContexts.forEach((nodes, ruleIndex) => {
+      for (const node of nodes) if (!ruleByNode.has(node)) ruleByNode.set(node, ruleIndex);
+    });
 
     const visit = (node: SchematronNode): void => {
-      const ruleIndex = ruleContexts.findIndex((nodes) => nodes.includes(node));
-      if (ruleIndex >= 0) {
+      const ruleIndex = ruleByNode.get(node);
+      if (ruleIndex !== undefined) {
         for (const row of pattern.rules[ruleIndex].validateNode(node as never, variables, options as never)) {
           results.push({
             assertId: row.assertId ?? '',
@@ -574,17 +584,26 @@ function validateParsedDocument(
  * isReport=true → <report> fired (informational, always ignored). Failed assertions are then split
  * by the rule's `flag` (see loadSeverityMap): fatal (or unspecified) → blocking `errors`; everything
  * else (warning, information, ...) → non-blocking `warnings`.
+ *
+ * Malformed XML is reported as one `malformed-xml` fatal error instead of node-schematron's thrown
+ * parse error, so a caller receives the same invalid-result shape as a schema violation.
  */
 export function validateSchematron(xml: string, schRelPath: string): SchematronResult {
   const schema = loadSchema(schRelPath);
   const severity = loadSeverityMap(schRelPath);
   const parseErrors: string[] = [];
-  const documentDom = new DOMParser({
-    onError: (level: string, message: string) => {
-      if (level === 'error' || level === 'fatalError') parseErrors.push(message);
-    },
-  }).parseFromString(xml, 'application/xml');
-  if (parseErrors.length > 0 || !documentDom.documentElement) {
+  let documentDom: { documentElement?: unknown } | undefined;
+  try {
+    documentDom = new DOMParser({
+      onError: (level: string, message: string) => {
+        if (level === 'error' || level === 'fatalError') parseErrors.push(message);
+      },
+    }).parseFromString(xml, 'application/xml') as unknown as { documentElement?: unknown };
+  } catch (error) {
+    // xmldom reports a fatal parse error through `onError` and then always throws; collect it here.
+    parseErrors.push(error instanceof Error ? error.message : String(error));
+  }
+  if (parseErrors.length > 0 || !documentDom?.documentElement) {
     return {
       valid: false,
       errorCount: 1,

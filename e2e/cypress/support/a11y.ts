@@ -39,10 +39,10 @@ function expectPageAtRest(doc: Document) {
 const SETTLE_FRAME_MS = 100
 
 Cypress.Commands.add("assertAccessible", (options: Cypress.AssertAccessibleOptions = {}) => {
-    // Checked twice, one frame apart: an element mounted by the same render as the one the spec just
-    // waited for only starts its enter transition on the next frame, so a single instantaneous check
-    // sees a quiet page and axe then measures that element mid-fade. The second check waits that
-    // transition out.
+    // Checked twice, SETTLE_FRAME_MS apart: an element mounted by the same render as the one the
+    // spec just waited for only starts its enter transition on the next frame, so a single
+    // instantaneous check sees a quiet page and axe then measures that element mid-fade. The second
+    // check waits that transition out.
     cy.document({ log: false }).should(expectPageAtRest)
     cy.wait(SETTLE_FRAME_MS, { log: false })
     cy.document({ log: false }).should(expectPageAtRest)
