@@ -10,7 +10,7 @@
  * `fr` is the only non-English code since decision D-297 (2026-10-30): the hosted-offer texts are
  * English-only, and French keeps three short summaries (`terms-of-service`, `privacy-policy`,
  * `legal-notice`), not full translations. A German, Italian, Polish or Portuguese reader therefore
- * falls back to English on every document — `isLegalDocumentLanguage` rejects those codes, so they
+ * falls back to English on every document: `isLegalDocumentLanguage` rejects those codes, so they
  * never even reach `resolveLegalDocumentView`.
  */
 
@@ -18,7 +18,7 @@ export const LEGAL_DOCUMENT_LANGUAGES = ['en', 'fr'] as const;
 
 export type LegalDocumentLanguage = (typeof LEGAL_DOCUMENT_LANGUAGES)[number];
 
-/** English is the ONLY language every one of the seven documents is guaranteed to have — see
+/** English is the ONLY language every one of the seven documents is guaranteed to have: see
  *  `legal-documents.ts`'s own header on why a translation file is optional per slug, never required. */
 export const DEFAULT_LEGAL_DOCUMENT_LANGUAGE: LegalDocumentLanguage = 'en';
 

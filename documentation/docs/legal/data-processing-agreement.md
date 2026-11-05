@@ -402,13 +402,16 @@ a Company that never had a paid subscription, and no earlier than one hundred ei
 for a Company that did.
 
 Return of the personal data at the end of the provision of services (Clause 10(d)): that archive,
-which the Company's Owner downloads through a link sent by email (Terms of Service, Section 13.2), and
-the self-service export available at any time before (Terms of Service, Section 8.2).
+which the Company's Owner receives as a zip file attached to an email (Terms of Service, Section 13.2),
+and the self-service export available at any time before (Terms of Service, Section 8.2), downloaded
+directly from the Service or, when it is too large for that, sent as a zip file attached to an email.
 
 Deletion after return (Clause 10(d)): once the data has been returned, the Processor deletes all of it,
-including the archived copies of the documents the Customer sent, and keeps no copy for any statutory
-retention period: the Customer alone keeps its invoices (Terms of Service, Section 13.4). Encrypted
-backup copies expire thirty-five (35) days after they are made.
+including the archived copies of the documents the Customer sent, except an archived document whose
+statutory retention period has not yet run out. That document is kept until the period ends, with its
+expiry date and the legal provision it rests on recorded against it, then erased. The Customer alone
+keeps its invoices as its own records (Terms of Service, Section 13.4). Encrypted backup copies expire
+thirty-five (35) days after they are made.
 
 **For processing by (sub-) processors, also specify subject matter, nature and duration of the
 processing**
@@ -461,8 +464,10 @@ Application logs are kept for ninety (90) days, then deleted automatically.
 **Measures for ensuring data minimisation**
 
 Optical character recognition runs within the Service's own infrastructure; no document is sent to a
-third-party OCR provider. Email sent through the Service carries only its text: a document is never
-attached and is reached through a download link served by the Service.
+third-party OCR provider. Email sent by the Service carries its text and, when the Customer asks the
+Service to send a document, the PDF of that document as an attachment. The end-of-subscription archive
+is sent as a zip file attached to an email, and the self-service export is emailed the same way when it
+is too large to be downloaded directly from the Service. No other document is attached to an email.
 
 **Measures for ensuring limited data retention**
 
@@ -509,8 +514,9 @@ Customer is informed of any intended addition or replacement by email, at least 
 - **Contact person’s name, position and contact details**: privacy@resend.com
 - **Description of the processing (including a clear delimitation of responsibilities in case several
   sub-processors are authorised)**: Delivery of the transactional email sent on the Customer's
-  instruction. Only the text of the email: a document is never attached and is reached through a
-  download link served by the Service. No open or click tracking.
+  instruction, including, when the Customer sends a document, the PDF attached to that email, and when
+  the end-of-subscription archive or a self-service export is emailed, the zip file attached to it. No
+  open or click tracking.
 
 **3.**
 
@@ -687,3 +693,9 @@ this document; they create no separate or additional rights.
   by the Customer; Stripe, GitHub and Weblate are noted as receiving no Customer data.
 - **2026-10-30**: Annex I now names the Processor as a société par actions simplifiée (SAS) rather than
   its single-shareholder form (D-262). No other fact changed.
+- **2026-11-05**: Factual alignment with the code; the Clauses are unchanged. Annex II: the
+  end-of-subscription archive is received as a zip file attached to an email, not through a download
+  link, and the deletion after return states the statutory-retention exception the code already
+  applies. Annex III: an email carries the PDF of a document the Customer sends, and the zip archive or
+  export when it is emailed, rather than text only. Annex IV: Resend's entry describes those
+  attachments.

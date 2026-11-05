@@ -71,8 +71,9 @@ restent en France, chez OVHcloud.
 
 - **Compte et entreprise :** tant que l'entreprise existe sur le Service, puis suppression au plus tôt
   30 jours après l'envoi de l'archive pour un essai non converti, 180 jours pour un abonnement payé.
-- **Suppression de l'entreprise :** tout est supprimé, y compris les documents archivés. La conservation
-  légale de vos factures reste à votre charge.
+- **Suppression de l'entreprise :** tout est supprimé, y compris les documents archivés, sauf ceux dont
+  la durée de conservation légale n'est pas encore écoulée ; ils sont effacés à son terme. La
+  conservation légale de vos factures reste à votre charge.
 - **Sauvegardes :** 35 jours.
 - **Nos factures et notre comptabilité :** 10 ans (C. com. art. L123-22).
 - **Journaux applicatifs :** 90 jours.

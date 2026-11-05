@@ -100,10 +100,11 @@ what it receives:
   Service, Section 7.1). Stripe receives your means of payment and the billing details needed to
   charge it, never the data contained in the documents you create through the Service.
 - **Resend**: delivery of the transactional email sent by the Service (sign-in links, notifications,
-  documents sent on your instruction), and delivery of the copy of each waiting-list entry sent to
-  **contact@invoicerr.app** (Section 3). Only the text of an email goes through Resend: a document is
-  never attached, it is reached through a download link served by the Service, and no open or click
-  tracking is used.
+  documents sent on your instruction, Company data exports), and delivery of the copy of each
+  waiting-list entry sent to **contact@invoicerr.app** (Section 3). When you send a document, its PDF
+  is attached to the email; the end-of-subscription archive is emailed as a zip file, and a self-service
+  export is emailed the same way when it is too large to be downloaded directly from the Service. No
+  open or click tracking is used.
 - **Cloudflare, Inc.**: DNS for our domains; while its proxy is enabled in front of the Service, relay
   of all traffic between your browser and the Service, which Cloudflare decrypts and re-encrypts on
   its way (see the [International Access Transparency](./international-access-transparency.md) page);
@@ -147,12 +148,14 @@ the documents you create, or your Company's account and database records, involv
   (Section 13.3, second bullet — that same file's `PAID_ZIP_GRACE_DAYS` constant). Both figures are the
   minimum data-retrieval window Regulation (EU) 2023/2854 (the EU Data Act), Article 25(2)(g) requires
   before we may erase Your Data once you stop using the Service.
-- **Deleting your Company deletes everything, archived documents included.** When your Company is
-  deleted, by you, from your Company's settings, at any time and without us blocking your exit, or at
-  the end of the schedule above, every record scoped to it and every stored file goes, including the
-  archived copies of the documents you sent. We return your data to you first (Terms of Service,
-  Sections 8.2 and 13.2); we do not keep your invoices for you afterwards, and keeping them for any
-  statutory retention period is your responsibility alone (Terms of Service, Section 13.4).
+- **Deleting your Company deletes everything, except what a statute still requires us to keep.**
+  When your Company is deleted, by you, from your Company's settings, at any time and without us
+  blocking your exit, or at the end of the schedule above, every record scoped to it and every stored
+  file goes, including the archived copies of the documents you sent, except an archived document whose
+  statutory retention period has not yet run out. We keep that document, with its expiry date and the
+  legal provision it rests on recorded against it, until the period ends, then erase it. We return your
+  data to you first (Terms of Service, Sections 8.2 and 13.2); keeping your invoices for any statutory
+  retention period remains your responsibility (Terms of Service, Section 13.4).
 - **Backups** are kept for **thirty-five (35) days**, then deleted automatically. Data
   deleted from the Service therefore disappears from the backups within thirty-five days.
 - **Our own invoices to your Company**, and the accounting records behind them, are kept for the period
@@ -193,8 +196,10 @@ Under the GDPR, you have the right to: access the personal data we hold about yo
 have it corrected (**Art. 16**); have it erased (**Art. 17**); restrict its processing (**Art. 18**);
 receive a portable copy of it (**Art. 20**); and object to processing based on our legitimate
 interest (**Art. 21**). You can exercise any of these by writing to **contact@invoicerr.app**; we
-will respond within the timeframe the GDPR sets for a controller. You also have the right to lodge a
-complaint with the French data protection authority, the **CNIL** (www.cnil.fr), or with the
+will respond within the timeframe the GDPR sets for a controller. The right to erasure has the limits
+the GDPR itself sets: in particular, an archived document whose statutory retention period has not yet
+run out is kept until that period ends (Section 6; GDPR Article 17(3)(b)). You also have the right to
+lodge a complaint with the French data protection authority, the **CNIL** (www.cnil.fr), or with the
 supervisory authority of your own EU member state.
 
 Where we rely on your consent, which today means the waiting list described in Section 3 and nothing
@@ -440,3 +445,7 @@ Nothing in this Section reduces a right the GDPR gives you.
   translations are withdrawn. Section 1 now names the société par actions simplifiée (SAS) rather than
   its single-shareholder form (D-262). Section 6 no longer calls the backups encrypted: they are kept
   for thirty-five days, and encryption is only claimed where it is true (DPA Annex III).
+- **2026-11-05**: Factual alignment with the code. Section 4: Resend delivers the PDF of a document you
+  send, and a Company data export, as email attachments. Section 6: deleting a Company erases
+  everything except an archived document whose statutory retention period has not yet run out, which is
+  kept until it does. Section 8 names that limit on the right to erasure.

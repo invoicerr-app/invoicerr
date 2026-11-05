@@ -13,11 +13,11 @@
  *
  * A document's own file (`<slug>.md`) is always English — the sole source `version`/`effectiveDate`/
  * `contentHash` are ever computed from (decision 2026-09-19, owner + counsel: a translation is
- * provided for comprehension — see the "Governing Language" section every document now carries — but
+ * provided for comprehension (see the "Governing Language" section every document now carries), but
  * it is never itself the text an acceptance or a release is keyed on; only the wording actually agreed
  * to matters, and that is always the English one). A SIBLING file `<slug>.<lang>.md` (`<lang>` one of
  * `LEGAL_DOCUMENT_LANGUAGES` minus `'en'`) is a translation of that same document, attached to it as
- * `translations[<lang>]` rather than listed as its own top-level `LegalDocument` —
+ * `translations[<lang>]` rather than listed as its own top-level `LegalDocument`:
  * `legal-document-view.ts#resolveLegalDocumentView` is the one place that picks which of a document's
  * own text (English, or one of its translations) a given request actually sees.
  *
@@ -26,7 +26,7 @@
  * each ship one, stating in their own header that the English version prevails. The four other
  * documents (`data-processing-agreement`, `refund-policy`, `cookies-and-acceptable-use`,
  * `international-access-transparency`) ship none at all. A missing translation is not an error at load
- * time — a slug simply has fewer keys in its `translations` map — so a French reader of one of those
+ * time: a slug simply has fewer keys in its `translations` map, so a French reader of one of those
  * four gets the English text, and a German, Italian, Polish or Portuguese reader gets the English text
  * of every document: their language is simply not in the catalog. Adding a language back for one slug
  * is a matter of dropping one more file in, never a schema change.
@@ -192,7 +192,7 @@ function loadTranslation(filename: string, lang: LegalDocumentLanguage): LegalDo
 }
 
 /**
- * Re-reads `./data/*.md` on every call rather than caching — ten small files since D-297, and still
+ * Re-reads `./data/*.md` on every call rather than caching: ten small files since D-297, and still
  * never on a hot path (a document list page, a sign-up screen, a sign-in
  * interstitial), and NOT caching is what keeps a spec free to assert against the files on disk without
  * a module-cache reset between cases.

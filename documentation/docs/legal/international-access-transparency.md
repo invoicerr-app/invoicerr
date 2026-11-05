@@ -42,10 +42,12 @@ updated when it does.
 
 Where another sub-processor named in the [Privacy Policy](./privacy-policy.md), Section 4, and the
 [Data Processing Agreement](./data-processing-agreement.md), Annex IV, is a non-EU entity or may process
-data outside the EEA (Stripe for the payment of the subscription, Resend for the text of transactional
-email), that processing is limited to account and billing data or to the text of an email, never the
-documents you create, which are reached through a download link served from France; it relies on that
-provider's own GDPR Chapter V safeguards, as described in the Privacy Policy, Section 5.
+data outside the EEA (Stripe for the payment of the subscription, Resend for transactional email),
+that processing is limited to account and billing data, or to the content of an email. Resend receives
+the documents you create only when you ask the Service to send one by email, or when it delivers a
+Company data export as an attachment; otherwise a document is reached through a download link served
+from France. That processing relies on the provider's own GDPR Chapter V safeguards, as described in
+the Privacy Policy, Section 5.
 
 Two public, static websites, the marketing site (`invoicerr.app`) and this documentation site
 (`docs.invoicerr.app`), and the source code repository are hosted by **GitHub**, operated by GitHub,
@@ -75,9 +77,10 @@ listed here for completeness, not because they fall within the scope Article 28 
   (AES-256-GCM) before they are written to backup storage, under a key that is never written to that
   storage (see the Data Processing Agreement, Annex III), so a copy of the backup bucket alone reaches
   ciphertext, not documents. Backups expire after thirty-five (35) days.
-- **No document in email.** Email sent through the Service carries only its text: a document is never
-  attached and is reached through a download link served by the Service, so Resend, a US provider,
-  never receives the documents you create.
+- **Documents travel by email only when you ask.** Email sent by the Service normally carries its
+  text; a document is attached only when you ask the Service to send it, and a Company data export is
+  attached when it is emailed rather than downloaded from the Service. Resend, a US provider, therefore
+  receives the documents you create only when you send one by email.
 - **Access control.** Access to a Company's data within the Service is scoped by that Company's own
   roles (owner/admin/member); access to production infrastructure and data within our own organization
   is restricted to what is needed to operate and support the Service, as described in the Privacy
@@ -106,6 +109,15 @@ the Service.
 ## 4. Contact
 
 Questions about this page can be sent to **contact@invoicerr.app**.
+
+## 5. Governing Language
+
+This document is drafted and executed in English. Where we provide a translation into another
+language for your convenience and understanding, that translation is not a substitute for the English
+text: in the event of any inconsistency, ambiguity, or conflict between the English version and a
+translated version, **the English version prevails** and is the version that governs the rights and
+obligations of the parties. Translations are provided in good faith to help each audience understand
+this document; they create no separate or additional rights.
 
 ---
 
@@ -162,3 +174,7 @@ Questions about this page can be sent to **contact@invoicerr.app**.
   the backup measure no longer says the storage provider never holds the key, since the same provider
   now hosts both the Service and its backups, and states only that the key is never written to the
   backup storage. Polar and Google are removed from the list of non-EU sub-processors, Stripe is added.
+- **2026-11-05**: Added Section 5, "Governing Language", which the other legal documents already carry.
+  Section 2's measure on documents in email is corrected to match the code: a document is attached
+  when you ask the Service to send it by email, and a Company data export is attached when it is
+  emailed. The paragraph on non-EU sub-processors says the same about Resend. No other fact changed.

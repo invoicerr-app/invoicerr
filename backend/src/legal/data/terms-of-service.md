@@ -153,7 +153,7 @@ from within the Service. You can also generate a full export of Your Data (the s
 where renderable, a PDF copy of every document) **self-service, at any time during your
 subscription**, either from within the Service or by calling `POST /api/companies/export` (see
 Section 10 for the API). The same export is generated automatically when your Company reaches
-end-of-subscription, and your Owner receives an email with a link to download it (Section 13.2).
+end-of-subscription, and your Owner receives it as a zip file attached to an email (Section 13.2).
 If you are unable to use either of those paths, write to **contact@invoicerr.app** and we will provide
 the export within a reasonable time.
 
@@ -261,9 +261,9 @@ issuing a document — is disabled.
 
 13.2. **Data archive.** At the end of the 14-day read-only suspension, we generate an archive (a zip
 file) containing, for every document your Company holds, its stored data and, where the document can
-be rendered, a copy of it, and we email the Company's **Owner** a link to download that archive. This
-is how we return Your Data to you, and your opportunity to retain a copy of your records before
-deletion.
+be rendered, a copy of it, and we email that archive to the Company's **Owner** as a zip file
+attachment. This is how we return Your Data to you, and your opportunity to retain a copy of your
+records before deletion.
 
 13.3. **Deletion.**
    - If the Company never had a paid subscription (i.e. its trial expired unconverted), its account
@@ -273,15 +273,17 @@ deletion.
    - If the Company had, at any point, an active paid subscription, its account and data are
      permanently deleted **no earlier than one hundred eighty (180) days after the archive is made
      available**, giving you a further window to reactivate your subscription before deletion.
-   - Deletion covers all of Your Data, including the archived copies of the documents you sent. The
-     backups of the Service expire thirty-five (35) days after they are made, so no copy of
-     Your Data remains with us after that.
+   - Deletion covers all of Your Data, including the archived copies of the documents you sent, except
+     an archived document whose statutory retention period has not yet run out. We keep that document,
+     with its expiry date and the legal provision it rests on recorded against it, until the period
+     ends, then erase it. The backups of the Service expire thirty-five (35) days after they are made.
 
-13.4. **You alone keep your invoices.** **Retaining your invoices and related documents for any
-statutory retention period** (for example, ten (10) years for invoices under French law, or such
-other period applicable under the law of the relevant country) **is your responsibility alone**. We
-return Your Data to you (Sections 8.2 and 13.2) and then delete it (Section 13.3); we do not keep your
-invoices for you after your Company is deleted, and we are not a depositary of those records.
+13.4. **You keep your invoices; we keep an archived copy only while the law requires.** **Retaining
+your invoices and related documents for any statutory retention period** (for example, ten (10) years
+for invoices under French law, or such other period applicable under the law of the relevant country)
+**is your responsibility alone**. We return Your Data to you (Sections 8.2 and 13.2) and then delete
+it (Section 13.3), except an archived document whose statutory retention period has not yet run out,
+which we keep until that period ends and then erase. We are not a depositary of your records.
 
 ## 14. Hosting and Subprocessors
 
@@ -297,9 +299,9 @@ France, for thirty-five (35) days.
      **contact@invoicerr.app**.
    - **Stripe**: processing of the payment of your subscription, by card or SEPA direct debit
      (Section 7.1).
-   - **Resend**: delivery of the transactional email the Service sends. Only the text of an email
-     goes through Resend: a document is never attached, it is reached through a download link, and no
-     open or click tracking is used.
+   - **Resend**: delivery of the transactional email the Service sends, including, when you send a
+     document, the PDF attached to that email, and when a Company data export is emailed, the zip file
+     attached to it. No open or click tracking is used.
    - **Cloudflare, Inc.**: DNS for our domains and, while its proxy is enabled in front of the
      Service, relay of the traffic between your browser and the Service (Section 14.4).
    - **GitHub, Inc.**: hosting of the source code and of the public issue tracker. It never receives
@@ -635,3 +637,8 @@ concluding this Agreement. Nothing in this Section reduces a right that mandator
   (SAS) rather than its single-shareholder form (D-262). Section 13.3 no longer calls the backups
   encrypted: they expire after thirty-five days, and encryption is only claimed where it is true
   (DPA Annex III).
+- **2026-11-05**: Factual alignment with the code. Section 8.2 and 13.2: the end-of-subscription
+  archive is a zip file attached to an email, not a download link. Section 13.3 and 13.4: an archived
+  document whose statutory retention period has not yet run out is kept until that period ends, then
+  erased. Section 14: Resend delivers the PDF of a document you send, and an emailed Company data
+  export, as attachments.

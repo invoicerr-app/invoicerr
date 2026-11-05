@@ -48,7 +48,7 @@ export default function LegalAcceptPage() {
   // to every pending document at once (`useLegalDocuments(langOverride)` above), so switching language
   // never leaves one tab in the visitor's pick and another silently still in whatever the server
   // resolved on its own. The union of every pending document's own `availableLanguages` is what decides
-  // whether it even shows — since D-297 only Terms of Service, Privacy Policy and Legal Notice carry a
+  // whether it even shows: since D-297 only Terms of Service, Privacy Policy and Legal Notice carry a
   // French summary, so a pending pair of Terms and Privacy still surfaces English and French, while a
   // document with no French page at all (the DPA, the refund policy) contributes English only.
   const availableLanguages = Array.from(new Set(pendingDocs.flatMap((doc) => doc.availableLanguages)))
@@ -153,15 +153,22 @@ export default function LegalAcceptPage() {
         )}
 
         {/* D-299: the language the visitor is accepting in is its own consent, separate from the
-            document content above — stated right above the button, where the acceptance actually
-            happens, rather than buried in Section 23 of the Terms. English source string only for
-            now: the French wording is left to Weblate (`legal.accept.languageNotice` is absent from
-            every other locale file and falls back to English, `lib/i18n.ts`'s `fallbackLng`). */}
+            document content above, stated right above the button, where the acceptance actually
+            happens, rather than buried in Section 23 of the Terms. The notice follows the language
+            the documents are actually being read in (`resolvedLanguage`, driven by the selector):
+            saying "in English" while a French summary is on screen would contradict the very text
+            next to it. The French wording lives in `languageNoticeFr` in the English source catalog
+            because the other locale files are Weblate-managed (`lib/i18n.ts`'s `fallbackLng`). */}
         <p className="max-w-2xl text-xs text-muted-foreground" data-cy="legal-accept-language-notice">
-          {t(
-            "legal.accept.languageNotice",
-            "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
-          )}
+          {resolvedLanguage === "fr"
+            ? t(
+                "legal.accept.languageNoticeFr",
+                "Ces documents sont rédigés en anglais, la seule version qui fait foi. Un résumé en français est disponible pour les Conditions d'utilisation et la Politique de confidentialité. En acceptant, vous confirmez en avoir pris connaissance et les accepter en anglais.",
+              )
+            : t(
+                "legal.accept.languageNotice",
+                "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
+              )}
         </p>
 
         <Button

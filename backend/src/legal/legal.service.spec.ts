@@ -46,7 +46,7 @@ describe('LegalService.listDocuments', () => {
   it('serves each document in the best-matching preferred language, per document', () => {
     process.env[BILLING_FLAG_NAME] = 'true';
     const documents = new LegalService().listDocuments(['fr']).documents;
-    // privacy-policy ships a short French summary (D-297) — it resolves to it.
+    // privacy-policy ships a short French summary (D-297), so it resolves to it.
     const privacy = documents.find((d) => d.slug === 'privacy-policy');
     expect(privacy?.language).toBe('fr');
     expect(privacy?.title).toBe('Politique de Confidentialité (synthèse en français)');

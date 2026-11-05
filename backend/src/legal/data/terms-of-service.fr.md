@@ -56,9 +56,10 @@ pendant une période payée d'avance, dans les conditions du bon de précommande
 ## Fin d'abonnement et données
 
 À la fin de l'abonnement, ou de l'essai non converti, le compte passe 14 jours en lecture seule. Le
-propriétaire reçoit ensuite par e-mail un lien vers l'archive de ses données. La suppression intervient au
+propriétaire reçoit ensuite l'archive de ses données en pièce jointe d'un e-mail. La suppression intervient au
 plus tôt 30 jours après cette archive pour un essai, 180 jours pour un abonnement payé, et couvre aussi
-les documents archivés. **La conservation légale de vos factures reste à votre charge.**
+les documents archivés, sauf ceux dont la durée de conservation légale n'est pas encore écoulée.
+**La conservation légale de vos factures reste à votre charge.**
 
 ## Responsabilité
 

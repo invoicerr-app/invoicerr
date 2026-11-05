@@ -2,7 +2,7 @@ import { LegalDocument } from './legal-documents';
 import { availableLanguagesOf, resolveLegalDocumentView } from './legal-document-view';
 
 /**
- * `translations` carries French only — the state of every real document since D-297 — so these
+ * `translations` carries French only (the state of every real document since D-297), so these
  * fixtures also prove what the shrinking of `LEGAL_DOCUMENT_LANGUAGES` changed: a German (or Italian,
  * Polish, Portuguese) preference is still a perfectly valid input, it simply matches no translation
  * any more and falls back to English instead of erroring.
@@ -58,7 +58,7 @@ describe('resolveLegalDocumentView', () => {
     expect(view.content).toBe('English body.');
   });
 
-  it('falls back to English for a German preference — the catalog no longer carries German', () => {
+  it('falls back to English for a German preference when the catalog no longer carries German', () => {
     const view = resolveLegalDocumentView(buildDoc(), ['de']);
     expect(view.language).toBe('en');
     expect(view.content).toBe('English body.');

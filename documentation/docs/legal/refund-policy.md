@@ -81,16 +81,17 @@ resolved, the Terms of Service, Section 13 apply:
 
 - **Read-only for fourteen (14) days.** Your Data stays available to read and export, but every write
   action, including sending or issuing a document, is disabled (Section 13.1).
-- **Archive for your Owner.** At the end of those fourteen days, we email your Company's Owner a link
-  to download an archive holding, for every document your Company holds, its stored data and, where it
-  can be rendered, a copy of it (Section 13.2).
+- **Archive for your Owner.** At the end of those fourteen days, we email your Company's Owner the
+  archive itself, as a zip file attachment, holding, for every document your Company holds, its stored
+  data and, where it can be rendered, a copy of it (Section 13.2).
 - **Deletion.** Your Company and all its data, archived documents included, are deleted no earlier
   than **thirty (30) days** after that archive is made available if it never had a paid subscription,
-  and no earlier than **one hundred eighty (180) days** after it if it did; until then, you can still
-  subscribe again (Section 13.3).
-- **Your invoices are yours to keep.** We do not keep your invoices for you once your Company is
-  deleted: keeping them for any statutory retention period is your responsibility alone
-  (Section 13.4).
+  and no earlier than **one hundred eighty (180) days** after it if it did, except an archived document
+  whose statutory retention period has not yet run out, which is kept until that period ends; until
+  then, you can still subscribe again (Section 13.3).
+- **Your invoices are yours to keep.** Keeping your invoices for any statutory retention period is your
+  responsibility alone (Section 13.4). We keep an archived copy only for the statutory retention period
+  the law imposes on us, then erase it.
 
 ## 9. Exporting Your Data
 
@@ -163,3 +164,6 @@ this document; they create no separate or additional rights.
   prevails over it. English-only legal texts: the full French translation is replaced by a short French
   summary, and the German, Italian, Polish and Portuguese translations are withdrawn. No other fact
   changed.
+- **2026-11-05**: Factual alignment with the code. Section 8: the end-of-subscription archive is a zip
+  file attached to an email, not a download link; deletion covers archived documents except one whose
+  statutory retention period has not yet run out, which is kept until it does.

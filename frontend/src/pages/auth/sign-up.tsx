@@ -68,6 +68,9 @@ export default function SignupPage() {
   const { data: legalDocuments } = useLegalDocuments()
   const saasMode = legalDocuments?.saasMode ?? false
   const [acceptLegal, setAcceptLegal] = useState(false)
+  // The sign-up screen has no document-language selector of its own, so the notice follows the
+  // interface locale: a French reader must not be told, in English, what language they accept in.
+  const languageIsFrench = (i18n.resolvedLanguage ?? i18n.language ?? "en").startsWith("fr")
 
   const backendUrl = getEnvVariable("VITE_BACKEND_URL") || ""
   const oidcOnly = isOidcOnly()
@@ -397,6 +400,7 @@ export default function SignupPage() {
                 disabled={loading}
                 className="mt-0.5"
                 data-cy="auth-accept-legal-checkbox"
+                aria-describedby="acceptLegal-language-notice"
               />
               <Label htmlFor="acceptLegal" className="text-sm font-normal leading-snug text-muted-foreground">
                 {t("auth.signup.form.acceptLegal.prefix", "I accept the")}{" "}
@@ -410,13 +414,23 @@ export default function SignupPage() {
               </Label>
             </div>
             {/* D-299: the language being accepted is stated at the point of acceptance, on this
-                second acceptance screen as well as `pages/legal/accept.tsx`. Same key, same English
-                source string; the French wording is left to Weblate. */}
-            <p className="text-xs text-muted-foreground" data-cy="auth-accept-legal-language-notice">
-              {t(
-                "legal.accept.languageNotice",
-                "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
-              )}
+                second acceptance screen as well as `pages/legal/accept.tsx`. Same keys, same
+                language-dependent wording: the notice is described by the checkbox above
+                (`aria-describedby`), so a screen reader announces it when the box is focused. */}
+            <p
+              id="acceptLegal-language-notice"
+              className="text-xs text-muted-foreground"
+              data-cy="auth-accept-legal-language-notice"
+            >
+              {languageIsFrench
+                ? t(
+                    "legal.accept.languageNoticeFr",
+                    "Ces documents sont rédigés en anglais, la seule version qui fait foi. Un résumé en français est disponible pour les Conditions d'utilisation et la Politique de confidentialité. En acceptant, vous confirmez en avoir pris connaissance et les accepter en anglais.",
+                  )
+                : t(
+                    "legal.accept.languageNotice",
+                    "These documents are in English, the only version that applies. A French summary is available for the Terms of Service and the Privacy Policy. By accepting, you confirm you have read them and accept them in English.",
+                  )}
             </p>
           </>
         )}

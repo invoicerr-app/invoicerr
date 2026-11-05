@@ -133,7 +133,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl:
             'https://github.com/invoicerr-app/invoicerr/tree/main/documentation/',
-          // `docs/legal/<slug>.fr.md` (a French summary sibling — see `backend/src/legal/legal-
+          // `docs/legal/<slug>.fr.md` (a French summary sibling; see `backend/src/legal/legal-
           // documents.ts`'s own "Translations" header; French is the only one since D-297) is content
           // for the backend's `GET /legal/documents` API, never a second Docusaurus page: the site
           // itself stayed English-only when its own i18n locale was retired (2026-09-16, see this
