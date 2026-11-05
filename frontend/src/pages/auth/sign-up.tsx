@@ -425,7 +425,7 @@ export default function SignupPage() {
               {languageIsFrench
                 ? t(
                     "legal.accept.languageNoticeFr",
-                    "Ces documents sont rédigés en anglais, la seule version qui fait foi. Un résumé en français est disponible pour les Conditions d'utilisation et la Politique de confidentialité. En acceptant, vous confirmez en avoir pris connaissance et les accepter en anglais.",
+                    "Ces documents sont rédigés en anglais, la seule version qui fait foi. Un résumé en français est disponible pour les Conditions essentielles et la Politique de confidentialité. En acceptant, vous confirmez en avoir pris connaissance et les accepter en anglais.",
                   )
                 : t(
                     "legal.accept.languageNotice",

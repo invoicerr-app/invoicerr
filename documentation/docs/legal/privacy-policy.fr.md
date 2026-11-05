@@ -48,7 +48,12 @@ Seuls ces prestataires reçoivent des données, chacun pour sa fonction :
   mail de contact.
 - **Stripe** : paiement de l'abonnement, par carte ou prélèvement SEPA. Ne reçoit jamais le contenu de
   vos documents.
-- **Resend** : envoi des e-mails du Service. Seul le texte y transite, un document n'est jamais joint.
+- **Resend** : envoi des e-mails du Service (liens de connexion, notifications, documents que vous
+  envoyez, exports de données d'entreprise) et de la copie de chaque inscription à la liste d'attente
+  adressée à **contact@invoicerr.app**. Quand vous envoyez un document, son PDF est joint à l'e-mail.
+  L'archive de fin d'abonnement et l'export de données d'entreprise sont joints en zip, comme un export
+  demandé depuis le Service lorsqu'il est trop volumineux pour être téléchargé directement. Aucun suivi
+  d'ouverture ni de clic.
 - **Cloudflare, Inc.** : DNS de nos domaines, page et stockage de la liste d'attente.
 - **GitHub, Inc.** : code source et suivi public des tickets, sites invoicerr.app et docs.invoicerr.app.
   Ne reçoit jamais les données du Service, seulement l'adresse IP et les en-têtes techniques des
