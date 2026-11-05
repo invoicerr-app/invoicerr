@@ -570,7 +570,7 @@ function detectXmlSyntax(raw: string): 'CII' | 'UBL' | null {
   return null;
 }
 
-/** The richer, import-facing counterpart of `ExtractionResult` — see `ExtractedDocumentFields`. */
+/** The richer, import-facing counterpart of `ExtractionResult`, see `ExtractedDocumentFields`. */
 export interface DocumentExtractionResult {
   syntax: RecognizedSyntax;
   fields: ExtractedDocumentFields;
@@ -581,7 +581,7 @@ const EMPTY_DOCUMENT_RESULT: DocumentExtractionResult = { syntax: null, fields: 
 /** Parses a raw XML string (already known to be XML — the caller decides that from the upload's own
  *  mime/filename, or from having just unwrapped it out of a PDF) into fields, auto-detecting CII vs
  *  UBL. Returns `EMPTY_DOCUMENT_RESULT`'s own shape (never throws) for an unrecognized XML dialect,
- *  an oversized deposit, or one that fails to parse at all — see this file's own header. */
+ *  an oversized deposit, or one that fails to parse at all, see this file's own header. */
 function extractFromXmlString(xml: string): DocumentExtractionResult {
   const syntax = detectXmlSyntax(xml);
   if (syntax === null) return EMPTY_DOCUMENT_RESULT;
@@ -651,7 +651,7 @@ async function extractDocument(
 }
 
 /** Projects the richer extraction down to the exact shape `ExtractedInvoiceFields` has always
- *  promised to `received-invoices.service.ts` — see `ExtractedDocumentFields`'s own comment. */
+ *  promised to `received-invoices.service.ts`, see `ExtractedDocumentFields`'s own comment. */
 function toReceivedInvoiceResult(result: DocumentExtractionResult): ExtractionResult {
   if (result.syntax === null) return EMPTY_RESULT;
   const {
@@ -693,13 +693,13 @@ function toReceivedInvoiceResult(result: DocumentExtractionResult): ExtractionRe
 
 /**
  * The single entry point `received-invoices.service.ts` calls. `mime`/`fileName` decide the
- * STRATEGY (never trusted alone for the RESULT — a `.xml` extension whose bytes are not actually XML
+ * STRATEGY (never trusted alone for the RESULT: a `.xml` extension whose bytes are not actually XML
  * still degrades to `EMPTY_RESULT` rather than throwing):
  *  - XML (mime `application/xml`/`text/xml`, or a `.xml` filename): parsed as CII or UBL directly.
  *  - PDF (mime `application/pdf`, or a `.pdf` filename): Factur-X extraction attempted first
- *    (embedded CII); a plain PDF with nothing embedded yields `EMPTY_RESULT` — never a refusal (see
+ *    (embedded CII); a plain PDF with nothing embedded yields `EMPTY_RESULT`, never a refusal (see
  *    received-invoice.descriptor.ts's own header: a scanned paper invoice is the base case).
- *  - anything else: `EMPTY_RESULT` — an unrecognized file is still accepted (the caller attaches it
+ *  - anything else: `EMPTY_RESULT`: an unrecognized file is still accepted (the caller attaches it
  *    regardless), just with nothing to pre-fill.
  */
 export async function extractReceivedInvoiceFields(
