@@ -8,6 +8,8 @@ import { assertValidPolicyProvenance, PolicyProvenance } from '../country-policy
 export interface CompanyProfileAttributeValue {
   value: string;
   label: string;
+  /** Frontend i18n key for `label`; the screen falls back to `label` when the key is absent. */
+  labelKey?: string;
 }
 
 /** A value the company does not answer: it follows from a setting it already made elsewhere. */
@@ -20,7 +22,11 @@ export interface DerivedCompanyProfileValue {
 export interface CompanyProfileAttribute {
   key: string;
   label: string;
+  /** Frontend i18n key for `label`; the screen falls back to `label` when the key is absent. */
+  labelKey?: string;
   help?: string;
+  /** Frontend i18n key for `help`; the screen falls back to `help` when the key is absent. */
+  helpTextKey?: string;
   values: CompanyProfileAttributeValue[];
   /** Asked only when the company's own declared values satisfy every entry; absent means always. */
   askedWhen?: ProfileCondition;

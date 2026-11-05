@@ -50,6 +50,11 @@ import {
 import type { Company, ResolvedRevenueSettings } from "@/types"
 import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
 import { isProfileAttributeAsked, profileValuesForDisplay } from "./company-profile-values"
+import {
+  profileAttributeHelp,
+  profileAttributeLabel,
+  profileAttributeValueLabel,
+} from "./company-profile-labels"
 
 import { NumberFormatsSection } from "./number-formats.section"
 import { CompanyLawSection } from "./company-law.section"
@@ -1380,10 +1385,10 @@ export default function CompanySettings() {
                     <div key={attribute.key} className="space-y-1.5">
                       <FieldLabel
                         htmlFor={fieldId}
-                        description={attribute.help}
+                        description={profileAttributeHelp(t, attribute)}
                         lockReason={t("settings.company.profile.derivedReason")}
                       >
-                        {attribute.label}
+                        {profileAttributeLabel(t, attribute)}
                       </FieldLabel>
                       <Select value={profileValues[attribute.key] ?? ""} disabled>
                         <SelectTrigger
@@ -1397,7 +1402,7 @@ export default function CompanySettings() {
                         <SelectContent>
                           {attribute.values.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                              {profileAttributeValueLabel(t, option)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1412,7 +1417,9 @@ export default function CompanySettings() {
                     name={`reportingProfile.${attribute.key}`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel description={attribute.help}>{attribute.label}</FormLabel>
+                        <FormLabel description={profileAttributeHelp(t, attribute)}>
+                          {profileAttributeLabel(t, attribute)}
+                        </FormLabel>
                         <Select
                           value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
                           // Radix fires a spurious "" when the stored value arrives after mount; a
@@ -1439,7 +1446,7 @@ export default function CompanySettings() {
                                 value={option.value}
                                 data-cy={`company-profile-${attribute.key}-option-${option.value}`}
                               >
-                                {option.label}
+                                {profileAttributeValueLabel(t, option)}
                               </SelectItem>
                             ))}
                           </SelectContent>

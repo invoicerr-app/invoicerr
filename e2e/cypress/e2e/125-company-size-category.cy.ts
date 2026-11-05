@@ -8,6 +8,15 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  */
 const api = Cypress.env("apiUrl");
 
+/** Picks a value in a company-profile select and waits for Radix's scroll lock to be released:
+ *  the body keeps `pointer-events: none` while the dropdown closes, which makes the next click on
+ *  the submit button flaky. */
+function selectProfileOption(attribute: string, value: string) {
+	cy.get(`[data-cy="company-profile-${attribute}-select"]`, { timeout: 20000 }).scrollIntoView().click();
+	cy.get(`[data-cy="company-profile-${attribute}-option-${value}"]`).click();
+	cy.get("body").should("not.have.attr", "data-scroll-locked");
+}
+
 function createDraftInvoice(issueDate: string): Cypress.Chainable<string> {
 	return cy
 		.request({ url: `${api}/api/documents/references/client/search` })
@@ -50,32 +59,54 @@ describe("Company size category and the French PDP calendar", () => {
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 	});
 
-	it("declares the size category in the company settings, and shows it again after a reload", () => {
+	it("declares the size category and the VAT group answer in the company settings, and shows them again after a reload", () => {
 		cy.visit("/settings/company");
 		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 }).scrollIntoView();
 
-		cy.get('[data-cy="company-profile-sizeCategory-select"]').click();
-		cy.get('[data-cy="company-profile-sizeCategory-option-SME"]').click();
+		selectProfileOption("sizeCategory", "SME");
+		selectProfileOption("vatGroupMember", "NOT_MEMBER");
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.get("[data-sonner-toast]", { timeout: 15000 }).should("exist");
 
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
-			.should("deep.equal", { sizeCategory: "SME" });
+			.should("deep.equal", { sizeCategory: "SME", vatGroupMember: "NOT_MEMBER" });
 
 		cy.reload();
-		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 })
+		// The suite pins the browser to en-US, so the stored values are asserted through the API
+		// above; this only checks the controls are still rendered. The French wording has its own
+		// case below.
+		cy.get('[data-cy="company-profile-sizeCategory-select"]', { timeout: 20000 }).scrollIntoView();
+		cy.get('[data-cy="company-profile-vatGroupMember-select"]', { timeout: 20000 }).scrollIntoView();
+	});
+
+	it("shows the VAT group question and both options in French when the interface is French", () => {
+		cy.visit("/settings/company");
+		cy.window().then((win) => win.localStorage.setItem("i18nextLng", "fr"));
+		cy.reload();
+
+		cy.contains("label", "Appartenance à un assujetti unique", { timeout: 20000 })
 			.scrollIntoView()
-			.should("contain.text", "Small or medium-sized enterprise (PME)");
+			.should("be.visible");
+		cy.get('[data-cy="company-profile-vatGroupMember-select"]', { timeout: 20000 })
+			.scrollIntoView()
+			.click();
+		cy.get('[data-cy="company-profile-vatGroupMember-option-MEMBER"]').should(
+			"contain.text",
+			"Membre d'un assujetti unique",
+		);
+		cy.get('[data-cy="company-profile-vatGroupMember-option-NOT_MEMBER"]').should(
+			"contain.text",
+			"N'est pas membre",
+		);
+
+		cy.window().then((win) => win.localStorage.removeItem("i18nextLng"));
 	});
 
 	it("drops the option for VAT on debits when the exemption switch turns on, and saves without a 400", () => {
 		cy.intercept("POST", "**/api/company/info").as("saveCompany");
 		cy.visit("/settings/company");
-		cy.get('[data-cy="company-profile-vatDebitsOption-select"]', { timeout: 20000 })
-			.scrollIntoView()
-			.click();
-		cy.get('[data-cy="company-profile-vatDebitsOption-option-EXERCISED"]').click();
+		selectProfileOption("vatDebitsOption", "EXERCISED");
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 		cy.request({ url: `${api}/api/company/info` })

@@ -110,8 +110,12 @@ export interface Company {
 export interface CompanyProfileAttribute {
   key: string
   label: string
+  /** i18n key for `label`; the raw label is the fallback. */
+  labelKey?: string
   help?: string
-  values: { value: string; label: string }[]
+  /** i18n key for `help`; the raw text is the fallback. */
+  helpTextKey?: string
+  values: { value: string; label: string; labelKey?: string }[]
   /** Asked only when the company's own declared values satisfy every entry; absent means always. */
   askedWhen?: Record<string, string[]>
   /** Set when the company does not answer: the value follows from a setting it already made. */

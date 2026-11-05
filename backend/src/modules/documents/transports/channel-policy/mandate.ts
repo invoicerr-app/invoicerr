@@ -195,7 +195,8 @@ export interface ChannelMandateOperation {
 }
 
 /** Whether a fact's seller condition covers this seller. An attribute the seller has not declared
- *  counts as covered, so an undeclared size category never lifts a mandate. */
+ *  counts as covered, so an undeclared size category never lifts a mandate, and a seller that has
+ *  not answered a question declared in only one start date's condition is bound by that date. */
 export function sellerIsInScope(
   condition: ProfileCondition | undefined,
   profile?: CompanyProfileValues,
