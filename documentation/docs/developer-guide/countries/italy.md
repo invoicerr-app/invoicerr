@@ -173,12 +173,13 @@ company is not in liquidation.
 | `SocioUnico` | `SU` or `SM` from the legal form's `singleMember`; omitted for forms the field does not cover |
 | `StatoLiquidazione` | `liquidationStatus`, declared as `LN` or `LS` |
 
-`registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`, so the company
-settings collect them even though no printed mention quotes them. An `asked` field is collected for a
-legal form the section covers with a printed mention **or** one that declares `hasRegisterEntry`.
-A ditta individuale and an unlisted Italian form therefore collect the register office province and
-the liquidation status too, and `IscrizioneREA` is filled from them: the two questions are
-independent, since a form with no printed mention still has a register entry.
+`registerNumber`, `registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`,
+so the company settings collect them even when no printed mention quotes them. An `asked` field is
+collected for a legal form the section covers with a printed mention **or** one that declares
+`hasRegisterEntry`. A ditta individuale and an unlisted Italian form therefore collect the register
+number, the register office province and the liquidation status too, and `IscrizioneREA` is filled
+from them: the two questions are independent, since a form with no printed mention still has a
+register entry.
 
 The demo company's `registerOfficeProvince` follows the city it is seeded with (`cityProvinces` in
 `it.json`: Milano MI, Torino TO, Bologna BO). A declared value the block cannot carry (a province

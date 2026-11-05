@@ -179,6 +179,12 @@ describe('the company settings ask, for each legal form, the values its mentions
     const other = companyLawSettings('IT').legalForms.find((form) => form.code === 'IT_OTHER');
     const registerFacts = [
       {
+        key: 'registerNumber',
+        kind: 'text',
+        label: "Numero d'iscrizione al registro delle imprese",
+        required: false,
+      },
+      {
         key: 'registerOfficeProvince',
         kind: 'text',
         label: "Sigla della provincia dell'ufficio del registro delle imprese (due lettere, e.g. MI)",

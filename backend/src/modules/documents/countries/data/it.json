@@ -1503,7 +1503,8 @@
       {
         "key": "registerNumber",
         "kind": "text",
-        "label": "Numero d'iscrizione al registro delle imprese"
+        "label": "Numero d'iscrizione al registro delle imprese",
+        "asked": true
       },
       {
         "key": "shareCapital",
