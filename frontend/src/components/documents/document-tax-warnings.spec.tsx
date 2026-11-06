@@ -38,7 +38,7 @@ describe("<DocumentTaxWarnings>: what the seller reads next to the amounts", () 
     render(<DocumentTaxWarnings warnings={[UNCONFIRMED_VAT_WARNING]} />)
     fireEvent.click(screen.getByTestId("document-tax-warnings-help-trigger"))
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("has not been confirmed valid yet")
+    expect(screen.getByRole("dialog")).toHaveTextContent("has not been confirmed valid by the tax authority")
     expect(screen.getByRole("dialog")).toHaveTextContent("treated as B2C")
   })
 
@@ -49,7 +49,7 @@ describe("<DocumentTaxWarnings>: what the seller reads next to the amounts", () 
     const popover = screen.getByRole("dialog")
     expect(popover).toHaveTextContent("STANDARD VAT rate (19%)")
     expect(popover).toHaveTextContent("over-charges the customer")
-    expect(popover).toHaveTextContent("has not been confirmed valid yet")
+    expect(popover).toHaveTextContent("has not been confirmed valid by the tax authority")
   })
 
   it("renders NOTHING for a document with no caveat: no panel, no title, no empty state", () => {
