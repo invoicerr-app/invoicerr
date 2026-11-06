@@ -9,6 +9,9 @@ import { useDemoMode } from "@/hooks/queries"
  * mount point (`(app)/_layout.tsx`, right above the header). Purely informational: every action this
  * banner does NOT need to explain is already refused server-side regardless of whether a visitor
  * reads it.
+ *
+ * Issue #592: the copy names the outbound actions a visitor can no longer mistake for live (sending,
+ * e-invoicing declarations, payments), and the Send button already shows its own disabled state.
  */
 export function DemoBanner() {
   const { t } = useTranslation()
@@ -23,7 +26,7 @@ export function DemoBanner() {
       data-cy="demo-banner"
     >
       <Info className="size-3.5 shrink-0" aria-hidden="true" />
-      <p className="min-w-0 truncate">
+      <p className="min-w-0 sm:truncate">
         <span className="font-semibold">{t("demo.banner.title", { count: demo.resetIntervalHours })}</span>{" "}
         <span>{t("demo.banner.description", "Nothing you enter is kept or sent.")}</span>
       </p>
