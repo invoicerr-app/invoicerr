@@ -45,6 +45,45 @@ export function useImportDocument() {
   )
 }
 
+export interface ImportClientProposal {
+  name: string
+  vatId?: string
+  address?: string
+  city?: string
+  postalCode?: string
+  country?: string
+  countryCode?: string
+  email?: string
+  currency?: string
+}
+
+export type ImportClientMatch =
+  | { outcome: "matched"; clientId: string; matchedBy: "vat" | "name" }
+  | { outcome: "unmatched"; reason: "no-criteria" | "not-found" }
+  | { outcome: "ambiguous"; matchedBy: "vat" | "name"; candidateIds: string[] }
+
+export interface ImportPrefillResult {
+  typeId: string
+  syntax: "CII" | "UBL" | "FACTURX_CII"
+  originalNumber: string
+  fields: Record<string, unknown>
+  /** Present for an invoice only: a credit note has no client field (it names its corrected
+   *  invoice's client, or nobody when free), so there is nothing to match or propose. */
+  clientMatch?: ImportClientMatch
+  clientProposal?: ImportClientProposal
+  totals: { net: number; vat: number; gross: number; linesNet?: number; linesVat?: number }
+  warnings: string[]
+}
+
+/** `POST /api/documents/types/:typeId/import/prefill` - reads the already-uploaded original and
+ *  returns the form fields it can seed. Writes nothing; a 400 names exactly why it refused. */
+export function usePrefillImportDocument() {
+  return useApiMutation<{ typeId: string; originalFile: ImportOriginalFileRef }, ImportPrefillResult>(
+    "POST",
+    (vars) => `/api/documents/types/${vars.typeId}/import/prefill`,
+  )
+}
+
 export interface DocumentImportCsvRow {
   rowNumber: number
   issueDate?: string
