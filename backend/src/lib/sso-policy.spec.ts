@@ -6,9 +6,11 @@ import {
   companyForOAuthSignup,
   companyIdFromProviderId,
   companyProviderId,
+  createEnvOidcConfig,
   deriveUserNames,
   emailDomain,
   isOidcOnly,
+  mapOidcProfileToUser,
   normalizeDomains,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
@@ -19,6 +21,8 @@ import {
   ssoEndpointsComplete,
   trustedProviderIds,
 } from '@/lib/sso-policy';
+import { USER_ADDITIONAL_FIELDS } from '@/lib/user-additional-fields';
+import { parseAdditionalUserInputFromProviderProfile } from 'better-auth/db';
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 
 // A realistic company id: Prisma's `cuid()` output shape, which is what really ends up inside a
@@ -211,6 +215,55 @@ describe('resolveOidcEndpoints — OIDC_DISCOVERY_URL, with OIDC_JWKS_URI as a l
 
   it('resolves to an empty config on a bare instance', () => {
     expect(resolveOidcEndpoints({})).toEqual({});
+  });
+});
+
+describe('createEnvOidcConfig, the instance-wide provider config handed to better-auth', () => {
+  it('registers exactly ONE provider, keyed by the id resolveEnvOidcProvider resolves', () => {
+    // THE wiring assertion `lib/auth.ts` had no test for: the id registered with better-auth, the id
+    // `entrypoint.sh` publishes to the browser and the id the sign-in page asks for must be the same
+    // string, or the callback matches nothing.
+    const configs = createEnvOidcConfig({ OIDC_NAME: 'Pocket ID', OIDC_CLIENT_ID: 'client-123' });
+
+    expect(configs).toHaveLength(1);
+    expect(configs[0].providerId).toBe('Pocket-ID');
+    expect(configs[0].providerId).toBe(resolveEnvOidcProvider({ OIDC_NAME: 'Pocket ID' }).providerId);
+  });
+
+  it('carries the client id and the three OIDC scopes', () => {
+    const [config] = createEnvOidcConfig({ OIDC_CLIENT_ID: 'client-123' });
+
+    expect(config.clientId).toBe('client-123');
+    expect(config.scopes).toEqual(['openid', 'profile', 'email']);
+  });
+
+  it('falls back to the TEMP placeholder when OIDC_CLIENT_ID is unset', () => {
+    // Not a bug to fix: the plugin is only registered when the variable is set
+    // (`envOidcProvider.registered`), and this keeps a config built unconditionally non-empty.
+    expect(createEnvOidcConfig({})[0].clientId).toBe('TEMP');
+  });
+
+  it('only sets clientSecret when OIDC_CLIENT_SECRET is present', () => {
+    expect(createEnvOidcConfig({})[0].clientSecret).toBeUndefined();
+    expect(createEnvOidcConfig({ OIDC_CLIENT_SECRET: 'secret-abc' })[0].clientSecret).toBe('secret-abc');
+  });
+
+  it('takes its endpoints from resolveOidcEndpoints, discovery included', () => {
+    // One assertion for the handoff rather than a second copy of every endpoint case above: this is
+    // what proves `lib/auth.ts` did not keep its own selection logic after the extraction.
+    const env = {
+      OIDC_DISCOVERY_URL: 'https://idp.example.com/.well-known/openid-configuration',
+      OIDC_END_SESSION_ENDPOINT: 'https://idp.example.com/end_session',
+    };
+
+    expect(createEnvOidcConfig(env)[0]).toMatchObject(resolveOidcEndpoints(env));
+  });
+
+  it('maps the OIDC profile through the shared name mapper', () => {
+    // `mapOidcProfileToUser` fills firstname/lastname before better-auth's required-field validation
+    // runs; pointing the config at anything else would make an IdP that sends only `name` fail at
+    // signup with "firstname is required".
+    expect(createEnvOidcConfig({})[0].mapProfileToUser).toBe(mapOidcProfileToUser);
   });
 });
 
@@ -542,5 +595,51 @@ describe('ssoEndpointsComplete', () => {
   it.each(['', '   '])('treats the blank URL %p as absent', (blank) => {
     expect(ssoEndpointsComplete({ discoveryUrl: blank })).toBe(false);
     expect(ssoEndpointsComplete({ authorizationUrl: blank, tokenUrl: 'https://idp/token' })).toBe(false);
+  });
+});
+
+describe('mapOidcProfileToUser, the names better-auth requires before any database hook runs', () => {
+  it('maps given_name and family_name', () => {
+    expect(mapOidcProfileToUser({ given_name: 'Alice', family_name: 'Martin' })).toEqual({
+      firstname: 'Alice',
+      lastname: 'Martin',
+    });
+  });
+
+  it('splits a bare name when the IdP sends no given/family claims', () => {
+    expect(mapOidcProfileToUser({ name: 'Alice Van Der Berg' })).toEqual({
+      firstname: 'Alice',
+      lastname: 'Van Der Berg',
+    });
+  });
+
+  it('falls back to the email local part when there is no name at all', () => {
+    expect(mapOidcProfileToUser({ email: 'alice@acme.com' })).toEqual({ firstname: 'alice', lastname: '' });
+  });
+});
+
+describe('better-auth create-time validation of an OAuth profile', () => {
+  // The REAL definitions `lib/auth.ts` installs, not a copy: a copy could keep asserting `required:
+  // true` on the names after someone dropped it from the product config, and these tests would stay
+  // green while every IdP that sends only `name` started failing signup.
+  const options = { user: { additionalFields: USER_ADDITIONAL_FIELDS } };
+  const rawProfile = { name: 'Alice Martin', email: 'a@acme.com' };
+  const validate = (profile: Record<string, unknown>) =>
+    parseAdditionalUserInputFromProviderProfile(options as never, profile, 'create');
+
+  it('keeps firstname and lastname required, which is what makes the mapper load-bearing', () => {
+    expect(USER_ADDITIONAL_FIELDS.firstname).toMatchObject({ type: 'string', required: true });
+    expect(USER_ADDITIONAL_FIELDS.lastname).toMatchObject({ type: 'string', required: true });
+  });
+
+  it('rejects a profile built without the mapping', () => {
+    expect(() => validate(rawProfile)).toThrow(/firstname is required/);
+  });
+
+  it('accepts a profile built with the mapping', () => {
+    expect(validate({ ...rawProfile, ...mapOidcProfileToUser(rawProfile) })).toMatchObject({
+      firstname: 'Alice',
+      lastname: 'Martin',
+    });
   });
 });

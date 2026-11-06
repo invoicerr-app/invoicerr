@@ -15,14 +15,15 @@ import {
   SSO_PROVISIONED_ROLE,
   accountLinkingOptions,
   companyForOAuthSignup,
+  createEnvOidcConfig,
   deriveUserNames,
   isOidcOnly,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
-  resolveOidcEndpoints,
   signupMayAssertVerifiedEmail,
   ssoLinkValidator,
 } from './sso-policy';
+import { USER_ADDITIONAL_FIELDS } from './user-additional-fields';
 import {
   LEGAL_ACCEPTANCE_REQUIRED_CODE,
   LEGAL_ACCEPTANCE_REQUIRED_MESSAGE,
@@ -84,29 +85,10 @@ const pendingSignupStore = createPendingSignupStore(createRedisClientForPendingS
  */
 const envOidcProvider = resolveEnvOidcProvider();
 
-const createOidcConfig = (): GenericOAuthConfig[] => {
-  const config: GenericOAuthConfig = {
-    // `sso-policy.ts#resolveEnvOidcProvider` owns this id so the backend, `entrypoint.sh`'s
-    // config.json, and the sign-in page cannot disagree about it — and so the default is URL-safe
-    // (the old `'Generic OIDC'` default carried a SPACE into a callback path segment).
-    providerId: envOidcProvider.providerId,
-    clientId: process.env.OIDC_CLIENT_ID || 'TEMP',
-    scopes: ['openid', 'profile', 'email'],
-  };
-
-  if (process.env.OIDC_CLIENT_SECRET) {
-    config.clientSecret = process.env.OIDC_CLIENT_SECRET;
-  }
-
-  // Discovery-vs-manual endpoint selection, the `OIDC_JWKS_URI` legacy alias, and
-  // `OIDC_END_SESSION_ENDPOINT` (RP-Initiated Logout) are all decided in
-  // `sso-policy.ts#resolveOidcEndpoints` — pulled out of this function specifically so they can be
-  // unit-tested, since importing THIS file at all builds a live Prisma adapter (see `sso-policy.ts`'s
-  // own module header for why no spec imports `auth.ts`).
-  Object.assign(config, resolveOidcEndpoints());
-
-  return [config];
-};
+// The config itself is built in `sso-policy.ts#createEnvOidcConfig`, so the wiring (registered id,
+// client secret, endpoint selection) has a spec that can import it; importing THIS file would build
+// a live Prisma adapter and read the real `.env` (see that module's own header).
+const createOidcConfig = (): GenericOAuthConfig[] => createEnvOidcConfig(process.env, envOidcProvider);
 
 const validateInvitationForSignup = async (
   email: string,
@@ -488,31 +470,10 @@ export const auth = betterAuth({
           select: { userId: true },
         })) !== null,
     }),
-    additionalFields: {
-      firstname: {
-        type: 'string',
-        required: true,
-        input: true,
-      },
-      lastname: {
-        type: 'string',
-        required: true,
-        input: true,
-      },
-      // The "Mon compte" language preference (`schema.prisma`'s own comment on `User.locale` for the
-      // full rationale). `input: true` is what makes `signUp.email({ locale: ... })` land in `data`
-      // for `userHookFunction` to normalize below — WITHOUT this declaration, better-auth's own
-      // adapter would neither accept the field on write nor include it when building `session.user`,
-      // and `PATCH /api/auth-extended/preferences` (which writes the column directly through Prisma,
-      // bypassing better-auth entirely) would have no way to make its change visible in the session at
-      // all. `required: false`: unset is a legitimate state (falls back to `Company.language`, then
-      // 'en' — `resolve-user-language.ts`), not an error.
-      locale: {
-        type: 'string',
-        required: false,
-        input: true,
-      },
-    },
+    // Declared in `user-additional-fields.ts` so `sso-policy.spec.ts` asserts against the REAL
+    // definitions (including `required: true` on the two names better-auth checks before any
+    // database hook) instead of a copy that cannot fail when this changes.
+    additionalFields: USER_ADDITIONAL_FIELDS,
     changeEmail: {
       enabled: true,
       // `sendChangeEmailConfirmation` (sent to the OLD address, requiring a currently-verified
