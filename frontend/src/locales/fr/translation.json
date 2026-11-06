@@ -5914,6 +5914,11 @@
         },
         "fieldHelp": {
             "noVatRateCatalog": "Aucune liste de taux de TVA connue pour le pays de cette entreprise. Saisissez le taux applicable manuellement."
+        },
+        "messages": {
+            "tax": {
+                "exemptCountryUnsupported": "Cette société relève de la franchise en base de TVA, mais aucun régime de TVA/GST n'est connu pour son pays ({{country}}) dans ce catalogue ; cette facture a donc été laissée au taux choisi par l'utilisateur, car ce catalogue ne peut pas appliquer sans risque une franchise en base de TVA à un pays dont le régime fiscal est inconnu ou non fondé sur la TVA, quel que soit le choix retenu."
+            }
         }
     },
     "widgets": {

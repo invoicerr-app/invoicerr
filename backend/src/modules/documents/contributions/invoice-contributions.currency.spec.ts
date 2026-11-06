@@ -8,6 +8,7 @@ import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDashboardWidgetsWithConsolidation } from './invoice-contributions';
 import { MetricWidget } from './widgets';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 vi.mock('../persistence');
 vi.mock('../settlement/payments');
@@ -126,8 +127,12 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
       unit: 'EUR (converted)',
       approx: true,
       value: 146,
-      warnings: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
     });
+    expect(
+      formatServerMessages(
+        widgets.find((w) => w.id === 'invoice:pending-total:consolidated')?.warnings ?? [],
+      ),
+    ).toEqual(['USD→EUR @ 0.92 (manual, 2026-08-15)']);
   });
 
   it('a currency with no resolvable rate: no consolidated metric, and the missing currency is named', async () => {
@@ -149,12 +154,12 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
     })) as MetricWidget[];
 
     expect(widgets.find((w) => w.id === 'invoice:pending-total:consolidated')).toBeUndefined();
-    expect(widgets.find((w) => w.id === 'invoice:pending-total:JPY')?.warnings).toEqual([
-      'No JPY→EUR rate is set, so the consolidated total is omitted.',
-    ]);
-    expect(widgets.find((w) => w.id === 'invoice:pending-total:EUR')?.warnings).toEqual([
-      'No JPY→EUR rate is set, so the consolidated total is omitted.',
-    ]);
+    expect(
+      formatServerMessages(widgets.find((w) => w.id === 'invoice:pending-total:JPY')?.warnings ?? []),
+    ).toEqual(['No JPY→EUR rate is set, so the consolidated total is omitted.']);
+    expect(
+      formatServerMessages(widgets.find((w) => w.id === 'invoice:pending-total:EUR')?.warnings ?? []),
+    ).toEqual(['No JPY→EUR rate is set, so the consolidated total is omitted.']);
   });
 
   it('collections (issue #417) consolidate independently of pending, same rates, own id/label, no link', async () => {
@@ -225,8 +230,10 @@ describe('buildInvoiceDashboardWidgetsWithConsolidation', () => {
       unit: 'EUR (converted)',
       approx: true,
       value: 146,
-      warnings: ['USD→EUR @ 0.92 (manual, 2026-08-15)'],
     });
+    expect(formatServerMessages(consolidated?.warnings ?? [])).toEqual([
+      'USD→EUR @ 0.92 (manual, 2026-08-15)',
+    ]);
     expect(consolidated?.link).toBeUndefined();
   });
 

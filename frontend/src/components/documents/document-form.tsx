@@ -8,13 +8,14 @@ import { DocumentDeleteConfirmDialog } from "@/components/documents/document-del
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentFormReadOnlyProvider } from "@/components/documents/document-form-readonly"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
-import type { DocumentFormState } from "@/components/documents/use-document-form"
+import type { DocumentFormState, LineTotalWarning } from "@/components/documents/use-document-form"
 import { useActionTransmissionPreview } from "@/hooks/queries/use-document-types"
 import { useDemoMode } from "@/hooks/queries"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { isDemoBlockedAction } from "@/lib/demo-actions"
+import { formatServerMessage } from "@/lib/server-message"
 
 /**
  * The rendered pieces of a document form — the fields, one action button, the params dialog —
@@ -75,7 +76,8 @@ export function DocumentFormFields({ descriptor, state, readOnly = false }: Docu
 }
 
 // The supplier's own lines and totals disagree: a status the user acts on, the server's figures behind its `?`.
-export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }>) {
+// A legacy message is a bare sentence (see `LineTotalWarning`): shown as-is, never passed to `t()`.
+export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: LineTotalWarning[] }>) {
   const { t } = useTranslation()
   if (!warnings?.length) return null
   return (
@@ -84,7 +86,10 @@ export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }
       title={t("documents.form.lineTotalWarningsTitle")}
       dataCy="document-line-total-warnings"
     >
-      {warnings}
+      {warnings.map((warning) => {
+        if (typeof warning === "string") return warning
+        return formatServerMessage(t, warning)
+      })}
     </ProseHelp>
   )
 }

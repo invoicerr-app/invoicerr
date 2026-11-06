@@ -116,6 +116,8 @@
  */
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
+import { ServerMessage, serverMessage } from '../messages/server-message';
+
 import { defaultVatRateCatalog, resolveVatRatePercentage, VatRateCatalog } from '../vat-rates/registry';
 import { TrustFlagVatValidator, VatValidator, taxUnionOf } from './classification';
 import { determineTax, DocumentTaxResult } from './tax-engine';
@@ -230,12 +232,11 @@ export interface ResolveInvoiceCrossBorderTaxResult {
    *  amounts (`frontend/src/components/documents/document-tax-warnings.tsx`). So a warning added here
    *  is a warning the seller actually reads — word it for one.
    *
-   *  It is ENGLISH PROSE, formed here, interpolated with country codes/rates/VAT numbers, and shown
-   *  verbatim: there is no message key a locale file could translate, the same posture the other
-   *  server-formed warning arrays on that screen already have (`totals/compute-totals.ts`,
-   *  `settlement/credits.ts`). Giving these a translatable identity is a change to the warning
-   *  MECHANISM — every producer and every spec that matches on the wording — not to its delivery. */
-  warnings: string[];
+   *  Each entry is a `ServerMessage` (`messages/server-message.ts`): a key plus the country
+   *  codes/rates/VAT numbers it interpolates, so the frontend renders it in the user's language
+   *  through `t()` and the PDF renders the same sentence in English. The wording lives in
+   *  `messages/messages.en.ts`, mirrored in the frontend's English catalog. */
+  warnings: ServerMessage[];
 }
 
 function resolveCountryCode(party: InvoiceTaxPartyInput): string | undefined {
@@ -333,15 +334,20 @@ function assertDomesticRatesKnown(
 function resolveBuyerRole(
   buyerCountryCode: string,
   buyerVat: BuyerVatIdentifierInput | undefined,
-  warnings: string[],
+  warnings: ServerMessage[],
 ): { role: 'B2B' | 'B2C'; validated: boolean } {
   if (!buyerVat?.value?.trim()) return { role: 'B2C', validated: false };
 
   const syntax = validateVat(buyerVat.value, buyerCountryCode);
   if (!syntax.valid) {
+    // `syntax.reason` is a developer-facing English sentence from the syntax validators, shared with
+    // every other caller of `validateVat`; the user-facing warning names the fact and the country,
+    // and its own sentence lives in the catalog.
     warnings.push(
-      `Buyer VAT number "${buyerVat.value}" is not syntactically valid for ${buyerCountryCode} ` +
-        `(${syntax.reason ?? 'failed format check'}), so this buyer is treated as B2C, never a silent B2B.`,
+      serverMessage('documents.messages.tax.buyerVatInvalid', {
+        vatNumber: buyerVat.value,
+        country: buyerCountryCode,
+      }),
     );
     return { role: 'B2C', validated: false };
   }
@@ -350,10 +356,17 @@ function resolveBuyerRole(
     return { role: 'B2B', validated: true };
   }
 
+  // A stored verdict ('INVALID' | 'UNAVAILABLE') is a code, safe as a param; a null one means no
+  // verdict was ever stored, which is its own sentence rather than a made-up status value.
   warnings.push(
-    `Buyer VAT number "${buyerVat.value}" has not been confirmed valid yet ` +
-      `(status: ${buyerVat.validationStatus ?? 'not checked'}), so this buyer is treated as B2C until ` +
-      'it is verified, never a silent B2B.',
+    buyerVat.validationStatus === null
+      ? serverMessage('documents.messages.tax.buyerVatNotChecked', {
+          vatNumber: buyerVat.value,
+        })
+      : serverMessage('documents.messages.tax.buyerVatUnverified', {
+          vatNumber: buyerVat.value,
+          status: buyerVat.validationStatus,
+        }),
   );
   return { role: 'B2C', validated: false };
 }
@@ -443,6 +456,7 @@ function applyDomesticTaxScheme(
   rows: Record<string, unknown>[],
   taxSystemRegistry: TaxSystemRegistry,
   vatValidator: VatValidator,
+  scheme: TaxScheme,
 ): ResolveInvoiceCrossBorderTaxResult {
   const sellerProfile = taxSystemRegistry.resolve(sellerCC);
   if (!sellerProfile || (sellerProfile.taxSystem.kind !== 'VAT' && sellerProfile.taxSystem.kind !== 'GST')) {
@@ -450,10 +464,10 @@ function applyDomesticTaxScheme(
       data: input.data,
       crossBorder: false,
       warnings: [
-        `This company is marked "${input.seller.taxScheme}" (VAT-exempt), but no VAT/GST tax system ` +
-          `is known for its own country (${sellerCC}) in this catalog, so this invoice was left at the ` +
-          'rate the user chose, since a small-business VAT exemption is not something this catalog ' +
-          'can safely apply for a country with an unknown or non-VAT tax system, guessed either way.',
+        serverMessage('documents.messages.tax.exemptCountryUnsupported', {
+          scheme,
+          country: sellerCC,
+        }),
       ],
     };
   }
@@ -546,7 +560,14 @@ export function resolveInvoiceCrossBorderTax(
     // to before this scheme existed, including the SAME OBJECT REFERENCE (see this file's own
     // `ResolveInvoiceCrossBorderTaxResult.data` doc comment on why that identity is deliberate).
     if (input.seller.taxScheme && input.seller.taxScheme !== 'STANDARD') {
-      return applyDomesticTaxScheme(input, sellerCC, rows, taxSystemRegistry, vatValidator);
+      return applyDomesticTaxScheme(
+        input,
+        sellerCC,
+        rows,
+        taxSystemRegistry,
+        vatValidator,
+        input.seller.taxScheme,
+      );
     }
     assertDomesticRatesKnown(sellerCC, rows, vatRateCatalog);
     return { data: input.data, crossBorder: false, warnings: [] };
@@ -562,7 +583,7 @@ export function resolveInvoiceCrossBorderTax(
   }
   const buyerProfile = taxSystemRegistry.resolve(buyerCC);
 
-  const warnings: string[] = [];
+  const warnings: ServerMessage[] = [];
   const { role, validated } = resolveBuyerRole(buyerCC, input.buyerVat, warnings);
 
   const sUnion = taxUnionOf(sellerCC);
@@ -571,10 +592,7 @@ export function resolveInvoiceCrossBorderTax(
   const supplyTypes = rows.map((row, index) => {
     const declared = extractSupplyType(row.supplyType);
     if (declared) return declared;
-    warnings.push(
-      `Line ${index + 1} has no declared supply type (goods/services), so it is treated as SERVICES for ` +
-        'cross-border VAT purposes; declare it explicitly if this line is actually a delivery of goods.',
-    );
+    warnings.push(serverMessage('documents.messages.tax.supplyTypeMissing', { line: index + 1 }));
     return 'SERVICES' as SupplyType;
   });
 
@@ -678,9 +696,11 @@ export function resolveInvoiceCrossBorderTax(
     // simply irrelevant to its own cross-border treatment, and warning about it would be noise.
     if (isTaxedAtSellerRate(index)) {
       warnings.push(
-        `Line ${index + 1}'s chosen VAT rate ("${stored}") is not one of ${sellerCC}'s known VAT ` +
-          `rates, so this cross-border B2C line is taxed in ${sellerCC}, at ${sellerCC}'s own standard ` +
-          'rate instead, since there is no known rate on this invoice to honour.',
+        serverMessage('documents.messages.tax.rateNotInCatalog', {
+          line: index + 1,
+          rate: stored,
+          country: sellerCC,
+        }),
       );
     }
     return undefined;
@@ -707,11 +727,10 @@ export function resolveInvoiceCrossBorderTax(
         : undefined;
     if (destinationRate !== undefined) {
       warnings.push(
-        `This invoice is an intra-Community distance sale taxed in ${buyerCC} (EU One-Stop-Shop, ` +
-          `Directive 2006/112/EC art. 33(a)), so ${buyerCC}'s STANDARD VAT rate (${destinationRate}%) ` +
-          `was applied. ${buyerCC}'s own reduced rates are not modelled here and an invoice line ` +
-          'carries nothing that says which products they cover. Check the destination rate yourself ' +
-          'if what you are selling is reduced-rated there, or this invoice over-charges the customer.',
+        serverMessage('documents.messages.tax.ossStandardRate', {
+          country: buyerCC,
+          rate: destinationRate,
+        }),
       );
     }
   }

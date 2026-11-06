@@ -16,6 +16,7 @@ import { extractCurrency, findLineArrayFields } from "@/components/documents/tot
 import { LtrValue } from "@/components/ui/ltr-value"
 import { commonLinesOf, deriveQuoteOptions, linesForOption } from "@/components/documents/quote-options"
 import { useCompany } from "@/hooks/queries"
+import { formatServerMessages } from "@/lib/server-message"
 
 /**
  * The LIVE totals (net, VAT breakdown, gross) of the document form currently mounted around this
@@ -317,7 +318,7 @@ export function formatTotal(minor: number, currency: string): string {
 /** Issue #507 - `DocumentInstance.derivedTotals` in the shape every totals row here renders. The
  *  backend sends no per-line breakdown for it (nothing here reads one), and its `showVat` is the same
  *  rule `ClientDocumentTotals.showVat` mirrors, absent meaning "show". */
-export function fromDerivedTotals(derived: DerivedDocumentTotals): ClientDocumentTotals {
+export function fromDerivedTotals(derived: DerivedDocumentTotals, t: TFunction): ClientDocumentTotals {
   return {
     currency: derived.currency,
     lines: [],
@@ -325,7 +326,7 @@ export function fromDerivedTotals(derived: DerivedDocumentTotals): ClientDocumen
     vatMinor: derived.vatMinor,
     grossMinor: derived.grossMinor,
     vatBreakdown: derived.vatBreakdown,
-    warnings: derived.warnings,
+    warnings: formatServerMessages(t, derived.warnings),
     showVat: derived.showVat !== false,
   }
 }
@@ -423,7 +424,7 @@ export function DocumentTotals({ descriptor, acceptedOption, derivedTotals }: Do
   const optionTotals = useDocumentOptionTotals(descriptor)
   const commonDescriptions = useCommonLineDescriptions(descriptor)
   const liveTotals = useDocumentTotals(descriptor)
-  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals, t) : liveTotals
 
   if (optionTotals) {
     return (

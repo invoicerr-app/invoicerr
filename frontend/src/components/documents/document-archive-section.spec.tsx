@@ -24,6 +24,7 @@ function archive(overrides: Partial<DocumentArchive> = {}): DocumentArchive {
     archivedAt: "2026-09-01T00:00:00.000Z",
     retentionUntil: "2032-12-31T00:00:00.000Z",
     retentionBasis: "VAT 5y (ustawa o VAT art. 112).",
+    retentionBasisMessage: null,
     retentionCalcVersion: 1,
     ...overrides,
   }
@@ -81,6 +82,52 @@ describe("<DocumentArchiveSection>", () => {
     fireEvent.click(screen.getByTestId("document-archive-retention-help-trigger"))
     expect(screen.getByRole("dialog")).toHaveTextContent("VAT 5y (ustawa o VAT art. 112).")
     expect(screen.queryByTestId("document-archive-retention-stale")).not.toBeInTheDocument()
+  })
+
+  /** `retentionBasisMessage` is the translatable half; `retentionBasis` is the verbatim English
+   *  citation kept for archives written before the message keys existed (JSONB rows the migration
+   *  never backfilled). The two cases below are the whole contract: one present, one NULL. */
+  describe("retention basis - message key first, stored English text as the fallback", () => {
+    it("renders the message in the active language when the archive carries one", () => {
+      mockedUseDocumentArchives.mockReturnValue({
+        data: [
+          archive({
+            id: "message-archive",
+            retentionBasis: "RAW ENGLISH BASIS THAT MUST NOT BE SHOWN",
+            retentionBasisMessage: {
+              key: "documents.messages.retention.single",
+              params: { rule: "VAT 5y (ustawa o VAT art. 112)" },
+            },
+          }),
+        ],
+        isLoading: false,
+      } as unknown as ReturnType<typeof useDocumentArchives>)
+
+      render(<DocumentArchiveSection typeId="invoice" documentId="doc-1" />)
+      fireEvent.click(screen.getByTestId("document-archive-retention-help-trigger"))
+
+      const popover = screen.getByRole("dialog")
+      expect(popover).toHaveTextContent("VAT 5y (ustawa o VAT art. 112).")
+      expect(popover).not.toHaveTextContent("RAW ENGLISH BASIS THAT MUST NOT BE SHOWN")
+    })
+
+    it("falls back to the stored English basis when retentionBasisMessage is NULL", () => {
+      mockedUseDocumentArchives.mockReturnValue({
+        data: [
+          archive({
+            id: "legacy-archive",
+            retentionBasis: "VAT 5y (ustawa o VAT art. 112).",
+            retentionBasisMessage: null,
+          }),
+        ],
+        isLoading: false,
+      } as unknown as ReturnType<typeof useDocumentArchives>)
+
+      render(<DocumentArchiveSection typeId="invoice" documentId="doc-1" />)
+      fireEvent.click(screen.getByTestId("document-archive-retention-help-trigger"))
+
+      expect(screen.getByRole("dialog")).toHaveTextContent("VAT 5y (ustawa o VAT art. 112).")
+    })
   })
 
   it("says no duration applies when no rule is declared, with the reason behind the help button", () => {

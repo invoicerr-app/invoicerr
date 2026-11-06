@@ -21,7 +21,7 @@ import type {
   DocumentInstance,
   DocumentTypeDescriptor,
 } from "@/components/documents/types"
-import { useDocumentForm } from "@/components/documents/use-document-form"
+import { useDocumentForm, type LineTotalWarning } from "@/components/documents/use-document-form"
 import { Button } from "@/components/ui/button"
 import { LtrValue } from "@/components/ui/ltr-value"
 import { type FormPageSection, FormPageDialog } from "@/components/ui/form-page-dialog"
@@ -122,7 +122,7 @@ function FieldsSection({
 }: {
   fields: DocumentFieldDescriptor[]
   documentTypeId: string
-  lineTotalWarnings?: string[]
+  lineTotalWarnings?: LineTotalWarning[]
 }) {
   return (
     <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
