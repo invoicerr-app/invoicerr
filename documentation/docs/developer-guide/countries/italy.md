@@ -150,8 +150,48 @@ quotes, credit notes and purchase orders (atti e corrispondenza), from codice ci
 | S.r.l. and S.p.A. con unico socio | "Società con unico socio" | fourth |
 | Ditta individuale, other forms | nothing | art. 2250 binds società |
 
-The sede is the company address. Art. 2250 names the registro delle imprese office and registration
-number, not the REA number, so the REA is not declared. FatturaPA has its own `IscrizioneREA` block
-(office, REA number, capital, sole member, liquidation), which the e-invoice export does not fill yet.
-Not modelled: liquidation (third paragraph). Text read at normattiva.it on 2026-10-25 (in force since
+The sede is the company address. Text read at normattiva.it on 2026-10-25 (in force since
 29-7-2009).
+
+Art. 2250 prints nothing for a sole trader or an unlisted form, but that says nothing about the
+registro delle imprese: art. 2188 c.c. makes registration compulsory for every imprenditore. The
+`hasRegisterEntry` flag on each legal form of `it.json` states that fact separately from the printed
+mentions, and is `true` for every Italian form.
+
+## FatturaPA `IscrizioneREA`
+
+The FatturaPA export fills `CedentePrestatore/IscrizioneREA` from the same `companyLaw` section. The
+block is emitted only when every element the format makes mandatory is declared; otherwise it is
+omitted (`IscrizioneREAType` is `minOccurs="0"`) rather than guessing a province or asserting that a
+company is not in liquidation.
+
+| Element | Source |
+| --- | --- |
+| `Ufficio` | `registerOfficeProvince`: the two-letter province of the registro delle imprese office |
+| `NumeroREA` | `registerNumber`: the registration number codice civile art. 2250 already asks for |
+| `CapitaleSociale` | `shareCapital`, when its currency is EUR |
+| `SocioUnico` | `SU` or `SM` from the legal form's `singleMember`; omitted for forms the field does not cover |
+| `StatoLiquidazione` | `liquidationStatus`, declared as `LN` or `LS` |
+
+`registerNumber`, `registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`,
+so the company settings collect them even when no printed mention quotes them. An `asked` field is
+collected for a legal form the section covers with a printed mention **or** one that declares
+`hasRegisterEntry`. A ditta individuale and an unlisted Italian form therefore collect the register
+number, the register office province and the liquidation status too, and `IscrizioneREA` is filled
+from them: the two questions are independent, since a form with no printed mention still has a
+register entry.
+
+The demo company's `registerOfficeProvince` follows the city it is seeded with (`cityProvinces` in
+`it.json`: Milano MI, Torino TO, Bologna BO). A declared value the block cannot carry (a province
+that is not two letters, a register number over 20 characters, a liquidation status other than LN or
+LS) refuses the export with an error naming the field, rather than dropping `IscrizioneREA` silently.
+
+**The `NumeroREA` decision.** The issue left open whether `NumeroREA` could carry the registro delle
+imprese registration number or needed a second field. The specification settles it: Specifiche
+tecniche del formato della FatturaPA v1.4 §3.3.4 defines `NumeroREA` as « il numero di repertorio con
+il quale la società è iscritta nel Registro delle Imprese », which is the registration number art. 2250
+names, not a distinct REA number. No second field is declared.
+
+Text read on 2026-10-31 at fatturapa.gov.it,
+https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf
+(§3.3.4, pages 42-43).

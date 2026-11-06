@@ -69,17 +69,18 @@
  * page), byte for byte identical: its `FormatoTrasmissioneType` enumerates both values and its
  * `CodiceDestinatarioType` is `[A-Z0-9]{6,7}`.
  */
-import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
+import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { einvoiceCodesFor, exemptionCodeFor, taxRegimeCodeFor } from '../../einvoice-codes/registry';
 import { CountryEinvoiceCodesFile, ExemptionCodeFact } from '../../einvoice-codes/schema';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
+import { resolvePartyCountryCode } from '../semantic/build-semantic-invoice';
 import {
   DocumentFormatBuildOptions,
   DocumentFormatBuildResult,
@@ -105,6 +106,88 @@ function fmtAmount(n: number, decimals = 2): string {
 /** Format AliquotaIVA as /^[-]?\d{1,3}(\.\d{2,2})$/ */
 function fmtRate(n: number): string {
   return n.toFixed(2);
+}
+
+/**
+ * `CedentePrestatore/IscrizioneREA`: the company-law facts the Italian catalog already declares,
+ * mapped onto FatturaPA's own block. Every required element must be declared for the block to be
+ * emitted (`Ufficio`, `NumeroREA`, `StatoLiquidazione`); a missing one omits the whole block
+ * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the
+ * company is not in liquidation. A value that IS declared but cannot be carried by the block is a
+ * different matter: it refuses the export with an error naming the field, never dropping the block
+ * in silence. Whether a legal form holds a register entry is declared by the country file itself
+ * (`hasRegisterEntry`), not inferred from a printed mention: a ditta individuale is registered under
+ * art. 2188 c.c. even though art. 2250 prints nothing for it.
+ *
+ * The `NumeroREA` question the issue left open is settled by the specification itself: Specifiche
+ * tecniche del formato della FatturaPA v1.4 §3.3.4 defines it as « il numero di repertorio con il
+ * quale la società è iscritta nel Registro delle Imprese », i.e. the registration number codice
+ * civile art. 2250 already requires and this catalog already stores as `registerNumber`. It is not a
+ * second, distinct number.
+ */
+interface IscrizioneRea {
+  block?: Record<string, string>;
+  errors: string[];
+}
+
+function iscrizioneReaFor(company: DocumentFormatParty): IscrizioneRea {
+  const file = defaultCompanyLawCatalog.fileFor(resolvePartyCountryCode(company) ?? '');
+  if (!file) return { errors: [] };
+  const details = readCompanyLawDetails(company.companyLaw);
+  const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
+  if (!form?.hasRegisterEntry) return { errors: [] };
+
+  const stringValue = (key: string): string => {
+    const value = details.values?.[key];
+    return typeof value === 'string' ? value.trim() : '';
+  };
+  const province = stringValue('registerOfficeProvince').toUpperCase();
+  const number = stringValue('registerNumber');
+  const liquidation = stringValue('liquidationStatus').toUpperCase();
+
+  const errors: string[] = [];
+  if (province && !/^[A-Z]{2}$/.test(province))
+    errors.push(
+      'The company register office ("registerOfficeProvince") must be a two-letter province code, ' +
+        'for example MI: IscrizioneREA was not emitted.',
+    );
+  if (number.length > 20)
+    errors.push(
+      'The company register number ("registerNumber") must be at most 20 characters: ' +
+        'IscrizioneREA was not emitted.',
+    );
+  if (liquidation && liquidation !== 'LN' && liquidation !== 'LS')
+    errors.push(
+      'The liquidation status ("liquidationStatus") must be LN or LS: IscrizioneREA was not emitted.',
+    );
+  if (errors.length > 0) return { errors };
+
+  if (!/^[A-Z]{2}$/.test(province) || !number) return { errors: [] };
+  if (liquidation !== 'LN' && liquidation !== 'LS') return { errors: [] };
+
+  const capital = details.values?.shareCapital;
+  const capitalAmountText =
+    capital && typeof capital === 'object' && capital.currency.toUpperCase() === 'EUR'
+      ? capital.amount.trim()
+      : '';
+  const capitalAmount = capitalAmountText ? Number(capitalAmountText) : undefined;
+
+  return {
+    errors: [],
+    block: {
+      Ufficio: province,
+      NumeroREA: number,
+      ...(capitalAmount !== undefined && Number.isFinite(capitalAmount)
+        ? { CapitaleSociale: fmtAmount(capitalAmount, 2) }
+        : {}),
+      ...(form?.singleMember === true
+        ? { SocioUnico: 'SU' }
+        : form?.singleMember === false
+          ? { SocioUnico: 'SM' }
+          : {}),
+      StatoLiquidazione: liquidation,
+    },
+  };
 }
 
 /** The Natura of an untaxed line, read from the country data; `undefined` for a taxed line. */
@@ -164,11 +247,12 @@ async function build(
   const vatId = getIdentifier(company, 'VAT') || '';
   const formatCountry = nationalFormatCountry(fatturapaFormatId);
   const codes = einvoiceCodesFor(formatCountry);
-  const vatCountry = guessCountryCode(company.country) ?? formatCountry;
+  const vatCountry = resolvePartyCountryCode(company) ?? formatCountry;
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
+  const iscrizioneRea = iscrizioneReaFor(company);
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
-  const clienteVatCountry = guessCountryCode(client.country) ?? '';
+  const clienteVatCountry = resolvePartyCountryCode(client) ?? '';
   const clienteCf = getIdentifier(client, 'LEGAL_ID') || '';
 
   // ── ProgressivoInvio: unique per invoice ─────────────────────────
@@ -283,6 +367,7 @@ async function build(
             Comune: company.city || 'N/A',
             Nazione: vatCountry,
           },
+          ...(iscrizioneRea.block ? { IscrizioneREA: iscrizioneRea.block } : {}),
           ...(Object.keys(contatti).length > 0 ? { Contatti: contatti } : {}),
         },
         CessionarioCommittente: {
@@ -355,7 +440,7 @@ async function build(
   const xml: string = await fpa2xml(escapeXmlTree(fattura) as Record<string, unknown>);
 
   const xsd = await validateXsd(xml, FATTURAPA_XSD);
-  const errors = [...naturaErrors, ...xsd.errors];
+  const errors = [...naturaErrors, ...iscrizioneRea.errors, ...xsd.errors];
   return { bytes: new TextEncoder().encode(xml), validation: { valid: errors.length === 0, errors } };
 }
 
