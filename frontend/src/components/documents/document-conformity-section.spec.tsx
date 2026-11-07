@@ -1,12 +1,8 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import {
-  ConformityBadge,
-  ConformityTimeline,
-  computeConformityVerdict,
-  latestConformityReason,
-} from "./document-conformity-section"
+import { computeConformityVerdict, latestConformityReason } from "./conformity-verdict"
+import { ConformityBadge, ConformityTimeline } from "./document-conformity-section"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**

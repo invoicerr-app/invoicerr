@@ -3,7 +3,7 @@ import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
-import { computeConformityVerdict } from "@/components/documents/document-conformity-section"
+import { computeConformityVerdict } from "@/components/documents/conformity-verdict"
 import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
 
 import type {
