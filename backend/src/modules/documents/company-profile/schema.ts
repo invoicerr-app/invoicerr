@@ -16,7 +16,12 @@ export interface CompanyProfileAttributeValue {
 export interface DerivedCompanyProfileValue {
   source: 'exemptVat';
   whenTrue: string;
-  whenFalse: string;
+  /**
+   * The value when the source is false. Optional: when the source being false leaves a choice the
+   * country must still ask (France's three non-exempt VAT regimes), the attribute stays undeclared
+   * and its question remains on the settings screen, rather than the product pick one for the company.
+   */
+  whenFalse?: string;
 }
 
 export interface CompanyProfileAttribute {
@@ -100,6 +105,7 @@ function assertValidAttribute(attribute: CompanyProfileAttribute, context: strin
       );
     }
     for (const value of [derived.whenTrue, derived.whenFalse]) {
+      if (value === undefined) continue;
       if (!values.has(value)) {
         throw new InvalidCompanyProfileError(
           `${context}: attribute "${key}" derives to "${String(value)}", which it does not list in "values".`,

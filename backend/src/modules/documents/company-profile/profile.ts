@@ -54,7 +54,10 @@ export function companyProfileValues(
   const declared: CompanyProfileValues = {};
   for (const [key, value] of Object.entries(parseCompanyProfileValues(stored))) {
     const attribute = attributes.find((candidate) => candidate.key === key);
-    if (!attribute || attribute.derived) continue;
+    if (!attribute) continue;
+    // A derived attribute is carried only while the source does not derive it: France's VAT regime
+    // derives to FRANCHISE while the company is exempt, and is a declared choice otherwise.
+    if (attribute.derived && derivedProfileValue(attribute, sources) !== undefined) continue;
     declared[key] = value;
   }
   return { ...derived, ...carriedDeclaredValues(declared, attributes, sources) };
@@ -130,7 +133,9 @@ export function applyCompanyProfileInput(
   const touched = new Set<string>();
   for (const [key, value] of Object.entries(current)) {
     const attribute = attributes.find((candidate) => candidate.key === key);
-    if (attribute && !attribute.derived) declared[key] = value;
+    if (!attribute) continue;
+    if (attribute.derived && derivedProfileValue(attribute, sources) !== undefined) continue;
+    declared[key] = value;
   }
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
     const attribute = attributes.find((candidate) => candidate.key === key);
@@ -142,7 +147,7 @@ export function applyCompanyProfileInput(
             : '; it asks for none.'),
       );
     }
-    if (attribute.derived) {
+    if (attribute.derived && derivedProfileValue(attribute, sources) !== undefined) {
       throw new InvalidCompanyProfileValueError(
         `reportingProfile.${key} follows from the company's own settings and cannot be declared.`,
       );

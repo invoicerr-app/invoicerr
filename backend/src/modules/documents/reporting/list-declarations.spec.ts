@@ -111,13 +111,13 @@ describe('listDeclarations', () => {
       // `listDeclarations` computes its OWN `providerIds` from the real, shipped catalog
       // (`declarationProviderIds()`, no `files` argument — see that function's own header), never
       // from the `catalog` injected below (that one only drives `hasObligation`) — so this reflects
-      // the REAL `reporting/data/*.json` set: PT's "pt-at" AND France's own "fr-ereporting"
+      // the REAL `reporting/data/*.json` set: PT's "pt-at" AND France's own "fr-pa"
       // (`dischargedBy: 'provider'`), but pointedly NOT France's "pdp" fact — that one is
       // `dischargedBy: 'transport'`, the exact "pdp"/"ksef" conflation this test's own title names.
       await listDeclarations('company-A', 1, undefined, fixtureCatalog);
 
       const findManyArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[0][0];
-      expect(findManyArgs.where.providerId).toEqual({ in: ['fr-ereporting', 'pt-at'] });
+      expect(findManyArgs.where.providerId).toEqual({ in: ['fr-pa', 'pt-at'] });
       expect(findManyArgs.where.providerId.in).not.toContain('pdp');
     },
   );
@@ -243,7 +243,7 @@ describe('listDeclarations', () => {
     const distinctCallArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[1][0];
     expect(distinctCallArgs.where).toEqual({
       companyId: 'company-A',
-      providerId: { in: ['fr-ereporting', 'pt-at'] },
+      providerId: { in: ['fr-pa', 'pt-at'] },
     });
     expect(distinctCallArgs.distinct).toEqual(['statusCode']);
   });

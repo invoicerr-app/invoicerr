@@ -117,6 +117,7 @@ interface ChannelsResponse {
 
 const DECLARATION_LABEL_DEFAULTS: Record<string, string> = {
   "pt-at": "Portuguese Tax Authority (AT)",
+  "fr-pa": "French accredited platform (PA)",
 }
 
 /** One (operator, offering) pair for a given legal channel - the level-2 row. */

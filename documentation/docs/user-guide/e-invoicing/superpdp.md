@@ -132,3 +132,29 @@ invoice already imported, so nothing is skipped, however many invoices arrived i
 The first checks also import the invoices already waiting in your SuperPDP inbox, up to 1000 per
 check, until Invoicerr has caught up.
 :::
+
+## 7. E-reporting declarations
+
+The same SuperPDP connection also carries France's e-reporting obligation (CGI art. 290 and 290 A):
+sales to private clients and payment data go to the tax administration through your accredited
+platform, not through Invoicerr directly.
+
+**Tell Invoicerr your VAT regime first.** In **Settings → Company**, the French profile asks your
+company size category, your VAT regime (normal monthly, normal quarterly, simplified, or franchise
+en base) and, unless you are exempt, whether you opted for VAT on debits. These answers decide when
+your obligation starts and how often SuperPDP transmits; Invoicerr sends the regime and the debits
+option to SuperPDP before every declaration. Without a size category, or for an SME that has not
+answered the VAT group question, nothing is sent: the Declarations screen shows the declaration as
+blocked, with the question to answer.
+
+**What is declared.** Sending an invoice to a private client in France declares its data.
+Recording a payment on a service invoice whose VAT is due on collection declares the payment amount,
+split by VAT rate. An invoice to a French business client is not declared here: the PDP transmits it
+as part of e-invoicing. A goods-only invoice, a company that opted for VAT on debits, and a company
+under the franchise en base do not produce a payment declaration.
+
+**What the Declarations screen shows.** Each attempt appears in **Declarations**, with the platform's
+record id and its status. SuperPDP stores the declaration immediately and aggregates it to the tax
+administration on your regime's schedule, so the id you see is the platform's own record, not a tax
+administration reference. A declaration that could not run appears as blocked with the reason
+(channel not connected, no adapter, missing company profile answer), never as silently missing.

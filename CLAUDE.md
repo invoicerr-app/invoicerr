@@ -170,14 +170,14 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   deliberately absent because DPR 600/1973 art. 22 makes the obligation run until tax assessments
   close, which has no computable terminus this schema can express.
 - `reporting/` — declarative post-send declaration obligations. Two data files, `pt.json` and
-  `fr.json`, but exactly ONE implemented `DeclarationProvider`: `pt-at`, the only one
-  `documents-core.module.ts` registers. The Hungarian (NAV) and Greek (myDATA) providers were deleted
-  with the five-country prune. France's three facts are all deliberately unexecutable here and say so
-  in their own `notes`: the B2B-domestic one is `dischargedBy: 'transport'` (CGI art. 289 E puts the
-  duty to transmit on the accredited platform itself, so the PDP transport discharges it and the
-  send-time hook skips it), and the two e-reporting ones (CGI art. 290, 290 A) name an UNREGISTERED
-  `providerId` placeholder — present as data so the obligation stays visible, not as something that
-  runs.
+  `fr.json`, and two implemented `DeclarationProvider`s: `pt-at`, and `fr-pa` (France's accredited
+  platform, CGI art. 290/290 A) which resolves the company's connected operator from `operators/` and
+  delegates to a per-transport `EReportingAdapter` (SuperPDP is the first). France's B2B-domestic fact
+  is `dischargedBy: 'transport'` (CGI art. 289 E puts the duty to transmit on the accredited platform
+  itself, so the PDP transport discharges it and no declaration job is enqueued); the two e-reporting
+  facts are scoped and classified against the operation (`classify.ts`, `operation-context.ts`), with
+  size-tiered start dates in `applicability`. A missing channel, adapter, credential or company
+  profile answer is journaled `report:blocked`, never declared on a guess.
 - `domestic-reverse-charge/` — the statutory categories in which the BUYER, not the seller, owes the
   VAT on a purely domestic supply (construction subcontracting, waste, scrap, greenhouse-gas
   allowances, gas and electricity to a reseller…). DE/FR/IT/PT, 32 sourced categories; Poland has none

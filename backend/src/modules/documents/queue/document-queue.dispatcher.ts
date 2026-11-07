@@ -468,7 +468,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
    * while it is still in flight.
    */
   async enqueueReport(data: ReportJobData): Promise<boolean> {
-    const jobId = buildReportJobId(data.providerId, data.documentId);
+    const jobId = buildReportJobId(data.providerId, data.documentId, data.paymentId);
     const existing = await this.queue.getJob(jobId);
     if (existing) {
       this.logger.log(`Report ${jobId} already dispatched — not enqueuing a duplicate.`);

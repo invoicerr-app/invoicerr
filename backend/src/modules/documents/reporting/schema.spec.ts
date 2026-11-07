@@ -251,3 +251,123 @@ describe('reporting obligation fact validation', () => {
     ).toThrow(/applicableFrom has no valid provenance/);
   });
 });
+
+describe('reporting obligation scope and applicability validation', () => {
+  const base = {
+    providerId: 'fr-pa',
+    appliesTo: 'invoice' as const,
+    dischargedBy: 'provider' as const,
+    provenance: { kind: 'legal' as const, sourceText: 'x', sourceCheckedAt: '2026-10-24' },
+  };
+
+  it('accepts a scoped fact with buyer type, establishment and the VAT-on-collection condition', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          ...base,
+          scope: [
+            { transactions: 'b2c', buyerType: ['INDIVIDUAL'], buyerEstablishment: 'domestic' },
+            { transactions: 'payments', buyerType: ['INDIVIDUAL'], vatOnCollection: true },
+          ],
+        },
+        'fixture',
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects an empty buyerType list', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        { ...base, scope: [{ transactions: 'b2c', buyerType: [] }] },
+        'fixture',
+      ),
+    ).toThrow(/empty "scope.buyerType"/);
+  });
+
+  it('rejects an unknown buyer type', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        { ...base, scope: [{ transactions: 'b2c', buyerType: ['BUSINESS'] as never }] },
+        'fixture',
+      ),
+    ).toThrow(/unknown "scope.buyerType" party type "BUSINESS"/);
+  });
+
+  it('rejects an unknown buyer establishment', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        { ...base, scope: [{ transactions: 'b2c', buyerEstablishment: 'eu' as never }] },
+        'fixture',
+      ),
+    ).toThrow(/unknown "scope.buyerEstablishment"/);
+  });
+
+  it('accepts size-tiered applicability windows and rejects one without a date', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          ...base,
+          applicability: [
+            {
+              when: { companyProfile: { sizeCategory: ['LARGE', 'MID'] } },
+              from: {
+                date: '2026-09-01',
+                provenance: { kind: 'legal', sourceText: 'x', sourceCheckedAt: '2026-10-24' },
+              },
+            },
+          ],
+        },
+        'fixture',
+      ),
+    ).not.toThrow();
+
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          ...base,
+          applicability: [
+            {
+              from: {
+                date: '',
+                provenance: { kind: 'legal', sourceText: 'x', sourceCheckedAt: '2026-10-24' },
+              },
+            },
+          ],
+        },
+        'fixture',
+      ),
+    ).toThrow(/applicability window with no "from.date"/);
+  });
+
+  it('rejects a profile condition with an empty value list', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          ...base,
+          applicability: [
+            {
+              when: { companyProfile: { sizeCategory: [] } },
+              from: {
+                date: '2026-09-01',
+                provenance: { kind: 'legal', sourceText: 'x', sourceCheckedAt: '2026-10-24' },
+              },
+            },
+          ],
+        },
+        'fixture',
+      ),
+    ).toThrow(/no non-empty value list/);
+  });
+
+  it('rejects an applicability window whose own provenance is invalid', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          ...base,
+          applicability: [{ from: { date: '2026-09-01', provenance: {} as never } }],
+        },
+        'fixture',
+      ),
+    ).toThrow(/applicability window \(2026-09-01\) has no valid provenance/);
+  });
+});

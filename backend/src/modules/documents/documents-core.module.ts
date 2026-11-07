@@ -38,6 +38,9 @@ import { buildSuperPdpStatusPoller } from './conformity/pollers/superpdp-status-
 import { SuperPdpReceptionSweepRunner } from './conformity/reception-sweep-runner';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
+import { EReportingAdapterRegistry } from './reporting/ereporting-adapter';
+import { buildFrenchPaDeclarationProvider } from './reporting/providers/fr-pa-declaration-provider';
+import { buildSuperPdpEReportingAdapter } from './reporting/providers/superpdp-ereporting-adapter';
 import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
 import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
@@ -464,6 +467,14 @@ function buildDeclarationProviderRegistry(
 ): DeclarationProviderRegistry {
   const registry = new DeclarationProviderRegistry();
   registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
+
+  // The French accredited-platform channel (CGI art. 290/290 A). The provider id names the legal
+  // channel, never a vendor: `operators/` decides which connected operator can discharge it and
+  // `EReportingAdapterRegistry` decides which API this build speaks.
+  const adapters = new EReportingAdapterRegistry();
+  adapters.register(buildSuperPdpEReportingAdapter({ channelCredentials }));
+  registry.register(buildFrenchPaDeclarationProvider({ channelCredentials, adapters }));
+
   return registry;
 }
 

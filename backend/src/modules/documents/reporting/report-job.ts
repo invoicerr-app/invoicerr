@@ -15,9 +15,12 @@ export const DOCUMENT_REPORT_JOB_NAME = 'document-report';
 /** `report-<providerId>-<documentId>` — the deterministic job id.
  *  Two enqueue calls for the SAME document/provider pair (a duplicate trigger, a replayed webhook,
  *  whatever) always resolve to the SAME BullMQ job — see `DocumentQueueDispatcher.enqueueReport`'s
- *  own header for what happens when one already exists. */
-export function buildReportJobId(providerId: string, documentId: string): string {
-  return `report-${providerId}-${documentId}`;
+ *  own header for what happens when one already exists. A payment declaration adds its own payment id
+ *  to the key, so it never collapses into the invoice declaration's job. */
+export function buildReportJobId(providerId: string, documentId: string, paymentId?: string): string {
+  return paymentId
+    ? `report-${providerId}-${documentId}-pay-${paymentId}`
+    : `report-${providerId}-${documentId}`;
 }
 
 export interface ReportJobData {
@@ -25,6 +28,9 @@ export interface ReportJobData {
   documentId: string;
   typeId: string;
   providerId: string;
+  /** Set on a payment declaration: the `DocumentPayment` row this job declares. Absent on the
+   *  invoice-data declaration a successful send enqueues. */
+  paymentId?: string;
 }
 
 /** Journaled when the runner cannot even ATTEMPT the declaration — credentials for `providerId` are

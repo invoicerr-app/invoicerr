@@ -48,7 +48,7 @@ const frShapedCatalog = new ReportingObligationCatalog([
         provenance: { kind: 'legal', sourceText: 'fixture: CGI art. 289 E', sourceCheckedAt: '2026-09-16' },
       },
       {
-        providerId: 'fr-ereporting',
+        providerId: 'fr-pa',
         appliesTo: 'invoice',
         dischargedBy: 'provider',
         scope: [{ transactions: 'b2c' }, { transactions: 'international' }],
@@ -130,7 +130,7 @@ describe('reportOnSendIfObligated', () => {
     expect(enqueueReport).not.toHaveBeenCalled();
   });
 
-  // THE MUTATION TARGET here: a trigger that ignores `scope` would fire "fr-ereporting" on EVERY
+  // THE MUTATION TARGET here: a trigger that ignores `scope` would fire "fr-pa" on EVERY
   // French invoice — including a B2B-domestic one already covered by the transport fact above — with
   // no way to know from `(companyId, typeId, documentId)` alone whether THIS invoice is actually B2C
   // or international. Nothing enqueues until that classifier exists (see `registry.ts#obligationFor`).

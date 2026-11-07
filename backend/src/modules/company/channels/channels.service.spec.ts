@@ -391,7 +391,7 @@ describe('ChannelCredentialsService', () => {
     });
 
     // fr.json ships three reporting facts and this settings read returns them unfiltered, unlike the
-    // send-time trigger, which excludes the transport fact and the scoped ones.
+    // send-time trigger, which classifies the scoped ones against the operation.
     it("a French company's reporting obligations reflect the real fr.json facts — not a hard-coded empty guess", async () => {
       mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
       const facts = await service.reportingObligations('company-1');
@@ -402,14 +402,14 @@ describe('ChannelCredentialsService', () => {
           provenance: expect.objectContaining({ kind: 'legal' }),
         }),
         expect.objectContaining({
-          providerId: 'fr-ereporting',
+          providerId: 'fr-pa',
           appliesTo: 'invoice',
-          provenance: expect.objectContaining({ kind: 'unverified' }),
+          provenance: expect.objectContaining({ kind: 'legal' }),
         }),
         expect.objectContaining({
-          providerId: 'fr-ereporting',
+          providerId: 'fr-pa',
           appliesTo: 'invoice',
-          provenance: expect.objectContaining({ kind: 'unverified' }),
+          provenance: expect.objectContaining({ kind: 'legal' }),
         }),
       ]);
     });

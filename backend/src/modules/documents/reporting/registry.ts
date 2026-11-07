@@ -81,6 +81,41 @@ export class ReportingObligationCatalog {
    * same "first match wins, never merged" convention `channel-policy/mandate.ts`'s own
    * `activeChannelMandateFor` already holds for its own lookup.
    */
+  /**
+   * Every fact of `appliesTo`'s type this mechanism could DECLARE (provider-discharged, scoped or
+   * not), in file order. `report-on-send.ts` and `report-payment.ts` run each through
+   * `classify.ts` and enqueue the first one that covers the operation; an unscoped fact (Portugal)
+   * still classifies as `in` for every document, so its behaviour is unchanged.
+   *
+   * `obligationFor` below keeps its narrower pre-classifier contract: the answer to "is there one
+   * fact I may fire blind with", which is what the settings screen and the historical tests read.
+   */
+  /**
+   * Every fact carrying `providerId` for this document type, across every country file  -  what the
+   * report job uses to re-classify at run time without re-resolving the seller country (the job was
+   * enqueued under a fact that already named this provider, and an id shared by two countries would
+   * otherwise need the country again). Order follows the catalog's own file index.
+   */
+  factsForProvider(providerId: string, typeId: ReportableDocumentType | string): ReportingObligationFact[] {
+    const facts: ReportingObligationFact[] = [];
+    for (const file of Object.values(this.files)) {
+      for (const fact of file.facts) {
+        if (fact.providerId === providerId && fact.appliesTo === typeId) facts.push(fact);
+      }
+    }
+    return facts;
+  }
+
+  providerFactsFor(
+    countryCode: string | undefined,
+    typeId: ReportableDocumentType | string,
+  ): ReportingObligationFact[] {
+    if (!countryCode) return [];
+    return this.factsFor(countryCode).filter(
+      (fact) => fact.appliesTo === typeId && fact.dischargedBy === 'provider',
+    );
+  }
+
   obligationFor(
     countryCode: string | undefined,
     typeId: ReportableDocumentType | string,

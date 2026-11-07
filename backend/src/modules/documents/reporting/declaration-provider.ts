@@ -71,6 +71,13 @@ export interface DeclaredInvoice {
   seller: DeclaredParty;
   buyer: DeclaredParty;
   lines: DeclaredInvoiceLine[];
+  /**
+   * The nature of each line, when the caller could establish it from the article catalogue
+   * (`reporting/operation-context.ts`). Absent when at least one line has no article, exactly like
+   * the classifier's own `lineNatures`: a provider that must distinguish goods from services
+   * (France's e-reporting category) refuses rather than guessing.
+   */
+  lineNatures?: ('goods' | 'service')[];
   netTotal: number;
   vatTotal: number;
   grossTotal: number;
@@ -106,6 +113,24 @@ export interface DeclarationResult extends RawAuthorityEvent {
 }
 
 /**
+ * One payment, ready to declare  -  the payment-data twin of `DeclaredInvoice` (CGI art. 290 A).
+ * `subtotals` splits the amount actually received across the invoice's own VAT rates, never
+ * recomputed from a rate the invoice did not carry: the split is proportional to each rate's gross
+ * share, and `taxableAmount`/`vatAmount` are derived from the same received amount.
+ */
+export interface DeclaredPayment {
+  documentId: string;
+  paymentId: string;
+  /** ISO date-only (`yyyy-mm-dd`) of the payment. */
+  paidAt: string;
+  currency: string;
+  /** The amount received, major currency units, in the document's own currency. */
+  amount: number;
+  invoice: DeclaredInvoice;
+  subtotals: { vatRatePercent: number; taxableAmount: number; vatAmount: number }[];
+}
+
+/**
  * What a THIRD PARTY implements to add a declarative-reporting channel — registered under its own id
  * (`DeclarationProviderRegistry.register`), the SAME id a `reporting/data/*.json` fact's own
  * `providerId` names.
@@ -130,6 +155,15 @@ export interface DeclarationProvider {
    *   retry is exhausted.
    */
   declare(companyId: string, invoice: DeclaredInvoice): Promise<DeclarationResult>;
+
+  /**
+   * Declares one PAYMENT's data, when the channel's law distinguishes it from the invoice
+   * declaration (France's CGI art. 290 A). Optional so a provider that only declares invoices (the
+   * Portuguese `pt-at` today) keeps its interface unchanged: the runner journals `report:blocked`
+   * when a country's data asks for payment data and the resolved provider cannot declare it, never
+   * silently treats it as declared.
+   */
+  declarePayment?(companyId: string, payment: DeclaredPayment): Promise<DeclarationResult>;
 }
 
 /**
