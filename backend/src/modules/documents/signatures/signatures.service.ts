@@ -1,3 +1,4 @@
+import { appOrigin } from '@/utils/app-origin';
 import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
@@ -581,7 +582,7 @@ export class SignaturesService {
     displayNumber: string;
     language: RenderLanguage;
   }): Promise<void> {
-    const appUrl = process.env.APP_URL || '';
+    const appUrl = appOrigin();
     const template = await this.resolveSystemTemplate(
       MailTemplateType.SIGNATURE_REQUEST,
       input.companyId,
@@ -633,7 +634,7 @@ export class SignaturesService {
     );
 
     const parts = buildOtpEmailParts({
-      appUrl: process.env.APP_URL || '',
+      appUrl: appOrigin(),
       otpCode: `${code.slice(0, 4)}-${code.slice(4, 8)}`,
     });
     await this.sendTemplatedMail(

@@ -25,6 +25,7 @@ import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
+import { appOrigin } from '@/utils/app-origin';
 
 export interface RunBillingLifecycleSweepResult {
   processed: number;
@@ -368,7 +369,7 @@ export class BillingLifecycleSweepRunner {
       return;
     }
 
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = appOrigin();
 
     for (const milestone of due) {
       const daysRemaining = milestone.endsWith('_d7') ? 7 : 1;
