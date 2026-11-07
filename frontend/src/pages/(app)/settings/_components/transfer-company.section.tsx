@@ -1,3 +1,4 @@
+import { formatOtp, formatShortDate } from "@/lib/format"
 import { AlertTriangle, ArrowRightLeft } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -26,16 +27,6 @@ import {
   useRequestTransferOtp,
 } from "@/hooks/queries"
 import { SettingsSection } from "./settings-section"
-
-function formatOtp(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8)
-  if (cleaned.length <= 4) return cleaned
-  return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-}
 
 /**
  * Mounted inside `danger.settings.tsx` (that file's own `{/* transfer-company section mounts here *\/}`
@@ -148,10 +139,10 @@ export default function TransferCompanySection() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t("settings.transferCompany.current.requestedAt")}:{" "}
-              <span className="tabular-nums">{formatDate(current.createdAt)}</span>
+              <span className="tabular-nums">{formatShortDate(current.createdAt)}</span>
               {" · "}
               {t("settings.transferCompany.current.expiresAt")}:{" "}
-              <span className="tabular-nums">{formatDate(current.expiresAt)}</span>
+              <span className="tabular-nums">{formatShortDate(current.expiresAt)}</span>
             </p>
           </div>
           <Button

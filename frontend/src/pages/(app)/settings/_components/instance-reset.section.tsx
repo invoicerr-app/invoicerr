@@ -1,3 +1,4 @@
+import { formatOtp } from "@/lib/format"
 import { AlertTriangle, ServerCrash } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -95,12 +96,6 @@ export default function InstanceResetSection() {
         },
       },
     )
-  }
-
-  const formatOtp = (value: string) => {
-    const cleaned = value.replace(/\D/g, "").slice(0, 8)
-    if (cleaned.length <= 4) return cleaned
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
   }
 
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => setOtp(formatOtp(e.target.value))

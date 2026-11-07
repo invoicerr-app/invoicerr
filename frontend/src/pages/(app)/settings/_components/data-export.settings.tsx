@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useCompanies } from "@/hooks/queries"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 
 import { SettingsFormFooter, SettingsSection } from "./settings-section"
 
@@ -46,14 +47,7 @@ export default function DataExportSettings() {
       }
 
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = "invoicerr-export.zip"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, "invoicerr-export.zip")
       toast.success(t("settings.dataExport.messages.downloaded"))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("settings.dataExport.messages.error"))
