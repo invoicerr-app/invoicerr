@@ -39,28 +39,35 @@ describe('resolveLegalDocumentLanguages', () => {
   });
 
   it('an explicit ?lang= comes first, ahead of Accept-Language', async () => {
-    const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'fr' }), 'de');
-    expect(result).toEqual(['de', 'fr', 'en']);
+    const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'de' }), 'fr');
+    expect(result).toEqual(['fr', 'de', 'en']);
   });
 
   it('ignores an explicit lang the catalog does not support, falling through to the next signal', async () => {
+    // `de` (like `it`, `pl`, `pt`) is no longer a legal-document language since D-297: a German
+    // visitor asking for German explicitly gets the same fallback as Accept-Language alone.
+    const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'pl' }), 'de');
+    expect(result).toEqual(['pl', 'en']);
+  });
+
+  it('still ignores a code that never was in the catalog', async () => {
     const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'pl' }), 'es');
     expect(result).toEqual(['pl', 'en']);
   });
 
   it("the signed-in caller's User.locale outranks Accept-Language", async () => {
     getSession.mockResolvedValue({ user: { id: 'user-1' } });
-    findUnique.mockResolvedValue({ locale: 'it' });
+    findUnique.mockResolvedValue({ locale: 'fr' });
     const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'de' }), undefined);
-    expect(result).toEqual(['it', 'de', 'en']);
+    expect(result).toEqual(['fr', 'de', 'en']);
     expect(findUnique).toHaveBeenCalledWith({ where: { id: 'user-1' }, select: { locale: true } });
   });
 
   it('an explicit ?lang= still outranks the account locale', async () => {
     getSession.mockResolvedValue({ user: { id: 'user-1' } });
-    findUnique.mockResolvedValue({ locale: 'it' });
-    const result = await resolveLegalDocumentLanguages(request(), 'pt');
-    expect(result).toEqual(['pt', 'it', 'en']);
+    findUnique.mockResolvedValue({ locale: 'fr' });
+    const result = await resolveLegalDocumentLanguages(request(), 'en');
+    expect(result).toEqual(['en', 'fr', 'en']);
   });
 
   it('no session at all (anonymous visitor) never touches Prisma, and falls through to Accept-Language', async () => {
@@ -81,7 +88,7 @@ describe('resolveLegalDocumentLanguages', () => {
 
   it('an unsupported stored User.locale is treated the same as unset', async () => {
     getSession.mockResolvedValue({ user: { id: 'user-1' } });
-    findUnique.mockResolvedValue({ locale: 'es' });
+    findUnique.mockResolvedValue({ locale: 'it' });
     const result = await resolveLegalDocumentLanguages(request({ 'accept-language': 'de' }), undefined);
     expect(result).toEqual(['de', 'en']);
   });
