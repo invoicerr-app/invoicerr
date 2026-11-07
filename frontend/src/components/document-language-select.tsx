@@ -1,13 +1,13 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslation } from "react-i18next"
 
+import { DOCUMENT_LANGUAGE_CODES } from "@/lib/reference/countries"
+
 /**
- * Document language per recipient ("langue du document par destinataire") — mirrors the backend's own
- * `documents/rendering/language/supported-languages.ts#SUPPORTED_RENDER_LANGUAGES` exactly: offering a
- * language here that render layer has no chrome/email translations for would let a user pick a choice
- * that silently falls back to English at render time, which is worse than not offering it at all.
+ * Document language per recipient ("langue du document par destinataire") — the selectable codes and
+ * their backend mirror live in `lib/reference/countries.ts`, so a pure reference module never has to
+ * import this component.
  */
-export const DOCUMENT_LANGUAGE_CODES = ["en", "fr", "it", "pl", "de", "pt"] as const
 
 // Not a real language code — the in-form sentinel for "no explicit choice", mapped to `null` on the
 // way out (see `onChange` below). Kept out of `DOCUMENT_LANGUAGE_CODES` so it is never mistaken for a

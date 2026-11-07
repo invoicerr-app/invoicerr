@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
 import type { DocumentSettlement } from "./types"
-import { decimalsFor, fromMinor } from "./totals-calculator"
+import { formatMinor } from "./totals-calculator"
 
 /**
  * The SOLDE — a PROJECTION derived from `computeSettlement` (backend) at read time, never a document
@@ -81,10 +81,6 @@ export const TONE_CLASSES: Record<SettlementTone, string> = {
 export function localIsoDate(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-}
-
-function formatMinor(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
 }
 
 interface DocumentSettlementBadgeProps {

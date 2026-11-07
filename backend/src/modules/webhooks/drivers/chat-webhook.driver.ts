@@ -4,13 +4,14 @@ import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
 import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
 
 import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
+import { appOrigin } from '@/utils/app-origin';
 
 /**
  * The icon and link a chat message carries, taken from THIS instance: a self-hosted deployment must
  * not send its users to a site where they have no account, nor ask a closed network to fetch an
  * image from the open internet. `favicon.svg` because every deployment serves it.
  */
-export const instanceUrl = (): string => (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+export const instanceUrl = (): string => appOrigin();
 export const instanceIcon = (): string => `${instanceUrl()}/favicon.svg`;
 
 export interface ChatField {

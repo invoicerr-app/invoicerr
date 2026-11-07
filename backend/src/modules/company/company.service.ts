@@ -12,10 +12,9 @@ import {
   resolveRevenueSettings,
 } from '@/modules/company/revenue-basis/resolve-revenue-basis';
 import { normalizeDueDays, normalizeDueMode } from '@/modules/company/payment-terms/resolve-payment-terms';
-import { MailTemplateType, Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
+import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { createHash } from 'node:crypto';
 import { logger } from '@/logger/logger.service';
 import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
 import {
@@ -67,6 +66,7 @@ import { sessionCache } from '@/lib/session-cache';
 import { companyMemberIds } from '@/modules/companies/company-member-ids';
 import { loadPaymentTerms } from '@/modules/company/payment-terms/load-payment-terms';
 import { NEW_COMPANY_TEMPLATE } from '@/modules/documents/rendering/branding/templates';
+import { appOrigin } from '@/utils/app-origin';
 
 /**
  * One system email template as the settings routes hand it over: the signature request and the
@@ -85,12 +85,6 @@ export interface EmailTemplate {
   body: string;
   source: 'company' | 'default';
   variables: Record<string, string>;
-}
-
-/** Where the sample `{appUrl}` in a preview points, and what the senders interpolate — one fallback,
- *  spelled once. */
-function appUrl(): string {
-  return process.env.APP_URL || 'http://localhost:3000';
 }
 
 /**
@@ -256,50 +250,17 @@ export function pickCompanyInput(
 
 @Injectable()
 export class CompanyService {
-  private lastCompanyHash?: string;
-
-  private computeHash(payload: any): string {
-    try {
-      const hash = createHash('sha1');
-      hash.update(JSON.stringify(payload));
-      return hash.digest('hex');
-    } catch (e) {
-      return String(Date.now());
-    }
-  }
-
   constructor(private readonly webhookDispatcher: WebhookDispatcherService) {}
 
   async getCompanyInfo(companyId: string) {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      include: { partyIdentifiers: true },
-    });
-    if (!company) {
-      logger.warn('No company found', { category: 'company', details: { companyId } });
-      return null;
-    }
-    // Compute hash and log only on init or when company data changed
-    const companyData = company;
-    const hash = this.computeHash(companyData);
-    if (!this.lastCompanyHash) {
-      this.lastCompanyHash = hash;
-      logger.info('Company fetch initialized', {
-        category: 'company',
-        details: { companyId: company.id, hash },
-      });
-    } else if (this.lastCompanyHash !== hash) {
-      this.lastCompanyHash = hash;
-      logger.info('Company fetched data changed', {
-        category: 'company',
-        details: { companyId: company.id, hash },
-      });
-    }
     const result = await prisma.company.findUnique({
       where: { id: companyId },
       include: { partyIdentifiers: true },
     });
-    if (!result) return null;
+    if (!result) {
+      logger.warn('No company found', { category: 'company', details: { companyId } });
+      return null;
+    }
 
     // The country's own `documentValidationCode` fact (ATCUD for Portugal) belongs here, so the
     // frontend never maps country codes to it.
@@ -799,7 +760,7 @@ export class CompanyService {
         // send time (`email-template.ts#deriveTextFromHtml`).
         body: template.html ?? template.body,
         source: row ? 'company' : 'default',
-        variables: describeSystemEmailVocabulary(family, appUrl()),
+        variables: describeSystemEmailVocabulary(family, appOrigin()),
       };
     });
   }
@@ -835,7 +796,7 @@ export class CompanyService {
       include: { company: true },
     });
 
-    const variables = describeSystemEmailVocabulary(family, appUrl());
+    const variables = describeSystemEmailVocabulary(family, appOrigin());
     const { warnings } = renderEmailTemplate(resolveSystemEmailTemplate(family, row), variables);
 
     logger.info('Email template updated', {

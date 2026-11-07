@@ -1,5 +1,6 @@
 "use client"
 
+import { formatShortDate } from "@/lib/format"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -42,10 +43,6 @@ interface CertificateMeta {
 
 function isExpired(notAfter: string) {
   return new Date(notAfter) < new Date()
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
 }
 
 /**
@@ -112,7 +109,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
           </span>
           <span data-cy={`signing-cert-row-${cert.id}-validity`}>
             {t("settings.signing.expires", "Expires")}:{" "}
-            <span className="tabular-nums">{formatDate(cert.notAfter)}</span>
+            <span className="tabular-nums">{formatShortDate(cert.notAfter)}</span>
             {" · "}
             {t("settings.signing.serial", "Serial")}:{" "}
             <span className="font-mono tabular-nums">{cert.serial}</span>

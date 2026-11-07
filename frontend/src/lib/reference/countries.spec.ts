@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
-import { DOCUMENT_LANGUAGE_CODES } from "@/components/document-language-select"
+import { DOCUMENT_LANGUAGE_CODES } from "./countries"
 import { currencies } from "@/lib/constants/currencies"
 import { countryCodes } from "@/lib/constants/countries"
 import { currencyForCountry, documentLanguageForCountry } from "./countries"

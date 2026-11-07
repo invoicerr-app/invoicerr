@@ -2852,7 +2852,8 @@
       "messages": {
         "copied": "Copied to clipboard",
         "copyFailed": "Couldn't copy — select the key above and copy it manually.",
-        "createError": "Failed to create API key"
+        "createError": "Failed to create API key",
+        "revokeError": "Failed to revoke API key"
       }
     },
     "channels": {

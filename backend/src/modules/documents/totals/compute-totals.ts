@@ -1,5 +1,5 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
-import { toMinor, decimalsFor, fromMinor } from '@/utils/financial';
+import { toMinor } from '@/utils/financial';
 import { defaultVatRateCatalog, findVatRateById } from '../vat-rates/registry';
 import { ServerMessage, serverMessage } from '../messages/server-message';
 
@@ -230,7 +230,7 @@ export function computeDocumentTotals(
       const netMinor = Math.round(unitPriceMinor * quantity * (1 - discountPercent / 100));
 
       // Find VAT rate
-      const vatRatePercent = extractVatRate(arrayField, row, rowIndex, globalLineNumber, warnings);
+      const vatRatePercent = extractVatRate(arrayField, row, globalLineNumber, warnings);
 
       allLinesProcessed.push({ index: allLinesProcessed.length, netMinor, vatRatePercent });
       globalLineNumber++;
@@ -239,7 +239,6 @@ export function computeDocumentTotals(
 
   // === Build LineTotal entries and accumulate by VAT rate ===
   const rateToBase: Record<string, number> = {}; // "rate_percent" -> baseMinor
-  const rateToLineTotals: Record<string, { vatMinor: number; grossMinor: number }> = {};
 
   for (const { index, netMinor, vatRatePercent } of allLinesProcessed) {
     const lineVatMinor = vatRatePercent !== null ? Math.round((netMinor * vatRatePercent) / 100) : 0;
@@ -363,7 +362,6 @@ function findLineArrayFields(descriptor: DocumentTypeDescriptor): DocumentFieldD
 function extractVatRate(
   arrayField: DocumentFieldDescriptor,
   row: Record<string, unknown>,
-  rowIndex: number,
   lineNumber: number,
   warnings: ServerMessage[],
 ): number | null {

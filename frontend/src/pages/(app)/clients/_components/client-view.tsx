@@ -12,7 +12,8 @@ import { DetailItem, DetailList, DetailSection } from "../../_shared/detail-list
 import { FormDialog } from "../../_shared/form-dialog"
 import { ClientBadges } from "./client-badges"
 import { clientDisplayName } from "./client-display"
-import { formatMinor, StatementRowBadge } from "./client-statement"
+import { formatMinor } from "@/components/documents/totals-calculator"
+import { StatementRowBadge } from "./client-statement"
 
 interface ClientViewDialogProps {
   client: Client | null

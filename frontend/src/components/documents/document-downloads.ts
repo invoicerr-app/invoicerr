@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import { type DocumentInstance, type DocumentTypeDescriptor, statusLabel } from "@/components/documents/types"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 
 /**
  * The two plain-GET downloads a document offers — its rendered PDF, and one of its normalized XML
@@ -32,15 +33,7 @@ function openBlob(blob: Blob) {
 }
 
 function saveBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  // Firefox reads the blob after click() returns: revoking at once can cancel the save.
-  setTimeout(() => URL.revokeObjectURL(url), 40_000)
+  downloadBlob(blob, fileName)
 }
 
 const FILE_NAME_RESERVED = /[\\/:*?"<>|]+/g

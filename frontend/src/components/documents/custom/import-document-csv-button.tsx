@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
+import { downloadBlob } from "@/lib/download"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
 import {
   type DocumentImportCsvRow,
@@ -63,14 +64,7 @@ const CREDIT_NOTE_TEMPLATE =
 function downloadTemplate(typeId: string) {
   const csv = typeId === "credit-note" ? CREDIT_NOTE_TEMPLATE : INVOICE_TEMPLATE
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
-  anchor.href = url
-  anchor.download = `${typeId}-import-template.csv`
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(blob, `${typeId}-import-template.csv`)
 }
 
 function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {

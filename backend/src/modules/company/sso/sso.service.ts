@@ -30,6 +30,7 @@ import {
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { OutboundUrlValidationError, assertPublicOutboundUrl } from '@/utils/outbound-url';
+import { appOrigin } from '@/utils/app-origin';
 
 /**
  * The secret half of an SSO configuration, the only thing inside the encrypted blob. The client id
@@ -228,7 +229,7 @@ export class SsoService {
    * same base better-auth uses, so the two cannot disagree.
    */
   redirectUriFor(companyId: string): string {
-    const base = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const base = appOrigin();
     return `${base}/api/auth/callback/${companyProviderId(companyId)}`;
   }
 

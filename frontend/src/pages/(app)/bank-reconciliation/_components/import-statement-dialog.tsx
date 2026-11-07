@@ -10,7 +10,7 @@ import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import CurrencySelect from "@/components/currency-select"
-import { fromMinor, decimalsFor, toMinor } from "@/components/documents/totals-calculator"
+import { formatMinor, toMinor } from "@/components/documents/totals-calculator"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -627,7 +627,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
                     (line.amountMinor ?? 0) < 0 && "text-destructive",
                   )}
                 >
-                  {fromMinor(line.amountMinor ?? 0, currency).toFixed(decimalsFor(currency))} {currency}
+                  {formatMinor(line.amountMinor ?? 0, currency)}
                 </TableCell>
                 <TableCell>
                   {line.isDuplicate && (
@@ -664,7 +664,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
                   (line.amountMinor ?? 0) < 0 && "text-destructive",
                 )}
               >
-                {fromMinor(line.amountMinor ?? 0, currency).toFixed(decimalsFor(currency))} {currency}
+                {formatMinor(line.amountMinor ?? 0, currency)}
               </span>
             </div>
             <p className="mt-1 truncate text-sm" title={line.label}>
@@ -685,7 +685,7 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
       >
         <span>{t("bankReconciliation.import.preview.total")}</span>
         <span className={cn("amount", preview.totalMinor < 0 && "text-destructive")}>
-          {fromMinor(preview.totalMinor, currency).toFixed(decimalsFor(currency))} {currency}
+          {formatMinor(preview.totalMinor, currency)}
         </span>
       </div>
 

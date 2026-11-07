@@ -9,6 +9,7 @@ import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
@@ -21,7 +22,7 @@ import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-se
  * cross-port/cookie reasoning `received-invoice-download-button.tsx`'s own header already gives for
  * its PDF download. Unlike that button, this triggers an actual named "Save As" (a blob object URL fed
  * to a synthetic `<a download>`, then revoked) rather than `window.open`: a CSV has no useful "view
- * inline", so this is the SERVER-fed twin of `hooks/use-table-export.ts`'s own client-built download.
+ * inline", so the server builds the CSV and this only delivers it.
  */
 export default function AccountingExportSettings() {
   const { t } = useTranslation()
@@ -52,14 +53,7 @@ export default function AccountingExportSettings() {
         throw new Error(body?.message || `HTTP ${response.status}`)
       }
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `accounting-export-${fromParam}_${toParam}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, `accounting-export-${fromParam}_${toParam}.csv`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("settings.accountingExport.messages.error"))
     } finally {
