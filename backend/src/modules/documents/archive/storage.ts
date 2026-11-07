@@ -49,14 +49,9 @@ export function archiveRoot(): string {
   return resolve(process.env.DOCUMENTS_ARCHIVE_DIR ?? join(process.cwd(), '.documents-archive'));
 }
 
-export function extFor(mime: string): string {
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime === 'application/xml') return 'xml';
-  // `verdict-artifact.ts`'s own canonical VERDICT representation — legible on disk (`.json`, not the
-  // `.bin` fallback below) for a human auditor opening a WORM archive directory directly.
-  if (mime === 'application/json') return 'json';
-  return 'bin';
-}
+import { extFor } from './storage-path';
+
+export { extFor };
 
 /** The directory where one LOCAL archive's bytes live: content-hash-addressed, like the removed
  *  compliance engine — re-archiving a byte-identical artifact set lands back on the SAME path

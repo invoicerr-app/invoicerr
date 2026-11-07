@@ -90,7 +90,7 @@ import { randomUUID } from 'node:crypto';
 
 import { DocumentFieldDescriptor } from '../descriptors/types';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
-import { FieldKindRegistry, FieldValidator } from '../descriptors/field-kinds';
+import type { FieldKindRegistry, FieldValidator } from '../descriptors/field-kinds';
 
 export const ROW_SELECTION_KIND = 'rowSelection';
 

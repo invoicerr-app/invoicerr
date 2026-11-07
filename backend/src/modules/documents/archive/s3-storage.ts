@@ -19,9 +19,8 @@
  * a loud boot/write-time crash naming exactly which env var is missing.
  *
  * Key layout mirrors `storage.ts`'s local layout exactly: object key
- * `<documentId>/<contentHash>/<role>.<ext>` (via `extFor`, imported from `storage.ts` — the two
- * modules import each other, which is fine: nothing here calls `extFor` at module-evaluation time,
- * only from inside these functions' bodies, by which point both modules have finished loading).
+ * `<documentId>/<contentHash>/<role>.<ext>` (via `extFor`, shared with `storage.ts` through the
+ * leaf `storage-path.ts` so neither module has to import the other).
  * `uri = s3://<bucket>/<documentId>/<contentHash>` — the BUCKET NAME is embedded in the uri (so a
  * read/verify years later is self-contained even if `ARCHIVE_S3_BUCKET` is later repointed at a
  * different bucket), but region/endpoint/credentials are NOT: those are re-derived from CURRENT env
@@ -56,7 +55,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 import { ArchivedArtifactInput, computeContentHash } from './hashing';
-import { extFor } from './storage';
+import { extFor } from './storage-path';
 
 function requireEnv(name: string): string {
   const value = process.env[name];

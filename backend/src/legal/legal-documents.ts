@@ -50,8 +50,8 @@ export interface LegalDocument {
   effectiveDate: string;
   sidebarPosition: number;
   /** Markdown body, front matter stripped. Raw — never rendered server-side; the frontend renders it
-   *  (`markdown-it`, already a frontend dependency) so this API stays framework-agnostic for any other
-   *  consumer (a future CLI, a plugin). */
+   *  (`react-markdown`) so this API stays framework-agnostic for any other consumer (a future CLI, a
+   *  plugin). */
   content: string;
   /** sha256 of `content`, normalized first (see `computeContentHash` below) — the true identity a
    *  `LegalAcceptance` and a `LegalDocumentRelease` are keyed on (decision 2026-09-17). `version` is

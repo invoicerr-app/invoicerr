@@ -70,34 +70,9 @@ export function inboundRoot(): string {
  *  requirement — `persistInboundFile`/`readInboundFile` both derive the path/key from `extFor` the SAME
  *  way, so a `.bin` round-trip would have worked identically either way. Shared verbatim with
  *  `s3-storage.ts`'s own object-key derivation — imported from here, never duplicated. */
-export function extFor(mime: string): string {
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime === 'application/xml' || mime === 'text/xml') return 'xml';
-  if (mime === 'image/jpeg') return 'jpg';
-  if (mime === 'image/png') return 'png';
-  if (mime === 'image/webp') return 'webp';
-  return 'bin';
-}
+import { assertValidContentHash, extFor } from './storage-path';
 
-/** What `archive/hashing.ts#computeArtifactHash` always produces — lowercase, exactly 64 hex
- *  characters. `sha256` reaches this module straight off an HTTP route param on more than one caller
- *  (`documents.controller.ts#downloadAttachment`'s `:fileRef`, echoed through
- *  `AttachmentsService.download`) — never validated there, so it must be validated HERE, before it
- *  ever becomes part of a filesystem path OR an S3 object key. Exported so `s3-storage.ts` calls this
- *  exact same check rather than a second, hand-duplicated regex. */
-const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
-
-/** Throws unless `sha256` is a genuine SHA-256 hex digest — called first thing, by value, in every
- *  read/write path in this module AND in `s3-storage.ts`, so neither ever builds so much as a partial
- *  path/key out of an unvalidated string. The hex check alone already stops a `sha256` like
- *  `"../otherCompanyId/deadbeef...".slice(0, 64)` (`/`/`.` are not hex digits) — true for a filesystem
- *  path (the local check below) AND for an S3 key (which does not "resolve" `..` segments the way a
- *  filesystem does, but a validated hex-only string can never contain one in the first place). */
-export function assertValidContentHash(sha256: string): void {
-  if (!SHA256_HEX_PATTERN.test(sha256)) {
-    throw new Error(`"${sha256}" is not a valid content hash (expected 64 lowercase hex characters).`);
-  }
-}
+export { assertValidContentHash, extFor };
 
 // ---------------------------------------------------------------------------------------------
 // Local filesystem implementation — behavior UNCHANGED from before this file became a dispatching
