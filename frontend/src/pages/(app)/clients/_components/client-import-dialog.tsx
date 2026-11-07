@@ -40,6 +40,7 @@ import {
   useImportClientsPreview,
 } from "@/hooks/queries"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
+import { downloadBlob } from "@/lib/download"
 import {
   fetchRequiredIdentifiers,
   mapRow,
@@ -123,14 +124,7 @@ export function ClientImportDialog() {
       const res = await authenticatedFetch("/api/clients/import/template")
       if (!res.ok) throw new Error("template download failed")
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = "clients-import-template.csv"
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, "clients-import-template.csv")
     } catch {
       toast.error(t("clients.import.errors.templateDownload"))
     }

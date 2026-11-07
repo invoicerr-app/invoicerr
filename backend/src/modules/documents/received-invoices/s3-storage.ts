@@ -19,10 +19,8 @@
  * durably stored is exactly the failure mode this guards against, not merely a legal-archive concern.
  *
  * Key layout mirrors `storage.ts`'s local layout exactly: object key `<companyId>/<sha256>.<ext>`
- * (via `extFor`, imported from `storage.ts` — the two modules import each other, which is fine:
- * neither calls the other at module-evaluation time, only from inside these functions' bodies, by
- * which point both modules have finished loading — same note `archive/s3-storage.ts`'s own header
- * makes for its own `storage.ts` import). `uri = s3://<bucket>/<companyId>/<sha256>.<ext>`, returned
+ * (via `extFor`, shared with `storage.ts` through the leaf `storage-path.ts` so neither module has to
+ * import the other). `uri = s3://<bucket>/<companyId>/<sha256>.<ext>`, returned
  * by `persistInboundFileS3` for interface parity with the local implementation — note this uri is
  * NEVER persisted by any caller today (see this file's own header above), so nothing reads it back in.
  *
@@ -50,7 +48,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 
-import { assertValidContentHash, extFor } from './storage';
+import { assertValidContentHash, extFor } from './storage-path';
 
 function requireEnv(name: string): string {
   const value = process.env[name];

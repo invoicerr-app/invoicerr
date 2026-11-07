@@ -9,6 +9,7 @@ import {
   type VatRateFieldOptions,
   computeTotals,
   decimalsFor,
+  formatMinor,
   fromMinor,
   looksNumeric,
 } from "@/components/documents/totals-calculator"
@@ -311,8 +312,10 @@ export function useCommonLineDescriptions(descriptor: DocumentTypeDescriptor): s
 
 /** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the
  *  totals block never round differently. */
+const EMPTY_CURRENCY_PLACEHOLDER = "\u2014"
+
 export function formatTotal(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency || "—"}`
+  return formatMinor(minor, currency || EMPTY_CURRENCY_PLACEHOLDER)
 }
 
 /** Issue #507 - `DocumentInstance.derivedTotals` in the shape every totals row here renders. The

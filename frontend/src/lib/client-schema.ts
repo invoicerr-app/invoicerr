@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { TFunction } from "i18next"
 
-import { isValidPostalCode } from "@/pages/(app)/clients/_components/postal-code"
+import { isValidPostalCode } from "@/lib/postal-code"
 
 /** One identifier requirement, as `useRequiredIdentifiers` already shapes it - re-exported here
  *  rather than imported from that hook so this file (used from a plain, non-React context by the CSV

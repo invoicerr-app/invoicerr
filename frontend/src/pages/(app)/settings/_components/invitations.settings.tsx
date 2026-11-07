@@ -1,3 +1,4 @@
+import { formatShortDate } from "@/lib/format"
 import { CopyIcon, PlusIcon, RefreshCwIcon, TicketIcon, TrashIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -92,14 +93,6 @@ export default function InvitationsSettings() {
     } else {
       toast.error(t("settings.invitations.messages.copyFailed"))
     }
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
   }
 
   const getStatus = (invitation: InvitationCode) => {
@@ -230,12 +223,12 @@ export default function InvitationsSettings() {
                   meta={
                     <>
                       {t("settings.invitations.list.createdAt")}:{" "}
-                      <span className="tabular-nums">{formatDate(invitation.createdAt)}</span>
+                      <span className="tabular-nums">{formatShortDate(invitation.createdAt)}</span>
                       {" · "}
                       {t("settings.invitations.list.expiresAt")}:{" "}
                       <span className="tabular-nums">
                         {invitation.expiresAt
-                          ? formatDate(invitation.expiresAt)
+                          ? formatShortDate(invitation.expiresAt)
                           : t("settings.invitations.list.noExpiry")}
                       </span>
                       {invitation.usedBy && (

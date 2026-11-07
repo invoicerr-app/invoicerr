@@ -34,6 +34,7 @@ import { CurrentUser } from '@/types/user';
 import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prisma/generated/prisma/client';
 import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
+import { appOrigin } from '@/utils/app-origin';
 
 // RFC 5321 caps a whole address at 254 octets — longer input is rejected before any parsing.
 const MAX_EMAIL_LENGTH = 254;
@@ -65,10 +66,6 @@ export const TRANSFER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  *  writable. Self-hosted (billing disabled) never sees this code — there is no subscription to be
  *  blocked or unpaid on. */
 export const OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED = 'OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED';
-
-function appUrl(): string {
-  return process.env.APP_URL || 'http://localhost:3000';
-}
 
 export interface OwnershipTransferView {
   id: string;
@@ -194,7 +191,7 @@ export class TransferService {
     }
 
     const email = buildOwnershipTransferRequestEmail({
-      appUrl: appUrl(),
+      appUrl: appOrigin(),
       companyName: company.name,
       fromName: `${fromUser.firstname} ${fromUser.lastname}`.trim() || fromUser.email,
       // The RECIPIENT's own preference — never the initiator's, since it is their inbox this lands
@@ -281,7 +278,7 @@ export class TransferService {
       });
       if (company && fromUser) {
         const email = buildOwnershipTransferEndedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           toEmail: transfer.toEmail,
           reason: 'canceled',
@@ -342,7 +339,7 @@ export class TransferService {
     }
 
     if (transfer.expiresAt.getTime() <= Date.now()) {
-      await expireOwnershipTransfer(transfer, this.mailService, appUrl());
+      await expireOwnershipTransfer(transfer, this.mailService, appOrigin());
       throw new GoneException('This transfer request has expired');
     }
 
@@ -421,7 +418,7 @@ export class TransferService {
       });
       if (company && fromUser && toUser) {
         const forNewOwner = buildOwnershipTransferFinalizedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           forNewOwner: true,
           // Each party reads this in THEIR OWN language, never the other's — the new owner's mail is
@@ -429,7 +426,7 @@ export class TransferService {
           language: resolveUserLanguage(toUser.locale, company.language),
         });
         const forFormerOwner = buildOwnershipTransferFinalizedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           forNewOwner: false,
           language: resolveUserLanguage(fromUser.locale, company.language),

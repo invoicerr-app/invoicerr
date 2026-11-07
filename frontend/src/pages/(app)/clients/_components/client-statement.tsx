@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
-import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/components/documents/totals-calculator"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,10 +24,6 @@ import { clientDisplayName } from "./client-display"
 interface ClientStatementDialogProps {
   client: Client | null
   onOpenChange: (open: boolean) => void
-}
-
-export function formatMinor(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
 }
 
 /** A client billed in ONLY one currency (the overwhelming common case) keeps the bare `data-cy`

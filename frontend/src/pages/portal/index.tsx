@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
-import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/components/documents/totals-calculator"
 import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
@@ -42,10 +42,6 @@ import type { ClientStatementCurrencyTotals, ClientStatementDocumentRow, PortalQ
  * `PublicPageShell` with the signature page (`pages/(app)/signature/[token].tsx`) — the one frame
  * every public, no-session page renders through.
  */
-function formatMinor(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
-}
-
 type PaymentReturn = "success" | "cancelled" | "failed"
 
 /** The return leg of the online-payment Pay redirect (`PayButton`'s own `successUrl`/`cancelUrl`) —

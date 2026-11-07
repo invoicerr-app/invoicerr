@@ -5,7 +5,7 @@
  * Answers whether a company is reachable over Peppol and under which participant id, which the
  * invoice pipeline needs to pick a channel. Only registered participants are listed, so it runs last.
  */
-import { alnum, digits, fetchJson, toDate } from '../http';
+import { alnum, digits, fetchJson } from '../http';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,

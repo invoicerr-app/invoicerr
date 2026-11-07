@@ -1,3 +1,4 @@
+import { formatShortDate } from "@/lib/format"
 import { Building2, CheckCircle2, History } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -25,10 +26,6 @@ import {
  *  backend error code gets. Refused by the GLOBAL `LegalAcceptanceGuard` (hosted-billing mode only)
  *  before `POST /account/transfers/:id/accept` ever runs — see that endpoint's own backend header. */
 const LEGAL_ACCEPTANCE_REQUIRED_CODE = "LEGAL_ACCEPTANCE_REQUIRED"
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-}
 
 function statusBadgeVariant(
   status: OwnershipTransferView["status"],
@@ -124,7 +121,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.expiresAt")}:{" "}
-                    <span className="tabular-nums">{formatDate(transfer.expiresAt)}</span>
+                    <span className="tabular-nums">{formatShortDate(transfer.expiresAt)}</span>
                   </>
                 }
                 primary={
@@ -169,7 +166,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.createdAt")}:{" "}
-                    <span className="tabular-nums">{formatDate(transfer.createdAt)}</span>
+                    <span className="tabular-nums">{formatShortDate(transfer.createdAt)}</span>
                   </>
                 }
               />

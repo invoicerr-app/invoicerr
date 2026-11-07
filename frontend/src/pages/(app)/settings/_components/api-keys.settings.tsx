@@ -74,9 +74,11 @@ export default function ApiKeysSettings() {
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
       const res = await authenticatedFetch(`${backendUrl}/api/api-keys/${id}`, { method: "DELETE" })
-      if (!res.ok) return
+      if (!res.ok) throw new Error(`DELETE /api/api-keys/${id} failed: ${res.status}`)
       mutate()
-    } catch {}
+    } catch {
+      toast.error(t("settings.apiKeys.messages.revokeError"))
+    }
   }
 
   const handleCopy = async () => {

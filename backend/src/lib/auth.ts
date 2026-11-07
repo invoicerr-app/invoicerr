@@ -51,6 +51,7 @@ import { CLIENT_IP_HEADER } from './client-ip-header';
 import { devOnlyOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
+import { appOrigin } from '@/utils/app-origin';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -61,8 +62,6 @@ const prisma = new PrismaClient({ adapter });
 // INSTANCE mail path (`sendMail`), never `sendForCompany`'s per-company cascade — a user account
 // belongs to no company (see `account-lifecycle.ts`'s own header on `buildChangeEmailMail`).
 const mailService = new MailService();
-
-const appUrl = () => process.env.APP_URL || 'http://localhost:3000';
 
 /**
  * Redis-backed, not two bare in-process `Map`s — see `pending-signup-store.ts`'s own header for the
@@ -368,7 +367,7 @@ const SESSION_REFRESH_FIELDS = new Set(['expiresAt', 'updatedAt']);
 const sessionUpdatesToInvalidate = new WeakSet<object>();
 
 export const auth = betterAuth({
-  baseURL: process.env.APP_URL || 'http://localhost:3000',
+  baseURL: appOrigin(),
   // Fall back to JWT_SECRET so existing deployments that only set it keep working
   secret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET,
   trustedOrigins: [
@@ -382,7 +381,7 @@ export const auth = betterAuth({
   // `sameSite: 'lax'` is the only CSRF defence of the Nest routes outside `/api/auth`: there is no
   // application-level CSRF token. `Secure` follows APP_URL's scheme (`app-url-scheme.ts`).
   advanced: {
-    useSecureCookies: servedOverHttps(appUrl()),
+    useSecureCookies: servedOverHttps(appOrigin()),
     defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
     // Per-client rate limiting fix, proven live 2026-09-22 (150 concurrent `GET /api/auth/get-session`
     // from 150 distinct client addresses served/refused the exact same 100/50 split as the same 150
@@ -439,7 +438,7 @@ export const auth = betterAuth({
       // `userHookFunction` above reads it: bracket notation on the loosely-typed hook object, never a
       // cast to a concrete interface that does not actually declare this field.
       const language = (user as Record<string, unknown>)['locale'] as string | null | undefined;
-      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appUrl(), language });
+      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appOrigin(), language });
     },
   },
   account: {

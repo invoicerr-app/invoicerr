@@ -31,6 +31,7 @@ import { MailService } from '@/mail/mail.service';
 import { LegalReleaseDetectionSummary, detectAndRecordNewLegalReleases } from './legal-release-detection';
 import { createLegalReleaseLockRedisClient, withLegalReleaseNotifyLock } from './legal-release-lock';
 import { notifyUsersOfLegalReleases } from './legal-release-notify';
+import { appOrigin } from '@/utils/app-origin';
 
 @Injectable()
 export class LegalReleaseBootService implements OnModuleInit {
@@ -66,7 +67,7 @@ export class LegalReleaseBootService implements OnModuleInit {
       return;
     }
 
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = appOrigin();
     // Deliberately not awaited — see this file's own header. The Redis client backing the lock is
     // opened here and quit once this ONE pass settles — this is a single boot-time cycle, not a
     // connection this service needs to hold open for the rest of the process's life.

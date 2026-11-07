@@ -1,5 +1,9 @@
-import { DOCUMENT_LANGUAGE_CODES } from "@/components/document-language-select"
 import countries from "./countries.json"
+
+/** Document languages this app offers — mirrors the backend's own
+ *  `documents/rendering/language/supported-languages.ts#SUPPORTED_RENDER_LANGUAGES`, because a
+ *  language the render layer cannot translate would silently fall back to English. */
+export const DOCUMENT_LANGUAGE_CODES = ["en", "fr", "it", "pl", "de", "pt"] as const
 
 export type DocumentLanguage = (typeof DOCUMENT_LANGUAGE_CODES)[number]
 

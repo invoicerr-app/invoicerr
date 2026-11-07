@@ -75,7 +75,7 @@ function getInstance(): I18nInstance {
     interpolation: { prefix: '{{', suffix: '}}' },
     // Deliberately left at i18next's default (`true`, HTML-escaping) rather than the frontend's
     // `escapeValue: false` — the frontend disables it because React already escapes text nodes on its
-    // own; a mail body built by string concatenation (`mail-layout.ts`) has no such second safety net,
+    // own; a mail body built by string concatenation has no such second safety net,
     // so an interpolated value (a client's name, an invoice number) must be escaped exactly once, HERE.
     initImmediate: false,
     showSupportNotice: false,

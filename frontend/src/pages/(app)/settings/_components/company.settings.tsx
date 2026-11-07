@@ -18,6 +18,7 @@ import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
+import { isValidPostalCode } from "@/lib/postal-code"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -108,9 +109,9 @@ export default function CompanySettings() {
       .min(1, t("settings.company.form.currency.errors.select")),
     address: z.string().min(1, t("settings.company.form.address.errors.empty")),
     addressLine2: z.string().optional(),
-    postalCode: z.string().refine((val) => {
-      return /^[0-9A-Z\s-]{3,10}$/.test(val)
-    }, t("settings.company.form.postalCode.errors.format")),
+    postalCode: z
+      .string()
+      .refine((val) => isValidPostalCode(val), t("settings.company.form.postalCode.errors.format")),
     city: z.string().min(1, t("settings.company.form.city.errors.empty")),
     state: z.string().optional(),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
