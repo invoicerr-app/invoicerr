@@ -119,7 +119,7 @@ export interface CompanyProfileAttribute {
   /** Asked only when the company's own declared values satisfy every entry; absent means always. */
   askedWhen?: Record<string, string[]>
   /** Set when the company does not answer: the value follows from a setting it already made. */
-  derived?: { source: "exemptVat"; whenTrue: string; whenFalse: string }
+  derived?: { source: "exemptVat"; whenTrue: string; whenFalse?: string }
 }
 
 /** `GET /api/company/payment-terms`. Mirrors the backend's
