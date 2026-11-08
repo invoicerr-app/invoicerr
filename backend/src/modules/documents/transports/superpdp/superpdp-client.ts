@@ -139,6 +139,65 @@ export interface SuperPdpCompany {
   [key: string]: unknown;
 }
 
+/**
+ * The VAT facts `PATCH /v1.beta/companies` accepts  -  exactly the two properties of the published
+ * OpenAPI's `company_patch` schema (read 2026-11-07). The enum is the platform's own vocabulary for
+ * the four French regimes, not a second country table: the mapping from the company profile lives in
+ * the SuperPDP e-reporting adapter, never in a country file.
+ */
+export interface SuperPdpCompanyVatRegime {
+  vat_regime: 'monthly' | 'quarterly' | 'simplified' | 'vat_exemption';
+  has_vat_on_debits?: boolean;
+}
+
+/** AFNOR Z12-012 Annex A transaction categories, as the `b2c_transaction` schema enumerates them. */
+export type SuperPdpB2cCategoryCode = 'TLB1' | 'TPS1' | 'TNT1' | 'TMA1';
+
+export interface SuperPdpB2cTransactionSubtotal {
+  /** Decimal, as a string, per the platform's own schema (e.g. "20.0"). */
+  tax_percent: string;
+  taxable_amount: string;
+  tax_total: string;
+}
+
+export interface SuperPdpB2cTransactionInput {
+  date: string;
+  currency: string;
+  role_code: 'BY' | 'SE';
+  category_code: SuperPdpB2cCategoryCode;
+  tax_exclusive_amount: string;
+  tax_total: string;
+  tax_subtotals: SuperPdpB2cTransactionSubtotal[];
+  /** UNTDID 2005 / 2475 code, when the platform needs the tax point stated. */
+  tax_due_date_type_code?: string;
+}
+
+export interface SuperPdpB2cTransaction extends SuperPdpB2cTransactionInput {
+  id: number;
+  invoice_id?: number;
+  ppf_ereporting_id?: number;
+}
+
+export interface SuperPdpB2cPaymentSubtotal {
+  /** Required by the platform's own schema even though its property list omits it (OpenAPI
+   *  inconsistency read 2026-11-07); sent on its advertised AFNOR category. */
+  category_code: SuperPdpB2cCategoryCode;
+  tax_percent: string;
+  amount: string;
+  currency_code?: string;
+}
+
+export interface SuperPdpB2cPaymentInput {
+  date: string;
+  subtotals: SuperPdpB2cPaymentSubtotal[];
+}
+
+export interface SuperPdpB2cPayment extends SuperPdpB2cPaymentInput {
+  id: number;
+  invoice_event_id?: number;
+  ppf_ereporting_id?: number;
+}
+
 export interface SuperPdpDirectoryEntry {
   id: number;
   addressing_identifier: string;
@@ -563,6 +622,46 @@ export class SuperPdpClient {
 
   async getCompany(): Promise<SuperPdpCompany> {
     return this.request<SuperPdpCompany>('GET', '/v1.beta/companies/me');
+  }
+
+  /**
+   * Updates the VAT facts that decide the platform's own e-reporting schedule (`PATCH
+   * /v1.beta/companies`, operation `CompanyUpdateVatRegime` in the published OpenAPI, read
+   * 2026-11-07). `vat_regime` is required by that schema; `has_vat_on_debits` defaults to false when
+   * omitted, so it is always sent explicitly.
+   */
+  async updateCompanyVatRegime(input: SuperPdpCompanyVatRegime): Promise<SuperPdpCompanyVatRegime> {
+    return this.request<SuperPdpCompanyVatRegime>('PATCH', '/v1.beta/companies', { body: input });
+  }
+
+  /**
+   * Creates B2C transaction declarations (`POST /v1.beta/b2c_transactions`, `CreateTransactions`).
+   * The platform stores them immediately and aggregates them to the tax administration on the
+   * schedule its own company record declares. Single-attempt (`retry: false`): the endpoint has no
+   * idempotency key, and a timeout after the platform committed would duplicate the declaration  -
+   * the report job's own BullMQ retry is the retry that matters here.
+   */
+  async createB2cTransactions(
+    transactions: SuperPdpB2cTransactionInput[],
+  ): Promise<SuperPdpB2cTransaction[]> {
+    const response = await this.request<{ data?: SuperPdpB2cTransaction[] }>(
+      'POST',
+      '/v1.beta/b2c_transactions',
+      { body: { data: transactions }, retry: false },
+    );
+    return response.data ?? [];
+  }
+
+  /**
+   * Creates B2C payment declarations (`POST /v1.beta/b2c_payments`, `CreatePayment`). Same
+   * single-attempt reasoning as `createB2cTransactions` above.
+   */
+  async createB2cPayments(payments: SuperPdpB2cPaymentInput[]): Promise<SuperPdpB2cPayment[]> {
+    const response = await this.request<{ data?: SuperPdpB2cPayment[] }>('POST', '/v1.beta/b2c_payments', {
+      body: { data: payments },
+      retry: false,
+    });
+    return response.data ?? [];
   }
 
   // -----------------------------------------------------------------------

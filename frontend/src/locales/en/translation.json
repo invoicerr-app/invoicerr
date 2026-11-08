@@ -2883,6 +2883,9 @@
         "pt-at": {
           "label": "Portuguese Tax Authority (AT)"
         },
+        "fr-pa": {
+          "label": "French accredited platform (PA)"
+        },
         "title": "Declarations"
       },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
@@ -6027,6 +6030,7 @@
     },
     "status": {
       "accepted": "Accepted",
+      "submitted": "Submitted to the platform",
       "rejected": "Rejected",
       "blocked": "Blocked",
       "failed": "Failed"

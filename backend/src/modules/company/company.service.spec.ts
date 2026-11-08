@@ -249,9 +249,16 @@ describe('CompanyService - the company profile its country asks for', () => {
       expect(attributes[1].derived).toEqual({
         source: 'exemptVat',
         whenTrue: 'FRANCHISE',
-        whenFalse: 'NORMAL',
       });
-      expect(attributes[2].askedWhen).toEqual({ vatRegime: ['NORMAL'] });
+      expect(attributes[1].values.map((value) => value.value)).toEqual([
+        'FRANCHISE',
+        'REAL_MONTHLY',
+        'REAL_QUARTERLY',
+        'SIMPLIFIED',
+      ]);
+      expect(attributes[2].askedWhen).toEqual({
+        vatRegime: ['REAL_MONTHLY', 'REAL_QUARTERLY', 'SIMPLIFIED'],
+      });
       expect(attributes[3].values.map((value) => value.value)).toEqual(['MEMBER', 'NOT_MEMBER']);
       expect(attributes[3].labelKey).toBe('settings.company.profile.attributes.vatGroupMember.label');
       expect(attributes[3].helpTextKey).toBe('settings.company.profile.attributes.vatGroupMember.help');
@@ -259,7 +266,8 @@ describe('CompanyService - the company profile its country asks for', () => {
         'settings.company.profile.attributes.vatGroupMember.options.MEMBER',
         'settings.company.profile.attributes.vatGroupMember.options.NOT_MEMBER',
       ]);
-      expect(info?.companyProfileValues).toEqual({ vatRegime: 'NORMAL' });
+      // The three non-exempt regimes are a choice the company must make; nothing is derived for it.
+      expect(info?.companyProfileValues).toEqual({});
     });
   });
 
@@ -294,9 +302,7 @@ describe('CompanyService - the company profile its country asks for', () => {
 
       const normal = await edit(companyId, { exemptVat: false });
       expect(normal.reportingProfile).toEqual({});
-      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
-        vatRegime: 'NORMAL',
-      });
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({});
     });
   });
 

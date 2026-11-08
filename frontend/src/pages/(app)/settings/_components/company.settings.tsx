@@ -548,7 +548,9 @@ export default function CompanySettings() {
                 // Only the questions this country still asks are sent: the API refuses an answer for
                 // a question the company's own values no longer make relevant (its `askedWhen`).
                 .filter(
-                  (attribute) => !attribute.derived && isProfileAttributeAsked(attribute, profileValues),
+                  (attribute) =>
+                    isProfileAttributeAsked(attribute, profileValues) &&
+                    (!attribute.derived || profileValues[attribute.key] === undefined),
                 )
                 .map((attribute) => [attribute.key, reportingProfile?.[attribute.key] || null]),
             )
@@ -1380,7 +1382,9 @@ export default function CompanySettings() {
               contentClassName="grid gap-5 sm:grid-cols-2"
             >
               {askedProfileAttributes.map((attribute) => {
-                if (attribute.derived) {
+                // Read-only only while the source derives it; otherwise the country is asking a
+                // question the company answers (France's three non-exempt VAT regimes).
+                if (attribute.derived && profileValues[attribute.key] !== undefined) {
                   const fieldId = `company-profile-${attribute.key}-derived`
                   return (
                     <div key={attribute.key} className="space-y-1.5">

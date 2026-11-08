@@ -106,6 +106,12 @@ describe("Company size category and the French PDP calendar", () => {
 	it("drops the option for VAT on debits when the exemption switch turns on, and saves without a 400", () => {
 		cy.intercept("POST", "**/api/company/info").as("saveCompany");
 		cy.visit("/settings/company");
+
+		// The VAT regime is now an explicit question. Its debits option is open while the regime is
+		// undeclared, which is how the previous EXERCISED answer is saved before the switch changes.
+		cy.get('[data-cy="company-profile-vatRegime-select"]', { timeout: 20000 })
+			.scrollIntoView()
+			.should("contain.text", "Not declared");
 		selectProfileOption("vatDebitsOption", "EXERCISED");
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
@@ -113,6 +119,7 @@ describe("Company size category and the French PDP calendar", () => {
 			.its("body.reportingProfile")
 			.should("deep.include", { vatDebitsOption: "EXERCISED" });
 
+		// Turning the exemption on derives the regime to the franchise and drops the option.
 		cy.get('[data-cy="company-exemptvat-switch"]', { timeout: 20000 }).scrollIntoView().click();
 		cy.get('[data-cy="company-profile-vatRegime-derived"]').should(
 			"contain.text",
@@ -123,21 +130,43 @@ describe("Company size category and the French PDP calendar", () => {
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
-			.should("not.have.property", "vatDebitsOption");
+			.should((profile) => {
+				expect(profile).to.not.have.property("vatDebitsOption");
+				expect(profile).to.not.have.property("vatRegime");
+			});
 
-		// Turning the exemption off brings the question back; it must be empty, since the answer the
-		// first save dropped was never kept in the form. Turning it on again must not send it back.
+		// Turning the exemption off brings the regime question back. Save once first: the server
+		// still carries the derived FRANCHISE until the next write, and reading it as a declared
+		// answer would keep the question locked. The debits answer saved above must be gone, so the
+		// option is empty when a real regime asks it again.
 		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
+		cy.get('[data-cy="company-submit-btn"]').click();
+		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		cy.get('[data-cy="company-profile-vatRegime-select"]', { timeout: 10000 })
+			.scrollIntoView()
+			.should("contain.text", "Not declared");
+		// The debits option is open while the regime is undeclared, and a real regime keeps it; the
+		// previous EXERCISED answer must not come back.
+		selectProfileOption("vatRegime", "REAL_MONTHLY");
 		cy.get('[data-cy="company-profile-vatDebitsOption-select"]', { timeout: 10000 })
 			.scrollIntoView()
 			.should("contain.text", "Not declared");
+
+		// Turning the exemption on again must not send either answer back.
 		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
 		cy.get('[data-cy="company-profile-vatDebitsOption-select"]').should("not.exist");
+		cy.get('[data-cy="company-profile-vatRegime-derived"]').should(
+			"contain.text",
+			"Franchise in base",
+		);
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
-			.should("not.have.property", "vatDebitsOption");
+			.should((profile) => {
+				expect(profile).to.not.have.property("vatDebitsOption");
+				expect(profile).to.not.have.property("vatRegime");
+			});
 	});
 
 	it("an SME validates a domestic business invoice dated before 2027-09-01 without a PDP, and the dialog announces no transmission", () => {

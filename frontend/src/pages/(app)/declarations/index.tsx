@@ -15,11 +15,10 @@ import { usePageHeader } from "@/hooks/use-page-header"
 /**
  * Makes visible what `reporting/report-on-send.ts` already does silently
  * after every "send": which declaration went out, when, with what status, and its error if any. Since
- * the five-country pivot only Portugal ("pt-at") has a declaration provider at all (status:
- * implemented-awaiting-accreditation — see `reporting/providers/pt-declaration-provider.ts`'s own
- * header), so this screen is honest about that: `hasObligation` (from the backend's own
- * `listDeclarations`) is what lets it say "no declaration obligation for this country" plainly,
- * rather than showing a permanently empty table that looks like a loading bug.
+ * two countries ship a declaration provider today: Portugal ("pt-at") and France's accredited
+ * platform channel ("fr-pa"). `hasObligation` (from the backend's own `listDeclarations`) is what
+ * lets this screen say "no declaration obligation for this country" plainly, rather than showing a
+ * permanently empty table that looks like a loading bug.
  *
  * `statusCode`/`reason` are the PLATFORM's own words (pt-at: "ACCEPTED"/"REJECTED"; this codebase's
  * own synthetic "report:blocked"/"report:failed" for a missing credential or an exhausted retry — see
@@ -29,6 +28,7 @@ import { usePageHeader } from "@/hooks/use-page-header"
 
 const STATUS_LABEL_KEY: Record<string, string> = {
   ACCEPTED: "declarations.status.accepted",
+  SUBMITTED: "declarations.status.submitted",
   REJECTED: "declarations.status.rejected",
   "report:blocked": "declarations.status.blocked",
   "report:failed": "declarations.status.failed",
@@ -38,6 +38,7 @@ const STATUS_LABEL_KEY: Record<string, string> = {
 // chip in the app already renders through (see document-settlement.tsx's own TONE_CLASSES header).
 const STATUS_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
   ACCEPTED: "success",
+  SUBMITTED: "success",
   REJECTED: "destructive",
   "report:blocked": "warning",
   "report:failed": "warning",

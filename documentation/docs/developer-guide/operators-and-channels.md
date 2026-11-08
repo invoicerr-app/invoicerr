@@ -144,7 +144,45 @@ provider id, build that provider's form fields from it, skip any field carrying 
 and never hard-code a second copy. The backend is the single source of truth for what a connect
 form collects.
 
-## See also
+## Declarative reporting (`eReporting`)
+
+`capabilities.eReporting` says an offering can discharge a country's post-send declaration duty on
+the seller's behalf, not that it can deliver an invoice. The two are independent: a French operator
+can emit invoices and also declare B2C data, while an email transport emits but declares nothing.
+
+The country file names the LEGAL channel, never the operator. France's two `reporting` facts carry
+`providerId: "fr-pa"`, registered by `reporting/providers/fr-pa-declaration-provider.ts`. That
+provider:
+
+1. reads the company's active channel rows (`ChannelCredentialsService.listCompanyChannels`);
+2. keeps the first one whose operator offering has `capabilities.eReporting` for the company's own
+   country;
+3. resolves that transport id in `EReportingAdapterRegistry` and delegates.
+
+One adapter per platform API, not one declaration provider per vendor. An adapter implements
+(`reporting/ereporting-adapter.ts`):
+
+```ts
+interface EReportingAdapter {
+  readonly transportId: string;
+  declareTransaction(companyId: string, invoice: DeclaredInvoice): Promise<DeclarationResult>;
+  declarePayment(companyId: string, payment: DeclaredPayment): Promise<DeclarationResult>;
+  syncCompanyProfile?(companyId: string, profile: { vatRegime: string; vatOnDebits: boolean }): Promise<void>;
+}
+```
+
+`syncCompanyProfile` is optional: it tells the platform the VAT facts its own declaration schedule
+depends on. A connected offering that declares e-reporting but has no registered adapter is a named
+`ChannelNotConnectedError`, journaled `report:blocked`; it is never silently skipped, and it never
+falls back to a different operator the company did not connect. Adding Iopole, Billit or Invopop is
+one catalogue flag plus one adapter.
+
+The first adapter is `reporting/providers/superpdp-ereporting-adapter.ts`, built on the published
+SuperPDP OpenAPI routes `POST /v1.beta/b2c_transactions`, `POST /v1.beta/b2c_payments` and
+`PATCH /v1.beta/companies`. Its live round-trip is gated by `SUPERPDP_LIVE` (see
+[Live testing](./live-testing.md)); the unit spec checks the published wire shapes only.
+
+
 
 - [Adding a country](./adding-a-country.md) - the same per-file, provenance-first discipline, one
   axis over (country, not operator).

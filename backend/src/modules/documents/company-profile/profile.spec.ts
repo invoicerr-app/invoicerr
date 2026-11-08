@@ -67,6 +67,31 @@ describe('company profile values', () => {
     ).toThrow(/reportingProfile\.vatRegime follows from the company's own settings and cannot be declared\./);
   });
 
+  it('lets the company declare a derived attribute while the source does not derive it', () => {
+    const choice: CompanyProfileAttribute = {
+      key: 'vatRegime',
+      label: 'VAT regime',
+      values: [
+        { value: 'FRANCHISE', label: 'Exempt' },
+        { value: 'REAL_MONTHLY', label: 'Normal, monthly' },
+      ],
+      derived: { source: 'exemptVat', whenTrue: 'FRANCHISE' },
+      provenance,
+    };
+
+    expect(derivedProfileValue(choice, { exemptVat: false })).toBeUndefined();
+    expect(companyProfileValues({ vatRegime: 'REAL_MONTHLY' }, [choice], { exemptVat: false })).toEqual({
+      vatRegime: 'REAL_MONTHLY',
+    });
+    // While exempt, the source derives FRANCHISE and the declared value is neither carried nor writable.
+    expect(companyProfileValues({ vatRegime: 'REAL_MONTHLY' }, [choice], { exemptVat: true })).toEqual({
+      vatRegime: 'FRANCHISE',
+    });
+    expect(() =>
+      applyCompanyProfileInput({}, { vatRegime: 'REAL_MONTHLY' }, [choice], { exemptVat: true }),
+    ).toThrow(/cannot be declared/);
+  });
+
   it('still refuses an undeclared attribute and an undeclared value', () => {
     expect(() =>
       applyCompanyProfileInput({}, { headcount: '12' }, [sizeCategory], { exemptVat: false }),

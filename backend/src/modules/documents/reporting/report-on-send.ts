@@ -56,7 +56,9 @@ import { logger } from '@/logger/logger.service';
 import { journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
-import { REPORT_FAILED_STATUS_CODE } from './report-job';
+import { classifyDeclaration } from './classify';
+import { loadDeclarationOperation } from './operation-context';
+import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
 import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
 
 export interface ReportOnSendInput {
@@ -82,10 +84,28 @@ export async function reportOnSendIfObligated(
   if (!queueDispatcher.enqueueReport) return;
 
   let obligation: ReturnType<ReportingObligationCatalog['obligationFor']>;
+  let blocked: { providerId: string; reason: string } | undefined;
   try {
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return;
-    obligation = catalog.obligationFor(countryCode, typeId);
+    const facts = catalog.providerFactsFor(countryCode, typeId);
+    if (facts.length === 0) return;
+
+    const operation = facts.some((fact) => fact.scope || fact.applicability)
+      ? await loadDeclarationOperation({ companyId, typeId, documentId })
+      : undefined;
+    for (const fact of facts) {
+      const verdict = classifyDeclaration(fact, operation);
+      if (verdict.status === 'in') {
+        obligation = fact;
+        break;
+      }
+      // A later fact may still cover the operation: only the absence of ANY covering fact makes this
+      // an undetermined declaration worth a blocked row.
+      if (verdict.status === 'undetermined' && !blocked) {
+        blocked = { providerId: fact.providerId, reason: verdict.reason };
+      }
+    }
   } catch (error) {
     // Resolving WHETHER an obligation even exists failed — before this function ever learns a
     // `providerId` to journal a lost declaration against, so (unlike the enqueue failure below) there
@@ -102,7 +122,34 @@ export async function reportOnSendIfObligated(
     });
     return;
   }
-  if (!obligation) return; // "a country with no obligation: NOTHING changes" — the governing rule.
+  if (!obligation) {
+    // "Never silent": an operation the law may cover but whose facts cannot be established (no
+    // company size category, no client type, no buyer country) is journaled as blocked with its own
+    // reason, never declared on a guess and never dropped without a trace.
+    if (blocked) {
+      try {
+        await journalSyntheticEvent(
+          companyId,
+          documentId,
+          blocked.providerId,
+          REPORT_BLOCKED_STATUS_CODE,
+          blocked.reason,
+        );
+      } catch (journalError) {
+        logger.error('Could not journal a blocked declaration after a successful send', {
+          category: 'documents',
+          details: {
+            companyId,
+            typeId,
+            documentId,
+            providerId: blocked.providerId,
+            message: journalError instanceof Error ? journalError.message : String(journalError),
+          },
+        });
+      }
+    }
+    return;
+  }
 
   try {
     await queueDispatcher.enqueueReport({

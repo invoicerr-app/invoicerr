@@ -1,8 +1,8 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
-const help = '[data-cy="declaration-fr-ereporting-source-help"]';
-const trigger = '[data-cy="declaration-fr-ereporting-source-help-trigger"]';
-const content = '[data-cy="declaration-fr-ereporting-source-help-content"]';
+const help = '[data-cy="declaration-fr-pa-source-help"]';
+const trigger = '[data-cy="declaration-fr-pa-source-help-trigger"]';
+const content = '[data-cy="declaration-fr-pa-source-help-content"]';
 
 function openDeclarationNote() {
 	cy.visit("/settings/channels");

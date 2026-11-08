@@ -56,6 +56,24 @@ describe("company profile values on the settings screen", () => {
     expect(isProfileAttributeAsked(vatDebitsOption, {})).toBe(true)
   })
 
+  it("carries a declared regime when the derived attribute has no fallback value", () => {
+    // The real fr.json vatRegime derives only when the company is exempt; with the switch off the
+    // attribute stays a declared question and must keep the company's own answer.
+    const regimeWithoutFallback: CompanyProfileAttribute = {
+      key: "vatRegime",
+      label: "VAT regime",
+      values: [
+        { value: "FRANCHISE", label: "Exempt" },
+        { value: "REAL_MONTHLY", label: "Normal, monthly" },
+      ],
+      derived: { source: "exemptVat", whenTrue: "FRANCHISE" },
+    }
+    const stored = { vatRegime: "REAL_MONTHLY" }
+
+    expect(profileValuesForDisplay([regimeWithoutFallback], stored, {}, false).vatRegime).toBe("REAL_MONTHLY")
+    expect(profileValuesForDisplay([regimeWithoutFallback], stored, {}, true).vatRegime).toBe("FRANCHISE")
+  })
+
   it("does not let a hidden answer satisfy a second-level condition", () => {
     const first: CompanyProfileAttribute = {
       key: "firstQuestion",

@@ -33,7 +33,10 @@ export function profileValuesForDisplay(
   for (const [key, value] of Object.entries({ ...stored, ...edited })) {
     if (!value) continue
     const attribute = attributes.find((candidate) => candidate.key === key)
-    if (!attribute || attribute.derived) continue
+    if (!attribute) continue
+    // A derived attribute is read-only only while the source derives it (France's VAT regime is
+    // FRANCHISE while the company is exempt, and a declared choice otherwise).
+    if (attribute.derived && values[key] !== undefined) continue
     declared[key] = value
   }
   const carried = new Set(Object.keys(declared))

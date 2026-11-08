@@ -63,11 +63,49 @@ and the successor of art. 290 is L. 215-39 with the second paragraph of L. 216-4
 L. 216-56) and the last paragraph of L. 216-47 (formerly L. 216-55). The CGI articles themselves
 stay in force until 2026-12-31, so the citations above remain the ones in force today.
 
-:::info[E-reporting is not transmitted]
-A sale to a private person falls under e-reporting (CGI art. 290 A), a separate obligation to
-declare the transaction data. Invoicerr records it in the `reporting` section of `fr.json` but does
-not transmit it.
-:::
+## E-reporting (CGI art. 290 and 290 A)
+
+E-reporting is the seller's own declaration of data to the tax administration, separate from
+e-invoicing: it is transmitted through the accredited platform the company chose (CGI art. 290, I
+and III, « transmises [...] par la plateforme agréée choisie par la personne assujettie »).
+`countries/data/fr.json` carries two `reporting` facts with `providerId: "fr-pa"`, the legal channel,
+never an operator name:
+
+- **Operation data** (CGI art. 290): domestic B2C sales (`scope.transactions: "b2c"`,
+  `buyerType: ["INDIVIDUAL"]`, `buyerEstablishment: "domestic"`). The international B2B flows the
+  article also lists (10.1 and 10.2) are a follow-up slice and stay out of this fact, so they are
+  never pushed through the B2C transaction route. Operations exempt under CGI art. 261 to 261 E,
+  including a seller under the franchise en base, are outside the fact.
+- **Payment data** (CGI art. 290 A): `transactions: "payments"`, `vatOnCollection: true`. Only a
+  domestic B2C service invoice whose VAT is due on collection is declared. The option for VAT on
+  debits, or a goods-only invoice, is out of scope. The amount actually received is split by VAT rate
+  from the invoice's own lines, never recomputed from the invoice total.
+
+The start date is data too. `applicability` holds one window per company profile answer: a LARGE or
+MID company and any member of an assujetti unique start on 2026-09-01; an SME or micro-enterprise
+that declared `NOT_MEMBER` starts on 2027-09-01 (loi n° 2022-1157 art. 26, III, B, applied to art. 290
+and 290 A by LOI n° 2026-103 art. 123, V, B). A company with no size category, or an SME whose
+VAT-group membership is undeclared, is journaled `report:blocked` with that reason, never bound on a
+guess. The classifier judges the window against the invoice's own issue date, never the server clock
+(`reporting/classify.ts`).
+
+The frequency is the platform's own: three transmissions per month for the réel normal mensuel
+regime, one per month for the réel normal trimestriel and réel simplifié regimes, and one per two
+calendar months under the franchise en base (CGI ann. II art. 242 nonies O and P, created by décret
+n° 2026-677 du 27 juillet 2026). The company settings therefore ask the VAT regime and the option for
+VAT on debits, and `reporting/providers/superpdp-ereporting-adapter.ts` syncs both to the platform
+before every declaration.
+
+Happy path: a French company issues an invoice to a private client, the invoice is sent, and the
+`fr-pa` provider resolves its connected accredited platform from `operators/`
+(`capabilities.eReporting`) and calls that adapter. SuperPDP is the first adapter. The record id the
+platform returns is journaled on the Declarations screen and labelled as the platform's own record,
+not a tax-administration reference: the platform aggregates and transmits later. Recording a payment
+on a service invoice taxed on collection enqueues its own payment declaration.
+
+"Never silent": no connected channel, no adapter for the connected operator, no usable credential,
+or an operation the classifier cannot establish all end in `report:blocked` with a readable reason.
+Nothing is declared on a guess, and a missing declaration never disappears from the timeline.
 
 A client recorded as a company is treated as an assujetti. An association or a public body outside
 the scope of VAT may not be one; the data cannot tell them apart today.

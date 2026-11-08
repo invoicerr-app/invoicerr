@@ -21,7 +21,7 @@
         "emit": true,
         "receive": true,
         "lifecycleStatuses": true,
-        "eReporting": false
+        "eReporting": true
       },
       "sandbox": {
         "available": true,
@@ -32,7 +32,7 @@
         "sourceText": "backend/src/modules/documents/transports/pdp-transport.ts header: \"The client (pdp/pdp-client.ts) and the round-trip shape are REPRISED from git tag avant-refonte-documents - a real deposit was proven end-to-end there (fr:200->201->202, superpdp sandbox, 2026-08-29)\"; documentation/docs/developer-guide/credentials-guide.md section 2: \"https://api.superpdp.tech serves both sandbox and production (the credential pair decides which)\" and \"this codebase always speaks SuperPDP's proprietary API Flux\".",
         "sourceCheckedAt": "2026-09-28"
       },
-      "notes": "Sandbox and production share the SAME host (api.superpdp.tech); which one a deposit reaches is decided by the credential pair, not the URL -- credentials-guide.md is explicit that the two are not distinguished by baseUrl for this vendor, unlike most other pdp-family operators below. The generic 'pdp' transport also speaks the AFNOR XP Z12-013 interoperability API in principle (PdpApiStyle = 'superpdp' | 'afnor'), which would let it reach OTHER conformant PAs through the same baseUrl-swap mechanism this catalogue models -- but nothing in this codebase currently wires that env var, so today the 'pdp' transport in practice only ever proven-reaches SuperPDP."
+      "notes": "Sandbox and production share the SAME host (api.superpdp.tech); which one a deposit reaches is decided by the credential pair, not the URL -- credentials-guide.md is explicit that the two are not distinguished by baseUrl for this vendor, unlike most other pdp-family operators below. The generic 'pdp' transport also speaks the AFNOR XP Z12-013 interoperability API in principle (PdpApiStyle = 'superpdp' | 'afnor'), which would let it reach OTHER conformant PAs through the same baseUrl-swap mechanism this catalogue models -- but nothing in this codebase currently wires that env var, so today the 'pdp' transport in practice only ever proven-reaches SuperPDP. E-REPORTING (added 2026-11-07): capabilities.eReporting is true on the strength of the operator's own published OpenAPI, read at https://api.superpdp.tech/openapi/superpdp.json on 2026-11-07 (POST /v1.beta/b2c_transactions, POST /v1.beta/b2c_payments, PATCH /v1.beta/companies), not on a live sandbox round-trip: no SuperPDP sandbox credential was available in this environment, and reporting/providers/fr-pa-declaration-provider.live.spec.ts is gated until one is."
     }
   ]
 }
