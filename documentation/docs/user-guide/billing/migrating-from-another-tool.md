@@ -224,3 +224,26 @@ and UBL e-invoices (see above). A FatturaPA XML with its SdI receipt, a KSeF num
 Portuguese SAF-T export are a later step. For those, you still attach the original file and type in
 the rest by hand (or a CSV row).
 
+### Pennylane
+
+Pennylane exports its client invoices from **Ventes > Factures clients > Exporter** as an Excel
+workbook (`.xlsx`, or a workbook plus a ZIP of the PDFs). That workbook has several tabs, among them
+`Lignes de factures`, and Pennylane does not publish the invoice sheet's column names. The direct
+import on this page reads CSV, not xlsx: a Pennylane invoice workbook is therefore not read here.
+Use **Feuille de calcul + fichiers** to download the PDFs and import each invoice with the
+single-document **Import** form, which keeps the original and pre-fills it when the PDF is a
+Factur-X. Pennylane's client list can be exported as XLSX or CSV from **Ventes > Clients >
+Exporter**, but its column names are not published either, so use this page's client template when
+moving clients over.
+
+### Indy
+
+Indy does not export its client list or its invoices as CSV or Excel. Its only structured export is
+**Documents > Export comptable** (FEC, journal CSV, trial balance, general ledger, income
+statement), and the sales ledger exists as PDF only; those are accounting entries, not invoices that
+can be imported here. The CSV Indy publishes is a client **import** template (`Type`, `Nom de
+famille`, `Prénom`, `Nom d'entreprise`, `SIRET`, `TVA`, billing and shipping addresses, Alpha-2
+country, phone, e-mails), which is a target for importing INTO Indy, not a source to read. Moving to
+Invoicerr therefore means re-entering the clients from Invoicerr's own client template, and importing
+each invoice from the PDF with the single-document **Import** form.
+
