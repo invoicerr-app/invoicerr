@@ -133,11 +133,11 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 			.and("contain.text", "Not accepted domestically");
 
 		// Declarations - pt-at is never seeded for a French company, but France's OWN reporting
-		// obligations (pdp / fr-ereporting, countries/data/fr.json (section "reporting")) still render, apart from the
+		// obligations (pdp / fr-pa, countries/data/fr.json (section "reporting")) still render, apart from the
 		// delivery-channel nav above (never inside `[data-cy^="channel-nav-"]`).
 		cy.get('[data-cy="channels-declarations"]').should("exist");
 		cy.get('[data-cy="declaration-pdp"]').should("exist");
-		cy.get('[data-cy="declaration-fr-ereporting"]').should("have.length", 1);
+		cy.get('[data-cy="declaration-fr-pa"]').should("have.length", 1);
 	});
 
 	it('connects an operator via the side sheet built entirely from `credentialFields` - PROVIDER_FIELDS is gone, the fields come from GET /api/documents/transports', () => {

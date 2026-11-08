@@ -208,6 +208,24 @@ export function classifyDeclaration(
   const regimeReason = outBecauseOfSellerRegime(fact, operation);
   if (regimeReason) return { status: 'out', reason: regimeReason };
 
+  // Scope before applicability: an operation this fact does not cover is out even when the seller's
+  // profile is incomplete, so a B2B invoice never journals a blocked B2C declaration for a missing
+  // size category.
+  let scope: ReportingScopeEntry | 'all' = 'all';
+  if (fact.scope && fact.scope.length > 0) {
+    let matched: ReportingScopeEntry | undefined;
+    for (const entry of fact.scope) {
+      const verdict = scopeMatches(entry, operation);
+      if (verdict.status === 'in') {
+        matched = entry;
+        break;
+      }
+      if (verdict.status === 'undetermined') return verdict;
+    }
+    if (!matched) return { status: 'out', reason: 'No scope entry covers this operation.' };
+    scope = matched;
+  }
+
   if (fact.applicability && fact.applicability.length > 0) {
     let sawMissing: string | undefined;
     let matchingWindow: (typeof fact.applicability)[number] | undefined;
@@ -247,15 +265,5 @@ export function classifyDeclaration(
     }
   }
 
-  if (!fact.scope || fact.scope.length === 0) {
-    return { status: 'in', scope: 'all' };
-  }
-
-  for (const entry of fact.scope) {
-    const verdict = scopeMatches(entry, operation);
-    if (verdict.status === 'in') return verdict;
-    if (verdict.status === 'undetermined') return verdict;
-  }
-
-  return { status: 'out', reason: 'No scope entry covers this operation.' };
+  return { status: 'in', scope };
 }

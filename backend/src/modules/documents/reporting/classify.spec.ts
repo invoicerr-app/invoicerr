@@ -44,6 +44,12 @@ describe('classifyDeclaration  -  the French B2C fact', () => {
     ).toBe('out');
   });
 
+  it('is out for a business buyer even when the seller size category is undeclared', () => {
+    expect(classifyDeclaration(b2cFact, operation({ buyerType: 'COMPANY', companyProfile: {} })).status).toBe(
+      'out',
+    );
+  });
+
   it('is undetermined when the client has no type, never guessed as B2C', () => {
     expect(classifyDeclaration(b2cFact, operation({ buyerType: undefined })).status).toBe('undetermined');
   });
@@ -127,6 +133,12 @@ describe('classifyDeclaration  -  payment data (CGI art. 290 A)', () => {
 
   it('is out for a business buyer in slice 1', () => {
     expect(classifyDeclaration(paymentFact, payment({ buyerType: 'COMPANY' })).status).toBe('out');
+  });
+
+  it('is out for a business buyer even when the seller size category is undeclared', () => {
+    expect(
+      classifyDeclaration(paymentFact, payment({ buyerType: 'COMPANY', companyProfile: {} })).status,
+    ).toBe('out');
   });
 
   it('does not fire the payment fact on the invoice trigger', () => {
