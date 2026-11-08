@@ -38,6 +38,7 @@ import {
   type ClientImportRowResultWire,
   useImportClientsConfirm,
   useImportClientsPreview,
+  useVendorClientsPreview,
 } from "@/hooks/queries"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
@@ -96,6 +97,7 @@ export function ClientImportDialog() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewMutation = useImportClientsPreview()
   const confirmMutation = useImportClientsConfirm()
+  const vendorPreview = useVendorClientsPreview()
   const queryClient = useQueryClient()
 
   const [open, setOpen] = useState(false)
@@ -103,6 +105,7 @@ export function ClientImportDialog() {
   const [busy, setBusy] = useState(false)
   const [fileName, setFileName] = useState("")
   const [rows, setRows] = useState<MergedRow[]>([])
+  const [vendorLabel, setVendorLabel] = useState<string | null>(null)
   const [result, setResult] = useState<{ created: number; duplicates: number; rejected: number } | null>(null)
 
   const reset = () => {
@@ -110,6 +113,7 @@ export function ClientImportDialog() {
     setBusy(false)
     setFileName("")
     setRows([])
+    setVendorLabel(null)
     setResult(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
@@ -156,7 +160,7 @@ export function ClientImportDialog() {
         return
       }
 
-      const mappedRows = dataRows.map((cells, index) => mapRow(headers, cells, index + 2))
+      const vendorResponse = await vendorPreview.mutateAsync({ headers, rows: dataRows })
 
       // One catalog fetch per distinct (country, partyType) pair in the whole file, not one per row
       // - see `fetchRequiredIdentifiers`'s own header. This is a BEST-EFFORT local check only: the
@@ -177,46 +181,123 @@ export function ClientImportDialog() {
         return requirementsCache.get(key)!
       }
 
+      const mappedRows = dataRows.map((cells, index) => mapRow(headers, cells, index + 2))
+
       const validated = await Promise.all(
         mappedRows.map(async ({ wire, shapeErrors }) =>
           validateRow(t, wire, shapeErrors, await requirementsFor(wire)),
         ),
       )
 
-      const locallyValid = validated.filter((v) => !v.localErrors)
+      let merged: MergedRow[]
 
-      let serverResults: ClientImportRowResultWire[] = []
-      if (locallyValid.length > 0) {
-        const response = await previewMutation.trigger({ rows: locallyValid.map((v) => v.wire) })
-        if (!response) {
-          toast.error(t("clients.import.errors.previewFailed"))
-          setBusy(false)
-          return
+      if (vendorResponse?.detected) {
+        setVendorLabel(vendorResponse.vendorLabel)
+        const vendorRows = vendorResponse.rows
+        const mappedVendorRows = vendorRows.filter((entry) => entry.status === "mapped")
+        const validatedVendorRows = await Promise.all(
+          mappedVendorRows.map(async (entry) =>
+            validateRow(t, entry.row, [], await requirementsFor(entry.row)),
+          ),
+        )
+        const locallyValid = validatedVendorRows.filter((entry) => !entry.localErrors)
+        let serverResults: ClientImportRowResultWire[] = []
+        if (locallyValid.length > 0) {
+          const response = await previewMutation.trigger({ rows: locallyValid.map((v) => v.wire) })
+          if (!response) {
+            toast.error(t("clients.import.errors.previewFailed"))
+            setBusy(false)
+            return
+          }
+          serverResults = response.rows
         }
-        serverResults = response.rows
-      }
+        const byRowNumber = new Map(serverResults.map((result) => [result.rowNumber, result]))
+        const localVerdicts = new Map(validatedVendorRows.map((entry) => [entry.rowNumber, entry]))
+        merged = vendorRows.map((entry): MergedRow => {
+          if (entry.status === "duplicate") {
+            const name =
+              entry.row.name ||
+              `${entry.row.contactFirstname ?? ""} ${entry.row.contactLastname ?? ""}`.trim()
+            return {
+              rowNumber: entry.rowNumber,
+              status: "duplicate",
+              duplicateOf: {
+                kind: "file",
+                matchedOn: "name_country",
+                rowNumber: entry.duplicateOfRow,
+                name,
+                contactEmail: entry.row.contactEmail ?? null,
+              },
+              wire: entry.row,
+              source: "local",
+            }
+          }
+          if (entry.status === "rejected") {
+            return {
+              rowNumber: entry.rowNumber,
+              status: "rejected",
+              errors: entry.errors,
+              wire: entry.row,
+              source: "local",
+            }
+          }
+          const local = localVerdicts.get(entry.rowNumber)
+          if (local?.localErrors) {
+            return {
+              rowNumber: entry.rowNumber,
+              status: "rejected",
+              errors: local.localErrors,
+              wire: local.wire,
+              source: "local",
+            }
+          }
+          const serverResult = byRowNumber.get(entry.rowNumber)
+          return {
+            rowNumber: entry.rowNumber,
+            status: serverResult?.status ?? "rejected",
+            errors: serverResult?.errors,
+            duplicateOf: serverResult?.duplicateOf,
+            wire: entry.row,
+            source: "server",
+          }
+        })
+      } else {
+        setVendorLabel(null)
+        const locallyValid = validated.filter((v) => !v.localErrors)
 
-      const byRowNumber = new Map(serverResults.map((r) => [r.rowNumber, r]))
-      const merged: MergedRow[] = validated.map((v) => {
-        if (v.localErrors) {
+        let serverResults: ClientImportRowResultWire[] = []
+        if (locallyValid.length > 0) {
+          const response = await previewMutation.trigger({ rows: locallyValid.map((v) => v.wire) })
+          if (!response) {
+            toast.error(t("clients.import.errors.previewFailed"))
+            setBusy(false)
+            return
+          }
+          serverResults = response.rows
+        }
+
+        const byRowNumber = new Map(serverResults.map((r) => [r.rowNumber, r]))
+        merged = validated.map((v) => {
+          if (v.localErrors) {
+            return {
+              rowNumber: v.rowNumber,
+              status: "rejected",
+              errors: v.localErrors,
+              wire: v.wire,
+              source: "local",
+            }
+          }
+          const serverResult = byRowNumber.get(v.rowNumber)
           return {
             rowNumber: v.rowNumber,
-            status: "rejected",
-            errors: v.localErrors,
+            status: serverResult?.status ?? "rejected",
+            errors: serverResult?.errors,
+            duplicateOf: serverResult?.duplicateOf,
             wire: v.wire,
-            source: "local",
+            source: "server",
           }
-        }
-        const serverResult = byRowNumber.get(v.rowNumber)
-        return {
-          rowNumber: v.rowNumber,
-          status: serverResult?.status ?? "rejected",
-          errors: serverResult?.errors,
-          duplicateOf: serverResult?.duplicateOf,
-          wire: v.wire,
-          source: "server",
-        }
-      })
+        })
+      }
       merged.sort((a, b) => a.rowNumber - b.rowNumber)
       setRows(merged)
       setStage("preview")
@@ -242,13 +323,19 @@ export function ClientImportDialog() {
       // added back in below so the result screen still counts every row in the file, matching what
       // the preview already showed.
       const serverRows = rows.filter((r) => r.source === "server")
-      const locallyRejectedCount = rows.length - serverRows.length
+      const localRows = rows.filter((r) => r.source === "local")
+      const locallyDuplicateCount = localRows.filter((r) => r.status === "duplicate").length
+      const locallyRejectedCount = localRows.length - locallyDuplicateCount
       const response = await confirmMutation.trigger({ rows: serverRows.map((r) => r.wire) })
       if (!response) {
         toast.error(t("clients.import.errors.confirmFailed"))
         return
       }
-      setResult({ ...response, rejected: response.rejected + locallyRejectedCount })
+      setResult({
+        ...response,
+        duplicates: response.duplicates + locallyDuplicateCount,
+        rejected: response.rejected + locallyRejectedCount,
+      })
       setStage("result")
       queryClient.invalidateQueries({ queryKey: queryKeys.clients.listsAll() })
     } catch {
@@ -324,6 +411,11 @@ export function ClientImportDialog() {
           {stage === "preview" && (
             <div className="space-y-4" data-cy="clients-import-preview">
               <div className="flex flex-wrap gap-3 text-sm">
+                {vendorLabel && (
+                  <Badge variant="outline" data-cy="clients-import-vendor">
+                    {t("clients.import.vendorDetected", { vendor: vendorLabel })}
+                  </Badge>
+                )}
                 <Badge variant="secondary" data-cy="clients-import-summary-valid">
                   {t("clients.import.summary.willCreate", { count: willCreate.length })}
                 </Badge>

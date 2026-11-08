@@ -1,0 +1,3 @@
+Nom,Prénom,Emails,Téléphone,Adresse de facturation,Complément adresse de facturation,Code postal de facturation,Ville de facturation,Pays de facturation,Langue par défaut,Devise par défaut
+Dupont,Marie,marie.dupont@example.test,0611223344,12 rue des Lilas,,69003,Lyon,FR,Français,EUR
+Martin,Lucas,lucas.martin@example.test,0622334455,4 avenue du Parc,Bâtiment B,75011,Paris,FR,Français,EUR

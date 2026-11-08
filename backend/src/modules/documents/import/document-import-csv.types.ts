@@ -44,6 +44,9 @@ export interface DocumentImportCsvRow {
 
   // Invoice only.
   clientId?: string;
+  /** The client name as a vendor export prints it (issue #759). Only the vendor reader sets it,
+   *  to resolve `clientId` before this row reaches the generic CSV import; ignored elsewhere. */
+  clientName?: string;
   dueDate?: string;
   clientReference?: string;
 

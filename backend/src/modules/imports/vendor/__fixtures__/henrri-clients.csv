@@ -1,0 +1,3 @@
+Code client;Raison sociale;Nom;Prénom;Adresse;Complément d'adresse;Code postal;Ville;Téléphone;Mobile;E-mail
+C-001;Atelier Horizon;Durand;Alice;8 rue des Arts;;31000;Toulouse;0555667788;0666778899;contact@atelier-horizon.example
+C-002;;Leroy;Paul;3 place du Marché;;44000;Nantes;;0677889900;paul.leroy@example.test

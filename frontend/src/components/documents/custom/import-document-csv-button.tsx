@@ -40,6 +40,7 @@ import {
   useImportDocumentsCsvConfirm,
   useImportDocumentsCsvPreview,
 } from "@/hooks/queries/use-document-import"
+import { useVendorDocumentsPreview } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
 
 const MAX_IMPORT_FILE_BYTES = 1_000_000
@@ -73,12 +74,14 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
   const filesInputRef = useRef<HTMLInputElement>(null)
   const previewMutation = useImportDocumentsCsvPreview()
   const confirmMutation = useImportDocumentsCsvConfirm()
+  const vendorPreview = useVendorDocumentsPreview()
   const uploadMutation = useUploadAttachment()
 
   const [open, setOpen] = useState(false)
   const [stage, setStage] = useState<Stage>("pick")
   const [busy, setBusy] = useState(false)
   const [csvFileName, setCsvFileName] = useState("")
+  const [vendorLabel, setVendorLabel] = useState<string | null>(null)
   const [rows, setRows] = useState<DocumentImportCsvRow[]>([])
   const [files, setFiles] = useState<Record<string, ImportOriginalFileRef>>({})
   const [rowVerdicts, setRowVerdicts] = useState<
@@ -90,6 +93,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
     setStage("pick")
     setBusy(false)
     setCsvFileName("")
+    setVendorLabel(null)
     setRows([])
     setFiles({})
     setRowVerdicts([])
@@ -148,6 +152,55 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
         return
       }
 
+      const vendorResponse = await vendorPreview.mutateAsync({
+        typeId: descriptor.id,
+        headers,
+        rows: dataRows,
+      })
+
+      if (vendorResponse?.detected) {
+        setVendorLabel(vendorResponse.vendorLabel)
+        const mapped = vendorResponse.rows
+        const allRows = mapped.map((entry) => entry.row)
+        const importable = mapped.filter((entry) => entry.status === "mapped")
+        let verdicts: typeof rowVerdicts = []
+        if (importable.length > 0) {
+          const response = await previewMutation.mutateAsync({
+            typeId: descriptor.id,
+            rows: importable.map((entry) => entry.row),
+            files,
+          })
+          verdicts = response.rows
+        }
+        const byRowNumber = new Map(verdicts.map((verdict) => [verdict.rowNumber, verdict]))
+        const merged = mapped
+          .map((entry): (typeof rowVerdicts)[number] => {
+            if (entry.status === "duplicate") {
+              return {
+                rowNumber: entry.rowNumber,
+                status: "rejected",
+                errors: [t("documents.custom.importCsv.vendorDuplicate", { row: entry.duplicateOfRow })],
+              }
+            }
+            if (entry.status === "rejected") {
+              return { rowNumber: entry.rowNumber, status: "rejected", errors: entry.errors }
+            }
+            return (
+              byRowNumber.get(entry.rowNumber) ?? {
+                rowNumber: entry.rowNumber,
+                status: "rejected",
+                errors: [t("documents.custom.importCsv.parseFailed")],
+              }
+            )
+          })
+          .sort((a, b) => a.rowNumber - b.rowNumber)
+        setRows(allRows)
+        setRowVerdicts(merged)
+        setStage("preview")
+        return
+      }
+
+      setVendorLabel(null)
       const parsedRows: DocumentImportCsvRow[] = dataRows.map((cells, index) => {
         const row: Record<string, string> = { rowNumber: String(index + 2) }
         headers.forEach((header, i) => {
@@ -173,7 +226,14 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
   const handleConfirm = async () => {
     setBusy(true)
     try {
-      const response = await confirmMutation.mutateAsync({ typeId: descriptor.id, rows, files })
+      const validRowNumbers = new Set(
+        rowVerdicts.filter((verdict) => verdict.status === "valid").map((verdict) => verdict.rowNumber),
+      )
+      const response = await confirmMutation.mutateAsync({
+        typeId: descriptor.id,
+        rows: rows.filter((row) => validRowNumbers.has(row.rowNumber)),
+        files,
+      })
       setResult(response)
       setStage("result")
     } catch {
@@ -275,6 +335,11 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
           {stage === "preview" && (
             <div className="space-y-4" data-cy="import-document-csv-preview">
               <div className="flex flex-wrap gap-3 text-sm">
+                {vendorLabel && (
+                  <Badge variant="outline" data-cy="import-document-csv-vendor">
+                    {t("documents.custom.importCsv.vendorDetected", { vendor: vendorLabel })}
+                  </Badge>
+                )}
                 <Badge variant="secondary" data-cy="import-document-csv-summary-valid">
                   {t("documents.custom.importCsv.summary.willImport", { count: willImport.length })}
                 </Badge>

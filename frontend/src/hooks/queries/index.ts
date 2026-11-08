@@ -235,3 +235,13 @@ export {
   type OwnershipTransferView,
   type InitiateTransferInput,
 } from "./use-company-transfer"
+export {
+  useVendorClientsPreview,
+  useVendorDocumentsPreview,
+  type VendorExportPreviewInput,
+  type VendorMappedClientRowWire,
+  type VendorMappedDocumentRowWire,
+  type VendorClientExportResult,
+  type VendorDocumentExportResult,
+  type VendorExportNotDetected,
+} from "./use-vendor-import"
