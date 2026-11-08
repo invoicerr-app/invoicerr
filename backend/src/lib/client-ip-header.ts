@@ -46,11 +46,11 @@ export const CLIENT_IP_HEADER = 'x-invoicerr-client-ip';
  * this exact same mutable `req.headers` object at request time, so a mutation made here, earlier in
  * the same Express chain, is visible to it.
  *
- * `req.ip` is trustworthy at this point because `create-app.ts` calls `app.set('trust proxy', ...)`
- * before this middleware is registered — and because that is a property on the Express `app` instance
- * rather than a middleware itself, it takes effect for every `req.ip` access from the very first
- * request, regardless of where in the chain this middleware sits (the same reasoning
- * `auth-rate-limit.ts`'s own comment on `req.ip` already relies on).
+ * `req.ip` is trustworthy at this point because `create-app.ts` builds the `NodeAdapter` with a
+ * trust-proxy predicate before any middleware is registered - the adapter computes `req.ip` per
+ * request, so it takes effect for every access from the very first request, regardless of where in
+ * the chain this middleware sits (the same reasoning `auth-rate-limit.ts`'s own comment on `req.ip`
+ * already relies on).
  */
 export function injectClientIpHeaderMiddleware(): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction): void => {

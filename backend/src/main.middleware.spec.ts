@@ -62,6 +62,7 @@ import { vi } from 'vitest';
 import { Injectable, Module } from '@nestjs/common';
 import type { INestApplication, MiddlewareConsumer, NestMiddleware, NestModule } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NodeAdapter } from '@nestjs/platform-node';
 import * as bodyParser from 'body-parser';
 import type { NextFunction, Request, Response } from 'express';
 import { text } from 'node:stream/consumers';
@@ -139,7 +140,7 @@ class TestHarnessModule implements NestModule {
  *  `lib/body-parser-auth-skip.ts` — against `TestHarnessModule` instead of the real `AppModule`
  *  (see this file's own header for why). */
 async function createTestApp(): Promise<INestApplication> {
-  const app = await NestFactory.create(TestHarnessModule, { bodyParser: false });
+  const app = await NestFactory.create(TestHarnessModule, new NodeAdapter(), { bodyParser: false });
   app.setGlobalPrefix('api');
   app.use(
     skipBodyParserFor(

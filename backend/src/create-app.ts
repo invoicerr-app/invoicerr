@@ -3,13 +3,14 @@ import type { INestApplication, Type } from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
+import { NodeAdapter } from '@nestjs/platform-node';
 import cookieParser from 'cookie-parser';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
 import { createAuthRateLimitMiddleware, createRedisAuthRateLimitCounterStore } from './lib/auth-rate-limit';
 import { injectClientIpHeaderMiddleware } from './lib/client-ip-header';
 import { devOnlyOrigins } from './lib/dev-origins';
 import { createLibRedisClient } from './lib/redis-connection';
-import { resolveTrustProxyHops } from './lib/trust-proxy';
+import { resolveTrustProxyHops, createTrustProxyResolver } from './lib/trust-proxy';
 import { auth } from './lib/auth';
 import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 
@@ -39,7 +40,16 @@ import { RedactingConsoleLogger } from './logger/redacting-console-logger';
  * wires it up, unchanged, the way production does.
  */
 export async function createApp(module: Type<unknown> = AppModule): Promise<INestApplication> {
-  const app = await NestFactory.create(module, { bodyParser: false });
+  // `NodeAdapter` replaces `ExpressAdapter`: Nest runs directly on `node:http`, no Express router
+  // between the socket and the handler. `trustProxy` has to be given here, at construction time,
+  // because the adapter reads it per request (`req.ip`, `req.ips`, `req.protocol`) instead of
+  // exposing Express' mutable `app.set('trust proxy', ...)`.
+  const trustProxyHops = resolveTrustProxyHops();
+  const app = await NestFactory.create(
+    module,
+    new NodeAdapter({ trustProxy: createTrustProxyResolver(trustProxyHops) }),
+    { bodyParser: false },
+  );
   // Every line the framework itself prints — unhandled exception traces included — goes through the
   // same redaction the `Log` table gets; see `logger/redaction.ts` for what is filtered and why.
   app.useLogger(new RedactingConsoleLogger());
@@ -47,11 +57,12 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // container, see entrypoint.sh) and APPENDS its own directly-observed peer address to whatever
   // `X-Forwarded-For` it received (`$proxy_add_x_forwarded_for`, never overwriting it) — so the
   // header grows by exactly one entry per real HTTP-aware hop in front of this container.
-  // `trust proxy: <n>` tells Express "trust exactly n hops counting back from nginx's own entry",
-  // which is what lets `req.ip` resolve to the actual client instead of always the loopback peer
-  // (127.0.0.1) or, with more than one hop in front and this left at a stale `1`, to whichever
-  // load balancer/CDN sits closest — the bug named "the client IP collapses behind a second proxy
-  // hop": with a load balancer added and this still hardcoded to `1`, EVERY request would appear
+  // The adapter's `trustProxy` predicate is given exactly that hop count (`hop < n`, hop 0 being the
+  // socket's peer): trusting the first n hops from the socket is what lets `req.ip` resolve to the
+  // actual client instead of always the loopback peer (127.0.0.1) or, with more than one hop in
+  // front and this left at a stale `1`, to whichever load balancer/CDN sits closest - the bug named
+  // "the client IP collapses behind a second proxy hop": with a load balancer added and this still
+  // hardcoded to `1`, EVERY request would appear
   // to come from the balancer, and the global `ThrottlerGuard` (app.module.ts) plus
   // `lib/auth-rate-limit.ts` would each share one instance-wide bucket regardless of who is
   // actually calling.
@@ -63,7 +74,10 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // (`deploy/helm/invoicerr/values.yaml#app.trustProxyHops`, defaults to `2` there), raises this by
   // one per real hop added — see `lib/trust-proxy.ts`'s own header for why the count must be
   // EXACT, never just "big enough".
-  app.getHttpAdapter().getInstance().set('trust proxy', resolveTrustProxyHops());
+  // `trustProxyHops` is compiled into the adapter's own trust function above (`hop < n`), which is
+  // the exact predicate Express' `proxy-addr` builds for `app.set('trust proxy', n)`: hop 0 is the
+  // socket's peer, so trusting the first n hops from the socket is what makes `req.ip` resolve to the
+  // real client and not to the closest proxy.
   app.enableCors({
     credentials: true,
     // `devOnlyOrigins()` is `[]` in production — see that function's own header for the vulnerability

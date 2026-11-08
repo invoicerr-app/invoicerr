@@ -1,8 +1,9 @@
 /**
- * How many reverse-proxy hops in front of this process Express should trust when resolving `req.ip`
- * from `X-Forwarded-For` (`app.set('trust proxy', n)`, wired in `create-app.ts`) — see that file's own
- * comment for what "hops" means to Express/`proxy-addr` and why the number has to match reality
- * exactly, not merely be "big enough".
+ * How many reverse-proxy hops in front of this process the HTTP adapter should trust when resolving
+ * `req.ip` from `X-Forwarded-For` (the trust-proxy predicate wired in `create-app.ts`) - see that
+ * file's own comment for what "hops" means to `proxy-addr` (the library Express and
+ * `@nestjs/platform-node` share) and why the number has to match reality exactly, not merely be
+ * "big enough".
  *
  * This is the other half of `nginx.conf`'s own `X-Forwarded-For` handling: nginx now APPENDS its own
  * directly-observed peer address (`$proxy_add_x_forwarded_for`) to whatever it received rather than
@@ -43,4 +44,14 @@ export function resolveTrustProxyHops(env: NodeJS.ProcessEnv = process.env): num
   // loopback address, which is arguably WORSE than the pre-fix hardcoded `1`, since at least that one
   // was always correct for the one topology this app shipped with by default).
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 1;
+}
+
+/**
+ * Express' own `trust proxy: <n>` predicate, as a function `NodeAdapter` accepts: hop `0` is the
+ * socket's peer, so the first `n` entries from the socket are trusted and `req.ip` is the first
+ * address after them. Same semantics as `proxy-addr`'s `compileTrust(n)`, which is what Express has
+ * always used here - kept as a function because `@nestjs/platform-node` has no hop-count option.
+ */
+export function createTrustProxyResolver(hops: number): (address: string, hop: number) => boolean {
+  return (_address, hop) => hop < hops;
 }

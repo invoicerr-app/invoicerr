@@ -21,9 +21,10 @@
 import { Controller, Get, Injectable, Module, Req } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NodeAdapter } from '@nestjs/platform-node';
 import type { Request } from 'express';
 
-import { resolveTrustProxyHops } from './lib/trust-proxy';
+import { createTrustProxyResolver, resolveTrustProxyHops } from './lib/trust-proxy';
 
 @Injectable()
 @Controller()
@@ -38,11 +39,11 @@ class WhoAmIController {
 class TrustProxyHarnessModule {}
 
 async function buildApp(hops: number): Promise<{ app: INestApplication; baseUrl: string }> {
-  const app = await NestFactory.create(TrustProxyHarnessModule, { logger: false });
-  // The exact call `create-app.ts` makes, with the exact value `resolveTrustProxyHops()` would compute
-  // for whatever env this test passes it — see this file's own header for why `create-app.ts` itself
-  // cannot be imported directly here.
-  app.getHttpAdapter().getInstance().set('trust proxy', hops);
+  // The exact wiring `create-app.ts` does, with the exact value `resolveTrustProxyHops()` would
+  // compute for whatever env this test passes it - see this file's own header for why
+  // `create-app.ts` itself cannot be imported directly here.
+  const adapter = new NodeAdapter({ trustProxy: createTrustProxyResolver(hops) });
+  const app = await NestFactory.create(TrustProxyHarnessModule, adapter, { logger: false });
   await app.listen(0);
   const address = app.getHttpServer().address();
   if (typeof address === 'string' || address === null) {

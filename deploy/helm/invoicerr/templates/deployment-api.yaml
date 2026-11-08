@@ -71,10 +71,10 @@ spec:
               value: {{ .Values.app.appUrl | quote }}
             - name: CORS_ORIGINS
               value: {{ .Values.app.corsOrigins | quote }}
-            # TRUST_PROXY_HOPS (backend/src/lib/trust-proxy.ts) — API-role only: it feeds Express's
-            # own `trust proxy` setting, which only the api pod's HTTP-serving nginx+Nest process
-            # reads at all. See `values.yaml#app.trustProxyHops`'s own comment for why this chart's
-            # default (2) differs from the backend's own single-container default (1).
+            # TRUST_PROXY_HOPS (backend/src/lib/trust-proxy.ts) - API-role only: it feeds the
+            # NodeAdapter's own trust-proxy predicate, which only the api pod's HTTP-serving
+            # nginx+Nest process reads at all. See `values.yaml#app.trustProxyHops`'s own comment for
+            # why this chart's default (2) differs from the backend's own single-container default (1).
             - name: TRUST_PROXY_HOPS
               value: {{ .Values.app.trustProxyHops | quote }}
             - name: SESSION_CACHE_TTL_MS

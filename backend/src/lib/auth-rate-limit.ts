@@ -208,9 +208,9 @@ export function createAuthRateLimitMiddleware(
 
     // Keyed on IP + rule name, never on the sub-path alone: `/sign-in` and `/sign-up` share one budget
     // (better-auth's own grouping), so an attacker cannot dodge the limit by alternating between them.
-    // `req.ip` already reflects the real client address by the time this runs — `create-app.ts` sets
-    // `trust proxy` (see `lib/trust-proxy.ts`) before any middleware in this chain, and that Express
-    // setting applies to every access of `req.ip` regardless of registration order.
+    // `req.ip` already reflects the real client address by the time this runs - `create-app.ts` builds
+    // the `NodeAdapter` with its trust-proxy predicate before any middleware in this chain, and the
+    // adapter resolves `req.ip` per request (`lib/trust-proxy.ts`).
     const key = `${rule.name}:${req.ip}`;
 
     let count: number;

@@ -14,7 +14,7 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-node';
 import {
   ApiBody,
   ApiConsumes,
@@ -677,7 +677,7 @@ export class DocumentsController {
   // container's filesystem before `AttachmentsService.upload` content-addresses and writes it itself;
   // `limits.fileSize` is multer's OWN ceiling, enforced by busboy while the multipart stream is still
   // being read, so an oversized upload is aborted at the wire (a 413, via `FileInterceptor`'s built-in
-  // `MulterError` translation — see `@nestjs/platform-express/multer/multer/multer.utils.js`) before
+  // `MulterError` translation - see `@nestjs/platform-node/multer/multer/multer.utils.js`) before
   // this handler, or even `AttachmentsService`, ever runs. `FileInterceptor`'s single-field contract
   // (`.single('file')`) already refuses more than one file per request on its own.
   @Post('attachments/upload')
