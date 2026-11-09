@@ -99,7 +99,11 @@ describe("Purchase orders — create, send (Mailpit gets the PDF), cancel", () =
 			// de30e2a4, first execution of this spec). Same trap as the "today" date computed between
 			// two queued Cypress commands fixed on 62-*: read a produced value inside the `.then()` of
 			// the command that produced it, never from a variable captured before the chain resolves.
-			cy.get("body").type("{esc}"); // close the dialog — Radix's own Escape handling
+			// A successful first save already leaves the create form by itself: the dialog closes
+			// and navigates to the new record. Wait for that teardown rather than typing Escape,
+			// which would land on the still focused, still disabled save button while the mutation
+			// is settling.
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("not.exist");
 
 			cy.request({ url: `${api}/api/documents/${purchaseOrderId}?typeId=purchase-order` })
 				.its("body")
