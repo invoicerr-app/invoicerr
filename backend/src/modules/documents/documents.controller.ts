@@ -202,7 +202,16 @@ export class DocumentsController {
       "the type's descriptor default, else the generic fallback — `source` says which), plus the " +
       '`variables` that type actually offers, mapped to sample values: the keys are the available- ' +
       'placeholder list, the values make a preview. Derived per type, so `recipientName` is absent ' +
-      'for a type with no client reference and `totalGross` for a type with no money at all.',
+      'for a type with no client reference and `totalGross` for a type with no money at all.\n\n' +
+      '- `{issueDate}` and `{dueDate}` require the corresponding date fields. Dates are formatted in the ' +
+      "recipient's language, and missing dates render as empty strings.\n" +
+      '- `{amountPaid}` and `{amountDue}` require settlement support. They show recorded payments and ' +
+      'the outstanding balance after payments and credits, in the document currency.\n' +
+      '- `{viewUrl}` requires permission to share the document at delivery. The public PDF link is created ' +
+      'at send time and expires after 30 days. Set `BACKEND_PUBLIC_URL` when the API has a separate public ' +
+      'origin from `APP_URL`. Find the link ID with ' +
+      '`GET /api/documents/{id}/share-links?typeId={typeId}` and revoke it with ' +
+      '`DELETE /api/documents/{id}/share-link/{tokenId}?typeId={typeId}`.',
   })
   @ApiResponse({ status: 200, description: 'Email templates retrieved' })
   listEmailTemplates(@ActiveCompany() companyId: string) {
@@ -232,7 +241,8 @@ export class DocumentsController {
       'part is sanitized server-side before storage. An unknown `{placeholder}` is REPORTED in ' +
       '`warnings`, never rejected — the same contract the send path holds, so a typo can never be ' +
       'what blocks a document from reaching a customer. A blank subject, or neither body nor html, ' +
-      'IS refused: there would be no message to send.',
+      'IS refused: there would be no message to send. A supported `{viewUrl}` blocked by sharing policy ' +
+      'produces a warning when saved. The send fails if sharing is still blocked at delivery.',
   })
   @ApiParam({ name: 'typeId', type: String })
   @ApiBody({
@@ -244,6 +254,13 @@ export class DocumentsController {
         html: { type: 'string', description: 'Optional html part, sent alongside the text one' },
       },
       required: ['subject'],
+      example: {
+        subject: 'Your invoice {displayNumber} is available',
+        html:
+          '<p>Issued {issueDate}. Due {dueDate}.</p>' +
+          '<p>Paid {amountPaid}. Balance {amountDue}.</p>' +
+          '<p><a href="{viewUrl}">View invoice</a></p>',
+      },
     },
   })
   @ApiResponse({ status: 200, description: 'Template saved, with any placeholder warnings' })
