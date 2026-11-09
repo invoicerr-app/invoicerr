@@ -61,7 +61,7 @@
     "node": ">=26 <27"
   },
   "overrides": {
-    "image-size": "^2.0.4",
+    "image-size": "^2.1.0",
     "minimatch@^9": "^9.0.9",
     "qs": "^6.17.1",
     "serialize-javascript": "^7.0.5",
