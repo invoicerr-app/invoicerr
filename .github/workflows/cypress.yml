@@ -622,6 +622,10 @@ jobs:
 
       - name: Run backend, frontend & tests
         if: steps.scope.outputs.needed == 'true'
+        # A full, honest shard finished in 31 minutes. Past 45 something is stuck, and running on to
+        # the job's own 60 only holds the merge queue; the per-spec limit in e2e/scripts/run-specs.sh
+        # still reports which spec hung, and the heartbeat file records the load it met.
+        timeout-minutes: 45
         env:
           SHARD: ${{ matrix.shard }}
           SPECS: ${{ steps.shard.outputs.spec }}
@@ -658,12 +662,16 @@ jobs:
       # Artifact names carry the shard: `actions/upload-artifact@v4` REFUSES a name another job in the
       # same run already uploaded (v3 merged them silently), so three shards uploading `backend-logs`
       # would fail two of the three uploads - the same per-leg naming scenarios.yml already uses.
+      # The heartbeat shares this artifact on purpose: both files answer the same question, "what was
+      # the machine doing", and this upload runs even when the job is cancelled.
       - name: Upload backend logs
         if: always() && steps.scope.outputs.needed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-shard-${{ matrix.shard }}
-          path: ${{ github.workspace }}/logs/backend-shard-${{ matrix.shard }}.log
+          path: |
+            ${{ github.workspace }}/logs/backend-shard-${{ matrix.shard }}.log
+            ${{ github.workspace }}/logs/heartbeat-shard-${{ matrix.shard }}.log
 
       - name: Upload Cypress videos and screenshots
         if: failure() && steps.scope.outputs.needed == 'true'

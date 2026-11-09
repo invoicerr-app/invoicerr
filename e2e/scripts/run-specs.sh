@@ -11,8 +11,25 @@ limit_min="${SPEC_TIMEOUT_MIN:-15}"
 cypress_bin="${CYPRESS_BIN:-npx cypress}"
 failed=()
 
+# One block per spec start, in the same artefact as the backend log: the timestamps, the spec names
+# and the machine load next to them show where a slow shard spent its time. The upload there runs
+# `if: always()`, so the file survives a cancelled run, which is exactly when it is needed.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+heartbeat_log="${HEARTBEAT_LOG:-$script_dir/../../logs/heartbeat-shard-${SHARD:-0}.log}"
+mkdir -p "$(dirname "$heartbeat_log")" 2>/dev/null || true
+
+record_heartbeat() {
+  {
+    echo "=== $(date -Is) spec=$1"
+    echo "loadavg: $(cat /proc/loadavg 2>/dev/null || echo unavailable)"
+    echo "docker stats:"
+    docker stats --no-stream 2>/dev/null || echo "  unavailable"
+  } >> "$heartbeat_log" 2>&1 || true
+}
+
 IFS=',' read -ra list <<< "$specs"
 for spec in "${list[@]}"; do
+  record_heartbeat "$spec"
   echo "::group::$spec"
   timeout --kill-after=30 "${limit_min}m" $cypress_bin run "$@" --spec "$spec"
   status=$?
