@@ -14,7 +14,7 @@ import { expect, it } from 'vitest';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 import { DeclaredInvoice } from '../declaration-provider';
 import { SuperPdpClient } from '../../transports/superpdp/superpdp-client';
-import { SUPER_PDP_BASE_URL } from '../../transports/superpdp/superpdp-live-parties';
+import { SUPERPDP_BASE_URL } from '../../transports/superpdp/superpdp-live-parties';
 import { liveDescribe } from '../../transports/live-gate';
 import { buildSuperPdpEReportingAdapter } from './superpdp-ereporting-adapter';
 
@@ -27,7 +27,7 @@ function liveCredentials(): ChannelCredentialsService {
       channel: 'PDP',
       environment: 'SANDBOX',
       config: {
-        baseUrl: SUPER_PDP_BASE_URL,
+        baseUrl: SUPERPDP_BASE_URL,
         clientId: process.env.SUPERPDP_CLIENT_ID,
         clientSecret: process.env.SUPERPDP_CLIENT_SECRET,
       },
@@ -89,7 +89,7 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
     expect(result.statusCode).toBe('SUBMITTED');
 
     const client = new SuperPdpClient({
-      baseUrl: SUPER_PDP_BASE_URL,
+      baseUrl: SUPERPDP_BASE_URL,
       clientId: process.env.SUPERPDP_CLIENT_ID as string,
       clientSecret: process.env.SUPERPDP_CLIENT_SECRET as string,
     });
@@ -105,7 +105,7 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
     await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
 
     const client = new SuperPdpClient({
-      baseUrl: SUPER_PDP_BASE_URL,
+      baseUrl: SUPERPDP_BASE_URL,
       clientId: process.env.SUPERPDP_CLIENT_ID as string,
       clientSecret: process.env.SUPERPDP_CLIENT_SECRET as string,
     });
