@@ -83,6 +83,10 @@ function invoice(): DeclaredInvoice {
 describeLive('SuperPDP e-reporting live round-trip', () => {
   it('creates a B2C transaction the platform lists back', async () => {
     const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
+    // Production order: `fr-pa-declaration-provider.declare()` syncs the company VAT regime before
+    // declaring, because the platform aggregates according to the regime it holds at that moment.
+    // Setting it here is what makes this test independent of the order of the tests in this file.
+    await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
     const result = await adapter.declareTransaction('live-company', invoice());
 
     expect(result.authorityId).toBeTruthy();
@@ -111,5 +115,6 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
     });
     const company = await client.getCompany();
     expect((company as Record<string, unknown>).vat_regime).toBe('monthly');
+    expect((company as Record<string, unknown>).has_vat_on_debits).toBe(false);
   });
 });
