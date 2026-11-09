@@ -1,18 +1,28 @@
-import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
+import { MailService } from '@/mail/mail.service';
+import { backendPublicUrl } from '@/utils/backend-public-url';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
-import { onEnterStatuses } from '../descriptors/types';
+import { findShareLinkAction, onEnterStatuses } from '../descriptors/types';
 import { takeDocumentNumberForTransition } from '../numbering/take-number';
 import { appendPaymentMethodsToEmail } from '../payment-methods/email-block';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { renderDocumentInstance } from '../rendering/render-instance-pdf';
+import { loadDocumentSettlement } from '../settlement/load-settlement';
+import { createDocumentShareLink } from '../share-links/create-share-link';
+import { revokeShareLinkToken } from '../share-links/share-link.persistence';
 import { applyStockOnIssuance, decrementsStockOnIssuance } from '../stock/apply-stock-on-issuance';
 import { NullSigningCredentials, SigningCredentialsPort } from '../signing/signing-credentials-port';
 import { signRenderedPdfIfConfigured } from '../signing/sign-instance-pdf';
 import { DocumentInstanceResult } from './action-registry';
 import { getCompanyDocumentEmailTemplates } from './company-email-templates';
-import { buildEmailTemplateParts, renderEmailTemplate, resolveEmailTemplate } from './email-template';
+import {
+  buildEmailTemplateParts,
+  hasEmailSettlement,
+  renderEmailTemplate,
+  resolveEmailTemplate,
+  templateUsesPlaceholder,
+} from './email-template';
 
 export interface SendDocumentEmailDeps {
   mailService: MailService;
@@ -153,12 +163,38 @@ export async function sendDocumentInstanceEmail(
   // never a second, independently-resolved value — the PDF and its covering email must never disagree
   // about which language they went out in.
   const template = resolveEmailTemplate(descriptor, companyTemplates, rendered.language);
+  const filename = document.displayNumber ? `${document.displayNumber}.pdf` : `${typeId}-${document.id}.pdf`;
+
+  // Signing — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
+  // no cert configured → `pdf` unchanged; an active cert that fails to sign THROWS here, which
+  // propagates exactly like a `renderDocumentInstance` failure already does (see this function's own
+  // header, "PDF failure — fails LOUDLY") — never a bare email sent because the signed attachment
+  // could not actually be produced.
+  const pdf = await signRenderedPdfIfConfigured(
+    deps.signingCertificates ?? new NullSigningCredentials(),
+    companyId,
+    rendered.pdf,
+  );
+
+  const settlement =
+    hasEmailSettlement(descriptor) &&
+    (templateUsesPlaceholder(template, 'amountPaid') || templateUsesPlaceholder(template, 'amountDue'))
+      ? await loadDocumentSettlement(companyId, descriptor, document)
+      : undefined;
+  const link =
+    findShareLinkAction(descriptor) && templateUsesPlaceholder(template, 'viewUrl')
+      ? await createDocumentShareLink(companyId, descriptor, document.id)
+      : undefined;
+
   const parts = buildEmailTemplateParts({
     descriptor,
     displayNumber: document.displayNumber,
     companyName: rendered.companyName,
     totals: rendered.totals,
     referenceLabels: rendered.referenceLabels,
+    data: document.data as Record<string, unknown>,
+    settlement: settlement && { ...settlement.settlement, currency: settlement.totals.currency },
+    viewUrl: link && `${backendPublicUrl()}${link.path}`,
     // Issue #373 ("quotes with options") - see `buildEmailTemplateParts`'s own `multipleOptions` header.
     multipleOptions: rendered.hasMultipleOptions,
     // Same recipient language the template itself was just resolved for, two lines up - see
@@ -193,19 +229,6 @@ export async function sendDocumentInstanceEmail(
     });
   }
 
-  const filename = document.displayNumber ? `${document.displayNumber}.pdf` : `${typeId}-${document.id}.pdf`;
-
-  // Signing — same wiring, same invariants as `documents.service.ts#renderInstancePdf`:
-  // no cert configured → `pdf` unchanged; an active cert that fails to sign THROWS here, which
-  // propagates exactly like a `renderDocumentInstance` failure already does (see this function's own
-  // header, "PDF failure — fails LOUDLY") — never a bare email sent because the signed attachment
-  // could not actually be produced.
-  const pdf = await signRenderedPdfIfConfigured(
-    deps.signingCertificates ?? new NullSigningCredentials(),
-    companyId,
-    rendered.pdf,
-  );
-
   // BOTH parts whenever the resolved template has an html one: `text` is always sent (the engine
   // guarantees a text part, deriving it from the html for a template that carries no prose of its own —
   // see `renderEmailTemplate`), and `html` is added only when it genuinely exists, so a text-only
@@ -217,13 +240,27 @@ export async function sendDocumentInstanceEmail(
   // exactly like a `renderDocumentInstance` failure already does — see this function's own header,
   // "PDF failure — fails LOUDLY" — all the way to `queue/mark-send-failed.ts`, which records it,
   // verbatim, as the document's own `send_failed` reason.
-  await deps.mailService.sendForCompany(companyId, {
-    to: recipient,
-    subject,
-    text: body,
-    ...(html ? { html } : {}),
-    attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],
-  });
+  try {
+    await deps.mailService.sendForCompany(companyId, {
+      to: recipient,
+      subject,
+      text: body,
+      ...(html ? { html } : {}),
+      attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],
+    });
+  } catch (error) {
+    if (link) {
+      try {
+        await revokeShareLinkToken(link.id);
+      } catch {
+        logger.warn('Could not revoke the share link for a failed email attempt.', {
+          category: 'documents',
+          details: { companyId, documentId: document.id, tokenId: link.id },
+        });
+      }
+    }
+    throw error;
+  }
 
   const message = `${label} sent to ${recipient}.${warnings.length > 0 ? ` (${warnings.join(' ')})` : ''}`;
   return { message, artifacts: [{ role: 'pdf', mime: 'application/pdf', bytes: new Uint8Array(pdf) }] };

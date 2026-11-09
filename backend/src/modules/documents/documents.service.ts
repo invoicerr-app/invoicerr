@@ -18,11 +18,7 @@ import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
 import { ServerMessage } from './messages/server-message';
-import {
-  DocumentTotalsView,
-  resolveDocumentTotalsView,
-  resolveSettlementTotals,
-} from './totals/document-totals-view';
+import { DocumentTotalsView, resolveDocumentTotalsView } from './totals/document-totals-view';
 import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
@@ -54,6 +50,7 @@ import {
   renderEmailTemplate,
   resolveEmailTemplate,
   resolveEmailTemplateSource,
+  templateUsesPlaceholder,
 } from './actions/email-template';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
@@ -107,6 +104,7 @@ import {
   DocumentActionDescriptor,
   DocumentFieldDescriptor,
   DocumentTypeDescriptor,
+  findShareLinkAction,
   isActionAvailable,
   isMultiTargetReference,
   onEnterStatuses,
@@ -139,18 +137,11 @@ import {
 import { applyStockOnIssuance, decrementsStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
-import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
-import {
-  DocumentCreditResult,
-  resolveCreditsForDocument,
-  toSettlementCreditInputs,
-} from './settlement/credits';
-import {
-  DocumentPaymentResult,
-  listPayments,
-  listPaymentsInRange,
-  toSettlementPaymentInputs,
-} from './settlement/payments';
+import { DocumentSettlement } from './settlement/compute-settlement';
+import { DocumentCreditResult } from './settlement/credits';
+import { shareLinkStatusConflict } from './share-links/create-share-link';
+import { loadDocumentSettlement } from './settlement/load-settlement';
+import { DocumentPaymentResult, listPaymentsInRange } from './settlement/payments';
 import {
   filterUnsettledInvoices,
   isOverdueInvoice,
@@ -252,6 +243,7 @@ function buildEmailTemplateView(
   descriptor: DocumentTypeDescriptor,
   overrides: Record<string, DocumentEmailTemplate>,
   companyName: string,
+  offerViewUrl: boolean,
 ): DocumentEmailTemplateView {
   const template = resolveEmailTemplate(descriptor, overrides);
 
@@ -262,7 +254,7 @@ function buildEmailTemplateView(
     body: template.body,
     ...(template.html ? { html: template.html } : {}),
     source: resolveEmailTemplateSource(descriptor, overrides),
-    variables: describeDocumentEmailVocabulary({ descriptor, companyName }),
+    variables: describeDocumentEmailVocabulary({ descriptor, companyName, offerViewUrl }),
   };
 }
 
@@ -515,20 +507,34 @@ export class DocumentsService implements OnModuleInit {
     const overrides = await getCompanyDocumentEmailTemplates(companyId);
     const companyName = await this.resolveCompanyName(companyId);
 
-    return this.typeRegistry
-      .list()
-      .map((descriptor) => buildEmailTemplateView(descriptor, overrides, companyName));
+    return Promise.all(
+      this.typeRegistry
+        .list()
+        .map(async (descriptor) =>
+          buildEmailTemplateView(
+            descriptor,
+            overrides,
+            companyName,
+            !(await this.emailViewUrlBlockedReason(companyId, descriptor)),
+          ),
+        ),
+    );
   }
 
   /** One type's currently applying template — the same resolution and the same derived vocabulary
    *  `listEmailTemplates` reports, for the single type a screen is editing. 404 for a type nobody
    *  registered, exactly like every other per-type read on this service. */
   async getEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
-    const descriptor = this.mergedDescriptor(typeId);
+    const descriptor = this.resolveType(typeId);
     const overrides = await getCompanyDocumentEmailTemplates(companyId);
     const companyName = await this.resolveCompanyName(companyId);
 
-    return buildEmailTemplateView(descriptor, overrides, companyName);
+    return buildEmailTemplateView(
+      descriptor,
+      overrides,
+      companyName,
+      !(await this.emailViewUrlBlockedReason(companyId, descriptor)),
+    );
   }
 
   /**
@@ -555,7 +561,7 @@ export class DocumentsService implements OnModuleInit {
     typeId: string,
     input: { subject: string; body?: string; html?: string },
   ): Promise<{ template: DocumentEmailTemplateView; warnings: string[] }> {
-    const descriptor = this.mergedDescriptor(typeId);
+    const descriptor = this.resolveType(typeId);
 
     const subject = input.subject ?? '';
     const body = input.body ?? '';
@@ -568,6 +574,7 @@ export class DocumentsService implements OnModuleInit {
     }
 
     const companyName = await this.resolveCompanyName(companyId);
+    const blockedReason = await this.emailViewUrlBlockedReason(companyId, descriptor);
     const stored = await setCompanyDocumentEmailTemplate(companyId, typeId, {
       subject,
       body,
@@ -583,8 +590,11 @@ export class DocumentsService implements OnModuleInit {
       describeSendablePlaceholders({ descriptor, companyName }),
     );
 
+    if (blockedReason && templateUsesPlaceholder(stored, 'viewUrl')) {
+      warnings.push(`Cannot fill "{viewUrl}" when sending this document. ${blockedReason}`);
+    }
     return {
-      template: buildEmailTemplateView(descriptor, { [descriptor.id]: stored }, companyName),
+      template: buildEmailTemplateView(descriptor, { [descriptor.id]: stored }, companyName, !blockedReason),
       warnings,
     };
   }
@@ -593,11 +603,19 @@ export class DocumentsService implements OnModuleInit {
    *  and returns what now applies, rather than leaving a screen to guess. Clearing a template a company
    *  never set is a no-op, never an error (see `clearCompanyDocumentEmailTemplate`). */
   async resetEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
-    const descriptor = this.mergedDescriptor(typeId);
-    await clearCompanyDocumentEmailTemplate(companyId, typeId);
+    const descriptor = this.resolveType(typeId);
     const companyName = await this.resolveCompanyName(companyId);
+    const blockedReason = await this.emailViewUrlBlockedReason(companyId, descriptor);
+    await clearCompanyDocumentEmailTemplate(companyId, typeId);
+    return buildEmailTemplateView(descriptor, {}, companyName, !blockedReason);
+  }
 
-    return buildEmailTemplateView(descriptor, {}, companyName);
+  private async emailViewUrlBlockedReason(companyId: string, descriptor: DocumentTypeDescriptor) {
+    const action = findShareLinkAction(descriptor);
+    if (!action) return undefined;
+    const policy = await evaluateCountryPolicy(companyId, descriptor.id, action.id);
+    if (!policy.allowed) return policy.reason ?? 'Public sharing is blocked by company policy.';
+    return shareLinkStatusConflict(action, policy, 'sending', descriptor.id);
   }
 
   /** The company's own name — the one vocabulary sample value that is REAL data rather than a stand-in,
@@ -1903,31 +1921,7 @@ export class DocumentsService implements OnModuleInit {
    */
   async getSettlement(companyId: string, typeId: string, id: string): Promise<DocumentSettlementView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
-    const descriptor = this.mergedDescriptor(typeId);
-    const data = instance.data as Record<string, unknown>;
-    // Issue #487: a quote with options settles against its accepted option (common lines included),
-    // never the sum of every option; with none accepted there is no balance to compute and this
-    // refuses with 409 (`resolveSettlementTotals`'s own header says who can reach that).
-    const totals = resolveSettlementTotals(
-      typeId,
-      descriptor,
-      data,
-      instance.acceptedOption,
-      instance.displayNumber ?? instance.id,
-    );
-    const payments = await listPayments(companyId, id);
-    const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
-    // `toSettlementPaymentInputs`, never the raw `payments` array directly:
-    // since a payment can now be recorded in a currency other than the document's own (converted at
-    // record time — settlement/convert-payment.ts), `computeSettlement` must read each payment's
-    // `documentAmountMinor` (already in the document's own currency), not its own `amountMinor`
-    // (the amount actually received, possibly in a different currency's minor units).
-    const settlement = computeSettlement(
-      totals.grossMinor,
-      toSettlementPaymentInputs(payments),
-      toSettlementCreditInputs(credits),
-    );
-    return { totals, payments, credits, warnings, settlement };
+    return loadDocumentSettlement(companyId, this.mergedDescriptor(typeId), instance);
   }
 
   /**

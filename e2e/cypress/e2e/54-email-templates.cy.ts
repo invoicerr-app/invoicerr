@@ -267,6 +267,12 @@ describe("Settings — email templates per document type", () => {
 				const invoiceKeys = Object.keys(invoiceTemplate.variables).sort();
 				const expenseKeys = Object.keys(expenseTemplate.variables).sort();
 
+				const newVariables = ["issueDate", "dueDate", "amountPaid", "amountDue", "viewUrl"];
+				expect(invoiceKeys).to.include.members(newVariables);
+				for (const key of newVariables) {
+					expect(expenseKeys).not.to.include(key);
+				}
+
 				expect(
 					invoiceKeys,
 					"invoice a un champ client ET des lignes chiffrées — les deux placeholders dérivés",
@@ -297,8 +303,37 @@ describe("Settings — email templates per document type", () => {
 		cy.get('[data-cy="email-template-subject-invoice"]')
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
+		const editor = '[data-testid="rich-text-editor"] .ProseMirror';
+		cy.get(editor)
+			.clear()
+			.type("Issued {issueDate}. Due {dueDate}. Paid {amountPaid}. Balance {amountDue}.", {
+				parseSpecialCharSequences: false,
+				delay: 25,
+			});
+		cy.get(editor).type("{enter}View invoice", { delay: 25 });
+		cy.get(`${editor} p`).last().should("have.text", "View invoice").then(($label) => {
+			const label = $label[0];
+			const range = label.ownerDocument.createRange();
+			range.selectNodeContents(label);
+			label.ownerDocument.getSelection()?.removeAllRanges();
+			label.ownerDocument.getSelection()?.addRange(range);
+		});
+		cy.get('[data-cy="rich-text-editor-link"]').click();
+		cy.get('[data-cy="rich-text-editor-link-input"]').type("{viewUrl}", { parseSpecialCharSequences: false });
+		cy.get('[data-cy="rich-text-editor-link-apply"]').click();
+
+		cy.get('[data-cy="email-template-variables"]').should("contain.text", "400.00 EUR");
+		cy.get('[data-cy="email-template-preview-body"]').should("contain.text", "Paid 400.00 EUR");
+		cy.get('[data-cy="email-template-preview-body"] a')
+			.should("have.attr", "href")
+			.and("match", /^https:\/\/example\.invalid\//);
 		cy.get('[data-cy="email-template-save-invoice"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "saved successfully");
+
+		getDocumentEmailTemplate("invoice").its("html").should("include", 'href="{viewUrl}"');
+		cy.reload();
+		openTemplateEditor("invoice");
+		cy.get(`${editor} a`).should("have.attr", "href", "{viewUrl}");
 
 		cy.clearEmails();
 
@@ -380,6 +415,22 @@ describe("Settings — email templates per document type", () => {
 								message.Subject,
 								"le sujet du VRAI message porte à la fois le marqueur du gabarit et le displayNumber interpolé",
 							).to.eq(`${marker} ${doc.displayNumber}`);
+							const url = (message.Text as string).match(
+								/https?:\/\/[^\s)]+\/api\/public\/documents\/[a-f0-9]{64}\/pdf/,
+							)?.[0];
+							if (!url) throw new Error("The email has no public PDF URL");
+							expect(message.HTML).to.include(`href="${url}"`);
+							const pdfUrl = new URL(new URL(url).pathname, api).href;
+
+							cy.request(`${api}/api/documents/${invoiceId}/share-links?typeId=invoice`).then(({ body }) => {
+								expect(body).to.have.length(1);
+								expect(body[0].active).to.eq(true);
+								cy.clearAllCookies();
+								cy.request(pdfUrl).its("headers.content-type").should("include", "application/pdf");
+								cy.login();
+								cy.request("DELETE", `${api}/api/documents/${invoiceId}/share-link/${body[0].id}?typeId=invoice`);
+								cy.request({ url: pdfUrl, failOnStatusCode: false }).its("status").should("eq", 404);
+							});
 						});
 					});
 			});
