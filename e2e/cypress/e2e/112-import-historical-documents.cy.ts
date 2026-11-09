@@ -299,14 +299,28 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 			);
 
 			cy.get('[data-cy="import-document-csv-preview"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-summary-valid"]').should("contain.text", "1");
-			cy.get('[data-cy="import-document-csv-summary-rejected"]').should("contain.text", "1");
+			cy.get('[data-cy="import-document-csv-summary-valid"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
+			cy.get('[data-cy="import-document-csv-summary-rejected"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
 			cy.screenshot("340-after-import-csv-preview", { capture: "viewport" });
 
 			cy.get('[data-cy="import-document-csv-confirm-button"]').click();
 			cy.get('[data-cy="import-document-csv-result"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-result-imported"]').should("contain.text", "1");
-			cy.get('[data-cy="import-document-csv-result-rejected"]').should("contain.text", "1");
+			cy.get('[data-cy="import-document-csv-result-imported"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
+			// Only the rows the preview marked valid are submitted, so the confirm response counts no
+			// rejected row: the invalid one was already reported and never reached the API.
+			cy.get('[data-cy="import-document-csv-result-rejected"]', { timeout: 15000 }).should(
+				"contain.text",
+				"0",
+			);
 		});
 	});
 

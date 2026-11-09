@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectVendorExport,
   mapVendorExport,
+  normalizeHeader,
   parseVendorAmount,
   parseVendorDate,
   parseVendorVatRate,
@@ -52,6 +53,14 @@ function invoices(profileId: string): VendorMappedInvoiceRow[] {
   expect(profile?.id).toBe(profileId);
   return mapVendorExport(profile!, grid) as VendorMappedInvoiceRow[];
 }
+
+describe('header normalization', () => {
+  it('drops a balanced parenthetical annotation and keeps an unbalanced one', () => {
+    expect(normalizeHeader('Montant (HT)')).toBe('montant');
+    expect(normalizeHeader('N° (de) facture')).toBe('n facture');
+    expect(normalizeHeader('Total (TTC')).toBe('total ttc');
+  });
+});
 
 describe('vendor export detection (issue #759)', () => {
   it.each([

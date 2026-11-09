@@ -23,13 +23,30 @@ import {
 
 export class VendorExportMappingError extends Error {}
 
+/**
+ * Drops a balanced `(...)` segment, keeping unbalanced text as it was. Done with `indexOf` rather
+ * than `/\([^)]*\)/g`: on a header whose first run of many `(` never closes, that regex rescans the
+ * rest of the string at every position, which is quadratic in the length of a user-provided file.
+ */
+function stripParentheticals(value: string): string {
+  let result = '';
+  let rest = value;
+  for (;;) {
+    const open = rest.indexOf('(');
+    if (open === -1) return result + rest;
+    const close = rest.indexOf(')', open + 1);
+    if (close === -1) return result + rest;
+    result += `${rest.slice(0, open)} `;
+    rest = rest.slice(close + 1);
+  }
+}
+
 /** Accent-, case- and punctuation-insensitive header key. `N° de facture` -> `n de facture`. */
 export function normalizeHeader(value: string): string {
-  return value
+  return stripParentheticals(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/\([^)]*\)/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
