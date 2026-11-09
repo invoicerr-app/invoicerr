@@ -45,6 +45,7 @@ concurrency:
 jobs:
   scenario:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       # 5-country prune (2026-09-10) — fr-be/es-pt/mx-us/us-us re-pointed onto kept-country pairs
@@ -161,7 +162,7 @@ jobs:
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until the scenario failed with a confusing auth error.
           "$GITHUB_WORKSPACE/e2e/node_modules/.bin/wait-on" http-get://localhost:4000/api/health --timeout 120000
-          (cd "$GITHUB_WORKSPACE/e2e" && CYPRESS_scenario="$SCENARIO" ./node_modules/.bin/cypress run --browser firefox --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
+          (cd "$GITHUB_WORKSPACE/e2e" && CYPRESS_scenario="$SCENARIO" CYPRESS_BIN=./node_modules/.bin/cypress SPEC_TIMEOUT_MIN=25 scripts/run-specs.sh "cypress/e2e/scenarios/full-lifecycle.cy.ts" --browser firefox)
 
       - name: Upload backend logs
         if: always()
