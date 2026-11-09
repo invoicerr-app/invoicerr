@@ -5,6 +5,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { ActionRegistry } from './actions/action-registry';
 import * as companyEmailTemplates from './actions/company-email-templates';
+import { evaluateCountryPolicy } from './country-policy/country-policy';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { buildCreditNoteDescriptor } from './descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from './descriptors/invoice.descriptor';
@@ -20,6 +21,7 @@ import { TransportRegistry } from './transports/transport-registry';
 // own resolution/validation rather than a re-implementation of Prisma. That module's OWN read/merge/
 // sanitize behaviour is proven separately, against an in-memory row, in company-email-templates.spec.ts.
 vi.mock('./actions/company-email-templates');
+vi.mock('./country-policy/country-policy', { spy: true });
 // `resolveCompanyName` is the one direct Prisma read these methods make.
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -55,11 +57,28 @@ const getTemplates = companyEmailTemplates.getCompanyDocumentEmailTemplates as M
 describe('DocumentsService — per-document-type email templates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(evaluateCountryPolicy).mockResolvedValue({ allowed: true });
     getTemplates.mockResolvedValue({});
     // The real setter returns what it stored (sanitized); the default here echoes the input, and the
     // tests that care about sanitization override it.
     setTemplate.mockImplementation(async (_companyId, _typeId, template) => template);
     clearTemplate.mockResolvedValue(undefined);
+  });
+
+  it.each([
+    { allowed: false, reason: 'Sharing denied.' },
+    { allowed: true, restrictedToStatuses: ['sent'] },
+  ])('hides an unavailable URL and warns when a template requires it (%j)', async (policy) => {
+    vi.mocked(evaluateCountryPolicy).mockResolvedValue(policy);
+    const { service } = buildService();
+    const result = await service.updateEmailTemplate('company-1', 'invoice', {
+      subject: 'Invoice',
+      html: '<a href="{viewUrl}">View invoice</a>',
+    });
+    expect(result.template.variables).not.toHaveProperty('viewUrl');
+    expect(result.warnings).toEqual([
+      expect.stringContaining(policy.reason ?? 'country policy to status(es) sent'),
+    ]);
   });
 
   describe('listEmailTemplates', () => {
@@ -106,9 +125,12 @@ describe('DocumentsService — per-document-type email templates', () => {
       expect(Object.keys(quote.variables).sort()).toEqual([
         'companyName',
         'displayNumber',
+        'dueDate',
+        'issueDate',
         'recipientName',
         'totalGross',
         'typeLabel',
+        'viewUrl',
       ]);
       // A credit note now carries its own optional `client` field (issue #710), so `recipientName` is
       // offered like it is for a quote or an invoice, and it DOES have a real money source of its own

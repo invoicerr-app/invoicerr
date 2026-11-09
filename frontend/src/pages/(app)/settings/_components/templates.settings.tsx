@@ -178,7 +178,7 @@ function EmailPreview({
         <div className="p-4" data-cy="email-template-preview-body">
           {safeHtml ? (
             <div
-              className="prose prose-sm max-w-none [*]:text-foreground"
+              className="prose prose-sm max-w-none [*]:text-foreground [&_a]:underline"
               style={{ fontFamily: "Arial, sans-serif" }}
               dangerouslySetInnerHTML={{ __html: safeHtml }}
             />
@@ -207,17 +207,26 @@ function EmailPreview({
 /** The placeholders this ONE entry offers, straight from the API response — never a list written down
  *  here, which is what keeps a type that has no client reference (or no money) from being offered a
  *  placeholder its own sends would leave unsubstituted. */
-function PlaceholderHints({ variables }: { variables: Record<string, string> }) {
+function PlaceholderHints({
+  variables,
+  showSamples = false,
+}: {
+  variables: Record<string, string>
+  showSamples?: boolean
+}) {
   const { t } = useTranslation()
 
   return (
     <div className="space-y-2" data-cy="email-template-variables">
       <Label>{t("settings.emailTemplates.editor.availableVariables")}</Label>
       <div className="flex flex-wrap gap-2">
-        {Object.keys(variables).map((name) => (
-          <Badge key={name} variant="secondary" className="font-mono" data-cy="email-template-variable-badge">
-            {`{${name}}`}
-          </Badge>
+        {Object.entries(variables).map(([name, sample]) => (
+          <div key={name} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <Badge variant="secondary" className="font-mono" data-cy="email-template-variable-badge">
+              {`{${name}}`}
+            </Badge>
+            {showSamples && <span className="break-all text-xs text-muted-foreground">{sample}</span>}
+          </div>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{t("settings.emailTemplates.editor.variablesTip")}</p>
@@ -549,7 +558,7 @@ function DocumentTemplateCard({
               className="min-h-[220px]"
             />
           </div>
-          <PlaceholderHints variables={template.variables} />
+          <PlaceholderHints variables={template.variables} showSamples />
         </div>
         {/* `text={template.body}` is a defensive fallback only (see `EmailPreview`'s own header): once
             this editor has been opened at all, `content` is already seeded from it and never blank. */}

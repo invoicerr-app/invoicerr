@@ -168,6 +168,23 @@ describe('ShareLinksService', () => {
       expect(rows[0]).not.toHaveProperty('token');
     });
 
+    it('expires exactly 30 days after creation', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date('2026-11-09T12:00:00.000Z'));
+        vi.mocked(persistence.findOwnedDocument).mockResolvedValue(SENT_INSTANCE);
+        const service = buildService();
+        const link = await service.create('company-1', 'invoice', 'doc-1');
+        expect(link.expiresAt.toISOString()).toBe('2026-12-09T12:00:00.000Z');
+        vi.setSystemTime(link.expiresAt.getTime() - 1);
+        expect(await service.resolvePublicToken(link.token)).toMatchObject({ documentId: 'doc-1' });
+        vi.setSystemTime(link.expiresAt);
+        expect(await service.resolvePublicToken(link.token)).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('refuses a draft by name — no number, no legal existence yet to share', async () => {
       (persistence.findOwnedDocument as Mock).mockResolvedValue({ ...SENT_INSTANCE, status: 'draft' });
 

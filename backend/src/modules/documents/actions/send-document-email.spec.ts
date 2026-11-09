@@ -10,10 +10,20 @@ import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import * as takeNumber from '../numbering/take-number';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import * as renderInstancePdf from '../rendering/render-instance-pdf';
+import { evaluateCountryPolicy } from '../country-policy/country-policy';
+import { findOwnedDocument } from '../persistence';
+import { resolveCreditsForDocument } from '../settlement/credits';
+import { listPayments } from '../settlement/payments';
+import { createShareLinkToken, revokeShareLinkToken } from '../share-links/share-link.persistence';
 import * as stock from '../stock/apply-stock-on-issuance';
 import * as companyEmailTemplates from './company-email-templates';
 import { sendDocumentInstanceEmail } from './send-document-email';
 
+vi.mock('../country-policy/country-policy', { spy: true });
+vi.mock('../persistence', { spy: true });
+vi.mock('../settlement/credits', { spy: true });
+vi.mock('../settlement/payments', { spy: true });
+vi.mock('../share-links/share-link.persistence', { spy: true });
 vi.mock('../numbering/take-number');
 vi.mock('../rendering/render-instance-pdf');
 // PARTIAL mock (issue #579) - only `applyStockOnIssuance` (the DB-touching half) is mocked; the
@@ -741,5 +751,115 @@ describe('sendDocumentInstanceEmail', () => {
           'has neither RESEND_API_KEY nor SMTP_HOST configured either. Configure one before sending.',
       );
     });
+  });
+});
+
+describe('receipt-style document emails', () => {
+  const document = {
+    id: 'doc-1',
+    typeId: 'invoice',
+    status: 'sending',
+    number: 1,
+    displayNumber: 'INV-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    data: {
+      issueDate: '2026-11-09T00:00:00.000Z',
+      dueDate: '2026-12-09',
+      currency: 'EUR',
+      lines: [{ description: 'Service', quantity: 1, unitPrice: 1200, vatRate: '0' }],
+    },
+  };
+
+  function sendReceipt() {
+    const deps = buildDeps();
+    return {
+      mail: deps.mailService.sendForCompany,
+      send: () =>
+        sendDocumentInstanceEmail(
+          { ...deps, mailService: deps.mailService as never },
+          {
+            companyId: 'company-1',
+            typeId: 'invoice',
+            recipient: 'client@example.com',
+            label: 'Invoice',
+            document,
+          },
+        ),
+    };
+  }
+
+  beforeEach(() => {
+    mockSuccessfulRender({ language: 'fr' });
+    vi.stubEnv('BACKEND_PUBLIC_URL', 'https://billing.example.test/');
+    vi.mocked(evaluateCountryPolicy).mockResolvedValue({ allowed: true });
+    vi.mocked(findOwnedDocument).mockResolvedValue(document);
+    vi.mocked(listPayments).mockResolvedValue([]);
+    vi.mocked(resolveCreditsForDocument).mockResolvedValue({ credits: [], warnings: [] });
+    (createShareLinkToken as Mock).mockImplementation(async (input) => ({ id: 'token-id', ...input }));
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({
+      invoice: {
+        subject: '{issueDate} / {unknown}',
+        body: '',
+        html: '<p>{issueDate} | {dueDate} | {amountPaid} | {amountDue} | {unknown}</p><a href="{viewUrl}">View invoice</a>',
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetAllMocks();
+  });
+
+  it.each([
+    [0, '0.00 EUR', '1200.00 EUR'],
+    [40000, '400.00 EUR', '800.00 EUR'],
+    [120000, '1200.00 EUR', '0.00 EUR'],
+  ])('renders all receipt variables with %i paid in document minor units', async (paid, paidText, dueText) => {
+    if (paid) {
+      (listPayments as Mock).mockResolvedValue([
+        { amountMinor: 500, currency: 'USD', documentAmountMinor: paid },
+      ]);
+    }
+    const { mail, send } = sendReceipt();
+    const result = await send();
+    const options = mail.mock.calls[0][1];
+    const summary = `9 nov. 2026 | 9 déc. 2026 | ${paidText} | ${dueText} | {unknown}`;
+    expect(options.subject).toBe('9 nov. 2026 / {unknown}');
+    expect(options.html).toContain(summary);
+    expect(options.text).toContain(summary);
+    const url = options.html.match(/href="([^"]+)"/)?.[1];
+    expect(url).toMatch(/^https:\/\/billing\.example\.test\/api\/public\/documents\/[a-f0-9]{64}\/pdf$/);
+    expect(options.text).toContain(`View invoice (${url})`);
+    expect(result.message.match(/Unknown email template placeholder/g)).toHaveLength(1);
+    expect(createShareLinkToken).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(vi.mocked(createShareLinkToken).mock.calls)).not.toContain(url?.split('/').at(-2));
+  });
+
+  it.each(['policy', 'status'])('blocks delivery when sharing is denied by %s', async (gate) => {
+    if (gate === 'policy') {
+      vi.mocked(evaluateCountryPolicy).mockResolvedValue({ allowed: false, reason: 'Sharing denied.' });
+    } else {
+      vi.mocked(findOwnedDocument).mockResolvedValue({ ...document, status: 'draft' });
+    }
+    const { mail, send } = sendReceipt();
+    await expect(send()).rejects.toThrow(gate === 'policy' ? 'Sharing denied.' : 'status "draft"');
+    expect(mail).not.toHaveBeenCalled();
+    expect(createShareLinkToken).not.toHaveBeenCalled();
+  });
+
+  it('revokes the attempted link when mail delivery fails', async () => {
+    const { mail, send } = sendReceipt();
+    mail.mockRejectedValue(new Error('mail unavailable'));
+    (revokeShareLinkToken as Mock).mockResolvedValue({});
+    await expect(send()).rejects.toThrow('mail unavailable');
+    expect(revokeShareLinkToken).toHaveBeenCalledWith('token-id');
+  });
+
+  it('skips settlement reads and link creation for a template without those placeholders', async () => {
+    (companyEmailTemplates.getCompanyDocumentEmailTemplates as Mock).mockResolvedValue({});
+    await sendReceipt().send();
+    expect(listPayments).not.toHaveBeenCalled();
+    expect(createShareLinkToken).not.toHaveBeenCalled();
   });
 });
