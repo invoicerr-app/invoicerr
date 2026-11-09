@@ -387,7 +387,12 @@ jobs:
   # testing the product.
   cypress-run:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 75, not 40: shard 1 legitimately needs more. On head 958ba09 its job 129059226500 started
+    # 08:35:22Z and was still running 87-dashboard-collections at the 09:15:36Z cut, with every spec
+    # it had reached green, so a 40-minute cap cancels a healthy shard. The per-spec wall-clock
+    # limit in e2e/scripts/run-specs.sh is what stops a stuck browser early; this job cap only has
+    # to sit above a full, honest shard.
+    timeout-minutes: 75
     strategy:
       # Same shape, and the same reason, as scenarios.yml's own six-leg matrix: one shard going red
       # must not cancel the other five, or a single failure hides every finding the rest would have
