@@ -28,9 +28,7 @@ export async function syncDeclaredCompanyProfile(
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return;
 
-    const declarativeFacts = catalog
-      .factsFor(countryCode)
-      .filter((fact) => fact.dischargedBy === 'provider');
+    const declarativeFacts = catalog.factsFor(countryCode).filter((fact) => fact.dischargedBy === 'provider');
     if (declarativeFacts.length === 0) return;
     const providerIds = new Set(declarativeFacts.map((fact) => fact.providerId));
 
