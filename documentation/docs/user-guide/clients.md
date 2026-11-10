@@ -55,6 +55,12 @@ enabled on your instance, picking one fills the whole block.
 
 - **Client kind**: **Business** or **Government**. A government client is sent through the channel
   its country requires for public buyers
+- **VAT registered**: shown for a company only, on by default. A business registered for VAT carries
+  a VAT number on the invoices whose country rules ask the buyer for one (an intra-EU business sale,
+  for example). Turn it off for a business that is not registered, such as a micro-entrepreneur under
+  the franchise en base or an association outside the scope of VAT: the invoice then asks it for no
+  VAT number, while its national identifier (a SIREN, for example) is still printed. A private client
+  is never asked the question
 - **Currency**: overrides your company's default currency for this client
 - **Country-specific identifiers**: the identifiers your client's country asks for (for example a
   SIREN or SIRET in France, a NIF in Portugal). The ones marked as required must be filled in to save

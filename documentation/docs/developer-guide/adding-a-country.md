@@ -517,7 +517,8 @@ resolved list is stored in the `requiredFor` column of `CountryIdentifierRequire
 The flag cannot say what the invoice itself must show, because that depends on the transaction: a
 French seller states its VAT
 number unless it is under the franchise en base, and its client's VAT number only for an
-intra-Community B2B sale. Those rules live in the same `identifiers` section, under
+intra-Community B2B sale to a VAT-registered buyer. Those rules live in the same `identifiers`
+section, under
 `invoiceRequirements`, and are always read from the SELLER's country:
 
 ```json
@@ -525,7 +526,7 @@ intra-Community B2B sale. Those rules live in the same `identifiers` section, un
   {
     "party": "BUYER",
     "scheme": "VAT",
-    "when": { "buyerType": ["COMPANY"], "buyerEstablishment": ["OTHER_UNION_MEMBER"] },
+    "when": { "buyerVatRegistered": [true], "buyerEstablishment": ["OTHER_UNION_MEMBER"] },
     "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "2026-10-23" },
     "notes": "CGI ann. II art. 242 nonies A, I, 3° and 4°. ..."
   }
@@ -536,7 +537,7 @@ intra-Community B2B sale. Those rules live in the same `identifiers` section, un
 | --- | --- |
 | `party` | `SELLER` or `BUYER`. |
 | `scheme` | The cross-country scheme key (`LEGAL_ID`, `VAT`, or a national one such as `RC`). The value printed is the party's own, under the label its own country gives that scheme. |
-| `when` | Optional. Every axis listed must match; an absent axis matches anything; no `when` means always. `sellerVatRegime`: `STANDARD` or `FRANCHISE_BASE` (the company's small-business exemption setting). `buyerType`: `COMPANY` or `INDIVIDUAL` (the client's type). `buyerEstablishment`: `DOMESTIC` (same country as the seller) or `OTHER_UNION_MEMBER` (another member of the seller's tax union, from `tax/tax-unions/data/tax-unions.json`). |
+| `when` | Optional. Every axis listed must match; an absent axis matches anything; no `when` means always. `sellerVatRegime`: `STANDARD` or `FRANCHISE_BASE` (the company's small-business exemption setting). `buyerType`: `COMPANY` or `INDIVIDUAL` (the client's type). `buyerEstablishment`: `DOMESTIC` (same country as the seller) or `OTHER_UNION_MEMBER` (another member of the seller's tax union, from `tax/tax-unions/data/tax-unions.json`). `buyerVatRegistered`: `true` or `false` (whether the client is a VAT-registered business, from the client's own flag; a private client is always `false`, so a buyer VAT rule keyed on `true` needs no `buyerType`). |
 | `provenance`, `notes` | Same discipline as every other fact. Start `notes` with the short citation: the country pages show it. |
 
 Several rules for the same party and scheme are alternatives: France has two seller `VAT` rules, one
@@ -551,12 +552,13 @@ always binds a party type that the scheme's `required` / `requiredFor` leaves fr
 
 | Rule | Party type it binds | Form that must require the scheme |
 | --- | --- | --- |
-| `SELLER`, no `buyerType` or `buyerEstablishment` condition | `COMPANY` | Company settings and onboarding |
-| `BUYER`, `buyerEstablishment` absent or listing `DOMESTIC` | each `buyerType` listed, both when absent | Client wizard and client CSV import |
+| `SELLER`, no `buyerType`, `buyerEstablishment` or `buyerVatRegistered` condition | `COMPANY` | Company settings and onboarding |
+| `BUYER`, `buyerEstablishment` absent or listing `DOMESTIC`, and no `buyerVatRegistered` condition | each `buyerType` listed, both when absent | Client wizard and client CSV import |
 
-A `sellerVatRegime` or `buyerType` condition listing every value counts as absent; any other
-`sellerVatRegime` condition makes the rule conditional, and so does a `BUYER` rule for another member
-state only. A conditional rule is left to Validate. The refusal names every drift of the file at once,
+A `sellerVatRegime` or `buyerType` condition listing every value counts as absent, and so does a
+`buyerVatRegistered` condition listing both `true` and `false`; any other `sellerVatRegime`
+condition makes the rule conditional, and so does a `BUYER` rule for another member
+state only, or one keyed on `buyerVatRegistered` alone. A conditional rule is left to Validate. The refusal names every drift of the file at once,
 for example:
 
 ```text
