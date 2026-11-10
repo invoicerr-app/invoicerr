@@ -56,7 +56,7 @@ import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner'
 import { buildSuperPdpStatusPoller } from '../../conformity/pollers/superpdp-status-poller';
 import { liveDescribe } from '../live-gate';
 import { SuperPdpApiError, SuperPdpClient } from './superpdp-client';
-import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
+import { buildLiveFacturx, depositLiveFacturx, LIVE_VERDICT_BUDGET_MS } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
   SUPERPDP_BASE_URL,
@@ -117,19 +117,27 @@ async function createSentDocument(name: string, email: string, depositId: string
 }
 
 /** THE REAL PRODUCTION CODE, not a copy: the only substitution is the credentials stub above.
- *  superpdp's verdict lands in well under a second, so the REAL runPoll is called every 500ms, up to
- *  5s, exactly what successive sweep passes would do. */
+ *  The platform's verdict is asynchronous, so the REAL runPoll is called repeatedly, backing off
+ *  from 500ms to 5s between passes, until a terminal status is journaled or
+ *  `LIVE_VERDICT_BUDGET_MS` runs out - exactly what successive sweep passes would do. The old
+ *  fixed 10 x 500ms (about 5s) was too short for the 8 to 12s the sandbox measured on 2026-11-06
+ *  and 07, and turned a still-processing deposit into a red nightly. */
 async function pollUntilTerminal(companyId: string, documentId: string, depositId: string) {
   const registry = new AuthorityStatusPollerRegistry();
   registry.register(buildSuperPdpStatusPoller({ channelCredentials: buildRealCredentialsStub() }));
   const runner = new ConformitySweepRunner(registry, {} as never); // runPoll never touches the queue
   const job = { companyId, documentId, providerId: 'pdp', transportRef: depositId };
+  const deadline = Date.now() + LIVE_VERDICT_BUDGET_MS;
+  let delay = 500;
   let sawTerminal = false;
-  for (let attempt = 0; attempt < 10 && !sawTerminal; attempt++) {
+  while (!sawTerminal && Date.now() < deadline) {
     await runner.runPoll(job);
     const events = await listAuthorityEvents(companyId, documentId);
     sawTerminal = events.some((e) => e.statusCode === 'fr:202' || e.statusCode === 'fr:213');
-    if (!sawTerminal) await new Promise((r) => setTimeout(r, 500));
+    if (!sawTerminal) {
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay * 2, 5_000);
+    }
   }
   const journaled = await listAuthorityEvents(companyId, documentId);
   console.log(
@@ -140,6 +148,14 @@ async function pollUntilTerminal(companyId: string, documentId: string, depositI
       2,
     ),
   );
+  if (!sawTerminal) {
+    throw new Error(
+      `superpdp answered NO terminal status (fr:202 or fr:213) for deposit ${depositId} within ` +
+        `${LIVE_VERDICT_BUDGET_MS / 1000}s - journaled: ` +
+        `${JSON.stringify(journaled.map((e) => e.statusCode))}. ` +
+        `The poller ran, the platform had not decided.`,
+    );
+  }
   return { runner, job, journaled };
 }
 
@@ -220,7 +236,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     expect(secondPoll.journaled).toBe(0);
     const after = await listAuthorityEvents(companyId, documentId);
     expect(after.length).toBe(before); // not one extra row from re-polling the identical events
-  }, 45_000);
+  }, 180_000);
 
   it('a NON-COMPLIANT deposit (mentions/BT-23 deliberately skipped): does the platform answer fr:213?', async () => {
     const timestamp = Date.now();
@@ -267,5 +283,5 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     expect(rejected).toBeDefined();
     expect(rejected!.reason).toEqual(expect.stringContaining('BG-1'));
     console.log('fr:213 REPRODUCED LIVE — reason:', rejected!.reason);
-  }, 30_000);
+  }, 180_000);
 });

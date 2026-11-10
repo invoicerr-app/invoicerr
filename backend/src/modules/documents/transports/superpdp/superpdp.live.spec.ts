@@ -55,6 +55,7 @@ import {
   buildLiveFacturx,
   depositLiveFacturx,
   findRejection,
+  LIVE_VERDICT_BUDGET_MS,
 } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -87,14 +88,23 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     expect(String(invoice.id)).not.toBe('');
 
     // BT-23: the verdict must turn stable and positive, and no event may cite a rejection or BT-23,
-    // checked across every event, not just the latest.
+    // checked across every event, not just the latest. A rejection is checked FIRST: "the platform
+    // refused this deposit" and "the platform never answered" are different failures, and a bare
+    // `expect(false).toBe(true)` named neither.
     const events = await awaitLiveVerdict(client, Number(invoice.id));
-    const allReasons = events.map((e) => JSON.stringify(e.data?.reason ?? '')).join(' ');
-    expect(allReasons).not.toContain('BT-23');
-    expect(events.some((e) => e.status_code?.startsWith('fr:2'))).toBe(true);
     const rejectedEvent = findRejection(events);
     if (rejectedEvent) {
       throw new Error(`superpdp reported a rejection: ${JSON.stringify(rejectedEvent)}`);
     }
-  }, 60_000);
+    if (!events.some((e) => e.status_code?.startsWith('fr:2'))) {
+      throw new Error(
+        `superpdp returned NO verdict at all for deposit ${invoice.id} within ` +
+          `${LIVE_VERDICT_BUDGET_MS / 1000}s - statuses seen: ` +
+          `${JSON.stringify(events.map((e) => e.status_code))}. ` +
+          `This is "no status received", not a rejection.`,
+      );
+    }
+    const allReasons = events.map((e) => JSON.stringify(e.data?.reason ?? '')).join(' ');
+    expect(allReasons).not.toContain('BT-23');
+  }, 180_000);
 });

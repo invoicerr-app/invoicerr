@@ -137,20 +137,47 @@ export async function depositLiveFacturx(
   return sent;
 }
 
-/** Re-reads a deposit every 500ms, up to 5s, until it carries an `fr:2xx` event. */
+/**
+ * How long a live spec waits for the platform's own verdict on a deposit. Generous ON PURPOSE:
+ * the old loop was 10 x 500ms (about 5s) and the sandbox measured 8 to 12s on 2026-11-06 and 07,
+ * so four nightly runs went red on a deposit that was simply still being processed (only
+ * `api:uploaded` was journaled at the last read). A verdict landing in under a second is the common
+ * case and costs one first read; the budget only matters on the slow days. Exported so a spec's
+ * failure message can name the real window instead of restating a second copy of the number.
+ */
+export const LIVE_VERDICT_BUDGET_MS = 90_000;
+
+const FIRST_POLL_DELAY_MS = 500;
+const MAX_POLL_DELAY_MS = 5_000;
+
+/**
+ * Re-reads a deposit until it carries an `fr:2xx` event OR a rejection, backing off from 500ms to
+ * 5s between reads, up to `LIVE_VERDICT_BUDGET_MS`. A rejection stops the loop too: waiting the
+ * full budget on a deposit the platform already refused only delays the real message.
+ *
+ * Returns whatever the last read carried - the callers decide what a missing verdict means, because
+ * "no status yet" and "rejected" are two different failures and must not read the same in a log.
+ */
 export async function awaitLiveVerdict(
   client: SuperPdpClient,
   depositId: number,
 ): Promise<SuperPdpInvoiceEvent[]> {
+  const deadline = Date.now() + LIVE_VERDICT_BUDGET_MS;
+  let delay = FIRST_POLL_DELAY_MS;
   let refetched = await client.getInvoice(depositId);
-  for (let attempt = 0; attempt < 10; attempt++) {
-    if ((refetched.events ?? []).some((e) => e.status_code?.startsWith('fr:2'))) break;
-    await new Promise((r) => setTimeout(r, 500));
+  while (!isVerdict(refetched.events ?? []) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, delay));
+    delay = Math.min(delay * 2, MAX_POLL_DELAY_MS);
     refetched = await client.getInvoice(depositId);
   }
   const events = refetched.events ?? [];
   console.log(`deposit ${depositId} events:`, JSON.stringify(events, null, 2));
   return events;
+}
+
+/** A positive verdict, or a rejection: either way the platform has decided something. */
+function isVerdict(events: SuperPdpInvoiceEvent[]): boolean {
+  return events.some((e) => e.status_code?.startsWith('fr:2')) || Boolean(findRejection(events));
 }
 
 export function findRejection(events: SuperPdpInvoiceEvent[]): SuperPdpInvoiceEvent | undefined {
