@@ -11,6 +11,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * three encoding fixtures (semicolon, Windows-1252, UTF-8-with-BOM) landing with accented names
  * intact.
  */
+import {
+	confirmCsvImport,
+	expectCreatedClientCountry,
+	expectCsvImportPreview,
+	openCsvImportDialog,
+	uploadCsvImportFile,
+} from "../support/csv-import-dialog";
 
 const api = Cypress.env("apiUrl");
 
@@ -43,35 +50,25 @@ describe("Client CSV import", () => {
 			"Nom;Prénom;Emails;Téléphone;Adresse de facturation;Code postal de facturation;Ville de facturation;Langue par défaut;Pays de facturation\n" +
 			"Dupont;Marie;marie.dupont@example.test;0611223344;12 rue des Lilas;69003;Lyon;Français;FR\n";
 
-		cy.get('[data-cy="clients-import-button"]').click();
-		cy.get('[data-cy="clients-import-dialog"]', { timeout: 10000 }).should("be.visible");
-
-		cy.get('[data-cy="clients-import-file-input"]').selectFile(
-			{ contents: Cypress.Buffer.from(csv), fileName: "abby-contacts.csv" },
-			{ force: true },
-		);
-
-		cy.get('[data-cy="clients-import-preview"]', { timeout: 15000 }).should("be.visible");
-		cy.get('[data-cy="clients-import-vendor"]', { timeout: 15000 }).should("contain.text", "Abby");
-		cy.get('[data-cy="clients-import-summary-valid"]').should("contain.text", "1");
-		cy.get('[data-cy="clients-import-summary-rejected"]').should("contain.text", "0");
+		openCsvImportDialog("clients-import-button", "clients-import");
+		uploadCsvImportFile("clients-import", {
+			contents: Cypress.Buffer.from(csv),
+			fileName: "abby-contacts.csv",
+		});
+		expectCsvImportPreview("clients-import", {
+			vendor: "Abby",
+			valid: "1",
+			rejected: "0",
+			screenshot: "759-vendor-client-preview",
+		});
 		cy.get('[data-cy="clients-import-row-2"]').should("contain.text", "Marie Dupont");
 		cy.get('[data-cy="clients-import-row-2"]').should("contain.text", "Will be created");
-		cy.screenshot("759-vendor-client-preview", { capture: "viewport" });
 
-		cy.get('[data-cy="clients-import-confirm-button"]').click();
-		cy.get('[data-cy="clients-import-result"]', { timeout: 15000 }).should("be.visible");
-		cy.get('[data-cy="clients-import-result-created"]', { timeout: 15000 }).should("contain.text", "1");
+		confirmCsvImport("clients-import", { created: "1" });
 
-		cy.request({ method: "GET", url: `${api}/api/clients?page=1` }).then((res) => {
-			const created = (res.body.clients as { contactEmail: string; country: string }[]).find(
-				(entry) => entry.contactEmail === "marie.dupont@example.test",
-			);
-			expect(created, "vendor client created").to.not.eq(undefined);
-			// The export prints the code in its own country cell, which is kept verbatim next to the
-			// resolved ISO; what matters is that the row was accepted and resolved at all.
-			expect(created?.country, "country cell kept").to.eq("FR");
-		});
+		// The export prints the code in its own country cell, which is kept verbatim next to the
+		// resolved ISO; what matters is that the row was accepted and resolved at all.
+		expectCreatedClientCountry("marie.dupont@example.test", "FR");
 	});
 
 	it("previews a mixed file (valid, rejected, duplicate), writes nothing until confirmed, then imports", () => {

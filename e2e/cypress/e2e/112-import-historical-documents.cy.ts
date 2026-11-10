@@ -21,6 +21,13 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * real file input), the CSV import's real preview, and every detail-page assertion/screenshot.
  */
 import { FRENCH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+import {
+	confirmCsvImport,
+	expectCsvImportPreview,
+	openCsvImportDialog,
+	uploadCsvImportFile,
+	uploadInvoiceOriginals,
+} from "../support/csv-import-dialog";
 
 const api = Cypress.env("apiUrl");
 const appOrigin = Cypress.config("baseUrl");
@@ -280,60 +287,34 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 	it("imports invoices in bulk from a CSV file, with a real preview", () => {
 		createClient("Bulk Migration Co", "bulk-migration@example.com").then((clientId) => {
 			cy.visit(`${appOrigin}/documents/invoice`);
-			cy.get('[data-cy="import-document-csv-button-invoice"]').click();
-			cy.get('[data-cy="import-document-csv-dialog"]', { timeout: 10000 }).should("be.visible");
-
-			cy.get('[data-cy="import-document-csv-files-input"]').selectFile(ORIGINAL_PDF_SELECT_PATH, {
-				force: true,
-			});
-			cy.wait(500); // the file upload round-trip before the CSV itself is parsed against it
+			openCsvImportDialog("import-document-csv-button-invoice", "import-document-csv");
+			uploadInvoiceOriginals(ORIGINAL_PDF_SELECT_PATH);
 
 			const csv =
 				"originalNumber,originalFileName,clientId,issueDate,dueDate,currency,lineDescription,lineQuantity,lineUnit,lineUnitPrice,lineVatRate\n" +
 				`OLD-BULK-0001,supplier-invoice-plain.pdf,${clientId},2024-01-10,2024-02-10,EUR,Consulting,2,hour,150,20\n` +
 				"OLD-BULK-0002,supplier-invoice-plain.pdf,,2024-01-11,2024-02-11,EUR,Consulting,1,hour,150,20\n";
 
-			cy.get('[data-cy="import-document-csv-file-input"]').selectFile(
-				{ contents: Cypress.Buffer.from(csv), fileName: "invoices.csv" },
-				{ force: true },
-			);
-
-			cy.get('[data-cy="import-document-csv-preview"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-summary-valid"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
-			cy.get('[data-cy="import-document-csv-summary-rejected"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
-			cy.screenshot("340-after-import-csv-preview", { capture: "viewport" });
-
-			cy.get('[data-cy="import-document-csv-confirm-button"]').click();
-			cy.get('[data-cy="import-document-csv-result"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-result-imported"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
+			uploadCsvImportFile("import-document-csv", {
+				contents: Cypress.Buffer.from(csv),
+				fileName: "invoices.csv",
+			});
+			expectCsvImportPreview("import-document-csv", {
+				valid: "1",
+				rejected: "1",
+				screenshot: "340-after-import-csv-preview",
+			});
 			// The row the preview refused never reached the API, so the result adds it back: every
 			// row of the file is accounted for, not only the ones that were submitted.
-			cy.get('[data-cy="import-document-csv-result-rejected"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
+			confirmCsvImport("import-document-csv", { imported: "1", rejected: "1" });
 		});
 	});
 
 	it("reads a Henrri invoice export, keeping the printed quantity and total", () => {
 		createClient("Vendor Journal Co", "vendor-journal@example.com").then(() => {
 			cy.visit(`${appOrigin}/documents/invoice`);
-			cy.get('[data-cy="import-document-csv-button-invoice"]').click();
-			cy.get('[data-cy="import-document-csv-dialog"]', { timeout: 10000 }).should("be.visible");
-
-			cy.get('[data-cy="import-document-csv-files-input"]').selectFile(ORIGINAL_PDF_SELECT_PATH, {
-				force: true,
-			});
-			cy.wait(500); // the file upload round-trip before the CSV itself is parsed against it
+			openCsvImportDialog("import-document-csv-button-invoice", "import-document-csv");
+			uploadInvoiceOriginals(ORIGINAL_PDF_SELECT_PATH);
 
 			// The vendor profile is recognised from its own header row, never from the generic one:
 			// 900 for 3 units must become 300 per unit, not 900 per unit.
@@ -341,32 +322,18 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 				"Numéro de facture;Date;Client;Montant HT;Montant TVA;Montant TTC;Taux de TVA;Désignation;Fichier;Quantité\n" +
 				"FA-VENDOR-0001;15/03/2024;Vendor Journal Co;900,00;180,00;1080,00;20;Conseil;supplier-invoice-plain.pdf;3\n";
 
-			cy.get('[data-cy="import-document-csv-file-input"]').selectFile(
-				{ contents: Cypress.Buffer.from(csv), fileName: "henrri-invoices.csv" },
-				{ force: true },
-			);
+			uploadCsvImportFile("import-document-csv", {
+				contents: Cypress.Buffer.from(csv),
+				fileName: "henrri-invoices.csv",
+			});
+			expectCsvImportPreview("import-document-csv", {
+				vendor: "Henrri",
+				valid: "1",
+				rejected: "0",
+				screenshot: "759-vendor-invoice-preview",
+			});
+			confirmCsvImport("import-document-csv", { imported: "1" });
 
-			cy.get('[data-cy="import-document-csv-preview"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-vendor"]', { timeout: 15000 }).should(
-				"contain.text",
-				"Henrri",
-			);
-			cy.get('[data-cy="import-document-csv-summary-valid"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
-			cy.get('[data-cy="import-document-csv-summary-rejected"]', { timeout: 15000 }).should(
-				"contain.text",
-				"0",
-			);
-			cy.screenshot("759-vendor-invoice-preview", { capture: "viewport" });
-
-			cy.get('[data-cy="import-document-csv-confirm-button"]').click();
-			cy.get('[data-cy="import-document-csv-result"]', { timeout: 15000 }).should("be.visible");
-			cy.get('[data-cy="import-document-csv-result-imported"]', { timeout: 15000 }).should(
-				"contain.text",
-				"1",
-			);
 			// The line the export described keeps the total it printed.
 			cy.request({ method: "GET", url: `${api}/api/documents?typeId=invoice&page=1` }).then((res) => {
 				const documents = res.body.items as { displayNumber: string; id: string }[];
