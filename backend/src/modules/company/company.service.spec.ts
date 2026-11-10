@@ -10,16 +10,21 @@
  * refuses every change.
  */
 
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 vi.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: vi.fn(),
+}));
+
+vi.mock('@/modules/documents/reporting/profile-sync', () => ({
+  syncDeclaredCompanyProfile: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, MethodNotAllowedException } from '@nestjs/common';
 import { CompanyService } from './company.service';
+import { syncDeclaredCompanyProfile } from '@/modules/documents/reporting/profile-sync';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { getSeatsView } from '@/modules/billing/seats-view';
 import prisma from '@/prisma/prisma.service';
@@ -335,6 +340,18 @@ describe('CompanyService - the company profile its country asks for', () => {
       await edit(companyId, { reportingProfile: { sizeCategory: 'SME' } });
 
       expect((await edit(companyId, { name: 'Renamed' })).reportingProfile).toEqual({ sizeCategory: 'SME' });
+    });
+  });
+
+  it('pushes a changed profile to the declaration channel, never on an unrelated rename', async () => {
+    const sync = syncDeclaredCompanyProfile as unknown as Mock;
+    await withCompany(async (companyId) => {
+      sync.mockClear();
+      await edit(companyId, { name: 'Renamed' });
+      expect(sync).not.toHaveBeenCalled();
+
+      await edit(companyId, { reportingProfile: { sizeCategory: 'SME' } });
+      expect(sync).toHaveBeenCalledWith(companyId);
     });
   });
 

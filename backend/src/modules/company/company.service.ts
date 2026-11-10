@@ -43,6 +43,7 @@ import {
   InvalidCompanyProfileValueError,
   parseCompanyProfileValues,
 } from '@/modules/documents/company-profile/profile';
+import { syncDeclaredCompanyProfile } from '@/modules/documents/reporting/profile-sync';
 import { defaultCompanyProfileCatalog } from '@/modules/documents/company-profile/registry';
 import { CompanyProfileValues } from '@/modules/documents/company-profile/schema';
 import {
@@ -379,6 +380,17 @@ export class CompanyService {
       identifiers,
       updatedCompany.countryCode ?? updatedCompany.country,
     );
+
+    // The platform's own declaration schedule follows these answers; a platform outage is logged by
+    // the sync and never fails the settings write.
+    if (
+      rest.reportingProfile !== undefined ||
+      updatedCompany.exemptVat !== existingCompany.exemptVat ||
+      updatedCompany.country !== existingCompany.country ||
+      updatedCompany.countryCode !== existingCompany.countryCode
+    ) {
+      await syncDeclaredCompanyProfile(companyId);
+    }
 
     // A rename or a changed email is what this company's Polar customer should show, pushed in the same
     // request and best-effort. Only those two fields have a counterpart worth a network call on save.

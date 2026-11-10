@@ -38,10 +38,7 @@ import { buildSuperPdpStatusPoller } from './conformity/pollers/superpdp-status-
 import { SuperPdpReceptionSweepRunner } from './conformity/reception-sweep-runner';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
-import { EReportingAdapterRegistry } from './reporting/ereporting-adapter';
-import { buildFrenchPaDeclarationProvider } from './reporting/providers/fr-pa-declaration-provider';
-import { buildSuperPdpEReportingAdapter } from './reporting/providers/superpdp-ereporting-adapter';
-import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
+import { buildDeclarationProviderRegistry } from './reporting/providers/build-registry';
 import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
@@ -442,38 +439,6 @@ function buildPaymentProviderRegistry(): PaymentProviderRegistry {
 
   const paypalClient = useReal ? new RealPayPalClient() : new FakePayPalClient();
   registry.register(new PayPalProvider(paypalClient));
-
-  return registry;
-}
-
-/**
- * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
- * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
- * as `buildAuthorityStatusPollerRegistry` just above. "nav" (Hungary, NAV Online Számla 3.0) and
- * "mydata" (Greece, AADE myDATA) were the first two shipped providers, but both HU and GR fell outside
- * the five-country scope decided 2026-09-10 — unlike the transports/formats deleted for the same
- * reason, their underlying `reporting/data/*.json` obligation files had ALREADY been removed by that
- * prune, so the providers were unreachable dead code even before this pass deleted them outright (see
- * `documentation/docs/developer-guide/live-testing.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
- * faturas") is the only provider left, implemented-to-contract-but-credential-gated, the exact same
- * "awaiting accreditation" posture `transports/sdi/` already carries — see
- * `reporting/providers/pt-at-client.ts`'s own header. It is gated by the exact same
- * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
- * per-`providerId`, reusable for a declarative channel with zero changes — see
- * `modules/company/channels/channels.service.ts`'s own header).
- */
-function buildDeclarationProviderRegistry(
-  channelCredentials: ChannelCredentialsService,
-): DeclarationProviderRegistry {
-  const registry = new DeclarationProviderRegistry();
-  registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
-
-  // The French accredited-platform channel (CGI art. 290/290 A). The provider id names the legal
-  // channel, never a vendor: `operators/` decides which connected operator can discharge it and
-  // `EReportingAdapterRegistry` decides which API this build speaks.
-  const adapters = new EReportingAdapterRegistry();
-  adapters.register(buildSuperPdpEReportingAdapter({ channelCredentials }));
-  registry.register(buildFrenchPaDeclarationProvider({ channelCredentials, adapters }));
 
   return registry;
 }

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 import * as countryPolicy from '../../country-policy/country-policy';
-import { ChannelNotConnectedError, DeclaredInvoice } from '../declaration-provider';
+import { ChannelNotConnectedError, DeclaredInvoice, DeclaredPayment } from '../declaration-provider';
 import { EReportingAdapterRegistry } from '../ereporting-adapter';
 import { buildFrenchPaDeclarationProvider } from './fr-pa-declaration-provider';
 
@@ -74,6 +74,56 @@ describe('buildFrenchPaDeclarationProvider', () => {
       vatOnDebits: false,
     });
     expect(adapter.declareTransaction).toHaveBeenCalledWith('company-1', invoice);
+  });
+
+  it('delegates a payment declaration to the same adapter, with the profile synced first', async () => {
+    const { registry, adapter } = registryWith('pdp');
+    adapter.declarePayment.mockResolvedValue({
+      statusCode: 'SUBMITTED',
+      authorityId: '2',
+      observedAt: new Date(),
+      rawPayload: {},
+    });
+    const provider = buildFrenchPaDeclarationProvider({
+      channelCredentials: channels([{ providerId: 'pdp', isActive: true }]),
+      adapters: registry,
+    });
+    const payment = {
+      ...invoice,
+      paymentId: 'payment-1',
+      paidAt: '2027-10-02',
+      amount: 120,
+    } as unknown as DeclaredPayment;
+
+    await provider.declarePayment?.('company-1', payment);
+
+    expect(adapter.declarePayment).toHaveBeenCalledWith('company-1', payment);
+  });
+
+  it('syncs the profile on its own when the company settings change, without declaring anything', async () => {
+    const { registry, adapter } = registryWith('pdp');
+    const provider = buildFrenchPaDeclarationProvider({
+      channelCredentials: channels([{ providerId: 'pdp', isActive: true }]),
+      adapters: registry,
+    });
+
+    await provider.syncCompanyProfile?.('company-1');
+
+    expect(adapter.syncCompanyProfile).toHaveBeenCalledWith('company-1', {
+      vatRegime: 'REAL_MONTHLY',
+      vatOnDebits: false,
+    });
+    expect(adapter.declareTransaction).not.toHaveBeenCalled();
+    expect(adapter.declarePayment).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a settings change when no channel is connected yet', async () => {
+    const provider = buildFrenchPaDeclarationProvider({
+      channelCredentials: channels([]),
+      adapters: new EReportingAdapterRegistry(),
+    });
+
+    await expect(provider.syncCompanyProfile?.('company-1')).resolves.toBeUndefined();
   });
 
   it('is blocked when no channel is connected, never silently skipped', async () => {

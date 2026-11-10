@@ -67,12 +67,10 @@ export class ReportingObligationCatalog {
    *     already carries the data. Enqueuing a report job under the transport's own id would also
    *     wrongly conflate it with a genuine declaration provider — see `schema.ts`'s own
    *     `providerId` doc for why that distinction matters to `list-declarations.ts`.
-   *   - a fact carrying a `scope` restriction (France's B2C/export/intra-EU/payments facts, CGI
-   *     art. 290/290 A): this codebase has no per-invoice classifier for "is this buyer domestic or
-   *     foreign, B2B or B2C" at send time — firing on EVERY invoice would over-report (a
-   *     B2B-domestic invoice is already covered by the transport row above), so until that
-   *     classifier exists this returns nothing rather than guess, the same "read by nothing yet,
-   *     deliberately" posture `domestic-reverse-charge/DESIGN.md` documents for its own catalog.
+   *   - a fact carrying a `scope` restriction (France's B2C and payments facts, CGI art. 290/290 A):
+   *     it is matched per operation by `classify.ts` through `providerFactsFor`, so this method
+   *     (the narrower "one fact I may fire blind with" question) returns nothing for it rather than
+   *     guess.
    *
    * Only an UNSCOPED, `dischargedBy: 'provider'` fact (Portugal today) is safe to fire
    * unconditionally on every document of `appliesTo`'s type — the shape this catalog held before

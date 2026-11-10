@@ -143,9 +143,9 @@ platform, not through Invoicerr directly.
 company size category, your VAT regime (normal monthly, normal quarterly, simplified, or franchise
 en base) and, unless you are exempt, whether you opted for VAT on debits. These answers decide when
 your obligation starts and how often SuperPDP transmits; Invoicerr sends the regime and the debits
-option to SuperPDP before every declaration. Without a size category, or for an SME that has not
-answered the VAT group question, nothing is sent: the Declarations screen shows the declaration as
-blocked, with the question to answer.
+option to SuperPDP when you save them, and again before every declaration. Without a size category,
+or for an SME that has not answered the VAT group question, nothing is sent: the Declarations screen
+shows the declaration as blocked, with the question to answer.
 
 **What is declared.** Sending an invoice to a private client in France declares its data.
 Recording a payment on a service invoice whose VAT is due on collection declares the payment amount,

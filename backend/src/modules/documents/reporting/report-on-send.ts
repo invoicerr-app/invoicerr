@@ -41,15 +41,11 @@
  *
  * ## A country with no AUTO-TRIGGERABLE obligation — "NOTHING changes"
  *
- * `ReportingObligationCatalog.obligationFor` returns `undefined` for a country with no
- * `reporting/data/*.json` file at all (every country except FR and PT today) — this function
- * returns immediately, having enqueued nothing, exactly the pre-existing "send" behaviour for every
- * type and every seller without an obligation. It ALSO returns `undefined` for France specifically,
- * despite `countries/data/fr.json (section "reporting")` existing: every FR fact is either `dischargedBy: 'transport'`
- * (nothing for this trigger to do — the PDP already carries the data) or `scope`-restricted (no
- * per-invoice B2B/B2C classifier exists yet to safely auto-fire on) — see `obligationFor`'s own
- * header in `registry.ts` for the full reasoning. Portugal remains the one country this function
- * still actually enqueues a job for.
+ * A country with no `reporting/data/*.json` file at all (every country except FR and PT today) has
+ * no fact, so this function returns immediately, having enqueued nothing: the pre-existing "send"
+ * behaviour for every type and every seller without an obligation. A fact that is
+ * `dischargedBy: 'transport'` (the PDP already carries the data) or whose `scope`/`applicability`
+ * does not cover the operation is classified `out` and enqueues nothing either.
  */
 import { logger } from '@/logger/logger.service';
 
