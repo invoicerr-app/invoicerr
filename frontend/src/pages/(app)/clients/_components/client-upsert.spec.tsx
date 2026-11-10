@@ -364,6 +364,54 @@ describe("<ClientUpsert>", () => {
 
     expect(screen.getByTestId("client-currency-select")).toHaveTextContent("United States Dollar")
   })
+
+  it("shows the VAT-registered switch for a business client, on by default, and saves the choice", async () => {
+    const patch = vi.fn()
+    installFetchMock({
+      "GET /api/custom-fields/resolved": () => [],
+      "GET /api/documents/required-identifiers": () => ({ requirements: [] }),
+      "GET /api/clients/duplicates": () => [],
+      "PATCH /api/clients/client-1": (_url, init) => {
+        patch(JSON.parse(init?.body as string))
+        return CLIENT
+      },
+    })
+
+    renderDialog(CLIENT)
+    await screen.findByTestId("client-dialog-step-body-fiscal")
+
+    const vatSwitch = screen.getByTestId("client-vat-registered-switch")
+    expect(vatSwitch).toHaveAttribute("aria-checked", "true")
+
+    fireEvent.click(vatSwitch)
+    fireEvent.click(await screen.findByTestId("client-submit"))
+
+    await waitFor(() => expect(patch).toHaveBeenCalled())
+    expect(patch.mock.calls[0][0].vatRegistered).toBe(false)
+  })
+
+  it("keeps a stored VAT-registered value after a reload", async () => {
+    installFetchMock(CREATE_HANDLERS)
+    renderDialog({ ...CLIENT, vatRegistered: false })
+    await screen.findByTestId("client-dialog-step-body-fiscal")
+
+    expect(screen.getByTestId("client-vat-registered-switch")).toHaveAttribute("aria-checked", "false")
+  })
+
+  it("asks no VAT-registered question about an individual client", async () => {
+    installFetchMock(CREATE_HANDLERS)
+    renderDialog({
+      ...CLIENT,
+      type: "INDIVIDUAL",
+      name: "",
+      contactFirstname: "Jean",
+      contactLastname: "Dupont",
+      contacts: [{ id: "contact-1", firstName: "Jean", lastName: "Dupont", isPrimary: true }],
+    })
+    await screen.findByTestId("client-dialog-step-body-fiscal")
+
+    expect(screen.queryByTestId("client-vat-registered-switch")).not.toBeInTheDocument()
+  })
 })
 
 describe("<ClientUpsert quick>", () => {

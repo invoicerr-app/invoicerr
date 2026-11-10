@@ -23,6 +23,9 @@ export interface Client {
   name: string
   description?: string
   type: "INDIVIDUAL" | "COMPANY"
+  // Whether this business client is registered for VAT; buyer VAT rules ask only a registered one for a
+  // number. Optional: absent means true (the schema default). A private client is never asked.
+  vatRegistered?: boolean
   // B2G routing (documents/b2g-routing/) — GOVERNMENT changes which channel/format an invoice to
   // this client must use, per its own country. Optional: absent means BUSINESS (the schema default).
   kind?: "BUSINESS" | "GOVERNMENT"

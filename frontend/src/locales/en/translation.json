@@ -235,6 +235,10 @@
           "label": "Supplier",
           "description": "This company buys from this client too — set automatically when a received invoice is linked to it, but can also be set by hand."
         },
+        "vatRegistered": {
+          "label": "VAT registered",
+          "description": "A business client registered for VAT carries a VAT number on invoices that ask the buyer for one. Uncheck it for a business that is not registered, such as a micro-entrepreneur under the franchise en base."
+        },
         "b2gHint": {
           "knownTitle": "This country requires a specific channel/format for public-sector invoices",
           "channel": "Channel: \"{{transportId}}\" · Format: \"{{formatSyntax}}\"",
