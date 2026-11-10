@@ -6,7 +6,12 @@ import { mailT } from '@/mail/i18n';
 import { EMAIL_NON_TEXT_TAGS } from '@/mail/sanitize-email-html';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
-import { DocumentEmailTemplate, DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
+import {
+  DocumentEmailTemplate,
+  DocumentFieldDescriptor,
+  DocumentTypeDescriptor,
+  findShareLinkAction,
+} from '../descriptors/types';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from '../rendering/language/supported-languages';
 import { descriptorHasLineTotals, DocumentTotals } from '../totals/compute-totals';
 
@@ -25,6 +30,29 @@ export interface RenderedEmailTemplate {
 }
 
 const PLACEHOLDER_PATTERN = /\{([a-zA-Z0-9_]+)\}/g;
+
+export function templateUsesPlaceholder(template: DocumentEmailTemplate, key: string): boolean {
+  return [template.subject, template.body, template.html].some((part) => part?.includes(`{${key}}`));
+}
+
+export function hasEmailSettlement(descriptor: DocumentTypeDescriptor): boolean {
+  return descriptor.actions.some((action) => action.id === 'record-payment');
+}
+
+const EMAIL_DATE_KEYS = ['issueDate', 'dueDate'] as const;
+
+function emailDateKeys(descriptor: DocumentTypeDescriptor) {
+  return EMAIL_DATE_KEYS.filter((key) =>
+    descriptor.fields.some((field) => field.key === key && field.kind === 'date'),
+  );
+}
+
+function formatEmailDate(value: unknown, language: RenderLanguage): string {
+  const time = value instanceof Date ? value.getTime() : typeof value === 'string' ? Date.parse(value) : NaN;
+  return Number.isFinite(time)
+    ? new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeZone: 'UTC' }).format(time)
+    : '';
+}
 
 /** Escapes a SUBSTITUTED VALUE on its way into the html part — never the template's own markup, which
  *  is filtered at write time instead (`mail/sanitize-email-html.ts`). Without this, a company name or
@@ -288,10 +316,13 @@ export function resolveEmailTemplateSource(
  *  (compute-totals.ts's own "document currency not found" case) formats with the 2-decimal default,
  *  the same way `decimalsFor('')` already does everywhere else in this module. */
 function formatGrossTotal(totals: DocumentTotals): string {
-  const currency = totals.currency ?? '';
-  const decimals = decimalsFor(currency);
-  const amount = fromMinor(totals.grossMinor, currency).toFixed(decimals);
-  return currency ? `${amount} ${currency}` : amount;
+  return formatEmailAmount(totals.grossMinor, totals.currency);
+}
+
+function formatEmailAmount(minor: number, currency: string | null): string {
+  const code = currency ?? '';
+  const amount = fromMinor(minor, code).toFixed(decimalsFor(code));
+  return code ? `${amount} ${code}` : amount;
 }
 
 /**
@@ -353,6 +384,9 @@ export function buildEmailTemplateParts(input: {
   companyName: string;
   totals: DocumentTotals;
   referenceLabels: Record<string, string>;
+  data?: Record<string, unknown>;
+  settlement?: { paidMinor: number; outstandingMinor: number; currency: string | null };
+  viewUrl?: string;
   /**
    * Issue #373 ("quotes with options") - true when `totals` is a MEANINGLESS sum across 2+ options
    * (`rendering/render-instance-pdf.ts#RenderedDocumentInstance.hasMultipleOptions`). `totalGross`
@@ -397,6 +431,18 @@ export function buildEmailTemplateParts(input: {
     parts.recipientName = recipientName;
   }
 
+  for (const key of emailDateKeys(input.descriptor)) {
+    parts[key] = formatEmailDate(input.data?.[key], language);
+  }
+  if (hasEmailSettlement(input.descriptor)) {
+    const settlement = input.settlement;
+    parts.amountPaid = settlement ? formatEmailAmount(settlement.paidMinor, settlement.currency) : '';
+    parts.amountDue = settlement ? formatEmailAmount(settlement.outstandingMinor, settlement.currency) : '';
+  }
+  if (findShareLinkAction(input.descriptor)) {
+    parts.viewUrl = input.viewUrl ?? '';
+  }
+
   return parts;
 }
 
@@ -421,6 +467,7 @@ export function buildEmailTemplateParts(input: {
 export function describeDocumentEmailVocabulary(input: {
   descriptor: DocumentTypeDescriptor;
   companyName: string;
+  offerViewUrl?: boolean;
 }): Record<string, string> {
   const { descriptor, companyName } = input;
 
@@ -437,9 +484,21 @@ export function describeDocumentEmailVocabulary(input: {
     vocabulary.recipientName = SAMPLE_RECIPIENT_NAME;
   }
 
+  for (const key of emailDateKeys(descriptor)) {
+    vocabulary[key] = formatEmailDate(SAMPLE_DATES[key], DEFAULT_RENDER_LANGUAGE);
+  }
+  if (hasEmailSettlement(descriptor)) {
+    vocabulary.amountPaid = '400.00 EUR';
+    vocabulary.amountDue = '800.00 EUR';
+  }
+  if (findShareLinkAction(descriptor) && input.offerViewUrl !== false) {
+    vocabulary.viewUrl = 'https://example.invalid/api/public/documents/example-token/pdf';
+  }
+
   return vocabulary;
 }
 
+const SAMPLE_DATES = { issueDate: '2026-11-09', dueDate: '2026-12-09' };
 const SAMPLE_TOTAL_GROSS = '1200.00 EUR';
 const SAMPLE_RECIPIENT_NAME = 'Acme Ltd';
 

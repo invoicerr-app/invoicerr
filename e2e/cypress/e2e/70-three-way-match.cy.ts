@@ -12,8 +12,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * state-changing ACTION goes through a real click on the screen; every `cy.intercept`+`cy.wait` is
  * followed by an HTTP status assertion BEFORE anything else (no toast is ever asserted here at all);
  * the FACTS that matter (verdict, acceptance trace) are re-read via `cy.request`, never trusted from
- * the screen alone. The document dialog is never asserted closed anywhere in this file — it stays
- * open by design (document-upsert-dialog.tsx) and no step here needs it shut.
+ * the screen alone. A create dialog does NOT stay open: a successful first save closes it and
+ * navigates to the new record (document-create-dialog.tsx). Each one is therefore asserted closed,
+ * never dismissed with Escape, which can land on the still focused, still disabled submit button
+ * while the mutation is settling (same trap as 66-purchase-orders.cy.ts).
  *
  * DATES: `[data-cy="document-field-*Date-input"]` is a calendar POPOVER with no typable text input at
  * all (frontend/src/components/date-picker.tsx — a button that opens a `<Calendar>`, nothing else) —
@@ -164,7 +166,12 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 				"6 unités reçues, telles que saisies à l'écran",
 			).to.eq(6);
 
-			cy.get("body").type("{esc}");
+			// A successful first save already closes this create dialog and navigates to the new
+			// record (document-create-dialog.tsx). Wait for that teardown rather than typing
+			// Escape, which would land on the still focused, still disabled save button while the
+			// mutation is settling (same trap as 66-purchase-orders.cy.ts).
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("not.exist");
+			cy.location("pathname").should("eq", `/documents/goods-receipt/${goodsReceiptId}`);
 		});
 	});
 
@@ -226,7 +233,11 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 				purchaseOrderId,
 			);
 
-			cy.get("body").type("{esc}");
+			// Same teardown as the goods-receipt save above: the receive action closes the create
+			// dialog and navigates to the new record, so wait for it instead of typing Escape at
+			// the focused, disabled submit button.
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("not.exist");
+			cy.location("pathname").should("eq", `/documents/received-invoice/${receivedInvoiceId}`);
 		});
 	});
 

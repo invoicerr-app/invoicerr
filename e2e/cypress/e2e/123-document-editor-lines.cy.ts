@@ -337,8 +337,10 @@ describe("Document line editor", () => {
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 2).and("be.checked");
 
+					// Checked, not just rendered: the save payload carries the form's selection, which the
+					// row fetch fills after the rows themselves appear.
 					pickInvoice("Avoir Chip Second SARL");
-					cy.get(corrected, { timeout: 10000 }).should("have.length", 3);
+					cy.get(corrected, { timeout: 10000 }).should("have.length", 3).and("be.checked");
 
 					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as("save");
 					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();

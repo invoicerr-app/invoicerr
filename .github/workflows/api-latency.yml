@@ -88,7 +88,7 @@ jobs:
       K6_SHA256: cc127a656f734f8ea1e89f8a417777905ae6a93d42f3e763e95313518180655b
     services:
       postgres-test:
-        image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
+        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -100,12 +100,12 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
+        image: axllent/mailpit@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
         ports:
           - "8025:8025"
           - "1025:1025"
       redis:
-        image: redis:7@sha256:b6b6e3dc0c0952737748e55d5d885272840c7e42ba41ab1d5489f693419882f5
+        image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
         ports:
           - "6379:6379"
         options: >-

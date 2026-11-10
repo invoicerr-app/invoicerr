@@ -750,3 +750,9 @@ export function isActionAvailable(action: DocumentActionDescriptor, status: stri
   if (status === undefined || !action.availableWhen.includes(status)) return false;
   return !action.lockedStatuses?.includes(status);
 }
+
+export function findShareLinkAction(
+  descriptor: DocumentTypeDescriptor,
+): DocumentActionDescriptor | undefined {
+  return descriptor.actions.find((action) => action.id === 'share-link');
+}
