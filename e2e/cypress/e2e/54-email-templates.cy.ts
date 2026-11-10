@@ -72,6 +72,59 @@ function openTemplateEditor(typeId: string) {
 	cy.get(`[data-cy="email-template-subject-${typeId}"]`, { timeout: 10000 }).should("exist");
 }
 
+/** The TipTap contenteditable root of whichever template's editor is open. */
+const EDITOR = '[data-testid="rich-text-editor"] .ProseMirror';
+
+/** How long the editor is given to catch up on a gesture before the next one is allowed to steal
+ *  its focus: it reads a selection made through the DOM on its own next pass, and it restores the
+ *  caret once, 20 ms after being focused. A click on any toolbar button BLURS the editor and drops
+ *  a pass still pending, so an action that depends on such a selection has to wait for that pass. */
+const EDITOR_SETTLE_MS = 100;
+
+/**
+ * Turns the last paragraph of the open editor into a link, through the real toolbar.
+ *
+ * The text is selected as a DOM Range, which is what a user's drag builds, but the editor's own
+ * state only ADOPTS that selection on its next pass. When the toolbar click gets there first, the
+ * link command runs against the collapsed caret instead: TipTap then stores the mark for the next
+ * typed character rather than wrapping a range, so no anchor is rendered and no update ever reaches
+ * the preview. That is a lost race, not a broken screen, so a failed attempt is retried (the editor
+ * is re-focused and the range set again) and the caller asserts the anchor in the EDITOR, before
+ * looking at the preview at all.
+ */
+function linkLastParagraph(href: string, attempt = 0) {
+	// A retry starts with the editor blurred, and a popover left open would swallow the next click.
+	if (attempt > 0) {
+		cy.get("body").then(() => {
+			if (Cypress.$('[data-cy="rich-text-editor-link-input"]').length > 0) {
+				cy.get('[data-cy="rich-text-editor-link-input"]').type("{esc}");
+			}
+		});
+	}
+
+	cy.get(EDITOR).focus();
+	cy.wait(EDITOR_SETTLE_MS);
+	cy.get(`${EDITOR} p`)
+		.last()
+		.then(($label) => {
+			const label = $label[0];
+			const range = label.ownerDocument.createRange();
+			range.selectNodeContents(label);
+			const selection = label.ownerDocument.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+		});
+	cy.wait(EDITOR_SETTLE_MS);
+
+	cy.get('[data-cy="rich-text-editor-link"]').click();
+	cy.get('[data-cy="rich-text-editor-link-input"]').type(href, { parseSpecialCharSequences: false });
+	cy.get('[data-cy="rich-text-editor-link-apply"]').click();
+
+	cy.get("body").then(() => {
+		if (Cypress.$(`${EDITOR} a`).length === 0 && attempt < 2) linkLastParagraph(href, attempt + 1);
+	});
+}
+
 describe("Settings — email templates per document type", () => {
 	// A single capture of "quote"'s DEFAULT template, taken before any test touches it —
 	// it is THIS template (not a hand-copied value, which would diverge the day the
@@ -303,25 +356,20 @@ describe("Settings — email templates per document type", () => {
 		cy.get('[data-cy="email-template-subject-invoice"]')
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
-		const editor = '[data-testid="rich-text-editor"] .ProseMirror';
-		cy.get(editor)
+		cy.get(EDITOR)
 			.clear()
 			.type("Issued {issueDate}. Due {dueDate}. Paid {amountPaid}. Balance {amountDue}.", {
 				parseSpecialCharSequences: false,
 				delay: 25,
 			});
-		cy.get(editor).type("{enter}View invoice", { delay: 25 });
-		cy.get(`${editor} p`).last().should("have.text", "View invoice").then(($label) => {
-			const label = $label[0];
-			const range = label.ownerDocument.createRange();
-			range.selectNodeContents(label);
-			label.ownerDocument.getSelection()?.removeAllRanges();
-			label.ownerDocument.getSelection()?.addRange(range);
-		});
-		cy.get('[data-cy="rich-text-editor-link"]').click();
-		cy.get('[data-cy="rich-text-editor-link-input"]').type("{viewUrl}", { parseSpecialCharSequences: false });
-		cy.get('[data-cy="rich-text-editor-link-apply"]').click();
+		cy.get(EDITOR).type("{enter}View invoice", { delay: 25 });
+		cy.get(`${EDITOR} p`).last().should("have.text", "View invoice");
 
+		linkLastParagraph("{viewUrl}");
+
+		// The mark must land on the paragraph in the EDITOR: if the selection was lost, this is where
+		// it shows, instead of three assertions later in a preview that renders the same body.
+		cy.get(`${EDITOR} a`).should("have.attr", "href", "{viewUrl}");
 		cy.get('[data-cy="email-template-variables"]').should("contain.text", "400.00 EUR");
 		cy.get('[data-cy="email-template-preview-body"]').should("contain.text", "Paid 400.00 EUR");
 		cy.get('[data-cy="email-template-preview-body"] a')
@@ -333,7 +381,7 @@ describe("Settings — email templates per document type", () => {
 		getDocumentEmailTemplate("invoice").its("html").should("include", 'href="{viewUrl}"');
 		cy.reload();
 		openTemplateEditor("invoice");
-		cy.get(`${editor} a`).should("have.attr", "href", "{viewUrl}");
+		cy.get(`${EDITOR} a`).should("have.attr", "href", "{viewUrl}");
 
 		cy.clearEmails();
 
