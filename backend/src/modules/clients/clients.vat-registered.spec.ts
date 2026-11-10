@@ -1,5 +1,4 @@
 /** `Client.vatRegistered`, against the real test Postgres. */
-
 import { vi } from 'vitest';
 
 vi.mock('../webhooks/webhook-dispatcher.service', () => ({
@@ -9,53 +8,56 @@ vi.mock('../webhooks/webhook-dispatcher.service', () => ({
 import prisma from '@/prisma/prisma.service';
 import { createClientsServiceForTest, createTestCompany } from '../documents/__tests__/issuable-client';
 
-describe('ClientsService: Client.vatRegistered', () => {
-  const service = createClientsServiceForTest();
-  let companyId: string;
+const service = createClientsServiceForTest();
 
-  beforeAll(async () => {
-    companyId = (await createTestCompany('VAT Registered Co')).id;
+/** Runs `body` against a throwaway company, deleted afterwards whatever happens. */
+async function withCompany(name: string, body: (companyId: string) => Promise<void>) {
+  const company = await createTestCompany(name);
+  try {
+    await body(company.id);
+  } finally {
+    await prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+  }
+}
+
+const FRENCH_CLIENT = {
+  address: 'Somewhere',
+  postalCode: '75000',
+  city: 'Paris',
+  country: 'France',
+};
+
+describe('ClientsService: the VAT-registered flag', () => {
+  it('defaults a business client to VAT-registered when the field is never sent', async () => {
+    await withCompany('VAT Default Co', async (companyId) => {
+      const client = await service.createClient(companyId, {
+        name: 'Client Assujetti',
+        ...FRENCH_CLIENT,
+      } as never);
+
+      expect(client.vatRegistered).toBe(true);
+    });
   });
 
-  afterAll(async () => {
-    await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
-  });
+  it('round-trips false through create, read and edit', async () => {
+    await withCompany('VAT Round Trip Co', async (companyId) => {
+      const created = await service.createClient(companyId, {
+        name: 'Micro Entreprise',
+        ...FRENCH_CLIENT,
+        vatRegistered: false,
+      } as never);
+      expect(created.vatRegistered).toBe(false);
 
-  it('a fresh business client is VAT-registered by default, even when the field is never sent', async () => {
-    const client = await service.createClient(companyId, {
-      name: 'Client Assujetti',
-      address: 'Somewhere',
-      postalCode: '75000',
-      city: 'Paris',
-      country: 'France',
-    } as never);
+      const read = await service.getClientById(companyId, created.id);
+      expect(read?.vatRegistered).toBe(false);
 
-    expect(client.vatRegistered).toBe(true);
-  });
-
-  it('`vatRegistered: false` round-trips through create, read and edit, like any other field', async () => {
-    const created = await service.createClient(companyId, {
-      name: 'Micro Entreprise',
-      address: 'Somewhere',
-      postalCode: '75000',
-      city: 'Paris',
-      country: 'France',
-      vatRegistered: false,
-    } as never);
-    expect(created.vatRegistered).toBe(false);
-
-    const read = await service.getClientById(companyId, created.id);
-    expect(read?.vatRegistered).toBe(false);
-
-    const edited = await service.editClientsInfo(companyId, {
-      id: created.id,
-      name: 'Micro Entreprise',
-      address: 'Somewhere',
-      postalCode: '75000',
-      city: 'Paris',
-      country: 'France',
-      vatRegistered: true,
-    } as never);
-    expect(edited.vatRegistered).toBe(true);
+      const edited = await service.editClientsInfo(companyId, {
+        id: created.id,
+        name: 'Micro Entreprise',
+        ...FRENCH_CLIENT,
+        vatRegistered: true,
+      } as never);
+      expect(edited.vatRegistered).toBe(true);
+    });
   });
 });
