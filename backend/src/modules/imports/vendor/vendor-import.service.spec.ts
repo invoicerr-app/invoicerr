@@ -75,7 +75,7 @@ describe('VendorImportService', () => {
     const result = await service.preview('company-1', 'invoices', invoiceGrid('Inconnu SARL'));
     const row = (result as { rows: VendorMappedInvoiceRow[] }).rows[0];
     expect(row.status).toBe('rejected');
-    expect(row.errors?.[0]).toContain('Import the client list first');
+    expect(row.errors?.[0]).toMatchObject({ key: 'imports.vendor.noClientMatch' });
   });
 
   it('rejects an invoice whose client name is ambiguous', async () => {
@@ -87,6 +87,6 @@ describe('VendorImportService', () => {
     const result = await service.preview('company-1', 'invoices', invoiceGrid('Studio Beta'));
     const row = (result as { rows: VendorMappedInvoiceRow[] }).rows[0];
     expect(row.status).toBe('rejected');
-    expect(row.errors?.[0]).toContain('several clients match');
+    expect(row.errors?.[0]).toMatchObject({ key: 'imports.vendor.ambiguousClient' });
   });
 });

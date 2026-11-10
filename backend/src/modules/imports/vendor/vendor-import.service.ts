@@ -12,6 +12,7 @@ import prisma from '@/prisma/prisma.service';
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 
 import { detectVendorExport, mapVendorExport, VendorExportMappingError } from './vendor-export-map';
+import { vendorRowError } from './vendor-export-messages';
 import {
   VendorExportGrid,
   VendorExportKind,
@@ -184,10 +185,8 @@ export class VendorImportService {
       entry.status = 'rejected';
       entry.errors = [
         unique.length === 0
-          ? `Row ${entry.rowNumber}: no client named "${clientName}" in this company. Import the ` +
-            `client list first, then this invoice list.`
-          : `Row ${entry.rowNumber}: several clients match "${clientName}". Pick the client on ` +
-            `the single-document import form instead.`,
+          ? vendorRowError('noClientMatch', { row: entry.rowNumber, name: clientName })
+          : vendorRowError('ambiguousClient', { row: entry.rowNumber, name: clientName }),
       ];
     }
   }

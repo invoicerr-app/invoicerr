@@ -33,6 +33,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
+import { formatVendorRowErrors } from "@/lib/vendor-row-errors"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
 import {
   type DocumentImportCsvRow,
@@ -152,11 +153,16 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
         return
       }
 
-      const vendorResponse = await vendorPreview.mutateAsync({
-        typeId: descriptor.id,
-        headers,
-        rows: dataRows,
-      })
+      // Vendor exports are an invoice-list shape only. A credit note needs a `reason` no vendor
+      // export carries, so it keeps the generic template path (the backend refuses the rest).
+      const vendorResponse =
+        descriptor.id === "invoice"
+          ? await vendorPreview.mutateAsync({
+              typeId: descriptor.id,
+              headers,
+              rows: dataRows,
+            })
+          : null
 
       if (vendorResponse?.detected) {
         setVendorLabel(vendorResponse.vendorLabel)
@@ -183,7 +189,11 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
               }
             }
             if (entry.status === "rejected") {
-              return { rowNumber: entry.rowNumber, status: "rejected", errors: entry.errors }
+              return {
+                rowNumber: entry.rowNumber,
+                status: "rejected",
+                errors: formatVendorRowErrors(t, entry.errors),
+              }
             }
             return (
               byRowNumber.get(entry.rowNumber) ?? {
@@ -234,7 +244,10 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
         rows: rows.filter((row) => validRowNumbers.has(row.rowNumber)),
         files,
       })
-      setResult(response)
+      // Rows the preview already refused never reached the API, so its own count starts at zero.
+      // Add them back: the result screen must account for every row of the file.
+      const refusedBeforeConfirm = rowVerdicts.filter((verdict) => verdict.status !== "valid").length
+      setResult({ ...response, rejected: response.rejected + refusedBeforeConfirm })
       setStage("result")
     } catch {
       toast.error(t("documents.custom.importCsv.confirmFailed"))

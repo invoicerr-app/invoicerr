@@ -248,6 +248,9 @@ export function validateRow(
   const schema = buildClientSchema(t, requiredIdentifiers, new Map())
   const candidate = {
     ...wire,
+    // A vendor export may print only the ISO code (`Pays` = `FR`, or a separate `Code pays`): the
+    // server resolves either column, so the local pass must not reject a row the server accepts.
+    country: wire.country?.trim() || wire.countryCode?.trim() || "",
     foundedAt: wire.foundedAt ? new Date(wire.foundedAt) : undefined,
     identifiers: wire.identifiers ?? [],
   }

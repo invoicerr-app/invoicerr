@@ -1,4 +1,20 @@
 {
+  "imports": {
+    "vendor": {
+      "clientNoName": "Row {{row}}: the client has no first or last name in the \"{{lastname}}\" / \"{{firstname}}\" columns.",
+      "companyNoName": "Row {{row}}: the company has no name in the \"{{column}}\" column.",
+      "invoiceNumberEmpty": "Row {{row}}: the invoice number is empty.",
+      "clientNameEmpty": "Row {{row}}: the client name is empty.",
+      "invalidIssueDate": "Row {{row}}: invalid date \"{{value}}\" (expected day/month/year or year-month-day).",
+      "invalidDueDate": "Row {{row}}: invalid due date \"{{value}}\" (expected day/month/year or year-month-day).",
+      "invalidVatRate": "Row {{row}}: invalid VAT value \"{{value}}\".",
+      "invalidUnitPrice": "Row {{row}}: invalid unit price \"{{value}}\".",
+      "noAmount": "Row {{row}}: the invoice has no readable amount.",
+      "truncatedRow": "Row {{row}}: truncated row, the file has {{headers}} columns but this row has {{cells}}.",
+      "noClientMatch": "Row {{row}}: no client named \"{{name}}\" in this company. Import the client list first, then this invoice list.",
+      "ambiguousClient": "Row {{row}}: several clients match \"{{name}}\". Pick the client on the single-document import form instead."
+    }
+  },
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred while rendering this page. You can try reloading the page.",

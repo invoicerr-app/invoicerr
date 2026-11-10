@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { mapRow } from "./client-rows"
+import { type ClientImportRowWire, mapRow, validateRow } from "./client-rows"
 
 const HEADERS = ["type", "kind", "isSupplier", "name", "foundedAt", "currency", "country", "countryCode"]
 
@@ -89,5 +89,38 @@ describe("mapRow - currency", () => {
   it("rejects an unknown code", () => {
     const { shapeErrors } = row({ currency: "ZZZ" })
     expect(shapeErrors).toEqual(['Unknown currency: "ZZZ" (column "currency", expected an ISO 4217 code).'])
+  })
+})
+
+describe("validateRow - country column", () => {
+  const t = ((key: string) => key) as unknown as Parameters<typeof validateRow>[0]
+
+  function wire(overrides: Partial<ClientImportRowWire>): ClientImportRowWire {
+    return {
+      rowNumber: 2,
+      type: "COMPANY",
+      kind: "BUSINESS",
+      name: "Atelier Horizon",
+      address: "8 rue des Arts",
+      postalCode: "31000",
+      city: "Toulouse",
+      currency: "EUR",
+      ...overrides,
+    }
+  }
+
+  it("accepts a vendor row that carries only the ISO code", () => {
+    const result = validateRow(t, wire({ country: undefined, countryCode: "FR" }), [], [])
+    expect(result.localErrors).toBeUndefined()
+  })
+
+  it("accepts a vendor row that carries the country name", () => {
+    const result = validateRow(t, wire({ country: "France" }), [], [])
+    expect(result.localErrors).toBeUndefined()
+  })
+
+  it("still rejects a row with neither the name nor the code", () => {
+    const result = validateRow(t, wire({ country: undefined, countryCode: undefined }), [], [])
+    expect(result.localErrors?.length).toBeGreaterThan(0)
   })
 })

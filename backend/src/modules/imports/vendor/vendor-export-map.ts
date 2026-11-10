@@ -10,6 +10,7 @@
  */
 import { ClientImportRow } from '../../clients/import/client-import.types';
 import { DocumentImportCsvRow } from '../../documents/import/document-import-csv.types';
+import { vendorRowError } from './vendor-export-messages';
 import { VENDOR_EXPORT_PROFILES } from './vendor-export-profiles';
 import {
   VendorClientField,
@@ -19,6 +20,7 @@ import {
   VendorInvoiceField,
   VendorMappedClientRow,
   VendorMappedInvoiceRow,
+  VendorRowError,
 } from './vendor-export.types';
 
 export class VendorExportMappingError extends Error {}
@@ -53,6 +55,33 @@ export function normalizeHeader(value: string): string {
 
 function normalized(value: string | undefined): string {
   return (value ?? '').trim();
+}
+
+/**
+ * The document language the render layer actually handles, from the label the tool prints
+ * (`Français`, `French`, `fr`). An unknown label is dropped rather than stored: `Client.language`
+ * is rendered against a closed set of codes, so `Français` would silently fall back to English.
+ */
+const VENDOR_LANGUAGE_CODES: Record<string, string> = {
+  francais: 'fr',
+  french: 'fr',
+  anglais: 'en',
+  english: 'en',
+  allemand: 'de',
+  german: 'de',
+  italien: 'it',
+  italian: 'it',
+  polonais: 'pl',
+  polish: 'pl',
+  portugais: 'pt',
+  portuguese: 'pt',
+};
+
+export function vendorLanguageCode(value: string): string | undefined {
+  const key = normalizeHeader(value);
+  if (!key) return undefined;
+  if (/^[a-z]{2}$/.test(key)) return key;
+  return VENDOR_LANGUAGE_CODES[key];
 }
 
 /** First profile whose signature is fully present in `headers`, in declaration order. */
@@ -169,16 +198,18 @@ export function parseVendorDate(value: string): string | undefined {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function clientIdentityKey(row: ClientImportRow): string | undefined {
+function clientIdentityKey(
+  row: ClientImportRow,
+): { key: string; matchedOn: 'email' | 'name_country' } | undefined {
   const email = row.contactEmail?.trim().toLowerCase();
-  if (email) return `email:${email}`;
+  if (email) return { key: `email:${email}`, matchedOn: 'email' };
   const name =
     row.type === 'INDIVIDUAL'
       ? `${row.contactFirstname ?? ''} ${row.contactLastname ?? ''}`.trim()
       : (row.name ?? '').trim();
   if (!name) return undefined;
   const country = (row.countryCode ?? row.country ?? '').trim().toLowerCase();
-  return `name:${name.toLowerCase()}\u0000${country}`;
+  return { key: `name:${name.toLowerCase()}\u0000${country}`, matchedOn: 'name_country' };
 }
 
 function mapClientRow(
@@ -186,8 +217,8 @@ function mapClientRow(
   cells: string[],
   indexes: Map<string, number>,
   rowNumber: number,
-): { row: ClientImportRow; errors: string[] } {
-  const errors: string[] = [];
+): { row: ClientImportRow; errors: VendorRowError[] } {
+  const errors: VendorRowError[] = [];
   const currency = cell(cells, indexes, 'currency').toUpperCase();
   const rawType = cell(cells, indexes, 'type').toUpperCase();
   const rawName = cell(cells, indexes, 'name');
@@ -206,11 +237,20 @@ function mapClientRow(
   const name = rawName;
   if (type === 'INDIVIDUAL' && !firstname && !lastname) {
     errors.push(
-      `Row ${rowNumber}: the client has no first or last name in the "${profile.columns.contactLastname?.[0]}" / "${profile.columns.contactFirstname?.[0]}" columns.`,
+      vendorRowError('clientNoName', {
+        row: rowNumber,
+        lastname: profile.columns.contactLastname?.[0] ?? 'contactLastname',
+        firstname: profile.columns.contactFirstname?.[0] ?? 'contactFirstname',
+      }),
     );
   }
   if (type === 'COMPANY' && !name) {
-    errors.push(`Row ${rowNumber}: the company has no name in the "${profile.columns.name?.[0]}" column.`);
+    errors.push(
+      vendorRowError('companyNoName', {
+        row: rowNumber,
+        column: profile.columns.name?.[0] ?? 'name',
+      }),
+    );
   }
 
   const country = cell(cells, indexes, 'country');
@@ -222,6 +262,9 @@ function mapClientRow(
     row: {
       rowNumber,
       type,
+      // The client schema requires a kind and no vendor export carries one: the generic CSV
+      // template defaults to BUSINESS too, so a government client is set by hand after import.
+      kind: 'BUSINESS',
       name: type === 'INDIVIDUAL' ? '' : name,
       contactFirstname: firstname || undefined,
       contactLastname: lastname || undefined,
@@ -232,13 +275,42 @@ function mapClientRow(
       postalCode: cell(cells, indexes, 'postalCode') || undefined,
       city: cell(cells, indexes, 'city') || undefined,
       state: cell(cells, indexes, 'state') || undefined,
-      country: countryCode ? undefined : country || undefined,
+      // Never drop the printed name when a code exists too: the client schema requires `country`,
+      // and the server resolves either column to the same ISO code.
+      country: country || undefined,
       countryCode: countryCode || undefined,
       currency: currency || undefined,
-      language: cell(cells, indexes, 'language') || null,
+      language: vendorLanguageCode(cell(cells, indexes, 'language')) ?? null,
       identifiers: vat ? [{ scheme: 'VAT', value: vat }] : undefined,
     },
     errors,
+  };
+}
+
+/**
+ * Splits an invoice total into the single line the past-document CSV import accepts. A printed unit
+ * price wins; without one the total is divided by the printed quantity, and when that division does
+ * not recompose the total exactly (a rounded share, or a discount already baked into the total) the
+ * line falls back to one unit carrying the total, so the imported invoice keeps the amount the
+ * export states instead of a recomposed one.
+ */
+function lineFromTotals(
+  unitPrice: number | undefined,
+  quantity: number | undefined,
+  net: number | undefined,
+): { lineQuantity: string; lineAmount: number } {
+  const total = net === undefined ? undefined : Math.round(net * 100) / 100;
+  const units = quantity !== undefined && quantity > 0 ? quantity : undefined;
+  let amount = unitPrice ?? total ?? 0;
+  if (total !== undefined && units !== undefined) {
+    if (unitPrice === undefined) amount = Math.round((total / units) * 100) / 100;
+    const recomposed = Math.round(amount * units * 100) / 100;
+    if (recomposed !== total) return { lineQuantity: '1', lineAmount: total };
+    return { lineQuantity: String(units), lineAmount: Math.round(amount * 100) / 100 };
+  }
+  return {
+    lineQuantity: units === undefined ? '1' : String(units),
+    lineAmount: Math.round(amount * 100) / 100,
   };
 }
 
@@ -246,32 +318,28 @@ function mapInvoiceRow(
   cells: string[],
   indexes: Map<string, number>,
   rowNumber: number,
-): { row: DocumentImportCsvRow; errors: string[] } {
-  const errors: string[] = [];
+): { row: DocumentImportCsvRow; errors: VendorRowError[] } {
+  const errors: VendorRowError[] = [];
   const originalNumber = cell(cells, indexes, 'originalNumber');
   const rawIssueDate = cell(cells, indexes, 'issueDate');
   const clientName = cell(cells, indexes, 'clientName');
-  if (!originalNumber) errors.push(`Row ${rowNumber}: the invoice number is empty.`);
-  if (!clientName) errors.push(`Row ${rowNumber}: the client name is empty.`);
+  if (!originalNumber) errors.push(vendorRowError('invoiceNumberEmpty', { row: rowNumber }));
+  if (!clientName) errors.push(vendorRowError('clientNameEmpty', { row: rowNumber }));
 
   const issueDate = parseVendorDate(rawIssueDate);
   if (!issueDate) {
-    errors.push(
-      `Row ${rowNumber}: invalid date "${rawIssueDate}" (expected day/month/year or year-month-day).`,
-    );
+    errors.push(vendorRowError('invalidIssueDate', { row: rowNumber, value: rawIssueDate }));
   }
   const rawDueDate = cell(cells, indexes, 'dueDate');
   const dueDate = rawDueDate ? parseVendorDate(rawDueDate) : issueDate;
   if (rawDueDate && !dueDate) {
-    errors.push(
-      `Row ${rowNumber}: invalid due date "${rawDueDate}" (expected day/month/year or year-month-day).`,
-    );
+    errors.push(vendorRowError('invalidDueDate', { row: rowNumber, value: rawDueDate }));
   }
 
   const rawRate = cell(cells, indexes, 'lineVatRate');
   let vatRate = parseVendorVatRate(rawRate);
   if (rawRate && vatRate === undefined) {
-    errors.push(`Row ${rowNumber}: invalid VAT value "${rawRate}".`);
+    errors.push(vendorRowError('invalidVatRate', { row: rowNumber, value: rawRate }));
   }
 
   const rawUnitPrice = cell(cells, indexes, 'lineUnitPrice');
@@ -280,10 +348,10 @@ function mapInvoiceRow(
   const gross = parseVendorAmount(cell(cells, indexes, 'totalGross'));
   const unitPrice = parseVendorAmount(rawUnitPrice);
   if (rawUnitPrice && unitPrice === undefined) {
-    errors.push(`Row ${rowNumber}: invalid unit price "${rawUnitPrice}".`);
+    errors.push(vendorRowError('invalidUnitPrice', { row: rowNumber, value: rawUnitPrice }));
   }
   if (net === undefined && gross === undefined && unitPrice === undefined) {
-    errors.push(`Row ${rowNumber}: the invoice has no readable amount.`);
+    errors.push(vendorRowError('noAmount', { row: rowNumber }));
   }
   if (vatRate === undefined && vatAmount !== undefined && net !== undefined && net !== 0) {
     vatRate = Math.round((vatAmount / net) * 10000) / 100;
@@ -295,7 +363,11 @@ function mapInvoiceRow(
     net = gross / (1 + (vatRate ?? 0) / 100);
   }
 
-  const lineAmount = unitPrice ?? net ?? 0;
+  const { lineQuantity, lineAmount } = lineFromTotals(
+    unitPrice,
+    parseVendorAmount(cell(cells, indexes, 'lineQuantity')),
+    net,
+  );
   return {
     row: {
       rowNumber,
@@ -307,9 +379,9 @@ function mapInvoiceRow(
       clientName,
       clientReference: undefined,
       lineDescription: cell(cells, indexes, 'lineDescription') || `Imported invoice ${originalNumber}`,
-      lineQuantity: cell(cells, indexes, 'lineQuantity') || '1',
+      lineQuantity,
       lineUnit: cell(cells, indexes, 'lineUnit') || 'unit',
-      lineUnitPrice: String(Math.round(lineAmount * 100) / 100),
+      lineUnitPrice: String(lineAmount),
       lineVatRate: String(vatRate ?? 0),
       originalFileName: cell(cells, indexes, 'originalFileName') || undefined,
       clientId: cell(cells, indexes, 'clientId') || undefined,
@@ -330,7 +402,8 @@ export function mapVendorExport(
   assertRequiredColumns(profile, indexes);
 
   const mapped: VendorMappedClientRow[] | VendorMappedInvoiceRow[] = [];
-  const seenClients = new Map<string, number>();
+  /** Only a row that will actually be created can claim an identity or a number. */
+  const seenClients = new Map<string, { rowNumber: number; matchedOn: 'email' | 'name_country' }>();
   const seenInvoices = new Map<string, number>();
 
   grid.rows.forEach((cells, index) => {
@@ -345,8 +418,11 @@ export function mapVendorExport(
         // rowNumber to show where in the file it stopped.
         row: { rowNumber } as ClientImportRow & DocumentImportCsvRow,
         errors: [
-          `Row ${rowNumber}: truncated row, the file has ${grid.headers.length} columns but this ` +
-            `row has ${cells.length}.`,
+          vendorRowError('truncatedRow', {
+            row: rowNumber,
+            headers: grid.headers.length,
+            cells: cells.length,
+          }),
         ],
       });
       return;
@@ -354,31 +430,40 @@ export function mapVendorExport(
 
     if (profile.kind === 'clients') {
       const { row, errors } = mapClientRow(profile, cells, indexes, rowNumber);
-      const key = clientIdentityKey(row);
-      const earlier = key ? seenClients.get(key) : undefined;
+      if (errors.length > 0) {
+        mapped.push({ rowNumber, status: 'rejected', row, errors });
+        return;
+      }
+      const identity = clientIdentityKey(row);
+      const earlier = identity ? seenClients.get(identity.key) : undefined;
       if (earlier) {
         mapped.push({
           rowNumber,
           status: 'duplicate',
           row,
-          duplicateOfRow: earlier,
+          duplicateOfRow: earlier.rowNumber,
+          duplicateMatchedOn: earlier.matchedOn,
         });
         return;
       }
-      if (key) seenClients.set(key, rowNumber);
-      mapped.push({ rowNumber, status: errors.length > 0 ? 'rejected' : 'mapped', row, errors });
+      if (identity) seenClients.set(identity.key, { rowNumber, matchedOn: identity.matchedOn });
+      mapped.push({ rowNumber, status: 'mapped', row });
       return;
     }
 
     const { row, errors } = mapInvoiceRow(cells, indexes, rowNumber);
+    if (errors.length > 0) {
+      mapped.push({ rowNumber, status: 'rejected', row, errors });
+      return;
+    }
     const key = row.originalNumber?.trim().toLowerCase();
     const earlier = key ? seenInvoices.get(key) : undefined;
-    if (earlier) {
+    if (earlier !== undefined) {
       mapped.push({ rowNumber, status: 'duplicate', row, duplicateOfRow: earlier });
       return;
     }
     if (key) seenInvoices.set(key, rowNumber);
-    mapped.push({ rowNumber, status: errors.length > 0 ? 'rejected' : 'mapped', row, errors });
+    mapped.push({ rowNumber, status: 'mapped', row });
   });
 
   return mapped;

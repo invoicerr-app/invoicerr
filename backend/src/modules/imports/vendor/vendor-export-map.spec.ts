@@ -94,6 +94,7 @@ describe('client export mapping', () => {
     expect(first.status).toBe('mapped');
     expect(first.row).toMatchObject({
       type: 'INDIVIDUAL',
+      kind: 'BUSINESS',
       name: '',
       contactFirstname: 'Marie',
       contactLastname: 'Dupont',
@@ -104,20 +105,40 @@ describe('client export mapping', () => {
       city: 'Lyon',
       countryCode: 'FR',
       currency: 'EUR',
-      language: 'Français',
+      language: 'fr',
     });
   });
 
-  it('maps an Abby organisations export as a company', () => {
+  it('maps an Abby organisations export as a company, keeping its contact names', () => {
     const grid = fixture('abby-organisations.csv', ',');
     const profile = detectVendorExport('clients', grid.headers)!;
     const [first] = mapVendorExport(profile, grid) as VendorMappedClientRow[];
     expect(first.row).toMatchObject({
       type: 'COMPANY',
       name: 'Atelier Horizon',
+      contactFirstname: 'Alice',
+      contactLastname: 'Durand',
       contactEmail: 'contact@atelier-horizon.example',
       countryCode: 'FR',
     });
+  });
+
+  it('prefers the organisations profile when the export also carries Nom and Prénom', () => {
+    const grid = fixture('abby-organisations.csv', ',');
+    expect(detectVendorExport('clients', grid.headers)?.id).toBe('abby-organisations');
+    expect(grid.headers).toContain('Nom');
+    expect(grid.headers).toContain('Prénom');
+  });
+
+  it('keeps the printed country name when a country code exists too', () => {
+    const grid = fixture('abby-clients.csv', ',');
+    const pays = grid.headers.indexOf('Pays de facturation');
+    grid.rows[0][pays] = 'France';
+    grid.headers.push('Code pays');
+    for (const row of grid.rows) row.push('FR');
+    const profile = detectVendorExport('clients', grid.headers)!;
+    const [first] = mapVendorExport(profile, grid) as VendorMappedClientRow[];
+    expect(first.row).toMatchObject({ country: 'France', countryCode: 'FR' });
   });
 
   it('maps a Henrri client list, keeping the company name and its contact', () => {
@@ -149,12 +170,46 @@ describe('client export mapping', () => {
     expect(first.row.identifiers).toEqual([{ scheme: 'VAT', value: 'FR12345678901' }]);
   });
 
-  it('marks a repeated client as a duplicate of the earlier row', () => {
+  it('marks a repeated client as a duplicate of the earlier row, naming the rule that matched', () => {
     const grid = fixture('henrri-clients.csv', ';');
     grid.rows = [grid.rows[0], [...grid.rows[0]]];
     const profile = detectVendorExport('clients', grid.headers)!;
     const rows = mapVendorExport(profile, grid) as VendorMappedClientRow[];
-    expect(rows[1]).toMatchObject({ status: 'duplicate', duplicateOfRow: 2 });
+    expect(rows[1]).toMatchObject({
+      status: 'duplicate',
+      duplicateOfRow: 2,
+      duplicateMatchedOn: 'email',
+    });
+  });
+
+  it('flags a second row by name and country when the rows carry no email', () => {
+    const grid = fixture('henrri-clients.csv', ';');
+    const email = grid.headers.indexOf('E-mail');
+    grid.rows = [grid.rows[0], [...grid.rows[0]]].map((row) => {
+      const copy = [...row];
+      copy[email] = '';
+      return copy;
+    });
+    const profile = detectVendorExport('clients', grid.headers)!;
+    const rows = mapVendorExport(profile, grid) as VendorMappedClientRow[];
+    expect(rows[1]).toMatchObject({
+      status: 'duplicate',
+      duplicateOfRow: 2,
+      duplicateMatchedOn: 'name_country',
+    });
+  });
+
+  it('does not let a rejected row claim an identity, so the next row still imports', () => {
+    const grid = fixture('henrri-clients.csv', ';');
+    const blanks = ['Raison sociale', 'Nom', 'Prénom'].map((header) => grid.headers.indexOf(header));
+    grid.rows = [[...grid.rows[0]], [...grid.rows[0]]];
+    // Row 2 loses every name cell: rejected, but its email is still readable.
+    for (const index of blanks) grid.rows[0][index] = '';
+    const profile = detectVendorExport('clients', grid.headers)!;
+    const rows = mapVendorExport(profile, grid) as VendorMappedClientRow[];
+    expect(rows[0].status).toBe('rejected');
+    expect(rows[0].errors?.[0].key).toBe('imports.vendor.companyNoName');
+    expect(rows[1].status).toBe('mapped');
   });
 
   it('rejects a truncated client row instead of shifting its columns', () => {
@@ -163,7 +218,7 @@ describe('client export mapping', () => {
     const profile = detectVendorExport('clients', grid.headers)!;
     const rows = mapVendorExport(profile, grid) as VendorMappedClientRow[];
     expect(rows[0].status).toBe('rejected');
-    expect(rows[0].errors?.[0]).toContain('truncated row');
+    expect(rows[0].errors?.[0].key).toBe('imports.vendor.truncatedRow');
   });
 
   it('stops recognising a file whose signature column was removed', () => {
@@ -206,6 +261,33 @@ describe('invoice export mapping', () => {
     });
   });
 
+  it('divides a printed total by the printed quantity instead of copying the total per unit', () => {
+    const grid: VendorExportGrid = {
+      headers: ['Numéro', 'Date', 'Client', 'Montant HT', 'Montant TVA', 'Montant TTC', 'Quantité'],
+      rows: [['FA-Q-1', '15/03/2024', 'Atelier Horizon', '900,00', '180,00', '1080,00', '3']],
+    };
+    const profile = detectVendorExport('invoices', grid.headers)!;
+    const [row] = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
+    expect(row.row.lineQuantity).toBe('3');
+    expect(row.row.lineUnitPrice).toBe('300');
+  });
+
+  it('keeps a discounted total as one line when quantity times the share would not reproduce it', () => {
+    const grid: VendorExportGrid = {
+      headers: ['Numéro', 'Date', 'Client', 'Montant HT', 'Montant TVA', 'Montant TTC', 'Quantité'],
+      rows: [
+        ['FA-Q-2', '15/03/2024', 'Atelier Horizon', '180,00', '36,00', '216,00', '2'],
+        ['FA-Q-3', '15/03/2024', 'Atelier Horizon', '800,00', '160,00', '960,00', '3'],
+      ],
+    };
+    const profile = detectVendorExport('invoices', grid.headers)!;
+    const [discounted, uneven] = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
+    // 180 for 2 units is 90 each: a 10 % discount on a printed 100, preserved exactly.
+    expect(discounted.row).toMatchObject({ lineQuantity: '2', lineUnitPrice: '90' });
+    // 800 / 3 is 266.67, which recomposes to 800.01: the total wins, on a single unit.
+    expect(uneven.row).toMatchObject({ lineQuantity: '1', lineUnitPrice: '800' });
+  });
+
   it('rejects a repeated invoice number and points at the earlier row', () => {
     const grid = fixture('tiime-invoices.csv', ';');
     grid.rows = [grid.rows[0], [...grid.rows[0]]];
@@ -214,13 +296,25 @@ describe('invoice export mapping', () => {
     expect(rows[1]).toMatchObject({ status: 'duplicate', duplicateOfRow: 2 });
   });
 
+  it('does not let a rejected invoice claim a number, so the next row still imports', () => {
+    const grid = fixture('tiime-invoices.csv', ';');
+    const date = grid.headers.indexOf('Date');
+    grid.rows = [[...grid.rows[0]], [...grid.rows[0]]];
+    grid.rows[0][date] = '31/02/2024';
+    const profile = detectVendorExport('invoices', grid.headers)!;
+    const rows = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
+    expect(rows[0].status).toBe('rejected');
+    expect(rows[0].errors?.[0].key).toBe('imports.vendor.invalidIssueDate');
+    expect(rows[1].status).toBe('mapped');
+  });
+
   it('rejects a truncated invoice row', () => {
     const grid = fixture('tiime-invoices.csv', ';');
     grid.rows[0] = grid.rows[0].slice(0, 5);
     const profile = detectVendorExport('invoices', grid.headers)!;
     const rows = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
     expect(rows[0].status).toBe('rejected');
-    expect(rows[0].errors?.[0]).toContain('truncated row');
+    expect(rows[0].errors?.[0].key).toBe('imports.vendor.truncatedRow');
   });
 
   it('rejects an unreadable date or amount instead of guessing one', () => {

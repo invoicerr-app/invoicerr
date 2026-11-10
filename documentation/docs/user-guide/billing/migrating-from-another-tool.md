@@ -165,17 +165,20 @@ ATCUD**) before your first Invoicerr document of that type.
 
 ## Importing directly from Abby, Henrri or Tiime
 
-The **Import CSV** entry points on the clients page and on the invoices or credit notes page also
-read the exports those three tools produce themselves. Invoicerr recognises the file from its header
-row, shows the same preview as any other import, and asks you to confirm. You do not rename a column
-or reshape the file first.
+The **Import CSV** entry points on the clients page and on the invoices page also read the exports
+those three tools produce themselves. Invoicerr recognises the file from its header row, shows the
+same preview as any other import, and asks you to confirm. You do not rename a column or reshape the
+file first.
+
+Credit notes keep the generic CSV template from the credit notes page: no vendor export carries the
+reason a free credit note requires, so there is nothing to recognise there.
 
 What is read, and what is not:
 
 ### Abby
 
-- **Clients**: the contacts export (CSV or Excel), for individuals and for organisations. Invoicerr
-  reads the name, e-mail, phone, billing address, language and currency columns.
+- **Clients**: the contacts CSV export, for individuals and for organisations. Invoicerr reads the
+  name, e-mail, phone, billing address, language and currency columns.
 - **Invoices, quotes and credit notes**: Abby exports these as PDF files only, never as a
   spreadsheet. There is therefore no Abby invoice list to read: import each PDF with the
   single-document **Import** form, which keeps it as the legal archive (and pre-fills the form when
@@ -206,9 +209,10 @@ page still applies: a document lands on **Imported**, keeps its original number 
 consumes your numbering counter, and still needs its original file. Continue your numbering with
 **Declare your last number issued** above, whether or not you import history.
 
-A repeated invoice number inside the file, or a client that appears twice, is reported as a
-duplicate instead of being imported twice. An invoice whose client name matches no client in your
-book is rejected: import the client list first, then the invoice list.
+A repeated invoice number inside the file is refused, naming the earlier row, rather than imported
+twice; a client that appears twice in a client export is shown as a duplicate and skipped. An invoice
+whose client name matches no client in your book is rejected: import the client list first, then the
+invoice list.
 
 :::info[Formats built from the vendors' own documentation]
 The column names above come from each vendor's public help pages. The reader accepts their documented

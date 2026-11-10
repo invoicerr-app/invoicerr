@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
@@ -55,6 +55,13 @@ export class VendorImportController {
   })
   @ApiResponse({ status: 200, description: 'Detected profile and mapped rows' })
   previewDocuments(@ActiveCompany() companyId: string, @Body() body: VendorDocumentGridDto) {
+    // Every profile this route reads is an issued invoice. A free credit note needs a `reason` the
+    // vendor exports do not carry, so it is refused here rather than after "Recognised".
+    if (body.typeId !== 'invoice') {
+      throw new BadRequestException(
+        'Only invoices can be read from a vendor export. Import credit notes with the generic CSV template.',
+      );
+    }
     return this.vendorImportService.preview(companyId, 'invoices', {
       headers: body.headers ?? [],
       rows: body.rows ?? [],

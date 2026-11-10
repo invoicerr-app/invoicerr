@@ -315,12 +315,70 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 				"contain.text",
 				"1",
 			);
-			// Only the rows the preview marked valid are submitted, so the confirm response counts no
-			// rejected row: the invalid one was already reported and never reached the API.
+			// The row the preview refused never reached the API, so the result adds it back: every
+			// row of the file is accounted for, not only the ones that were submitted.
 			cy.get('[data-cy="import-document-csv-result-rejected"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
+		});
+	});
+
+	it("reads a Henrri invoice export, keeping the printed quantity and total", () => {
+		createClient("Vendor Journal Co", "vendor-journal@example.com").then(() => {
+			cy.visit(`${appOrigin}/documents/invoice`);
+			cy.get('[data-cy="import-document-csv-button-invoice"]').click();
+			cy.get('[data-cy="import-document-csv-dialog"]', { timeout: 10000 }).should("be.visible");
+
+			cy.get('[data-cy="import-document-csv-files-input"]').selectFile(ORIGINAL_PDF_SELECT_PATH, {
+				force: true,
+			});
+			cy.wait(500); // the file upload round-trip before the CSV itself is parsed against it
+
+			// The vendor profile is recognised from its own header row, never from the generic one:
+			// 900 for 3 units must become 300 per unit, not 900 per unit.
+			const csv =
+				"Numéro de facture;Date;Client;Montant HT;Montant TVA;Montant TTC;Taux de TVA;Désignation;Fichier;Quantité\n" +
+				"FA-VENDOR-0001;15/03/2024;Vendor Journal Co;900,00;180,00;1080,00;20;Conseil;supplier-invoice-plain.pdf;3\n";
+
+			cy.get('[data-cy="import-document-csv-file-input"]').selectFile(
+				{ contents: Cypress.Buffer.from(csv), fileName: "henrri-invoices.csv" },
+				{ force: true },
+			);
+
+			cy.get('[data-cy="import-document-csv-preview"]', { timeout: 15000 }).should("be.visible");
+			cy.get('[data-cy="import-document-csv-vendor"]', { timeout: 15000 }).should(
+				"contain.text",
+				"Henrri",
+			);
+			cy.get('[data-cy="import-document-csv-summary-valid"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
+			cy.get('[data-cy="import-document-csv-summary-rejected"]', { timeout: 15000 }).should(
 				"contain.text",
 				"0",
 			);
+			cy.screenshot("759-vendor-invoice-preview", { capture: "viewport" });
+
+			cy.get('[data-cy="import-document-csv-confirm-button"]').click();
+			cy.get('[data-cy="import-document-csv-result"]', { timeout: 15000 }).should("be.visible");
+			cy.get('[data-cy="import-document-csv-result-imported"]', { timeout: 15000 }).should(
+				"contain.text",
+				"1",
+			);
+			// The line the export described keeps the total it printed.
+			cy.request({ method: "GET", url: `${api}/api/documents?typeId=invoice&page=1` }).then((res) => {
+				const documents = res.body.items as { displayNumber: string; id: string }[];
+				const imported = documents.find((entry) => entry.displayNumber === "FA-VENDOR-0001");
+				expect(imported, "imported vendor invoice").to.not.eq(undefined);
+				cy.request({ url: `${api}/api/documents/${imported?.id}?typeId=invoice` })
+					.its("body.data.lines")
+					.then((lines: { quantity: number; unitPrice: string | number }[]) => {
+						expect(Number(lines[0].quantity), "printed quantity kept").to.eq(3);
+						expect(Number(lines[0].unitPrice), "total divided by the quantity").to.eq(300);
+					});
+			});
 		});
 	});
 

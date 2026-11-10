@@ -42,6 +42,7 @@ import {
 } from "@/hooks/queries"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
+import { formatVendorRowErrors } from "@/lib/vendor-row-errors"
 import {
   fetchRequiredIdentifiers,
   mapRow,
@@ -223,7 +224,7 @@ export function ClientImportDialog() {
               status: "duplicate",
               duplicateOf: {
                 kind: "file",
-                matchedOn: "name_country",
+                matchedOn: entry.duplicateMatchedOn ?? "name_country",
                 rowNumber: entry.duplicateOfRow,
                 name,
                 contactEmail: entry.row.contactEmail ?? null,
@@ -236,7 +237,7 @@ export function ClientImportDialog() {
             return {
               rowNumber: entry.rowNumber,
               status: "rejected",
-              errors: entry.errors,
+              errors: formatVendorRowErrors(t, entry.errors),
               wire: entry.row,
               source: "local",
             }

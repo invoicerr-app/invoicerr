@@ -89,19 +89,31 @@ export interface VendorExportProfile {
 /** One row's fate after mapping: mapped rows are sent to the existing import preview/confirm. */
 export type VendorRowStatus = 'mapped' | 'rejected' | 'duplicate';
 
+/**
+ * One rejected row's reason, as an i18n key plus its values rather than a finished English
+ * sentence: the preview is a UI surface, so the browser renders the same key from
+ * `locales/en/translation.json` in the reader's own language (see `vendor-export-messages.ts`).
+ */
+export interface VendorRowError {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
 export interface VendorMappedClientRow {
   rowNumber: number;
   status: VendorRowStatus;
   row: ClientImportRow;
-  errors?: string[];
+  errors?: VendorRowError[];
   duplicateOfRow?: number;
+  /** Which of the two duplicate rules named in `duplicateOfRow` matched. */
+  duplicateMatchedOn?: 'email' | 'name_country';
 }
 
 export interface VendorMappedInvoiceRow {
   rowNumber: number;
   status: VendorRowStatus;
   row: DocumentImportCsvRow;
-  errors?: string[];
+  errors?: VendorRowError[];
   duplicateOfRow?: number;
 }
 

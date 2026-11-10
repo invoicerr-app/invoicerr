@@ -1,5 +1,6 @@
 import { useApiMutation } from "@/hooks/use-api-query"
 import type { ClientImportRowWire } from "@/lib/csv-import/client-rows"
+import type { VendorRowErrorWire } from "@/lib/vendor-row-errors"
 import type { DocumentImportCsvRow } from "./use-document-import"
 
 /**
@@ -17,15 +18,16 @@ export interface VendorMappedClientRowWire {
   rowNumber: number
   status: "mapped" | "rejected" | "duplicate"
   row: ClientImportRowWire
-  errors?: string[]
+  errors?: VendorRowErrorWire[]
   duplicateOfRow?: number
+  duplicateMatchedOn?: "email" | "name_country"
 }
 
 export interface VendorMappedDocumentRowWire {
   rowNumber: number
   status: "mapped" | "rejected" | "duplicate"
   row: DocumentImportCsvRow
-  errors?: string[]
+  errors?: VendorRowErrorWire[]
   duplicateOfRow?: number
 }
 
