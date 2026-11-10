@@ -240,6 +240,36 @@ describe('ClientImportService', () => {
       expect(created?.countryCode).toBe('FR');
       expect(created?.country).toBe('France');
     });
+
+    it('confirm fills the country name when only the ISO code was given', async () => {
+      const row = frRow({ country: undefined, name: 'Code Only Country Co' });
+      const result = await service.confirm(companyId, [row]);
+      expect(result.created).toBe(1);
+      const created = await prisma.client.findFirst({ where: { companyId, name: 'Code Only Country Co' } });
+      expect(created?.countryCode).toBe('FR');
+      expect(created?.country).toBe('France');
+    });
+
+    it("confirm keeps a company's named contact", async () => {
+      const row = frRow({
+        name: 'Company With Contact Co',
+        contactFirstname: 'Alice',
+        contactLastname: 'Durand',
+        contactEmail: 'alice.durand@example.test',
+      });
+      const result = await service.confirm(companyId, [row]);
+      expect(result.created).toBe(1);
+      const created = await prisma.client.findFirst({
+        where: { companyId, name: 'Company With Contact Co' },
+        include: { contacts: true },
+      });
+      expect(created?.contacts[0]).toMatchObject({
+        firstName: 'Alice',
+        lastName: 'Durand',
+        email: 'alice.durand@example.test',
+        isPrimary: true,
+      });
+    });
   });
 
   describe('closed-set columns (never silently coerced)', () => {

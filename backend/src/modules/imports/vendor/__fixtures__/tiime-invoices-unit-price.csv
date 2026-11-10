@@ -1,0 +1,4 @@
+Numéro;Date;Échéance;Client;Désignation;Quantité;Prix unitaire HT;TVA;Montant HT;Montant TTC;Fichier
+TI-UNIT-0001;15/03/2024;15/04/2024;Vendor Journal Co;Conseil;;150,00;60,00;300,00;360,00;supplier-invoice-plain.pdf
+TI-UNIT-0002;16/03/2024;16/04/2024;Vendor Journal Co;Conseil;2;150,00;60,00;300,00;360,00;supplier-invoice-plain.pdf
+TI-NOVAT-0001;17/03/2024;17/04/2024;Vendor Journal Co;Conseil;;150,00;;300,00;;supplier-invoice-plain.pdf

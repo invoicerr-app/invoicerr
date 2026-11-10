@@ -301,6 +301,11 @@ function lineFromTotals(
 ): { lineQuantity: string; lineAmount: number } {
   const total = net === undefined ? undefined : Math.round(net * 100) / 100;
   const units = quantity !== undefined && quantity > 0 ? quantity : undefined;
+  // No printed quantity means the row describes ONE line: the stated net is the amount. Returning
+  // the unit price here would import 1 x unitPrice instead of the invoice's own total.
+  if (units === undefined && total !== undefined) {
+    return { lineQuantity: '1', lineAmount: total };
+  }
   let amount = unitPrice ?? total ?? 0;
   if (total !== undefined && units !== undefined) {
     if (unitPrice === undefined) amount = Math.round((total / units) * 100) / 100;
@@ -309,7 +314,7 @@ function lineFromTotals(
     return { lineQuantity: String(units), lineAmount: Math.round(amount * 100) / 100 };
   }
   return {
-    lineQuantity: units === undefined ? '1' : String(units),
+    lineQuantity: '1',
     lineAmount: Math.round(amount * 100) / 100,
   };
 }
@@ -318,6 +323,7 @@ function mapInvoiceRow(
   cells: string[],
   indexes: Map<string, number>,
   rowNumber: number,
+  vatColumn: string,
 ): { row: DocumentImportCsvRow; errors: VendorRowError[] } {
   const errors: VendorRowError[] = [];
   const originalNumber = cell(cells, indexes, 'originalNumber');
@@ -362,6 +368,11 @@ function mapInvoiceRow(
   if (net === undefined && gross !== undefined) {
     net = gross / (1 + (vatRate ?? 0) / 100);
   }
+  // A blank VAT cell must never become a silent 0% line. Every profile carries a VAT column, so an
+  // export that leaves it empty is refused row by row with a reason the user can act on.
+  if (vatRate === undefined) {
+    errors.push(vendorRowError('vatRateMissing', { row: rowNumber, column: vatColumn }));
+  }
 
   const { lineQuantity, lineAmount } = lineFromTotals(
     unitPrice,
@@ -382,7 +393,7 @@ function mapInvoiceRow(
       lineQuantity,
       lineUnit: cell(cells, indexes, 'lineUnit') || 'unit',
       lineUnitPrice: String(lineAmount),
-      lineVatRate: String(vatRate ?? 0),
+      lineVatRate: vatRate === undefined ? '' : String(vatRate),
       originalFileName: cell(cells, indexes, 'originalFileName') || undefined,
       clientId: cell(cells, indexes, 'clientId') || undefined,
     },
@@ -451,7 +462,17 @@ export function mapVendorExport(
       return;
     }
 
-    const { row, errors } = mapInvoiceRow(cells, indexes, rowNumber);
+    // Name the file's own VAT column in the refusal, whichever of the two it maps: a rate column or
+    // a VAT-amount column that the profile then divides by the net.
+    const vatIndex = indexes.get('lineVatRate') ?? indexes.get('totalVat');
+    const { row, errors } = mapInvoiceRow(
+      cells,
+      indexes,
+      rowNumber,
+      (vatIndex === undefined ? undefined : grid.headers[vatIndex]) ??
+        profile.columns.lineVatRate?.[0] ??
+        'lineVatRate',
+    );
     if (errors.length > 0) {
       mapped.push({ rowNumber, status: 'rejected', row, errors });
       return;

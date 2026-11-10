@@ -1,4 +1,21 @@
 {
+    "imports": {
+        "vendor": {
+            "clientNoName": "Ligne {{row}} : le client n'a ni prénom ni nom dans les colonnes « {{lastname}} » / « {{firstname}} ».",
+            "companyNoName": "Ligne {{row}} : la société n'a pas de nom dans la colonne « {{column}} ».",
+            "invoiceNumberEmpty": "Ligne {{row}} : le numéro de facture est vide.",
+            "clientNameEmpty": "Ligne {{row}} : le nom du client est vide.",
+            "invalidIssueDate": "Ligne {{row}} : date invalide « {{value}} » (attendu jour/mois/année ou année-mois-jour).",
+            "invalidDueDate": "Ligne {{row}} : date d'échéance invalide « {{value}} » (attendu jour/mois/année ou année-mois-jour).",
+            "invalidVatRate": "Ligne {{row}} : valeur de TVA invalide « {{value}} ».",
+            "vatRateMissing": "Ligne {{row}} : aucune TVA dans la colonne « {{column}} ». Renseignez le taux, ou gardez la colonne dans l'export, pour importer cette ligne.",
+            "invalidUnitPrice": "Ligne {{row}} : prix unitaire invalide « {{value}} ».",
+            "noAmount": "Ligne {{row}} : la facture n'a aucun montant lisible.",
+            "truncatedRow": "Ligne {{row}} : ligne tronquée, le fichier a {{headers}} colonnes mais cette ligne en a {{cells}}.",
+            "noClientMatch": "Ligne {{row}} : aucun client nommé « {{name}} » dans cette société. Importez d'abord la liste des clients, puis celle des factures.",
+            "ambiguousClient": "Ligne {{row}} : plusieurs clients correspondent à « {{name}} ». Choisissez le client dans le formulaire d'import d'un document seul."
+        }
+    },
     "errorBoundary": {
         "title": "Une erreur est survenue",
         "description": "Une erreur inattendue s'est produite lors de l'affichage de cette page. Vous pouvez essayer de recharger la page.",
@@ -339,6 +356,7 @@
             "button": "Importer un CSV",
             "title": "Importer des clients depuis un CSV",
             "description": "Téléchargez le modèle, remplissez-le, puis importez-le ici. Rien n'est créé tant que vous n'avez pas confirmé.",
+            "vendorDetected": "Export client {{vendor}} reconnu",
             "downloadTemplate": "Télécharger le modèle",
             "dropHint": "Cliquez pour choisir un fichier CSV",
             "confirm": "Importer {{count}} client",
@@ -5333,6 +5351,7 @@
                 "button": "Importer un CSV",
                 "title": "Importer des documents ({{label}}) depuis un fichier CSV",
                 "description": "Une ligne par document, plus les fichiers d'origine (PDF ou XML) auxquels elle renvoie par leur nom.",
+                "vendorDetected": "Export de factures {{vendor}} reconnu",
                 "downloadTemplate": "Télécharger le modèle CSV",
                 "step1": "1. Sélectionnez les fichiers d'origine (PDF ou XML), tous en une fois",
                 "filesHint": "{{count}} fichier(s) téléversé(s) pour l'instant.",

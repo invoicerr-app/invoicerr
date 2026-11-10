@@ -10,6 +10,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
+import { ISO_COUNTRIES } from '@/modules/company-lookup/data/iso-countries';
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
@@ -68,6 +69,11 @@ function resolveCountryIso(row: {
     };
   }
   return { iso: (isoFromCode ?? isoFromName) as string };
+}
+
+/** The English short name of a resolved ISO code, from the existing company-lookup table. */
+function countryName(iso: string | undefined): string | undefined {
+  return iso ? ISO_COUNTRIES.find((entry) => entry.code === iso)?.name : undefined;
 }
 
 /** The name half of the duplicate rule: an individual has no stored company name, so use their full
@@ -330,12 +336,10 @@ export class ClientImportService {
       for (const { row, resolvedCountryIso } of toCreate) {
         const type = row.type || 'COMPANY';
         // `resolvedCountryIso` is set for every valid row. The four contact columns still mean "the
-        // primary contact"; create it only when one of them is filled in.
+        // primary contact"; create it when any of them is filled in, including the named contact of
+        // a company (a vendor export prints `Prénom`/`Nom` for both party types).
         const hasContact =
-          !!(type === 'INDIVIDUAL' ? row.contactFirstname : undefined) ||
-          !!(type === 'INDIVIDUAL' ? row.contactLastname : undefined) ||
-          !!row.contactEmail ||
-          !!row.contactPhone;
+          !!row.contactFirstname || !!row.contactLastname || !!row.contactEmail || !!row.contactPhone;
         const client = await tx.client.create({
           data: {
             companyId,
@@ -346,8 +350,8 @@ export class ClientImportService {
             contacts: hasContact
               ? {
                   create: {
-                    firstName: type === 'INDIVIDUAL' ? row.contactFirstname || null : null,
-                    lastName: type === 'INDIVIDUAL' ? row.contactLastname || null : null,
+                    firstName: row.contactFirstname || null,
+                    lastName: row.contactLastname || null,
                     email: row.contactEmail || null,
                     phone: row.contactPhone || null,
                     isPrimary: true,
@@ -360,7 +364,7 @@ export class ClientImportService {
             postalCode: row.postalCode ?? '',
             city: row.city ?? '',
             state: row.state,
-            country: row.country ?? '',
+            country: row.country || countryName(resolvedCountryIso) || '',
             countryCode: resolvedCountryIso,
             // No forced default: a blank cell stays blank, as in the wizard.
             currency: row.currency ? (row.currency.toUpperCase() as Currency) : undefined,

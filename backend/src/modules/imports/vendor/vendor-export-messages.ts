@@ -17,6 +17,7 @@ export type VendorRowMessageId =
   | 'invalidIssueDate'
   | 'invalidDueDate'
   | 'invalidVatRate'
+  | 'vatRateMissing'
   | 'invalidUnitPrice'
   | 'noAmount'
   | 'truncatedRow'

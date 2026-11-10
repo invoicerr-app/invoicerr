@@ -328,6 +328,33 @@ describe('invoice export mapping', () => {
     expect(parseVendorVatRate('0,2')).toBe(20);
   });
 
+  it('keeps the stated net when a unit price is printed but the quantity is empty', () => {
+    const grid = fixture('tiime-invoices-unit-price.csv', ';');
+    const profile = detectVendorExport('invoices', grid.headers)!;
+    expect(profile.id).toBe('tiime-invoices');
+    const rows = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
+
+    // No quantity: one line carrying the stated 300.00 net, never 1 x the 150.00 unit price.
+    expect(rows[0].status).toBe('mapped');
+    expect(rows[0].row.lineQuantity).toBe('1');
+    expect(rows[0].row.lineUnitPrice).toBe('300');
+
+    // A real quantity keeps the printed unit price: 2 x 150.00 recomposes the same 300.00 net.
+    expect(rows[1].status).toBe('mapped');
+    expect(rows[1].row.lineQuantity).toBe('2');
+    expect(rows[1].row.lineUnitPrice).toBe('150');
+  });
+
+  it('refuses a row whose VAT cell is empty instead of importing it at 0%', () => {
+    const grid = fixture('tiime-invoices-unit-price.csv', ';');
+    const profile = detectVendorExport('invoices', grid.headers)!;
+    const rows = mapVendorExport(profile, grid) as VendorMappedInvoiceRow[];
+
+    expect(rows[2].status).toBe('rejected');
+    expect(rows[2].errors?.[0]?.key).toBe('imports.vendor.vatRateMissing');
+    expect(rows[2].errors?.[0]?.params).toMatchObject({ column: 'TVA' });
+  });
+
   it('refuses a file missing a required invoice column at the file level', () => {
     const grid = fixture('tiime-clients.csv', ';');
     const index = grid.headers.indexOf('Nom');

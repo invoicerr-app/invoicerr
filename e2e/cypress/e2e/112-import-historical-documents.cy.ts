@@ -335,7 +335,10 @@ describe("Issue #340 - import historical documents from a previous tool", () => 
 			confirmCsvImport("import-document-csv", { imported: "1" });
 
 			// The line the export described keeps the total it printed.
-			cy.request({ method: "GET", url: `${api}/api/documents?typeId=invoice&page=1` }).then((res) => {
+			cy.request({
+				method: "GET",
+				url: `${api}/api/documents?typeId=invoice&q=FA-VENDOR-0001`,
+			}).then((res) => {
 				const documents = res.body.items as { displayNumber: string; id: string }[];
 				const imported = documents.find((entry) => entry.displayNumber === "FA-VENDOR-0001");
 				expect(imported, "imported vendor invoice").to.not.eq(undefined);

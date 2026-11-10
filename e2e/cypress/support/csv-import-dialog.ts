@@ -39,7 +39,12 @@ export function uploadCsvImportFile(prefix: string, file: CsvImportFile): void {
 /** The past-invoice dialog uploads its original PDFs in the same request as the CSV. */
 export function uploadInvoiceOriginals(path: string): void {
 	cy.get('[data-cy="import-document-csv-files-input"]').selectFile(path, { force: true });
-	cy.wait(500); // the file upload round-trip before the CSV itself is parsed against it
+	// Wait for the upload count, never a fixed delay: the CSV must be parsed only after the server
+	// has the original under the name the row references.
+	cy.get('[data-cy="import-document-csv-files-count"]', { timeout: 15000 }).should(
+		"contain.text",
+		"1",
+	);
 }
 
 export function expectCsvImportPreview(prefix: string, expected: CsvImportPreview): void {
@@ -93,11 +98,16 @@ export function confirmCsvImport(prefix: string, expected: CsvImportResult): voi
 
 /** Finds the client a vendor export created by e-mail and asserts the country it kept. */
 export function expectCreatedClientCountry(email: string, country: string): void {
-	cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/api/clients?page=1` }).then((res) => {
-		const created = (res.body.clients as { contactEmail: string; country: string }[]).find(
-			(entry) => entry.contactEmail === email,
-		);
-		expect(created, "vendor client created").to.not.eq(undefined);
-		expect(created?.country, "country cell kept").to.eq(country);
-	});
+	// Search by e-mail rather than reading the first page of the alphabetical list: a seeded or
+	// previously imported client must never push the one under test onto page 2.
+	const query = encodeURIComponent(email);
+	cy.request({ method: "GET", url: `${Cypress.env("apiUrl")}/api/clients/search?query=${query}` }).then(
+		(res) => {
+			const created = (res.body as { contactEmail: string; country: string }[]).find(
+				(entry) => entry.contactEmail === email,
+			);
+			expect(created, "vendor client created").to.not.eq(undefined);
+			expect(created?.country, "country cell kept").to.eq(country);
+		},
+	);
 }

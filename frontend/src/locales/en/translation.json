@@ -8,6 +8,7 @@
       "invalidIssueDate": "Row {{row}}: invalid date \"{{value}}\" (expected day/month/year or year-month-day).",
       "invalidDueDate": "Row {{row}}: invalid due date \"{{value}}\" (expected day/month/year or year-month-day).",
       "invalidVatRate": "Row {{row}}: invalid VAT value \"{{value}}\".",
+      "vatRateMissing": "Row {{row}}: no VAT in the \"{{column}}\" column. Fill the rate, or keep the column in the export, to import this row.",
       "invalidUnitPrice": "Row {{row}}: invalid unit price \"{{value}}\".",
       "noAmount": "Row {{row}}: the invoice has no readable amount.",
       "truncatedRow": "Row {{row}}: truncated row, the file has {{headers}} columns but this row has {{cells}}.",

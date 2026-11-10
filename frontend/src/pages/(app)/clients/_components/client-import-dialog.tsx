@@ -182,14 +182,6 @@ export function ClientImportDialog() {
         return requirementsCache.get(key)!
       }
 
-      const mappedRows = dataRows.map((cells, index) => mapRow(headers, cells, index + 2))
-
-      const validated = await Promise.all(
-        mappedRows.map(async ({ wire, shapeErrors }) =>
-          validateRow(t, wire, shapeErrors, await requirementsFor(wire)),
-        ),
-      )
-
       let merged: MergedRow[]
 
       if (vendorResponse?.detected) {
@@ -264,6 +256,15 @@ export function ClientImportDialog() {
         })
       } else {
         setVendorLabel(null)
+        // The generic template path is the only one that needs the browser-side zod pass and the
+        // country-identifier catalogue: a vendor export is already mapped, and a catalogue failure
+        // must not sink an import the server would have accepted.
+        const mappedRows = dataRows.map((cells, index) => mapRow(headers, cells, index + 2))
+        const validated = await Promise.all(
+          mappedRows.map(async ({ wire, shapeErrors }) =>
+            validateRow(t, wire, shapeErrors, await requirementsFor(wire)),
+          ),
+        )
         const locallyValid = validated.filter((v) => !v.localErrors)
 
         let serverResults: ClientImportRowResultWire[] = []
