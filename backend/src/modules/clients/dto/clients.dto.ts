@@ -61,6 +61,8 @@ export class EditClientsDto {
   language?: string | null;
   currency: Currency;
   type?: ClientType;
+  // Whether the client is registered for VAT; business clients only, defaults to true at the DB level.
+  vatRegistered?: boolean;
   // Government buyers require a specific channel/format; defaults to BUSINESS at the DB level.
   kind?: ClientKind;
   // Reconciliation role, independent from `kind`; defaults to false. Normally set by supplier matching.

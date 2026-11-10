@@ -239,6 +239,7 @@ async function recipientClientFor(
       country: true,
       countryCode: true,
       type: true,
+      vatRegistered: true,
       partyIdentifiers: { select: { scheme: true, value: true } },
     },
   });

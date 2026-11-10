@@ -879,6 +879,9 @@ model Client {
   language         String?
   currency         Currency?
   type             ClientType        @default(COMPANY)
+  // Whether this client is registered for VAT, so buyer VAT rules ask only a business that really has a
+  // number. Default true: every existing client keeps today's behaviour exactly.
+  vatRegistered    Boolean           @default(true)
   // B2G routing — see ClientKind above and B2gRoutingRule below. Default BUSINESS: every existing
   // client, and every client created without touching this field, keeps today's behavior exactly —
   // no transport/mandate precedence change unless a client is explicitly marked GOVERNMENT.

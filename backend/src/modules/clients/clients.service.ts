@@ -407,6 +407,7 @@ export class ClientsService {
           language: dataFields.language,
           currency: dataFields.currency,
           type: dataFields.type,
+          vatRegistered: dataFields.vatRegistered,
           kind: dataFields.kind,
           isSupplier: dataFields.isSupplier,
           isActive: true,

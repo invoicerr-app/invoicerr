@@ -1,13 +1,16 @@
 import {
   assertPatternIsExplainable,
   assertValidEinvoiceFacts,
+  assertValidInvoiceRequirement,
   assertValidProvenance,
   assertValidRequiredFor,
   IdentifierSchemeFact,
   InvalidEinvoiceIdentifierFactError,
   InvalidIdentifierPatternError,
   InvalidIdentifierProvenanceError,
+  InvalidInvoiceIdentifierRequirementError,
   InvalidRequiredForError,
+  InvoiceIdentifierRequirement,
 } from './schema';
 
 const base: Omit<IdentifierSchemeFact, 'provenance'> = {
@@ -164,6 +167,28 @@ describe('assertValidEinvoiceFacts', () => {
     ['a reduction that keeps nothing', { einvoiceReduction: { whenDigits: 14, keepDigits: 0 } }],
   ])('rejects %s', (_label, facts) => {
     expect(check(facts as Partial<IdentifierSchemeFact>)).toThrow(InvalidEinvoiceIdentifierFactError);
+  });
+});
+
+describe('assertValidInvoiceRequirement: the buyerVatRegistered axis', () => {
+  const legal = { kind: 'legal', sourceText: 'Text.', sourceCheckedAt: '2026-08-30' } as const;
+  const rule = (when: InvoiceIdentifierRequirement['when']) => () =>
+    assertValidInvoiceRequirement({ party: 'BUYER', scheme: 'VAT', when, provenance: legal }, 'test');
+
+  it.each([
+    { buyerVatRegistered: [true] },
+    { buyerVatRegistered: [false] },
+    { buyerVatRegistered: [true, false] },
+  ])('accepts %j', (when) => {
+    expect(rule(when)).not.toThrow();
+  });
+
+  it('refuses a value that is not a boolean rather than never matching it', () => {
+    expect(rule({ buyerVatRegistered: ['YES'] as never })).toThrow(InvalidInvoiceIdentifierRequirementError);
+  });
+
+  it('refuses an empty list', () => {
+    expect(rule({ buyerVatRegistered: [] })).toThrow(InvalidInvoiceIdentifierRequirementError);
   });
 });
 
