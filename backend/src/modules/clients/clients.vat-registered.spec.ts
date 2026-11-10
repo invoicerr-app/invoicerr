@@ -6,39 +6,15 @@ vi.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: vi.fn(),
 }));
 
-import { ClientsService } from './clients.service';
-import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
-import { VatValidationPort } from '../documents/tax/vat-validation';
 import prisma from '@/prisma/prisma.service';
-
-const fakeWebhookDispatcher = {
-  dispatch: vi.fn().mockResolvedValue(undefined),
-} as unknown as WebhookDispatcherService;
-
-const fakeVatValidator: VatValidationPort = {
-  validate: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', checkedAt: new Date(), source: 'test' }),
-};
+import { createClientsServiceForTest, createTestCompany } from '../documents/__tests__/issuable-client';
 
 describe('ClientsService: Client.vatRegistered', () => {
+  const service = createClientsServiceForTest();
   let companyId: string;
-  let service: ClientsService;
 
   beforeAll(async () => {
-    const company = await prisma.company.create({
-      data: {
-        name: 'VAT Registered Co',
-        foundedAt: new Date('2020-01-01'),
-        address: '1 Test Street',
-        postalCode: '00000',
-        city: 'Testville',
-        country: 'France',
-        countryCode: 'FR',
-        phone: '+33000000000',
-        email: `vat-registered-${Date.now()}@example.com`,
-      },
-    });
-    companyId = company.id;
-    service = new ClientsService(fakeWebhookDispatcher, fakeVatValidator);
+    companyId = (await createTestCompany('VAT Registered Co')).id;
   });
 
   afterAll(async () => {
