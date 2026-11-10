@@ -383,6 +383,7 @@ function AddressStep({ form }: { form: UseFormReturn<FieldValues> }) {
  */
 function FiscalStep({
   form,
+  clientType,
   isGovernment,
   b2gRule,
   b2gRuleLoading,
@@ -395,6 +396,7 @@ function FiscalStep({
   lookupIdentifierLabel,
 }: Readonly<{
   form: UseFormReturn<FieldValues>
+  clientType: string
   isGovernment: boolean
   b2gRule: B2gRoutingRule | null | undefined
   b2gRuleLoading: boolean
@@ -456,6 +458,29 @@ function FiscalStep({
             </FormItem>
           )}
         />
+
+        {clientType === "COMPANY" ? (
+          <FormField
+            control={form.control}
+            name="vatRegistered"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 sm:col-span-2">
+                <div className="space-y-0.5">
+                  <FormLabel description={t("clients.upsert.fields.vatRegistered.description")}>
+                    {t("clients.upsert.fields.vatRegistered.label")}
+                  </FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value !== false}
+                    onCheckedChange={(value) => field.onChange(value)}
+                    data-cy="client-vat-registered-switch"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        ) : null}
 
         {isGovernment ? (
           <div
@@ -1298,6 +1323,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
     defaultValues: {
       type: "COMPANY",
       kind: "BUSINESS",
+      vatRegistered: true,
       isSupplier: false,
       name: "",
       description: "",
@@ -1352,6 +1378,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       form.reset({
         type: client.type || "COMPANY",
         kind: client.kind || "BUSINESS",
+        vatRegistered: client.vatRegistered ?? true,
         isSupplier: client.isSupplier ?? false,
         name: client.name || "",
         description: client.description || "",
@@ -1613,6 +1640,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       label: t("clients.upsert.stepped.steps.fiscal", "Tax & identifiers"),
       fields: [
         "kind",
+        "vatRegistered",
         "currency",
         "identifiers",
         ...identifierValuePaths,
@@ -1622,6 +1650,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       render: () => (
         <FiscalStep
           form={form as unknown as UseFormReturn<FieldValues>}
+          clientType={clientType}
           isGovernment={isGovernment}
           b2gRule={b2gRule}
           b2gRuleLoading={b2gRuleLoading}

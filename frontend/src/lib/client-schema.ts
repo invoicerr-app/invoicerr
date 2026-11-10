@@ -40,6 +40,7 @@ export function buildClientSchema(
   return z
     .object({
       type: z.enum(["INDIVIDUAL", "COMPANY"]),
+      vatRegistered: z.boolean().optional(),
       kind: z.enum(["BUSINESS", "GOVERNMENT"]),
       isSupplier: z.boolean().optional(),
       name: z.string().optional(),

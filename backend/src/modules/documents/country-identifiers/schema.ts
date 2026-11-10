@@ -123,6 +123,8 @@ export interface InvoiceIdentifierCondition {
   sellerVatRegime?: SellerVatRegime[];
   buyerType?: PartyType[];
   buyerEstablishment?: BuyerEstablishment[];
+  /** Whether the buyer is a VAT-registered business, read off the client's own flag. */
+  buyerVatRegistered?: boolean[];
 }
 
 /**
@@ -277,10 +279,11 @@ export function assertValidEinvoiceFacts(fact: IdentifierSchemeFact, context: st
 export class InvalidInvoiceIdentifierRequirementError extends Error {}
 
 const INVOICE_PARTIES: readonly InvoiceParty[] = ['SELLER', 'BUYER'];
-const CONDITION_VALUES: Record<keyof InvoiceIdentifierCondition, readonly string[]> = {
+const CONDITION_VALUES: Record<keyof InvoiceIdentifierCondition, readonly unknown[]> = {
   sellerVatRegime: ['STANDARD', 'FRANCHISE_BASE'],
   buyerType: ['COMPANY', 'INDIVIDUAL'],
   buyerEstablishment: ['DOMESTIC', 'OTHER_UNION_MEMBER'],
+  buyerVatRegistered: [true, false],
 };
 
 /** A condition the resolver cannot evaluate would silently never match, so it is refused at load time. */
@@ -295,8 +298,7 @@ export function assertValidInvoiceRequirement(rule: InvoiceIdentifierRequirement
     if (!known) fail(`for "${rule.scheme}" conditions on unknown axis "${axis}".`);
     if (!Array.isArray(values) || values.length === 0) fail(`for "${rule.scheme}" lists no ${axis} value.`);
     for (const value of values as unknown[]) {
-      if (!known.includes(value as string))
-        fail(`for "${rule.scheme}" lists unknown ${axis} value "${value}".`);
+      if (!known.includes(value)) fail(`for "${rule.scheme}" lists unknown ${axis} value "${value}".`);
     }
   }
   assertValidProvenance(rule, context);
@@ -305,7 +307,7 @@ export function assertValidInvoiceRequirement(rule: InvoiceIdentifierRequirement
 /** Company settings and onboarding read a seller's own schemes as a COMPANY's. */
 const SELLER_FORM_PARTY_TYPE: PartyType = 'COMPANY';
 
-function coversEveryValue(listed: readonly string[] | undefined, axis: keyof InvoiceIdentifierCondition) {
+function coversEveryValue(listed: readonly unknown[] | undefined, axis: keyof InvoiceIdentifierCondition) {
   return !listed || CONDITION_VALUES[axis].every((value) => listed.includes(value));
 }
 
@@ -316,6 +318,7 @@ function coversEveryValue(listed: readonly string[] | undefined, axis: keyof Inv
 function partyTypesAlwaysBound(rule: InvoiceIdentifierRequirement): PartyType[] {
   const when = rule.when ?? {};
   if (!coversEveryValue(when.sellerVatRegime, 'sellerVatRegime')) return [];
+  if (!coversEveryValue(when.buyerVatRegistered, 'buyerVatRegistered')) return [];
   if (rule.party === 'SELLER') {
     const everyBuyer = coversEveryValue(when.buyerType, 'buyerType') && !when.buyerEstablishment;
     return everyBuyer ? [SELLER_FORM_PARTY_TYPE] : [];

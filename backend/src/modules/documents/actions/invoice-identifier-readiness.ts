@@ -24,7 +24,6 @@ const partyIdentifierSelect = {
   country: true,
   partyIdentifiers: { select: { scheme: true, value: true } },
 } as const;
-
 export interface InvoiceIdentifierGaps {
   missing: MissingInvoiceIdentifier[];
   clientFound: boolean;
@@ -48,7 +47,7 @@ export async function findMissingInvoiceIdentifiers(
   const client = clientId
     ? await prisma.client.findFirst({
         where: { id: clientId, companyId },
-        select: { ...partyIdentifierSelect, type: true },
+        select: { ...partyIdentifierSelect, type: true, vatRegistered: true },
       })
     : null;
 

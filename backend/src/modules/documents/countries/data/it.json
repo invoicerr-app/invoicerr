@@ -601,7 +601,7 @@
         "party": "BUYER",
         "scheme": "VAT",
         "when": {
-          "buyerType": ["COMPANY"],
+          "buyerVatRegistered": [true],
           "buyerEstablishment": ["DOMESTIC", "OTHER_UNION_MEMBER"]
         },
         "provenance": {

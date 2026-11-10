@@ -621,7 +621,7 @@
         "party": "SELLER",
         "scheme": "VAT",
         "when": {
-          "buyerType": ["COMPANY"],
+          "buyerVatRegistered": [true],
           "buyerEstablishment": ["OTHER_UNION_MEMBER"]
         },
         "provenance": {
@@ -635,7 +635,7 @@
         "party": "BUYER",
         "scheme": "VAT",
         "when": {
-          "buyerType": ["COMPANY"],
+          "buyerVatRegistered": [true],
           "buyerEstablishment": ["OTHER_UNION_MEMBER"]
         },
         "provenance": {
