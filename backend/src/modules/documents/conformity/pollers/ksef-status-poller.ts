@@ -138,6 +138,10 @@ function isTerminalKsefCode(statusCode: string): boolean {
   return code === 200 || code >= 400;
 }
 
+function isRejectedKsefCode(statusCode: string): boolean {
+  return isTerminalKsefCode(statusCode) && statusCode !== 'pl:200';
+}
+
 function mapKsefStatus(response: InvoiceStatusResponse): RawAuthorityEvent {
   const code = response.status.code;
   const rejected = code >= 400;
@@ -189,6 +193,7 @@ export function buildKsefStatusPoller(deps: KsefStatusPollerDeps): AuthorityStat
   return {
     providerId: KSEF_PROVIDER_ID,
     isTerminal: isTerminalKsefCode,
+    isRejection: isRejectedKsefCode,
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const { sessionRef, invoiceRef } = parseKsefTransportRef(transportRef);

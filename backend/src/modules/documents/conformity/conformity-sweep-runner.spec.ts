@@ -21,9 +21,11 @@
 import { vi, type Mock } from 'vitest';
 
 import {
+  clearConformityRejection,
   createAuthorityEvents,
   findConformitySweepCandidates,
   journalSyntheticEvent,
+  markConformityRejected,
   markConformityResolved,
 } from './authority-events.persistence';
 import {
@@ -47,11 +49,14 @@ const mockedCreateEvents = createAuthorityEvents as Mock;
 const mockedJournalSynthetic = journalSyntheticEvent as Mock;
 const mockedArchiveVerdict = archiveTerminalAuthorityVerdictIfAny as Mock;
 const mockedMarkResolved = markConformityResolved as Mock;
+const mockedMarkRejected = markConformityRejected as Mock;
+const mockedClearRejection = clearConformityRejection as Mock;
 
 function buildSuperPdpPoller(overrides: Partial<AuthorityStatusPoller> = {}): AuthorityStatusPoller {
   return {
     providerId: 'pdp',
     isTerminal: (code) => code === 'fr:202' || code === 'fr:213',
+    isRejection: (code) => code === 'fr:213',
     poll: vi.fn(),
     ...overrides,
   };
@@ -474,6 +479,105 @@ describe('ConformitySweepRunner.runPoll — conformityResolvedAt', () => {
     await expect(
       runner.runPoll({ companyId: 'company-1', documentId: 'doc-1', providerId: 'pdp', transportRef: 'x' }),
     ).resolves.toEqual({ journaled: 1 });
+  });
+});
+
+describe('ConformitySweepRunner.runPoll: rejection flag', () => {
+  const dispatcher = {} as DocumentQueueDispatcher;
+  const job = { companyId: 'company-1', documentId: 'doc-1', providerId: 'pdp', transportRef: 'x' };
+  let registry: AuthorityStatusPollerRegistry;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    registry = new AuthorityStatusPollerRegistry();
+    mockedArchiveVerdict.mockResolvedValue(undefined);
+    mockedCreateEvents.mockResolvedValue(1);
+  });
+
+  it('flags the document rejected with the platform reason when the verdict is a rejection', async () => {
+    const observedAt = new Date('2026-11-10T09:00:00Z');
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi.fn().mockResolvedValue([
+          { statusCode: 'fr:200', observedAt: new Date('2026-11-10T08:00:00Z') },
+          { statusCode: 'fr:213', observedAt, reason: 'Invalid SIREN' },
+        ]),
+      }),
+    );
+
+    await new ConformitySweepRunner(registry, dispatcher).runPoll(job);
+
+    expect(mockedMarkRejected).toHaveBeenCalledWith('company-1', 'doc-1', observedAt, 'Invalid SIREN');
+    expect(mockedClearRejection).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the status text when the platform gives no reason', async () => {
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi
+          .fn()
+          .mockResolvedValue([{ statusCode: 'fr:213', observedAt: new Date(), statusText: 'Rejected' }]),
+      }),
+    );
+
+    await new ConformitySweepRunner(registry, dispatcher).runPoll(job);
+
+    expect(mockedMarkRejected).toHaveBeenCalledWith('company-1', 'doc-1', expect.any(Date), 'Rejected');
+  });
+
+  it('clears the rejection once the platform accepts the document (or the document correcting it)', async () => {
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:202', observedAt: new Date() }]),
+      }),
+    );
+
+    await new ConformitySweepRunner(registry, dispatcher).runPoll(job);
+
+    expect(mockedClearRejection).toHaveBeenCalledWith('company-1', 'doc-1');
+    expect(mockedMarkRejected).not.toHaveBeenCalled();
+  });
+
+  it('lets the most recent terminal verdict win', async () => {
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi.fn().mockResolvedValue([
+          { statusCode: 'fr:202', observedAt: new Date('2026-11-10T10:00:00Z') },
+          { statusCode: 'fr:213', observedAt: new Date('2026-11-10T09:00:00Z') },
+        ]),
+      }),
+    );
+
+    await new ConformitySweepRunner(registry, dispatcher).runPoll(job);
+
+    expect(mockedClearRejection).toHaveBeenCalledTimes(1);
+    expect(mockedMarkRejected).not.toHaveBeenCalled();
+  });
+
+  it('touches neither flag while every observed event is still pending', async () => {
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:200', observedAt: new Date() }]),
+      }),
+    );
+
+    await new ConformitySweepRunner(registry, dispatcher).runPoll(job);
+
+    expect(mockedMarkRejected).not.toHaveBeenCalled();
+    expect(mockedClearRejection).not.toHaveBeenCalled();
+  });
+
+  it('never lets a failure recording the rejection affect the poll result', async () => {
+    registry.register(
+      buildSuperPdpPoller({
+        poll: vi.fn().mockResolvedValue([{ statusCode: 'fr:213', observedAt: new Date() }]),
+      }),
+    );
+    mockedMarkRejected.mockRejectedValueOnce(new Error('db unreachable'));
+
+    await expect(new ConformitySweepRunner(registry, dispatcher).runPoll(job)).resolves.toEqual({
+      journaled: 1,
+    });
   });
 });
 

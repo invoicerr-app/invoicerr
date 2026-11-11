@@ -55,6 +55,13 @@ export interface OverviewDueRow {
   currency: string;
 }
 
+export interface OverviewRejectedRow {
+  documentId: string;
+  displayNumber: string | null;
+  client: string | null;
+  reason: string | null;
+}
+
 export interface InvoiceOverview {
   currency: string;
   /** `YYYY-MM` of today. */
@@ -65,6 +72,8 @@ export interface InvoiceOverview {
   months: OverviewMonth[];
   toChase: OverviewChaseRow[];
   thisWeek: OverviewDueRow[];
+  /** Issued invoices the e-invoicing platform rejected, still owed and waiting for a correction. */
+  rejected: OverviewRejectedRow[];
 }
 
 export interface InvoiceOverviewInput {
@@ -151,7 +160,7 @@ export function buildInvoiceOverview(input: InvoiceOverviewInput): InvoiceOvervi
     const rowCurrency = typeof data.currency === 'string' ? data.currency : '';
     const clientId = typeof data.client === 'string' ? data.client : null;
     const client = clientId ? (clientLabels.get(clientId) ?? null) : null;
-    if (dueDate < today) {
+    if (dueDate < today && !invoice.conformityRejectedAt) {
       const key = `${clientId ?? invoice.id}|${rowCurrency}`;
       const row = chase.get(key) ?? {
         clientId,
@@ -179,6 +188,21 @@ export function buildInvoiceOverview(input: InvoiceOverviewInput): InvoiceOvervi
     }
   }
 
+  const rejected: OverviewRejectedRow[] = input.invoices
+    .filter(
+      (invoice) =>
+        invoice.conformityRejectedAt && (invoice.status === 'sent' || invoice.status === 'imported'),
+    )
+    .map((invoice) => {
+      const clientId = dataOf(invoice).client;
+      return {
+        documentId: invoice.id,
+        displayNumber: invoice.displayNumber ?? null,
+        client: typeof clientId === 'string' ? (clientLabels.get(clientId) ?? null) : null,
+        reason: invoice.conformityRejectedReason ?? null,
+      };
+    });
+
   return {
     currency,
     month,
@@ -197,5 +221,6 @@ export function buildInvoiceOverview(input: InvoiceOverviewInput): InvoiceOvervi
         ...row,
         outstanding: amount(outstandingMinor, row.currency),
       })),
+    rejected,
   };
 }

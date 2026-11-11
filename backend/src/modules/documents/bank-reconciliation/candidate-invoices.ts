@@ -74,6 +74,7 @@ export async function resolveOutstandingInvoices(companyId: string): Promise<Mat
       outstandingMinor: settlement.outstandingMinor,
       issueDate: typeof data.issueDate === 'string' ? data.issueDate : null,
       dueDate: typeof data.dueDate === 'string' ? data.dueDate : null,
+      conformityRejected: Boolean(invoice.conformityRejectedAt),
     });
   }
 

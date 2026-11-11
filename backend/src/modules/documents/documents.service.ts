@@ -665,8 +665,11 @@ export class DocumentsService implements OnModuleInit {
     const payments = (
       await listPaymentsInRange(companyId, new Date(`${today.slice(0, 4)}-01-01T00:00:00.000Z`), new Date())
     ).filter((payment) => invoiceIds.has(payment.documentId));
-    const clientIds = balances
-      .map(({ invoice }) => (invoice.data as Record<string, unknown> | null)?.client)
+    const clientIds = [
+      ...balances.map(({ invoice }) => invoice),
+      ...invoices.filter((invoice) => invoice.conformityRejectedAt),
+    ]
+      .map((invoice) => (invoice.data as Record<string, unknown> | null)?.client)
       .filter((id): id is string => typeof id === 'string');
     return buildInvoiceOverview({
       currency: company?.currency ?? 'EUR',

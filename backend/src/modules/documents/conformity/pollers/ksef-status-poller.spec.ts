@@ -196,4 +196,11 @@ describe('buildKsefStatusPoller', () => {
     );
     expect(mockInvoiceStatus).not.toHaveBeenCalled();
   });
+
+  it('reports every terminal code but pl:200 as a rejection', () => {
+    const poller = buildKsefStatusPoller({ channelCredentials: buildChannelCredentials() });
+    expect(poller.isRejection?.('pl:415')).toBe(true);
+    expect(poller.isRejection?.('pl:200')).toBe(false);
+    expect(poller.isRejection?.('pl:150')).toBe(false);
+  });
 });

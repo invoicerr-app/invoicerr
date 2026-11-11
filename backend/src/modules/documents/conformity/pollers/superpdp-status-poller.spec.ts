@@ -264,4 +264,14 @@ describe('buildSuperPdpStatusPoller', () => {
       expect(poller.isTerminal('poll:blocked')).toBe(false);
     });
   });
+
+  describe('isRejection', () => {
+    const poller = buildSuperPdpStatusPoller({ channelCredentials: buildChannelCredentials() });
+
+    it('only fr:213 is a rejection', () => {
+      expect(poller.isRejection?.(PDP_REJECTED_STATUS_CODE)).toBe(true);
+      expect(poller.isRejection?.(PDP_ACCEPTED_STATUS_CODE)).toBe(false);
+      expect(poller.isRejection?.('fr:200')).toBe(false);
+    });
+  });
 });
