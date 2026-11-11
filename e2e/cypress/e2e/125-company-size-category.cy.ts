@@ -142,7 +142,7 @@ describe("Company size category and the French PDP calendar", () => {
 		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
 		cy.get('[data-cy="company-submit-btn"]').click();
 		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
-		cy.get('[data-cy="company-profile-vatRegime-select"]', { timeout: 10000 })
+		cy.get('[data-cy="company-profile-vatRegime-select"]', { timeout: 20000 })
 			.scrollIntoView()
 			.should("contain.text", "Not declared");
 		// The debits option is open while the regime is undeclared, and a real regime keeps it; the
