@@ -1323,5 +1323,33 @@
       }
     },
     "notes": "Every mention reads the business-letter provisions of the GmbHG, AktG and HGB. Not modelled: capital details (only required when stated), companies in liquidation, branches of foreign companies."
+  },
+  "codeLists": {
+    "countryCode": "DE",
+    "lists": [
+      {
+        "id": "zmUmsatzart",
+        "label": "Zusammenfassende Meldung Umsatzart, the kind of intra-Community operation a line reports",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Massendatenschnittstelle ELMA, Fachverfahrensspezifische Schnittstellenbeschreibung (SSB) 1.0.2, Stand 11.12.2025, 2.7 Struktur Zeile, Tabelle 7, element \"umsatzart\" (Umsatzart), zulässige Werte: \"D (Dreiecksgeschäft) L (Innergemeinschaftliche Lieferung) S (Sonstige Leistung)\"",
+          "sourceCheckedAt": "2026-11-11"
+        },
+        "entries": [
+          {
+            "code": "D",
+            "label": "Triangular trade (Dreiecksgeschäft)"
+          },
+          {
+            "code": "L",
+            "label": "Intra-Community supply of goods (innergemeinschaftliche Lieferung)"
+          },
+          {
+            "code": "S",
+            "label": "Intra-Community service (sonstige Leistung)"
+          }
+        ]
+      }
+    ]
   }
 }
