@@ -259,8 +259,17 @@ export async function applySubscriptionWebhook(
   // (or lapsed-paying) customer — ACTIVE or already PAST_DUE — can be walked further toward PAST_DUE
   // by a webhook; `computeRecoveredStatus` (`lifecycle.ts`) holds the exact same "still inside the
   // original trial window" carve-out for the other path that computes a status from a Polar fact.
+  //
+  // The same non-active bucket must also never walk a company the lifecycle has ALREADY suspended
+  // (`BLOCKED`) or archived (`ZIPPED`) back to `PAST_DUE`: that status is writable again
+  // (`write-gate.ts#assertCompanyWritable` refuses only `BLOCKED`/`ZIPPED`), so the row would reopen
+  // every write for the rest of the grace window - and the next `computeLifecycleTransition` pass
+  // (`lifecycle.ts`, `BLOCKED` branch) would take the reset `blockedAt: now` this write hands it and
+  // restart the whole 14-day window, briefly unarchiving a `ZIPPED` company too. A later `ACTIVE`
+  // fact still reactivates normally below - this guard only holds back NON-active facts.
   const stillInsideOwnTrial = sub.status === 'TRIAL' && now.getTime() < sub.trialEndsAt.getTime();
-  if (mappedStatus === 'PAST_DUE' && stillInsideOwnTrial) {
+  const alreadySuspended = sub.status === 'BLOCKED' || sub.status === 'ZIPPED';
+  if (mappedStatus === 'PAST_DUE' && (stillInsideOwnTrial || alreadySuspended)) {
     // A genuine NO-OP — deliberately NOT even `lastPolarFactAt`, nor the subscription id/customer
     // id/interval/seats this fact also carries. Standard Webhooks gives no ordering guarantee: the
     // SAME checkout's `subscription.active` can be delivered (and processed) AFTER a later-timestamped
@@ -270,7 +279,9 @@ export async function applySubscriptionWebhook(
     // runs before this guard, on every future call), leaving the company stuck at TRIAL forever with
     // no record of ever having subscribed. Leaving the row completely untouched means a later-arriving,
     // chronologically OLDER `active` fact is free to apply normally — see the tests covering both
-    // delivery orders for the exact company-facing outcome this produces.
+    // delivery orders for the exact company-facing outcome this produces. Same reasoning for a
+    // `BLOCKED`/`ZIPPED` row: nothing about this fact is recorded, so the later `active` (or a manual
+    // reactivation) stays free to clear the block/zip clocks.
     return;
   }
   const status = mappedStatus;
