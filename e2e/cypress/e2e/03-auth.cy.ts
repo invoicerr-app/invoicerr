@@ -248,6 +248,8 @@ describe('Authentication E2E', () => {
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
                 cy.get('[data-cy="auth-submit-btn"]').click();
                 cy.url({ timeout: 20000 }).should('include', '/auth/sign-in');
+                // The URL changes before React swaps the page, and both forms tag their email auth-email-input.
+                cy.get('[data-cy="auth-firstname-input"]').should('not.exist');
 
                 // The fact this actually worked: log back in as the invited user and check
                 // they landed IN Acme Corp (the inviter's company) with no onboarding prompt —
@@ -267,7 +269,8 @@ describe('Authentication E2E', () => {
                 // `.blur()` sidesteps that: it re-resolves the element instead of reusing a subject
                 // that may have gone stale while the request was still in flight.
                 cy.intercept('GET', '**/api/sso/lookup*').as('ssoLookupOnReLogin');
-                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).clear().type(VALID_CODE_EMAIL);
+                cy.get('[data-cy="auth-email-input"]', { timeout: 5000 }).clear();
+                cy.get('[data-cy="auth-email-input"]').type(VALID_CODE_EMAIL);
                 cy.get('[data-cy="auth-email-input"]').blur();
                 cy.wait('@ssoLookupOnReLogin');
                 cy.get('[data-cy="auth-password-input"]').type('Super_Secret_Password123!');
