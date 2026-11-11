@@ -86,8 +86,10 @@ export function buildFrenchPaDeclarationProvider(deps: FrenchPaDeclarationProvid
     profile: Record<string, string>,
   ): Promise<void> {
     if (!adapter.syncCompanyProfile) return;
+    // Nothing to push until the company has answered its regime; the platform keeps its current one.
+    if (!profile.vatRegime) return;
     await adapter.syncCompanyProfile(companyId, {
-      vatRegime: profile.vatRegime ?? '',
+      vatRegime: profile.vatRegime,
       vatOnDebits: profile.vatDebitsOption === 'EXERCISED',
     });
   }
@@ -105,6 +107,17 @@ export function buildFrenchPaDeclarationProvider(deps: FrenchPaDeclarationProvid
       const { adapter, profile } = await resolveAdapter(companyId);
       await syncProfile(adapter, companyId, profile);
       return adapter.declarePayment(companyId, payment);
+    },
+
+    async syncCompanyProfile(companyId: string): Promise<void> {
+      try {
+        const { adapter, profile } = await resolveAdapter(companyId);
+        await syncProfile(adapter, companyId, profile);
+      } catch (error) {
+        // Nothing connected yet: the next declaration syncs the profile instead of failing a save.
+        if (error instanceof ChannelNotConnectedError) return;
+        throw error;
+      }
     },
   };
 }

@@ -172,7 +172,11 @@ interface EReportingAdapter {
 ```
 
 `syncCompanyProfile` is optional: it tells the platform the VAT facts its own declaration schedule
-depends on. A connected offering that declares e-reporting but has no registered adapter is a named
+depends on. A declaration provider exposes the same operation as an optional
+`syncCompanyProfile(companyId)` (`reporting/declaration-provider.ts`), so a change to the company's
+answers is pushed as soon as the settings are saved (`reporting/profile-sync.ts`) instead of waiting
+for the next declaration; the provider also syncs before each declaration as a safety net. A
+connected offering that declares e-reporting but has no registered adapter is a named
 `ChannelNotConnectedError`, journaled `report:blocked`; it is never silently skipped, and it never
 falls back to a different operator the company did not connect. Adding Iopole, Billit or Invopop is
 one catalogue flag plus one adapter.

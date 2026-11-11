@@ -93,8 +93,8 @@ The frequency is the platform's own: three transmissions per month for the réel
 regime, one per month for the réel normal trimestriel and réel simplifié regimes, and one per two
 calendar months under the franchise en base (CGI ann. II art. 242 nonies O and P, created by décret
 n° 2026-677 du 27 juillet 2026). The company settings therefore ask the VAT regime and the option for
-VAT on debits, and `reporting/providers/superpdp-ereporting-adapter.ts` syncs both to the platform
-before every declaration.
+VAT on debits. A change to either answer is pushed to the platform when the settings are saved, and
+`reporting/providers/superpdp-ereporting-adapter.ts` syncs both again before every declaration.
 
 Happy path: a French company issues an invoice to a private client, the invoice is sent, and the
 `fr-pa` provider resolves its connected accredited platform from `operators/`

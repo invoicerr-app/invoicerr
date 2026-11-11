@@ -164,6 +164,16 @@ export interface DeclarationProvider {
    * silently treats it as declared.
    */
   declarePayment?(companyId: string, payment: DeclaredPayment): Promise<DeclarationResult>;
+
+  /**
+   * Pushes the company facts the platform's own declaration schedule depends on (VAT regime, option
+   * for VAT on debits). Called when the company settings change, so a new answer takes effect before
+   * the next declaration. Optional: a provider whose platform keeps no such record does nothing.
+   *
+   * @throws ChannelNotConnectedError when no connected channel can carry this provider's obligation
+   *   right now. A settings write treats that as "nothing to sync yet", never as a save failure.
+   */
+  syncCompanyProfile?(companyId: string): Promise<void>;
 }
 
 /**
@@ -191,6 +201,22 @@ export class DeclarationProviderRegistry {
         return provider.declare(companyId, invoice);
       },
     };
+    // The wrapper must carry every optional method over, or it silently turns a provider that can
+    // declare payments into one that cannot.
+    const declarePayment = provider.declarePayment;
+    if (declarePayment) {
+      guarded.declarePayment = async (companyId, payment) => {
+        assertDemoSendingAllowed(`Declaring to "${providerId}"`);
+        return declarePayment(companyId, payment);
+      };
+    }
+    const syncCompanyProfile = provider.syncCompanyProfile;
+    if (syncCompanyProfile) {
+      guarded.syncCompanyProfile = (companyId) => {
+        assertDemoSendingAllowed('Declaration profile sync');
+        return syncCompanyProfile(companyId);
+      };
+    }
     this.providers.set(providerId, guarded);
   }
 
