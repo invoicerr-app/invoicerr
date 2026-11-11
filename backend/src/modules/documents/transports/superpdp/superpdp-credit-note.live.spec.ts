@@ -19,6 +19,7 @@ import {
   buildLiveFacturx,
   depositLiveFacturx,
   findRejection,
+  LIVE_VERDICT_BUDGET_MS,
 } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -55,12 +56,20 @@ describeLive('PDP live round-trip (superpdp sandbox) - a credit note (381 + BG-3
       const events = await awaitLiveVerdict(client, Number(sent.id));
       const rejected = findRejection(events);
       if (rejected) throw new Error(`superpdp rejected ${displayNumber}: ${JSON.stringify(rejected)}`);
-      expect(events.some((e) => e.status_code?.startsWith('fr:2'))).toBe(true);
+      // Distinct from the rejection above on purpose: no event at all is a platform that never
+      // answered within the budget, not a refusal, and the two must not read the same in a log.
+      if (!events.some((e) => e.status_code?.startsWith('fr:2'))) {
+        throw new Error(
+          `superpdp returned NO verdict for ${displayNumber} (deposit ${sent.id}) within ` +
+            `${LIVE_VERDICT_BUDGET_MS / 1000}s - statuses seen: ` +
+            `${JSON.stringify(events.map((e) => e.status_code))}.`,
+        );
+      }
       return sent;
     }
 
     const invoiceNumber = `INV-LIVE-472-${timestamp}`;
     await deposit(invoiceNumber);
     await deposit(`CN-LIVE-472-${timestamp}`, { displayNumber: invoiceNumber, issueDate: today });
-  }, 90_000);
+  }, 240_000);
 });

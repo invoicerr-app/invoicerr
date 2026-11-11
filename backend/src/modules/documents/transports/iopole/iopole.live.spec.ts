@@ -50,6 +50,19 @@
  * REJECTED / UNACCEPTABLE / REFUSED code anywhere in the history fails this test outright. That
  * discipline, and the reason for it, is `superpdp.live.spec.ts`'s own header: this repository has paid
  * twice for a live test that asserted something which had not happened yet.
+ *
+ * HOW LONG IT WAITS, AND WHY IT IS NO LONGER 15s (2026-11-10). The 2026-11-09 nightly (run
+ * 42602783514, head 64466e19) still read `Iopole status history: []` after 30 x 500ms - about 18s
+ * including the reads - on a deposit the platform had accepted (201) and could resolve by id. Its
+ * predecessor on 2026-11-08 failed a different way: `GET /v1/invoice/{id}` answered before the
+ * platform had indexed the deposit, with an empty `invoiceId`, and a single read turned that into a
+ * red run. Both are the same defect on the test side, never a product one: the platform is
+ * asynchronous and this spec is the only reader of its status history (`iopole-transport.ts` sends
+ * and stores the id; no poller consumes the verdict yet), so a slow sandbox tests nothing about the
+ * product. Both reads are therefore patient now: the metadata read is retried until it resolves
+ * THIS deposit's id, and the verdict wait backs off from 500ms to 5s for up to 120s. The two
+ * failure modes are also named apart, because a run that never received a status and a run the
+ * platform refused must not read the same in a log.
  */
 import { PDFDocument } from 'pdf-lib';
 
@@ -89,6 +102,20 @@ const IOPOLE_REJECTION_CODES = new Set(['REJECTED', 'UNACCEPTABLE', 'REFUSED']);
  *  opposed to SUBMITTED, which only means the request arrived. See the retry loop below on why the
  *  difference is load-bearing here and not a nuance. */
 const IOPOLE_TERMINAL_POSITIVE_CODES = new Set(['ISSUED', 'RECEIVED', 'MADE_AVAILABLE']);
+
+/** How long `GET /v1/invoice/{id}` may take to resolve the id it just returned. The platform
+ *  indexed a deposit a fraction of a second late on 2026-11-08; 60s is far past anything measured
+ *  and only bounds a read that would otherwise hang. */
+const METADATA_BUDGET_MS = 60_000;
+
+/** How long the platform's own verdict may take. Measured: under a second on most deposits, but
+ *  empty after 18s on 2026-11-10 - see this file's own header. */
+const VERDICT_BUDGET_MS = 120_000;
+
+const FIRST_POLL_DELAY_MS = 500;
+const MAX_POLL_DELAY_MS = 5_000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted', () => {
   it('buildEuInvoice → real EN16931 Schematron gate → real Factur-X embed → real Iopole deposit', async () => {
@@ -229,21 +256,39 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
     console.log('DEPOSIT ACCEPTED - invoice id:', created.id);
 
     // 4) The id must be one the PLATFORM itself can resolve, not merely something it echoed back.
-    const metadata = await client.getInvoice(created.id);
+    // READ PATIENTLY: on 2026-11-08 this read answered before the platform had indexed the deposit
+    // (`invoiceId` empty), and one read turned that into a red nightly. Retried until it resolves
+    // THIS deposit's id, never trusted on the first answer.
+    let metadata = await client.getInvoice(created.id);
+    const metadataDeadline = Date.now() + METADATA_BUDGET_MS;
+    let metadataDelay = FIRST_POLL_DELAY_MS;
+    while (String(metadata?.invoiceId ?? '') !== String(created.id) && Date.now() < metadataDeadline) {
+      await sleep(metadataDelay);
+      metadataDelay = Math.min(metadataDelay * 2, MAX_POLL_DELAY_MS);
+      metadata = await client.getInvoice(created.id);
+    }
     console.log('Iopole GET /v1/invoice/{id} response:', JSON.stringify(metadata));
-    expect(String(metadata?.invoiceId ?? '')).toBe(String(created.id));
+    if (String(metadata?.invoiceId ?? '') !== String(created.id)) {
+      throw new Error(
+        `Iopole accepted deposit ${created.id} but GET /v1/invoice/{id} never resolved that id ` +
+          `within ${METADATA_BUDGET_MS / 1000}s (last answer: ${JSON.stringify(metadata)}).`,
+      );
+    }
 
-    // 5) The platform's own verdict. A SHORT RETRY LOOP, never a fixed sleep: the deposit is
-    // asynchronous, and reading the history in the same breath as the 201 genuinely returns `[]` -
-    // measured, that is exactly what the first run of this spec did.
+    // 5) The platform's own verdict. A RETRY LOOP, never a fixed sleep: the deposit is asynchronous,
+    // and reading the history in the same breath as the 201 genuinely returns `[]`.
     //
     // THE LOOP WAITS FOR A VERDICT, NOT MERELY FOR A NON-EMPTY HISTORY - a distinction this spec
     // paid for on its second run: SUBMITTED lands ~0.4s after the 201 and the rest ~0.2s later, so a
     // loop that stopped at "the history is no longer empty" read only SUBMITTED, which says the
     // request went out and nothing about whether it was accepted. Asserting a transient state is the
     // FIRST of the two false greens `superpdp.live.spec.ts`'s own header records, reproduced here
-    // verbatim before it was fixed. Polling every 500ms for up to 15s is ample margin for a verdict
-    // that has landed in well under a second on every deposit measured.
+    // verbatim before it was fixed.
+    //
+    // The budget is 120s, backing off from 500ms to 5s, not the 15s it used to be: on 2026-11-10 the
+    // sandbox emitted nothing at all for 18s on a deposit it had accepted, and that is a platform
+    // still thinking, not a product fault (see this file's own header). A rejection stops the loop
+    // early - waiting the full budget on a refused deposit only delays the real message.
     const isVerdict = (entries: typeof history) =>
       entries.some(
         (entry) =>
@@ -251,8 +296,11 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
           IOPOLE_REJECTION_CODES.has(entry.status?.code ?? ''),
       );
     let history = await client.getStatusHistory(created.id);
-    for (let attempt = 0; attempt < 30 && !isVerdict(history); attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    const verdictDeadline = Date.now() + VERDICT_BUDGET_MS;
+    let verdictDelay = FIRST_POLL_DELAY_MS;
+    while (!isVerdict(history) && Date.now() < verdictDeadline) {
+      await sleep(verdictDelay);
+      verdictDelay = Math.min(verdictDelay * 2, MAX_POLL_DELAY_MS);
       history = await client.getStatusHistory(created.id);
     }
     // `xml`/`json` are stripped from the log: each entry carries the FULL status document, which
@@ -262,20 +310,36 @@ describeLive('Iopole live round-trip (ppd sandbox) - Factur-X deposit accepted',
       JSON.stringify(history.map(({ xml: _xml, json: _json, ...rest }) => rest)),
     );
 
+    // TWO NAMED FAILURES, never one bare assertion. "No status at all" means the platform never
+    // started the lifecycle: the deposit was accepted, so this is the platform being slow, and the
+    // budget above is the only lever a test has. "Rejected" means it decided against us, which is a
+    // real conformity verdict and must say which code refused it.
     const codes = new Set(history.map((entry) => entry.status?.code ?? ''));
+    if (history.length === 0) {
+      throw new Error(
+        `Iopole returned NO status at all for invoice ${created.id} within ` +
+          `${VERDICT_BUDGET_MS / 1000}s, although the deposit itself was accepted (201). ` +
+          `This is "no status received", not a rejection: the sandbox never emitted SUBMITTED.`,
+      );
+    }
     const rejected = history.find((entry) => IOPOLE_REJECTION_CODES.has(entry.status?.code ?? ''));
     if (rejected) {
-      throw new Error(`Iopole reported a rejection: ${JSON.stringify(rejected)}`);
+      throw new Error(`Iopole reported a rejection for invoice ${created.id}: ${JSON.stringify(rejected)}`);
     }
     // ASSERTED, not merely logged - and asserted only because it was REPRODUCED across two
-    // independent live deposits before this line was written (2026-09-24, invoice ids
+    // independent live deposits before this check was written (2026-09-24, invoice ids
     // 01a0d285-f428-… and 01a0d286-6ec2-…): both produced the SAME full positive lifecycle within
     // ~0.6s of the 201 - SUBMITTED (destType PPF and OPERATOR) → ISSUED → RECEIVED (networkCode 202)
     // → MADE_AVAILABLE (networkCode 203), with no rejection anywhere. This is a real conformity
     // verdict, not an accepted upload. Kept deliberately narrow: at least ONE terminal-positive code,
     // never "exactly these five in this order", which would turn a harmless extra platform event
     // into a red test.
-    expect(codes.has('SUBMITTED')).toBe(true);
-    expect([...IOPOLE_TERMINAL_POSITIVE_CODES].some((code) => codes.has(code))).toBe(true);
-  }, 120_000);
+    if (!codes.has('SUBMITTED') || ![...IOPOLE_TERMINAL_POSITIVE_CODES].some((code) => codes.has(code))) {
+      throw new Error(
+        `Iopole history for invoice ${created.id} never reached a terminal positive code within ` +
+          `${VERDICT_BUDGET_MS / 1000}s - codes seen: ${JSON.stringify([...codes])}. ` +
+          `This is a stalled lifecycle, not a rejection.`,
+      );
+    }
+  }, 240_000);
 });

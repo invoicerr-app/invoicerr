@@ -164,10 +164,14 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     await depositLiveFacturx(client, facturxPdf, `INV-RECEPTION-${timestamp}`);
 
     // The inbound TWIN's own id is DIFFERENT — see this file's own header, point 2. Poll `direction=in`
-    // newest first for a few seconds (the twin appears within ~1s per prior live observation) and
-    // pick the one created most recently: this sandbox account carries every earlier inbound deposit.
+    // newest first (the twin appears within ~1s per prior live observation) and pick the one created
+    // most recently: this sandbox account carries every earlier inbound deposit. Read patiently:
+    // backing off from 800ms to 5s, up to 60s, because a shared inbox that is slow one morning is
+    // not a reception bug, and the old 10 x 800ms (8s) window turned it into a red nightly.
     let inboundId: number | undefined;
-    for (let attempt = 0; attempt < 10 && !inboundId; attempt++) {
+    const inboundDeadline = Date.now() + 60_000;
+    let inboundDelay = 800;
+    while (!inboundId && Date.now() < inboundDeadline) {
       const { data } = await client.listInvoices({ direction: 'in', order: 'desc', limit: 10 });
       const newest = [...data].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -175,11 +179,12 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
       if (newest && new Date(newest.created_at).getTime() >= timestamp - 2000) {
         inboundId = newest.id;
       } else {
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((r) => setTimeout(r, inboundDelay));
+        inboundDelay = Math.min(inboundDelay * 2, 5_000);
       }
     }
     if (!inboundId) {
-      throw new Error("direction=in never listed this deposit's own inbound twin — hard failure.");
+      throw new Error("direction=in never listed this deposit's own inbound twin within 60s - hard failure.");
     }
     console.log('INBOUND twin id:', inboundId);
 
@@ -273,5 +278,5 @@ describeLive('PDP reception — REAL self-addressed deposit becomes a REAL recei
     expect(paymentResult.changed).toBe(true);
     expect(paymentResult.createdPaymentId).toBeTruthy();
     console.log('REAL payment recorded:', paymentResult.message);
-  }, 60_000);
+  }, 180_000);
 });
