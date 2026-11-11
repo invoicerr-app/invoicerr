@@ -100,6 +100,38 @@ skip versions when upgrading: pull the new image and restart.
        volumes:
          - db_data:/var/lib/postgresql/data
 
+     # Database dump on a schedule, kept in the db_backups volume: see the Backups page.
+     invoicerr_db_backup:
+       image: postgres:15
+       environment:
+         PGHOST: invoicerr_db
+         PGUSER: invoicerr
+         PGDATABASE: invoicerr_db
+         PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to this one}
+         DB_BACKUP_INTERVAL_SECONDS: ${DB_BACKUP_INTERVAL_SECONDS:-86400}
+         DB_BACKUP_KEEP_DAYS: ${DB_BACKUP_KEEP_DAYS:-14}
+       entrypoint: ["/bin/sh", "-c"]
+       command:
+         - |
+           until pg_isready -q; do sleep 5; done
+           while true; do
+             file="/backups/invoicerr_db-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+             if pg_dump --format=custom --file="$$file.partial"; then
+               mv "$$file.partial" "$$file"
+               echo "Database backup written: $$file"
+             else
+               rm -f "$$file.partial"
+               echo "Database backup FAILED" >&2
+             fi
+             find /backups -name 'invoicerr_db-*.dump' -mtime +"$$DB_BACKUP_KEEP_DAYS" -delete
+             sleep "$$DB_BACKUP_INTERVAL_SECONDS"
+           done
+       volumes:
+         - db_backups:/backups
+       depends_on:
+         - invoicerr_db
+       restart: unless-stopped
+
      redis:
        image: bitnami/redis:latest
        environment:
@@ -110,6 +142,8 @@ skip versions when upgrading: pull the new image and restart.
    volumes:
      db_data:
        driver: local
+     db_backups:
+       driver: local
      redis_data:
        driver: local
      documents_data:
@@ -118,6 +152,10 @@ skip versions when upgrading: pull the new image and restart.
 
    The app will not boot at all without a reachable Redis — it is not optional, and there is no
    degraded fallback if it is missing.
+
+   The `invoicerr_db_backup` service dumps the database once a day and keeps two weeks of dumps.
+   See [Database backups with Docker Compose](./backups.md#database-backups-with-docker-compose) to
+   change that, copy the dumps off the host and restore one.
 
    :::warning[No quotes in list-style values]
    In the `- KEY=value` form used above, Docker Compose keeps quotes as part of the value:

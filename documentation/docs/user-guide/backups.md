@@ -21,7 +21,8 @@ Not covered:
 
 - **The database.** Postgres has its own backup story (automated backups and snapshots on a managed
   provider like Scaleway, or your own `pg_dump`/WAL archiving on a self-managed instance) — this
-  feature never touches it. If you run your own `pg_dump`, see "Encrypting a manual database dump"
+  feature never touches it. With the provided `docker-compose.yml`, a separate service already dumps
+  it on a schedule: see [Database backups with Docker Compose](#database-backups-with-docker-compose). If you run your own `pg_dump`, see "Encrypting a manual database dump"
   below — the same encryption this feature applies to files is available as a standalone command for
   exactly that dump.
 - **Restoring, as a button in this application.** This feature only ever writes to the backup
@@ -201,6 +202,75 @@ without it, by design (that is also exactly what makes it worth doing). If you l
 - There is nothing to report to this application — it has no record of the key and cannot help
   recover it. Whatever process you use to store secrets (a password manager, a vault, a printed copy
   in a safe) is the only backstop; store the key there BEFORE you need it, not after.
+
+## Database backups with Docker Compose
+
+The repository's `docker-compose.yml` ships an `invoicerr_db_backup` service. It uses the same
+`postgres:15` image as the database, so it adds no third-party image, and it starts with the rest of
+the stack on `docker compose up -d`.
+
+What it does:
+
+- waits until the database accepts connections, then runs `pg_dump --format=custom` right away and
+  again every `DB_BACKUP_INTERVAL_SECONDS`;
+- writes each dump to the `db_backups` volume as `invoicerr_db-<UTC timestamp>.dump`. A dump is
+  written under a temporary name first, so a failed run never leaves a truncated file that looks
+  complete;
+- deletes dumps older than `DB_BACKUP_KEEP_DAYS`.
+
+Both settings are optional. Put them in the same `.env` file as `POSTGRES_PASSWORD`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DB_BACKUP_INTERVAL_SECONDS` | `86400` | Time between two dumps (one day by default). |
+| `DB_BACKUP_KEEP_DAYS` | `14` | Dumps older than this many days are deleted. |
+
+:::info[Copy the dumps off the host]
+The `db_backups` volume lives on the same disk as the database. It protects against a bad upgrade, a
+mistaken deletion or a corrupted database, not against losing the machine. Copy the dumps somewhere
+else on a schedule of your own (another server, an S3 bucket, an external drive), and encrypt them
+first if they leave a machine you control (see [Encrypting a manual database dump](#encrypting-a-manual-database-dump)).
+:::
+
+Check that dumps are being written, and see the service's log of each run:
+
+```bash
+docker compose exec invoicerr_db_backup ls -l /backups
+docker compose logs invoicerr_db_backup
+```
+
+Copy every dump to the current directory on the host:
+
+```bash
+docker compose cp invoicerr_db_backup:/backups ./db-backups
+```
+
+Take a dump right now, for example before an upgrade:
+
+```bash
+docker compose exec invoicerr_db_backup \
+  sh -c 'pg_dump --format=custom --file=/backups/invoicerr_db-manual-$(date -u +%Y%m%dT%H%M%SZ).dump'
+```
+
+### Restoring a dump
+
+Stop the application first so nothing writes to the database during the restore, then restore the
+dump over the existing database and start the application again:
+
+```bash
+docker compose stop invoicerr
+docker compose exec invoicerr_db_backup \
+  pg_restore --clean --if-exists --no-owner --dbname=invoicerr_db /backups/invoicerr_db-<timestamp>.dump
+docker compose start invoicerr
+```
+
+A dump copied off the host goes back in the same way: `docker compose cp ./invoicerr_db-<timestamp>.dump
+invoicerr_db_backup:/backups/` first. Restore a dump once on a test machine before you actually need
+it. Remember that the database alone is not the whole instance: the archived documents live in the
+`documents_data` volume and need their own copy (see the file backup described above).
+
+If you do not want this service, remove it and its `db_backups` volume from `docker-compose.yml`,
+but set up another database backup before storing real invoices.
 
 ## Encrypting a manual database dump
 
