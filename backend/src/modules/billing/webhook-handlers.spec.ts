@@ -351,6 +351,98 @@ describe('applySubscriptionWebhook', () => {
     });
   });
 
+  // Regression guard for the reopening bug: a non-active Polar fact landing on a company the
+  // lifecycle has already walked past PAST_DUE used to overwrite its status back to PAST_DUE - which
+  // `write-gate.ts#assertCompanyWritable` accepts (it only blocks BLOCKED/ZIPPED), reopening every
+  // write and, on the next `computeLifecycleTransition` pass, resetting `blockedAt` to `now` so the
+  // whole 14-day BLOCKED window starts over (and a ZIPPED company is briefly unarchived).
+  describe('never reopening a company already BLOCKED or ZIPPED from a non-active fact', () => {
+    const now = new Date('2026-11-11T00:00:00Z');
+    const blockedFacts = {
+      companyId: 'company-1',
+      blockedAt: new Date('2026-11-01T00:00:00Z'),
+      lastPolarFactAt: null,
+    };
+    const zippedFacts = {
+      companyId: 'company-1',
+      blockedAt: new Date('2026-10-01T00:00:00Z'),
+      zipSentAt: new Date('2026-10-15T00:00:00Z'),
+      deletionDueAt: new Date('2026-10-29T00:00:00Z'),
+      lastPolarFactAt: null,
+    };
+
+    it.each([
+      ['BLOCKED', blockedFacts],
+      ['ZIPPED', zippedFacts],
+    ])('a %s company is NOT walked back to PAST_DUE by a non-active status (writes stay refused, the clock is never restarted)', async (label, row) => {
+      getOrCreate.mockResolvedValue({ status: label, ...row });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'past_due',
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['BLOCKED', blockedFacts],
+      ['ZIPPED', zippedFacts],
+    ])('a %s company records NOTHING at all for a non-active fact - not even lastPolarFactAt/ids, and no cache invalidation', async (label, row) => {
+      getOrCreate.mockResolvedValue({ status: label, ...row });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'canceled',
+          recurringInterval: 'month',
+          factAt: new Date('2026-11-11T00:00:00Z'),
+        },
+        now,
+      );
+
+      expect(update).not.toHaveBeenCalled();
+      expect(invalidateFacts).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['BLOCKED', blockedFacts],
+      ['ZIPPED', zippedFacts],
+    ])('an ACTIVE fact on a %s company still reactivates it normally, clearing the block/zip clocks', async (label, row) => {
+      getOrCreate.mockResolvedValue({ status: label, ...row });
+
+      await applySubscriptionWebhook(
+        {
+          companyId: 'company-1',
+          polarSubscriptionId: 'sub_1',
+          polarCustomerId: 'cus_1',
+          status: 'active',
+          recurringInterval: 'month',
+        },
+        now,
+      );
+
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'ACTIVE',
+            blockedAt: null,
+            zipSentAt: null,
+            deletionDueAt: null,
+          }),
+        }),
+      );
+    });
+  });
+
   describe('two webhooks for the SAME subscription, delivered out of order (active vs. canceled)', () => {
     const trialEndsAt = new Date('2026-09-20T00:00:00Z');
     const activeFactAt = new Date('2026-09-16T09:00:00Z'); // the OLDER fact: the real activation
