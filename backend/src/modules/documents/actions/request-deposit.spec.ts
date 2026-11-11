@@ -60,6 +60,13 @@ function mockQuote(overrides: {
   });
 }
 
+// Nothing has been invoiced from any quote these tests use yet - the #953 double-invoicing guard
+// (actions/quote-invoicing-guard.ts) reads that fact first. The tests that want a quote already
+// invoiced override this with their own rows.
+beforeEach(() => {
+  (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([]);
+});
+
 describe('request-deposit', () => {
   afterEach(() => vi.resetAllMocks());
 
@@ -223,6 +230,35 @@ describe('request-deposit', () => {
     await expect(action).rejects.not.toThrow(/once an option has been chosen/);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
+
+  it('refuses (409) a second invoice for a quote that already carries one: deposit after conversion, deposit after deposit (issue #953)', async () => {
+    mockQuote({ lines: [{ description: 'A', quantity: 1, unitPrice: 100, vatRate: '20' }] });
+    // Whatever raised it - a conversion, an earlier deposit - nothing else may be invoiced on it.
+    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([
+      {
+        id: 'invoice-1',
+        typeId: 'invoice',
+        status: 'draft',
+        displayNumber: 'INV-2026-0001',
+        data: { lines: [{ description: 'A', quantity: 1, unitPrice: 100, vatRate: '20' }] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    const handler = buildRegistry().resolve('quote', 'request-deposit')!;
+    const action = handler({
+      companyId: 'company-1',
+      typeId: 'quote',
+      documentId: 'quote-1',
+      data: {},
+      params: { percent: 30 },
+    });
+
+    await expect(action).rejects.toMatchObject({ status: 409 });
+    await expect(action).rejects.toThrow(/Refusing to invoice the same quote twice/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -245,6 +281,8 @@ describe('request-deposit — the amount the client is actually asked to pay', (
     quote: { currency?: string; lines: Array<Record<string, unknown>> },
   ) {
     mockQuote(quote);
+    // Re-stated per call: this test's own loop calls `vi.resetAllMocks()` between cases (below).
+    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([]);
     (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',

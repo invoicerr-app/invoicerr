@@ -7,6 +7,7 @@ import { deriveQuoteOptions } from '../options/quote-options';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry } from './action-registry';
 import { createDraftInvoiceFromQuote } from './quote-to-invoice';
+import { QUOTE_DEPOSIT_PERCENT_KEY } from './quote-invoicing-guard';
 
 /**
  * The quote's OWN base descriptor, imported directly rather than resolved through
@@ -148,6 +149,12 @@ export function registerRequestDepositAction(registry: ActionRegistry): void {
           currency,
           notes: quoteData.notes,
           origin: { entity: 'quote', id: quote.id },
+          // Provenance marker, written by this action and read only by
+          // actions/quote-invoicing-guard.ts (`isDepositInvoice`): it is what lets the quote's ONE
+          // allowed second invoice - an installment plan deducting this deposit - recognize the
+          // invoice it must deduct, and what refuses every other second invoice. Not a descriptor
+          // field on purpose: nothing renders it, validates it, or ever edits it.
+          [QUOTE_DEPOSIT_PERCENT_KEY]: percent,
           lines: [
             {
               description: `Deposit (${percent}% of ${quoteLabel})`,
