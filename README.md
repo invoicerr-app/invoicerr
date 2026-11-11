@@ -1,7 +1,8 @@
 ![Invoicerr](https://raw.githubusercontent.com/invoicerr-app/brand/main/social/banner.webp)
 
-Open-source invoicing you host yourself: quotes, invoices, payments and the paperwork that follows —
-including the e-invoicing rules of the country you bill from.
+Open-source invoicing and e-invoicing for freelancers, small businesses and their accountants.
+
+Host it yourself: quotes, invoices, payments and the paperwork that follows, including the e-invoicing rules of the country you bill from.
 
 [![Tests](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml/badge.svg)](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml)
 [![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?include_prereleases&label=release)](https://github.com/invoicerr-app/invoicerr/releases)

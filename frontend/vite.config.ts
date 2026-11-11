@@ -32,7 +32,7 @@ export default defineConfig({
         name: "Invoicerr",
         short_name: "Invoicerr",
         description:
-          "Simple, open-source invoicing app for freelancers: quotes, invoices, clients, and payments.",
+          "Open-source invoicing and e-invoicing for freelancers, small businesses and their accountants.",
         lang: "en",
         dir: "ltr",
         start_url: "/",
