@@ -57,3 +57,13 @@ is read as one, which this research did not settle against case law. Not modelle
 details of a KG with no natural person as partner (GmbH & Co. KG, § 125 Abs. 1 Satz 2 HGB),
 liquidation, branches of foreign companies. All texts were read at gesetze-im-internet.de on
 2026-10-25.
+
+## Recapitulative statement codes
+
+The `codeLists` section of `countries/data/de.json` carries `zmUmsatzart`, the three letters a
+Zusammenfassende Meldung line puts in its `umsatzart` element: `D` (Dreiecksgeschäft, triangular
+trade), `L` (innergemeinschaftliche Lieferung, intra-Community supply of goods) and `S` (sonstige
+Leistung, intra-Community service). The list is read only through `code-lists/lookup.ts`; no
+declaration builds a ZM line yet. Source: BZSt, Massendatenschnittstelle ELMA,
+Fachverfahrensspezifische Schnittstellenbeschreibung (SSB) 1.0.2, 11.12.2025, section 2.7 Tabelle 7,
+read on 2026-11-11.

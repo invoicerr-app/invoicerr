@@ -59,6 +59,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'paymentTerms',
         'companyLaw',
         'companyProfile',
+        'codeLists',
       ],
       DZ: [
         'policy',
@@ -108,6 +109,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'paymentTerms',
         'einvoiceCodes',
         'companyLaw',
+        'codeLists',
       ],
       PL: [
         'policy',

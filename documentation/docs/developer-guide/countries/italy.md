@@ -110,6 +110,11 @@ The other detailed codes the schema accepts (`N1`, `N3.3` to `N3.6`, `N5`, `N6.1
 listed with their source but carry no `appliesTo`: nothing on an invoice can select them yet. The N6
 codes in particular wait for the `domesticReverseCharge` categories to reach the tax engine.
 
+The same Natura codes, and the full `RegimeFiscale` list, are declared a second time under
+`codeLists` (`fatturaPaNatura`, `fatturaPaRegimeFiscale`) for the declarations model, which needs them
+without importing the invoice builder. `code-lists/country-data.spec.ts` fails when the Natura copy
+stops matching `exemptionCodes`.
+
 :::info[A 0 % line with no code is refused]
 A line without VAT that no entry matches (a bare legacy `0` rate, for instance) makes the build
 invalid with a message naming the line. The SdI has refused the generic codes `N2`, `N3` and `N6` since
