@@ -365,6 +365,12 @@ export interface DocumentInstance {
    *  is the preservation that has a gap. Shown verbatim, like `lastActionError` — the backend rewrites
    *  it from a bare driver message into a full sentence once automatic retries stop explaining it. */
   lastArchiveError?: string | null
+  /** Mirrors the backend's `DocumentInstance.conformityRejectedAt`: set while the e-invoicing
+   *  platform's latest verdict on this document is a rejection, cleared once it (or a document
+   *  correcting it) is accepted. The lifecycle status stays "sent" meanwhile. */
+  conformityRejectedAt?: string | null
+  /** The platform's own rejection reason, shown verbatim. */
+  conformityRejectedReason?: string | null
   /** Issue #373 ("quotes with options") - mirrors the backend's `DocumentInstance.acceptedOption`:
    *  the option name the client chose when accepting a quote offering 2+ of them, written only by the
    *  OTP signature or the manual acceptance, never editable. Null/absent for every quote with fewer

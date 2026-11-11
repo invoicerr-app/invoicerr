@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, OctagonAlert } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 import { Area, ComposedChart, CartesianGrid, Line, XAxis, YAxis } from "recharts"
@@ -117,6 +117,48 @@ function InvoicedCard({ overview }: { overview: InvoiceOverview }) {
   )
 }
 
+function RejectedCard({ overview }: { overview: InvoiceOverview }) {
+  const { t } = useTranslation()
+  if (overview.rejected.length === 0) return null
+  return (
+    <section
+      className={cn(PANEL, "border-destructive/40 bg-destructive-soft p-5")}
+      role="alert"
+      data-cy="dashboard-overview-rejected"
+    >
+      <div className="flex items-center gap-2 text-destructive-soft-foreground">
+        <OctagonAlert className="size-5 shrink-0" aria-hidden="true" />
+        <h2 className="text-xl">
+          {t("dashboard.overview.rejectedTitle", { count: overview.rejected.length })}
+        </h2>
+      </div>
+      <p className="mt-1 text-sm text-ink-2">{t("dashboard.overview.rejectedHelp")}</p>
+      <ul className="mt-3 divide-y border-t border-destructive/20">
+        {overview.rejected.slice(0, 5).map((row) => (
+          <li key={row.documentId}>
+            <Link
+              to={`/documents/invoice/${row.documentId}`}
+              className="focus-ring block rounded-sm py-3 outline-none"
+              data-cy={`dashboard-overview-rejected-${row.documentId}`}
+            >
+              <span className="block truncate text-[15px] font-semibold text-foreground">
+                {[row.displayNumber, row.client ?? t("dashboard.overview.noClient")]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              {row.reason && (
+                <span className="block truncate text-[13.5px] text-destructive-soft-foreground">
+                  {row.reason}
+                </span>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function ToChaseCard({ overview }: { overview: InvoiceOverview }) {
   const { t } = useTranslation()
   const format = useFormat()
@@ -215,8 +257,8 @@ function ThisWeekCard({ overview }: { overview: InvoiceOverview }) {
   )
 }
 
-/** The top of the dashboard: the month's invoicing with collections over the year, then the clients
- *  to chase and what falls due this week. */
+/** The top of the dashboard: the month's invoicing with collections over the year, then the invoices
+ *  the e-invoicing platform rejected, the clients to chase and what falls due this week. */
 export function InvoiceOverviewPanel() {
   const { data: overview, isLoading, isError } = useInvoiceOverview()
   if (isError) return null
@@ -238,6 +280,7 @@ export function InvoiceOverviewPanel() {
     >
       <InvoicedCard overview={overview} />
       <div className="min-w-0 space-y-6">
+        <RejectedCard overview={overview} />
         <ToChaseCard overview={overview} />
         <ThisWeekCard overview={overview} />
       </div>

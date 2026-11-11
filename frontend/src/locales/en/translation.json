@@ -1538,7 +1538,10 @@
       "thisWeek": "This week",
       "dueLine": "{{number}}, due",
       "nothingThisWeek": "Nothing falls due this week.",
-      "noClient": "No client"
+      "noClient": "No client",
+      "rejectedTitle": "{{count}} invoice rejected by the platform",
+      "rejectedTitle_other": "{{count}} invoices rejected by the platform",
+      "rejectedHelp": "Still owed, but not chased until corrected. Open one to correct and resend it."
     },
     "period": {
       "label": "Period",
@@ -5667,6 +5670,14 @@
         "settled": "Settled",
         "late": "Late"
       }
+    },
+    "rejection": {
+      "title": "Rejected by the e-invoicing platform",
+      "badge": "Rejected by platform",
+      "listLine": "Rejected by the platform: {{reason}}",
+      "detail": "The platform refused this invoice, so your client has not legally received it. It is still owed and will not be chased until it is corrected.",
+      "reason": "Reason given: {{reason}}",
+      "correctAndResend": "Correct and resend"
     },
     "archive": {
       "title": "Legal archive",

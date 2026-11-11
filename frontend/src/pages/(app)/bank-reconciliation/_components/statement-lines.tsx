@@ -137,6 +137,14 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                                     {t("bankReconciliation.lines.reasonReference")}
                                   </Badge>
                                 )}
+                                {suggestion.conformityRejected && (
+                                  <Badge
+                                    variant="destructive"
+                                    data-cy={`bank-reconciliation-suggestion-rejected-${suggestion.documentId}`}
+                                  >
+                                    {t("documents.rejection.badge")}
+                                  </Badge>
+                                )}
                               </Button>
                             ))}
                           </div>
@@ -160,6 +168,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                                 <SelectItem key={candidate.documentId} value={candidate.documentId}>
                                   {candidate.displayNumber ?? candidate.documentId}
                                   {candidate.clientLabel ? ` — ${candidate.clientLabel}` : ""}
+                                  {candidate.conformityRejected ? ` (${t("documents.rejection.badge")})` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
