@@ -1,5 +1,11 @@
 import { vi, type Mock } from 'vitest';
 
+import {
+  mockInvoicesRaisedFromQuote,
+  mockNoInvoiceRaisedYet,
+  mockQuote,
+  raisedInvoiceRow,
+} from '../__tests__/quote-action-fixtures';
 import * as persistence from '../persistence';
 import { ActionRegistry } from './action-registry';
 import { registerConvertToInvoiceAction } from './convert-to-invoice';
@@ -22,24 +28,6 @@ function buildRegistry() {
   return registry;
 }
 
-function mockQuote(overrides: { lines: Array<Record<string, unknown>> }) {
-  (persistence.findOwnedDocument as Mock).mockResolvedValue({
-    id: 'quote-1',
-    typeId: 'quote',
-    status: 'sent',
-    number: 1,
-    displayNumber: 'QUOTE-2026-0001',
-    data: {
-      client: 'client-1',
-      issueDate: '2026-01-01',
-      currency: 'EUR',
-      lines: overrides.lines,
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
-
 function runConvert() {
   const handler = buildRegistry().resolve('quote', 'convert-to-invoice')!;
   return handler({
@@ -51,11 +39,8 @@ function runConvert() {
   });
 }
 
-// Nothing has been invoiced from this quote yet - the double-invoicing guard
-// (actions/quote-invoicing-guard.ts) reads that fact first. The test that wants a quote already
-// invoiced overrides it with its own rows.
 beforeEach(() => {
-  (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([]);
+  mockNoInvoiceRaisedYet();
 });
 afterEach(() => vi.resetAllMocks());
 
@@ -79,16 +64,10 @@ describe('convert-to-invoice', () => {
 
   it('refuses (409) to convert the same quote twice (issue #953)', async () => {
     mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 100, vatRate: '20' }] });
-    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([
-      {
-        id: 'invoice-1',
-        typeId: 'invoice',
-        status: 'draft',
-        displayNumber: 'INV-2026-0001',
+    mockInvoicesRaisedFromQuote([
+      raisedInvoiceRow({
         data: { lines: [{ description: 'Service', quantity: 1, unitPrice: 100, vatRate: '20' }] },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      }),
     ]);
 
     await expect(runConvert()).rejects.toMatchObject({ status: 409 });

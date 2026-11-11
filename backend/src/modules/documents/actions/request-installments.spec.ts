@@ -1,6 +1,12 @@
 import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
+import {
+  mockInvoicesRaisedFromQuote,
+  mockNoInvoiceRaisedYet,
+  mockQuote,
+  raisedInvoiceRow,
+} from '../__tests__/quote-action-fixtures';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry } from './action-registry';
@@ -40,7 +46,7 @@ function grossOfInvoiceFor(netMinor: number, ratePercent: number): number {
 // (actions/quote-invoicing-guard.ts) reads that fact first. The tests that want a quote already
 // invoiced (the deposit + installment plan path) override this with their own rows.
 beforeEach(() => {
-  (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([]);
+  mockNoInvoiceRaisedYet();
 });
 
 describe('computeMilestoneSplit', () => {
@@ -224,31 +230,6 @@ function buildRegistry() {
   return registry;
 }
 
-function mockQuote(overrides: {
-  id?: string;
-  displayNumber?: string | null;
-  currency?: string;
-  lines: Array<Record<string, unknown>>;
-  notes?: string;
-}) {
-  (persistence.findOwnedDocument as Mock).mockResolvedValue({
-    id: overrides.id ?? 'quote-1',
-    typeId: 'quote',
-    status: 'sent',
-    number: 1,
-    displayNumber: overrides.displayNumber ?? 'QUOTE-2026-0001',
-    data: {
-      client: 'client-1',
-      issueDate: '2026-01-01',
-      currency: overrides.currency ?? 'EUR',
-      notes: overrides.notes,
-      lines: overrides.lines,
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
-
 function mockCreatedInvoices() {
   let call = 0;
   (persistence.upsertDocument as Mock).mockImplementation(() =>
@@ -299,34 +280,24 @@ describe('request-installments', () => {
   it.each([
     [
       'a conversion',
-      {
-        id: 'invoice-1',
-        typeId: 'invoice',
-        status: 'draft',
-        displayNumber: 'INV-2026-0001',
+      raisedInvoiceRow({
         data: { lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      }),
     ],
     [
       'a previous installment plan',
-      {
+      raisedInvoiceRow({
         id: 'invoice-2',
-        typeId: 'invoice',
-        status: 'draft',
         displayNumber: 'INV-2026-0002',
         data: {
           lines: [{ description: 'Échéance 1/2 (50% de QUOTE-2026-0001)', quantity: 1, unitPrice: 75 }],
         },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      }),
     ],
   ])('refuses (409) when the quote is already invoiced by anything but its deposit: %s (issue #953)', async (_label, alreadyRaised) => {
     mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
     mockCreatedInvoices();
-    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([alreadyRaised]);
+    mockInvoicesRaisedFromQuote([alreadyRaised]);
 
     await expect(runInstallments([50, 50])).rejects.toMatchObject({ status: 409 });
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
@@ -338,12 +309,9 @@ describe('request-installments', () => {
     // owes (50/50 here), and nothing else.
     mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
     mockCreatedInvoices();
-    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([
-      {
+    mockInvoicesRaisedFromQuote([
+      raisedInvoiceRow({
         id: 'invoice-deposit',
-        typeId: 'invoice',
-        status: 'draft',
-        displayNumber: 'INV-2026-0001',
         data: {
           client: 'client-1',
           currency: 'EUR',
@@ -359,9 +327,7 @@ describe('request-installments', () => {
             },
           ],
         },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      }),
     ]);
 
     const result = await runInstallments([50, 50]);
