@@ -1616,5 +1616,232 @@
       }
     },
     "notes": "Art. 2250 does not name the REA number: what it asks for is the registro delle imprese office and the registration number, which is what is declared. FatturaPA's IscrizioneREA block asks for the province code of that office (`registerOfficeProvince`), the number itself (`NumeroREA`), the paid-up capital, the single-member status and the liquidation status; the e-invoice export fills it only when the facts it requires are declared, never by guessing a province or asserting that a company is not in liquidation."
+  },
+  "codeLists": {
+    "countryCode": "IT",
+    "lists": [
+      {
+        "id": "fatturaPaNatura",
+        "label": "FatturaPA Natura, why a line carries no VAT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "NaturaType enumeration: the xs:documentation of each accepted value, FatturaPA schema VFPR12 version 1.2.3",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "entries": [
+          {
+            "code": "N1",
+            "label": "Excluded from VAT (article 15)",
+            "notes": "Escluse art. 15 DPR 633/72"
+          },
+          {
+            "code": "N2.1",
+            "label": "Not subject to VAT, territoriality (articles 7 to 7-septies)",
+            "notes": "Non soggette artt. da 7 a 7-septies DPR 633/72"
+          },
+          {
+            "code": "N2.2",
+            "label": "Not subject to VAT, flat-rate scheme",
+            "notes": "Regime forfettario art. 1 c. 54-89 L. 190/2014"
+          },
+          {
+            "code": "N3.1",
+            "label": "Not taxable, export of goods (article 8)",
+            "notes": "Non imponibile art. 8 DPR 633/72"
+          },
+          {
+            "code": "N3.2",
+            "label": "Not taxable, exports under article 41 of decree 331/1993",
+            "notes": "Non imponibile art. 41 DL 331/93"
+          },
+          {
+            "code": "N3.3",
+            "label": "Not taxable, supplies to San Marino",
+            "notes": "Non imponibili - cessioni verso San Marino"
+          },
+          {
+            "code": "N3.4",
+            "label": "Not taxable, services relating to ships and aircraft (articles 8-bis and 9)",
+            "notes": "Non imponibile artt. 8-bis e 9 DPR 633/72"
+          },
+          {
+            "code": "N3.5",
+            "label": "Not taxable, declaration of intent",
+            "notes": "Non imponibili - a seguito di dichiarazioni d'intento"
+          },
+          {
+            "code": "N3.6",
+            "label": "Not taxable, other operations outside the plafond",
+            "notes": "Non imponibili - altre operazioni che non concorrono al plafond"
+          },
+          {
+            "code": "N4",
+            "label": "Exempt (article 10)",
+            "notes": "Esente art. 10 DPR 633/72"
+          },
+          {
+            "code": "N5",
+            "label": "Margin scheme, VAT not shown on the invoice",
+            "notes": "Regime del margine/IVA non esposta in fattura"
+          },
+          {
+            "code": "N6.1",
+            "label": "Reverse charge, construction subcontracting (article 74(7) and (8))",
+            "notes": "Inversione contabile art. 74 c. 7 e 8 DPR 633/72"
+          },
+          {
+            "code": "N6.2",
+            "label": "Reverse charge, gold and silver (law 7/2000)",
+            "notes": "Inversione contabile L. 7/2000"
+          },
+          {
+            "code": "N6.3",
+            "label": "Reverse charge, scrap metal (article 17(6)(a))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a) DPR 633/72"
+          },
+          {
+            "code": "N6.4",
+            "label": "Reverse charge, mobile phones and computers (article 17(6)(a-bis))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a-bis) DPR 633/72"
+          },
+          {
+            "code": "N6.5",
+            "label": "Reverse charge, other goods (article 17(6)(b))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. b) DPR 633/72"
+          },
+          {
+            "code": "N6.6",
+            "label": "Reverse charge, construction services (article 17(6)(c))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. c) DPR 633/72"
+          },
+          {
+            "code": "N6.7",
+            "label": "Reverse charge, cleaning and demolition services (article 17(6)(a-ter))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a-ter) DPR 633/72"
+          },
+          {
+            "code": "N6.8",
+            "label": "Reverse charge, other services (article 17(6)(d-bis), (d-ter), (d-quater))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. d-bis), d-ter), d-quater)"
+          },
+          {
+            "code": "N6.9",
+            "label": "Reverse charge, other cases",
+            "notes": "Inversione contabile - altri casi"
+          },
+          {
+            "code": "N7",
+            "label": "VAT paid in another EU state (articles 7-octies and 74-sexies)",
+            "notes": "IVA assolta in altro stato UE artt. 7-octies e 74-sexies DPR 633/72"
+          }
+        ]
+      },
+      {
+        "id": "fatturaPaRegimeFiscale",
+        "label": "FatturaPA RegimeFiscale, the seller's tax scheme",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "RegimeFiscale (Rif. par. 1.2.1): formato alfanumerico; lunghezza di 4 caratteri; i valori ammessi sono i seguenti: RF01 Ordinario; ... RF19 Regime forfettario (art.1, c. 54-89, L. 190/2014); RF20 Regime transfrontaliero di Franchigia IVA (Direttiva UE 2020/285)",
+          "sourceCheckedAt": "2026-11-11"
+        },
+        "entries": [
+          {
+            "code": "RF01",
+            "label": "Ordinary regime",
+            "notes": "RF01 Ordinario"
+          },
+          {
+            "code": "RF02",
+            "label": "Minimum taxpayers (article 1(96-117) of law 244/2007)",
+            "notes": "RF02 Contribuenti minimi (art. 1, c.96-117, L. 244/2007)"
+          },
+          {
+            "code": "RF04",
+            "label": "Agriculture, related activities and fishing (articles 34 and 34-bis)",
+            "notes": "RF04 Agricoltura e attività connesse e pesca (artt. 34 e 34-bis, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF05",
+            "label": "Sale of salt and tobacco (article 74(1))",
+            "notes": "RF05 Vendita sali e tabacchi (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF06",
+            "label": "Trade in matches (article 74(1))",
+            "notes": "RF06 Commercio dei fiammiferi (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF07",
+            "label": "Publishing (article 74(1))",
+            "notes": "RF07 Editoria (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF08",
+            "label": "Public telephone services (article 74(1))",
+            "notes": "RF08 Gestione di servizi di telefonia pubblica (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF09",
+            "label": "Resale of public transport and parking tickets (article 74(1))",
+            "notes": "RF09 Rivendita di documenti di trasporto pubblico e di sosta (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF10",
+            "label": "Entertainment, games and other activities under the tariff attached to decree 640/1972 (article 74(6))",
+            "notes": "RF10 Intrattenimenti, giochi e altre attività di cui alla tariffa allegata al D.P.R. n. 640/72 (art. 74, c.6, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF11",
+            "label": "Travel and tourism agencies (article 74-ter)",
+            "notes": "RF11 Agenzie di viaggi e turismo (art. 74-ter, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF12",
+            "label": "Farm holidays (article 5(2) of law 413/1991)",
+            "notes": "RF12 Agriturismo (art. 5, c.2, L. 413/1991)"
+          },
+          {
+            "code": "RF13",
+            "label": "Door-to-door sales (article 25-bis(6) of decree 600/1973)",
+            "notes": "RF13 Vendite a domicilio (art. 25-bis, c.6, D.P.R. 600/1973)"
+          },
+          {
+            "code": "RF14",
+            "label": "Resale of used goods, art, antiques and collector's items (article 36 of decree 41/1995)",
+            "notes": "RF14 Rivendita di beni usati, di oggetti d’arte, d’antiquariato o da collezione (art. 36, D.L. 41/1995)"
+          },
+          {
+            "code": "RF15",
+            "label": "Art auction houses (article 40-bis of decree 41/1995)",
+            "notes": "RF15 Agenzie di vendite all’asta di oggetti d’arte, antiquariato o da collezione (art. 40-bis, D.L. 41/1995)"
+          },
+          {
+            "code": "RF16",
+            "label": "Cash accounting for public bodies (article 6(5))",
+            "notes": "RF16 IVA per cassa P.A. (art. 6, c.5, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF17",
+            "label": "Cash accounting (article 32-bis of decree 83/2012)",
+            "notes": "RF17 IVA per cassa (art. 32-bis, D.L. 83/2012)"
+          },
+          {
+            "code": "RF18",
+            "label": "Other",
+            "notes": "RF18 Altro"
+          },
+          {
+            "code": "RF19",
+            "label": "Flat-rate scheme (article 1(54-89) of law 190/2014)",
+            "notes": "RF19 Regime forfettario (art.1, c. 54-89, L. 190/2014)"
+          },
+          {
+            "code": "RF20",
+            "label": "Cross-border VAT franchise scheme (Directive (EU) 2020/285)",
+            "notes": "RF20 Regime transfrontaliero di Franchigia IVA (Direttiva UE 2020/285)"
+          }
+        ]
+      }
+    ]
   }
 }

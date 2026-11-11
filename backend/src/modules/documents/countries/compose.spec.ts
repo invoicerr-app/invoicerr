@@ -108,6 +108,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'paymentTerms',
         'einvoiceCodes',
         'companyLaw',
+        'codeLists',
       ],
       PL: [
         'policy',
