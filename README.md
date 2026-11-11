@@ -4,7 +4,7 @@ Open-source invoicing you host yourself: quotes, invoices, payments and the pape
 including the e-invoicing rules of the country you bill from.
 
 [![Tests](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml/badge.svg)](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml)
-[![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?label=release)](https://github.com/invoicerr-app/invoicerr/releases)
+[![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?include_prereleases&label=release)](https://github.com/invoicerr-app/invoicerr/releases)
 [![Container image](https://img.shields.io/badge/ghcr.io-invoicerr--app%2Finvoicerr-2496ED?logo=docker&logoColor=white)](https://ghcr.io/invoicerr-app/invoicerr)
 [![License](https://img.shields.io/github/license/invoicerr-app/invoicerr)](./LICENSE)
 
