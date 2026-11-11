@@ -59,6 +59,9 @@
  * directly — NOT the 256 fa-vat.ts's own comment assumed at the reference, a real, if harmless,
  * discrepancy in that file worth not repeating here).
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import { BadRequestException } from '@nestjs/common';
 
 import { getIdentifier } from '@/utils/entity-identifiers';
@@ -95,6 +98,38 @@ function buildAddress(party: DocumentFormatParty, formatCountry: string) {
   const addr: Record<string, string> = { KodKraju: cc, AdresL1: street || cityLine || '-' };
   if (street && cityLine) addr.AdresL2 = cityLine;
   return addr;
+}
+
+let euVatPrefixes: ReadonlySet<string> | undefined;
+
+/** `TKodyKrajowUE`'s enumeration, read from the vendored schema itself so the accepted `KodUE` values
+ *  are exactly the ones the XSD gate checks (it includes "EL" and "XI", which are not address codes). */
+function fa3EuVatPrefixes(): ReadonlySet<string> {
+  if (!euVatPrefixes) {
+    const xsd = fs.readFileSync(path.resolve(__dirname, '../vendored', FA3_XSD), 'utf-8');
+    const block = xsd.match(/<xsd:simpleType name="TKodyKrajowUE">([\s\S]*?)<\/xsd:simpleType>/)?.[1] ?? '';
+    euVatPrefixes = new Set([...block.matchAll(/<xsd:enumeration value="([A-Z]{2})"/g)].map((m) => m[1]));
+  }
+  return euVatPrefixes;
+}
+
+/** Podmiot2's identifier choice in `TPodmiot2`. The VAT number's own prefix decides, not the address:
+ *  a domestic (or unprefixed domestic) number is a NIP, another EU prefix is KodUE + NrVatUE, anything
+ *  else is NrID with the buyer's country when known. */
+function fa3BuyerIdentification(
+  vatId: string | undefined,
+  buyerCountry: string | undefined,
+  formatCountry: string,
+): Record<string, string> {
+  const raw = (vatId ?? '').replace(/[\s.-]/g, '').toUpperCase();
+  if (!raw) return { BrakID: '1' };
+  const prefix = /^[A-Z]{2}/.exec(raw)?.[0];
+  const number = prefix ? raw.slice(2) : raw;
+  if (prefix === formatCountry || (!prefix && (!buyerCountry || buyerCountry === formatCountry))) {
+    return { NIP: number };
+  }
+  if (prefix && fa3EuVatPrefixes().has(prefix)) return { KodUE: prefix, NrVatUE: number };
+  return { ...(buyerCountry ? { KodKraju: buyerCountry } : {}), NrID: (vatId ?? '').trim() };
 }
 
 /** FA(3) rate-bucket grouping — VERBATIM from fa-vat.ts (see this file's own header on the limitation
@@ -187,7 +222,11 @@ async function build(
     .split('.')[0];
 
   const sellerNip = (getIdentifier(company, 'VAT') || '').replace(/^[A-Z]{2}/, '');
-  const clientNip = (getIdentifier(client, 'VAT') || '').replace(/^[A-Z]{2}/, '');
+  const buyerIdentification = fa3BuyerIdentification(
+    getIdentifier(client, 'VAT') || undefined,
+    guessCountryCode(client.country),
+    formatCountry,
+  );
 
   // ── P_13_x / P_14_x summary buckets — see this file's own header on the verbatim, bounded gap. ──
   const bucketTotals: Record<'23' | '8' | '5' | '0', { netMinor: number; vatMinor: number }> = {
@@ -220,9 +259,7 @@ async function build(
   }
 
   const podmiot2: Record<string, unknown> = {
-    DaneIdentyfikacyjne: clientNip
-      ? { NIP: clientNip, Nazwa: client.name }
-      : { BrakID: '1', Nazwa: client.name },
+    DaneIdentyfikacyjne: { ...buyerIdentification, Nazwa: client.name },
     Adres: buildAddress(client, formatCountry),
     ...(client.email || client.phone
       ? {

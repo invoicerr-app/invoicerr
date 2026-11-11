@@ -42,6 +42,19 @@ A Polish company client saved without its NIP keeps its record. The client form 
 next edit, and Validate and Send keep refusing an invoice to it until it is filled in.
 :::
 
+## Buyer identifier in FA(3)
+
+The FA(3) file identifies the buyer (`Podmiot2`) from the prefix of the buyer's VAT number, not from
+its address:
+
+- a Polish number, with or without the `PL` prefix, is sent as `NIP`;
+- a number from another EU member state is sent as `KodUE` (the prefix, so `EL` for Greece and `XI`
+  for Northern Ireland) and `NrVatUE` (the number without it), the codes accepted being the
+  `TKodyKrajowUE` list of the vendored `schemat_FA3.xsd`;
+- any other tax identifier is sent as `NrID`, with `KodKraju` set to the buyer's country when it is
+  known;
+- a buyer with no VAT number is sent as `BrakID`.
+
 ## KSeF and private buyers
 
 Art. 106ga ust. 2 pkt 4 of the VAT act lifts the KSeF obligation for an invoice « na rzecz nabywcy

@@ -274,3 +274,87 @@ describe('fa3-provider - currency fallback', () => {
     expect(new TextDecoder().decode(withFallback.bytes)).toBe(new TextDecoder().decode(withCurrency.bytes));
   });
 });
+
+describe('fa3-provider - buyer identification (Podmiot2)', () => {
+  async function buildFor(buyer: Partial<DocumentFormatParty>) {
+    const result = await fa3FormatProvider.build(descriptor, document(VALID_DATA), SELLER, {
+      ...BUYER,
+      ...buyer,
+    });
+    const xml = new TextDecoder().decode(result.bytes);
+    const podmiot2 = xml.match(/<Podmiot2>[\s\S]*?<\/Podmiot2>/)?.[0] ?? '';
+    return { result, podmiot2 };
+  }
+
+  it('an EU buyer with its own VAT number: KodUE + NrVatUE without the prefix, no NIP, and the real XSD accepts it', async () => {
+    const { result, podmiot2 } = await buildFor({
+      name: 'Dupont SAS',
+      address: '1 rue de la Paix',
+      city: 'Paris',
+      postalCode: '75002',
+      country: 'France',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'FR40303265045' }],
+    });
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    expect(extractTag(podmiot2, 'KodUE')).toBe('FR');
+    expect(extractTag(podmiot2, 'NrVatUE')).toBe('40303265045');
+    expect(podmiot2).not.toMatch(/<NIP>/);
+  });
+
+  it('a Greek buyer: KodUE is the VAT prefix EL, not the ISO address code', async () => {
+    const { result, podmiot2 } = await buildFor({
+      city: 'Athens',
+      postalCode: '10431',
+      country: 'Greece',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'EL094259216' }],
+    });
+
+    expect(result.validation.errors).toEqual([]);
+    expect(extractTag(podmiot2, 'KodUE')).toBe('EL');
+    expect(extractTag(podmiot2, 'NrVatUE')).toBe('094259216');
+  });
+
+  it('a domestic buyer keeps its NIP, prefixed or not', async () => {
+    for (const value of ['PL9876543210', '9876543210']) {
+      const { result, podmiot2 } = await buildFor({ partyIdentifiers: [{ scheme: 'VAT', value }] });
+
+      expect(result.validation.errors).toEqual([]);
+      expect(extractTag(podmiot2, 'NIP')).toBe('9876543210');
+      expect(podmiot2).not.toMatch(/<KodUE>|<NrID>/);
+    }
+  });
+
+  it('a buyer outside the EU with a tax identifier: KodKraju + NrID, and the real XSD accepts it', async () => {
+    const { result, podmiot2 } = await buildFor({
+      city: 'Zurich',
+      postalCode: '8001',
+      country: 'Switzerland',
+      partyIdentifiers: [{ scheme: 'VAT', value: 'CHE-123.456.788' }],
+    });
+
+    expect(result.validation.errors).toEqual([]);
+    expect(extractTag(podmiot2, 'KodKraju')).toBe('CH');
+    expect(extractTag(podmiot2, 'NrID')).toBe('CHE-123.456.788');
+    expect(podmiot2).not.toMatch(/<NIP>|<KodUE>/);
+  });
+
+  it('the VAT prefix decides, not the address: a buyer located in Poland with a German VAT number gets KodUE DE', async () => {
+    const { result, podmiot2 } = await buildFor({
+      partyIdentifiers: [{ scheme: 'VAT', value: 'DE123456789' }],
+    });
+
+    expect(result.validation.errors).toEqual([]);
+    expect(extractTag(podmiot2, 'KodUE')).toBe('DE');
+    expect(extractTag(podmiot2, 'NrVatUE')).toBe('123456789');
+    expect(podmiot2).not.toMatch(/<NIP>/);
+  });
+
+  it('a buyer with no VAT number keeps BrakID', async () => {
+    const { result, podmiot2 } = await buildFor({ partyIdentifiers: [] });
+
+    expect(result.validation.errors).toEqual([]);
+    expect(extractTag(podmiot2, 'BrakID')).toBe('1');
+  });
+});
