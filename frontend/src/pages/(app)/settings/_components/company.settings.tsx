@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { Loader2, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -41,6 +42,7 @@ import {
 import { currencyForCountry } from "@/lib/reference/countries"
 import { typeErrors } from "@/lib/zod-messages"
 import { useGet, usePost } from "@/hooks/use-fetch"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import {
@@ -77,6 +79,7 @@ const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 const UNDECLARED_PROFILE_VALUE = "__undeclared__"
+const COMPANY_SETTINGS_QUERY_KEY = ["company-settings"] as const
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation()
@@ -208,7 +211,21 @@ export default function CompanySettings() {
       .min(0, t("settings.company.form.reconciliationTolerancePercent.errors.min")),
   })
 
-  const { data, mutate: refetchCompany } = useGet<Company>("/api/company/info")
+  const queryClient = useQueryClient()
+  const { data, refetch: refetchCompany } = useApiQuery<Company>(
+    COMPANY_SETTINGS_QUERY_KEY,
+    "/api/company/info",
+    {
+      // Preserve useGet's immediate requests and fresh response objects, without cached or focus updates.
+      gcTime: 0,
+      staleTime: 0,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      structuralSharing: false,
+      networkMode: "always",
+    },
+  )
   const profileAttributes = data?.companyProfileAttributes ?? []
   // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
   // per-country default) plus whether each is explicit, so the select below can show "using the
@@ -265,6 +282,7 @@ export default function CompanySettings() {
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
     },
   })
+  const reconciliationToleranceDefault = useRef(SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT)
 
   // The attributes the country asks for right now: a condition follows the value on screen, so a
   // question that stops being relevant disappears without a save. The derived value is rebuilt from
@@ -279,13 +297,14 @@ export default function CompanySettings() {
     isProfileAttributeAsked(attribute, profileValues),
   )
 
-  // A SEPARATE data source from `/api/company/info` above (see this field's own zod comment) — its
-  // own small sync effect, the same "don't clobber a value the user already touched" guard the main
-  // effect below holds, scaled down to one field.
+  // This field has its own endpoint; keep its saved baseline outside company resets.
   useEffect(() => {
     if (reconciliationSettings === undefined) return
     if (form.formState.dirtyFields.reconciliationTolerancePercent) return
-    form.setValue("reconciliationTolerancePercent", reconciliationSettings.tolerancePercent)
+    reconciliationToleranceDefault.current = reconciliationSettings.tolerancePercent
+    form.resetField("reconciliationTolerancePercent", {
+      defaultValue: reconciliationSettings.tolerancePercent,
+    })
   }, [reconciliationSettings, form])
 
   useEffect(() => {
@@ -334,6 +353,8 @@ export default function CompanySettings() {
         peppolSchemeId: parsedPeppolSchemeId,
         peppolEndpointId: parsedPeppolEndpointId,
         companyLaw: toCompanyLawForm(data.companyLaw),
+        // This field belongs to its own endpoint, not the company snapshot.
+        reconciliationTolerancePercent: reconciliationToleranceDefault.current,
       }
 
       // This snapshot can resolve AFTER the user has already touched the form — `/api/company/info`
@@ -372,7 +393,8 @@ export default function CompanySettings() {
         )
       }
 
-      form.reset(merged as typeof nextValues)
+      form.reset(nextValues, { keepValues: true })
+      form.reset(merged as typeof nextValues, { keepDefaultValues: true })
     }
   }, [data, form])
 
@@ -604,12 +626,20 @@ export default function CompanySettings() {
         return
       }
 
+      // Edits made during either write stay live, compared against what was just saved.
+      reconciliationToleranceDefault.current = reconciliationTolerancePercent
+      const currentValues = form.getValues()
+      form.reset({ ...currentValues, ...values }, { keepValues: true })
+      form.reset(currentValues, { keepDefaultValues: true })
+
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
       refetchResolvedRevenueSettings()
       // The saved row is the source of the locked rows (the derived VAT regime) and of the values a
       // condition is read against; without this the screen keeps showing what it loaded.
-      refetchCompany()
+      // Even an initial GET still in flight must not be reused after the write.
+      await queryClient.cancelQueries({ queryKey: COMPANY_SETTINGS_QUERY_KEY, exact: true })
+      await refetchCompany()
     } finally {
       setIsLoading(false)
     }
