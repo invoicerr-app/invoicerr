@@ -139,6 +139,41 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  # Scheduled database dump. Without it, the only copy of every invoice is the db_data volume above.
+  # Runs pg_dump from the same postgres image, writes one dump per run to the db_backups volume and
+  # deletes dumps older than DB_BACKUP_KEEP_DAYS. Copy that volume off this host too: a backup on the
+  # same disk does not survive losing the disk. Restore steps: docs, user-guide/backups.md.
+  invoicerr_db_backup:
+    image: postgres:15
+    environment:
+      PGHOST: invoicerr_db
+      PGUSER: invoicerr
+      PGDATABASE: invoicerr_db
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to docker-compose.yml, see .env.example}
+      DB_BACKUP_INTERVAL_SECONDS: ${DB_BACKUP_INTERVAL_SECONDS:-86400}
+      DB_BACKUP_KEEP_DAYS: ${DB_BACKUP_KEEP_DAYS:-14}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until pg_isready -q; do sleep 5; done
+        while true; do
+          file="/backups/invoicerr_db-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+          if pg_dump --format=custom --file="$$file.partial"; then
+            mv "$$file.partial" "$$file"
+            echo "Database backup written: $$file"
+          else
+            rm -f "$$file.partial"
+            echo "Database backup FAILED" >&2
+          fi
+          find /backups -name 'invoicerr_db-*.dump' -mtime +"$$DB_BACKUP_KEEP_DAYS" -delete
+          sleep "$$DB_BACKUP_INTERVAL_SECONDS"
+        done
+    volumes:
+      - db_backups:/backups
+    depends_on:
+      - invoicerr_db
+    restart: unless-stopped
+
   # OCR of scanned received invoices — our own image (github.com/invoicerr-app/ocr-image): ocrmypdf
   # plus the Tesseract language packs this product's markets need. Adding a language is one apt line
   # in that repo. Opt-in: started only by `docker compose --profile ocr up`, and reached only through
@@ -169,6 +204,9 @@ services:
 
 volumes:
   db_data:
+    driver: local
+  # Database dumps written by invoicerr_db_backup.
+  db_backups:
     driver: local
   redis-data:
     driver: local
