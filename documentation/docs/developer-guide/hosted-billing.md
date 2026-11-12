@@ -252,3 +252,22 @@ A user who belongs to several companies has a separate Polar member (and, once e
 out, a separate portal) per company — the Billing settings screen only ever shows the **active**
 company's status, checkout, and portal, resolved server-side via `@ActiveCompany()`, never from a
 client-supplied company id.
+
+## Stripe price catalog
+
+The hosted subscription is moving to Stripe Billing. Prices are configured, not coded: each one is a
+Stripe price id read from the environment (see `backend/.env.example`), and the amounts live in the
+Stripe dashboard.
+
+There are two grids, `standard` and `founder`, each with a monthly and a yearly interval, and three
+seat tiers per interval: the first seat, seats 2 to 4, and seat 5 onwards. That makes twelve
+variables, named `STRIPE_PRICE_<GRID>_<INTERVAL>_<TIER>`. The standard grid is required; the founder
+grid is optional but all or nothing.
+
+A subscription for `n` seats carries one item per tier in use. Twelve seats on the standard monthly
+grid become three items: the first seat price with quantity 1, the seats 2 to 4 price with quantity 3,
+and the seat 5 onwards price with quantity 8. Every price id must be distinct, so any price on a
+subscription maps back to exactly one grid, interval and tier.
+
+To set up a test catalog, create the prices in Stripe test mode as recurring, per unit, in EUR,
+with the yearly amount at ten times the monthly one.
