@@ -1,6 +1,12 @@
 import { vi, type Mock } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 
+import {
+  mockInvoicesRaisedFromQuote,
+  mockNoInvoiceRaisedYet,
+  mockQuote,
+  raisedInvoiceRow,
+} from '../__tests__/quote-action-fixtures';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry } from './action-registry';
@@ -36,6 +42,13 @@ function grossOfInvoiceFor(netMinor: number, ratePercent: number): number {
  * discipline this file's own header holds (mirroring compute-totals.spec.ts's own style for the
  * arithmetic this function itself calls into).
  */
+// Nothing has been invoiced from any quote these tests use yet - the #953 double-invoicing guard
+// (actions/quote-invoicing-guard.ts) reads that fact first. The tests that want a quote already
+// invoiced (the deposit + installment plan path) override this with their own rows.
+beforeEach(() => {
+  mockNoInvoiceRaisedYet();
+});
+
 describe('computeMilestoneSplit', () => {
   it('30/40/30 of a quote: nets and grosses each sum EXACTLY to the quote totals', () => {
     // Quote: net 250.00 EUR (25000 cents), VAT 20% -> 5000, gross 30000. This one divides evenly on
@@ -217,31 +230,6 @@ function buildRegistry() {
   return registry;
 }
 
-function mockQuote(overrides: {
-  id?: string;
-  displayNumber?: string | null;
-  currency?: string;
-  lines: Array<Record<string, unknown>>;
-  notes?: string;
-}) {
-  (persistence.findOwnedDocument as Mock).mockResolvedValue({
-    id: overrides.id ?? 'quote-1',
-    typeId: 'quote',
-    status: 'sent',
-    number: 1,
-    displayNumber: overrides.displayNumber ?? 'QUOTE-2026-0001',
-    data: {
-      client: 'client-1',
-      issueDate: '2026-01-01',
-      currency: overrides.currency ?? 'EUR',
-      notes: overrides.notes,
-      lines: overrides.lines,
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
-
 function mockCreatedInvoices() {
   let call = 0;
   (persistence.upsertDocument as Mock).mockImplementation(() =>
@@ -288,6 +276,73 @@ function runInstallments(percents: number[]) {
 
 describe('request-installments', () => {
   afterEach(() => vi.resetAllMocks());
+
+  it.each([
+    [
+      'a conversion',
+      raisedInvoiceRow({
+        data: { lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] },
+      }),
+    ],
+    [
+      'a previous installment plan',
+      raisedInvoiceRow({
+        id: 'invoice-2',
+        displayNumber: 'INV-2026-0002',
+        data: {
+          lines: [{ description: 'Échéance 1/2 (50% de QUOTE-2026-0001)', quantity: 1, unitPrice: 75 }],
+        },
+      }),
+    ],
+  ])('refuses (409) when the quote is already invoiced by anything but its deposit: %s (issue #953)', async (_label, alreadyRaised) => {
+    mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
+    mockCreatedInvoices();
+    mockInvoicesRaisedFromQuote([alreadyRaised]);
+
+    await expect(runInstallments([50, 50])).rejects.toMatchObject({ status: 409 });
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
+
+  it('after a deposit, the plan DEDUCTS it: deposit + installments total the quote, never more (issue #953)', async () => {
+    // Quote: net 250.00 (25000) @ 20% -> gross 300.00 (30000). Its 30% deposit is already invoiced:
+    // net 75.00 + VAT 15.00 = 90.00 gross asked for. The plan then splits the 210.00 the quote still
+    // owes (50/50 here), and nothing else.
+    mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
+    mockCreatedInvoices();
+    mockInvoicesRaisedFromQuote([
+      raisedInvoiceRow({
+        id: 'invoice-deposit',
+        data: {
+          client: 'client-1',
+          currency: 'EUR',
+          origin: { entity: 'quote', id: 'quote-1' },
+          depositPercent: 30,
+          lines: [
+            {
+              description: 'Deposit (30% of QUOTE-2026-0001)',
+              quantity: 1,
+              unit: 'unit',
+              unitPrice: 75,
+              vatRate: '20',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const result = await runInstallments([50, 50]);
+
+    const grosses = grossTotalsOfCreatedInvoices();
+    expect(grosses).toEqual([10500, 10500]);
+    // The invariant of the fix: the deposit already invoiced PLUS the plan is exactly the quote's own
+    // gross total (30000), never more.
+    expect(grosses.reduce((a, b) => a + b, 0) + 9000).toBe(30000);
+    // The milestone's percentage is a share of what the quote still OWES, and the line says so.
+    const [, , , , firstInvoiceData] = (persistence.upsertDocument as Mock).mock.calls[0];
+    expect(firstInvoiceData.lines[0].description).toBe('Échéance 1/2 (50% du solde de QUOTE-2026-0001)');
+    expect(result.message).toContain('minus the 90 EUR deposit already invoiced');
+    expect(result.message).toContain('they total 210 EUR to pay');
+  });
 
   it('mono-rate quote: creates one draft invoice per milestone, dates and amounts as computed', async () => {
     // Net 250.00 EUR (25000 cents) @ 20% VAT -> gross 300.00 EUR (30000 cents).

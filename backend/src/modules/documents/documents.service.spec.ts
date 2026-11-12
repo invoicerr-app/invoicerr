@@ -131,6 +131,10 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
   beforeEach(() => {
     (countryPolicy.evaluateCountryPolicy as Mock).mockResolvedValue({ allowed: true });
     (takeNumber.takeDocumentNumberForTransition as Mock).mockResolvedValue(undefined);
+    // No invoice has been raised from any quote yet - the #953 double-invoicing guard
+    // (actions/quote-invoicing-guard.ts) reads that fact before "convert-to-invoice" persists
+    // anything, and a test that wants a quote already invoiced overrides this with its own rows.
+    (persistence.findInvoicesRaisedFromQuote as Mock).mockResolvedValue([]);
     // Default "send" composes fine — real PDF/company-template lookups replaced with a fake render
     // result, same discipline as the two mocks right above. Individual tests below override these
     // when the render outcome itself is what they're proving (none are, today — see

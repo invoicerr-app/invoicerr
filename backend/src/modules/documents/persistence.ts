@@ -719,6 +719,30 @@ export async function findOwnedDocumentsByIds(
   return prisma.documentInstance.findMany({ where: { companyId, id: { in: [...new Set(ids)] } } });
 }
 
+/**
+ * Every INVOICE already raised against one quote - the `origin` link the three quote->invoice actions
+ * write (`{ entity: 'quote', id }`), matched the same way the references field kind stores it. This
+ * is the whole basis of the double-invoicing guard (actions/quote-invoicing-guard.ts): a quote's own
+ * status never changes when one of these actions runs (quote.descriptor.ts), so "already invoiced?"
+ * can only ever be answered from these rows.
+ */
+export async function findInvoicesRaisedFromQuote(
+  companyId: string,
+  quoteId: string,
+): Promise<DocumentInstanceResult[]> {
+  return prisma.documentInstance.findMany({
+    where: {
+      companyId,
+      typeId: 'invoice',
+      AND: [
+        { data: { path: ['origin', 'entity'], equals: 'quote' } },
+        { data: { path: ['origin', 'id'], equals: quoteId } },
+      ],
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
 /** Refuses (409) to remove a document something else still points at: a recurrence replaying it,
  *  or another document whose `data` names its id anywhere (a credit note's source invoice, an
  *  invoice's origin quote). Matched on an exact JSON string value, so every reference field is
