@@ -1,26 +1,7 @@
 /**
- * Keeps a Polar MEMBER's email in sync with the Invoicerr USER it belongs to, once that user's OWN
- * email change is confirmed (`lib/auth.ts`'s `databaseHooks.user.update.after`, the hook that fires
- * once better-auth actually commits the new, verified address, not the moment the confirmation link is
- * merely SENT, see `account-lifecycle.ts#sendChangeEmailMail`'s own header for that earlier step).
- *
- * Two kinds of Polar member a user can hold, per company (`member-resolution.ts`'s own header):
- *  1. An APP-CREATED member (`externalId = user.id`), its email is pushed DIRECTLY via
- *     `customers.members.updateExternal`, keyed by that stable externalId, unaffected by the email
- *     change itself.
- *  2. Polar's OWN auto-created `role: "owner"` member, minted from "the customer's email and name" on
- *     the company's first seat-based checkout, matched everywhere else in this codebase by EMAIL
- *     (`findMemberIdForUser`'s own fallback) because it carries no `externalId` this app ever set. Once
- *     the user's email changes, that record's OWN (now stale) email can no longer be matched, there is
- *     no Polar API to "rename" a member found this way onto a NEW lookup key, so rather than leave the
- *     user without any member at all, a FRESH one is created under the new email/externalId. This is
- *     exactly the "updated OR recreated" the product decision allows for.
- *
- * Only touches companies where this user holds OWNER/ADMIN (a plain MEMBER never gets a Polar member at
- * all, `member-sync.ts`'s own header) and that have already been promoted to a `team` customer (a
- * company that never checked out, or never ran a seat-based checkout, has no member subsystem to sync
- * at all). Never throws into its caller, same "a Polar outage must not turn an unrelated write into a
- * 500" discipline every other billing sync module holds.
+ * Syncs a user's confirmed email change to their Polar members (OWNER/ADMIN of `team` customers only).
+ * Polar's auto-created owner member is matched by email and cannot be re-keyed, so once the email
+ * changes a fresh member is created instead. Never throws: a Polar outage must not fail the caller.
  */
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -37,11 +18,6 @@ import { callPolarWithRetry, getPolarClient } from './polar-client';
 
 const ROLES_WITH_POLAR_ACCESS = ['OWNER', 'ADMIN'] as const;
 
-/** `member-resolution.ts`'s own client shape, plus the two extra calls this module needs on top of it
- * , the customer's own `type` (`member-sync.ts`'s own reason for the same extension) and
- *  `members.updateExternal`. #537: `@polar-sh/sdk@1.0.0`'s own `customers.members.updateExternal`
- *  (read directly) takes both ids positionally, body last, and no more `{ externalId }` wrapper on
- *  `customers.getExternal` either. */
 export interface MemberEmailSyncClient extends MemberResolutionClient {
   customers: MemberResolutionClient['customers'] & {
     getExternal(externalId: string): Promise<{ id: string; type: string }>;
@@ -86,7 +62,7 @@ async function syncOneCompany(
   user: ResolvedMemberUser,
 ): Promise<void> {
   const sub = await getOrCreateCompanySubscription(companyId);
-  if (!sub.polarSubscriptionId) return; // never checked out, nothing to sync members onto yet.
+  if (!sub.polarSubscriptionId) return;
 
   let customer: { id: string; type: string };
   try {
@@ -98,7 +74,7 @@ async function syncOneCompany(
     if (isResourceNotFoundError(error)) return;
     throw error;
   }
-  if (customer.type !== 'team') return; // no member subsystem yet, see this module's own header.
+  if (customer.type !== 'team') return;
 
   try {
     await callPolarWithRetry(
@@ -109,13 +85,12 @@ async function syncOneCompany(
         }),
       `members.updateExternal for user ${user.id} in company ${companyId}`,
     );
-    return; // app-created member found and updated in place, done.
+    return;
   } catch (error) {
     if (!isResourceNotFoundError(error)) throw error;
   }
 
-  // No app-created member, either none exists yet, or it is Polar's own auto-created owner member,
-  // now unreachable by its OLD email (see this module's own header). Either way, resolve-or-create
-  // under the user's CURRENT identity.
+  // Either no member exists yet, or it is Polar's auto-created owner member, unreachable by its old
+  // email. Resolve-or-create under the current identity.
   await resolveOrCreateMemberIdForUser(client, customer.id, companyId, user);
 }

@@ -1,13 +1,6 @@
 /**
- * The write-side half of the "no free seat" gate — the read side is the frontend's own waiting screen
- * (`(app)/_layout.tsx`), driven by `GET /api/billing/seats`. This is the API-level backstop: a member
- * who has lost their seat (an over-capacity company, `seat-holders.ts#seatHolders`) must not be able to
- * write through the API even if they never load the waiting screen — an API key, a stale tab, or a
- * client that ignores the frontend gate.
- *
- * Wired into `company-write.guard.ts` right alongside `write-gate.ts#assertCompanyWritable` — same
- * exemptions (GET/HEAD/OPTIONS, no active company, `@BillingGateExempt()`), same "a no-op when billing
- * is disabled" first check.
+ * API-level backstop for the "no free seat" gate, so a seatless member cannot write via an API key or a
+ * client that ignores the frontend waiting screen.
  */
 import { ForbiddenException } from '@nestjs/common';
 
@@ -20,14 +13,8 @@ import { memberHoldsSeat } from './seat-holders';
 export const SEAT_REQUIRED_CODE = 'SEAT_REQUIRED';
 
 /**
- * Throws (403, `{ message, code: SEAT_REQUIRED }`) when `userId` is currently WAITING for a seat in
- * `companyId` — resolves silently otherwise, including for a user with no membership row in this
- * company at all. That last case is checked EXPLICITLY, before ever consulting `memberHoldsSeat` (which
- * would also return `false` for it): a caller with no membership row is not over capacity, it simply
- * is not the kind of caller this gate exists to judge at all — a route reaching this far already has an
- * active company on the request, which normally implies membership, so this is a defensive no-op for an
- * edge case (a removal racing this very request, e.g.), never a real "no seat" refusal wearing the
- * wrong reason.
+ * Throws 403 `SEAT_REQUIRED` when `userId` is waiting for a seat. A caller with no membership row at all
+ * (e.g. a removal racing this request) is let through rather than refused with the wrong reason.
  */
 export async function assertUserHasSeatOrThrow(companyId: string, userId: string): Promise<void> {
   if (!isBillingEnabled()) return;

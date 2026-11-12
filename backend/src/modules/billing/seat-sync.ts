@@ -1,46 +1,14 @@
 /**
- * Invoicerr never tells Polar how many seats to bill — it only reads what Polar says. This file used
- * to push `count(UserCompany rows)` to Polar via `subscriptions.update({ seats })` on every membership
- * change (see git history for the removed `performSeatSync`); that entire push is gone. Seat QUANTITY
- * is bought in the Polar portal by the OWNER and arrives here exclusively via `webhook-handlers.ts` (a
- * `subscription.*` webhook's own `seats` field) and `seat-reconcile.ts`'s opportunistic read-and-store
- * retry — this module never calls `subscriptions.update` at all. `no-seat-quantity-write.spec.ts` is a
- * standing, file-content guard against this regressing.
+ * Seat quantity is bought in the Polar portal and only ever read here (webhooks, `seat-reconcile.ts`);
+ * this module must never call `subscriptions.update`, which `no-seat-quantity-write.spec.ts` guards.
  *
- * What replaced the push is purely LOCAL bookkeeping for the generative "Settings > Seats" office plan:
- * a numbered desk (`UserCompany.seatIndex`) assigned to the first free integer the moment a NEW
- * membership is created, and a capacity refusal
- * (`NoFreeSeatError`) for the "a company must not exceed the seats it actually bought" rule at the
- * exact moment a membership WOULD be created — never for a role change or removal, neither of which
- * needs a new desk. Called from EVERY "a brand-new membership is being created" call site, which is
- * what makes the capacity rule a property of the company rather than of one entry door:
- *  - `company/company.service.ts` — a brand-new company's own OWNER row (createCompany);
- *  - `invitations/invitations.service.ts` — an EXISTING user accepting an invitation (useInvitation);
- *  - `lib/auth.ts` — a BRAND-NEW user signing up via an invitation code or their company's own SSO
- *    (`markInvitationAsUsed`/`attachSsoProvisionedMembership`);
- *  - `company/transfer/transfer.service.ts` — the recipient of an ownership transfer accepting it
- *    (`acceptTransfer`). An accepted transfer ADDS a member: the initiator is demoted to ADMIN and
- *    keeps their own membership, they are not replaced.
+ * What it does own is local bookkeeping at membership creation: a capacity check and a desk number
+ * (`seatIndex`). Every call site that creates a new membership must go through `withSeatReservation`,
+ * so capacity is a property of the company rather than of one entry point. Removals and role changes
+ * need no step: `seatHolders` recomputes from the remaining rows.
  *
- * Deliberately NOT called any more from `companies.service.ts#removeMember` or
- * `auth-extended/account-lifecycle.ts#cleanupAfterUserDelete`: freeing a desk on removal needs no
- * explicit step — the `UserCompany` row (and whatever `seatIndex` it held) is simply deleted, and
- * `seat-holders.ts#seatHolders` recomputes who is seated/waiting live from whatever rows remain, every
- * time it is asked. Nor from `companies.service.ts#changeMemberRole` — a role change never creates or
- * destroys a membership row, so there is no new desk to assign (an OWNER promotion still keeps
- * whichever desk, if any, that member already had).
- *
- * ## Concurrent membership changes for the SAME company
- *
- * Two membership changes landing at (almost) the same instant — two invitations accepted together, an
- * SSO burst provisioning ten users at once — must never (a) hand out the SAME `seatIndex` to two
- * different new rows, or (b) let two callers both read "one seat left" and both succeed, overshooting
- * the bought quantity by one. Both are solved the same way the REMOVED Polar push used to solve its own
- * race: a `SELECT … FOR UPDATE` row lock on the company's own `company_subscription` row, held for the
- * entire check-then-create-then-assign sequence (`withSeatReservation` below) — chosen over a BullMQ
- * per-company job for the same reason the old push was: membership changes are synchronous, inline
- * with the request that causes them, and a queue hop would turn "accept an invitation" into an
- * eventually-consistent operation for no benefit.
+ * Concurrent creations for the same company are serialized with a `FOR UPDATE` lock on its
+ * `company_subscription` row, so two callers cannot share a `seatIndex` or both take the last seat.
  */
 import prisma from '@/prisma/prisma.service';
 
@@ -54,12 +22,8 @@ export async function countCompanySeats(companyId: string): Promise<number> {
 
 export const NO_FREE_SEAT_CODE = 'NO_FREE_SEAT';
 
-/** Thrown by `withSeatReservation` when a company already has as many members as it has bought seats
- *  for — a plain, framework-agnostic `Error` (never a Nest `HttpException`) because this module is
- *  called from BOTH a Nest service (`invitations.service.ts`) and `lib/auth.ts`, which runs entirely
- *  outside Nest DI and needs a `better-auth` `APIError` instead — each call site translates this into
- *  whatever surface it needs, the same split `account-lifecycle.ts#SoleOwnerError`'s own header
- *  documents for the exact same reason. */
+/** A plain `Error`, not an `HttpException`, because `lib/auth.ts` calls this outside Nest and maps it
+ *  to a better-auth `APIError`. */
 export class NoFreeSeatError extends Error {
   readonly code = NO_FREE_SEAT_CODE;
 
@@ -69,8 +33,7 @@ export class NoFreeSeatError extends Error {
   }
 }
 
-/** The lowest positive integer NOT already in `usedIndexes` — desk numbering starts at 1, matching how
- *  a human would number seats, never 0. */
+/** Desk numbering starts at 1. */
 function firstFreeIndex(usedIndexes: Iterable<number>): number {
   const used = new Set(usedIndexes);
   let index = 1;
@@ -79,15 +42,9 @@ function firstFreeIndex(usedIndexes: Iterable<number>): number {
 }
 
 /**
- * Runs `createMembership` (the caller's own `UserCompany` create/upsert) as the ONE atomic step that
- * also (a) refuses with `NoFreeSeatError` when the company has no free seat — but ONLY if `userId` is
- * not ALREADY a member, so re-opening a stale invitation link (or a repeat SSO callback) for someone
- * already in the company stays the harmless no-op it always was, never a spurious capacity refusal —
- * and (b) assigns the new row the lowest free `seatIndex`, for a membership that is genuinely new.
- *
- * A no-op wrapper (still runs `createMembership`, no lock, no capacity check, no seat index) when
- * billing is disabled — a self-hosted instance pays nothing extra for a concept ("bought seats") it has
- * no Polar subscription to have bought in the first place.
+ * Runs `createMembership` atomically with the capacity check and `seatIndex` assignment. An existing
+ * member (stale invitation link, repeat SSO callback) skips both so it is never refused for capacity.
+ * Without billing, it just runs `createMembership`.
  */
 export async function withSeatReservation<T>(
   companyId: string,
@@ -98,17 +55,11 @@ export async function withSeatReservation<T>(
     return prisma.$transaction((tx) => createMembership(tx));
   }
 
-  // Ensures the row exists to lock — a brand-new company's very first reservation (see this file's own
-  // header) has no `company_subscription` row yet; `getOrCreateCompanySubscription`'s own upsert
-  // already handles two concurrent first-touches safely on its own.
+  // A brand-new company has no `company_subscription` row to lock yet.
   await getOrCreateCompanySubscription(companyId);
 
   return prisma.$transaction(
     async (tx) => {
-      // Row lock, held through the whole check-then-create-then-assign sequence below — see this
-      // file's own header on why. `lockCompanySubscriptionRow` is the ONE place this exact lock is
-      // issued (`company-subscription.store.ts`'s own header) — `seats-view.ts` takes the same lock
-      // for its own seat-index bookkeeping, for the same reason.
       await lockCompanySubscriptionRow(tx, companyId);
 
       const alreadyMember = await tx.userCompany.findUnique({
@@ -141,10 +92,7 @@ export async function withSeatReservation<T>(
 
       return result;
     },
-    // Generous timeout — this transaction holds its lock through the caller's own membership write
-    // (and, for `useInvitation`, an additional `invitationCode` update), not just this file's own
-    // reads. Prisma's 5s interactive-transaction default is comfortably enough normally, but not with
-    // room for a slow query queued behind a burst of coalesced calls for the same company.
+    // The lock is held through the caller's own writes, so leave room beyond Prisma's 5s default.
     { timeout: 15_000 },
   );
 }

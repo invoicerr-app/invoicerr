@@ -1,16 +1,7 @@
 /**
- * Boot-time guard for the Polar env vars — same spirit as `lib/secret-guard.ts`'s own
- * `findInsecureSecret`/`assertSecretsConfiguredForBoot`: pure, never reads `process.env` itself
- * (takes it as a parameter) so a spec can drive it cold, and the throwing wrapper is what a real
- * boot site calls.
- *
- * UNLIKE `secret-guard.ts` this is NOT gated to `NODE_ENV === 'production'` — it is gated to
- * `isBillingEnabled(env)` instead, checked INSIDE `assertPolarEnvConfiguredForBoot` itself (the same
- * "the guard owns its own gate" shape `sso-policy.ts#assertOidcOnlyHasProvider` already holds for
- * `OIDC_ONLY`), so `main.ts` can call it UNCONDITIONALLY, right next to
- * `assertSecretsConfiguredForBoot`, without an extra `if` at the call site to get wrong. A
- * self-hosted instance that never sets the billing flag is never affected by this guard at all —
- * every env var it names stays fully optional for it.
+ * Boot-time guard for the Polar env vars. Takes `env` as a parameter so specs can drive it. Gated on
+ * `isBillingEnabled(env)` rather than `NODE_ENV`, so a self-hosted instance without the billing flag
+ * never needs any of these vars.
  */
 import { isBillingEnabled } from './billing-flag';
 
@@ -26,9 +17,7 @@ export type RequiredPolarVar = (typeof REQUIRED_VARS)[number];
 
 const blank = (raw: string | undefined): boolean => (raw ?? '').trim().length === 0;
 
-/** `POLAR_SERVER` is not in `REQUIRED_VARS` above — it has a safe, explicit default ('sandbox', see
- *  `resolvePolarServerEnvironment` below) rather than a missing-credential failure mode, so a
- *  deployment that forgets it gets the SAFER environment rather than a refused boot. */
+/** `POLAR_SERVER` is not required: a missing value falls back to the safer 'sandbox'. */
 export function findMissingPolarEnv(env: NodeJS.ProcessEnv = process.env): RequiredPolarVar[] {
   return REQUIRED_VARS.filter((name) => blank(env[name]));
 }
@@ -43,9 +32,7 @@ export function polarEnvMissingMessage(missing: RequiredPolarVar[]): string {
   );
 }
 
-/** Throws a named, explicit error when billing is enabled but the credentials it needs are not; a
- *  no-op (never even inspects `REQUIRED_VARS`) when `isBillingEnabled(env)` is false — see this
- *  file's own header for why the gate lives HERE rather than at every call site. */
+/** A no-op when billing is disabled, so `main.ts` can call it unconditionally. */
 export function assertPolarEnvConfiguredForBoot(env: NodeJS.ProcessEnv = process.env): void {
   if (!isBillingEnabled(env)) return;
   const missing = findMissingPolarEnv(env);
@@ -56,10 +43,8 @@ export function assertPolarEnvConfiguredForBoot(env: NodeJS.ProcessEnv = process
 
 export type PolarServerEnvironment = 'sandbox' | 'production';
 
-/** `POLAR_SERVER` — defaults to 'sandbox' (the SAFER default: sandbox access tokens are entirely
- *  separate from production ones per Polar's own docs, so a deployment that forgets this var can
- *  never accidentally start charging real cards). Any value other than the literal 'production'
- *  reads as 'sandbox', deliberately (a typo must never silently promote to production). */
+/** Defaults to 'sandbox' so a forgotten var can never charge real cards; anything other than the
+ *  literal 'production' (including a typo) reads as 'sandbox'. */
 export function resolvePolarServerEnvironment(env: NodeJS.ProcessEnv = process.env): PolarServerEnvironment {
   return env.POLAR_SERVER === 'production' ? 'production' : 'sandbox';
 }
