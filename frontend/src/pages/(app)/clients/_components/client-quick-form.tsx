@@ -53,7 +53,7 @@ export function ClientQuickForm({
             <div className="sm:col-span-2">
               <ClientCountryField form={form} />
             </div>
-            <DialogFooter className="items-center sm:col-span-2 sm:justify-between">
+            <DialogFooter className="justify-between sm:col-span-2">
               <Button
                 type="button"
                 variant="link"

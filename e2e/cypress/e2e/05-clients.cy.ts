@@ -887,6 +887,21 @@ describe("Clients E2E", () => {
 			cy.get('[data-cy="confirm-delete-client-button"]', {
 				timeout: 5000,
 			}).should("be.visible");
+
+			// At phone width the footer keeps its buttons on one row, cancel first, neither stretched.
+			cy.viewport(390, 844);
+			cy.get('[data-slot="dialog-footer"]').then(($footer) => {
+				const footer = $footer[0].getBoundingClientRect();
+				const [cancel, confirm] = Array.from($footer[0].querySelectorAll("button"), (button) =>
+					button.getBoundingClientRect(),
+				);
+				expect(Math.abs(cancel.top - confirm.top), "same row").to.be.lessThan(2);
+				expect(cancel.right, "cancel before the action").to.be.at.most(confirm.left);
+				expect(cancel.width, "cancel not stretched").to.be.lessThan(footer.width / 2);
+				expect(confirm.width, "action not stretched").to.be.lessThan(footer.width / 2);
+			});
+			cy.viewport(1000, 660);
+
 			cy.get('[data-cy="confirm-delete-client-button"]').click();
 
 			cy.wait(2000);
