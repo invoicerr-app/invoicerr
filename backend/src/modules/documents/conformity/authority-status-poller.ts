@@ -64,6 +64,9 @@ export interface AuthorityStatusPoller {
    *  poller itself, never guessed at by the sweep, since only the provider's own implementation
    *  actually knows its own lifecycle's vocabulary. */
   isTerminal(statusCode: string): boolean;
+  /** Whether a terminal `statusCode` is the platform refusing the document rather than accepting it.
+   *  Absent means this provider never reports a rejection. */
+  isRejection?(statusCode: string): boolean;
   /**
    * Fetches EVERY event the platform currently reports for this deposit — never just the latest one:
    * dedup (`authority-events.persistence.ts`'s own `@@unique`) is what turns a full re-fetch, every

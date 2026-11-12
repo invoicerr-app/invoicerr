@@ -142,6 +142,21 @@ Click the scale icon on a **Validated**, **Sent** or **Send failed** invoice to 
 
 Choosing a local cancellation asks you to confirm first: it is irreversible, and the invoice's number is never reused.
 
+## Rejected by the e-invoicing platform
+
+When you send through an e-invoicing platform (SuperPDP, KSeF, Chorus Pro), the platform can refuse the invoice. Its status stays **Sent**, but the invoice is marked **Rejected by the platform** everywhere it appears:
+
+- on the dashboard, in a red alert counting the rejected invoices;
+- on its row in the invoice list, with the reason the platform gave;
+- on the invoice itself, in a banner with that reason and a **Correct and resend** button, which opens the same correction routes as the scale icon;
+- in the client statement and in the bank reconciliation suggestions.
+
+:::info[Still owed, but not chased]
+A rejection does not cancel what your client owes you, so a rejected invoice still counts in your receivables. It is however left out of automatic payment reminders and of the dashboard's **To chase** list until it is corrected.
+:::
+
+The mark disappears on its own once the platform accepts the invoice, or accepts the credit note or corrective document issued for it.
+
 ## Statuses
 
 | Status | Meaning |

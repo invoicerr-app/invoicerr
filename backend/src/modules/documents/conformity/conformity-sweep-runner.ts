@@ -13,12 +13,18 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import {
+  clearConformityRejection,
   createAuthorityEvents,
   findConformitySweepCandidates,
   journalSyntheticEvent,
+  markConformityRejected,
   markConformityResolved,
 } from './authority-events.persistence';
-import { AuthorityStatusPollerRegistry, ChannelNotConnectedError } from './authority-status-poller';
+import {
+  AuthorityStatusPollerRegistry,
+  ChannelNotConnectedError,
+  RawAuthorityEvent,
+} from './authority-status-poller';
 import {
   BLOCKED_STATUS_CODE,
   buildConformityPollJobId,
@@ -281,6 +287,26 @@ export class ConformitySweepRunner {
         );
       }
 
+      // The latest terminal verdict decides the rejection flag; own try/catch for the same isolation.
+      try {
+        const verdict = latestEvent(events.filter((event) => poller.isTerminal(event.statusCode)));
+        if (verdict && poller.isRejection?.(verdict.statusCode)) {
+          await markConformityRejected(
+            data.companyId,
+            data.documentId,
+            verdict.observedAt,
+            verdict.reason ?? verdict.statusText ?? null,
+          );
+        } else if (verdict) {
+          await clearConformityRejection(data.companyId, data.documentId);
+        }
+      } catch (verdictError) {
+        this.logger.error(
+          `Recording the conformity verdict of document ${data.documentId} ("${data.providerId}") failed: ` +
+            `${verdictError instanceof Error ? verdictError.message : String(verdictError)}`,
+        );
+      }
+
       // SSE nudge — only when something was GENUINELY new (journaled > 0, never
       // for a re-poll that only rediscovered events already known) and only when this job data
       // actually carries a typeId (see `ConformityPollJobData.typeId`'s own header — several EXISTING
@@ -354,6 +380,13 @@ export class ConformitySweepRunner {
       }
     }
   }
+}
+
+function latestEvent(events: RawAuthorityEvent[]): RawAuthorityEvent | undefined {
+  return events.reduce<RawAuthorityEvent | undefined>(
+    (latest, event) => (!latest || event.observedAt > latest.observedAt ? event : latest),
+    undefined,
+  );
 }
 
 /** Re-exported so a caller needing only the job-name constant doesn't have to reach into

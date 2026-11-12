@@ -178,3 +178,52 @@ describe('buildInvoiceOverview', () => {
     ]);
   });
 });
+
+describe('buildInvoiceOverview, invoices rejected by the e-invoicing platform', () => {
+  function rejected(
+    inv: DocumentInstanceResult,
+    reason: string | null = 'Unknown buyer',
+  ): DocumentInstanceResult {
+    return {
+      ...inv,
+      conformityRejectedAt: new Date('2026-10-20T10:00:00Z'),
+      conformityRejectedReason: reason,
+    };
+  }
+
+  it('lists issued rejected invoices with their reason, and never a cancelled or a clean one', () => {
+    const bad = rejected(
+      invoice('a', { ...line(100), currency: 'EUR', client: 'c1', dueDate: '2026-11-30' }),
+    );
+    const cancelled = rejected(invoice('b', { ...line(100), currency: 'EUR', client: 'c1' }, 'cancelled'));
+    const clean = invoice('c', { ...line(100), currency: 'EUR', client: 'c1' });
+    const overview = buildInvoiceOverview({
+      currency: 'EUR',
+      today: TODAY,
+      invoices: [bad, cancelled, clean],
+      unsettled: [],
+      payments: [],
+      clientLabels: new Map([['c1', 'Acme']]),
+    });
+    expect(overview.rejected).toEqual([
+      { documentId: 'a', displayNumber: 'INV-a', client: 'Acme', reason: 'Unknown buyer' },
+    ]);
+  });
+
+  it('keeps a rejected invoice in what is expected but never among the clients to chase', () => {
+    const bad = rejected(
+      invoice('a', { ...line(100), currency: 'EUR', client: 'c1', dueDate: '2026-10-01' }),
+    );
+    const overview = buildInvoiceOverview({
+      currency: 'EUR',
+      today: TODAY,
+      invoices: [bad],
+      unsettled: [balance(bad, 12000)],
+      payments: [],
+      clientLabels: new Map([['c1', 'Acme']]),
+    });
+    expect(overview.months[9]).toEqual({ month: '2026-10', collected: 0, expected: 120 });
+    expect(overview.toChase).toEqual([]);
+    expect(overview.rejected).toHaveLength(1);
+  });
+});

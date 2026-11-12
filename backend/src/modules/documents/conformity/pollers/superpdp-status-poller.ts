@@ -104,6 +104,7 @@ export function buildSuperPdpStatusPoller(deps: SuperPdpStatusPollerDeps): Autho
     providerId: PDP_PROVIDER_ID,
     isTerminal: (statusCode) =>
       statusCode === PDP_ACCEPTED_STATUS_CODE || statusCode === PDP_REJECTED_STATUS_CODE,
+    isRejection: (statusCode) => statusCode === PDP_REJECTED_STATUS_CODE,
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const resolved = await resolveSuperPdpConfig(deps.channelCredentials, companyId);

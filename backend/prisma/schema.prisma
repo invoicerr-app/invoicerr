@@ -1756,6 +1756,12 @@ model DocumentInstance {
   // that runner's own comment on the 'skip' branch).
   conformityResolvedAt DateTime?
 
+  // Set when the issuing platform's latest terminal verdict is a rejection; cleared once the platform
+  // accepts the document, or a document correcting it. A rejected invoice stays a receivable but is
+  // never chased.
+  conformityRejectedAt     DateTime?
+  conformityRejectedReason String?
+
   // Legal archiving: the error from the most recent FAILED archiving attempt
   // (documents/archive/archive-on-send.ts), deliberately its OWN column, never `lastActionError`
   // above. Two reasons: (1) `lastActionError` is reset to null by EVERY ordinary write this instance

@@ -85,7 +85,7 @@ import { type DocumentFormState, useDocumentForm } from "@/components/documents/
 import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
 import { useDemoMode } from "@/hooks/queries"
 import { ProseHelp } from "@/components/ui/prose-help"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DocumentPaper } from "@/components/documents/document-paper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -256,6 +256,10 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             {t("documents.list.lastActionError", { message: instance.lastActionError })}
           </AlertDescription>
         </Alert>
+      )}
+
+      {liveInstance.conformityRejectedAt && (
+        <DocumentRejectionBanner descriptor={descriptor} instance={liveInstance} />
       )}
 
       {saveLockedMessage && (
@@ -909,5 +913,38 @@ function DraftLivePaper({
       <p className="mb-3 text-[14px] font-semibold text-ink-2">{t("documents.form.editor.previewLabel")}</p>
       <DocumentPaper descriptor={descriptor} data={values} displayNumber={displayNumber} />
     </section>
+  )
+}
+
+/** The e-invoicing platform rejected this document: its reason, and whatever correction entry point
+ *  the document's type registers at "rejection-actions" (custom-slots.ts). */
+function DocumentRejectionBanner({
+  descriptor,
+  instance,
+}: {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}) {
+  const { t } = useTranslation()
+  const actions = getDocumentCustomComponents(descriptor.id, "rejection-actions")
+  return (
+    <Alert variant="destructive" data-cy="document-rejection-banner">
+      <AlertTitle>{t("documents.rejection.title")}</AlertTitle>
+      <AlertDescription>
+        <p>{t("documents.rejection.detail")}</p>
+        {instance.conformityRejectedReason && (
+          <p className="font-semibold" data-cy="document-rejection-reason">
+            {t("documents.rejection.reason", { reason: instance.conformityRejectedReason })}
+          </p>
+        )}
+        {actions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {actions.map((Action) => (
+              <Action key={Action.name} descriptor={descriptor} instance={instance} />
+            ))}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
   )
 }

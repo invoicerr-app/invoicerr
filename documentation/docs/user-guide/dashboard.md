@@ -10,6 +10,7 @@ overview of your invoicing, in your company currency:
 - **Invoiced this month**, before VAT, with how much more or less that is than last month.
 - A curve of the money **collected** each month this year, continued as a dashed line with what your
   clients **still owe by due month** for the months ahead. The curve is hidden on a phone.
+- **Rejected by the platform**: shown only when an e-invoicing platform refused some of your invoices, with each invoice's number, client and the reason given. These invoices are not counted in **To chase**. See [Rejected by the e-invoicing platform](./billing/invoices.md#rejected-by-the-e-invoicing-platform).
 - **To chase**: the clients with at least one invoice past its due date, one row per client, with how
   many days late the oldest one is and what is still owed. **See the late invoices** opens the list
   of exactly those invoices.

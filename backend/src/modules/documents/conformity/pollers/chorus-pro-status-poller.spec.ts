@@ -340,4 +340,12 @@ describe('buildChorusProStatusPoller', () => {
       expect(poller.isTerminal('IN_SOME_FUTURE_STATE_NOBODY_HAS_SEEN_YET')).toBe(false);
     });
   });
+
+  it('reports only REJETE and IN_REJETE as rejections', () => {
+    const poller = buildChorusProStatusPoller({ channelCredentials: buildChannelCredentials() });
+    expect(poller.isRejection?.('REJETE')).toBe(true);
+    expect(poller.isRejection?.('IN_REJETE')).toBe(true);
+    expect(poller.isRejection?.('IN_INTEGRE')).toBe(false);
+    expect(poller.isRejection?.('VALIDE')).toBe(false);
+  });
 });

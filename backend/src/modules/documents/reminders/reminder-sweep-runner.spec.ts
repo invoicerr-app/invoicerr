@@ -291,6 +291,29 @@ describe('ReminderSweepRunner.runSweep', () => {
     expect(mailService.sendForCompany).not.toHaveBeenCalled();
   });
 
+  it('never chases an invoice the e-invoicing platform rejected, while still chasing the others', async () => {
+    companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
+    seedDocuments([
+      invoice({
+        id: 'inv-rejected',
+        data: invoiceData(),
+        conformityRejectedAt: new Date('2026-06-02T00:00:00Z'),
+        conformityRejectedReason: 'Unknown buyer',
+      }),
+      invoice({ id: 'inv-clean', data: invoiceData() }),
+    ]);
+
+    const mailService = buildMailService();
+    const runner = new ReminderSweepRunner(mailService);
+    const result = await runner.runSweep(NOW);
+
+    expect(result).toEqual({ companiesProcessed: 1, remindersSent: 1, skipped: 0 });
+    expect(reminderCreate).toHaveBeenCalledTimes(1);
+    expect(reminderCreate).toHaveBeenCalledWith({
+      data: { companyId: 'company-1', documentId: 'inv-clean', tier: 7 },
+    });
+  });
+
   it('skips (never throws) an invoice whose client has no resolvable contact email', async () => {
     companyFindMany.mockResolvedValue([{ id: 'company-1', name: 'Acme Corp' }]);
     seedDocuments([invoice({ data: invoiceData() })]);

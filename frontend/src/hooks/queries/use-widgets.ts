@@ -67,6 +67,13 @@ export interface InvoiceOverviewDueRow {
   currency: string
 }
 
+export interface InvoiceOverviewRejectedRow {
+  documentId: string
+  displayNumber: string | null
+  client: string | null
+  reason: string | null
+}
+
 export interface InvoiceOverview {
   currency: string
   month: string
@@ -75,6 +82,7 @@ export interface InvoiceOverview {
   months: InvoiceOverviewMonth[]
   toChase: InvoiceOverviewChaseRow[]
   thisWeek: InvoiceOverviewDueRow[]
+  rejected: InvoiceOverviewRejectedRow[]
 }
 
 /** The dashboard's invoicing overview (backend contributions/invoice-overview.ts). */

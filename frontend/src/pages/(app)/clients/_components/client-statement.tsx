@@ -41,6 +41,13 @@ function currencySuffix(currency: string, totals: ClientStatementCurrencyTotals[
  *  yields the identical tone/label a document's own settlement section would show. */
 export function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
+  if (row.conformityRejected) {
+    return (
+      <StatusMark {...statusPresentation("rejected")} data-cy={`client-statement-rejected-${row.id}`}>
+        {t("documents.rejection.badge")}
+      </StatusMark>
+    )
+  }
   const { labelKey } = settlementBadgeInfo(
     {
       totalGrossMinor: row.amountMinor,

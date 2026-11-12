@@ -232,3 +232,34 @@ export async function markConformityResolved(
     data: { conformityResolvedAt: resolvedAt },
   });
 }
+
+/** Flags `documentId` as refused by its issuing platform, keeping the platform's own explanation. */
+export async function markConformityRejected(
+  companyId: string,
+  documentId: string,
+  rejectedAt: Date,
+  reason: string | null,
+): Promise<void> {
+  await prisma.documentInstance.updateMany({
+    where: { id: documentId, companyId },
+    data: { conformityRejectedAt: rejectedAt, conformityRejectedReason: reason },
+  });
+}
+
+/**
+ * Clears the rejection flag once the platform accepts `documentId`: on the document itself, and on the
+ * invoice it corrects (`data.invoice`), since an accepted correction is what settles a rejection.
+ */
+export async function clearConformityRejection(companyId: string, documentId: string): Promise<number> {
+  const accepted = await prisma.documentInstance.findFirst({
+    where: { id: documentId, companyId },
+    select: { data: true },
+  });
+  const corrected = (accepted?.data as Record<string, unknown> | null | undefined)?.invoice;
+  const ids = typeof corrected === 'string' && corrected ? [documentId, corrected] : [documentId];
+  const { count } = await prisma.documentInstance.updateMany({
+    where: { companyId, id: { in: ids }, conformityRejectedAt: { not: null } },
+    data: { conformityRejectedAt: null, conformityRejectedReason: null },
+  });
+  return count;
+}

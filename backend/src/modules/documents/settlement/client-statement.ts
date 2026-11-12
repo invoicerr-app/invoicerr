@@ -67,6 +67,8 @@ export interface ClientStatementDocumentRow {
   /** `compute-settlement.ts`'s own `settled` for an invoice; always `true` for a credit note (see
    *  `outstandingMinor`'s own comment — nothing about a sent credit note is ever "still owed"). */
   settled: boolean;
+  /** The issuing e-invoicing platform rejected this invoice: still owed, but needs correcting. */
+  conformityRejected: boolean;
 }
 
 /** One currency's own aged balance — see `resolveAgingBucket` for the exact boundaries. NEVER
@@ -231,6 +233,7 @@ export async function resolveClientStatement(
       paidMinor: settlement.paidMinor,
       outstandingMinor: settlement.outstandingMinor,
       settled: settlement.settled,
+      conformityRejected: Boolean(invoice.conformityRejectedAt),
     });
 
     for (const credit of credits) {
@@ -248,6 +251,7 @@ export async function resolveClientStatement(
         paidMinor: 0,
         outstandingMinor: 0,
         settled: true,
+        conformityRejected: false,
       });
     }
 

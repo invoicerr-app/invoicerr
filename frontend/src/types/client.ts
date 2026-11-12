@@ -102,6 +102,8 @@ export interface ClientStatementDocumentRow {
   paidMinor: number
   outstandingMinor: number
   settled: boolean
+  /** True while the e-invoicing platform's latest verdict on this invoice is a rejection. */
+  conformityRejected?: boolean
 }
 
 /** One currency's own aged balance — mirrors the backend's `ClientStatementCurrencyTotals`. NEVER

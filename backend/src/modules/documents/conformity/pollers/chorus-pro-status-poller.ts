@@ -115,6 +115,7 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
   return {
     providerId: CHORUS_PRO_PROVIDER_ID,
     isTerminal: isTerminalChorusProStatus,
+    isRejection: (statusCode) => mapChorusProStatus(statusCode) === 'REJECTED',
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const resolved = await resolveChorusProConfig(deps.channelCredentials, companyId);

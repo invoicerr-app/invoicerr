@@ -698,6 +698,17 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
                     {t("documents.list.lastActionError", { message: instance.lastActionError })}
                   </p>
                 )}
+                {instance.conformityRejectedAt && (
+                  <p
+                    className="mt-1 line-clamp-2 text-xs font-semibold text-destructive-soft-foreground"
+                    title={instance.conformityRejectedReason ?? undefined}
+                    data-cy={`document-row-rejected-${instance.id}`}
+                  >
+                    {instance.conformityRejectedReason
+                      ? t("documents.rejection.listLine", { reason: instance.conformityRejectedReason })
+                      : t("documents.rejection.title")}
+                  </p>
+                )}
               </div>
             </div>
 
