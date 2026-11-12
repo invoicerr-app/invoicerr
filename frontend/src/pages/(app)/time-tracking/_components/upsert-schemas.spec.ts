@@ -28,4 +28,25 @@ describe("time tracking validation messages", () => {
     })
     expect(messageFor(result)).toBe("timeTracking.entries.errors.hourlyRateMin")
   })
+
+  it("the required project fields report translated messages", () => {
+    const result = buildProjectSchema(keyAsText).safeParse({ clientId: "", name: "", hourlyRate: null })
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "timeTracking.projects.errors.clientRequired",
+      "timeTracking.projects.errors.nameRequired",
+    ])
+  })
+
+  it("a missing date and a zero duration report translated messages", () => {
+    const result = buildTimeEntrySchema(keyAsText).safeParse({
+      date: "",
+      hours: 0,
+      billable: true,
+      hourlyRate: null,
+    })
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "timeTracking.entries.errors.dateRequired",
+      "timeTracking.entries.errors.durationPositive",
+    ])
+  })
 })
