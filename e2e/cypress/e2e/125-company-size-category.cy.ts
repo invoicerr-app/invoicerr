@@ -17,6 +17,20 @@ function selectProfileOption(attribute: string, value: string) {
 	cy.get("body").should("not.have.attr", "data-scroll-locked");
 }
 
+/** Saves the company settings and waits for the screen to reload what was saved. The form re-reads
+ *  `/api/company/info` after every save and keeps only the fields react-hook-form still counts as
+ *  dirty; a switch turned back to the value it was loaded with is no longer dirty, so a reload that
+ *  lands after the next click puts the previous saved value back and the following save sends it.
+ *  Seen in CI: the exemption switch turned off right after a save came back on before the third
+ *  save, which kept the VAT regime derived and its question locked for good. Registering the
+ *  intercept just before the click keeps the page's own earlier reads out of the wait. */
+function saveCompanyAndReload() {
+	cy.intercept("GET", "**/api/company/info").as("reloadCompany");
+	cy.get('[data-cy="company-submit-btn"]').click();
+	cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+	cy.wait("@reloadCompany");
+}
+
 function createDraftInvoice(issueDate: string): Cypress.Chainable<string> {
 	return cy
 		.request({ url: `${api}/api/documents/references/client/search` })
@@ -113,8 +127,7 @@ describe("Company size category and the French PDP calendar", () => {
 			.scrollIntoView()
 			.should("contain.text", "Not declared");
 		selectProfileOption("vatDebitsOption", "EXERCISED");
-		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		saveCompanyAndReload();
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
 			.should("deep.include", { vatDebitsOption: "EXERCISED" });
@@ -126,8 +139,7 @@ describe("Company size category and the French PDP calendar", () => {
 			"Franchise in base",
 		);
 		cy.get('[data-cy="company-profile-vatDebitsOption-select"]').should("not.exist");
-		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		saveCompanyAndReload();
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
 			.should((profile) => {
@@ -140,8 +152,7 @@ describe("Company size category and the French PDP calendar", () => {
 		// answer would keep the question locked. The debits answer saved above must be gone, so the
 		// option is empty when a real regime asks it again.
 		cy.get('[data-cy="company-exemptvat-switch"]').scrollIntoView().click();
-		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		saveCompanyAndReload();
 		cy.get('[data-cy="company-profile-vatRegime-select"]', { timeout: 20000 })
 			.scrollIntoView()
 			.should("contain.text", "Not declared");
@@ -159,8 +170,7 @@ describe("Company size category and the French PDP calendar", () => {
 			"contain.text",
 			"Franchise in base",
 		);
-		cy.get('[data-cy="company-submit-btn"]').click();
-		cy.wait("@saveCompany").its("response.statusCode").should("be.oneOf", [200, 201]);
+		saveCompanyAndReload();
 		cy.request({ url: `${api}/api/company/info` })
 			.its("body.reportingProfile")
 			.should((profile) => {
