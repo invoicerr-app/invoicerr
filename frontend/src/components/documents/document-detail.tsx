@@ -541,7 +541,13 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">{children}</div>
+      {/* Top-aligned so the primary button's caption hangs below it instead of lifting it. */}
+      <div
+        className="flex shrink-0 flex-wrap items-start gap-2 lg:justify-end"
+        data-cy="document-detail-actions"
+      >
+        {children}
+      </div>
     </header>
   )
 }
