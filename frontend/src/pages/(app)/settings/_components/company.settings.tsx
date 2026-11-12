@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { Loader2, Search } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { useForm } from "react-hook-form"
+import { type DefaultValues, type FieldValues, type UseFormReturn, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -20,6 +20,7 @@ import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
 import { isValidPostalCode } from "@/lib/postal-code"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -79,7 +80,16 @@ const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
 const UNDECLARED_PROFILE_VALUE = "__undeclared__"
-const COMPANY_SETTINGS_QUERY_KEY = ["company-settings"] as const
+
+function rebaseDefaults<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  defaults: DefaultValues<T>,
+  current: DefaultValues<T>,
+) {
+  // Set the saved baseline first, then restore live values and recalculate which fields remain dirty.
+  form.reset(defaults, { keepValues: true })
+  form.reset(current, { keepDefaultValues: true })
+}
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation()
@@ -213,7 +223,7 @@ export default function CompanySettings() {
 
   const queryClient = useQueryClient()
   const { data, refetch: refetchCompany } = useApiQuery<Company>(
-    COMPANY_SETTINGS_QUERY_KEY,
+    queryKeys.company.settings(),
     "/api/company/info",
     {
       // Preserve useGet's immediate requests and fresh response objects, without cached or focus updates.
@@ -393,8 +403,7 @@ export default function CompanySettings() {
         )
       }
 
-      form.reset(nextValues, { keepValues: true })
-      form.reset(merged as typeof nextValues, { keepDefaultValues: true })
+      rebaseDefaults(form, nextValues, merged as typeof nextValues)
     }
   }, [data, form])
 
@@ -629,8 +638,7 @@ export default function CompanySettings() {
       // Edits made during either write stay live, compared against what was just saved.
       reconciliationToleranceDefault.current = reconciliationTolerancePercent
       const currentValues = form.getValues()
-      form.reset({ ...currentValues, ...values }, { keepValues: true })
-      form.reset(currentValues, { keepDefaultValues: true })
+      rebaseDefaults(form, { ...currentValues, ...values }, currentValues)
 
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
@@ -638,7 +646,7 @@ export default function CompanySettings() {
       // The saved row is the source of the locked rows (the derived VAT regime) and of the values a
       // condition is read against; without this the screen keeps showing what it loaded.
       // Even an initial GET still in flight must not be reused after the write.
-      await queryClient.cancelQueries({ queryKey: COMPANY_SETTINGS_QUERY_KEY, exact: true })
+      await queryClient.cancelQueries({ queryKey: queryKeys.company.settings(), exact: true })
       await refetchCompany()
     } finally {
       setIsLoading(false)

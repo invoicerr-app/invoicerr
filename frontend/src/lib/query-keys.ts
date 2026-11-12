@@ -63,6 +63,8 @@ export const queryKeys = {
   },
   company: {
     info: () => ["company", "info"] as const,
+    // The editable form avoids cached snapshots and other info observers' background refetches.
+    settings: () => ["company-settings"] as const,
     paymentTerms: () => ["company", "paymentTerms"] as const,
   },
   billing: {
