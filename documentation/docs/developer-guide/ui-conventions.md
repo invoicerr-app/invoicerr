@@ -103,9 +103,9 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
   form, behind an Edit / Preview switch on a phone) and the action bar held at the bottom. A section
   may set `foldOnPhone`. On a phone a filled line of a line-items field folds into a one-line summary.
   Short controls sit two to a row.
-- **Dialog footers** (`DialogFooter`, `AlertDialogFooter`): the buttons sit side by side at every
-  width, right-aligned, cancel first and the action last, each at its own width. They wrap onto a
-  second line only when their labels do not fit; they never stack full width.
+- **Dialog footers** (`DialogFooter`, `AlertDialogFooter`): below 640 px (`sm`) the buttons stack
+  full width, the main action on top and cancel under it, easy to reach with a thumb. From 640 px
+  up they sit side by side, right-aligned, cancel first and the action last, each at its own width.
 - **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
   from the descriptor, with the double rule under its total, every field still listed below it.
 - **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a

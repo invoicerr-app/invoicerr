@@ -90,7 +90,9 @@ export function FormDialog({
           )}
         />
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t px-6 py-4">{footer}</div>
+      <div className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
+        {footer}
+      </div>
     </>
   )
 

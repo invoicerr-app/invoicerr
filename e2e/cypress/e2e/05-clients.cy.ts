@@ -888,8 +888,20 @@ describe("Clients E2E", () => {
 				timeout: 5000,
 			}).should("be.visible");
 
-			// At phone width the footer keeps its buttons on one row, cancel first, neither stretched.
+			// Below 640 px the footer stacks its buttons full width, the action above cancel.
 			cy.viewport(390, 844);
+			cy.get('[data-slot="dialog-footer"]').then(($footer) => {
+				const footer = $footer[0].getBoundingClientRect();
+				const [cancel, confirm] = Array.from($footer[0].querySelectorAll("button"), (button) =>
+					button.getBoundingClientRect(),
+				);
+				expect(confirm.bottom, "action above cancel").to.be.at.most(cancel.top);
+				expect(Math.abs(cancel.width - footer.width), "cancel full width").to.be.lessThan(2);
+				expect(Math.abs(confirm.width - footer.width), "action full width").to.be.lessThan(2);
+			});
+
+			// From 640 px up they sit on one row, cancel first, neither stretched.
+			cy.viewport(1000, 660);
 			cy.get('[data-slot="dialog-footer"]').then(($footer) => {
 				const footer = $footer[0].getBoundingClientRect();
 				const [cancel, confirm] = Array.from($footer[0].querySelectorAll("button"), (button) =>
@@ -897,10 +909,8 @@ describe("Clients E2E", () => {
 				);
 				expect(Math.abs(cancel.top - confirm.top), "same row").to.be.lessThan(2);
 				expect(cancel.right, "cancel before the action").to.be.at.most(confirm.left);
-				expect(cancel.width, "cancel not stretched").to.be.lessThan(footer.width / 2);
 				expect(confirm.width, "action not stretched").to.be.lessThan(footer.width / 2);
 			});
-			cy.viewport(1000, 660);
 
 			cy.get('[data-cy="confirm-delete-client-button"]').click();
 
