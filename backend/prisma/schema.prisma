@@ -289,6 +289,10 @@ enum CompanyRole {
 model Company {
   id          String   @id @default(cuid())
   name        String
+  // The company's own Stripe customer (hosted billing, #760): checkout and the Customer Portal always
+  // open on it, whichever owner or admin clicks. Set by the better-auth Stripe plugin, whose
+  // `organization` model is mapped onto this table (`modules/billing/stripe-plugin.ts`).
+  stripeCustomerId String? @unique
   description String?
   currency    Currency @default(EUR)
   foundedAt   DateTime

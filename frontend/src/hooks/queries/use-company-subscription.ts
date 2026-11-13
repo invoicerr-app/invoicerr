@@ -14,6 +14,13 @@ export interface CompanyStripeSubscription {
   cancelAtPeriodEnd?: boolean | null
 }
 
+/**
+ * Every call bills the company's own Stripe customer, never the one of whoever clicks: the plugin's
+ * `organization` customer type, whose model the backend maps onto the Company table. The backend
+ * refuses any call without it (`stripe-plugin.ts`, `canActOnCompanySubscription`).
+ */
+export const COMPANY_CUSTOMER_TYPE = "organization" as const
+
 /** Unwraps a better-auth client result: the data, or a thrown Error carrying the server's message. */
 function unwrap<T>(result: { data: T | null; error: { message?: string } | null }): T {
   if (result.error) throw new Error(result.error.message || "Billing request failed")
@@ -34,7 +41,9 @@ export function useCompanyStripeSubscription(companyId: string | null, enabled: 
     staleTime: 30_000,
     queryFn: async (): Promise<CompanyStripeSubscription | null> => {
       const rows = unwrap(
-        await authClient.subscription.list({ query: { referenceId: companyId as string } }),
+        await authClient.subscription.list({
+          query: { referenceId: companyId as string, customerType: COMPANY_CUSTOMER_TYPE },
+        }),
       ) as CompanyStripeSubscription[] | null
       return rows?.[0] ?? null
     },
@@ -60,6 +69,7 @@ export function useStartCheckout() {
           annual,
           seats,
           referenceId: companyId,
+          customerType: COMPANY_CUSTOMER_TYPE,
           successUrl: billingReturnUrl("?checkout=success"),
           cancelUrl: billingReturnUrl(),
         }),
@@ -77,6 +87,7 @@ export function useOpenBillingPortal() {
       unwrap(
         await authClient.subscription.billingPortal({
           referenceId: companyId,
+          customerType: COMPANY_CUSTOMER_TYPE,
           returnUrl: billingReturnUrl(),
         }),
       ),
@@ -90,6 +101,7 @@ export function useCancelSubscription() {
       unwrap(
         await authClient.subscription.cancel({
           referenceId: companyId,
+          customerType: COMPANY_CUSTOMER_TYPE,
           returnUrl: billingReturnUrl("?cancel=done"),
         }),
       ),

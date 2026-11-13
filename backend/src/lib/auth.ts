@@ -361,12 +361,16 @@ const userAfterCreateHook = async (user, context) => {
 const SESSION_REFRESH_FIELDS = new Set(['expiresAt', 'updatedAt']);
 const sessionUpdatesToInvalidate = new WeakSet<object>();
 
-const stripePlugin = buildStripePlugin(async (userId, companyId) => {
-  const membership = await prisma.userCompany.findUnique({
-    where: { userId_companyId: { userId, companyId } },
-    select: { role: true },
-  });
-  return membership?.role ?? null;
+const stripePlugin = buildStripePlugin({
+  findCompanyRole: async (userId, companyId) => {
+    const membership = await prisma.userCompany.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+      select: { role: true },
+    });
+    return membership?.role ?? null;
+  },
+  findCompanyCustomerDetails: (companyId) =>
+    prisma.company.findUnique({ where: { id: companyId }, select: { name: true, email: true } }),
 });
 
 export const auth = betterAuth({
