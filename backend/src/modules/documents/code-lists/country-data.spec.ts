@@ -5,7 +5,7 @@
  * is what keeps the two copies equal.
  */
 import { ALL_COMPOSED_COUNTRIES } from '../countries/compose';
-import { lookupIn } from './lookup';
+import { lookupIn, UnmappedCodeError } from './lookup';
 
 const countriesWithLists = ALL_COMPOSED_COUNTRIES.filter((country) => country.codeLists !== undefined);
 
@@ -30,5 +30,29 @@ describe('code lists shipped in countries/data', () => {
       const mirrored = country.codeLists!.lists.map((list) => list.entries.map((entry) => entry.code));
       expect(mirrored).toContainEqual(invoiceCodes);
     }
+  });
+});
+
+describe('Polish VAT-UE parts, read from pl.json', () => {
+  const polishLists = () => {
+    const poland = ALL_COMPOSED_COUNTRIES.find((country) => country.countryCode === 'PL');
+    if (!poland?.codeLists) throw new Error('pl.json ships no codeLists section');
+    return poland.codeLists;
+  };
+
+  it.each([
+    ['GOODS_SUPPLY', 'C'],
+    ['GOODS_ACQUISITION', 'D'],
+    ['SERVICE_SUPPLY', 'E'],
+    ['CALL_OFF_STOCK_TRANSFER', 'F'],
+  ])('reports a %s in part %s', (operation, part) => {
+    expect(lookupIn(polishLists(), 'vatUePart', { operation }).code).toBe(part);
+  });
+
+  it('refuses an operation the form has no part for, instead of defaulting one', () => {
+    expect(() => lookupIn(polishLists(), 'vatUePart', { operation: 'DOMESTIC_SUPPLY' })).toThrow(
+      UnmappedCodeError,
+    );
+    expect(() => lookupIn(polishLists(), 'vatUePart', {})).toThrow(/No code in list "vatUePart"/);
   });
 });
