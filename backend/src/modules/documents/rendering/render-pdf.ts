@@ -274,19 +274,67 @@ async function getBrowser(): Promise<Browser> {
   }
 }
 
+/**
+ * Whether Chromium runs with its own sandbox, read from `CHROMIUM_SANDBOX`:
+ *  - `on`: the sandbox is required; a launch that cannot set it up fails.
+ *  - `off`: always `--no-sandbox` (the only behaviour before this setting existed).
+ *  - `auto` (default, also any unknown value): sandboxed whenever the process is not root, with a
+ *    logged fallback to `--no-sandbox` if the host refuses the namespaces Chromium needs (a default
+ *    Docker seccomp profile, a kernel that forbids unprivileged user namespaces). Root always gets
+ *    `--no-sandbox`: Chromium refuses to start sandboxed as root.
+ *
+ * The sandbox matters here because the page rendered can carry user-submitted data and is reachable
+ * through public share links: without it, a renderer exploit runs with the backend's own rights.
+ */
+export type ChromiumSandboxMode = 'on' | 'off' | 'auto';
+
+export function resolveChromiumSandboxMode(env: NodeJS.ProcessEnv = process.env): ChromiumSandboxMode {
+  const raw = (env.CHROMIUM_SANDBOX ?? '').trim().toLowerCase();
+  if (['on', 'true', '1', 'required'].includes(raw)) return 'on';
+  if (['off', 'false', '0'].includes(raw)) return 'off';
+  return 'auto';
+}
+
+function isRoot(): boolean {
+  return typeof process.getuid === 'function' && process.getuid() === 0;
+}
+
+async function launchChromium(executablePath: string, sandbox: boolean): Promise<Browser> {
+  return chromium.launch({
+    executablePath,
+    headless: true,
+    chromiumSandbox: sandbox,
+    args: sandbox ? [] : ['--no-sandbox'],
+  });
+}
+
 async function launchBrowser(): Promise<Browser> {
   // Resolved BEFORE the try/catch below on purpose: "no Chromium found" is a distinct, actionable
   // configuration error, not a launch failure — it must reach the caller with its own named message
   // intact, not get re-wrapped into the generic "could not be launched" text below.
   const executablePath = resolveChromiumExecutablePath();
+  const mode = resolveChromiumSandboxMode();
+  const sandbox = mode === 'on' || (mode === 'auto' && !isRoot());
 
   try {
-    const browser = await chromium.launch({
-      executablePath,
-      headless: true,
-      args: ['--no-sandbox'],
+    let browser: Browser;
+    try {
+      browser = await launchChromium(executablePath, sandbox);
+    } catch (error) {
+      if (!(sandbox && mode === 'auto')) throw error;
+      logger.warn('PDF renderer: Chromium sandbox unavailable, falling back to --no-sandbox', {
+        category: 'documents',
+        details: {
+          message: error instanceof Error ? error.message : String(error),
+          hint: 'Set CHROMIUM_SANDBOX=off to silence this, or allow user namespaces (see the deployment docs) and set CHROMIUM_SANDBOX=on to require the sandbox.',
+        },
+      });
+      browser = await launchChromium(executablePath, false);
+    }
+    logger.debug('PDF renderer browser launched', {
+      category: 'documents',
+      details: { executablePath, sandboxMode: mode },
     });
-    logger.debug('PDF renderer browser launched', { category: 'documents', details: { executablePath } });
     return browser;
   } catch (error) {
     logger.error('PDF renderer browser launch failed', {

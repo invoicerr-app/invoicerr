@@ -30,6 +30,30 @@ image:
 
 imagePullSecrets: []
 
+# Security context of the invoicerr containers (api, worker, catalogs-release job). The image runs as
+# uid/gid 10001 since this setting was added; these defaults keep it that way on Kubernetes and take
+# away every Linux capability.
+#  - fsGroup re-owns existing volumes (documents PVC) for that group on mount, so an install created
+#    while the image still ran as root keeps working after the upgrade.
+#  - net.ipv4.ip_unprivileged_port_start=0 (api only) lets nginx bind port 80 without root or any
+#    capability; it is a namespaced "safe" sysctl, allowed by default since Kubernetes 1.22.
+#  - seccompProfile RuntimeDefault blocks the user namespaces Chromium's sandbox needs, so PDF
+#    rendering falls back to --no-sandbox with a logged warning (CHROMIUM_SANDBOX=auto). To render
+#    sandboxed, give the api and worker pods a seccomp profile that allows clone/unshare with
+#    CLONE_NEWUSER (Unconfined, or a Localhost profile) and set app.extraEnv CHROMIUM_SANDBOX=on.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
 nameOverride: ""
 fullnameOverride: ""
 

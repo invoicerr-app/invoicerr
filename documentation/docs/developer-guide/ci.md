@@ -241,6 +241,22 @@ gate to HIGH, or dropping `ignore-unfixed`, is a deliberate follow-up once the c
 findings is known and triaged, not something to do by just editing the `severity` input.
 :::
 
+## Docker smoke test (non-root image)
+
+`docker-smoke.yml` runs on a pull request that touches the Dockerfile, `entrypoint.sh`, `nginx.conf`,
+the backend's dependencies, the PDF renderer or the Helm chart. It builds the image (never pushed),
+starts it with Postgres, Redis and a fresh volume on `/data` the way `docker-compose.yml` does, and
+fails if:
+
+- any process in the container runs as root, or the container's user is not uid `10001`;
+- `/api/health` or the frontend on port 80 does not answer;
+- a PDF does not render through the image's own `render-pdf.js`, once with the default settings and
+  once with `CHROMIUM_SANDBOX=on` under `seccomp=unconfined`, the setting the docs give for the
+  Chromium sandbox. A notice on the run says whether the default settings used the sandbox.
+
+A second job renders the Helm chart and checks the api and worker pods keep `runAsNonRoot`, uid
+`10001`, `allowPrivilegeEscalation: false` and every capability dropped.
+
 ## API latency
 
 `api-latency.yml` measures p50, p95 and p99 of every API route with k6 on a stack local to the

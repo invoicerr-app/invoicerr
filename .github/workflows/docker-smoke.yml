@@ -1,0 +1,147 @@
+name: Docker smoke test (non-root)
+
+# Builds the production image and runs it the way docker-compose.yml does (Postgres, Redis, a named
+# volume on /data), then proves what the Dockerfile promises:
+#   - every process in the container runs as uid 10001, none as root;
+#   - the API answers /api/health and nginx serves the frontend on port 80;
+#   - PDF rendering works with the default settings (CHROMIUM_SANDBOX=auto) and with the Chromium
+#     sandbox forced on, under the seccomp setting docs/ and the Helm chart document for it.
+# It also renders the Helm chart and checks the api and worker pods keep their security contexts.
+on:
+  pull_request:
+    paths:
+      - Dockerfile
+      - entrypoint.sh
+      - nginx.conf
+      - backend/package.json
+      - backend/package-lock.json
+      - backend/src/modules/documents/rendering/**
+      - deploy/helm/**
+      - .github/smoke/**
+      - .github/workflows/docker-smoke.yml
+  workflow_dispatch:
+
+concurrency:
+  group: docker-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Lint and render the chart
+        run: |
+          helm lint deploy/helm/invoicerr
+          helm template smoke deploy/helm/invoicerr --set image.tag=smoke > rendered.yaml
+
+      - name: Check the api and worker security contexts
+        run: |
+          python3 - <<'PY'
+          import yaml
+          docs = [d for d in yaml.safe_load_all(open("rendered.yaml")) if d]
+          for name in ("smoke-invoicerr-api", "smoke-invoicerr-worker"):
+              dep = next((d for d in docs if d["kind"] == "Deployment" and d["metadata"]["name"] == name), None)
+              assert dep, f"{name} not rendered"
+              pod = dep["spec"]["template"]["spec"]
+              psc = pod.get("securityContext", {})
+              assert psc.get("runAsNonRoot") is True and psc.get("runAsUser") == 10001, f"{name}: {psc}"
+              app = next(c for c in pod["containers"] if c["name"] in ("invoicerr", "invoicerr-worker"))
+              csc = app.get("securityContext", {})
+              assert csc.get("allowPrivilegeEscalation") is False, f"{name}: {csc}"
+              assert "ALL" in csc.get("capabilities", {}).get("drop", []), f"{name}: {csc}"
+              print(f"{name}: pod {psc}, container {csc}")
+          PY
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      IMAGE: invoicerr:smoke
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Build the image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha,scope=docker-smoke
+          cache-to: type=gha,scope=docker-smoke,mode=max
+
+      - name: Start Postgres, Redis and invoicerr
+        run: |
+          docker network create smoke
+          docker run -d --name db --network smoke \
+            -e POSTGRES_USER=invoicerr -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=invoicerr_db postgres:15
+          docker run -d --name redis --network smoke redis:7
+          # A fresh named volume on /data, exactly like docker-compose.yml's documents_data.
+          docker run -d --name app --network smoke -p 8080:80 -v smoke_data:/data \
+            -e DATABASE_URL=postgresql://invoicerr:smoke@db:5432/invoicerr_db \
+            -e APP_URL=http://localhost:8080 \
+            -e BETTER_AUTH_SECRET=smoke-test-secret-not-used-anywhere-else \
+            -e REDIS_HOST=redis -e REDIS_PORT=6379 -e WORKER_INLINE=true \
+            -e DOCUMENTS_ARCHIVE_DIR=/data/documents-archive \
+            -e DOCUMENTS_INBOUND_DIR=/data/documents-inbound \
+            "$IMAGE"
+
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/api/health; then echo; exit 0; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' app)" != "true" ]; then break; fi
+            sleep 2
+          done
+          echo "invoicerr did not become healthy" >&2
+          docker logs app 2>&1 | tail -200
+          exit 1
+
+      - name: No process runs as root
+        run: |
+          docker exec app id
+          test "$(docker exec app id -u)" = "10001"
+          docker top app -eo uid,pid,args | tee top.txt
+          if awk 'NR > 1 && $1 == 0' top.txt | grep -q .; then
+            echo "a process in the container runs as root" >&2
+            exit 1
+          fi
+
+      - name: nginx serves the frontend on port 80
+        run: |
+          curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:8080/
+          curl -fsS http://localhost:8080/config.json
+          # One of the build's own hashed bundles: /assets/ has its own location, which must serve
+          # from the same root as / (a 404 here is a blank page in the browser).
+          asset=$(curl -fsS http://localhost:8080/ | grep -o '/assets/[^"]*\.js' | head -n 1)
+          test -n "$asset"
+          curl -fsS -o /dev/null -w "$asset %{http_code} %{content_type}\n" "http://localhost:8080$asset"
+
+      - name: PDF rendering, default settings (CHROMIUM_SANDBOX=auto)
+        run: |
+          docker exec -i -w /usr/share/nginx/backend/src app node - < .github/smoke/render-pdf.js 2>&1 \
+            | grep -v '\[DEBUG\]' | tee auto.txt
+          grep -q -- '-> %PDF-' auto.txt
+          if grep -q 'sandbox unavailable' auto.txt; then
+            echo "::notice::Default seccomp profile: Chromium sandbox unavailable, rendered with --no-sandbox (auto fallback)"
+          else
+            echo "::notice::Default seccomp profile: Chromium rendered with its sandbox"
+          fi
+
+      - name: PDF rendering with the Chromium sandbox enforced (CHROMIUM_SANDBOX=on, seccomp=unconfined)
+        run: |
+          docker run --rm -i --security-opt seccomp=unconfined -e CHROMIUM_SANDBOX=on \
+            -w /usr/share/nginx/backend/src "$IMAGE" node - < .github/smoke/render-pdf.js 2>&1 \
+            | grep -v '\[DEBUG\]' | tee sandbox.txt
+          grep -q -- 'CHROMIUM_SANDBOX=on -> %PDF-' sandbox.txt
+
+      - name: Container logs
+        if: always()
+        run: docker logs app 2>&1 | tail -150

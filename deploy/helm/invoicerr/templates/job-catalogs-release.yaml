@@ -74,6 +74,10 @@ spec:
       labels:
         {{- include "invoicerr.componentSelectorLabels" (dict "context" . "component" "catalogs-release") | nindent 8 }}
     spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       restartPolicy: Never
       automountServiceAccountToken: false
       {{- if .Values.postgresql.enabled }}
@@ -125,6 +129,10 @@ spec:
         - name: catalogs-release
           image: {{ include "invoicerr.appImage" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           workingDir: /usr/share/nginx/backend
           command:
             - sh
