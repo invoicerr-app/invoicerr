@@ -26,7 +26,7 @@ export function UnusedSeatsBanner() {
   if (unused <= 0) return null
 
   return (
-    <Alert variant="destructive" className="mb-6" data-cy="unused-seats-banner">
+    <Alert variant="destructive" className="mb-6 border-destructive bg-destructive/10" data-cy="unused-seats-banner">
       <AlertTriangle />
       <AlertTitle>{t("settings.seats.unusedBanner.title", { count: unused })}</AlertTitle>
       <AlertDescription>
