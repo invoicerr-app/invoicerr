@@ -49,9 +49,60 @@ describe('extractInboxItemId', () => {
 });
 
 describe('BillitClient', () => {
+  // The outbound-URL guard short-circuits before any DNS lookup with this set, so the wire-contract
+  // tests below never touch the network. The guard itself is exercised with it OFF further down.
+  let previousAllowPrivate: string | undefined;
+  beforeEach(() => {
+    previousAllowPrivate = process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '1';
+  });
+
   afterEach(() => {
+    if (previousAllowPrivate === undefined) delete process.env.ALLOW_PRIVATE_OUTBOUND_URLS;
+    else process.env.ALLOW_PRIVATE_OUTBOUND_URLS = previousAllowPrivate;
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+  });
+
+  describe('outbound-URL guard on the tenant-supplied baseUrl', () => {
+    it.each([
+      'http://127.0.0.1:8080/v1',
+      'http://169.254.169.254/latest',
+      'http://10.0.0.5/v1',
+      'http://[::1]/v1',
+      'http://localhost/v1',
+    ])('refuses %s before any request is made, with a generic message', async (baseUrl) => {
+      process.env.ALLOW_PRIVATE_OUTBOUND_URLS = '0';
+      const fetchMock = stubFetch(200, '{"InboxItemID":1}');
+      const client = new BillitClient({ ...CREDENTIALS, baseUrl });
+
+      const send = client.sendPeppolXml('<Invoice/>');
+      await expect(send).rejects.toThrow(BillitApiError);
+      await expect(send).rejects.toThrow('Billit baseUrl failed outbound-URL validation.');
+      await expect(client.getParticipantInformation('0208:0563846944')).rejects.toThrow(
+        'Billit baseUrl failed outbound-URL validation.',
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('never follows a redirect and pins the connection to the address the guard checked', async () => {
+      const fetchMock = stubFetch(200, '{"InboxItemID":1}');
+      await new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>');
+      await new BillitClient(CREDENTIALS).getParticipantInformation('0208:0563846944').catch(() => undefined);
+
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(init.redirect).toBe('manual');
+        expect('dispatcher' in init).toBe(true);
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a redirect without echoing its body', async () => {
+      stubFetch(302, 'internal-secret-page');
+      const send = new BillitClient(CREDENTIALS).sendPeppolXml('<Invoice/>');
+      await expect(send).rejects.toThrow(/HTTP 302/);
+      await expect(send).rejects.not.toThrow(/internal-secret-page/);
+    });
   });
 
   describe('sendPeppolXml', () => {
