@@ -17,6 +17,11 @@ export function textOf(el: XmlElement | null): string | undefined {
   return text ? text : undefined;
 }
 
+/** Ceiling on any SdI XML this module parses: the 5 MB SDICoop attachment limit, also the cap
+ *  `sdi-notifiche.controller.ts` puts on a pushed notifica body. A notifica is a few KB, so anything
+ *  larger is refused before a DOM is ever built for it. */
+export const SDI_XML_MAX_BYTES = 5 * 1024 * 1024;
+
 export interface ParsedXml {
   doc: XmlDocument;
   errors: string[];
@@ -28,6 +33,9 @@ export interface ParsedXml {
  *  throws itself — the caller decides what "malformed" means for its own message. */
 export function parseXml(xml: string): ParsedXml {
   const errors: string[] = [];
+  if (Buffer.byteLength(xml, 'utf-8') > SDI_XML_MAX_BYTES) {
+    return { doc: undefined as unknown as XmlDocument, errors: [`document exceeds ${SDI_XML_MAX_BYTES} bytes`] };
+  }
   const parser = new DOMParser({
     onError: (level: string, message: string) => {
       if (level === 'error' || level === 'fatalError') errors.push(message);
