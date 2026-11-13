@@ -696,12 +696,15 @@ jobs:
     env:
       REDIS_URL: redis://localhost:6379
       WARNING__ENABLE_BILLING_FOR_USERS__WARNING: "true"
-      # Throwaway, non-functional values, not real secrets (`stripe-env.ts#assertStripeEnvConfiguredForBoot`):
-      # a `sk_test_` shaped key and a non-blank webhook secret let the backend boot; the plugin makes
+      # Throwaway, non-functional values, not real secrets (`stripe-env.ts#assertStripeEnvConfiguredForBoot`,
+      # `stripe-price-catalog.ts#readStripePriceCatalog`): a `sk_test_` shaped key, a non-blank webhook
+      # secret and two `price_` shaped ids for the standard plan let the backend boot; the plugin makes
       # no Stripe call at boot and neither spec this job runs starts a checkout (`76-seats.cy.ts`
       # writes the seat quantity through `cy.task`, standing in for a webhook).
       STRIPE_SECRET_KEY: sk_test_e2e_saas_lane_dummy_key
       STRIPE_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
+      STRIPE_PRICE_STANDARD_MONTHLY: price_e2e_saas_lane_standard_monthly
+      STRIPE_PRICE_STANDARD_YEARLY: price_e2e_saas_lane_standard_yearly
     services:
       postgres-test:
         image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657

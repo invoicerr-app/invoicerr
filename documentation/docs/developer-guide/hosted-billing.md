@@ -85,8 +85,8 @@ Stripe Billing is wired through the official `@better-auth/stripe` plugin, regis
 `backend/src/lib/auth.ts` only when `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` is set. The plugin
 owns checkout, the customer portal, webhook signature checks and the `subscription` table.
 
-- **Configuration**: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are required once billing is
-  enabled, and the backend refuses to boot without them. A live key is refused unless
+- **Configuration**: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the standard grid of the price
+  catalog below are required once billing is enabled, and the backend refuses to boot without them. A live key is refused unless
   `STRIPE_MODE=live`, so a deployment cannot charge real cards by accident.
 - **Webhook**: point a Stripe webhook endpoint at `<APP_URL>/api/auth/stripe/webhook`. Our own body
   parsers skip `/api/auth`, so the plugin reads the raw body it needs for the signature.
@@ -112,3 +112,13 @@ the total, so twelve seats are billed as 1 seat at the first tier, 3 at the seco
 To set up a test catalog, create four recurring prices in Stripe test mode, in EUR, with
 "Graduated pricing" and the three tiers above (up to 1, up to 4, then infinity), with each yearly
 amount at ten times the monthly one.
+
+### Plans
+
+Each configured grid becomes one plan of the plugin, named after the grid: `standard`, and `founder`
+when the founder grid is set. A plan's price is the grid's monthly price and its annual price the
+yearly one, so a checkout picks the interval with `annual: true`. The seat count is the subscription
+quantity; no plan carries a separate seat price.
+
+Nobody can check out on the `founder` plan yet: the plan exists so that a founder subscription maps
+back to it, and who keeps the founder grid is decided per company in a later step.
