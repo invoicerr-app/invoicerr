@@ -5,12 +5,13 @@ import { buildInvoiceDescriptor } from '@/modules/documents/descriptors/invoice.
 import { ROW_ID_KEY } from '@/modules/documents/row-selection/row-selection';
 import { computeSettlement } from '@/modules/documents/settlement/compute-settlement';
 import { computeDocumentTotals } from '@/modules/documents/totals/compute-totals';
+import { resolveInvoiceCrossBorderTax } from '@/modules/documents/tax/resolve-invoice-tax';
 
 import prisma from '@/prisma/prisma.service';
 import { companyLawMentions } from '@/modules/documents/company-law/company-law';
 
 import { createRng } from '../generators/rng';
-import { domesticCurrencyFor, seedCountryCompany } from './seed-company';
+import { DEMO_SEED_VAT_SOURCE, domesticCurrencyFor, seedCountryCompany } from './seed-company';
 
 vi.mock('@/prisma/prisma.service', () => ({
   default: {
@@ -194,5 +195,88 @@ describe('seedCountryCompany: company-law details', () => {
 
     expect(mentions.missing).toEqual([]);
     expect(mentions.lines.length).toBeGreaterThan(0);
+  });
+});
+
+describe('seedCountryCompany: the cross-border client is a verified business (#797)', () => {
+  it('a FR demo invoice of two services to its DE client is reverse-charged, even with VIES answering INVALID', async () => {
+    vi.mocked(prisma.partyIdentifier.create).mockClear();
+    // Stands in for `ClientsService.createClient` with VIES answering INVALID for every VAT number it
+    // is handed, which is what the real VIES says about a generated one.
+    const created: { id: string; countryCode: string; vat?: { value: string; validationStatus: string } }[] =
+      [];
+    const createClient = vi.fn(
+      async (
+        _companyId: string,
+        dto: { countryCode: string; identifiers: { scheme: string; value: string }[] },
+      ) => {
+        const vat = dto.identifiers.find((entry) => entry.scheme === 'VAT');
+        const id = `client-${created.length + 1}`;
+        created.push({
+          id,
+          countryCode: dto.countryCode,
+          vat: vat ? { value: vat.value, validationStatus: 'INVALID' } : undefined,
+        });
+        return { id };
+      },
+    );
+
+    await seedCountryCompany(
+      {
+        documentsService: fakeDocumentsService().service as never,
+        articlesService: { create: vi.fn() } as never,
+        clientsService: { createClient } as never,
+      },
+      {
+        userId: 'user-1',
+        userEmail: 'demo@example.test',
+        countryCode: 'FR',
+        rng: createRng('spec'),
+        now: new Date(),
+      },
+    );
+
+    const german = created.find((client) => client.countryCode === 'DE');
+    expect(german, 'the FR company has a DE client').toBeDefined();
+    // Never handed to the VIES-backed path...
+    expect(german?.vat).toBeUndefined();
+    // ...but written by the seed itself, as verified.
+    const vatRows = vi
+      .mocked(prisma.partyIdentifier.create)
+      .mock.calls.map(([args]) => (args as { data: Record<string, unknown> }).data)
+      .filter((data) => data.clientId === german?.id);
+    expect(vatRows).toEqual([
+      expect.objectContaining({
+        scheme: 'VAT',
+        validationStatus: 'VALID',
+        validationSource: DEMO_SEED_VAT_SOURCE,
+      }),
+    ]);
+
+    const result = resolveInvoiceCrossBorderTax({
+      seller: { countryCode: 'FR' },
+      buyer: { countryCode: 'DE' },
+      buyerVat: {
+        value: vatRows[0].value as string,
+        validationStatus: vatRows[0].validationStatus as string,
+      },
+      data: {
+        client: german?.id,
+        currency: 'EUR',
+        lines: [
+          { description: 'Consulting', quantity: 1, unitPrice: 1500, vatRate: '20', supplyType: 'SERVICES' },
+          { description: 'Training', quantity: 1, unitPrice: 600, vatRate: '20', supplyType: 'SERVICES' },
+        ],
+      },
+    });
+
+    const lines = result.data.lines as Record<string, unknown>[];
+    expect(lines.map((line) => [line.vatRate, line.__crossBorderCategory])).toEqual([
+      ['0', 'AE'],
+      ['0', 'AE'],
+    ]);
+    const mentions = result.data.__crossBorderMentions as { code: string }[];
+    expect(mentions.map((mention) => mention.code)).toContain('REVERSE_CHARGE');
+    expect(result.warnings).toEqual([]);
   });
 });
