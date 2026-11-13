@@ -1,13 +1,4 @@
-/**
- * The Prisma/mail-touching half of the billing lifecycle sweep — `lifecycle.ts` holds the pure
- * transition decision; this class applies it, the same "pure core, thin persistence shell" split
- * `currency-rate-sweep-runner.ts`/`conformity-sweep-runner.ts` already hold for their own sweeps.
- *
- * Registered as the ONE repeatable job on `billing.module.ts`'s own queue (`queue/billing-queue.constants.ts`,
- * consumed by `queue/billing-lifecycle.processor.ts`) — see `billing-queue.constants.ts`'s own header
- * for why billing gets its OWN queue rather than joining `Q_DOCUMENT_ACTION` (the documents module's
- * queue, always present regardless of the billing flag).
- */
+/** Applies the pure decisions from `lifecycle.ts`; the single repeatable job on the billing queue. */
 import { Injectable, Logger } from '@nestjs/common';
 
 import { runWithCompanyId } from '@/lib/request-context';
@@ -28,14 +19,9 @@ export interface RunBillingLifecycleSweepResult {
   processed: number;
   blocked: number;
   zipped: number;
-  /** Incremented only when the zip transition's OWN mail send failed — the subscription is left
-   *  untouched (still `BLOCKED`) for the next tick to retry, exactly like `currency-rate-sweep-runner`
-   *  leaves a pair `skipped` rather than guessing. */
+  /** Zip mail failed; the subscription stays `BLOCKED` for the next tick to retry. */
   zipFailed: number;
   deleted: number;
-  /** Incremented once per OWNER warning email actually sent this tick (`lifecycle.ts`'s own
-   *  `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1` milestones) — never twice for the same
-   *  milestone on the same subscription, see `CompanySubscription.billingWarningMilestonesSent`. */
   warningsSent: number;
 }
 
@@ -48,10 +34,7 @@ export class BillingLifecycleSweepRunner {
     private readonly mailService: MailService,
   ) {}
 
-  /** One sweep pass — never throws for a SINGLE subscription's failure (a mail-send hiccup, a
-   *  transiently unreachable DB row); only a fatal error reading the initial list propagates, the
-   *  same "one bad row must not sink the whole pass" discipline every other sweep in this codebase
-   *  already holds. */
+  /** Never throws for a single subscription's failure; only reading the initial list can fail. */
   async runSweep(now: Date = new Date()): Promise<RunBillingLifecycleSweepResult> {
     const subscriptions = await listAdvanceableCompanySubscriptions();
     const result: RunBillingLifecycleSweepResult = {
@@ -64,10 +47,7 @@ export class BillingLifecycleSweepRunner {
     };
 
     for (const sub of subscriptions) {
-      // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and every step below can
-      // reach a `Log` write several calls deep (`export-zip.service.ts` rendering a PDF, `MailService`
-      // sending the OWNER's export/warning email, `customer-sync.ts`'s own retry) that needs a company
-      // to be scoped correctly.
+      // No request context here, and deep `Log` writes need a company scope.
       await runWithCompanyId(sub.companyId, () => this.processOneSubscription(sub, now, result));
     }
 
@@ -91,10 +71,7 @@ export class BillingLifecycleSweepRunner {
     now: Date,
     result: RunBillingLifecycleSweepResult,
   ): Promise<void> {
-    // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
-    // `applyOne` below might advance its own status this same tick — see `lifecycle.ts`'s own header
-    // on `computeDueBillingWarnings` for why that never coincides with a real milestone in practice
-    // (a 7-or-1-day warning fires well inside a window, never at the exact transition boundary).
+    // Computed from the snapshot before `applyOne` may advance status this tick.
     try {
       await this.sendDueBillingWarnings(sub, now, result);
     } catch (error) {
@@ -144,9 +121,7 @@ export class BillingLifecycleSweepRunner {
           where: { companyId: sub.companyId, status: sub.status, lastBillingFactAt: sub.lastBillingFactAt },
           data: { status: 'BLOCKED', blockedAt: action.blockedAt },
         });
-        // count === 0: a webhook already moved this row past the snapshot this tick read — most
-        // commonly the OWNER just paid. Blocking a company that is current on its bill, from a read
-        // that is already known to be wrong, would be worse than doing nothing this tick.
+        // count === 0: a webhook moved the row on, most commonly because the owner just paid.
         if (count > 0) result.blocked++;
         return;
       }
@@ -156,10 +131,7 @@ export class BillingLifecycleSweepRunner {
 
         const sent = await this.sendZipToOwner(sub.companyId);
         if (!sent) {
-          // Left in BLOCKED, deliberately — the OWNER must actually receive their data before this
-          // company's status advances any further toward deletion. The next sweep tick retries the
-          // exact same `send_zip_and_enter_zipped` decision (blockedAt is untouched, so
-          // `lifecycle.ts` computes the identical action again).
+          // Stay in BLOCKED: the owner must receive their data before moving toward deletion.
           result.zipFailed++;
           return;
         }
@@ -179,9 +151,6 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** Re-reads the row fresh and reports whether it still matches the snapshot `sub` this tick's
-   *  decision was computed from — `false` means some other write (a webhook, almost always) already
-   *  moved it on, and whatever this tick was about to do next no longer applies. */
   private async matchesCurrentSnapshot(sub: CompanySubscription): Promise<boolean> {
     const fresh = await prisma.companySubscription.findUnique({
       where: { companyId: sub.companyId },
@@ -191,11 +160,7 @@ export class BillingLifecycleSweepRunner {
     return fresh.status === sub.status && sameInstant(fresh.lastBillingFactAt, sub.lastBillingFactAt);
   }
 
-  /** Builds the export and mails it to the company's OLDEST `OWNER` membership (deterministic when a
-   *  company has more than one owner — "the OWNER" in the singular, per the product brief). Returns
-   *  `false` (never throws) when no owner exists at all (should not normally happen — every company
-   *  has at least one, `assertNotLastOwner`) or the mail send itself failed (e.g. `sendForCompany`'s
-   *  own named refusal when neither the company nor the instance has a configured mail server). */
+  /** Returns `false` (never throws) when there is no owner or the export/send fails. */
   private async sendZipToOwner(companyId: string): Promise<boolean> {
     const owner = await this.findOldestOwner(companyId);
 
@@ -215,12 +180,7 @@ export class BillingLifecycleSweepRunner {
       });
       return true;
     } catch (error) {
-      // `ExportZipTooLargeError`/`ExportZipTimedOutError` are named on purpose (`export-zip.service.ts`'s
-      // own header): an operator reading this log line can tell "this company's data is too big for an
-      // email attachment" apart from a transient mail-server or rendering outage, which is exactly what
-      // an opaque `error.message` from a generic failure could not distinguish before. Either way this
-      // is still a single company's failure — caught HERE, never propagated past `sendZipToOwner`, so
-      // the sweep loop in `runSweep` moves on to the next company regardless of which kind this was.
+      // Size/time bound errors are logged distinctly from transient mail or rendering outages.
       const isBoundedFailure =
         error instanceof ExportZipTooLargeError || error instanceof ExportZipTimedOutError;
       this.logger.error(
@@ -233,12 +193,7 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** The company's OLDEST `OWNER` membership's own email, and the language they should be addressed
-   *  in — `null` when the company somehow has none (should not normally happen, `assertNotLastOwner`).
-   *  Shared by `sendZipToOwner` and `sendDueBillingWarnings` below — both address the SAME "the OWNER"
-   *  in the singular, in THEIR own resolved language (`resolveUserLanguage`, the same personal-then-
-   *  company-then-English chain every other system mail in this codebase now uses) rather than the
-   *  instance-wide English default this file hardcoded before `User.locale` existed. */
+  /** Oldest owner, so "the owner" is deterministic when a company has several. */
   private async findOldestOwner(
     companyId: string,
   ): Promise<{ email: string; language: ReturnType<typeof resolveUserLanguage> } | null> {
@@ -255,14 +210,8 @@ export class BillingLifecycleSweepRunner {
   }
 
   /**
-   * Sends any OWNER warning email whose milestone is due (`lifecycle.ts#computeDueBillingWarnings`)
-   * and has not already gone out (`sub.billingWarningMilestonesSent`) — through the INSTANCE's own
-   * mail provider (`MailService#sendMail`, never `sendForCompany`, see `system-email-templates.ts`'s
-   * own header on why). Each milestone is appended to `billingWarningMilestonesSent` right after it is
-   * actually sent, one at a time, so a mid-loop failure never marks a milestone sent that never
-   * reached anyone; a milestone already in that array is never recomputed as due a second time
-   * (`computeDueBillingWarnings` itself has no memory of what was already sent — this is the ONE place
-   * that checks).
+   * Sends through the instance mail provider (`sendMail`, not `sendForCompany`). Each milestone is
+   * recorded right after its own send so a mid-loop failure never marks an unsent one as sent.
    */
   private async sendDueBillingWarnings(
     sub: CompanySubscription,
@@ -299,7 +248,7 @@ export class BillingLifecycleSweepRunner {
         this.logger.error(`Billing warning mail (${milestone}) failed for company ${sub.companyId}`, {
           error: error instanceof Error ? error.message : String(error),
         });
-        continue; // never marked sent — the next tick retries THIS milestone specifically.
+        continue; // not marked sent, so the next tick retries this milestone.
       }
 
       await prisma.companySubscription.update({

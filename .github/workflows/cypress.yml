@@ -665,6 +665,8 @@ jobs:
       # would fail two of the three uploads - the same per-leg naming scenarios.yml already uses.
       - name: Upload backend logs
         if: always() && steps.scope.outputs.needed == 'true'
+        # Diagnostics only: an artifact storage outage must not turn green tests red.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-shard-${{ matrix.shard }}
@@ -672,6 +674,7 @@ jobs:
 
       - name: Upload Cypress videos and screenshots
         if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cypress-videos-screenshots-shard-${{ matrix.shard }}
@@ -848,6 +851,7 @@ jobs:
 
       - name: Upload backend logs (SaaS lane)
         if: always() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-saas
@@ -855,6 +859,7 @@ jobs:
 
       - name: Upload Cypress videos and screenshots (SaaS lane)
         if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cypress-videos-screenshots-saas
@@ -1032,6 +1037,7 @@ jobs:
 
       - name: Upload backend logs (demo lane)
         if: always() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-demo
@@ -1039,6 +1045,7 @@ jobs:
 
       - name: Upload Cypress videos and screenshots (demo lane)
         if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cypress-videos-screenshots-demo

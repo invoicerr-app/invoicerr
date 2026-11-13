@@ -1,7 +1,5 @@
 /**
- * The real, cascading deletion `billing-lifecycle-sweep-runner.ts` runs once a `ZIPPED`
- * subscription's own grace period elapses (`lifecycle.ts`'s `delete_company` action), the terminal
- * step of both cycles that file's own header describes.
+ * Permanent company deletion, for both the billing sweep and the owner's manual delete.
  *
  * Almost every relation onto `Company` in `schema.prisma` is `onDelete: Cascade` (verified directly:
  * of the 32 `<field> Company @relation(...)` lines in the schema, 31 carry it), so
@@ -78,14 +76,7 @@ function isStillDueForDeletion(
 }
 
 /**
- * `now` defaults to the real clock but is always passed explicitly by this function's one real
- * caller (`billing-lifecycle-sweep-runner.ts`), the SAME `now` its own sweep tick started from, so
- * the guard below re-checks against the exact instant that tick's `computeLifecycleTransition` call
- * already decided this company was due, never a slightly later clock read that could itself disagree.
- *
- * Returns whether the company was actually deleted, `false` when the guard below found the row no
- * longer eligible (see this function's own header on why a stale read must never drive an
- * irreversible delete), so the caller can count/log accurately instead of assuming success.
+ * Returns `false` when the row is no longer due: the caller's snapshot can be a whole sweep pass old.
  */
 export async function deleteCompanyPermanently(companyId: string, now: Date = new Date()): Promise<boolean> {
   const sub = await prisma.companySubscription.findUnique({
@@ -93,11 +84,6 @@ export async function deleteCompanyPermanently(companyId: string, now: Date = ne
     select: { status: true, deletionDueAt: true },
   });
 
-  // A webhook can flip this company back to a live, paying state at ANY point between the sweep
-  // reading its own snapshot (possibly a full pass, thousands of rows, ago) and this function
-  // actually running: DELETION IS IRREVERSIBLE, so a stale decision is refused outright rather than
-  // trusted, the same discipline the CAS writes in `billing-lifecycle-sweep-runner.ts#applyOne` hold
-  // for their own (recoverable) transitions.
   if (!isStillDueForDeletion(sub, now)) return false;
 
   // A ZIPPED company has usually stopped paying long ago, but a subscription left `unpaid` or
@@ -115,8 +101,7 @@ export async function deleteCompanyPermanently(companyId: string, now: Date = ne
     });
     if (!isStillDueForDeletion(fresh, now)) return null;
 
-    // AFTER the guard above, never before it: a journal naming a company this transaction turns
-    // around and does NOT delete would send the drain below after a LIVE company's own archives.
+    // Journal only after the guard, or the drain could erase a live company's archives.
     await journalCompanyStorageObjects(tx, companyId);
     await tx.webhook.deleteMany({ where: { companyId } });
     const memberIds = await companyMemberIds(tx, companyId);
@@ -124,9 +109,7 @@ export async function deleteCompanyPermanently(companyId: string, now: Date = ne
     return memberIds;
   });
 
-  // Only once the rows are really gone, and never inside the transaction: object storage has no
-  // rollback, so bytes deleted under a transaction that later aborts are simply lost. Never throws —
-  // whatever it could not erase stays in the journal for an operator (see its own header).
+  // Drain only after commit: object storage has no rollback. Never throws.
   if (!members) return false;
   await sessionCache.invalidateUsers(members);
   await drainStorageErasureJournal({ companyId, now });
@@ -153,9 +136,6 @@ export async function deleteCompanyPermanentlyNow(companyId: string): Promise<vo
   await cancelCompanyStripeSubscriptions(companyId);
 
   const members = await prisma.$transaction(async (tx) => {
-    // The inventory of this company's stored bytes, taken in the same commit that removes the rows
-    // pointing at them, see this file's own header, and `company-storage-erasure.ts`'s, for why the
-    // order is inventory → rows → objects and not any of the two obvious alternatives.
     await journalCompanyStorageObjects(tx, companyId);
     await tx.webhook.deleteMany({ where: { companyId } });
     const memberIds = await companyMemberIds(tx, companyId);
@@ -164,7 +144,6 @@ export async function deleteCompanyPermanentlyNow(companyId: string): Promise<vo
   });
 
   await sessionCache.invalidateUsers(members);
-  // Post-commit, best effort, never throwing: this function's callers report "nothing was deleted"
-  // when it throws (`danger.service.ts#deleteCompany`), and by this point that would be a lie.
+  // Must not throw: callers report "nothing was deleted" on error, which would be false by now.
   await drainStorageErasureJournal({ companyId });
 }

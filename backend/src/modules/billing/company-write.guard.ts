@@ -35,8 +35,7 @@ import { RequestWithUser } from '@/types/request';
 import { assertUserHasSeatOrThrow } from './seat-gate';
 import { assertCompanyWritable } from './write-gate';
 
-/** HTTP methods this guard never gates — read-only by construction. Checked case-sensitively against
- *  `request.method`, which Express/Nest always report upper-case. */
+/** Compared case-sensitively; Express/Nest report `request.method` upper-case. */
 const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 @Injectable()
