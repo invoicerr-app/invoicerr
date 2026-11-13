@@ -33,6 +33,7 @@ import {
 import { recordLegalAcceptance } from '../legal/legal-acceptance';
 import { REQUIRED_ACCEPTANCE_SLUGS } from '../legal/legal-documents';
 import { isBillingEnabled } from '../modules/billing/billing-flag';
+import { buildStripePlugin } from '../modules/billing/stripe-plugin';
 import {
   SoleOwnerError,
   assertNotSoleOwner,
@@ -366,6 +367,14 @@ const userAfterCreateHook = async (user, context) => {
 const SESSION_REFRESH_FIELDS = new Set(['expiresAt', 'updatedAt']);
 const sessionUpdatesToInvalidate = new WeakSet<object>();
 
+const stripePlugin = buildStripePlugin(async (userId, companyId) => {
+  const membership = await prisma.userCompany.findUnique({
+    where: { userId_companyId: { userId, companyId } },
+    select: { role: true },
+  });
+  return membership?.role ?? null;
+});
+
 export const auth = betterAuth({
   baseURL: appOrigin(),
   // Fall back to JWT_SECRET so existing deployments that only set it keep working
@@ -620,6 +629,7 @@ export const auth = betterAuth({
     // registered — but it is now expressed ONCE, as the same fact the frontend reads, instead of
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
+    ...(stripePlugin ? [stripePlugin] : []),
     // Hosted billing (product decision 2026-09-15, moved to per-COMPANY Polar customers 2026-09-16 —
     // option A) no longer mounts anything HERE at all: `@polar-sh/better-auth`'s own `checkout()`/
     // `portal()` hard-code `externalCustomerId: session.user.id` with no way to override it, which is

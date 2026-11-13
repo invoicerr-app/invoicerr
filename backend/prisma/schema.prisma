@@ -1381,6 +1381,8 @@ model User {
   legalDocumentReleaseNotifications LegalDocumentReleaseNotification[]
 
   @@unique([email])
+  stripeCustomerId String?
+
   @@map("user")
 }
 
@@ -3700,3 +3702,29 @@ model BackupRun {
 }
 
 // ======= END OF INSTANCE FILE BACKUP ======= //
+
+// Owned by the @better-auth/stripe plugin: one row per Stripe subscription, `referenceId` is the
+// company it bills.
+model Subscription {
+  id                   String    @id
+  plan                 String
+  referenceId          String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               String    @default("incomplete")
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean?  @default(false)
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  endedAt              DateTime?
+  seats                Int?
+  billingInterval      String?
+  stripeScheduleId     String?
+
+  @@index([referenceId])
+  @@index([stripeSubscriptionId])
+  @@map("subscription")
+}
