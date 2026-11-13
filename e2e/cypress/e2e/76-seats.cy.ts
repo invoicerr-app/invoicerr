@@ -248,5 +248,73 @@ describe('Settings > Seats', () => {
 				expect(moved!.seatIndex).to.eq(3);
 			});
 		});
+
+		// Product decision 2026-11-13: "1 user in 1 company = 1 seat". More seats than members: a red
+		// banner for OWNER/ADMIN. Fewer seats than members: the most recent members are blocked
+		// entirely, reads included, and only see the "not enough seats" screen.
+		it('shows the OWNER a red banner in Settings while a paid seat is unused', function () {
+			if (!saasMode) this.skip();
+
+			// Two members (John, Mia) on the three seats the previous test bought.
+			cy.login();
+			cy.visit('/settings/company');
+			cy.get('[data-cy="unused-seats-banner"]', { timeout: 15000 })
+				.should('be.visible')
+				.and('contain.text', '1 seat is paid for but unused')
+				.and('contain.text', 'pays for 3 seats and has 2 members');
+		});
+
+		it('blocks the most recent member entirely, reads included, once seats drop below members', function () {
+			if (!saasMode) this.skip();
+
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 1 });
+
+			cy.clearCookies();
+			cy.visit('/auth/sign-in');
+			cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(MEMBER_EMAIL);
+			cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+			cy.get('[data-cy="auth-submit-btn"]').click();
+
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 })
+				.should('be.visible')
+				.and('contain.text', "Your company doesn't have enough seats");
+			cy.get('[data-cy="not-enough-seats-sign-out"]').should('be.visible');
+			cy.get('[data-cy="settings-nav"]').should('not.exist');
+
+			// The API refuses every read on the company, not just writes.
+			for (const path of ['/api/clients', '/api/billing/seats', '/api/company/info']) {
+				cy.request({ url: `${api}${path}`, failOnStatusCode: false }).then((response) => {
+					expect(response.status, path).to.eq(403);
+					expect(response.body.code, path).to.eq('SEAT_REQUIRED');
+				});
+			}
+			// The legal routes are about the user, never the company: still reachable.
+			cy.request(`${api}/api/legal/status`).its('status').should('eq', 200);
+		});
+
+		it('keeps the OWNER working, with no unused-seat banner, while a member is blocked', function () {
+			if (!saasMode) this.skip();
+
+			cy.login();
+			cy.visit('/settings/company');
+			cy.get('[data-cy="settings-nav"]', { timeout: 15000 }).should('be.visible');
+			cy.get('[data-cy="not-enough-seats-screen"]').should('not.exist');
+			cy.get('[data-cy="unused-seats-banner"]').should('not.exist');
+		});
+
+		it('gives the blocked member access back once a seat is bought again', function () {
+			if (!saasMode) this.skip();
+
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 2 });
+
+			cy.clearCookies();
+			cy.visit('/auth/sign-in');
+			cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(MEMBER_EMAIL);
+			cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+			cy.get('[data-cy="auth-submit-btn"]').click();
+			cy.url({ timeout: 20000 }).should('include', '/dashboard');
+			cy.get('[data-cy="not-enough-seats-screen"]').should('not.exist');
+			cy.request(`${api}/api/clients`).its('status').should('eq', 200);
+		});
 	});
 });

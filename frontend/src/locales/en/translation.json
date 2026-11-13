@@ -3184,6 +3184,12 @@
       "noFreeSeatNotice": {
         "title": "No free seat: free one or buy more",
         "link": "Open Settings > Seats"
+      },
+      "unusedBanner": {
+        "title": "{{count}} seats are paid for but unused",
+        "title_one": "1 seat is paid for but unused",
+        "description": "Your company pays for {{seats}} seats and has {{members}} members. Lower the seat quantity in Billing, or invite someone to use them.",
+        "manage": "Manage billing"
       }
     },
     "sso": {
@@ -6038,9 +6044,10 @@
     }
   },
   "seatGate": {
-    "title": "Waiting for a seat",
-    "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one or buy more seats, and you'll get one back automatically.",
-    "description": "There's no free seat for you right now. Ask your company's owner to free one or buy more seats, and you'll get one back automatically.",
+    "notEnoughSeats": {
+      "title": "Your company doesn't have enough seats",
+      "description": "Every member needs a seat, and your company has more members than seats right now. Ask an owner or admin to buy more seats or to free one. You'll get access back automatically."
+    },
     "signOut": "Sign out",
     "errorTitle": "Couldn't check your seat",
     "errorDescription": "We couldn't confirm your access to this company right now. This is usually temporary — try again in a moment."

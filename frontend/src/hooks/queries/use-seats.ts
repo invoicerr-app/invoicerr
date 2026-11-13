@@ -26,8 +26,9 @@ export interface SeatsView {
 }
 
 /**
- * `GET /api/billing/seats`. Open to every company member: a WAITING member needs it to render the
- * waiting screen (`(app)/_layout.tsx`). Billing disabled answers 404, kept as `null`: a query that
+ * `GET /api/billing/seats`. Open to every company member who holds a seat; a member with no seat gets
+ * `403 { code: SEAT_REQUIRED }`, which `(app)/_layout.tsx` turns into the "not enough seats" screen.
+ * Billing disabled answers 404, kept as `null`: a query that
  * holds no data goes back to `pending` on every focus refetch, which the shell's seat gate would read
  * as a first load and unmount the whole page.
  */
