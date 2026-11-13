@@ -1,8 +1,4 @@
-/**
- * The pure shape of `GET /api/billing/status` — split out from `billing.controller.ts` so the
- * "which date does 'days remaining' count down to, per status" decision is testable without booting
- * Nest (the same "pure core, thin controller shell" split every other billing file holds).
- */
+/** Pure shape of `GET /api/billing/status`, testable without booting Nest. */
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { CompanyCustomerFacts } from './legacy-customer';
 import { addDays, BLOCKED_DAYS } from './lifecycle';
@@ -10,11 +6,7 @@ import { paidThroughEndOfDay } from './paid-period-grace';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Whole days remaining until `target`, floored at 0 (never negative — a boundary already passed
- *  reads as "0 days left", not a confusing negative countdown; the lifecycle SWEEP, not this display
- *  value, is what actually advances the status once that happens). Rounds UP (`ceil`) so "23 hours
- *  left" reads as "1 day", not "0 days" — the more honest direction to round a countdown a human is
- *  about to act on. */
+/** Floored at 0, rounded up so "23 hours left" reads as 1 day. */
 function daysUntil(target: Date, now: Date): number {
   return Math.max(0, Math.ceil((target.getTime() - now.getTime()) / DAY_MS));
 }
@@ -24,46 +16,21 @@ export interface BillingStatusView {
   seats: number;
   interval: CompanySubscription['interval'];
   trialEndsAt: string;
-  /** Counts down to whatever date NEXT matters for the CURRENT status — trial's own end, blocked's
-   *  own 14-day zip deadline, zipped's own deletion date. `null` for ACTIVE (a paying company with
-   *  nothing counting down) and for a defensively-incomplete row (e.g. BLOCKED with no `blockedAt`,
-   *  which should never happen). For PAST_DUE it counts down to the end of the period the company has
-   *  ALREADY PAID FOR — the very date `lifecycle.ts`'s own `PAST_DUE` branch will block it on — so the
-   *  screen states the real deadline a customer whose card was refused has to fix it, rather than
-   *  understating it. `0`, never `null`, once (or when) no paid period is left: `past_due` carries no
-   *  window of its own beyond what was bought, so the block lands on the very next sweep tick, and
-   *  `null` would read as "nothing urgent" to a company that can be locked out within the hour; `0`
-   *  reuses the same "day(s) remaining" wording the screen already renders for every other status. */
+  /** Counts down to the next boundary for the current status; `null` for ACTIVE or an incomplete row.
+   *  For PAST_DUE it is the end of the paid period, and `0` (not `null`) once none is left, since the
+   *  block lands on the next sweep tick and `null` would read as nothing urgent. */
   daysRemaining: number | null;
-  /** This app's OWN route (`billing.controller.ts`'s `POST /billing/checkout`) — not a link this
-   *  controller can meaningfully "generate": the frontend supplies its own `slug`/`successUrl`/
-   *  `returnUrl` in the request body, and the ACTIVE COMPANY is resolved server-side
-   *  (`@ActiveCompany()`), never from a client-supplied id (option A, `checkout-session.ts`'s own
-   *  header). */
+  /** This app's own route; the active company is resolved server-side, never from the client. */
   checkoutUrl: string;
-  /** This app's OWN route (`billing.controller.ts`'s `POST /billing/portal`) — NOT better-auth's own
-   *  `/api/auth/customer/portal`, which cannot open a session for this product's TEAM customers (see
-   *  `portal-session.ts`'s header). */
+  /** This app's own route, not better-auth's portal, which cannot serve team customers. */
   portalUrl: string;
-  /** `true` only when this company is `PAST_DUE` AND its OWN `seatPaymentFailedAt` is the reason —
-   *  `seat-sync.ts`'s own header on the recognized Polar `PaymentError`/`PaymentFailed` refusal a seat
-   *  INCREASE's immediate-proration charge can get back. Lets the Billing page say "the payment for
-   *  the extra seat you added failed" instead of the generic "your subscription is past due" — but
-   *  ONLY while that really is still the most likely explanation: a company that fell PAST_DUE for an
-   *  entirely different reason (the whole subscription lapsed) AFTER a stale, unrelated seat failure
-   *  from days earlier must not show a misleading, out-of-date cause. */
+  /** PAST_DUE because a seat increase's proration charge failed, and no newer Polar fact has landed
+   *  since, so a stale seat failure never masks an unrelated, more recent cause. */
   seatPaymentFailureExplainsStatus: boolean;
-  /** `true` when this company already has its OWN, company-scoped Polar customer (`legacy-customer.ts`'s
-   *  own `getCompanyCustomerFacts`) — `false` for a company that has never touched billing yet (a fresh
-   *  TRIAL, or one `customer-provisioning.ts`'s boot/sweep sync has not yet reached or could not create
-   *  a customer for, e.g. a taken billing email). `billing.settings.tsx` uses this to decide whether
-   *  "Manage subscription" can even be shown — a concrete 2026-09-16 dev-instance incident proved a
-   *  company WITHOUT one still saw that button, and clicking it surfaced `portal-session.ts`'s own raw
-   *  `PolarCustomerNotFoundError` message verbatim instead of a translated notice. */
+  /** Whether the company has its own Polar customer; gates the "Manage subscription" button. */
   hasCompanyCustomer: boolean;
-  /** `true` when this company's stored subscription still points at the pre-2026-09-16 per-USER Polar
-   *  customer (`legacy-customer.ts`'s own header) rather than this company's own. There is no automatic
-   *  migration — the settings screen shows a plain re-subscribe notice instead of trying. */
+  /** The stored subscription still points at a pre-migration per-user customer; there is no automatic
+   *  migration, so the screen asks to re-subscribe. */
   legacySubscription: boolean;
 }
 
@@ -76,8 +43,7 @@ export function computeBillingStatusView(
   if (sub.status === 'TRIAL') {
     daysRemaining = daysUntil(sub.trialEndsAt, now);
   } else if (sub.status === 'PAST_DUE') {
-    // The SAME boundary the sweep suspends on, never a second definition of it — see this view's own
-    // field comment, and `paid-period-grace.ts` for why that boundary is a calendar day.
+    // The same boundary the sweep suspends on; see `paid-period-grace.ts` for why it is a calendar day.
     const paidThrough = paidThroughEndOfDay(sub.currentPeriodEnd);
     daysRemaining = paidThrough === null ? 0 : daysUntil(paidThrough, now);
   } else if (sub.status === 'BLOCKED' && sub.blockedAt) {
@@ -86,10 +52,7 @@ export function computeBillingStatusView(
     daysRemaining = daysUntil(sub.deletionDueAt, now);
   }
 
-  // The seat failure only still EXPLAINS the current PAST_DUE status if no NEWER general Polar fact
-  // (a webhook, or a `status-reconcile.ts` repair read — both stamp `lastPolarFactAt`) has landed
-  // since — see this view's own field comment on why a stale seat-specific reason must not survive an
-  // unrelated, more recent cause.
+  // A seat failure only explains PAST_DUE if no newer general Polar fact has landed since.
   const seatPaymentFailureExplainsStatus =
     sub.status === 'PAST_DUE' &&
     sub.seatPaymentFailedAt !== null &&

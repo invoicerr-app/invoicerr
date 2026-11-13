@@ -1,24 +1,14 @@
 /**
- * `Company.billingEmail` read/write — its OWN small seam (like `iban`'s own dedicated write path,
- * `schema.prisma`'s own comment on that column), not folded into `company.service.ts#editCompanyInfo`
- * /`EditCompanyDto`: this field is meaningless outside hosted billing, so it belongs in the
- * billing module (flag-gated, `billing.controller.ts`'s own `PUT /billing/billing-email`) rather than
- * the always-registered company-info endpoint.
- *
- * Never talks to Polar itself — a duplicate-email refusal can only be discovered at CHECKOUT time
- * (`billing-customer.ts`'s own `BillingEmailTakenError`), once Polar is actually asked to create the
- * customer; saving this field alone is a plain, always-successful local write.
+ * `Company.billingEmail` lives in the billing module, not in `editCompanyInfo`, because it is
+ * meaningless outside hosted billing. Duplicate-email conflicts only surface at checkout time.
  */
 import prisma from '@/prisma/prisma.service';
 
 import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 
 export interface BillingEmailView {
-  /** The raw override, or `null` when the company has never set one (falls back to its own contact
-   *  `email` — see `billing-customer.ts#resolveBillingEmail`). */
+  /** `null` means no override; billing falls back to the company contact email. */
   billingEmail: string | null;
-  /** The company's own contact email, shown alongside so the settings screen can display "currently
-   *  billing under: X" without a second query. */
   companyEmail: string;
 }
 
@@ -30,9 +20,7 @@ export async function getCompanyBillingEmail(companyId: string): Promise<Billing
   return { billingEmail: company.billingEmail, companyEmail: company.email };
 }
 
-/** `billingEmail: null` (or an all-whitespace string) clears the override back to "use the company's
- *  own contact email" — never stored as an empty string, so `resolveBillingEmail`'s own
- *  `override ? override : company.email` fallback stays the single place this decision is made. */
+/** Blank input is stored as `null`, never `''`, so `resolveBillingEmail` stays the only fallback logic. */
 export async function setCompanyBillingEmail(
   companyId: string,
   billingEmail: string | null,
@@ -44,10 +32,7 @@ export async function setCompanyBillingEmail(
     select: { name: true, email: true, billingEmail: true },
   });
 
-  // The resolved billing email (this override, once set, wins over the plain contact email — see
-  // `resolveBillingEmail`'s own header) is exactly what a company's Polar CUSTOMER should show —
-  // pushed here too, not only from `editCompanyInfo`, since this is its own separate write path (this
-  // file's own header on why). Best-effort, never blocks this write — see `customer-sync.ts`.
+  // This is a separate write path from `editCompanyInfo`, so the Polar customer must be synced here too.
   await syncPolarCustomerOnCompanyChange(companyId, company);
 
   return { billingEmail: company.billingEmail, companyEmail: company.email };

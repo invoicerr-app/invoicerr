@@ -1,13 +1,4 @@
-/**
- * The Prisma/mail-touching half of the billing lifecycle sweep — `lifecycle.ts` holds the pure
- * transition decision; this class applies it, the same "pure core, thin persistence shell" split
- * `currency-rate-sweep-runner.ts`/`conformity-sweep-runner.ts` already hold for their own sweeps.
- *
- * Registered as the ONE repeatable job on `billing.module.ts`'s own queue (`queue/billing-queue.constants.ts`,
- * consumed by `queue/billing-lifecycle.processor.ts`) — see `billing-queue.constants.ts`'s own header
- * for why billing gets its OWN queue rather than joining `Q_DOCUMENT_ACTION` (the documents module's
- * queue, always present regardless of the billing flag).
- */
+/** Applies the pure decisions from `lifecycle.ts`; the single repeatable job on the billing queue. */
 import { Injectable, Logger } from '@nestjs/common';
 
 import { runWithCompanyId } from '@/lib/request-context';
@@ -31,36 +22,15 @@ export interface RunBillingLifecycleSweepResult {
   processed: number;
   blocked: number;
   zipped: number;
-  /** Incremented only when the zip transition's OWN mail send failed — the subscription is left
-   *  untouched (still `BLOCKED`) for the next tick to retry, exactly like `currency-rate-sweep-runner`
-   *  leaves a pair `skipped` rather than guessing. */
+  /** Zip mail failed; the subscription stays `BLOCKED` for the next tick to retry. */
   zipFailed: number;
   deleted: number;
-  /** Incremented once per ACTIVE, subscribed company whose seat count had actually drifted from
-   *  Polar's own subscription and was just corrected — see `seat-reconcile.ts`'s own header. Zero on
-   *  a tick where every count already matched, which is the overwhelming common case. */
   seatsReconciled: number;
-  /** Incremented once per company whose Polar CUSTOMER name/email push had failed at write time
-   *  (`customer-sync.ts`) and was just retried successfully on this tick. */
   customerSyncRetried: number;
-  /** Incremented once per OWNER warning email actually sent this tick (`lifecycle.ts`'s own
-   *  `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1` milestones) — never twice for the same
-   *  milestone on the same subscription, see `CompanySubscription.billingWarningMilestonesSent`. */
   warningsSent: number;
-  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass — every company
-   *  (not just the ones this sweep otherwise walks, since a company can exist with no
-   *  `CompanySubscription` row at all yet) checked for its own Polar customer, one created where
-   *  missing. Covers a company created AFTER boot, or whose creation attempt failed earlier (a
-   *  transient Polar outage — a duplicate billing email is NOT retried here, see that module's own
-   *  header). `undefined` when the pass itself failed outright (never thrown into the rest of the
-   *  sweep — see `runSweep`'s own try/catch around this step). */
+  /** `undefined` when the provisioning pass itself failed. */
   customersProvisioned?: number;
-  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass's own `skipped`
-   *  count — a company with neither `Company.billingEmail` nor `Company.email` set, so Polar would
-   *  refuse the create outright (that module's own header). Distinct from `customersProvisioned`
-   *  (created only): surfaced separately so an operator reading the log line can tell "nothing to do"
-   *  apart from "some companies are stuck on a data problem only a human can fix (set an email)".
-   *  `undefined` when the provisioning pass itself failed outright, same as `customersProvisioned`. */
+  /** Companies with no email at all, which Polar refuses; these need a human to fix the data. */
   customersSkipped?: number;
 }
 
@@ -73,10 +43,7 @@ export class BillingLifecycleSweepRunner {
     private readonly mailService: MailService,
   ) {}
 
-  /** One sweep pass — never throws for a SINGLE subscription's failure (a mail-send hiccup, a
-   *  transiently unreachable DB row); only a fatal error reading the initial list propagates, the
-   *  same "one bad row must not sink the whole pass" discipline every other sweep in this codebase
-   *  already holds. */
+  /** Never throws for a single subscription's failure; only reading the initial list can fail. */
   async runSweep(now: Date = new Date()): Promise<RunBillingLifecycleSweepResult> {
     const subscriptions = await listAdvanceableCompanySubscriptions();
     const result: RunBillingLifecycleSweepResult = {
@@ -90,13 +57,8 @@ export class BillingLifecycleSweepRunner {
       warningsSent: 0,
     };
 
-    // Company-WIDE, deliberately outside the per-subscription loop below: a company created after the
-    // last boot (or whose creation attempt failed then, e.g. a transient Polar outage) has no
-    // `CompanySubscription` row to be walked by that loop at all yet, but still needs its own Polar
-    // customer — `reconcileMissingCompanyCustomers` reads `Company` directly, not this sweep's own
-    // subscription list. Own try/catch, same "one failure must never sink the rest of this pass"
-    // discipline every step in this method already holds — a Polar outage here must not skip the
-    // status transitions, seat reconciliation, or warning mails below.
+    // Outside the per-subscription loop: new companies may have no subscription row yet but still need
+    // a Polar customer. Own try/catch so a Polar outage does not skip the steps below.
     try {
       const provisioned = await reconcileMissingCompanyCustomers();
       result.customersProvisioned = provisioned.created;
@@ -121,10 +83,7 @@ export class BillingLifecycleSweepRunner {
     }
 
     for (const sub of subscriptions) {
-      // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and every step below can
-      // reach a `Log` write several calls deep (`export-zip.service.ts` rendering a PDF, `MailService`
-      // sending the OWNER's export/warning email, `customer-sync.ts`'s own retry) that needs a company
-      // to be scoped correctly.
+      // No request context here, and deep `Log` writes need a company scope.
       await runWithCompanyId(sub.companyId, () => this.processOneSubscription(sub, now, result));
     }
 
@@ -140,20 +99,12 @@ export class BillingLifecycleSweepRunner {
     return result;
   }
 
-  /**
-   * The four independent per-subscription steps `runSweep`'s own loop used to inline directly — pulled
-   * out into their own method so `runWithCompanyId` (see that call site's own comment) wraps all four
-   * as one unit, without the loop body itself needing to know anything about company context.
-   */
   private async processOneSubscription(
     sub: CompanySubscription,
     now: Date,
     result: RunBillingLifecycleSweepResult,
   ): Promise<void> {
-    // Computed from the subscription as read at the TOP of this iteration, deliberately BEFORE
-    // `applyOne` below might advance its own status this same tick — see `lifecycle.ts`'s own header
-    // on `computeDueBillingWarnings` for why that never coincides with a real milestone in practice
-    // (a 7-or-1-day warning fires well inside a window, never at the exact transition boundary).
+    // Computed from the snapshot before `applyOne` may advance status this tick.
     try {
       await this.sendDueBillingWarnings(sub, now, result);
     } catch (error) {
@@ -171,9 +122,7 @@ export class BillingLifecycleSweepRunner {
       );
     }
 
-    // A separate try/catch, deliberately: a failure here must never re-run (or skip) the status
-    // transition above for the SAME company, and vice versa — the two are independent concerns
-    // sharing only the subscription row read at the top of this loop.
+    // Independent try/catch so seat failures and status transitions never affect each other.
     if (sub.status === 'ACTIVE') {
       try {
         const reconciled = await reconcileCompanySeats(sub);
@@ -186,9 +135,7 @@ export class BillingLifecycleSweepRunner {
       }
     }
 
-    // Same independence: a company's Polar CUSTOMER push (name/email) is unrelated to its own
-    // status transition or seat count — retried here only when the LAST attempt
-    // (`customer-sync.ts`, fired inline from `company.service.ts`/`billing-email.ts`) failed.
+    // Retried only when the last inline push (`customer-sync.ts`) failed.
     if (sub.customerSyncFailedAt) {
       try {
         const retried = await this.retryCustomerSync(sub.companyId);
@@ -203,19 +150,9 @@ export class BillingLifecycleSweepRunner {
   }
 
   /**
-   * `runSweep` reads its whole worklist in one shot (`listAdvanceableCompanySubscriptions`) and then
-   * walks it one company at a time — by the time this loop reaches a company near the end of a large
-   * instance's list, `sub` can be tens of seconds (or longer) stale. A webhook landing in that window
-   * (the OWNER's card was charged successfully, or a plan change came through the portal) already
-   * wrote a NEWER status straight to the row; `applyOne` must never clobber that with a decision made
-   * from the snapshot it started with. Every write below is therefore a compare-and-set: the `where`
-   * repeats the exact `status`/`lastPolarFactAt` this tick read, so a concurrent write moves the row
-   * out from under the match and the `updateMany` simply touches zero rows — this tick's decision is
-   * silently dropped rather than applied, and the NEXT tick reads the fresh row and decides again from
-   * there. `send_zip_and_enter_zipped` additionally re-reads BEFORE mailing anything: an `updateMany`
-   * guard on the WRITE can undo a wrong status, but it cannot un-send an email already in the OWNER's
-   * inbox, so that one externally-visible side effect gets its own freshness check first.
-   * `delete_company` carries the same idea one step further still — see `deletion.ts`'s own header.
+   * `sub` may be stale by the time it is processed, so every write is a compare-and-set on the
+   * `status`/`lastPolarFactAt` read: a concurrent webhook makes it touch zero rows instead of being
+   * clobbered. The zip path also re-reads before mailing, since a sent email cannot be undone.
    */
   private async applyOne(
     sub: CompanySubscription,
@@ -233,9 +170,7 @@ export class BillingLifecycleSweepRunner {
           where: { companyId: sub.companyId, status: sub.status, lastPolarFactAt: sub.lastPolarFactAt },
           data: { status: 'BLOCKED', blockedAt: action.blockedAt },
         });
-        // count === 0: a webhook already moved this row past the snapshot this tick read — most
-        // commonly the OWNER just paid. Blocking a company that is current on its bill, from a read
-        // that is already known to be wrong, would be worse than doing nothing this tick.
+        // count === 0: a webhook moved the row on, most commonly because the owner just paid.
         if (count > 0) result.blocked++;
         return;
       }
@@ -245,10 +180,7 @@ export class BillingLifecycleSweepRunner {
 
         const sent = await this.sendZipToOwner(sub.companyId);
         if (!sent) {
-          // Left in BLOCKED, deliberately — the OWNER must actually receive their data before this
-          // company's status advances any further toward deletion. The next sweep tick retries the
-          // exact same `send_zip_and_enter_zipped` decision (blockedAt is untouched, so
-          // `lifecycle.ts` computes the identical action again).
+          // Stay in BLOCKED: the owner must receive their data before moving toward deletion.
           result.zipFailed++;
           return;
         }
@@ -268,23 +200,16 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** Re-reads the row fresh and reports whether it still matches the snapshot `sub` this tick's
-   *  decision was computed from — `false` means some other write (a webhook, almost always) already
-   *  moved it on, and whatever this tick was about to do next no longer applies. */
   private async matchesCurrentSnapshot(sub: CompanySubscription): Promise<boolean> {
     const fresh = await prisma.companySubscription.findUnique({
       where: { companyId: sub.companyId },
       select: { status: true, lastPolarFactAt: true },
     });
-    if (!fresh) return false; // the row vanished entirely (deleted) since this tick's own read
+    if (!fresh) return false;
     return fresh.status === sub.status && sameInstant(fresh.lastPolarFactAt, sub.lastPolarFactAt);
   }
 
-  /** Builds the export and mails it to the company's OLDEST `OWNER` membership (deterministic when a
-   *  company has more than one owner — "the OWNER" in the singular, per the product brief). Returns
-   *  `false` (never throws) when no owner exists at all (should not normally happen — every company
-   *  has at least one, `assertNotLastOwner`) or the mail send itself failed (e.g. `sendForCompany`'s
-   *  own named refusal when neither the company nor the instance has a configured mail server). */
+  /** Returns `false` (never throws) when there is no owner or the export/send fails. */
   private async sendZipToOwner(companyId: string): Promise<boolean> {
     const owner = await this.findOldestOwner(companyId);
 
@@ -304,12 +229,7 @@ export class BillingLifecycleSweepRunner {
       });
       return true;
     } catch (error) {
-      // `ExportZipTooLargeError`/`ExportZipTimedOutError` are named on purpose (`export-zip.service.ts`'s
-      // own header): an operator reading this log line can tell "this company's data is too big for an
-      // email attachment" apart from a transient mail-server or rendering outage, which is exactly what
-      // an opaque `error.message` from a generic failure could not distinguish before. Either way this
-      // is still a single company's failure — caught HERE, never propagated past `sendZipToOwner`, so
-      // the sweep loop in `runSweep` moves on to the next company regardless of which kind this was.
+      // Size/time bound errors are logged distinctly from transient mail or rendering outages.
       const isBoundedFailure =
         error instanceof ExportZipTooLargeError || error instanceof ExportZipTimedOutError;
       this.logger.error(
@@ -322,12 +242,7 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** The company's OLDEST `OWNER` membership's own email, and the language they should be addressed
-   *  in — `null` when the company somehow has none (should not normally happen, `assertNotLastOwner`).
-   *  Shared by `sendZipToOwner` and `sendDueBillingWarnings` below — both address the SAME "the OWNER"
-   *  in the singular, in THEIR own resolved language (`resolveUserLanguage`, the same personal-then-
-   *  company-then-English chain every other system mail in this codebase now uses) rather than the
-   *  instance-wide English default this file hardcoded before `User.locale` existed. */
+  /** Oldest owner, so "the owner" is deterministic when a company has several. */
   private async findOldestOwner(
     companyId: string,
   ): Promise<{ email: string; language: ReturnType<typeof resolveUserLanguage> } | null> {
@@ -344,14 +259,8 @@ export class BillingLifecycleSweepRunner {
   }
 
   /**
-   * Sends any OWNER warning email whose milestone is due (`lifecycle.ts#computeDueBillingWarnings`)
-   * and has not already gone out (`sub.billingWarningMilestonesSent`) — through the INSTANCE's own
-   * mail provider (`MailService#sendMail`, never `sendForCompany`, see `system-email-templates.ts`'s
-   * own header on why). Each milestone is appended to `billingWarningMilestonesSent` right after it is
-   * actually sent, one at a time, so a mid-loop failure never marks a milestone sent that never
-   * reached anyone; a milestone already in that array is never recomputed as due a second time
-   * (`computeDueBillingWarnings` itself has no memory of what was already sent — this is the ONE place
-   * that checks).
+   * Sends through the instance mail provider (`sendMail`, not `sendForCompany`). Each milestone is
+   * recorded right after its own send so a mid-loop failure never marks an unsent one as sent.
    */
   private async sendDueBillingWarnings(
     sub: CompanySubscription,
@@ -388,7 +297,7 @@ export class BillingLifecycleSweepRunner {
         this.logger.error(`Billing warning mail (${milestone}) failed for company ${sub.companyId}`, {
           error: error instanceof Error ? error.message : String(error),
         });
-        continue; // never marked sent — the next tick retries THIS milestone specifically.
+        continue; // not marked sent, so the next tick retries this milestone.
       }
 
       await prisma.companySubscription.update({
@@ -399,11 +308,7 @@ export class BillingLifecycleSweepRunner {
     }
   }
 
-  /** Re-reads the company's current name/email/billingEmail and retries the Polar customer push —
-   *  `syncPolarCustomerOnCompanyChange` itself already clears `customerSyncFailedAt` on success and
-   *  re-stamps it on a repeat failure, so this wrapper only needs to know whether it is WORTH calling
-   *  (a company that vanished between the failed push and this tick has nothing left to sync) and
-   *  whether the retry actually cleared the flag, to count it accurately. */
+  /** `syncPolarCustomerOnCompanyChange` clears or re-stamps `customerSyncFailedAt` itself. */
   private async retryCustomerSync(companyId: string): Promise<boolean> {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
@@ -421,8 +326,7 @@ export class BillingLifecycleSweepRunner {
   }
 }
 
-/** `Date` equality by value, `null`-safe — `lastPolarFactAt` is the compare-and-set anchor `applyOne`
- *  reads alongside `status`, and two `Date` instances holding the same instant are never `===`. */
+/** Two `Date` instances holding the same instant are never `===`. */
 function sameInstant(a: Date | null, b: Date | null): boolean {
   return a === null || b === null ? a === b : a.getTime() === b.getTime();
 }

@@ -1,54 +1,12 @@
 /**
- * Repair path for `GET /api/billing/status` when the LOCAL `CompanySubscription` row is stale because
- * the webhook delivery that should have updated it never landed, `webhook-handlers.ts` is otherwise
- * the ONLY writer of a real Polar status, and a concrete 2026-09-15 sandbox incident proved that path
- * can fail silently end-to-end: every one of 18 delivery attempts for a real paid subscription came
- * back `400 "No matching signature found"`, visible only in Polar's OWN delivery log, never in this
- * app's logs (the signature check happened inside `@polar-sh/sdk/webhooks`, before
- * `webhook-handlers.ts` ever ran), and the company's own `GET /api/billing/status` kept answering
- * `TRIAL` indefinitely with no way to self-heal.
+ * Repair path for `GET /api/billing/status` when the webhook that should have updated the row never
+ * landed: webhook failures (e.g. signature rejections) are visible only in Polar's own delivery log.
+ * A billable subscription is applied through the same `applySubscriptionWebhook` a webhook would use.
  *
- * CORRECTED same day: the ORIGINAL diagnosis here blamed a stale `POLAR_WEBHOOK_SECRET` baked into a
- * redeployed container's process env (a `docker restart`, not a compose recreate, does not re-read
- * `.env`). That was never it, reading `@polar-sh/sdk`'s own `dist/commonjs/webhooks.js` line by line
- * against a captured real delivery found `validateEvent` derives the WRONG HMAC key for ANY
- * `whsec_`-prefixed secret, stale or fresh (it base64-re-encodes the whole secret string before
- * handing it to `standardwebhooks#Webhook`, ending up using the secret's own literal UTF-8 bytes as
- * the key), see `modules/billing/polar-webhook.controller.ts`'s own header for the full account. The
- * "stale secret" theory fit the same observed symptom (18/18 failures, identical error message) but
- * was never actually tested against a real capture; this file's own repair path is unaffected either
- * way, it never depended on which theory was right, only on webhooks being able to fail silently at
- * all. The fix is `polar-webhook.controller.ts`'s own signature verification, not this file.
- *
- * This is a REPAIR path, not a replacement for the webhook: it only fires when there is already a
- * `polarCustomerId` to reconcile FROM (a company that never reached Polar at all has nothing to check).
- * `reconcileFromPolar` reads the customer's subscriptions straight back from Polar and, if one is
- * billable, applies it through the exact same `applySubscriptionWebhook` a real webhook would have used
- *, so a repaired row is indistinguishable from one the webhook had updated correctly. Cached per
- * company for `RECONCILE_CACHE_MS` so a dashboard tab left open polling `/billing/status` cannot turn
- * into a Polar API hot loop.
- *
- * ## An `ACTIVE` row is no longer trusted blindly (2026-09-16)
- *
- * Originally this whole module short-circuited on `sub.status === 'ACTIVE'`, a genuine no-op forever
- * once the row was "genuinely" active, on the assumption only a webhook could ever move it again. A
- * concrete 2026-09-16 dev-instance incident broke that assumption: the OWNER deleted, by hand in
- * Polar's own dashboard, the pre-migration per-user customer this company's row had last gone `ACTIVE`
- * from. The company's OWN, company-scoped customer (option A, `billing-customer.ts`'s own header,
- * created lazily or by `customer-provisioning.ts`'s boot sweep) had no subscription of its own at all —
- * and because the deletion's own webhook resolved to a companyId this app could not match (a USER id,
- * not a company id, `webhook-handlers.ts`'s own header on the matching fix there), nothing ever
- * corrected the row. `GET /api/billing/status` kept answering `ACTIVE` indefinitely.
- *
- * `findMostRecentSubscription` below is ALREADY filtered by `externalCustomerId: companyId` (the
- * company's own customer, never the stored `polarCustomerId`, see that function's own header), so it
- * was already the right read to catch this; it simply used to never RUN for an `ACTIVE` row. Now it
- * always runs (cached, same as before) regardless of the stored status, and an `ACTIVE` row whose own
- * customer reports NO subscription at all is recomputed via `lifecycle.ts#computeRecoveredStatus`
- * (`company-subscription.store.ts#recomputeStatusForVanishedSubscription`) instead of being left as-is
- *, never a persistent cost once genuinely resolved either way (an `ACTIVE` company with a real
- * subscription, or a company correctly downgraded to `PAST_DUE`/`BLOCKED`, both settle into a steady
- * state this module keeps confirming, cheaply, once per cache window).
+ * An ACTIVE row is re-checked too: if the company's own customer has no subscription at all (e.g. its
+ * pre-migration per-user customer was deleted, whose webhook resolves to no company), the status is
+ * recomputed instead of staying ACTIVE forever. Cached per company so an open dashboard polling
+ * status cannot hot-loop the Polar API.
  */
 import { logger } from '@/logger/logger.service';
 
@@ -62,22 +20,15 @@ import { applySubscriptionWebhook } from './webhook-handlers';
 
 const RECONCILE_CACHE_MS = 5 * 60 * 1000;
 
-/** Module-level, process-local, same "best-effort, never a source of truth on its own" spirit as
- *  `polar-client.ts`'s own cached client; a multi-instance deployment simply re-checks slightly more
- *  often than one replica alone would, never incorrectly (there is no shared state to get wrong). */
+/** Process-local; a multi-replica deployment just re-checks a little more often. */
 const lastCheckedAtByCompanyId = new Map<string, number>();
 
 export function resetStatusReconcileCacheForTests(): void {
   lastCheckedAtByCompanyId.clear();
 }
 
-/** The subset of a Polar `Subscription` this module actually reads, the same fields
- *  `webhook-handlers.ts`'s own `PolarSubscriptionWebhookFacts` carries, before mapping, plus
- *  `modified_at`, this read's own fact timestamp, threaded through as `factAt` so
- *  `applySubscriptionWebhook`'s staleness check can drop it if a webhook already applied something
- *  NEWER (see that function's own header). #537: field names are the wire's own snake_case now
- *  (`Subscription`, `@polar-sh/sdk@1.0.0`, read directly), `modified_at`/`current_period_end` etc.,
- *  not 0.49's zod-remapped `modifiedAt`/`currentPeriodEnd`. */
+/** Wire snake_case fields read from a Polar `Subscription`. `modified_at` becomes `factAt` so the
+ *  staleness check can drop this read if a fresher webhook already landed. */
 interface ReconcileSubscriptionFacts {
   id: string;
   customer_id: string;
@@ -86,22 +37,12 @@ interface ReconcileSubscriptionFacts {
   metadata: Record<string, string | number | boolean>;
   modified_at?: string | Date | null;
   created_at?: string | Date | null;
-  /** Read ONLY to order the list below, never threaded into `applySubscriptionWebhook`: which
-   *  subscription is the current one is a different question from what facts it carries. */
+  /** Used only for ordering, never threaded into `applySubscriptionWebhook`. */
   started_at?: string | Date | null;
-  /** Threaded through to `applySubscriptionWebhook` below the same way a real webhook's
-   *  `current_period_end` is, so a repaired row is indistinguishable from one a webhook had updated
-   *  correctly (this module's own header). */
   current_period_end?: Date | null;
 }
 
-/** Structurally typed subset of the `Polar` SDK client this function actually calls, see
- *  `seat-sync.spec.ts`/`portal-session.ts`'s own narrow client shapes for the same pattern. #537:
- *  `subscriptions.list` (`@polar-sh/sdk@1.0.0`, read directly) takes a snake_case query
- *  (`external_customer_id`, not `externalCustomerId`) and resolves directly to ONE page
- *  (`ListResourceSubscription`, `{ items, pagination }`) rather than 0.49's
- *  `Promise<AsyncIterable<{ result: { items } }>>` of pages, `findMostRecentSubscription` below no
- *  longer needs its own page-walking loop, a single `limit: 10` call is now genuinely one round trip. */
+/** Structurally typed subset of the Polar SDK client, so specs can pass a plain fake. */
 export interface ReconcileSubscriptionsClient {
   subscriptions: {
     list(query: {
@@ -112,10 +53,8 @@ export interface ReconcileSubscriptionsClient {
   };
 }
 
-/** Most recently started first, `createdAt` breaking a tie (or standing in entirely for a
- *  subscription Polar has not started, an abandoned checkout), then `id` so the comparison is total
- *  and the same list never sorts two ways. A missing date sorts LAST: "no start date at all" is the
- *  weakest possible claim to being the current subscription. */
+/** Most recently started first, falling back to created date then `id` for a total order; a missing
+ *  date sorts last. */
 function byRecencyDesc(a: ReconcileSubscriptionFacts, b: ReconcileSubscriptionFacts): number {
   const at = (sub: ReconcileSubscriptionFacts) => {
     const value = sub.started_at ?? sub.created_at;
@@ -126,39 +65,10 @@ function byRecencyDesc(a: ReconcileSubscriptionFacts, b: ReconcileSubscriptionFa
 }
 
 /**
- * The most recently started subscription for this COMPANY, Polar-side, filtered by
- * `externalCustomerId` (= `company.id` under option A, `billing-customer.ts`'s own header), never by
- * the locally-stored `polarCustomerId`: this is the fix for a bug this feature's own research found
- * in the pre-option-A code (a shared per-USER customer meant the first item here could belong to a
- * DIFFERENT company owned by the same user), under option A every company has its own dedicated
- * Polar customer, so this filter is now also strictly correct rather than merely defense in depth.
- *
- * ## Why the order is asked for AND redone locally
- * This used to return `items[0]` of an unordered read. Nothing guarantees that item is the newest:
- * `SubscriptionsListRequest` (read directly, in
- * `node_modules/@polar-sh/sdk/dist/commonjs/models/operations/subscriptionslist.d.ts`) carries an
- * explicit `sorting` parameter and documents NO default for it, so the order of an unsorted response
- * is the server's own business and may change without the SDK's types changing at all. For a company
- * that has subscribed more than once, resubscribed after cancelling, switched plan, the first item
- * could be the OLD, cancelled one, and `applySubscriptionWebhook` would map its
- * `canceled` status onto the company as `PAST_DUE`. The `lastPolarFactAt` staleness guard catches
- * that for a company a webhook has already written to, and NOT for one where it is `null`, a company
- * no webhook ever reached, which is the exact situation this repair module exists for.
- *
- * So `sorting: ['-started_at']` is asked for (the closest thing to recency the API offers: its sort
- * properties are customer/status/started_at/current_period_end/ended_at/ends_at/amount/product/
- * discount, there is no created_at), because ordering matters BEYOND this page too: with more
- * subscriptions than `limit`, no local sort can rank an item that never came back. And the page is
- * then sorted again here, because a parameter the server is free to interpret is not a guarantee —
- * the cost is sorting at most ten items, and the failure it rules out is a company being downgraded
- * on the strength of a subscription it replaced.
- *
- * A customer with no subscription at all (checkout started but never completed) reads as `undefined`,
- * a genuine "nothing to reconcile" rather than an error.
- *
- * #537: one `await` is now the whole call, `subscriptions.list` resolves directly to ONE page
- * (`{ items, pagination }`), not 0.49's `Promise<AsyncIterable<{ result: { items } } >>` of pages this
- * function used to walk with its own `for await`.
+ * Filtered by `external_customer_id` (= company.id), never the stored `polarCustomerId`, which could
+ * be a pre-migration per-user customer shared across companies. `sorting` has no documented default,
+ * so it is requested server-side (to rank beyond this page) and redone locally: picking an old
+ * cancelled subscription would downgrade a company no webhook ever reached to PAST_DUE.
  */
 async function findMostRecentSubscription(
   client: ReconcileSubscriptionsClient,
@@ -174,11 +84,8 @@ async function findMostRecentSubscription(
 }
 
 /**
- * Re-checks Polar directly against `sub`'s own company-scoped customer, at most once per
- * `RECONCILE_CACHE_MS` per company. Returns the (possibly updated) subscription row, unchanged, and
- * without ever touching the network, for a company with no `polarCustomerId` yet or checked too
- * recently. Never throws: a Polar outage here must not turn `GET /api/billing/status` into a 500, the
- * existing local row is simply returned as-is.
+ * At most once per `RECONCILE_CACHE_MS` per company, and only once a `polarCustomerId` exists. Never
+ * throws: a Polar outage must not turn `GET /api/billing/status` into a 500.
  */
 export async function reconcileFromPolarIfStale(
   sub: CompanySubscription,
@@ -204,19 +111,15 @@ export async function reconcileFromPolarIfStale(
         status: latest.status,
         recurringInterval: latest.recurring_interval,
         currentPeriodEnd: latest.current_period_end ?? undefined,
-        // `undefined` (never a genuinely unparseable Date) when Polar reports neither, see
-        // `applySubscriptionWebhook`'s own header: an absent `factAt` applies unconditionally, the
-        // safe default when this read has no timestamp of its own to compare against a webhook's.
+        // `undefined` when Polar reports no timestamp: applies unconditionally rather than comparing.
         factAt: factTimestamp ? new Date(factTimestamp) : undefined,
       });
 
       return await getOrCreateCompanySubscription(sub.companyId);
     }
 
-    // No subscription at all for the company's OWN customer. Normal, and a genuine no-op, for
-    // TRIAL/PAST_DUE/BLOCKED/ZIPPED (a company that never subscribed, or fell behind for real, simply
-    // has none; the ordinary sweep already owns advancing those). Only an `ACTIVE` row is actually
-    // WRONG here, see this file's own header on the 2026-09-16 incident this repairs.
+    // No subscription is normal for any non-ACTIVE status (the sweep owns those); only an ACTIVE row
+    // is wrong here, e.g. one left over from a deleted pre-migration customer.
     if (sub.status !== 'ACTIVE') return sub;
 
     logger.warn(

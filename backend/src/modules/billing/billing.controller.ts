@@ -1,18 +1,7 @@
 /**
- * `GET /api/billing/status`, `POST /api/billing/checkout`, `POST /api/billing/portal`, and
- * `GET`/`PUT /api/billing/billing-email` — the routes this feature adds to Nest's own controller
- * layer. ALL FOUR are real Nest routes now (option A, product decision 2026-09-16): checkout and
- * portal used to be split between better-auth's own `/api/auth/*` middleware (checkout) and this
- * controller (portal, moved here originally because that route cannot supply `memberId` — see
- * `portal-session.ts`'s own header) — checkout joined portal here for the SAME underlying reason
- * once billing moved to per-COMPANY Polar customers: `@polar-sh/better-auth`'s `checkout()` hard-codes
- * `externalCustomerId: session.user.id` with no way to override it (`checkout-session.ts`'s own
- * header). This controller is registered ONLY when `BillingModule` itself is imported
- * (`app.module.ts`, behind the flag) — so with the flag absent, none of these routes exist at all and
- * Nest's own catch-all answers 404.
- *
- * `checkout`/`portal` both carry `@BillingGateExempt()` (`billing-gate-exempt.decorator.ts`) — see
- * that decorator's own header for why a BLOCKED company must still be able to reach them.
+ * Registered only when `BillingModule` is imported behind the billing flag, so without the flag these
+ * routes 404. Checkout lives here rather than in better-auth because its `checkout()` hard-codes the
+ * user id as the external customer id, while billing uses per-company customers.
  */
 import {
   BadRequestException,
@@ -62,17 +51,9 @@ import {
 } from './portal-session';
 import { reconcileFromPolarIfStale } from './status-reconcile';
 
-/** `BillingStatusView` plus the ONE field computed outside that pure function — kept out of
- *  `billing-status-view.ts` itself so its own spec never has to mock a Polar client (`hasCompanyCustomer`/
- *  `legacySubscription` are now part of that pure view's own return shape, computed by
- *  `legacy-customer.ts#getCompanyCustomerFacts` and passed IN — see that module's own header; this ONE
- *  extra field is scoped to the CALLING USER, not the company, so it stays here instead). */
+/** Adds the one field scoped to the calling user rather than the company. */
 export interface BillingStatusViewResponse extends BillingStatusView {
-  /** `true` when a plain-text link to the pre-migration per-USER Polar portal
-   *  (`portal-session.ts#createLegacyCustomerPortalSession`) has a real chance of opening — checked
-   *  ONLY while `legacySubscription` is true (`legacy-customer.ts#hasLegacyPolarCustomer`'s own header
-   *  on why this stays a rare extra Polar call rather than a per-request one). `false` whenever
-   *  `legacySubscription` itself is false — there is nothing to link to. */
+  /** Whether the pre-migration per-user Polar portal can be opened; always `false` unless legacy. */
   legacyPortalAvailable: boolean;
 }
 
@@ -102,8 +83,7 @@ export class BillingController {
     const sub = await getOrCreateCompanySubscription(companyId);
     const reconciled = await reconcileFromPolarIfStale(sub);
     const facts = await getCompanyCustomerFacts(reconciled);
-    // Only checked while genuinely legacy — see `hasLegacyPolarCustomer`'s own header on why this must
-    // stay a rare extra Polar call, never one every company's every status poll pays for.
+    // Only checked while legacy, so ordinary status polls never pay for the extra Polar call.
     const legacyPortalAvailable = facts.legacySubscription ? await hasLegacyPolarCustomer(user.id) : false;
     return { ...computeBillingStatusView(reconciled, facts), legacyPortalAvailable };
   }
@@ -112,9 +92,7 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
-  // Deliberately carries NO `@LegalGateExempt()`: starting or renewing a paid subscription grows the
-  // relationship rather than ending it, so a pending re-acceptance gates it exactly like any other
-  // write — unlike `openPortal`/`openLegacyPortal` below, this is not part of the termination path.
+  // Deliberately not legal-gate exempt: starting a subscription is not part of the termination path.
   @ApiOperation({
     summary: 'Start a Polar checkout session for the active company',
     description:
@@ -149,21 +127,13 @@ export class BillingController {
         error instanceof SubscriptionAlreadyActiveError ||
         error instanceof CheckoutAlreadyInProgressError
       ) {
-        // 409, not 403 — every one of these is a data conflict (a duplicate email, a subscription
-        // that already exists, a checkout already in flight), not a permission refusal. Same
-        // `{ message, code }` shape write-gate.ts's own COMPANY_BLOCKED already established as this
-        // codebase's convention for a machine-readable refusal a frontend can branch on
-        // (use-mutation-with-toast.ts's own header).
+        // 409, not 403: these are data conflicts, not permission refusals. The `code` lets the
+        // frontend branch on the specific refusal.
         throw new ConflictException({ message: error.message, code: error.code });
       }
       if (error instanceof MissingBillingEmailError) {
-        // 422, not 409: there is nothing here for two states to CONFLICT over (no duplicate, no
-        // competing write) — the company's own data is simply incomplete for what this request is
-        // asking to do, which is exactly what 422 Unprocessable Entity means (well-formed request,
-        // semantically impossible to carry out as sent). It also mirrors the status Polar's own API
-        // would have answered with for the identical reason, now caught before that call is ever
-        // made. `error.message` is the actual deliverable here (see `MissingBillingEmailError`'s own
-        // header) — thrown as the exception BODY, not swallowed, so it reaches the frontend verbatim.
+        // 422: the company's data is incomplete for this request, not in conflict. The message is
+        // meant for the user, so it is passed through as the body.
         throw new UnprocessableEntityException({ message: error.message, code: error.code });
       }
       throw error;
@@ -174,11 +144,8 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
-  // This IS the in-product cancellation flow the Terms commit to keeping open (Polar's own portal is
-  // where "cancel at any time" actually happens) — an OWNER/ADMIN with a pending legal re-acceptance
-  // must still be able to reach it. `@BillingGateExempt()` above answers a DIFFERENT guard (a
-  // BLOCKED/ZIPPED subscription); this one answers `LegalAcceptanceGuard`, and both are needed for the
-  // same reason each exists at all: the one way out of a state must not be the state's own hostage.
+  // This is the in-product cancellation flow the Terms commit to keeping open, so a pending legal
+  // re-acceptance must not block it (`@BillingGateExempt()` covers the separate billing guard).
   @LegalGateExempt()
   @ApiOperation({
     summary: "Open a Polar customer-portal session under THIS COMPANY's own billing identity",
@@ -205,16 +172,11 @@ export class BillingController {
       );
     } catch (error) {
       if (error instanceof PolarCustomerNotFoundError) {
-        // Same `{ message, code }` shape as the checkout route's own three named refusals — see this
-        // controller's own comment on `startCheckout` for why a data-state conflict reads as 409, not
-        // 404: the frontend already has a generic error toast, but this ONE case gets its own
-        // translated notice instead (`billing.settings.tsx`) rather than showing this raw message.
+        // 409: a data-state conflict the frontend shows as its own translated notice.
         throw new ConflictException({ message: error.message, code: error.code });
       }
       if (error instanceof MissingBillingEmailError) {
-        // Reachable here only in the narrow case `member-resolution.ts#resolveOrCreateCompanyBillingMemberId`'s
-        // own header describes (a `team` customer whose billing email went blank AFTER promotion, so
-        // no existing Polar member matches it any more) — same 422, same reasoning as `startCheckout`.
+        // Only when a `team` customer's billing email went blank after promotion, so no member matches.
         throw new UnprocessableEntityException({ message: error.message, code: error.code });
       }
       throw error;
@@ -225,7 +187,7 @@ export class BillingController {
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   @RequiresScope('billing:write')
   @BillingGateExempt()
-  // Same reasoning as `openPortal` above — this is the legacy half of the same cancellation flow.
+  // The legacy half of the same cancellation flow as `openPortal`.
   @LegalGateExempt()
   @ApiOperation({
     summary: "Open a Polar customer-portal session for the CALLING user's own PRE-MIGRATION customer",
