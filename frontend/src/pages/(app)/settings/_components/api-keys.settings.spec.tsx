@@ -126,3 +126,52 @@ describe("<ApiKeysSettings> — create and copy outcomes", () => {
     expect(screen.queryByLabelText("Copy")).not.toBeInTheDocument()
   })
 })
+
+describe("<ApiKeysSettings>: list load failure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // Before: a failed read left the list on its skeleton forever, with no way to tell it apart from a
+  // slow one and nothing to click.
+  it("shows a load error with a retry that reloads the list", async () => {
+    let listCalls = 0
+    installFetchMock({
+      "GET /api/api-keys": () => {
+        listCalls++
+        return listCalls === 1
+          ? { status: 500, body: { message: "boom" } }
+          : {
+              body: [
+                {
+                  id: "k1",
+                  name: "CI key",
+                  keyPrefix: "ivr_ab",
+                  scopes: [],
+                  lastUsedAt: null,
+                  createdAt: "2026-11-01T00:00:00.000Z",
+                },
+              ],
+            }
+      },
+      "GET /api/api-keys/options": () => ({ body: { scopes: [] } }),
+      "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApiKeysSettings />
+      </QueryClientProvider>,
+    )
+
+    const title = await screen.findByText("This list could not be loaded.")
+    expect(title.closest('[role="alert"]')).not.toBeNull()
+    expect(screen.queryByText("No API key created yet.")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(await screen.findByText("CI key")).toBeInTheDocument()
+    expect(screen.queryByText("This list could not be loaded.")).toBeNull()
+    expect(listCalls).toBe(2)
+  })
+})

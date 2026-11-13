@@ -1,10 +1,11 @@
-import { Check, Ellipsis } from "lucide-react"
+import { Check, Ellipsis, TriangleAlert } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { FieldHelp } from "@/components/ui/field-help"
 import {
   DropdownMenu,
@@ -410,6 +411,27 @@ export function SettingsListSkeleton({ rows = 3, dataCy }: { rows?: number; data
         </div>
       ))}
     </SettingsList>
+  )
+}
+
+/** A list whose read failed: says so with a retry, instead of an endless skeleton or an empty
+ *  state that would claim there is nothing to show. */
+export function SettingsListError({ onRetry, dataCy }: { onRetry: () => void; dataCy?: string }) {
+  const { t } = useTranslation()
+  return (
+    <EmptyState
+      icon={TriangleAlert}
+      tone="destructive"
+      size="sm"
+      title={t("common.emptyState.loadErrorTitle")}
+      description={t("common.emptyState.loadErrorHint")}
+      action={
+        <Button type="button" variant="outline" onClick={onRetry} dataCy={dataCy && `${dataCy}-retry`}>
+          {t("common.emptyState.retry")}
+        </Button>
+      }
+      data-cy={dataCy}
+    />
   )
 }
 

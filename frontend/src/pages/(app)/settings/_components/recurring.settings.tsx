@@ -16,6 +16,7 @@ import type { DocumentSchedule } from "@/components/documents/types"
 
 import {
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -141,7 +142,7 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
  */
 export default function RecurringSettings() {
   const { t } = useTranslation()
-  const { data: schedules, isLoading } = useDocumentSchedules()
+  const { data: schedules, isLoading, isError, refetch } = useDocumentSchedules()
   const { data: types = [] } = useDocumentTypesList()
   const typeLabels = Object.fromEntries(types.map((type) => [type.id, type.label]))
 
@@ -156,6 +157,10 @@ export default function RecurringSettings() {
     >
       {isLoading ? (
         <SettingsListSkeleton rows={2} />
+      ) : !schedules && isError ? (
+        <SettingsSection>
+          <SettingsListError onRetry={() => refetch()} dataCy="document-schedules-load-error" />
+        </SettingsSection>
       ) : !schedules || schedules.length === 0 ? (
         <SettingsSection>
           <EmptyState

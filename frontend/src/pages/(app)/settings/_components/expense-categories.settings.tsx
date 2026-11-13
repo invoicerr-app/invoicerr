@@ -25,6 +25,7 @@ import {
 import {
   SettingsFormFooter,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -248,7 +249,7 @@ function CategoryRow({ category }: CategoryRowProps) {
  */
 export default function ExpenseCategoriesSettings() {
   const { t } = useTranslation()
-  const { data: categories, isLoading } = useExpenseCategories()
+  const { data: categories, isLoading, isError, refetch } = useExpenseCategories()
 
   return (
     <SettingsPage
@@ -259,6 +260,8 @@ export default function ExpenseCategoriesSettings() {
       <SettingsSection title={t("settings.expenseCategories.list.title")} dataCy="expense-categories-list">
         {isLoading ? (
           <SettingsListSkeleton rows={3} />
+        ) : !categories && isError ? (
+          <SettingsListError onRetry={() => refetch()} dataCy="expense-categories-load-error" />
         ) : (categories ?? []).length === 0 ? (
           <EmptyState
             icon={Tags}
