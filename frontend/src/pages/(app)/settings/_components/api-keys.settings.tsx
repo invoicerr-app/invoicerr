@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import {
   SettingsFormFooter,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -40,7 +41,12 @@ interface ApiKey {
 
 export default function ApiKeysSettings() {
   const { t } = useTranslation()
-  const { data: apiKeys, mutate } = useGet<ApiKey[]>("/api/api-keys")
+  const {
+    data: apiKeys,
+    loading: apiKeysLoading,
+    error: apiKeysError,
+    mutate,
+  } = useGet<ApiKey[]>("/api/api-keys")
   const { trigger: createApiKey, loading: creating } = useMutationWithToast(
     usePost<{ key: string }>("/api/api-keys"),
     t("settings.apiKeys.messages.createError", "Failed to create API key"),
@@ -138,7 +144,9 @@ export default function ApiKeysSettings() {
         aside={apiKeys && apiKeys.length > 0 && <Badge variant="secondary">{apiKeys.length}</Badge>}
         dataCy="api-keys-list-section"
       >
-        {!apiKeys ? (
+        {!apiKeys && apiKeysError && !apiKeysLoading ? (
+          <SettingsListError onRetry={mutate} dataCy="api-keys-load-error" />
+        ) : !apiKeys ? (
           <SettingsListSkeleton rows={2} />
         ) : apiKeys.length === 0 ? (
           <EmptyState

@@ -19,6 +19,7 @@ import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import {
   SettingsFormFooter,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -37,7 +38,12 @@ interface Webhook {
 
 export default function WebhooksSettings() {
   const { t } = useTranslation()
-  const { data: webhooks, mutate } = useGet<Webhook[]>("/api/webhooks")
+  const {
+    data: webhooks,
+    loading: webhooksLoading,
+    error: webhooksError,
+    mutate,
+  } = useGet<Webhook[]>("/api/webhooks")
   const { trigger: createWebhook, loading: creating } = useMutationWithToast(
     usePost("/api/webhooks"),
     t("settings.webhooks.messages.createError", "Failed to create webhook"),
@@ -141,7 +147,9 @@ export default function WebhooksSettings() {
         aside={webhooks && webhooks.length > 0 && <Badge variant="secondary">{webhooks.length}</Badge>}
         dataCy="webhooks-list-section"
       >
-        {!webhooks ? (
+        {!webhooks && webhooksError && !webhooksLoading ? (
+          <SettingsListError onRetry={mutate} dataCy="webhooks-load-error" />
+        ) : !webhooks ? (
           <SettingsListSkeleton rows={2} />
         ) : webhooks.length === 0 ? (
           <EmptyState

@@ -109,7 +109,8 @@ Statuses are open data: an id the table does not know reads as neutral, never hi
 - **Reading a document**: an issued document is shown as a flat sheet (`DocumentPaper`), generic
   from the descriptor, with the double rule under its total, every field still listed below it.
 - **Empty states** draw a sheet and a pencil from tokens, with the place's own icon in a disc; a
-  failed load shows a warning disc and a retry. A page that fails to render shows its title, an
+  failed load shows a warning disc and a retry, never the empty state or an endless skeleton (a
+  settings list uses `SettingsListError`). A page that fails to render shows its title, an
   explanation and a reload button, with the technical message folded behind **Details**.
 - **Phone**: a bottom tab bar holds the dashboard, documents and clients, "More" opens the full
   sidebar (an ellipsis, never a menu icon); there is no menu button in the header. A list's toolbar
