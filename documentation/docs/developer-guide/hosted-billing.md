@@ -252,3 +252,18 @@ A user who belongs to several companies has a separate Polar member (and, once e
 out, a separate portal) per company — the Billing settings screen only ever shows the **active**
 company's status, checkout, and portal, resolved server-side via `@ActiveCompany()`, never from a
 client-supplied company id.
+
+## Stripe through Better Auth
+
+Stripe Billing is wired through the official `@better-auth/stripe` plugin, registered in
+`backend/src/lib/auth.ts` only when `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` is set. The plugin
+owns checkout, the customer portal, webhook signature checks and the `subscription` table.
+
+- **Configuration**: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are required once billing is
+  enabled, and the backend refuses to boot without them. A live key is refused unless
+  `STRIPE_MODE=live`, so a deployment cannot charge real cards by accident.
+- **Webhook**: point a Stripe webhook endpoint at `<APP_URL>/api/auth/stripe/webhook`. Our own body
+  parsers skip `/api/auth`, so the plugin reads the raw body it needs for the signature.
+- **Who can act**: a subscription's `referenceId` is a company id. Owners and admins of that company
+  can subscribe, cancel, restore and open the portal; any member can list the subscription; anyone
+  else is refused.
