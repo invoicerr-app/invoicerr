@@ -41,8 +41,6 @@ import {
   sendChangeEmailMail,
 } from '../modules/auth-extended/account-lifecycle';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '../modules/billing/seat-sync';
-import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
-import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
 import { servedOverHttps } from './app-url-scheme';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
@@ -184,8 +182,6 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
           update: {},
         });
       });
-      // The invitation can carry OWNER/ADMIN — see `member-sync.ts`'s own header.
-      await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
     } catch (error) {
       await pendingSignupStore.deletePendingInvitationCode(email);
       if (error instanceof NoFreeSeatError) {
@@ -246,8 +242,6 @@ const attachSsoProvisionedMembership = async (companyId: string, userId: string)
     }
     throw error;
   }
-  // `SSO_PROVISIONED_ROLE` can be OWNER/ADMIN — see `member-sync.ts`'s own header.
-  await syncCompanyMemberOnMembershipChange(companyId, userId);
 };
 
 const userHookFunction = async (user, context) => {
@@ -531,14 +525,7 @@ export const auth = betterAuth({
       },
       afterDelete: async (user) => {
         const memberships = await pendingSignupStore.takePendingMembershipsForDeletedUser(user.id);
-        await cleanupAfterUserDelete(memberships, {
-          id: user.id,
-          email: user.email,
-          // better-auth's own `user` object (its core shape, not our Prisma model) only carries a
-          // single `name` field here, not `firstname`/`lastname` — good enough for a Polar member's
-          // display name, which is all this is used for.
-          name: user.name || null,
-        });
+        await cleanupAfterUserDelete(memberships);
       },
     },
   },
@@ -560,20 +547,9 @@ export const auth = betterAuth({
         before: userHookFunction,
         after: userAfterCreateHook,
       },
-      // Fires after ANY user row update, including the one `updateUser` performs once a
-      // `changeEmail` confirmation link is actually opened (better-auth's own internal-adapter path,
-      // not the moment the link is merely SENT — `account-lifecycle.ts#sendChangeEmailMail`'s own
-      // header is that earlier step). `syncPolarMemberEmailForUser` itself is a cheap no-op for the
-      // overwhelming majority of these calls (billing disabled, or this user holds no OWNER/ADMIN
-      // membership anywhere) — see that module's own header for why running it unconditionally here,
-      // rather than trying to detect "was this SPECIFICALLY an email change" from this hook's own
-      // arguments (which carry no reliable before/after diff), is the pragmatic choice: a
-      // no-op-if-unchanged push to Polar costs nothing extra, and never firing is the one failure
-      // mode this hook must avoid.
       update: {
         after: async (user) => {
           await sessionCache.invalidateUsers([user.id]);
-          await syncPolarMemberEmailForUser(user.id, user.email, user.name || null);
         },
       },
       delete: {
@@ -630,16 +606,6 @@ export const auth = betterAuth({
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
     ...(stripePlugin ? [stripePlugin] : []),
-    // Hosted billing (product decision 2026-09-15, moved to per-COMPANY Polar customers 2026-09-16 —
-    // option A) no longer mounts anything HERE at all: `@polar-sh/better-auth`'s own `checkout()`/
-    // `portal()` hard-code `externalCustomerId: session.user.id` with no way to override it, which is
-    // exactly wrong for a product that bills per company, not per user — see
-    // `modules/billing/checkout-session.ts`/`portal-session.ts`'s own headers. Both now live as plain
-    // Nest routes instead (`BillingController`'s `POST /billing/checkout`/`/billing/portal`), gated by
-    // `@ActiveCompany()` + `@BillingGateExempt()` the ordinary way, not by better-auth's own
-    // middleware. Boot-time credential validation (`assertPolarEnvConfiguredForBoot`, `main.ts`)
-    // still runs unconditionally — it gates `POLAR_ACCESS_TOKEN` etc. for those routes' own
-    // `getPolarClient()`, not for anything constructed at this module's load time any more.
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

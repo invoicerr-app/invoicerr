@@ -97,8 +97,7 @@ export class CompanyMailSettingsService {
    * e-mail address HERE, at write time — never re-checked at send time (`resolveCompanyReplyTo`
    * degrades a somehow-invalid stored value to "unset" instead, but that path should be unreachable
    * through this method). `null`/blank clears the override back to "use the instance's own
-   * `MAIL_REPLY_TO`" — same "null clears, never an empty string" convention
-   * `billing-email.ts#setCompanyBillingEmail` already holds for `billingEmail`.
+   * `MAIL_REPLY_TO`" - "null clears, never an empty string".
    */
   async setReplyTo(companyId: string, dto: SetCompanyMailReplyToDto): Promise<CompanyMailSettingsStatus> {
     const trimmed = dto.replyTo?.trim();

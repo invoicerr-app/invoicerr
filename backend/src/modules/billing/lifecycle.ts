@@ -1,6 +1,6 @@
 /**
  * The hosted-billing lifecycle's own PURE decisions — split from `billing-lifecycle-sweep-runner.ts`
- * (the Prisma/BullMQ/Polar/mail-touching half) for the exact reason `currency-rate-sweep.ts` is split
+ * (the Prisma/BullMQ/mail-touching half) for the exact reason `currency-rate-sweep.ts` is split
  * from `currency-rate-sweep-runner.ts` (that file's own header): a state transition is a plain
  * function of facts already in hand, testable without a broker, an HTTP call, or a database.
  *
@@ -9,12 +9,12 @@
  *  1. NEVER-PAID: `trial` (14 days, EVERYTHING allowed except actually sending — see
  *     `send-gate.ts#assertCanSend`) --[trialEndsAt reached]--> `blocked` (14 days, read-only, every
  *     action refused) --[14 days elapse]--> zip sent, `zipped` --[30 days elapse]--> deleted.
- *  2. PAID-THEN-STOPPED: `active` --[Polar webhook reports the subscription stopped renewing]-->
+ *  2. PAID-THEN-STOPPED: `active` --[the payment provider reports the subscription stopped renewing]-->
  *     `past_due` --[the period the company had ALREADY PAID FOR runs out — see below]--> `blocked`
  *     (14 days) --[14 days elapse]--> zip sent, `zipped` --[180 days elapse]--> deleted.
  *
- * `active` itself is never advanced by this function — becoming `active`/`past_due` is a WEBHOOK
- * fact (`webhook-handlers.ts`, `subscription.active` / `subscription.canceled` / `.revoked`), not
+ * `active` itself is never advanced by this function - becoming `active`/`past_due` is a fact the
+ * payment provider reports (Stripe subscription events, through the Better Auth Stripe plugin), not
  * something a periodic sweep can observe on its own; this function only walks a subscription FORWARD
  * once it is already in `trial`, `past_due`, `blocked`, or `zipped`.
  *
@@ -24,7 +24,7 @@
  * whatever the company ALREADY BOUGHT: the read-only suspension opens when a paid subscription ENDS
  * (Terms of Service, Section 13.1(b)) — "through cancellation taking effect, non-renewal, or an
  * unresolved payment failure" — and a period paid through the 31st has not ended on the 3rd merely
- * because that month's renewal was refused and Polar is still retrying it. So `past_due` folds into
+ * because that month's renewal was refused and the provider is still retrying it. So `past_due` folds into
  * `blocked` on the first tick at or after the end of the period on file (`currentPeriodEnd`, read
  * through `paid-period-grace.ts#isPaidPeriodStillRunning` — the same "a period already paid for is not
  * shortened by something the customer never agreed to" commitment Section 20.2 makes for a Terms
@@ -33,12 +33,10 @@
  *
  * ## Distinguishing the two cycles' zip→delete delay WITHOUT a dedicated field
  * Both cycles fold into `blocked` and then `zipped` through IDENTICAL code, but the grace period
- * after the zip is sent differs (see the enum's own two cases above) — and rather than adding an
- * `everPaid: boolean` this repurposes a fact already on `CompanySubscription`: `polarSubscriptionId`
- * is set exactly once, the moment a checkout completes (`webhook-handlers.ts`), and — like every
- * other id this codebase persists — is NEVER cleared afterward, even once the subscription itself is
- * later canceled/revoked. So "has this company ever actually paid" is exactly
- * `polarSubscriptionId !== null`, with no new column and no way for the two facts to drift apart.
+ * after the zip is sent differs (see the enum's own two cases above). `CompanySubscription.firstPaidAt`
+ * is what tells them apart: stamped once, the first time a subscription is paid for, and NEVER cleared
+ * afterward, even once the subscription itself is later canceled. So "has this company ever actually
+ * paid" is exactly `firstPaidAt !== null`.
  */
 // The only import this otherwise dependency-free module takes, and deliberately so: "when does the
 // period a company already paid for stop protecting it" is ONE definition, shared with the Terms
@@ -62,12 +60,12 @@ export interface CompanySubscriptionLifecycleFacts {
   zipSentAt: Date | null;
   deletionDueAt: Date | null;
   /** See this file's own header — the ONLY signal distinguishing the two cycles' zip→delete delay. */
-  polarSubscriptionId: string | null;
-  /** The end of the period this company has ALREADY PAID FOR — Polar's own `currentPeriodEnd`, as last
-   *  mirrored while the subscription was live (`webhook-handlers.ts#applySubscriptionWebhook` only
-   *  writes it from a fact that still reports the subscription as paid, so it can never quietly become
-   *  the end of an UNPAID cycle Polar rolled the company into on a failed renewal). `null` for a
-   *  company that has never paid for one — read only by the `PAST_DUE` branch below. */
+  firstPaidAt: Date | null;
+  /** The end of the period this company has ALREADY PAID FOR, as last mirrored while the subscription
+   *  was live. It is only ever written from a fact that still reports the subscription as paid, so it
+   *  can never quietly become the end of an UNPAID cycle the provider rolled the company into on a
+   *  failed renewal. `null` for a company that has never paid for one - read only by the `PAST_DUE`
+   *  branch below. */
   currentPeriodEnd: Date | null;
 }
 
@@ -134,9 +132,7 @@ export function computeLifecycleTransition(
       const zipDueAt = addDays(sub.blockedAt, BLOCKED_DAYS);
       if (now.getTime() < zipDueAt.getTime()) return { type: 'none' };
       const deletionDueAt =
-        sub.polarSubscriptionId !== null
-          ? addDays(now, PAID_ZIP_GRACE_DAYS)
-          : addDays(now, MIN_RETRIEVAL_DAYS);
+        sub.firstPaidAt !== null ? addDays(now, PAID_ZIP_GRACE_DAYS) : addDays(now, MIN_RETRIEVAL_DAYS);
       return { type: 'send_zip_and_enter_zipped', zipSentAt: now, deletionDueAt };
     }
 
@@ -152,46 +148,6 @@ export function computeLifecycleTransition(
       // all would mean a caller re-read a row this same sweep should have deleted.
       return { type: 'none' };
   }
-}
-
-export type RecoveredNonActiveStatus = 'TRIAL' | 'PAST_DUE' | 'BLOCKED';
-
-export interface RecoveredLifecycleState {
-  status: RecoveredNonActiveStatus;
-  /** Only ever non-null for the `BLOCKED` case, and deliberately BACKDATED to `anchor` (never
-   *  whichever `now` this recompute happens to run at) — see this function's own header. */
-  blockedAt: Date | null;
-}
-
-/**
- * Recomputes what a company's status SHOULD be, given the ONE fact both this repair's callers already
- * established before calling this: the company no longer has ANY live (active/trialing) Polar
- * subscription of its own — never called for a company that does. Anchored at `anchor`, the moment
- * that stopped being true (a webhook's own delivery timestamp, or the last real fact this row ever had
- * — `lastPolarFactAt` — when no better anchor is known), rather than trusting whatever `status` the row
- * was last (possibly incorrectly) left in.
- *
- * Two callers, one real 2026-09-15 dev-instance incident behind both: a company's `CompanySubscription`
- * row stayed `ACTIVE` forever after the OWNER deleted the pre-migration per-user Polar customer it had
- * come from — `status-reconcile.ts` uses this when the company's OWN, company-scoped customer reports
- * no subscription at all; `webhook-handlers.ts` uses it when a `canceled`/`revoked` webhook for that
- * SAME legacy customer is recovered by `polarSubscriptionId` rather than being silently dropped.
- *
- * - Still inside the ORIGINAL trial window (`now < trialEndsAt`) → `TRIAL`: a company that subscribed
- *   before its own trial had even ended keeps its unused trial days rather than being penalized for a
- *   subscription vanishing later.
- * - Otherwise → `PAST_DUE` while fewer than `BLOCKED_DAYS` have elapsed since `anchor`, else `BLOCKED`
- *   with `blockedAt` backdated to `anchor` — never `now` — so the ordinary sweep computes the SAME
- *   `BLOCKED` deadline (and, eventually, the same zip/deletion cascade) it would have, had the real
- *   transition been observed the moment it actually happened, instead of resetting a fresh 14-day
- *   countdown from whenever this repair happens to run.
- */
-export function computeRecoveredStatus(trialEndsAt: Date, anchor: Date, now: Date): RecoveredLifecycleState {
-  if (now.getTime() < trialEndsAt.getTime()) return { status: 'TRIAL', blockedAt: null };
-
-  const zipDueAt = addDays(anchor, BLOCKED_DAYS);
-  if (now.getTime() >= zipDueAt.getTime()) return { status: 'BLOCKED', blockedAt: anchor };
-  return { status: 'PAST_DUE', blockedAt: null };
 }
 
 /** The trial window a brand-new `CompanySubscription` gets — `trialStartedAt`/`trialEndsAt` at the

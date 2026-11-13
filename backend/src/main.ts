@@ -3,7 +3,6 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 import { syncDatabaseSchema } from './prisma/sync-schema';
 import { assertSecretsConfiguredForBoot } from './lib/secret-guard';
-import { assertPolarEnvConfiguredForBoot } from './modules/billing/polar-env';
 import { assertStripeEnvConfiguredForBoot } from './modules/billing/stripe-env';
 import { createSwaggerBasicAuthMiddleware } from './lib/swagger-basic-auth';
 import { buildSwaggerDocument } from './swagger-document';
@@ -19,16 +18,9 @@ async function bootstrap() {
   // needed). Must run before anything else touches `lib/auth.ts` — see secret-guard.ts's own header
   // for why this is gated to production only.
   assertSecretsConfiguredForBoot();
-  // Hosted billing (product decision 2026-09-15): refuse to boot with
-  // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real Polar credentials — a no-op when the
-  // flag is unset, see that function's own header for why the gate lives inside it rather than here.
-  // `billing/polar-client.ts`'s own `getPolarClient()` (checkout, portal, seat-sync, the webhook
-  // receiver's dispatch path) never validates `POLAR_ACCESS_TOKEN` eagerly either — it only reads
-  // `process.env` the first time something actually calls it, LAZILY, inside that request's own
-  // handler — so without this explicit call the process would boot "successfully" and only fail,
-  // opaquely, on the FIRST real checkout/webhook request. This turns that into a clean, named,
-  // immediate refusal instead — before `app.listen()` ever runs.
-  assertPolarEnvConfiguredForBoot();
+  // Hosted billing: refuse to boot with `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real
+  // Stripe credentials, a no-op when the flag is unset. Without this explicit call the process would
+  // boot "successfully" and only fail, opaquely, on the first real checkout or webhook request.
   assertStripeEnvConfiguredForBoot();
 
   const appUrlWarning = insecureAppUrlWarning(process.env.APP_URL);

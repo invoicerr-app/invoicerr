@@ -40,12 +40,12 @@ export function WaitingForSeatScreen({ ownerName }: { ownerName: string | null }
             {ownerName
               ? t(
                   "seatGate.descriptionWithOwner",
-                  "There's no free seat for you right now. Ask {{ownerName}} to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+                  "There's no free seat for you right now. Ask {{ownerName}} to free one or buy more seats, and you'll get one back automatically.",
                   { ownerName },
                 )
               : t(
                   "seatGate.description",
-                  "There's no free seat for you right now. Ask your company's owner to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+                  "There's no free seat for you right now. Ask your company's owner to free one or buy more seats, and you'll get one back automatically.",
                 )}
           </p>
           <Button

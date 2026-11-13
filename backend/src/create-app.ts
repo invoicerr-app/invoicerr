@@ -108,22 +108,9 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   // is registered, it lands on Express BEFORE the auth module's own skip middleware, which is only
   // installed once `app.listen()` below starts running `init()`. Reordering doesn't fix this —
   // `app.listen()` has to be the last call in this function either way.
-  // Proven live against a real Polar webhook delivery (instance "esteban", 2026-09-15): every
-  // `POST /api/auth/polar/webhooks` had its body consumed by `bodyParser.json()` below first, so
-  // `@polar-sh/better-auth`'s `ctx.request.text()` read an EMPTY body downstream and
-  // `validateEvent()` rejected the correctly-signed webhook with "No matching signature found" — 21
-  // consecutive deliveries, identical secret, all 400.
-  // `POST /api/auth/polar/webhooks` no longer exists at all as of the same day: `@polar-sh/better-
-  // auth`'s own `webhooks()` sub-plugin was removed (its `validateEvent` turned out to ALSO derive the
-  // wrong HMAC key for a real delivery — a second, independent bug, layered under this one; see
-  // `modules/billing/polar-webhook.controller.ts`'s own header). The real receiver is now `POST
-  // /api/billing/webhooks/polar` (`PolarWebhookController`) — deliberately NOT under `/api/auth`, so
-  // it reads its own `req.rawBody` straight from the SAME `bodyParser.json({ verify })` below rather
-  // than needing this skip at all. This fix stays necessary regardless: every OTHER `/api/auth/*`
-  // route (sign-in, sign-up, change-email, …) still reads its own body itself, exactly as described
-  // below, and would hit the identical draining bug without it — hosted billing's own checkout/portal
-  // moved OFF `/api/auth/*` entirely 2026-09-16 (`billing.controller.ts`'s own header), so they are no
-  // longer examples here either, but nothing else about this fix changed.
+  // The symptom: a body parser registered below consumes the request stream first, so a
+  // `/api/auth/*` route (sign-in, sign-up, change-email, the Stripe plugin's webhook, which needs the
+  // raw body for its signature check) reads an EMPTY body downstream.
   // Fix: have our own parsers skip the whole `/api/auth` subtree themselves (`skipBodyParserFor`,
   // `lib/body-parser-auth-skip.ts` — pulled into its own file so it's unit-testable without importing
   // `lib/auth.ts`, see that file's own header), using the SAME test `SkipBodyParsingMiddleware` uses

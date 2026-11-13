@@ -6,7 +6,6 @@ import {
   addDays,
   computeDueBillingWarnings,
   computeLifecycleTransition,
-  computeRecoveredStatus,
   computeTrialWindow,
   CompanySubscriptionLifecycleFacts,
 } from './lifecycle';
@@ -20,7 +19,7 @@ function facts(overrides: Partial<CompanySubscriptionLifecycleFacts>): CompanySu
     blockedAt: null,
     zipSentAt: null,
     deletionDueAt: null,
-    polarSubscriptionId: null,
+    firstPaidAt: null,
     currentPeriodEnd: null,
     ...overrides,
   };
@@ -81,10 +80,14 @@ describe('computeLifecycleTransition — past_due has no window of its own BEYON
   });
 
   describe('a company paid through 2026-10-31 whose renewal was refused on the 3rd', () => {
-    // Polar's own renewal instant, mid-day: the company bought October, and October is not over
+    // The provider's own renewal instant, mid-day: the company bought October, and October is not over
     // because a card was declined during it.
     const currentPeriodEnd = new Date('2026-10-31T06:00:00.000Z');
-    const sub = facts({ status: 'PAST_DUE', currentPeriodEnd, polarSubscriptionId: 'sub_1' });
+    const sub = facts({
+      status: 'PAST_DUE',
+      currentPeriodEnd,
+      firstPaidAt: new Date('2026-01-10T00:00:00Z'),
+    });
 
     it.each([
       ['2026-10-03T08:00:00.000Z', 'the sweep tick right after the failed charge'],
@@ -105,17 +108,17 @@ describe('computeLifecycleTransition — past_due has no window of its own BEYON
   });
 });
 
-describe('computeLifecycleTransition — blocked, never-paid cycle (polarSubscriptionId null)', () => {
+describe('computeLifecycleTransition - blocked, never-paid cycle (firstPaidAt null)', () => {
   const blockedAt = T0;
   const zipDueAt = addDays(blockedAt, BLOCKED_DAYS);
 
   it('does nothing one millisecond before the 14-day mark', () => {
-    const sub = facts({ status: 'BLOCKED', blockedAt, polarSubscriptionId: null });
+    const sub = facts({ status: 'BLOCKED', blockedAt, firstPaidAt: null });
     expect(computeLifecycleTransition(sub, new Date(zipDueAt.getTime() - 1))).toEqual({ type: 'none' });
   });
 
   it('sends the zip exactly at the 14-day mark, with a 30-day deletionDueAt (the statutory floor)', () => {
-    const sub = facts({ status: 'BLOCKED', blockedAt, polarSubscriptionId: null });
+    const sub = facts({ status: 'BLOCKED', blockedAt, firstPaidAt: null });
     expect(computeLifecycleTransition(sub, zipDueAt)).toEqual({
       type: 'send_zip_and_enter_zipped',
       zipSentAt: zipDueAt,
@@ -124,17 +127,17 @@ describe('computeLifecycleTransition — blocked, never-paid cycle (polarSubscri
   });
 
   it('defensively does nothing if blockedAt is somehow null on a blocked row', () => {
-    const sub = facts({ status: 'BLOCKED', blockedAt: null, polarSubscriptionId: null });
+    const sub = facts({ status: 'BLOCKED', blockedAt: null, firstPaidAt: null });
     expect(computeLifecycleTransition(sub, addDays(T0, 999))).toEqual({ type: 'none' });
   });
 });
 
-describe('computeLifecycleTransition — blocked, paid-then-stopped cycle (polarSubscriptionId set)', () => {
+describe('computeLifecycleTransition - blocked, paid-then-stopped cycle (firstPaidAt set)', () => {
   const blockedAt = T0;
   const zipDueAt = addDays(blockedAt, BLOCKED_DAYS);
 
   it('sends the zip at the 14-day mark, with a 180-day deletionDueAt', () => {
-    const sub = facts({ status: 'BLOCKED', blockedAt, polarSubscriptionId: 'polar_sub_123' });
+    const sub = facts({ status: 'BLOCKED', blockedAt, firstPaidAt: new Date('2026-01-10T00:00:00Z') });
     expect(computeLifecycleTransition(sub, zipDueAt)).toEqual({
       type: 'send_zip_and_enter_zipped',
       zipSentAt: zipDueAt,
@@ -148,12 +151,12 @@ describe('computeLifecycleTransition — zipped, never-paid cycle (30-day statut
   const deletionDueAt = addDays(zipSentAt, MIN_RETRIEVAL_DAYS);
 
   it('does nothing one millisecond before the 30-day mark', () => {
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: null });
+    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, firstPaidAt: null });
     expect(computeLifecycleTransition(sub, new Date(deletionDueAt.getTime() - 1))).toEqual({ type: 'none' });
   });
 
   it('deletes exactly at the 30-day mark', () => {
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: null });
+    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, firstPaidAt: null });
     expect(computeLifecycleTransition(sub, deletionDueAt)).toEqual({ type: 'delete_company' });
   });
 });
@@ -163,17 +166,32 @@ describe('computeLifecycleTransition — zipped, paid-then-stopped cycle (180-da
   const deletionDueAt = addDays(zipSentAt, PAID_ZIP_GRACE_DAYS);
 
   it('does nothing one millisecond before the 180-day mark', () => {
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: 'polar_sub_123' });
+    const sub = facts({
+      status: 'ZIPPED',
+      zipSentAt,
+      deletionDueAt,
+      firstPaidAt: new Date('2026-01-10T00:00:00Z'),
+    });
     expect(computeLifecycleTransition(sub, new Date(deletionDueAt.getTime() - 1))).toEqual({ type: 'none' });
   });
 
   it('deletes exactly at the 180-day mark', () => {
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt, polarSubscriptionId: 'polar_sub_123' });
+    const sub = facts({
+      status: 'ZIPPED',
+      zipSentAt,
+      deletionDueAt,
+      firstPaidAt: new Date('2026-01-10T00:00:00Z'),
+    });
     expect(computeLifecycleTransition(sub, deletionDueAt)).toEqual({ type: 'delete_company' });
   });
 
   it('does nothing if deletionDueAt is somehow null on a zipped row', () => {
-    const sub = facts({ status: 'ZIPPED', zipSentAt, deletionDueAt: null, polarSubscriptionId: 'x' });
+    const sub = facts({
+      status: 'ZIPPED',
+      zipSentAt,
+      deletionDueAt: null,
+      firstPaidAt: new Date('2026-01-10T00:00:00Z'),
+    });
     expect(computeLifecycleTransition(sub, addDays(T0, 999))).toEqual({ type: 'none' });
   });
 });
@@ -260,51 +278,5 @@ describe('computeDueBillingWarnings — OWNER warning-email milestones', () => {
         deletionDueAt,
       ),
     ).toEqual([]);
-  });
-});
-
-describe('computeRecoveredStatus', () => {
-  const trialEndsAt = addDays(T0, TRIAL_DAYS);
-
-  it('reverts to TRIAL while the original trial window has not ended yet', () => {
-    const anchor = addDays(T0, 5);
-    const now = addDays(T0, 10); // still before trialEndsAt (day 14)
-    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({ status: 'TRIAL', blockedAt: null });
-  });
-
-  it('is PAST_DUE, blockedAt null, right at the trialEndsAt boundary with a fresh anchor', () => {
-    expect(computeRecoveredStatus(trialEndsAt, trialEndsAt, trialEndsAt)).toEqual({
-      status: 'PAST_DUE',
-      blockedAt: null,
-    });
-  });
-
-  it('stays PAST_DUE for fewer than BLOCKED_DAYS since the anchor', () => {
-    const anchor = addDays(trialEndsAt, 10);
-    const now = addDays(anchor, BLOCKED_DAYS - 1);
-    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({ status: 'PAST_DUE', blockedAt: null });
-  });
-
-  it('becomes BLOCKED, backdated to the anchor (never now), once BLOCKED_DAYS elapsed since it', () => {
-    const anchor = addDays(trialEndsAt, 10);
-    const now = addDays(anchor, BLOCKED_DAYS);
-    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({
-      status: 'BLOCKED',
-      blockedAt: anchor,
-    });
-  });
-
-  it('stays BLOCKED with the SAME backdated blockedAt long after the anchor, never resetting to now', () => {
-    const anchor = addDays(trialEndsAt, 10);
-    const now = addDays(anchor, 90); // long past BLOCKED_DAYS
-    expect(computeRecoveredStatus(trialEndsAt, anchor, now)).toEqual({
-      status: 'BLOCKED',
-      blockedAt: anchor,
-    });
-  });
-
-  it('falls back to PAST_DUE when the anchor itself is `now` (no better anchor known)', () => {
-    const now = addDays(trialEndsAt, 30);
-    expect(computeRecoveredStatus(trialEndsAt, now, now)).toEqual({ status: 'PAST_DUE', blockedAt: null });
   });
 });

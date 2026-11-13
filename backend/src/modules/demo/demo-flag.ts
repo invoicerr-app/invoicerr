@@ -7,8 +7,8 @@
  *
  * NEVER set this on a real, self-hosted install. Turning it on:
  *  - blocks every outbound send this instance can make (e-mail, every e-invoicing transport, outbound
- *    webhooks, tax-authority declarations, payment-provider checkout sessions, every Polar call) at
- *    the lowest shared chokepoint each one has; see `demo-blocked.ts`'s own header for the full list
+ *    webhooks, tax-authority declarations, payment-provider checkout sessions) at the lowest
+ *    shared chokepoint each one has; see `demo-blocked.ts`'s own header for the full list
  *    and why each chokepoint was chosen;
  *  - forces billing off outright, regardless of `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`; see
  *    `billing/billing-flag.ts#isBillingEnabled`'s own demo-mode branch;

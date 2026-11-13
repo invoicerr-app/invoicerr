@@ -11,8 +11,8 @@ export type SetCompanyMailSettingsDto = CompanyMailSmtpSettings | CompanyMailRes
  * NOT folded into `SetCompanyMailSettingsDto` above: that PUT requires a full SMTP/Resend config and
  * REPLACES it wholesale, while a company's Reply-To override is independent of whether it has a mail
  * server override at all (see `Company.mailReplyTo`'s own schema.prisma comment). `null` (or omitted)
- * clears the override back to "use the instance's own MAIL_REPLY_TO" — same "null clears, never an
- * empty string" convention `billing-email.ts#setCompanyBillingEmail` already holds for `billingEmail`.
+ * clears the override back to "use the instance's own MAIL_REPLY_TO": "null clears, never an empty
+ * string".
  */
 export interface SetCompanyMailReplyToDto {
   replyTo: string | null;

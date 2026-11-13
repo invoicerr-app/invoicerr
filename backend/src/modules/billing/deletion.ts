@@ -3,17 +3,6 @@
  * subscription's own grace period elapses (`lifecycle.ts`'s `delete_company` action), the terminal
  * step of both cycles that file's own header describes.
  *
- * ## Cancel the Polar subscription FIRST
- *
- * A company being deleted must never keep being billed afterward, for a company that ever actually
- * paid (`polarSubscriptionId` set), the Polar subscription is REVOKED (immediate cancellation, never
- * merely "cancel at period end": there is no company left to serve out the rest of a period for) before
- * the Company row itself is touched. If that cancellation call fails, deletion is REFUSED outright —
- * `PolarCancellationFailedError`, rather than deleting the company anyway and leaving an orphaned,
- * still-active Polar subscription with no company left to associate it with. `billing-lifecycle-
- * sweep-runner.ts`'s own per-subscription try/catch already retries a thrown error on the next tick, so
- * this refusal is never a dead end, only a delay until the next attempt succeeds.
- *
  * Almost every relation onto `Company` in `schema.prisma` is `onDelete: Cascade` (verified directly:
  * of the 32 `<field> Company @relation(...)` lines in the schema, 31 carry it), so
  * `prisma.company.delete` alone already removes the company's clients, documents, invitations,
@@ -37,9 +26,9 @@
  * This function's caller (`billing-lifecycle-sweep-runner.ts#applyOne`) decides `delete_company` from
  * a snapshot that can be an entire sweep pass old by the time this specific company's turn comes up —
  * a company that paid again in the meantime must never be deleted anyway. `isStillDueForDeletion` is
- * checked TWICE: once before the Polar revoke (skip the whole thing cheaply for the common case), and
- * again INSIDE the deletion transaction itself, immediately before `company.delete`, the revoke is a
- * real network call, so the row can legitimately move on during it. Returns whether it actually
+ * checked TWICE: once up front (skip the whole thing cheaply for the common case), and again INSIDE
+ * the deletion transaction itself, immediately before `company.delete`, so a row that moved on since
+ * the first read is never deleted. Returns whether it actually
  * deleted, rather than assuming success, so the caller's own `deleted` counter stays honest.
  *
  * ## The company's STORED BYTES go too, and their inventory is written before the rows go
@@ -64,41 +53,10 @@ import {
 } from '@/modules/documents/archive/company-storage-erasure';
 
 import { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/client';
-import { getPolarClient } from './polar-client';
-
-export const POLAR_CANCELLATION_FAILED_CODE = 'POLAR_CANCELLATION_FAILED';
-
-/** Thrown, and deletion refused, when a paying company's Polar subscription cannot be canceled.
- *  Named so a caller (or a future manual "delete this company" route reusing this same function) can
- *  branch on it without string-matching, the same convention `BillingEmailTakenError` already holds. */
-export class PolarCancellationFailedError extends Error {
-  readonly code = POLAR_CANCELLATION_FAILED_CODE;
-
-  constructor(
-    readonly companyId: string,
-    readonly cause: unknown,
-  ) {
-    super(
-      `Could not cancel company ${companyId}'s Polar subscription, refusing to delete the company. ` +
-        (cause instanceof Error ? cause.message : String(cause)),
-    );
-    this.name = 'PolarCancellationFailedError';
-  }
-}
-
-/** Narrow, mockable subset of the `Polar` SDK client this module calls, same convention every other
- *  billing file narrows its own client shape to. `subscriptions.revoke`, "Revoke a subscription, i.e
- *  cancel immediately", confirmed by reading `@polar-sh/sdk@1.0.0`'s own shipped `.d.cts` directly.
- *  #537: the id is positional now, no more `{ id }` request wrapper. */
-export interface DeletionPolarClient {
-  subscriptions: {
-    revoke(id: string): Promise<unknown>;
-  };
-}
 
 /** `true` only when the row, as just read, is STILL actually due for deletion, `null`/`undefined`
  *  covers both "no such row" (should not happen once a company reaches ZIPPED) and "the row already
- *  vanished". Shared by the pre-revoke check and the in-transaction re-check below so the two can
+ *  vanished". Shared by the up-front check and the in-transaction re-check below so the two can
  *  never silently drift apart on what "due" means. */
 function isStillDueForDeletion(
   sub: { status: CompanySubscriptionStatus; deletionDueAt: Date | null } | null | undefined,
@@ -122,14 +80,10 @@ function isStillDueForDeletion(
  * longer eligible (see this function's own header on why a stale read must never drive an
  * irreversible delete), so the caller can count/log accurately instead of assuming success.
  */
-export async function deleteCompanyPermanently(
-  companyId: string,
-  now: Date = new Date(),
-  client: DeletionPolarClient = getPolarClient() as unknown as DeletionPolarClient,
-): Promise<boolean> {
+export async function deleteCompanyPermanently(companyId: string, now: Date = new Date()): Promise<boolean> {
   const sub = await prisma.companySubscription.findUnique({
     where: { companyId },
-    select: { polarSubscriptionId: true, status: true, deletionDueAt: true },
+    select: { status: true, deletionDueAt: true },
   });
 
   // A webhook can flip this company back to a live, paying state at ANY point between the sweep
@@ -139,24 +93,11 @@ export async function deleteCompanyPermanently(
   // for their own (recoverable) transitions.
   if (!isStillDueForDeletion(sub, now)) return false;
 
-  // `polarSubscriptionId` is set exactly once, the moment a checkout completes, and NEVER cleared
-  // afterward (`lifecycle.ts`'s own header), so its presence here means "this company once had a
-  // REAL Polar subscription", regardless of whatever status it currently reads as. A never-paid
-  // company (never checked out) has nothing to cancel at all.
-  if (sub?.polarSubscriptionId) {
-    try {
-      await client.subscriptions.revoke(sub.polarSubscriptionId);
-    } catch (error) {
-      throw new PolarCancellationFailedError(companyId, error);
-    }
-  }
-
   const members = await prisma.$transaction(async (tx) => {
-    // Re-read INSIDE the same transaction as the delete itself, right before it: the Polar revoke
-    // above is a real network round-trip, exactly the kind of window a webhook can land in between
-    // the check above and this point. A row that moved on in that window must abort here, the DB
-    // delete never runs, rather than trusting a read that is, by construction, at least one await
-    // old by the time it gets here.
+    // Re-read INSIDE the same transaction as the delete itself, right before it: a billing event
+    // can land between the check above and this point. A row that moved on in that window must
+    // abort here, the DB delete never runs, rather than trusting a read that is, by construction,
+    // at least one await old by the time it gets here.
     const fresh = await tx.companySubscription.findUnique({
       where: { companyId },
       select: { status: true, deletionDueAt: true },
@@ -189,31 +130,13 @@ export async function deleteCompanyPermanently(
  * would make a company that never entered the billing lifecycle at all (self-hosted, no
  * `CompanySubscription` row, or a paying company that has simply never missed a payment) unable to
  * ever delete itself. The two non-negotiable disciplines `deleteCompanyPermanently` enforces stay
- * exactly as strict here: a PAID company's Polar subscription is revoked FIRST, and the whole
- * deletion is refused if that call fails (`PolarCancellationFailedError`), never a company deleted
- * while still actively billed; `Webhook` is deleted explicitly before `Company` (see this file's own
+ * exactly as strict here: `Webhook` is deleted explicitly before `Company` (see this file's own
  * header on why that one relation alone needs it); and the company's stored bytes are inventoried in
  * the same transaction, then erased, identically to the automated path, because an OWNER exercising
  * erasure and a billing sweep closing an account must not leave different amounts of the customer
  * behind on disk.
  */
-export async function deleteCompanyPermanentlyNow(
-  companyId: string,
-  client: DeletionPolarClient = getPolarClient() as unknown as DeletionPolarClient,
-): Promise<void> {
-  const sub = await prisma.companySubscription.findUnique({
-    where: { companyId },
-    select: { polarSubscriptionId: true },
-  });
-
-  if (sub?.polarSubscriptionId) {
-    try {
-      await client.subscriptions.revoke(sub.polarSubscriptionId);
-    } catch (error) {
-      throw new PolarCancellationFailedError(companyId, error);
-    }
-  }
-
+export async function deleteCompanyPermanentlyNow(companyId: string): Promise<void> {
   const members = await prisma.$transaction(async (tx) => {
     // The inventory of this company's stored bytes, taken in the same commit that removes the rows
     // pointing at them, see this file's own header, and `company-storage-erasure.ts`'s, for why the

@@ -31,10 +31,8 @@
  *    — an OWNER's equivalent termination path, deleting the company outright. `resetCompanyData`
  *    carries NO exemption of its own: it is destructive, but the relationship continues afterwards, so
  *    it is gated like any other write (see its own comment in `danger.controller.ts`);
- *  - `BillingController#openPortal`/`#openLegacyPortal` (`POST /billing/portal[/legacy]`) — the Polar
- *    customer-portal session that IS this product's own "cancel at any time" flow. `startCheckout`
- *    carries no exemption: starting or renewing a paid subscription grows the relationship rather than
- *    ending it.
+ *  - the Stripe customer portal, this product's own "cancel at any time" flow, is never behind this
+ *    guard at all: the Stripe plugin serves it under `/api/auth`, outside Nest's guards.
  *
  * Every one of those still changes some row somewhere — the line drawn here is not "no side effect
  * at all", it is "does not grow what the account holds or how long it holds it" (export, leaving,

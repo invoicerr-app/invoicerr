@@ -24,14 +24,9 @@
  *    company-scoped (session/user-level endpoints, `@Public()` routes — which never even reach
  *    `request.companyId` being set, see `guards/auth.guard.ts`) has nothing to gate.
  *  - `/api/auth/*` (session login) never reaches this guard at all: better-auth is mounted as EXPRESS
- *    MIDDLEWARE ahead of Nest's routing layer, responding before any `APP_GUARD` runs. Polar's own
- *    `checkout`/`portal` used to live there too (pre-2026-09-16 — see `polar-plugin.ts`'s own git
- *    history) and got the same free pass; now that they are real Nest routes
- *    (`billing.controller.ts`'s `POST /billing/checkout`/`/billing/portal`) they DO reach this guard,
- *    and are exempted explicitly instead — `@BillingGateExempt()`
- *    (`billing-gate-exempt.decorator.ts`), checked in `company-write.guard.ts`. A blocked company MUST
- *    still be able to reach checkout/portal — that is the only way out of `blocked` — so this is a
- *    real requirement, not a decoration.
+ *    MIDDLEWARE ahead of Nest's routing layer, responding before any `APP_GUARD` runs. The Stripe
+ *    plugin's checkout and portal live there, so a blocked company can always pay its way back out of
+ *    `blocked`.
  *  - `GET /api/billing/status` and downloading the lifecycle zip (mailed only today, no download
  *    route exists yet — see `export-zip.service.ts`'s own header) are both GETs, already covered by
  *    the GET exemption above; no special case needed for either.

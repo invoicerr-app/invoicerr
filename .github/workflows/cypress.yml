@@ -690,27 +690,16 @@ jobs:
   # on and `CYPRESS_expectSaas=1` (see both specs' own `before()` hooks) so a misconfiguration that
   # left billing off would fail the job outright instead of quietly reporting pending again.
   #
-  # The Polar credentials below are throwaway, non-functional strings, not real sandbox secrets:
-  # `billing-customer.ts`'s own header records that a company's Polar customer is created LAZILY, on
-  # its first real checkout, never at signup or company creation — and neither spec this job runs ever
-  # starts one (`76-seats.cy.ts`'s own header: seat quantity is read via `cy.task`, standing in for a
-  # webhook, never pushed to Polar). `polar-env.ts#assertPolarEnvConfiguredForBoot` only checks these
-  # vars are non-blank at boot; nothing in either spec's path calls the real Polar API.
   cypress-run-saas:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
       REDIS_URL: redis://localhost:6379
       WARNING__ENABLE_BILLING_FOR_USERS__WARNING: "true"
-      POLAR_ACCESS_TOKEN: e2e-saas-lane-dummy-token
-      POLAR_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
-      POLAR_ORGANIZATION_ID: e2e-saas-lane-dummy-org
-      POLAR_PRODUCT_ID_MONTHLY: e2e-saas-lane-dummy-monthly
-      POLAR_PRODUCT_ID_YEARLY: e2e-saas-lane-dummy-yearly
-      POLAR_SERVER: sandbox
-      # Same reasoning for Stripe (`stripe-env.ts#assertStripeEnvConfiguredForBoot`): a `sk_test_`
-      # shaped key and a non-blank webhook secret let the backend boot; the plugin makes no Stripe
-      # call at boot and neither spec this job runs starts a checkout.
+      # Throwaway, non-functional values, not real secrets (`stripe-env.ts#assertStripeEnvConfiguredForBoot`):
+      # a `sk_test_` shaped key and a non-blank webhook secret let the backend boot; the plugin makes
+      # no Stripe call at boot and neither spec this job runs starts a checkout (`76-seats.cy.ts`
+      # writes the seat quantity through `cy.task`, standing in for a webhook).
       STRIPE_SECRET_KEY: sk_test_e2e_saas_lane_dummy_key
       STRIPE_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
     services:

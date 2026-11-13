@@ -14,7 +14,6 @@ import { mailT } from '@/mail/i18n';
 import { MailOptions } from '@/mail/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
 // ===================== Change email =====================
@@ -124,7 +123,7 @@ async function listAccountMemberships(userId: string): Promise<AccountMembership
  * a caller already has active, while this one has to walk every company the ACCOUNT belongs to.
  *
  * Returns the membership list on success — `lib/auth.ts` stashes it (see that file's own comment) so
- * `cleanupAfterUserDelete` below, called from `afterDelete`, knows which companies to seat-sync without
+ * `cleanupAfterUserDelete` below, called from `afterDelete`, knows which companies the account left without
  * re-querying rows the DB's own cascade will already have removed by then.
  */
 export async function assertNotSoleOwner(userId: string): Promise<AccountMembership[]> {
@@ -146,41 +145,17 @@ export async function assertNotSoleOwner(userId: string): Promise<AccountMembers
   return memberships;
 }
 
-/** The deleted user's own identity, captured by the caller (`lib/auth.ts`'s `afterDelete` hook still
- *  has better-auth's own in-memory `user` object at this point, even though the DB row is already
- *  gone) — `syncCompanyMemberOnMembershipChange`'s OWN `prisma.user.findUnique` would return nothing
- *  post-cascade, so this function cannot re-derive it from `userId` alone. */
-export interface DeletedAccountIdentity {
-  id: string;
-  email: string;
-  name: string | null;
-}
-
 /**
  * better-auth's `deleteUser.afterDelete`. By the time this runs, `UserCompany.userId` and
  * `InvitationCode.createdById` have ALREADY cascaded away at the DB level (`ON DELETE CASCADE`,
  * confirmed in `prisma/migrations/20260705120000_add_multi_company_schema/migration.sql` and
- * `.../20251207132152_add_invitation_codes/migration.sql`) — better-auth's own
- * `internalAdapter.deleteUser` issues a real `prisma.user.delete`, which is what fires those
- * constraints. Re-deleting those rows here would be a no-op; what the DB constraint CANNOT do is tell
- * Polar a MEMBER (`billing/member-sync.ts`'s own header) is gone, so that is the one thing left for
- * this function — the same call `companies.service.ts#removeMember` makes when a single membership is
- * removed. No seat-sync call here any more (`billing/seat-sync.ts`'s own header): the deleted user's
- * desk (`UserCompany.seatIndex`) went with their row via the cascade
- * above, and the bought seat QUANTITY is Polar's own number now, never something a membership change
- * writes back to it.
+ * `.../20251207132152_add_invitation_codes/migration.sql`), so the deleted user's desk
+ * (`UserCompany.seatIndex`) went with their row and nothing is left to write. What remains is the
+ * audit trail: which companies the account left, captured by `beforeDelete` while the rows still
+ * existed.
  */
-export async function cleanupAfterUserDelete(
-  memberships: AccountMembership[],
-  deletedUser: DeletedAccountIdentity,
-): Promise<void> {
-  for (const membership of memberships) {
-    // `member-sync.ts`'s own `prisma.user.findUnique` would find nothing post-cascade — passing the
-    // identity explicitly is what lets it still resolve the departed member by EMAIL (its fallback
-    // lookup) when it was never backfilled with our own externalId in the first place.
-    await syncCompanyMemberOnMembershipChange(membership.companyId, deletedUser.id, undefined, deletedUser);
-  }
-  logger.info('Account deleted — memberships cascaded, Polar member access resynced', {
+export async function cleanupAfterUserDelete(memberships: AccountMembership[]): Promise<void> {
+  logger.info('Account deleted, memberships cascaded', {
     category: 'auth',
     details: { companyIds: memberships.map((m) => m.companyId) },
   });

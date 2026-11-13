@@ -5,7 +5,7 @@
  * transport's own `send`), `modules/documents/reporting/declaration-provider.ts
  * #DeclarationProviderRegistry.register` (wraps every provider's own `declare`),
  * `modules/documents/payments/payment-provider-registry.ts#PaymentProviderRegistry.register` (wraps
- * every provider's own `createCheckoutSession`), and `modules/billing/polar-client.ts#getPolarClient`.
+ * every provider's own `createCheckoutSession`).
  *
  * Registering the wrap AT `register()` for the three registries above (never only at their own
  * call site inside `documents.service.ts`/`reporting-runner.ts`/`payment-sessions.service.ts`) is the
@@ -50,7 +50,7 @@ export class DemoModeBlockedError extends ForbiddenException {
  * Throws `DemoModeBlockedError` when `DEMO_MODE` is on. Call this FIRST, before any network attempt,
  * at every outbound-send chokepoint. `what` is a short, human-facing noun phrase ("Email",
  * "Webhook delivery", "This transport", "Tax-authority declaration", "Card/online payment",
- * "Polar billing"); it becomes the whole visible refusal, so it must read correctly as
+ * "Online payment"); it becomes the whole visible refusal, so it must read correctly as
  * "<what> is disabled in this demo."
  */
 export function assertDemoSendingAllowed(what: string, env: NodeJS.ProcessEnv = process.env): void {

@@ -28,7 +28,7 @@ describe('isUnderBasePath', () => {
   });
 
   it('matches anything nested under the base path', () => {
-    expect(isUnderBasePath(asReq('/api/auth/polar/webhooks'), '/api/auth')).toBe(true);
+    expect(isUnderBasePath(asReq('/api/auth/stripe/webhook'), '/api/auth')).toBe(true);
     expect(isUnderBasePath(asReq('/api/auth/sign-in/email'), '/api/auth')).toBe(true);
   });
 
@@ -56,7 +56,7 @@ describe('skipBodyParserFor', () => {
     const parser = vi.fn();
     const handler = skipBodyParserFor('/api/auth', parser);
 
-    handler({ path: '/api/auth/polar/webhooks' } as Request, res, next);
+    handler({ path: '/api/auth/stripe/webhook' } as Request, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(parser).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe('skipBodyParserFor', () => {
     const parser = vi.fn();
     const handler = skipBodyParserFor('/api/auth/', parser);
 
-    handler({ path: '/api/auth/polar/webhooks' } as Request, res, next);
+    handler({ path: '/api/auth/stripe/webhook' } as Request, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(parser).not.toHaveBeenCalled();
