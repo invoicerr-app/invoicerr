@@ -61,13 +61,13 @@ describe('LegalController.documents', () => {
   it('resolves the preferred languages from the request and an explicit ?lang= before calling the service', async () => {
     const { controller, service } = buildController();
     (service.listDocuments as Mock).mockReturnValue({ saasMode: false, documents: [] });
-    resolveLegalDocumentLanguages.mockResolvedValue(['de', 'fr', 'en']);
+    resolveLegalDocumentLanguages.mockResolvedValue(['fr', 'en']);
 
     const request = fakeRequest();
-    await controller.documents(request, 'de');
+    await controller.documents(request, 'fr');
 
-    expect(resolveLegalDocumentLanguages).toHaveBeenCalledWith(request, 'de');
-    expect(service.listDocuments).toHaveBeenCalledWith(['de', 'fr', 'en']);
+    expect(resolveLegalDocumentLanguages).toHaveBeenCalledWith(request, 'fr');
+    expect(service.listDocuments).toHaveBeenCalledWith(['fr', 'en']);
   });
 });
 

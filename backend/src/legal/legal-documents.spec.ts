@@ -94,17 +94,21 @@ describe('legal-documents', () => {
   });
 
   describe('translations', () => {
-    it('privacy-policy, data-processing-agreement and refund-policy ship every non-English catalog language', () => {
-      for (const slug of ['privacy-policy', 'data-processing-agreement', 'refund-policy']) {
+    it('terms-of-service, privacy-policy and legal-notice ship their French summary only', () => {
+      for (const slug of ['terms-of-service', 'privacy-policy', 'legal-notice']) {
         const doc = getLegalDocument(slug)!;
-        expect(Object.keys(doc.translations).sort()).toEqual(['de', 'fr', 'it', 'pl', 'pt']);
+        expect(Object.keys(doc.translations)).toEqual(['fr']);
       }
     });
 
-    it('terms-of-service, legal-notice and cookies-and-acceptable-use ship French only', () => {
-      for (const slug of ['terms-of-service', 'legal-notice', 'cookies-and-acceptable-use']) {
-        const doc = getLegalDocument(slug)!;
-        expect(Object.keys(doc.translations)).toEqual(['fr']);
+    it('the four other documents ship no translation at all since D-297', () => {
+      for (const slug of [
+        'data-processing-agreement',
+        'refund-policy',
+        'cookies-and-acceptable-use',
+        'international-access-transparency',
+      ]) {
+        expect(getLegalDocument(slug)!.translations).toEqual({});
       }
     });
 
