@@ -14,12 +14,8 @@
  * directly while writing this file: a first version of this spec built a real
  * `@thallesp/nestjs-better-auth` `AuthModule` for its own test-only auth instance and failed on
  * exactly this, at `@thallesp/nestjs-better-auth/dist/index.cjs:5` (`require('better-auth/node')`),
- * before any Polar-related code ever ran. This is the real reason this codebase's own convention is
- * that no spec imports `lib/auth.ts` (`sso-policy.ts` notes the convention too) — this used to ALSO be
- * true of `@polar-sh/better-auth` (its bundled `dist/index.cjs` unconditionally `require`d the
- * browser-only, ESM-only `@polar-sh/checkout/embed`), until that whole dependency was removed
- * 2026-09-16 when hosted billing moved off it entirely (`billing.controller.ts`'s own header) — the
- * `better-auth`-itself reason alone was always sufficient on its own, Polar was never the only cause.
+ * before any route code ever ran. This is the real reason this codebase's own convention is that no
+ * spec imports `lib/auth.ts` (`sso-policy.ts` notes the convention too).
  *
  * So the fix itself lives in two places: `main.ts` wires it up (unchanged, still what `bootstrap()`
  * runs in production), but the actual skip PREDICATE + WRAPPER — the part a test can actually reach
@@ -38,23 +34,14 @@
  * better-auth's own `toNodeHandler`/`getRequest`, unavailable under Jest for the reason above; what
  * matters for this bug is only whether something upstream already drained the stream, which is
  * exactly as true of a raw Node stream read as of a Web `Request` built from one) — then verifies a
- * genuinely-signed payload with `standardwebhooks#Webhook`, the exact primitive `@polar-sh/sdk`'s own
- * `validateEvent` delegates to for HMAC verification (confirmed by reading
- * `@polar-sh/sdk/dist/commonjs/webhooks.js`: `new Webhook(base64Secret).verify(body, headers)` after
- * base64-encoding the raw secret — this file's own middleware does the identical two steps), the same
- * library `webhook-signature.spec.ts` already uses to sign+verify in isolation. Real `app.listen(0)`
+ * genuinely-signed payload with `standardwebhooks#Webhook`, an HMAC signature over the exact raw
+ * bytes, so any upstream drain of the stream fails verification. Real `app.listen(0)`
  * (an OS-picked ephemeral port), real HTTP over that socket — not `app.init()` alone — so the full
  * `NestApplication.init()` → `registerModules()` → `configure()` sequence this bug is about actually
  * runs, exactly like a real `bootstrap()`.
  *
- * `WEBHOOK_PATH`/`TestPolarWebhookMiddleware` below stand in for "whatever real `/api/auth/*` route
- * reads its own raw body" — as of 2026-09-15 that is no longer literally true of a Polar webhook:
- * `POST /api/auth/polar/webhooks` was removed along with `@polar-sh/better-auth`'s own `webhooks()`
- * sub-plugin (see `modules/billing/polar-webhook.controller.ts`'s own header), and the real Polar
- * receiver now lives at `POST /api/billing/webhooks/polar` — deliberately NOT under `/api/auth`, so it
- * never exercises this skip at all. The mechanism this file proves is still exactly as necessary for
- * every OTHER `/api/auth/*` route (sign-in, checkout, portal, …), so the illustrative path/middleware
- * names below are kept rather than renamed away from their original, real-incident example.
+ * `WEBHOOK_PATH`/`TestSignedWebhookMiddleware` below stand in for "whatever real `/api/auth/*` route
+ * reads its own raw body", such as the Stripe plugin's own webhook at `/api/auth/stripe/webhook`.
  */
 
 import { vi } from 'vitest';
@@ -70,7 +57,7 @@ import { Webhook } from 'standardwebhooks';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
 
 const AUTH_BASE_PATH = '/api/auth';
-const WEBHOOK_PATH = `${AUTH_BASE_PATH}/polar/webhooks`;
+const WEBHOOK_PATH = `${AUTH_BASE_PATH}/stripe/webhook`;
 const TEST_WEBHOOK_SECRET = 'whsec_main_middleware_spec_test_secret';
 
 const onWebhookVerified = vi.fn();
@@ -85,15 +72,14 @@ const onWebhookVerified = vi.fn();
  * See this file's own header for why the real `AuthModule` itself can't stand in here.
  */
 @Injectable()
-class TestPolarWebhookMiddleware implements NestMiddleware {
+class TestSignedWebhookMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (req.method !== 'POST' || req.originalUrl.split('?')[0] !== WEBHOOK_PATH) {
       next();
       return;
     }
     // The raw stream read: EMPTY here whenever something upstream already drained `req` — exactly the
-    // production symptom (`ctx.request.text()` reading empty, `validateEvent` then rejecting a
-    // correctly-signed body with "No matching signature found").
+    // production symptom (the route reading an empty body, then rejecting a correctly-signed one).
     const buf = await text(req);
     try {
       const headers = {
@@ -101,7 +87,6 @@ class TestPolarWebhookMiddleware implements NestMiddleware {
         'webhook-timestamp': String(req.headers['webhook-timestamp'] ?? ''),
         'webhook-signature': String(req.headers['webhook-signature'] ?? ''),
       };
-      // Same two steps `@polar-sh/sdk`'s own `validateEvent` performs — see this file's own header.
       const base64Secret = Buffer.from(TEST_WEBHOOK_SECRET, 'utf-8').toString('base64');
       const payload = new Webhook(base64Secret).verify(buf, headers);
       onWebhookVerified(payload);
@@ -125,12 +110,12 @@ class EchoMiddleware implements NestMiddleware {
   }
 }
 
-@Module({ providers: [TestPolarWebhookMiddleware, EchoMiddleware] })
+@Module({ providers: [TestSignedWebhookMiddleware, EchoMiddleware] })
 class TestHarnessModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // Both registered here, inside `configure()` — wired up late, deliberately, to reproduce the
     // exact timing `@thallesp/nestjs-better-auth`'s own `AuthModule` relies on in production.
-    consumer.apply(TestPolarWebhookMiddleware, EchoMiddleware).forRoutes('*path');
+    consumer.apply(TestSignedWebhookMiddleware, EchoMiddleware).forRoutes('*path');
   }
 }
 

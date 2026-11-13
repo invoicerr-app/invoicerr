@@ -25,7 +25,7 @@ export function NoFreeSeatNotice({ dataCy }: { dataCy?: string }) {
     <Alert variant="warning" data-cy={dataCy}>
       <TriangleAlertIcon />
       <AlertTitle>
-        {t("settings.seats.noFreeSeatNotice.title", "No free seat — add one in the Polar portal")}
+        {t("settings.seats.noFreeSeatNotice.title", "No free seat: free one or buy more")}
       </AlertTitle>
       <AlertDescription>
         <Link to="/settings/seats" className="underline underline-offset-4">

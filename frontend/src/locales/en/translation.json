@@ -3158,7 +3158,6 @@
       "viewOffice": "Office",
       "viewList": "List",
       "desksTaken": "{{taken}} of {{total}} desks taken",
-      "addDesks": "Add desks in the Polar portal",
       "free": "Free desk",
       "officePlanLabel": "Office desks",
       "waitingBench": "Waiting for a seat",
@@ -3183,7 +3182,7 @@
         "moveError": "Failed to move that member"
       },
       "noFreeSeatNotice": {
-        "title": "No free seat — add one in the Polar portal",
+        "title": "No free seat: free one or buy more",
         "link": "Open Settings > Seats"
       }
     },
@@ -3397,24 +3396,12 @@
     },
     "billing": {
       "title": "Subscription",
-      "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
-      "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
-      "vatNotice": "Prices exclude VAT; Polar, the merchant of record, adds the VAT applicable to your company at checkout.",
-      "refundNotice": {
-        "prefix": "Polar sells this subscription as our reseller. It renews automatically until you cancel it, and cancelling takes effect at the end of the period already paid. Refunds are handled by Polar. See our",
-        "linkLabel": "Refund and Cancellation Policy"
-      },
+      "description": "This company's hosted subscription: plan, seats, and what is counting down.",
       "currentPlan": "Current plan",
-      "noSubscription": "No subscription",
       "seats": "{{count}} seat",
       "seats_other": "{{count}} seats",
       "daysRemaining": "{{count}} day remaining",
       "daysRemaining_other": "{{count}} days remaining",
-      "seatPaymentFailedNotice": "We couldn't charge your card for the seat you just added — update your payment method below.",
-      "subscribeMonthly": "Subscribe monthly",
-      "subscribeYearly": "Subscribe yearly",
-      "managePortal": "Manage subscription",
-      "manageLegacyPortal": "Manage the previous subscription (cancel it here)",
       "memberNotice": "Only the company's owner or an admin can manage the subscription.",
       "interval": {
         "MONTH": "Monthly",
@@ -3427,30 +3414,6 @@
         "BLOCKED": "Blocked",
         "ZIPPED": "Pending deletion",
         "DELETED": "Deleted"
-      },
-      "legacyNotice": {
-        "title": "Re-subscribe under this company",
-        "description": "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
-        "cancelWithButton": "Once you've subscribed, cancel the previous subscription using \"Manage the previous subscription\" below.",
-        "cancelNoButton": "Once you've subscribed, cancel the previous subscription from its own customer portal.",
-        "previousCustomerSuffix": "previous customer"
-      },
-      "billingEmail": {
-        "title": "Billing email",
-        "description": "Used for this company's own Polar customer. Defaults to the company's contact email — set a distinct one if another company already uses it.",
-        "label": "Billing email",
-        "save": "Save",
-        "noneOnFileNotice": "No billing email is on file yet. The field above has been filled in with your own account email as a starting point — review it, or enter a different one, then save before subscribing."
-      },
-      "messages": {
-        "checkoutError": "Failed to start checkout",
-        "portalError": "Failed to open the subscription portal",
-        "noCompanyCustomer": "This company has no billing customer yet — subscribe first.",
-        "noLegacyCustomer": "No previous subscription was found to manage.",
-        "billingEmailTaken": "Choose a distinct billing email for this company",
-        "billingEmailSaved": "Billing email saved",
-        "billingEmailSaveError": "Failed to save the billing email",
-        "taxIdNotAccepted": "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed."
       }
     },
     "declareLastNumber": {
@@ -6062,11 +6025,7 @@
       },
       "pastDue": {
         "title": "Your last payment failed",
-        "description": "Update your payment method to keep sending documents.",
-        "seatPaymentFailed": {
-          "title": "Payment for an added seat failed",
-          "description": "We couldn't charge your card for the seat you just added. Update your payment method to keep sending documents."
-        }
+        "description": "Update your payment method to keep sending documents."
       },
       "blocked": {
         "title": "This company is blocked",
@@ -6080,8 +6039,8 @@
   },
   "seatGate": {
     "title": "Waiting for a seat",
-    "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
-    "description": "There's no free seat for you right now. Ask your company's owner to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+    "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one or buy more seats, and you'll get one back automatically.",
+    "description": "There's no free seat for you right now. Ask your company's owner to free one or buy more seats, and you'll get one back automatically.",
     "signOut": "Sign out",
     "errorTitle": "Couldn't check your seat",
     "errorDescription": "We couldn't confirm your access to this company right now. This is usually temporary — try again in a moment."

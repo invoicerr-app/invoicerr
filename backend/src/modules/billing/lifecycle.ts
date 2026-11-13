@@ -1,13 +1,43 @@
 /**
- * Pure lifecycle decisions; the side-effecting half is `billing-lifecycle-sweep-runner.ts`.
+ * The hosted-billing lifecycle's own PURE decisions — split from `billing-lifecycle-sweep-runner.ts`
+ * (the Prisma/BullMQ/mail-touching half) for the exact reason `currency-rate-sweep.ts` is split
+ * from `currency-rate-sweep-runner.ts` (that file's own header): a state transition is a plain
+ * function of facts already in hand, testable without a broker, an HTTP call, or a database.
  *
  *  1. Never paid: trial (14d) -> blocked (14d) -> zip sent, zipped (30d) -> deleted.
  *  2. Paid then stopped: active -> past_due -> blocked (14d) -> zip sent, zipped (180d) -> deleted.
  *
- * `active`/`past_due` are entered only via webhooks. `past_due` has no grace window of its own, but
- * is not blocked until the period already paid for ends (Terms of Service, Section 13.1(b)).
+ *  1. NEVER-PAID: `trial` (14 days, EVERYTHING allowed except actually sending — see
+ *     `send-gate.ts#assertCanSend`) --[trialEndsAt reached]--> `blocked` (14 days, read-only, every
+ *     action refused) --[14 days elapse]--> zip sent, `zipped` --[30 days elapse]--> deleted.
+ *  2. PAID-THEN-STOPPED: `active` --[the payment provider reports the subscription stopped renewing]-->
+ *     `past_due` --[the period the company had ALREADY PAID FOR runs out — see below]--> `blocked`
+ *     (14 days) --[14 days elapse]--> zip sent, `zipped` --[180 days elapse]--> deleted.
  *
- * "Ever paid" is `polarSubscriptionId !== null`: it is set once at checkout and never cleared.
+ * `active` itself is never advanced by this function - becoming `active`/`past_due` is a fact the
+ * payment provider reports (Stripe subscription events, through the Better Auth Stripe plugin), not
+ * something a periodic sweep can observe on its own; this function only walks a subscription FORWARD
+ * once it is already in `trial`, `past_due`, `blocked`, or `zipped`.
+ *
+ * `past_due` carries no grace window OF ITS OWN (the product brief never named one — the moment payment
+ * stops, this treats it as already inside the SAME 14-day countdown the never-paid cycle uses, never
+ * a separate/longer grace period a company could exploit by design ambiguity). What it does carry is
+ * whatever the company ALREADY BOUGHT: the read-only suspension opens when a paid subscription ENDS
+ * (Terms of Service, Section 13.1(b)) — "through cancellation taking effect, non-renewal, or an
+ * unresolved payment failure" — and a period paid through the 31st has not ended on the 3rd merely
+ * because that month's renewal was refused and the provider is still retrying it. So `past_due` folds into
+ * `blocked` on the first tick at or after the end of the period on file (`currentPeriodEnd`, read
+ * through `paid-period-grace.ts#isPaidPeriodStillRunning` — the same "a period already paid for is not
+ * shortened by something the customer never agreed to" commitment Section 20.2 makes for a Terms
+ * change), `blockedAt` stamped `now`, and on the very next tick for a company with no paid period on
+ * file at all (a checkout that never completed, a trial that lapsed straight into `past_due`).
+ *
+ * ## Distinguishing the two cycles' zip→delete delay WITHOUT a dedicated field
+ * Both cycles fold into `blocked` and then `zipped` through IDENTICAL code, but the grace period
+ * after the zip is sent differs (see the enum's own two cases above). `CompanySubscription.firstPaidAt`
+ * is what tells them apart: stamped once, the first time a subscription is paid for, and NEVER cleared
+ * afterward, even once the subscription itself is later canceled. So "has this company ever actually
+ * paid" is exactly `firstPaidAt !== null`.
  */
 import { isPaidPeriodStillRunning } from './paid-period-grace';
 
@@ -21,9 +51,12 @@ export interface CompanySubscriptionLifecycleFacts {
   zipSentAt: Date | null;
   deletionDueAt: Date | null;
   /** The only signal distinguishing the two cycles' zip-to-delete delay. */
-  polarSubscriptionId: string | null;
-  /** End of the period already paid for; only written from facts reporting the subscription as paid,
-   *  so it never becomes the end of an unpaid cycle after a failed renewal. */
+  firstPaidAt: Date | null;
+  /** The end of the period this company has ALREADY PAID FOR, as last mirrored while the subscription
+   *  was live. It is only ever written from a fact that still reports the subscription as paid, so it
+   *  can never quietly become the end of an UNPAID cycle the provider rolled the company into on a
+   *  failed renewal. `null` for a company that has never paid for one - read only by the `PAST_DUE`
+   *  branch below. */
   currentPeriodEnd: Date | null;
 }
 
@@ -67,9 +100,7 @@ export function computeLifecycleTransition(
       const zipDueAt = addDays(sub.blockedAt, BLOCKED_DAYS);
       if (now.getTime() < zipDueAt.getTime()) return { type: 'none' };
       const deletionDueAt =
-        sub.polarSubscriptionId !== null
-          ? addDays(now, PAID_ZIP_GRACE_DAYS)
-          : addDays(now, MIN_RETRIEVAL_DAYS);
+        sub.firstPaidAt !== null ? addDays(now, PAID_ZIP_GRACE_DAYS) : addDays(now, MIN_RETRIEVAL_DAYS);
       return { type: 'send_zip_and_enter_zipped', zipSentAt: now, deletionDueAt };
     }
 
@@ -83,27 +114,6 @@ export function computeLifecycleTransition(
       // `active` only moves via webhook; `deleted` rows no longer exist.
       return { type: 'none' };
   }
-}
-
-export type RecoveredNonActiveStatus = 'TRIAL' | 'PAST_DUE' | 'BLOCKED';
-
-export interface RecoveredLifecycleState {
-  status: RecoveredNonActiveStatus;
-  /** Backdated to `anchor`, never `now`, so the sweep computes the same deadline it would have. */
-  blockedAt: Date | null;
-}
-
-/**
- * Recomputes status for a company known to have no live Polar subscription, anchored at when that
- * became true rather than trusting the stored (possibly stale) status. A company still inside its
- * original trial keeps its unused trial days.
- */
-export function computeRecoveredStatus(trialEndsAt: Date, anchor: Date, now: Date): RecoveredLifecycleState {
-  if (now.getTime() < trialEndsAt.getTime()) return { status: 'TRIAL', blockedAt: null };
-
-  const zipDueAt = addDays(anchor, BLOCKED_DAYS);
-  if (now.getTime() >= zipDueAt.getTime()) return { status: 'BLOCKED', blockedAt: anchor };
-  return { status: 'PAST_DUE', blockedAt: null };
 }
 
 export function computeTrialWindow(startedAt: Date): { trialStartedAt: Date; trialEndsAt: Date } {

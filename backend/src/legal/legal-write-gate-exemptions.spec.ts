@@ -8,7 +8,6 @@ import { getPendingAcceptanceSlugs } from './legal-acceptance';
 
 import { CompaniesController } from '@/modules/companies/companies.controller';
 import { DangerController } from '@/modules/danger/danger.controller';
-import { BillingController } from '@/modules/billing/billing.controller';
 
 vi.mock('./legal-acceptance');
 
@@ -43,13 +42,6 @@ describe('LegalAcceptanceGuard — write-gate exemption wiring (read/export/term
     ['CompaniesController#leave', 'DELETE', CompaniesController.prototype.leave, CompaniesController],
     ['DangerController#requestOtp', 'POST', DangerController.prototype.requestOtp, DangerController],
     ['DangerController#deleteCompany', 'POST', DangerController.prototype.deleteCompany, DangerController],
-    ['BillingController#openPortal', 'POST', BillingController.prototype.openPortal, BillingController],
-    [
-      'BillingController#openLegacyPortal',
-      'POST',
-      BillingController.prototype.openLegacyPortal,
-      BillingController,
-    ],
     // The one route this guard MUST always let through regardless of what else is exempt — see
     // `legal-acceptance.guard.spec.ts` for the generic version of this same case.
   ])('%s carries @LegalGateExempt()', (_name, method, handler, klass) => {
@@ -72,7 +64,6 @@ describe('LegalAcceptanceGuard — write-gate exemption wiring (read/export/term
       DangerController.prototype.resetCompanyData,
       DangerController,
     ],
-    ['BillingController#startCheckout', 'POST', BillingController.prototype.startCheckout, BillingController],
   ])('%s carries NO exemption — it changes what the account holds while the relationship continues', (_name, method, handler, klass) => {
     it('is refused with a pending re-acceptance, same as any other business write', async () => {
       getPending.mockResolvedValue(['terms-of-service']);

@@ -10,7 +10,6 @@ import {
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CompanyService } from '@/modules/company/company.service';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import {
   BillingExportService,
   ExportZipTimedOutError,
@@ -114,10 +113,6 @@ export class CompaniesService {
       data: { role },
     });
     await sessionCache.invalidateUsers([targetUserId]);
-    // Seat COUNT is unaffected (the person was already counted) but Polar member ACCESS may need to
-    // gain or lose them — see `billing/member-sync.ts`'s own header (a no-op entirely when billing is
-    // disabled, never throws).
-    await syncCompanyMemberOnMembershipChange(companyId, targetUserId);
 
     logger.info('Member role changed', { category: 'companies', details: { companyId, targetUserId, role } });
 
@@ -147,9 +142,6 @@ export class CompaniesService {
     await sessionCache.invalidateUsers([targetUserId]);
     // One fewer seat, freed automatically — the row (and whatever desk it held) is just gone, nothing
     // left to sync explicitly (see `billing/seat-sync.ts`'s own header).
-    // The removed row is already gone by this point, so this reads as "no membership" and removes
-    // any Polar member for them — see `billing/member-sync.ts`'s own header.
-    await syncCompanyMemberOnMembershipChange(companyId, targetUserId);
 
     logger.info('Member removed', { category: 'companies', details: { companyId, targetUserId } });
 
@@ -175,9 +167,8 @@ export class CompaniesService {
       where: { userId_companyId: { userId, companyId } },
     });
     await sessionCache.invalidateUsers([userId]);
-    // Same free-seat / Polar-member cleanup as `removeMember` above — the row is gone either way,
-    // regardless of who initiated its removal.
-    await syncCompanyMemberOnMembershipChange(companyId, userId);
+    // The seat frees itself, same as `removeMember` above: the row is gone either way, regardless
+    // of who initiated its removal.
 
     // No `activeCompanyId` write: `customSession` falls back to another membership on the next load.
     logger.info('Member left company', { category: 'companies', details: { companyId, userId } });

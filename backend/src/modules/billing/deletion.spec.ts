@@ -2,12 +2,11 @@ import { vi, type Mock } from 'vitest';
 
 import prisma from '@/prisma/prisma.service';
 
-import {
-  DeletionPolarClient,
-  deleteCompanyPermanently,
-  deleteCompanyPermanentlyNow,
-  PolarCancellationFailedError,
-} from './deletion';
+import { deleteCompanyPermanently, deleteCompanyPermanentlyNow } from './deletion';
+import { cancelCompanyStripeSubscriptions } from './stripe-subscription-cancel';
+
+vi.mock('./stripe-subscription-cancel', () => ({ cancelCompanyStripeSubscriptions: vi.fn() }));
+const cancelStripe = cancelCompanyStripeSubscriptions as Mock;
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -18,7 +17,7 @@ vi.mock('@/prisma/prisma.service', () => ({
     userCompany: { findMany: vi.fn() },
     // The storage-erasure journal both deletion paths now write inside their own transaction, and
     // drain right after it (`documents/archive/company-storage-erasure.ts`). Stubbed empty here: this
-    // spec is about the Polar/FK/stale-read disciplines, and the erasure itself is proven against real
+    // spec is about the FK/stale-read disciplines, and the erasure itself is proven against real
     // files on a real filesystem in that module's own colocated spec.
     documentArchive: { findMany: vi.fn().mockResolvedValue([]) },
     pendingStorageErasure: {
@@ -47,14 +46,10 @@ function resetStorageErasureMocks() {
 const NOW = new Date('2026-09-17T00:00:00.000Z');
 const DUE_AT = new Date('2026-09-16T00:00:00.000Z'); // already due as of NOW
 
-function fakeClient(revoke = vi.fn().mockResolvedValue({})): DeletionPolarClient {
-  return { subscriptions: { revoke } };
-}
-
 /** Every field `isStillDueForDeletion` reads, the same "one row shape" convention every other
  *  spec's own `subRow` helper holds, so a case only needs to override what it actually varies. */
 function dueRow(overrides: Record<string, unknown> = {}) {
-  return { polarSubscriptionId: null, status: 'ZIPPED', deletionDueAt: DUE_AT, ...overrides };
+  return { status: 'ZIPPED', deletionDueAt: DUE_AT, ...overrides };
 }
 
 describe('deleteCompanyPermanently', () => {
@@ -75,7 +70,7 @@ describe('deleteCompanyPermanently', () => {
   afterEach(() => vi.resetAllMocks());
 
   it("deletes the company's Webhook rows and the Company row in one transaction, webhooks first", async () => {
-    findSub.mockResolvedValue(dueRow()); // never paid, nothing to cancel
+    findSub.mockResolvedValue(dueRow());
     const calls: string[] = [];
     (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
@@ -86,7 +81,7 @@ describe('deleteCompanyPermanently', () => {
       return Promise.resolve({});
     });
 
-    const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient());
+    const deleted = await deleteCompanyPermanently('company-1', NOW);
 
     expect(deleted).toBe(true);
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
@@ -95,73 +90,56 @@ describe('deleteCompanyPermanently', () => {
     expect(calls).toEqual(['webhook', 'company']);
   });
 
-  it("cancels a PAID company's Polar subscription (immediate revoke) BEFORE deleting it", async () => {
-    findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = vi.fn().mockResolvedValue({});
-    const order: string[] = [];
-    revoke.mockImplementation(async () => {
-      order.push('revoke');
-    });
-    (prisma.company.delete as Mock).mockImplementation(async () => {
-      order.push('company-delete');
-    });
-
-    await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
-
-    expect(revoke).toHaveBeenCalledWith('polar_sub_123');
-    expect(order).toEqual(['revoke', 'company-delete']);
-  });
-
-  it('never even calls Polar for a never-paid company (no polarSubscriptionId)', async () => {
-    findSub.mockResolvedValue(dueRow({ polarSubscriptionId: null }));
-    const revoke = vi.fn();
-
-    await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
-
-    expect(revoke).not.toHaveBeenCalled();
-  });
-
-  it('never even calls Polar when the company has no CompanySubscription row at all', async () => {
+  it('deletes nothing when the company has no CompanySubscription row at all', async () => {
     findSub.mockResolvedValue(null);
-    const revoke = vi.fn();
 
-    const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
+    const deleted = await deleteCompanyPermanently('company-1', NOW);
 
     expect(deleted).toBe(false);
-    expect(revoke).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('REFUSES the deletion (named error) when the Polar cancellation fails, never a company deleted while still billed', async () => {
-    findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
-
-    await expect(deleteCompanyPermanently('company-1', NOW, fakeClient(revoke))).rejects.toThrow(
-      PolarCancellationFailedError,
-    );
-
-    expect(prisma.$transaction).not.toHaveBeenCalled();
-    expect(prisma.company.delete).not.toHaveBeenCalled();
-  });
-
-  it('the refusal error carries a named, machine-checkable code', async () => {
-    findSub.mockResolvedValue(dueRow({ polarSubscriptionId: 'polar_sub_123' }));
-    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
-
-    await expect(deleteCompanyPermanently('company-1', NOW, fakeClient(revoke))).rejects.toMatchObject({
-      code: 'POLAR_CANCELLATION_FAILED',
+  it('cancels the company Stripe subscriptions before the deletion transaction', async () => {
+    findSub.mockResolvedValue(dueRow());
+    const calls: string[] = [];
+    cancelStripe.mockImplementation(() => {
+      calls.push('cancel-stripe');
+      return Promise.resolve(1);
     });
+    (prisma.company.delete as Mock).mockImplementation(() => {
+      calls.push('company');
+      return Promise.resolve({});
+    });
+
+    await deleteCompanyPermanently('company-1', NOW);
+
+    expect(cancelStripe).toHaveBeenCalledWith('company-1');
+    expect(calls).toEqual(['cancel-stripe', 'company']);
+  });
+
+  it('deletes nothing when Stripe cannot cancel, so the next sweep retries', async () => {
+    findSub.mockResolvedValue(dueRow());
+    cancelStripe.mockRejectedValue(new Error('Stripe is down'));
+
+    await expect(deleteCompanyPermanently('company-1', NOW)).rejects.toThrow('Stripe is down');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('never cancels the Stripe subscription of a company that is no longer due', async () => {
+    findSub.mockResolvedValue(dueRow({ status: 'ACTIVE' }));
+
+    await deleteCompanyPermanently('company-1', NOW);
+
+    expect(cancelStripe).not.toHaveBeenCalled();
   });
 
   describe('stale-read guard (race with a company that stopped being due)', () => {
     it('refuses to delete a row whose status is no longer ZIPPED (a webhook reactivated it since the sweep read it)', async () => {
       findSub.mockResolvedValue(dueRow({ status: 'ACTIVE' }));
-      const revoke = vi.fn();
 
-      const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
+      const deleted = await deleteCompanyPermanently('company-1', NOW);
 
       expect(deleted).toBe(false);
-      expect(revoke).not.toHaveBeenCalled();
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(prisma.company.delete).not.toHaveBeenCalled();
     });
@@ -169,28 +147,22 @@ describe('deleteCompanyPermanently', () => {
     it('refuses to delete a row whose own grace period has not actually elapsed yet', async () => {
       findSub.mockResolvedValue(dueRow({ deletionDueAt: new Date(NOW.getTime() + 1000) }));
 
-      const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient());
+      const deleted = await deleteCompanyPermanently('company-1', NOW);
 
       expect(deleted).toBe(false);
       expect(prisma.company.delete).not.toHaveBeenCalled();
     });
 
     it(
-      'aborts INSIDE the transaction, never deleting, when the row moved on between the pre-revoke ' +
-        'read and the delete itself (the Polar revoke call is a real await in between)',
+      'aborts INSIDE the transaction, never deleting, when the row moved on between the first read ' +
+        'and the delete itself',
       async () => {
-        // First read (pre-revoke): still due, and a real subscription to cancel. Second read (inside
-        // the transaction, right before the actual delete): a webhook landed while the revoke call
-        // was in flight and reactivated it.
-        findSub
-          .mockResolvedValueOnce(dueRow({ polarSubscriptionId: 'polar_sub_123' }))
-          .mockResolvedValueOnce(dueRow({ status: 'ACTIVE' }));
-        const revoke = vi.fn().mockResolvedValue({});
-
-        const deleted = await deleteCompanyPermanently('company-1', NOW, fakeClient(revoke));
+        // First read: still due. Second read (inside the transaction, right before the actual
+        // delete): a billing event landed in between and reactivated it.
+        findSub.mockResolvedValueOnce(dueRow()).mockResolvedValueOnce(dueRow({ status: 'ACTIVE' }));
+        const deleted = await deleteCompanyPermanently('company-1', NOW);
 
         expect(deleted).toBe(false);
-        expect(revoke).toHaveBeenCalled(); // already committed to Polar by the time the race was seen
         expect(prisma.webhook.deleteMany).not.toHaveBeenCalled();
         expect(prisma.company.delete).not.toHaveBeenCalled();
       },
@@ -210,7 +182,6 @@ describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger 
   afterEach(() => vi.resetAllMocks());
 
   it('writes the storage inventory INSIDE the transaction, before any delete, and drains it after the commit', async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: null });
     const calls: string[] = [];
     let committed = false;
     (prisma.pendingStorageErasure.createMany as Mock).mockImplementation(() => {
@@ -238,13 +209,12 @@ describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger 
       return Promise.resolve([]);
     });
 
-    await deleteCompanyPermanentlyNow('company-1', fakeClient());
+    await deleteCompanyPermanentlyNow('company-1');
 
     expect(calls).toEqual(['journal', 'webhook', 'company', 'drain-after-commit']);
   });
 
   it('deletes Webhook then Company, in one transaction, no CompanySubscription.status/deletionDueAt gate at all', async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: null }); // never paid, nothing to cancel
     const calls: string[] = [];
     (prisma.webhook.deleteMany as Mock).mockImplementation(() => {
       calls.push('webhook');
@@ -255,7 +225,7 @@ describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger 
       return Promise.resolve({});
     });
 
-    await deleteCompanyPermanentlyNow('company-1', fakeClient());
+    await deleteCompanyPermanentlyNow('company-1');
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.webhook.deleteMany).toHaveBeenCalledWith({ where: { companyId: 'company-1' } });
@@ -263,52 +233,39 @@ describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger 
     expect(calls).toEqual(['webhook', 'company']);
   });
 
-  it("cancels a PAID company's Polar subscription (immediate revoke) BEFORE deleting it", async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: 'polar_sub_123' });
-    const order: string[] = [];
-    const revoke = vi.fn().mockImplementation(async () => {
-      order.push('revoke');
-    });
-    (prisma.company.delete as Mock).mockImplementation(async () => {
-      order.push('company-delete');
-    });
-
-    await deleteCompanyPermanentlyNow('company-1', fakeClient(revoke));
-
-    expect(revoke).toHaveBeenCalledWith('polar_sub_123');
-    expect(order).toEqual(['revoke', 'company-delete']);
-  });
-
-  it('never even calls Polar for a never-paid company, or one with no CompanySubscription row at all', async () => {
-    findSub.mockResolvedValue(null);
-    const revoke = vi.fn();
-
-    await deleteCompanyPermanentlyNow('company-1', fakeClient(revoke));
-
-    expect(revoke).not.toHaveBeenCalled();
-    expect(prisma.company.delete).toHaveBeenCalled(); // unlike the sweep-driven function, this still deletes
-  });
-
-  it('REFUSES the deletion (named error) when the Polar cancellation fails, never a company deleted while still billed', async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: 'polar_sub_123' });
-    const revoke = vi.fn().mockRejectedValue(new Error('polar is down'));
-
-    await expect(deleteCompanyPermanentlyNow('company-1', fakeClient(revoke))).rejects.toThrow(
-      PolarCancellationFailedError,
-    );
-
-    expect(prisma.$transaction).not.toHaveBeenCalled();
-    expect(prisma.company.delete).not.toHaveBeenCalled();
-  });
-
   it('deletes even a company whose subscription is ACTIVE/TRIAL/PAST_DUE, explicit consent is the only gate, not a lifecycle status', async () => {
-    findSub.mockResolvedValue({ polarSubscriptionId: null, status: 'ACTIVE', deletionDueAt: null });
+    findSub.mockResolvedValue({ status: 'ACTIVE', deletionDueAt: null });
 
-    await deleteCompanyPermanentlyNow('company-1', fakeClient());
+    await deleteCompanyPermanentlyNow('company-1');
 
     // `deleteCompanyPermanently` (the sweep-driven twin) would have refused this exact row, see
     // this file's own "stale-read guard" tests above, because ACTIVE is never due for AUTOMATIC
     // deletion. This function has no such check: it is one, does not re-read after any await.
     expect(prisma.company.delete).toHaveBeenCalledWith({ where: { id: 'company-1' } });
+  });
+
+  it('cancels the company Stripe subscriptions before any row is touched', async () => {
+    const calls: string[] = [];
+    cancelStripe.mockImplementation(() => {
+      calls.push('cancel-stripe');
+      return Promise.resolve(1);
+    });
+    (prisma.company.delete as Mock).mockImplementation(() => {
+      calls.push('company');
+      return Promise.resolve({});
+    });
+
+    await deleteCompanyPermanentlyNow('company-1');
+
+    expect(cancelStripe).toHaveBeenCalledWith('company-1');
+    expect(calls).toEqual(['cancel-stripe', 'company']);
+  });
+
+  it('deletes nothing when Stripe cannot cancel', async () => {
+    cancelStripe.mockRejectedValue(new Error('Stripe is down'));
+
+    await expect(deleteCompanyPermanentlyNow('company-1')).rejects.toThrow('Stripe is down');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.company.delete).not.toHaveBeenCalled();
   });
 });

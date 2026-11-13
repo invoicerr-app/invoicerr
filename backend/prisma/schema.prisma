@@ -334,24 +334,13 @@ model Company {
   phone               String
   email               String
 
-  // Polar customer email for THIS company's own hosted-billing customer (option A, product decision
-  // 2026-09-16: one Polar customer PER COMPANY, `external_id = company.id` — see
-  // `modules/billing/billing-customer.ts`'s own header). Polar requires a customer's email to be
-  // unique within the organization; `email` above is reused by default, but two companies sharing one
-  // contact address (a single owner's several companies, e.g.) would collide on the SECOND company's
-  // first checkout — this optional override is what a company sets to pick its own distinct billing
-  // address instead of changing its real contact `email`. `null` (the default) means "use `email`
-  // above" — never defaulted to a synthetic address, the same "no fabricated value" discipline `iban`'s
-  // own comment holds.
-  billingEmail String?
-
   // Reply-To address applied to every outgoing message SENT FOR THIS COMPANY — the company-level
   // step of the Reply-To cascade (instance `MAIL_REPLY_TO` env var, then this column, see
   // `mail/mail.service.ts`'s own `resolveEffectiveReplyTo`). Independent of whether this company also
   // overrides its own mail SERVER (`CompanyChannelConfig`, `modules/company/mail-settings/`): a
   // company can want replies routed to a distinct address without running its own SMTP/Resend at
-  // all, so this lives here rather than inside that encrypted, provider-shaped blob — like
-  // `billingEmail` right above, this is not a secret. NULL (every existing company, and the default
+  // all, so this lives here rather than inside that encrypted, provider-shaped blob: this is not a
+  // secret. NULL (every existing company, and the default
   // for a new one) means "no override" — the instance's own `MAIL_REPLY_TO` applies, or no Reply-To
   // header at all when that is unset too (today's behaviour, unchanged). Validated as an e-mail
   // address at WRITE time (`mail/is-valid-email.ts`, `company-mail-settings.service.ts#setReplyTo`),
@@ -647,25 +636,21 @@ model CompanySubscription {
   zipSentAt     DateTime?
   // When the real, cascading deletion (`deletion.ts`) may run — computed once, when `zipSentAt` is
   // stamped: `zipSentAt + 30 days` (never-paid — the statutory floor, `lifecycle.ts#MIN_RETRIEVAL_DAYS`)
-  // or `zipSentAt + 180 days` (this company once had a real `polarSubscriptionId` — see lifecycle.ts's
+  // or `zipSentAt + 180 days` (this company once paid, `firstPaidAt` is set - see lifecycle.ts's
   // header for why that field alone is what distinguishes the two cycles here, with no separate boolean).
   deletionDueAt DateTime?
 
-  // Polar's own ids for this company's paying customer/subscription — `null` until a checkout
-  // actually completes (`webhook-handlers.ts`). `polarSubscriptionId` is NEVER cleared once set, even
-  // once the subscription is later canceled/revoked — see lifecycle.ts's own header for why that
-  // permanence is exactly what makes it usable as the never-paid/paid-then-stopped discriminator.
-  polarCustomerId     String?
-  polarSubscriptionId String?
+  // The first time this company's subscription was reported as paid, NEVER cleared afterward, even
+  // once the subscription is later canceled - see lifecycle.ts's own header for why that permanence
+  // is exactly what makes it usable as the never-paid/paid-then-stopped discriminator. `null` for a
+  // company that never paid.
+  firstPaidAt DateTime?
 
-  // Polar's own `Subscription.currentPeriodEnd` — the end of the period THIS COMPANY HAS ALREADY PAID
-  // FOR, mirrored from every subscription webhook/reconcile read that carries one AND still reports the
-  // subscription as paid (`webhook-handlers.ts#applySubscriptionWebhook`, `status-reconcile.ts`), the
-  // same "leave it alone when the fact set omits it" convention `interval`/`seats` already hold. `null`
-  // until the first such fact arrives (a Company still in TRIAL has no Polar subscription to read one
-  // from at all). A fact reporting the subscription as no longer paying is deliberately NOT mirrored
-  // here — see that function's own comment on why an unpaid cycle must never be written into a column
-  // both rules below hand out access from.
+  // The end of the period THIS COMPANY HAS ALREADY PAID FOR, mirrored from the billing provider's own
+  // subscription facts while they still report the subscription as paid. `null` until the first such
+  // fact arrives (a Company still in TRIAL has no subscription to read one from at all). A fact
+  // reporting the subscription as no longer paying is deliberately NOT mirrored here: an unpaid cycle
+  // must never be written into a column both rules below hand out access from.
   //
   // Two rules read it, both turning on "what has this Company already paid for":
   //  - `paid-period-grace.ts`'s Terms-of-Service Section 20.2 exception — a Company with a subscription
@@ -680,57 +665,28 @@ model CompanySubscription {
   // nobody).
   currentPeriodEnd DateTime?
 
-  // The PURCHASED seat quantity. Invoicerr never tells Polar how many seats to bill — it only reads
-  // what Polar says: the quantity is bought in the Polar portal itself and arrives here EXCLUSIVELY via
-  // `webhook-handlers.ts` (a `subscription.*` webhook's own `seats` field) and `seat-reconcile.ts`'s
-  // opportunistic SDK read-and-store retry; `seat-sync.ts` never calls `subscriptions.update` with a
-  // seat count (`seat-sync.spec.ts`'s own no-write guard). Defaults to 1 — the ONE seat every plan
-  // includes, and also what a company still in TRIAL (no Polar subscription to read from at all) has.
+  // The PURCHASED seat quantity. Invoicerr never writes a seat count to the billing provider, it only
+  // mirrors what the provider reports for the subscription. Defaults to 1, the ONE seat every plan
+  // includes, and also what a company still in TRIAL (no subscription to read from at all) has.
   //
   // Capacity vs. headcount are two different numbers now: this column is what was BOUGHT,
   // `UserCompany` row count is who actually joined. `seat-sync.ts#withSeatReservation` refuses a new
   // membership once headcount reaches this number (`NoFreeSeatError`); `seat-holders.ts#seatHolders`
   // decides who among existing members keeps access if a later drop in this number (the OWNER lowering
-  // it in the Polar portal) puts the company OVER capacity — the most recently arrived non-OWNER
+  // it in the billing portal) puts the company OVER capacity - the most recently arrived non-OWNER
   // members wait, never the OWNER.
   seats Int @default(1)
 
-  // The billing cadence Polar reports for the active product (`webhook-handlers.ts`) — `null` until a
-  // real subscription exists (TRIAL has no interval of its own). The price/plan itself is never
-  // stored here — see this model's own header: Polar owns the pricing grid, this only mirrors WHICH
-  // of the two configured products (`POLAR_PRODUCT_ID_MONTHLY`/`POLAR_PRODUCT_ID_YEARLY`) is active.
+  // The billing cadence of the active subscription, `null` until a real subscription exists (TRIAL has
+  // no interval of its own). The price itself is never stored here: amounts live in Stripe, see
+  // `billing/stripe-price-catalog.ts`.
   interval CompanySubscriptionInterval?
 
-  // Stamped by `seat-sync.ts` when a seat INCREASE's immediate-proration charge is refused by Polar
-  // (a declined card) — the ONE fact `billing-status-view.ts` needs to tell "your card failed to pay
-  // for a seat you just added" apart from every other reason a subscription can be PAST_DUE. Cleared
-  // the moment `webhook-handlers.ts` next reports ACTIVE (the same reset `blockedAt`/`zipSentAt`/
-  // `deletionDueAt` already get) — a stale reason must never survive the company paying again.
-  seatPaymentFailedAt DateTime?
-
-  // Stamped by `company/company.service.ts#editCompanyInfo` when pushing the company's new name/email
-  // to its Polar customer fails — `billing-lifecycle-sweep-runner.ts` retries the push on every tick
-  // while this is set, and clears it once the retry succeeds. `null` is the normal state (nothing to
-  // retry), not "never synced" — a company with no Polar customer at all is simply skipped by both
-  // the push and the retry (see `billing-customer.ts`'s own header: the customer is created lazily, at
-  // first checkout, never before).
-  customerSyncFailedAt DateTime?
-
-  // Stamped by `checkout-session.ts` the moment a checkout session is actually created — the "is a
-  // checkout already in flight for this company" signal `createCheckoutSession` refuses a SECOND
-  // concurrent checkout against, for a company with no active/trialing subscription yet (see that
-  // file's own header for the exact window).
-  lastCheckoutStartedAt DateTime?
-
-  // The timestamp of the last Polar-side FACT actually applied to this row — either the delivering
-  // webhook's own `webhook-timestamp` header, or, for a `status-reconcile.ts` repair read, the
-  // reconciled subscription's own `modifiedAt`. `applySubscriptionWebhook` compares an incoming fact's
-  // timestamp against this before overwriting `status`/`interval` — an OLDER fact (a reconcile read
-  // that raced a webhook already applied) is logged and dropped rather than clobbering a fresher
-  // state with a stale one. `null` for a subscription no fact has ever been timestamped against yet
-  // (every fact applied before this column existed) — treated as "apply unconditionally", the same
-  // permissive default `interval`'s own null-means-leave-alone convention already holds.
-  lastPolarFactAt DateTime?
+  // The timestamp of the last billing-provider FACT actually applied to this row. The lifecycle sweep
+  // writes its own transitions with this value in the WHERE clause (compare-and-set), so a fact applied
+  // concurrently is never clobbered by a decision taken from an older snapshot. `null` for a
+  // subscription no fact has ever been timestamped against yet.
+  lastBillingFactAt DateTime?
 
   // Which BLOCKED-window (J-7/J-1 before the zip) and ZIPPED-window (J-7/J-1 before the permanent
   // deletion) OWNER warning emails have already gone out for this subscription — see
@@ -746,22 +702,6 @@ model CompanySubscription {
 
   @@index([status])
   @@map("company_subscription")
-}
-
-// Dedup ledger for `POST /api/billing/webhooks/polar` — one row per Polar delivery, keyed by that
-// delivery's own `webhook-id` header (a stable id Polar reuses verbatim on every RETRY of the SAME
-// delivery, per Standard Webhooks — never a UUID this app mints itself). `polar-webhook.controller.ts`
-// inserts a row BEFORE dispatching to a handler; a unique-constraint violation on that insert is a
-// replay (a provider retry, or Polar's own dashboard "resend"), answered 200 immediately without
-// re-running `handleSubscriptionPayload` a second time — the ONE case the type-of-write-based
-// idempotency `webhook-handlers.ts`'s own header used to rely on cannot cover on its own: two
-// deliveries racing each other concurrently, where "the write is naturally idempotent" is true of the
-// FINAL state but does not stop a handler from actually running twice.
-model PolarWebhookEvent {
-  id         String   @id
-  receivedAt DateTime @default(now())
-
-  @@map("polar_webhook_event")
 }
 
 enum CompanySubscriptionStatus {
@@ -1381,6 +1321,8 @@ model User {
   legalDocumentReleaseNotifications LegalDocumentReleaseNotification[]
 
   @@unique([email])
+  stripeCustomerId String?
+
   @@map("user")
 }
 
@@ -1562,13 +1504,11 @@ model Log {
   // company to name.
   //
   // Deliberately a PLAIN string, never a `@relation` — the one `companyId` field in this whole schema
-  // that isn't one, and on purpose: a log write must never fail because of what it is ABOUT. Two write
-  // sites already, honestly, carry a `companyId` that may not resolve to any current `Company` row —
+  // that isn't one, and on purpose: a log write must never fail because of what it is ABOUT. A write
+  // site already, honestly, carries a `companyId` that may not resolve to any current `Company` row:
   // `payments-webhook.controller.ts`'s `:companyId` is a caller-supplied ROUTING hint, unverified until
-  // deep inside `handleWebhookEvent` (that controller's own header), and
-  // `billing/webhook-handlers.ts#recoverLegacySubscriptionCancellation` explicitly documents "a
-  // companyId no Company row matches" as one of the two NORMAL reasons it runs at all. A real foreign
-  // key would turn exactly those two documented, expected cases into a swallowed `Log` write (caught by
+  // deep inside `handleWebhookEvent` (that controller's own header). A real foreign key would turn
+  // exactly that documented, expected case into a swallowed `Log` write (caught by
   // `createLog`'s own try/catch, `logger.service.ts`) — the DB audit trail disappearing for precisely
   // the anomalous/attack-adjacent traffic an operator would most want it for. No `onDelete: Cascade`
   // either, as a direct consequence: a deleted company's own log rows simply keep their (now
@@ -3700,3 +3640,29 @@ model BackupRun {
 }
 
 // ======= END OF INSTANCE FILE BACKUP ======= //
+
+// Owned by the @better-auth/stripe plugin: one row per Stripe subscription, `referenceId` is the
+// company it bills.
+model Subscription {
+  id                   String    @id
+  plan                 String
+  referenceId          String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               String    @default("incomplete")
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean?  @default(false)
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  endedAt              DateTime?
+  seats                Int?
+  billingInterval      String?
+  stripeScheduleId     String?
+
+  @@index([referenceId])
+  @@index([stripeSubscriptionId])
+  @@map("subscription")
+}
