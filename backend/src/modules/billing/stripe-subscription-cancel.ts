@@ -32,9 +32,10 @@ const ENDED_STATUSES = new Set(['canceled', 'incomplete_expired']);
 
 export async function cancelCompanyStripeSubscriptions(
   companyId: string,
-  api: StripeSubscriptionsApi = stripeClientFor().subscriptions,
+  injectedApi?: StripeSubscriptionsApi,
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<number> {
-  if (!isBillingEnabled()) return 0;
+  if (!isBillingEnabled(env)) return 0;
 
   const rows = await prisma.subscription.findMany({
     where: {
@@ -44,6 +45,22 @@ export async function cancelCompanyStripeSubscriptions(
     },
     select: { stripeSubscriptionId: true },
   });
+  if (rows.length === 0) return 0;
+
+  // The Stripe client is only built once there is something to cancel: an instance without a key
+  // must still be able to delete a company.
+  let api = injectedApi;
+  if (!api) {
+    if ((env.STRIPE_SECRET_KEY ?? '').trim() === '') {
+      logger.warn('Stripe is not configured, the company is deleted without cancelling its subscriptions', {
+        category: 'billing',
+        companyId,
+        details: { companyId, subscriptions: rows.length },
+      });
+      return 0;
+    }
+    api = stripeClientFor(env).subscriptions;
+  }
 
   let cancelled = 0;
   for (const { stripeSubscriptionId } of rows) {

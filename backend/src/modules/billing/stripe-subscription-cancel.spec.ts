@@ -3,6 +3,7 @@ import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
+import { stripeClientFor } from './stripe-client';
 import { cancelCompanyStripeSubscriptions, type StripeSubscriptionsApi } from './stripe-subscription-cancel';
 
 vi.mock('@/prisma/prisma.service', () => ({
@@ -13,6 +14,8 @@ vi.mock('@/prisma/prisma.service', () => ({
 vi.mock('@/logger/logger.service', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+
+vi.mock('./stripe-client', () => ({ stripeClientFor: vi.fn() }));
 
 const findMany = prisma.subscription.findMany as Mock;
 
@@ -85,5 +88,40 @@ describe('cancelCompanyStripeSubscriptions', () => {
     expect(await cancelCompanyStripeSubscriptions('c1', api)).toBe(0);
     expect(findMany).not.toHaveBeenCalled();
     expect(api.cancel).not.toHaveBeenCalled();
+  });
+
+  it('does not build a Stripe client when the company has no subscription to cancel', async () => {
+    findMany.mockResolvedValue([]);
+
+    expect(
+      await cancelCompanyStripeSubscriptions('c1', undefined, {
+        [BILLING_FLAG_NAME]: 'true',
+        STRIPE_SECRET_KEY: 'sk_test_x',
+      }),
+    ).toBe(0);
+    expect(stripeClientFor).not.toHaveBeenCalled();
+  });
+
+  it('skips cancellation without a Stripe key instead of failing the deletion', async () => {
+    findMany.mockResolvedValue([{ stripeSubscriptionId: 'sub_a' }]);
+
+    expect(
+      await cancelCompanyStripeSubscriptions('c1', undefined, {
+        [BILLING_FLAG_NAME]: 'true',
+        STRIPE_SECRET_KEY: ' ',
+      }),
+    ).toBe(0);
+    expect(stripeClientFor).not.toHaveBeenCalled();
+  });
+
+  it('uses the Stripe client from the key when one is configured', async () => {
+    findMany.mockResolvedValue([{ stripeSubscriptionId: 'sub_a' }]);
+    const api = fakeApi();
+    (stripeClientFor as Mock).mockReturnValue({ subscriptions: api });
+    const env = { [BILLING_FLAG_NAME]: 'true', STRIPE_SECRET_KEY: 'sk_test_x' };
+
+    expect(await cancelCompanyStripeSubscriptions('c1', undefined, env)).toBe(1);
+    expect(stripeClientFor).toHaveBeenCalledWith(env);
+    expect(api.cancel).toHaveBeenCalledWith('sub_a');
   });
 });

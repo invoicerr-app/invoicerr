@@ -19,6 +19,7 @@ import { join } from 'node:path';
 
 import { vi } from 'vitest';
 
+import { BILLING_FLAG_NAME } from '@/modules/billing/billing-flag';
 import { deleteCompanyPermanently, deleteCompanyPermanentlyNow } from '@/modules/billing/deletion';
 
 import { drainStorageErasureJournal } from './company-storage-erasure';
@@ -52,10 +53,12 @@ let journalRows: JournalRow[];
 let subscriptionRow: { status: string; deletionDueAt: Date } | null;
 /** Set by a test that wants the process to "die" at a chosen point — see the crash case below. */
 let journalReadFails: string | null;
+let stripeSubscriptionRows: { stripeSubscriptionId: string }[];
 let nextId: number;
 
 const prismaMock = {
   companySubscription: { findUnique: async () => subscriptionRow },
+  subscription: { findMany: async () => stripeSubscriptionRows },
   userCompany: { findMany: async () => [] },
   webhook: { deleteMany: async () => ({ count: 0 }) },
   company: {
@@ -127,6 +130,11 @@ vi.mock('@/logger/logger.service', () => ({
 }));
 
 const COMPANY = 'co-erasure';
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
 let archiveDir: string;
 let inboundDir: string;
 
@@ -163,6 +171,7 @@ beforeEach(() => {
   journalRows = [];
   subscriptionRow = null;
   journalReadFails = null;
+  stripeSubscriptionRows = [];
   nextId = 1;
   archiveDir = mkdtempSync(join(tmpdir(), 'invoicerr-erasure-archive-'));
   inboundDir = mkdtempSync(join(tmpdir(), 'invoicerr-erasure-inbound-'));
@@ -195,6 +204,23 @@ describe('deleting a company erases the bytes it owns, not only the rows', () =>
     // deletes by, and the archive directories, which is what this one deletes by.
     expect(existsSync(join(inboundDir, COMPANY))).toBe(false);
     expect(existsSync(first.uri.replace('file://', ''))).toBe(false);
+  });
+
+  it('still deletes a company with billing on but no Stripe key configured', async () => {
+    const previous = { flag: process.env[BILLING_FLAG_NAME], key: process.env.STRIPE_SECRET_KEY };
+    process.env[BILLING_FLAG_NAME] = 'true';
+    delete process.env.STRIPE_SECRET_KEY;
+    stripeSubscriptionRows = [{ stripeSubscriptionId: 'sub_left_over' }];
+    const { file } = await archiveOne('doc-1', 'invoice one');
+
+    try {
+      await expect(deleteCompanyPermanentlyNow(COMPANY)).resolves.toBeUndefined();
+    } finally {
+      restoreEnv(BILLING_FLAG_NAME, previous.flag);
+      restoreEnv('STRIPE_SECRET_KEY', previous.key);
+    }
+
+    expect(existsSync(file)).toBe(false);
   });
 
   it('erases on the AUTOMATED billing-sweep path too, not only the OWNER-initiated one', async () => {
