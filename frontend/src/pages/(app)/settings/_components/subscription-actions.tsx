@@ -24,6 +24,7 @@ const PAYING_STATUSES = new Set<CompanySubscriptionStatus>(["ACTIVE", "PAST_DUE"
 interface SubscriptionActionsProps {
   companyId: string
   status: CompanySubscriptionStatus
+  priceGrid: "standard" | "founder"
 }
 
 /**
@@ -32,7 +33,7 @@ interface SubscriptionActionsProps {
  * seat quantity) or its cancellation page. Members never see it (`billing.settings.tsx`), and the
  * backend refuses them anyway (`authorizeReference`).
  */
-export function SubscriptionActions({ companyId, status }: SubscriptionActionsProps) {
+export function SubscriptionActions({ companyId, status, priceGrid }: SubscriptionActionsProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -79,7 +80,7 @@ export function SubscriptionActions({ companyId, status }: SubscriptionActionsPr
           className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
           onSubmit={(event) => {
             event.preventDefault()
-            checkout.mutate({ companyId, annual, seats: seatQuantity }, { onError })
+            checkout.mutate({ companyId, plan: priceGrid, annual, seats: seatQuantity }, { onError })
           }}
         >
           <div className="grid gap-2">
@@ -113,6 +114,11 @@ export function SubscriptionActions({ companyId, status }: SubscriptionActionsPr
             <CreditCard />
             {t("settings.billing.actions.subscribe")}
           </Button>
+          {priceGrid === "founder" && (
+            <p data-cy="billing-founder-note" className="text-sm text-muted-foreground sm:col-span-3">
+              {t("settings.billing.actions.founderNote")}
+            </p>
+          )}
         </form>
       </SettingsSection>
     )

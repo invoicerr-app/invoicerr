@@ -18,6 +18,10 @@ const roles: Record<string, string> = {
   'member:c1': 'MEMBER',
 };
 const findCompanyRole: FindCompanyRole = async (userId, companyId) => roles[`${userId}:${companyId}`] ?? null;
+const founderCompanies = new Set<string>();
+const companyHoldsFounderGrid = async (companyId: string) => founderCompanies.has(companyId);
+const access = { findCompanyRole, companyHoldsFounderGrid };
+afterEach(() => founderCompanies.clear());
 
 const ORG = 'organization';
 const COMPANY = { customerType: ORG };
@@ -29,21 +33,21 @@ describe('canActOnCompanySubscription', () => {
     'restore-subscription',
     'billing-portal',
   ])('lets an owner or admin %s, never a plain member', async (action) => {
-    expect(await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', action, COMPANY)).toBe(true);
-    expect(await canActOnCompanySubscription(findCompanyRole, 'admin', 'c1', action, COMPANY)).toBe(true);
-    expect(await canActOnCompanySubscription(findCompanyRole, 'member', 'c1', action, COMPANY)).toBe(false);
+    expect(await canActOnCompanySubscription(access, 'owner', 'c1', action, COMPANY)).toBe(true);
+    expect(await canActOnCompanySubscription(access, 'admin', 'c1', action, COMPANY)).toBe(true);
+    expect(await canActOnCompanySubscription(access, 'member', 'c1', action, COMPANY)).toBe(false);
   });
 
   it('lets any member list the company subscription', async () => {
-    expect(
-      await canActOnCompanySubscription(findCompanyRole, 'member', 'c1', 'list-subscription', COMPANY),
-    ).toBe(true);
+    expect(await canActOnCompanySubscription(access, 'member', 'c1', 'list-subscription', COMPANY)).toBe(
+      true,
+    );
   });
 
-  it('refuses a checkout on the founder plan, whatever the role or case', async () => {
+  it('refuses a checkout on the founder plan to a company without the founder grid', async () => {
     for (const plan of ['founder', 'Founder']) {
       expect(
-        await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', 'upgrade-subscription', {
+        await canActOnCompanySubscription(access, 'owner', 'c1', 'upgrade-subscription', {
           plan,
           customerType: ORG,
         }),
@@ -51,9 +55,19 @@ describe('canActOnCompanySubscription', () => {
     }
   });
 
+  it('lets an owner or admin of a founder company check out on the founder plan, not a member', async () => {
+    founderCompanies.add('c1');
+    const body = { plan: 'Founder', customerType: ORG };
+    expect(await canActOnCompanySubscription(access, 'owner', 'c1', 'upgrade-subscription', body)).toBe(true);
+    expect(await canActOnCompanySubscription(access, 'admin', 'c1', 'upgrade-subscription', body)).toBe(true);
+    expect(await canActOnCompanySubscription(access, 'member', 'c1', 'upgrade-subscription', body)).toBe(
+      false,
+    );
+  });
+
   it('lets an owner check out on the standard plan', async () => {
     expect(
-      await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', 'upgrade-subscription', {
+      await canActOnCompanySubscription(access, 'owner', 'c1', 'upgrade-subscription', {
         plan: 'standard',
         customerType: ORG,
       }),
@@ -62,7 +76,7 @@ describe('canActOnCompanySubscription', () => {
 
   it('keeps founder subscribers able to manage their subscription', async () => {
     expect(
-      await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', 'billing-portal', {
+      await canActOnCompanySubscription(access, 'owner', 'c1', 'billing-portal', {
         plan: 'founder',
         customerType: ORG,
       }),
@@ -76,30 +90,23 @@ describe('canActOnCompanySubscription', () => {
       'cancel-subscription',
       'list-subscription',
     ]) {
-      expect(await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', action)).toBe(false);
-      expect(
-        await canActOnCompanySubscription(findCompanyRole, 'owner', 'c1', action, { customerType: 'user' }),
-      ).toBe(false);
+      expect(await canActOnCompanySubscription(access, 'owner', 'c1', action)).toBe(false);
+      expect(await canActOnCompanySubscription(access, 'owner', 'c1', action, { customerType: 'user' })).toBe(
+        false,
+      );
     }
   });
 
   it('accepts the company customer type from the query string, as the list call sends it', async () => {
     expect(
-      await canActOnCompanySubscription(
-        findCompanyRole,
-        'member',
-        'c1',
-        'list-subscription',
-        undefined,
-        COMPANY,
-      ),
+      await canActOnCompanySubscription(access, 'member', 'c1', 'list-subscription', undefined, COMPANY),
     ).toBe(true);
   });
 
   it('refuses a user who does not belong to the company', async () => {
-    expect(
-      await canActOnCompanySubscription(findCompanyRole, 'owner', 'c2', 'list-subscription', COMPANY),
-    ).toBe(false);
+    expect(await canActOnCompanySubscription(access, 'owner', 'c2', 'list-subscription', COMPANY)).toBe(
+      false,
+    );
   });
 });
 
@@ -124,7 +131,7 @@ describe('buildStripePlans', () => {
 });
 
 describe('buildStripePlugin', () => {
-  const deps = { findCompanyRole, findCompanyCustomerDetails: async () => null };
+  const deps = { ...access, findCompanyCustomerDetails: async () => null };
   const ENABLED = {
     [BILLING_FLAG_NAME]: 'true',
     STRIPE_SECRET_KEY: 'sk_test_x',

@@ -28,6 +28,7 @@
     "legal:sync": "ts-node scripts/sync-legal-docs.ts",
     "catalogs:release": "tsx scripts/release-catalogs.ts",
     "demo:reset": "tsx scripts/demo-reset.ts",
+    "billing:grant-founder": "tsx scripts/grant-founder.ts",
     "openapi:dump": "nest build && node dist/src/openapi-dump.js",
     "backup:encrypt": "tsx src/modules/backup/backup-crypto-cli.ts encrypt",
     "backup:decrypt": "tsx src/modules/backup/backup-crypto-cli.ts decrypt"
