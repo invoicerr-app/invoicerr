@@ -72,8 +72,7 @@ import { deleteArchivedArtifacts } from './storage';
 
 /**
  * The narrow, structurally-typed subset of a Prisma transaction client `journalCompanyStorageObjects`
- * actually uses — same convention `billing/deletion.ts#DeletionPolarClient` holds for its own SDK
- * client, and for the same reason: a caller passes the real `tx`, a test passes three functions.
+ * actually uses: a caller passes the real `tx`, a test passes three functions.
  */
 export interface StorageErasureTx {
   documentArchive: {

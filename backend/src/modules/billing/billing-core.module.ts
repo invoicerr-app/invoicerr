@@ -8,7 +8,7 @@
  *
  * BEFORE this split, `BillingModule` (the module below, unchanged in shape otherwise) was imported
  * ONLY by `AppModule` — `worker.module.ts` never touched it at all, so `BillingLifecycleSweepRunner`'s
- * own repeatable (Polar sync, and its export-and-email-on-block path) always ran on an API replica,
+ * own repeatable (the lifecycle sweep, and its export-and-email-on-block path) always ran on an API replica,
  * competing with request serving, while the target topology's 15 dedicated workers sat idle for it —
  * exactly the "two queues structurally unreachable from the workers" defect this closes.
  *

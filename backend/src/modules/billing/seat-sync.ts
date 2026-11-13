@@ -1,13 +1,8 @@
 /**
- * Invoicerr never tells Polar how many seats to bill — it only reads what Polar says. This file used
- * to push `count(UserCompany rows)` to Polar via `subscriptions.update({ seats })` on every membership
- * change (see git history for the removed `performSeatSync`); that entire push is gone. Seat QUANTITY
- * is bought in the Polar portal by the OWNER and arrives here exclusively via `webhook-handlers.ts` (a
- * `subscription.*` webhook's own `seats` field) and `seat-reconcile.ts`'s opportunistic read-and-store
- * retry — this module never calls `subscriptions.update` at all. `no-seat-quantity-write.spec.ts` is a
- * standing, file-content guard against this regressing.
+ * Purely LOCAL seat bookkeeping: the bought quantity (`CompanySubscription.seats`) is a fact this module
+ * reads, never one it writes, and nothing here calls the payment provider.
  *
- * What replaced the push is purely LOCAL bookkeeping for the generative "Settings > Seats" office plan:
+ * It covers the generative "Settings > Seats" office plan:
  * a numbered desk (`UserCompany.seatIndex`) assigned to the first free integer the moment a NEW
  * membership is created, and a capacity refusal
  * (`NoFreeSeatError`) for the "a company must not exceed the seats it actually bought" rule at the
@@ -35,10 +30,10 @@
  * Two membership changes landing at (almost) the same instant — two invitations accepted together, an
  * SSO burst provisioning ten users at once — must never (a) hand out the SAME `seatIndex` to two
  * different new rows, or (b) let two callers both read "one seat left" and both succeed, overshooting
- * the bought quantity by one. Both are solved the same way the REMOVED Polar push used to solve its own
- * race: a `SELECT … FOR UPDATE` row lock on the company's own `company_subscription` row, held for the
+ * the bought quantity by one. Both are solved with
+ * a `SELECT … FOR UPDATE` row lock on the company's own `company_subscription` row, held for the
  * entire check-then-create-then-assign sequence (`withSeatReservation` below) — chosen over a BullMQ
- * per-company job for the same reason the old push was: membership changes are synchronous, inline
+ * per-company job because membership changes are synchronous, inline
  * with the request that causes them, and a queue hop would turn "accept an invitation" into an
  * eventually-consistent operation for no benefit.
  */
@@ -64,7 +59,7 @@ export class NoFreeSeatError extends Error {
   readonly code = NO_FREE_SEAT_CODE;
 
   constructor(readonly companyId: string) {
-    super(`Company ${companyId} has no free seat — add one in the Polar portal.`);
+    super(`Company ${companyId} has no free seat - add one in the billing settings.`);
     this.name = 'NoFreeSeatError';
   }
 }
@@ -87,7 +82,7 @@ function firstFreeIndex(usedIndexes: Iterable<number>): number {
  *
  * A no-op wrapper (still runs `createMembership`, no lock, no capacity check, no seat index) when
  * billing is disabled — a self-hosted instance pays nothing extra for a concept ("bought seats") it has
- * no Polar subscription to have bought in the first place.
+ * no subscription to have bought in the first place.
  */
 export async function withSeatReservation<T>(
   companyId: string,

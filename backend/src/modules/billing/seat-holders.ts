@@ -1,10 +1,10 @@
 /**
  * Pure decision: given every member of a company and how many seats it has (`CompanySubscription.seats`
- * — the quantity bought in the Polar portal, never something this app writes to Polar, see
+ * - the quantity bought through the billing provider, never something this app writes back, see
  * `seat-sync.ts`'s own header), who currently HOLDS a seat and who is left WAITING for one.
  *
  * Exists as its own tiny, dependency-free module — no Prisma import — specifically so the over-capacity
- * rule (the OWNER lowers the seat count in the Polar portal below the current headcount, e.g.
+ * rule (the OWNER lowers the seat count in the billing portal below the current headcount, e.g.
  * cancelling extra seats before renewal) is one function callers can reason about and test in
  * isolation, the same "pure core, thin persistence shell" split every other sweep/decision in this
  * codebase already holds (`lifecycle.ts`, `write-gate.ts`'s own callers, …).

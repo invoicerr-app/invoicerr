@@ -6,7 +6,7 @@
  * client that ignores the frontend gate.
  *
  * Wired into `company-write.guard.ts` right alongside `write-gate.ts#assertCompanyWritable` — same
- * exemptions (GET/HEAD/OPTIONS, no active company, `@BillingGateExempt()`), same "a no-op when billing
+ * exemptions (GET/HEAD/OPTIONS, no active company), same "a no-op when billing
  * is disabled" first check.
  */
 import { ForbiddenException } from '@nestjs/common';
@@ -44,7 +44,7 @@ export async function assertUserHasSeatOrThrow(companyId: string, userId: string
   throw new ForbiddenException({
     message:
       'This company has no free seat for you right now — ask the OWNER to free one, or buy ' +
-      'more in the Polar portal. See Settings > Seats.',
+      'more in the billing settings. See Settings > Seats.',
     code: SEAT_REQUIRED_CODE,
   });
 }

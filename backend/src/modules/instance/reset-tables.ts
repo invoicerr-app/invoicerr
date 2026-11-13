@@ -24,7 +24,6 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'Company',
   'company_subscription',
   'subscription',
-  'polar_webhook_event',
   'CurrencyRate',
   'user_company',
   'Client',

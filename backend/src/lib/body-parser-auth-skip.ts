@@ -10,10 +10,8 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
  * condition, no CJS build at all. Real Node (this repo's runtime, v22+) transparently `require()`s
  * ESM like that and `lib/auth.ts` boots fine; Jest's own CJS module loader cannot load it at all
  * ("Cannot use import statement outside a module"), and it's `better-auth` itself, which `lib/auth.ts`
- * cannot function without — not mockable away the way a single dependency (`@polar-sh/better-auth`,
- * until it was removed entirely 2026-09-16 — hosted billing moved off it, `billing.controller.ts`'s
- * own header) used to be. This is the real reason no spec in this codebase imports `lib/auth.ts` —
- * Polar was only ever the first place that got written down.
+ * cannot function without, so it cannot be mocked away the way a single plugin dependency can. This
+ * is the real reason no spec in this codebase imports `lib/auth.ts`.
  *
  * `main.ts`'s own header/comments carry the FULL story of the bug this logic fixes (the ordering
  * of `app.use()` vs. `NestApplication.init()`'s own middleware registration) — this file is
@@ -30,7 +28,7 @@ export function normalizeBasePath(path: string): string {
   return trimmed.length > 0 ? trimmed : '/';
 }
 
-/** True for the base path itself and everything under it (`/api/auth` and `/api/auth/polar/…`), never
+/** True for the base path itself and everything under it (`/api/auth` and `/api/auth/stripe/…`), never
  *  a mere prefix match (`/api/authorize` must NOT match `/api/auth`). `basePath` is assumed already
  *  normalized (`normalizeBasePath`) — callers that build a `RequestHandler` via `skipBodyParserFor`
  *  below get that for free. */

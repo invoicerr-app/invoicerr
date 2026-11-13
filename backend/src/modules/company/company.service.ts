@@ -60,8 +60,6 @@ import {
 } from '@/modules/documents/company-law/company-law';
 import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expense-categories/persistence';
 import { withSeatReservation } from '@/modules/billing/seat-sync';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
-import { syncPolarCustomerOnCompanyChange } from '@/modules/billing/customer-sync';
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
 import { companyMemberIds } from '@/modules/companies/company-member-ids';
@@ -392,16 +390,6 @@ export class CompanyService {
       await syncDeclaredCompanyProfile(companyId);
     }
 
-    // A rename or a changed email is what this company's Polar customer should show, pushed in the same
-    // request and best-effort. Only those two fields have a counterpart worth a network call on save.
-    if (existingCompany.name !== updatedCompany.name || existingCompany.email !== updatedCompany.email) {
-      await syncPolarCustomerOnCompanyChange(companyId, {
-        name: updatedCompany.name,
-        email: updatedCompany.email,
-        billingEmail: updatedCompany.billingEmail,
-      });
-    }
-
     logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
 
     try {
@@ -716,8 +704,6 @@ export class CompanyService {
       tx.userCompany.create({ data: { userId, companyId: newCompany.id, role: 'OWNER' } }),
     );
     await sessionCache.invalidateUsers([userId]);
-    // A no-op for a new company, kept for a row created for one already billed elsewhere.
-    await syncCompanyMemberOnMembershipChange(newCompany.id, userId);
 
     // Seeds the default expense categories. Idempotent, and the same function also backfills lazily on
     // first read, so no data migration was needed.

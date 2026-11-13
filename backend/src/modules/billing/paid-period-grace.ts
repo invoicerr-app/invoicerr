@@ -42,8 +42,8 @@
  *
  * Re-derived fresh on every check from the CURRENT `status`/`currentPeriodEnd` (never a single grace
  * end date computed once and cached): a paid period that in fact ends EARLIER than the later of (a)/(b)
- * above (a cancellation lands, a renewal payment fails) loses ACTIVE status the moment Polar reports it
- * (`webhook-handlers.ts#applySubscriptionWebhook`), which immediately narrows this exception back down
+ * above (a cancellation lands, a renewal payment fails) loses ACTIVE status the moment the payment provider
+ * reports it, which immediately narrows this exception back down
  * to nothing for that Company — the computed date is only ever an upper bound on how long the paid
  * period can protect the Company, never a promise independent of the subscription actually staying paid
  * that long.
@@ -54,9 +54,9 @@ import { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/clie
  *  "pure function, plain projection" split `lifecycle.ts`'s own facts interfaces hold. */
 export interface CompanySubscriptionPeriodFacts {
   status: CompanySubscriptionStatus;
-  /** Polar's own `Subscription.currentPeriodEnd`, mirrored verbatim — `null` for a Company with no
-   *  Polar subscription fact recorded yet (still `TRIAL`, or an `ACTIVE` row from before this column
-   *  existed and no webhook has landed since). See `schema.prisma`'s own comment on this column for
+  /** The subscription's own current period end, mirrored verbatim - `null` for a Company with no
+   *  subscription fact recorded yet (still `TRIAL`, or an `ACTIVE` row from before this column
+   *  existed and no provider event has landed since). See `schema.prisma`'s own comment on this column for
    *  where it is written from. */
   currentPeriodEnd: Date | null;
 }
@@ -91,7 +91,7 @@ export function paidPeriodBindingDate(sub: CompanySubscriptionPeriodFacts, publi
  * `false` (never exempted) for a Company with no protectable period at all, or once its own binding
  * date has passed — at which point the ordinary pending-acceptance gate resumes with no code of its own
  * needed here (Section 20.2's own "the subscription does not continue on the new Terms" is the existing
- * Section 13 non-renewal machinery observing whatever Polar reports next, not a transition this module
+ * Section 13 non-renewal machinery observing whatever the payment provider reports next, not a transition this module
  * drives).
  */
 export function isWithinPaidPeriodGrace(
@@ -106,7 +106,7 @@ export function isWithinPaidPeriodGrace(
 /**
  * The first instant NO LONGER covered by what a Company has already paid for: midnight UTC opening the
  * day AFTER the one `currentPeriodEnd` falls in. `null` when no period end is on file at all (a
- * Company still in its free trial, or one no Polar fact has ever carried one for — nothing paid for,
+ * Company still in its free trial, or one no provider fact has ever carried one for - nothing paid for,
  * so nothing to protect).
  *
  * A whole DAY, not the raw renewal instant, because of what reads this: losing the Service is a

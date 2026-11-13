@@ -26,7 +26,7 @@ export interface SeatMemberView {
 }
 
 export interface SeatsView {
-  /** The bought quantity (`CompanySubscription.seats`) — read from Polar, never written to it. */
+  /** The bought quantity (`CompanySubscription.seats`) - a fact read here, never written. */
   seats: number;
   /** Seated members, ordered by desk number. */
   members: SeatMemberView[];

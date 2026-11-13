@@ -1,8 +1,7 @@
 import { vi, type Mock } from 'vitest';
 
-import { BadGatewayException, BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
-import { PolarCancellationFailedError } from '@/modules/billing/deletion';
 import { DangerService, RETENTION_BLOCKED } from './danger.service';
 
 /** A minimal, in-memory stand-in for `prisma.dangerOtp` — just enough of Prisma's own API surface
@@ -624,22 +623,9 @@ describe('DangerService#deleteCompany — reuses the SaaS export + deletion path
     expect(deleteCompanyPermanentlyNow).not.toHaveBeenCalled();
   });
 
-  it('refuses (never deletes) when the Polar subscription cannot be cancelled', async () => {
-    const { service, mailService } = build();
-    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
-    deleteCompanyPermanentlyNow.mockRejectedValue(
-      new PolarCancellationFailedError('co-1', new Error('down')),
-    );
-
-    await expect(service.deleteCompany(USER, 'co-1', otp, 'Acme Corp')).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
-  });
-
-  it('self-hosted without billing: the exact same call, deleteCompanyPermanentlyNow itself skips Polar', async () => {
-    // `deleteCompanyPermanentlyNow` is mocked here (see this file's own `vi.mock` above) — its own
-    // "no CompanySubscription row => never call Polar" behavior is proven directly by
-    // `billing/deletion.spec.ts`. This test only proves `deleteCompany` calls it the SAME way
+  it('self-hosted without billing: the exact same call', async () => {
+    // `deleteCompanyPermanentlyNow` is mocked here (see this file's own `vi.mock` above), its own
+    // behavior is proven directly by `billing/deletion.spec.ts`. This test only proves `deleteCompany` calls it the SAME way
     // regardless of hosting mode — no self-hosted-specific branch exists in this service at all.
     const { service, mailService } = build();
     const otp = await requestAndExtractOtp(service, mailService, 'co-1');

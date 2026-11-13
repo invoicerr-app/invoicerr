@@ -24,8 +24,7 @@ import {
  * misconfiguration, not a per-request event — and a value this codebase already treats as effectively
  * constant for the life of the process (nothing ever changes an instance's own env vars without a
  * restart) has no business being re-parsed and re-validated on every single document/mail render.
- * Same shape as `modules/billing/polar-client.ts`'s own `cached`/`resetPolarClientForTests` pair: a
- * module-level variable holding the resolved value, and a test-only reset so a spec that swaps
+ * A module-level variable holding the resolved value, and a test-only reset so a spec that swaps
  * `process.env.DEFAULT_LOCALE` between cases never silently reuses an earlier run's result.
  */
 /** Distinct sentinel from `undefined` — `undefined` is a legitimate MEMOIZED result (env unset, or
@@ -76,7 +75,7 @@ export function resolveDefaultLocale(): RenderLanguage | undefined {
 
 /** Test-only: forces the next `resolveDefaultLocale()` call to re-read `process.env.DEFAULT_LOCALE`
  *  instead of returning an earlier run's memoized result — required by any spec that mutates the var
- *  between cases, the same role `resetPolarClientForTests` plays for `polar-client.ts`'s own cache. */
+ *  between cases. */
 export function __resetDefaultLocaleForTests(): void {
   cached = UNREAD;
 }

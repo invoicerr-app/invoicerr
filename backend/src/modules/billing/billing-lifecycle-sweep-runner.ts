@@ -18,10 +18,7 @@ import { mailT } from '@/mail/i18n';
 import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
 import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
-import { reconcileMissingCompanyCustomers } from './customer-provisioning';
-import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
-import { reconcileCompanySeats } from './seat-reconcile';
 import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
@@ -36,32 +33,10 @@ export interface RunBillingLifecycleSweepResult {
    *  leaves a pair `skipped` rather than guessing. */
   zipFailed: number;
   deleted: number;
-  /** Incremented once per ACTIVE, subscribed company whose seat count had actually drifted from
-   *  Polar's own subscription and was just corrected — see `seat-reconcile.ts`'s own header. Zero on
-   *  a tick where every count already matched, which is the overwhelming common case. */
-  seatsReconciled: number;
-  /** Incremented once per company whose Polar CUSTOMER name/email push had failed at write time
-   *  (`customer-sync.ts`) and was just retried successfully on this tick. */
-  customerSyncRetried: number;
   /** Incremented once per OWNER warning email actually sent this tick (`lifecycle.ts`'s own
    *  `blocked_d7`/`blocked_d1`/`zipped_d7`/`zipped_d1` milestones) — never twice for the same
    *  milestone on the same subscription, see `CompanySubscription.billingWarningMilestonesSent`. */
   warningsSent: number;
-  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass — every company
-   *  (not just the ones this sweep otherwise walks, since a company can exist with no
-   *  `CompanySubscription` row at all yet) checked for its own Polar customer, one created where
-   *  missing. Covers a company created AFTER boot, or whose creation attempt failed earlier (a
-   *  transient Polar outage — a duplicate billing email is NOT retried here, see that module's own
-   *  header). `undefined` when the pass itself failed outright (never thrown into the rest of the
-   *  sweep — see `runSweep`'s own try/catch around this step). */
-  customersProvisioned?: number;
-  /** This tick's `customer-provisioning.ts#reconcileMissingCompanyCustomers` pass's own `skipped`
-   *  count — a company with neither `Company.billingEmail` nor `Company.email` set, so Polar would
-   *  refuse the create outright (that module's own header). Distinct from `customersProvisioned`
-   *  (created only): surfaced separately so an operator reading the log line can tell "nothing to do"
-   *  apart from "some companies are stuck on a data problem only a human can fix (set an email)".
-   *  `undefined` when the provisioning pass itself failed outright, same as `customersProvisioned`. */
-  customersSkipped?: number;
 }
 
 @Injectable()
@@ -85,40 +60,8 @@ export class BillingLifecycleSweepRunner {
       zipped: 0,
       zipFailed: 0,
       deleted: 0,
-      seatsReconciled: 0,
-      customerSyncRetried: 0,
       warningsSent: 0,
     };
-
-    // Company-WIDE, deliberately outside the per-subscription loop below: a company created after the
-    // last boot (or whose creation attempt failed then, e.g. a transient Polar outage) has no
-    // `CompanySubscription` row to be walked by that loop at all yet, but still needs its own Polar
-    // customer — `reconcileMissingCompanyCustomers` reads `Company` directly, not this sweep's own
-    // subscription list. Own try/catch, same "one failure must never sink the rest of this pass"
-    // discipline every step in this method already holds — a Polar outage here must not skip the
-    // status transitions, seat reconciliation, or warning mails below.
-    try {
-      const provisioned = await reconcileMissingCompanyCustomers();
-      result.customersProvisioned = provisioned.created;
-      result.customersSkipped = provisioned.skipped;
-      if (
-        provisioned.created > 0 ||
-        provisioned.emailTaken > 0 ||
-        provisioned.skipped > 0 ||
-        provisioned.failed > 0
-      ) {
-        this.logger.log(
-          `Billing customer provisioning: ${provisioned.total} compan${provisioned.total === 1 ? 'y' : 'ies'} ` +
-            `checked, ${provisioned.created} created, ${provisioned.emailTaken} refused (billing email ` +
-            `taken), ${provisioned.skipped} skipped (no billing email), ${provisioned.failed} failed ` +
-            `(retried next tick).`,
-        );
-      }
-    } catch (error) {
-      this.logger.error('Polar customer provisioning pass failed outright — retried next tick', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
 
     for (const sub of subscriptions) {
       // Wrapped in `runWithCompanyId` — this sweep has no request of its own, and every step below can
@@ -131,9 +74,7 @@ export class BillingLifecycleSweepRunner {
     this.logger.log(
       `Billing lifecycle sweep: ${result.processed} subscription(s) looked at, ` +
         `${result.blocked} newly blocked, ${result.zipped} zipped (${result.zipFailed} zip send ` +
-        `failures, retried next tick), ${result.deleted} deleted, ${result.seatsReconciled} seat ` +
-        `count(s) corrected against Polar, ${result.customerSyncRetried} customer sync retry(ies), ` +
-        `${result.customersProvisioned ?? 0} Polar customer(s) provisioned, ` +
+        `failures, retried next tick), ${result.deleted} deleted, ` +
         `${result.warningsSent} OWNER warning mail(s) sent.`,
     );
 
@@ -141,8 +82,8 @@ export class BillingLifecycleSweepRunner {
   }
 
   /**
-   * The four independent per-subscription steps `runSweep`'s own loop used to inline directly — pulled
-   * out into their own method so `runWithCompanyId` (see that call site's own comment) wraps all four
+   * The two independent per-subscription steps `runSweep`'s own loop used to inline directly - pulled
+   * out into their own method so `runWithCompanyId` (see that call site's own comment) wraps both
    * as one unit, without the loop body itself needing to know anything about company context.
    */
   private async processOneSubscription(
@@ -170,36 +111,6 @@ export class BillingLifecycleSweepRunner {
         { error: error instanceof Error ? error.message : String(error) },
       );
     }
-
-    // A separate try/catch, deliberately: a failure here must never re-run (or skip) the status
-    // transition above for the SAME company, and vice versa — the two are independent concerns
-    // sharing only the subscription row read at the top of this loop.
-    if (sub.status === 'ACTIVE') {
-      try {
-        const reconciled = await reconcileCompanySeats(sub);
-        if (reconciled?.corrected) result.seatsReconciled++;
-      } catch (error) {
-        this.logger.error(
-          `Seat reconciliation failed for company ${sub.companyId} — left untouched, retried next tick`,
-          { error: error instanceof Error ? error.message : String(error) },
-        );
-      }
-    }
-
-    // Same independence: a company's Polar CUSTOMER push (name/email) is unrelated to its own
-    // status transition or seat count — retried here only when the LAST attempt
-    // (`customer-sync.ts`, fired inline from `company.service.ts`/`billing-email.ts`) failed.
-    if (sub.customerSyncFailedAt) {
-      try {
-        const retried = await this.retryCustomerSync(sub.companyId);
-        if (retried) result.customerSyncRetried++;
-      } catch (error) {
-        this.logger.error(
-          `Polar customer sync retry failed for company ${sub.companyId} — left untouched, retried next tick`,
-          { error: error instanceof Error ? error.message : String(error) },
-        );
-      }
-    }
   }
 
   /**
@@ -209,7 +120,7 @@ export class BillingLifecycleSweepRunner {
    * (the OWNER's card was charged successfully, or a plan change came through the portal) already
    * wrote a NEWER status straight to the row; `applyOne` must never clobber that with a decision made
    * from the snapshot it started with. Every write below is therefore a compare-and-set: the `where`
-   * repeats the exact `status`/`lastPolarFactAt` this tick read, so a concurrent write moves the row
+   * repeats the exact `status`/`lastBillingFactAt` this tick read, so a concurrent write moves the row
    * out from under the match and the `updateMany` simply touches zero rows — this tick's decision is
    * silently dropped rather than applied, and the NEXT tick reads the fresh row and decides again from
    * there. `send_zip_and_enter_zipped` additionally re-reads BEFORE mailing anything: an `updateMany`
@@ -230,7 +141,7 @@ export class BillingLifecycleSweepRunner {
 
       case 'enter_blocked': {
         const { count } = await prisma.companySubscription.updateMany({
-          where: { companyId: sub.companyId, status: sub.status, lastPolarFactAt: sub.lastPolarFactAt },
+          where: { companyId: sub.companyId, status: sub.status, lastBillingFactAt: sub.lastBillingFactAt },
           data: { status: 'BLOCKED', blockedAt: action.blockedAt },
         });
         // count === 0: a webhook already moved this row past the snapshot this tick read — most
@@ -253,7 +164,7 @@ export class BillingLifecycleSweepRunner {
           return;
         }
         const { count } = await prisma.companySubscription.updateMany({
-          where: { companyId: sub.companyId, status: sub.status, lastPolarFactAt: sub.lastPolarFactAt },
+          where: { companyId: sub.companyId, status: sub.status, lastBillingFactAt: sub.lastBillingFactAt },
           data: { status: 'ZIPPED', zipSentAt: action.zipSentAt, deletionDueAt: action.deletionDueAt },
         });
         if (count > 0) result.zipped++;
@@ -274,10 +185,10 @@ export class BillingLifecycleSweepRunner {
   private async matchesCurrentSnapshot(sub: CompanySubscription): Promise<boolean> {
     const fresh = await prisma.companySubscription.findUnique({
       where: { companyId: sub.companyId },
-      select: { status: true, lastPolarFactAt: true },
+      select: { status: true, lastBillingFactAt: true },
     });
     if (!fresh) return false; // the row vanished entirely (deleted) since this tick's own read
-    return fresh.status === sub.status && sameInstant(fresh.lastPolarFactAt, sub.lastPolarFactAt);
+    return fresh.status === sub.status && sameInstant(fresh.lastBillingFactAt, sub.lastBillingFactAt);
   }
 
   /** Builds the export and mails it to the company's OLDEST `OWNER` membership (deterministic when a
@@ -398,30 +309,9 @@ export class BillingLifecycleSweepRunner {
       result.warningsSent++;
     }
   }
-
-  /** Re-reads the company's current name/email/billingEmail and retries the Polar customer push —
-   *  `syncPolarCustomerOnCompanyChange` itself already clears `customerSyncFailedAt` on success and
-   *  re-stamps it on a repeat failure, so this wrapper only needs to know whether it is WORTH calling
-   *  (a company that vanished between the failed push and this tick has nothing left to sync) and
-   *  whether the retry actually cleared the flag, to count it accurately. */
-  private async retryCustomerSync(companyId: string): Promise<boolean> {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { name: true, email: true, billingEmail: true },
-    });
-    if (!company) return false;
-
-    await syncPolarCustomerOnCompanyChange(companyId, company);
-
-    const sub = await prisma.companySubscription.findUnique({
-      where: { companyId },
-      select: { customerSyncFailedAt: true },
-    });
-    return sub?.customerSyncFailedAt === null;
-  }
 }
 
-/** `Date` equality by value, `null`-safe — `lastPolarFactAt` is the compare-and-set anchor `applyOne`
+/** `Date` equality by value, `null`-safe - `lastBillingFactAt` is the compare-and-set anchor `applyOne`
  *  reads alongside `status`, and two `Date` instances holding the same instant are never `===`. */
 function sameInstant(a: Date | null, b: Date | null): boolean {
   return a === null || b === null ? a === b : a.getTime() === b.getTime();

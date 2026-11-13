@@ -49,7 +49,7 @@ interface JournalRow {
 
 let archiveRows: ArchiveRow[];
 let journalRows: JournalRow[];
-let subscriptionRow: { polarSubscriptionId: string | null; status: string; deletionDueAt: Date } | null;
+let subscriptionRow: { status: string; deletionDueAt: Date } | null;
 /** Set by a test that wants the process to "die" at a chosen point — see the crash case below. */
 let journalReadFails: string | null;
 let nextId: number;
@@ -127,8 +127,6 @@ vi.mock('@/logger/logger.service', () => ({
 }));
 
 const COMPANY = 'co-erasure';
-const NEVER_PAID = { subscriptions: { revoke: async () => ({}) } };
-
 let archiveDir: string;
 let inboundDir: string;
 
@@ -188,7 +186,7 @@ describe('deleting a company erases the bytes it owns, not only the rows', () =>
     const upload = await uploadOne('a supplier PDF');
     expect([first.file, second.file, upload].every(existsSync)).toBe(true);
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
 
     expect(existsSync(first.file)).toBe(false);
     expect(existsSync(second.file)).toBe(false);
@@ -202,14 +200,13 @@ describe('deleting a company erases the bytes it owns, not only the rows', () =>
   it('erases on the AUTOMATED billing-sweep path too, not only the OWNER-initiated one', async () => {
     const now = new Date('2026-09-21T10:00:00.000Z');
     subscriptionRow = {
-      polarSubscriptionId: null,
       status: 'ZIPPED',
       deletionDueAt: new Date('2026-09-20T00:00:00.000Z'),
     };
     const archived = await archiveOne('doc-swept', 'swept away');
     const upload = await uploadOne('swept upload');
 
-    await expect(deleteCompanyPermanently(COMPANY, now, NEVER_PAID)).resolves.toBe(true);
+    await expect(deleteCompanyPermanently(COMPANY, now)).resolves.toBe(true);
 
     expect(existsSync(archived.file)).toBe(false);
     expect(existsSync(upload)).toBe(false);
@@ -230,7 +227,7 @@ describe('deleting a company erases the bytes it owns, not only the rows', () =>
     });
     const theirFile = join(theirUri.replace('file://', ''), 'pdf.pdf');
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
 
     expect(existsSync(mine.file)).toBe(false);
     expect(existsSync(theirFile)).toBe(true);
@@ -240,13 +237,12 @@ describe('deleting a company erases the bytes it owns, not only the rows', () =>
     const now = new Date('2026-09-21T10:00:00.000Z');
     // A webhook reactivated this subscription between the sweep's snapshot and this call.
     subscriptionRow = {
-      polarSubscriptionId: null,
       status: 'ACTIVE',
       deletionDueAt: new Date('2026-09-20T00:00:00.000Z'),
     };
     const stillLive = await archiveOne('doc-reprieved', 'still a customer');
 
-    await expect(deleteCompanyPermanently(COMPANY, now, NEVER_PAID)).resolves.toBe(false);
+    await expect(deleteCompanyPermanently(COMPANY, now)).resolves.toBe(false);
 
     expect(existsSync(stillLive.file)).toBe(true);
     expect(journalRows).toHaveLength(0);
@@ -262,7 +258,7 @@ describe('a crash between the commit and the erasure', () => {
     // erasure does afterwards — reading its own journal — never returns.
     journalReadFails = 'connection terminated unexpectedly';
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
 
     // The rows are gone for good. Before this module existed, that was the end of the story: three
     // files on the volume and nothing left in the database able to name them.
@@ -302,7 +298,7 @@ describe('a crash between the commit and the erasure', () => {
       retentionBasis: null,
     });
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
 
     expect(existsSync(healthy.file)).toBe(false);
     const stuck = journalRows.find((row) => row.target.startsWith('s3://'))!;
@@ -325,7 +321,7 @@ describe('⚖ statutory retention versus an erasure request', () => {
       basis: BASIS,
     });
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
 
     expect(existsSync(retained.file)).toBe(true);
     expect(existsSync(expired.file)).toBe(false);
@@ -340,7 +336,7 @@ describe('⚖ statutory retention versus an erasure request', () => {
   it('never blocks the deletion itself: the company still goes, and the exit is not refused', async () => {
     await archiveOne('doc-retained', 'still retained', { until: RETAINED_UNTIL, basis: BASIS });
 
-    await expect(deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID)).resolves.toBeUndefined();
+    await expect(deleteCompanyPermanentlyNow(COMPANY)).resolves.toBeUndefined();
     expect(archiveRows).toHaveLength(0);
   });
 
@@ -350,7 +346,7 @@ describe('⚖ statutory retention versus an erasure request', () => {
       basis: BASIS,
     });
 
-    await deleteCompanyPermanentlyNow(COMPANY, NEVER_PAID);
+    await deleteCompanyPermanentlyNow(COMPANY);
     expect(existsSync(retained.file)).toBe(true);
 
     await drainStorageErasureJournal({ now: new Date('2032-01-01T00:00:00.000Z') });

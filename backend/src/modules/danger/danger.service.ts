@@ -3,7 +3,6 @@ import { mailT } from '@/mail/i18n';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';
 import {
-  BadGatewayException,
   BadRequestException,
   ConflictException,
   HttpException,
@@ -19,7 +18,7 @@ import {
   journalCompanyStorageObjects,
 } from '@/modules/documents/archive/company-storage-erasure';
 import { BillingExportService } from '@/modules/billing/export-zip.service';
-import { deleteCompanyPermanentlyNow, PolarCancellationFailedError } from '@/modules/billing/deletion';
+import { deleteCompanyPermanentlyNow } from '@/modules/billing/deletion';
 import {
   clearDangerOtp,
   DANGER_OTP_LOCKOUT_HOURS,
@@ -326,11 +325,9 @@ export class DangerService {
    * "Delete company" — the irreversible one. Reuses the exact same SaaS path a company already goes
    * through when its own billing lifecycle deletes it (`billing/billing-lifecycle-sweep-runner.ts`):
    * mail the OWNER a full data export FIRST (`BillingExportService`, this company's last copy), then
-   * cancel any live Polar subscription and delete the `Company` row (`billing/deletion.ts#
-   * deleteCompanyPermanentlyNow`) — refusing outright, at every step, rather than deleting anything
-   * while the export or the cancellation could not be confirmed. On a self-hosted instance with no
-   * billing configured, `deleteCompanyPermanentlyNow` finds no `CompanySubscription` row at all and
-   * simply never calls Polar — the SAME code path, not a separate one.
+   * delete the `Company` row (`billing/deletion.ts#deleteCompanyPermanentlyNow`), refusing outright
+   * rather than deleting anything while the export could not be confirmed. A self-hosted instance with
+   * no billing configured takes the SAME code path, not a separate one.
    *
    * This is also the route a customer invokes to exercise erasure, so it must take the STORED BYTES
    * with it and not merely the rows: `deleteCompanyPermanentlyNow` inventories this company's archived
@@ -424,20 +421,7 @@ export class DangerService {
       );
     }
 
-    try {
-      await deleteCompanyPermanentlyNow(companyId);
-    } catch (error) {
-      if (error instanceof PolarCancellationFailedError) {
-        logger.error("Company deletion refused — this company's Polar subscription could not be cancelled", {
-          category: 'danger',
-          details: { userId: user.id, companyId, error: error.message },
-        });
-        throw new BadGatewayException(
-          "Could not cancel this company's subscription — deletion refused. Nothing was deleted; try again shortly.",
-        );
-      }
-      throw error;
-    }
+    await deleteCompanyPermanentlyNow(companyId);
 
     // `companyId` omitted, deliberately — it defers to the ambient request context (see
     // `logger.service.ts#LogOptions.companyId`'s own header), which already holds this exact id: the
