@@ -118,6 +118,11 @@ jobs:
         run: |
           curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:8080/
           curl -fsS http://localhost:8080/config.json
+          # One of the build's own hashed bundles: /assets/ has its own location, which must serve
+          # from the same root as / (a 404 here is a blank page in the browser).
+          asset=$(curl -fsS http://localhost:8080/ | grep -o '/assets/[^"]*\.js' | head -n 1)
+          test -n "$asset"
+          curl -fsS -o /dev/null -w "$asset %{http_code} %{content_type}\n" "http://localhost:8080$asset"
 
       - name: PDF rendering, default settings (CHROMIUM_SANDBOX=auto)
         run: |
