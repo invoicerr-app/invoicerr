@@ -42,6 +42,12 @@
  * an erasure request. Both deletion routes are wired, deliberately: the automated billing sweep and
  * the OWNER's own "delete company" are the SAME irreversible act and must not differ on what they
  * leave behind.
+ *
+ * ## Stripe stops billing first
+ *
+ * Both routes cancel the company's Stripe subscriptions (`stripe-subscription-cancel.ts`) before the
+ * deletion transaction, and a failed cancellation aborts the deletion: a company must never be gone
+ * while Stripe keeps charging it.
  */
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
@@ -53,6 +59,7 @@ import {
 } from '@/modules/documents/archive/company-storage-erasure';
 
 import { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/client';
+import { cancelCompanyStripeSubscriptions } from './stripe-subscription-cancel';
 
 /** `true` only when the row, as just read, is STILL actually due for deletion, `null`/`undefined`
  *  covers both "no such row" (should not happen once a company reaches ZIPPED) and "the row already
@@ -92,6 +99,10 @@ export async function deleteCompanyPermanently(companyId: string, now: Date = ne
   // trusted, the same discipline the CAS writes in `billing-lifecycle-sweep-runner.ts#applyOne` hold
   // for their own (recoverable) transitions.
   if (!isStillDueForDeletion(sub, now)) return false;
+
+  // A ZIPPED company has usually stopped paying long ago, but a subscription left `unpaid` or
+  // `paused` is still live on Stripe's side. Throws on failure: the sweep retries next tick.
+  await cancelCompanyStripeSubscriptions(companyId);
 
   const members = await prisma.$transaction(async (tx) => {
     // Re-read INSIDE the same transaction as the delete itself, right before it: a billing event
@@ -137,6 +148,10 @@ export async function deleteCompanyPermanently(companyId: string, now: Date = ne
  * behind on disk.
  */
 export async function deleteCompanyPermanentlyNow(companyId: string): Promise<void> {
+  // A paying company deleting itself must stop being charged. Throws on failure, before any row is
+  // touched, so "nothing was deleted" stays true for the caller.
+  await cancelCompanyStripeSubscriptions(companyId);
+
   const members = await prisma.$transaction(async (tx) => {
     // The inventory of this company's stored bytes, taken in the same commit that removes the rows
     // pointing at them, see this file's own header, and `company-storage-erasure.ts`'s, for why the

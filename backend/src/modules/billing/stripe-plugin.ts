@@ -1,8 +1,9 @@
 import { type StripePlan, stripe } from '@better-auth/stripe';
-import Stripe from 'stripe';
 import { isBillingEnabled } from './billing-flag';
+import { stripeClientFor } from './stripe-client';
 import { assertStripeEnvConfiguredForBoot } from './stripe-env';
 import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
+import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
 
 type StripePluginOptions = Parameters<typeof stripe>[0];
 
@@ -46,6 +47,21 @@ export async function canActOnCompanySubscription(
   return READ_ONLY_ACTIONS.has(action) || BILLING_MANAGERS.has(role);
 }
 
+// Every plugin hook that reports a subscription's state, mapped onto the company row
+// (`stripe-subscription-sync.ts`). `onSubscriptionCancel` is left out: a pending cancel is still paid,
+// and the `updated` event behind it already reaches `onSubscriptionUpdate`. A hook's error is caught
+// and logged by the plugin, never retried by Stripe; the next event for the subscription re-sends the
+// whole state, so a missed write is repaired by the following one.
+const sync = async (data: StripeSubscriptionHookData) => {
+  await syncStripeSubscription(data);
+};
+export const subscriptionSyncHooks = {
+  onSubscriptionComplete: sync,
+  onSubscriptionCreated: sync,
+  onSubscriptionUpdate: sync,
+  onSubscriptionDeleted: sync,
+};
+
 export function buildStripePlugin(findCompanyRole: FindCompanyRole, env: NodeJS.ProcessEnv = process.env) {
   if (!isBillingEnabled(env)) return null;
   assertStripeEnvConfiguredForBoot(env);
@@ -53,9 +69,7 @@ export function buildStripePlugin(findCompanyRole: FindCompanyRole, env: NodeJS.
 
   return stripe({
     // The plugin types the ESM build of `stripe`; this CommonJS backend resolves the CJS one.
-    stripeClient: new Stripe(
-      (env.STRIPE_SECRET_KEY ?? '').trim(),
-    ) as unknown as StripePluginOptions['stripeClient'],
+    stripeClient: stripeClientFor(env) as unknown as StripePluginOptions['stripeClient'],
     stripeWebhookSecret: (env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
     createCustomerOnSignUp: false,
     subscription: {
@@ -63,6 +77,7 @@ export function buildStripePlugin(findCompanyRole: FindCompanyRole, env: NodeJS.
       plans,
       authorizeReference: ({ user, referenceId, action }, ctx) =>
         canActOnCompanySubscription(findCompanyRole, user.id, referenceId, action, ctx?.body),
+      ...subscriptionSyncHooks,
     },
   });
 }
