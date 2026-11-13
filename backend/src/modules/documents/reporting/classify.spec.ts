@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
-import { classifyDeclaration, DeclarationOperation } from './classify';
+import { classifyDeclaration, classifyObligation, DeclarationOperation } from './classify';
+import { ReportingObligation, upgradeLegacyFacts } from './obligation-v2';
 import { ReportingObligationFact } from './schema';
 
 const FR = ALL_REPORTING_OBLIGATION_FILES.find((file) => file.countryCode === 'FR');
@@ -147,5 +148,102 @@ describe('classifyDeclaration  -  payment data (CGI art. 290 A)', () => {
 
   it('does not fire the invoice fact on the payment trigger', () => {
     expect(classifyDeclaration(b2cFact, payment()).status).toBe('out');
+  });
+});
+
+/**
+ * The v2 entry point (issue #767), pinned against the legacy one: for every shipped fact, its upgraded
+ * obligation gets the same verdict, reason included, on every operation of a grid that crosses each
+ * input the classifier reads. Switching a trigger from facts to obligations is then behaviour-preserving.
+ */
+describe('classifyObligation  -  the same verdict as classifyDeclaration on every shipped fact', () => {
+  const profiles: Record<string, string>[] = [
+    {},
+    { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER', vatRegime: 'REAL_MONTHLY' },
+    { sizeCategory: 'LARGE' },
+    { vatGroupMember: 'MEMBER' },
+    { sizeCategory: 'MICRO', vatRegime: 'FRANCHISE' },
+  ];
+  const grid: (DeclarationOperation | undefined)[] = [undefined];
+  for (const kind of ['invoice', 'payment'] as const)
+    for (const buyerType of ['INDIVIDUAL', 'COMPANY', undefined] as const)
+      for (const buyerCountryCode of ['FR', 'DE', undefined])
+        for (const documentIssueDate of ['2026-08-01', '2026-10-01', '2027-10-01'])
+          for (const companyProfile of profiles)
+            for (const vatOnCollection of [true, false])
+              for (const lineNatures of [['service'], ['goods'], undefined] as const)
+                grid.push({
+                  kind,
+                  sellerCountryCode: 'FR',
+                  buyerType,
+                  buyerCountryCode,
+                  documentIssueDate,
+                  companyProfile,
+                  vatOnCollection,
+                  lineNatures: lineNatures && [...lineNatures],
+                  ...(kind === 'payment'
+                    ? { payment: { amountMinor: 1000, paidAt: documentIssueDate } }
+                    : {}),
+                });
+
+  const cases = ALL_REPORTING_OBLIGATION_FILES.flatMap((file) =>
+    file.facts.map((fact, index) => ({
+      label: `${file.countryCode} ${fact.providerId}/${fact.appliesTo} #${index}`,
+      fact,
+      obligation: upgradeLegacyFacts(file).obligations[index],
+    })),
+  );
+
+  it('covers at least one scoped and one unscoped fact', () => {
+    expect(cases.some((c) => c.fact.scope)).toBe(true);
+    expect(cases.some((c) => !c.fact.scope && !c.fact.applicability)).toBe(true);
+  });
+
+  it.each(cases)('$label', ({ fact, obligation }) => {
+    for (const operation of grid) {
+      expect(classifyObligation(obligation, operation)).toEqual(classifyDeclaration(fact, operation));
+    }
+  });
+});
+
+describe('classifyObligation  -  what only v2 can say', () => {
+  const provenance = { kind: 'unverified' as const, resolutionNote: 'fixture' };
+  const base: ReportingObligation = {
+    id: 'zz-data',
+    authority: { countryCode: 'ZZ' },
+    kind: 'data',
+    trigger: 'sent',
+    scope: { documentTypes: ['invoice'] },
+    legalBasis: { provenance },
+    channels: [{ dischargedBy: 'provider', id: 'zz-api', unit: 'document' }],
+  };
+
+  it('an obligation with no scope, window or seller condition needs no operation', () => {
+    expect(classifyObligation(base, undefined)).toEqual({ status: 'in', scope: 'all' });
+  });
+
+  it('a window is open from its first day and closed from its "until" day', () => {
+    const windowed = { ...base, applicability: [{ from: '2026-01-01', until: '2027-01-01', provenance }] };
+    expect(classifyObligation(windowed, operation({ documentIssueDate: '2025-12-31' })).status).toBe('out');
+    expect(classifyObligation(windowed, operation({ documentIssueDate: '2026-01-01' })).status).toBe('in');
+    expect(classifyObligation(windowed, operation({ documentIssueDate: '2026-12-31' })).status).toBe('in');
+    const closed = classifyObligation(windowed, operation({ documentIssueDate: '2027-01-01' }));
+    expect(closed).toEqual({
+      status: 'out',
+      reason: 'This obligation ended on 2027-01-01 for this company.',
+    });
+  });
+
+  it('a seller condition: in when met, out when not, undetermined when the profile lacks the key', () => {
+    const conditioned = { ...base, sellerConditions: { companyProfile: { vatRegime: ['REAL_MONTHLY'] } } };
+    expect(classifyObligation(conditioned, operation()).status).toBe('in');
+    expect(
+      classifyObligation(conditioned, operation({ companyProfile: { vatRegime: 'REAL_QUARTERLY' } })).status,
+    ).toBe('out');
+    expect(classifyObligation(conditioned, operation({ companyProfile: {} }))).toEqual({
+      status: 'undetermined',
+      reason: 'The company has not declared "vatRegime", which decides whether this obligation applies.',
+    });
+    expect(classifyObligation(conditioned, undefined).status).toBe('undetermined');
   });
 });

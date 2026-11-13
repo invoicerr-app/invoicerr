@@ -14,6 +14,10 @@ import prisma from '@/prisma/prisma.service';
 import { resolveB2gRoutingRule } from '@/modules/documents/b2g-routing/b2g-routing';
 import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
+import {
+  defaultReportingObligationCatalog,
+  reportingObligationsFromComposedCatalog,
+} from '@/modules/documents/reporting/registry';
 import { ChannelCredentialsService } from './channels.service';
 
 // `legalChannels()`'s "automatic" flag reads the database-backed B2G rule, never the in-memory
@@ -412,6 +416,23 @@ describe('ChannelCredentialsService', () => {
           provenance: expect.objectContaining({ kind: 'legal' }),
         }),
       ]);
+    });
+  });
+
+  // Issue #767: the read moved to the v2 catalog. Pinned row for row against what the legacy catalog
+  // returned for every shipped country, so the settings screen sees exactly the same list.
+  describe('reportingObligations(): the v2 catalog returns exactly the legacy rows', () => {
+    it.each(
+      reportingObligationsFromComposedCatalog().map((file) => file.countryCode.toUpperCase()),
+    )('%s: same rows, same order, same provenance', async (countryCode) => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: countryCode, countryCode });
+      const expected = defaultReportingObligationCatalog.factsFor(countryCode).map((fact) => ({
+        providerId: fact.providerId,
+        appliesTo: fact.appliesTo,
+        provenance: fact.provenance,
+      }));
+      expect(expected.length).toBeGreaterThan(0);
+      await expect(service.reportingObligations('company-1')).resolves.toEqual(expected);
     });
   });
 

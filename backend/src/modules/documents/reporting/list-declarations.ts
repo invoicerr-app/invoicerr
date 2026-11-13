@@ -21,8 +21,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
-import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
-import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
 import { byCodeUnit } from '@/lib/compare';
 
 const PAGE_SIZE = 10;
@@ -41,12 +40,16 @@ const PAGE_SIZE = 10;
  *  leak every French PDP delivery confirmation into the Declarations screen as if it were a
  *  tax-authority declaration, exactly the conflation this file's own header warns against. */
 export function declarationProviderIds(
-  files: typeof ALL_REPORTING_OBLIGATION_FILES = ALL_REPORTING_OBLIGATION_FILES,
+  catalog: ReportingObligationCatalogV2 = defaultReportingObligationCatalogV2,
 ): string[] {
   const ids = new Set<string>();
-  for (const file of files) {
-    for (const fact of file.facts) {
-      if (fact.dischargedBy === 'provider') ids.add(fact.providerId);
+  for (const countryCode of catalog.countries()) {
+    for (const obligation of catalog.obligationsFor(countryCode)) {
+      for (const channel of obligation.channels) {
+        // An `export` or `manual` channel id names a file format or a step the user takes, never a
+        // provider that journals declaration events: the same boundary as `transport` above.
+        if (channel.dischargedBy === 'provider') ids.add(channel.id);
+      }
     }
   }
   return Array.from(ids);
@@ -65,11 +68,19 @@ export function declarationProviderIds(
  *  reaches here, and this filter keeps it that way rather than trusting the caller. */
 function countryCodeForProvider(
   providerId: string,
-  files: typeof ALL_REPORTING_OBLIGATION_FILES = ALL_REPORTING_OBLIGATION_FILES,
+  catalog: ReportingObligationCatalogV2 = defaultReportingObligationCatalogV2,
 ): string | undefined {
-  return files.find((file) =>
-    file.facts.some((fact) => fact.dischargedBy === 'provider' && fact.providerId === providerId),
-  )?.countryCode;
+  return catalog
+    .countries()
+    .find((countryCode) =>
+      catalog
+        .obligationsFor(countryCode)
+        .some((obligation) =>
+          obligation.channels.some(
+            (channel) => channel.dischargedBy === 'provider' && channel.id === providerId,
+          ),
+        ),
+    );
 }
 
 export interface DeclarationListEntry {
@@ -118,7 +129,7 @@ export async function listDeclarations(
   companyId: string,
   page: number,
   status: string | undefined,
-  catalog: ReportingObligationCatalog = defaultReportingObligationCatalog,
+  catalog: ReportingObligationCatalogV2 = defaultReportingObligationCatalogV2,
 ): Promise<ListDeclarationsResult> {
   const providerIds = declarationProviderIds();
   const pageNumber = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
@@ -180,6 +191,6 @@ export async function listDeclarations(
     })),
     pageCount: Math.ceil(total / PAGE_SIZE),
     statusCodes: distinctRows.map((row) => row.statusCode).sort(byCodeUnit),
-    hasObligation: companyCountryCode ? catalog.factsFor(companyCountryCode).length > 0 : undefined,
+    hasObligation: companyCountryCode ? catalog.obligationsFor(companyCountryCode).length > 0 : undefined,
   };
 }
