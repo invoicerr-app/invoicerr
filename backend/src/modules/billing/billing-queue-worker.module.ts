@@ -22,8 +22,8 @@ import {
  * is enabled. Nest only instantiates `@Processor()` classes reachable from an imported module, so
  * gating THIS import is enough to gate consumption entirely — a job is never consumed twice.
  *
- * Imports `BillingCoreModule` (never `BillingModule`, which also carries the HTTP controllers and the
- * API-only customer-provisioning boot step this worker process has no use for) so
+ * Imports `BillingCoreModule` (never `BillingModule`, which also carries the HTTP controllers this worker
+ * process has no use for) so
  * `BillingLifecycleProcessor` gets the SAME DI-wired `BillingLifecycleSweepRunner` (and therefore the
  * same `BillingExportService`/`DocumentsService`) the API process would have used inline — never a
  * second, parallel construction of them.

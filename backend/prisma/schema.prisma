@@ -1504,13 +1504,11 @@ model Log {
   // company to name.
   //
   // Deliberately a PLAIN string, never a `@relation` — the one `companyId` field in this whole schema
-  // that isn't one, and on purpose: a log write must never fail because of what it is ABOUT. Two write
-  // sites already, honestly, carry a `companyId` that may not resolve to any current `Company` row —
+  // that isn't one, and on purpose: a log write must never fail because of what it is ABOUT. A write
+  // site already, honestly, carries a `companyId` that may not resolve to any current `Company` row:
   // `payments-webhook.controller.ts`'s `:companyId` is a caller-supplied ROUTING hint, unverified until
-  // deep inside `handleWebhookEvent` (that controller's own header), and
-  // `billing/webhook-handlers.ts#recoverLegacySubscriptionCancellation` explicitly documents "a
-  // companyId no Company row matches" as one of the two NORMAL reasons it runs at all. A real foreign
-  // key would turn exactly those two documented, expected cases into a swallowed `Log` write (caught by
+  // deep inside `handleWebhookEvent` (that controller's own header). A real foreign key would turn
+  // exactly that documented, expected case into a swallowed `Log` write (caught by
   // `createLog`'s own try/catch, `logger.service.ts`) — the DB audit trail disappearing for precisely
   // the anomalous/attack-adjacent traffic an operator would most want it for. No `onDelete: Cascade`
   // either, as a direct consequence: a deleted company's own log rows simply keep their (now

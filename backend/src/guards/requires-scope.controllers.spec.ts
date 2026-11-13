@@ -161,13 +161,6 @@ describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST co
       expected: ['billing:read'],
     },
     {
-      name: 'BillingController',
-      Controller: BillingController,
-      method: 'startCheckout',
-      key: REQUIRES_SCOPE_KEY,
-      expected: ['billing:write'],
-    },
-    {
       name: 'SeatsController',
       Controller: SeatsController,
       method: 'getSeats',
