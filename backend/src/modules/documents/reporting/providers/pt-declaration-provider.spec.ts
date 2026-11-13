@@ -287,6 +287,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
     // OWN prefix makes that origin unmistakable in the raw event timeline.
     expect(result.authorityId).toMatch(/^pt-at-synth:/);
     expect(result.authorityId).toContain('FT_1_1'); // the invoice's own number, sanitized
+    expect(result.referenceKind).toBe('synthesized');
     expect(result.rawPayload).toEqual(expect.objectContaining({ codigoResposta: 0 }));
   });
 
@@ -318,6 +319,7 @@ describe('buildPtAtDeclarationProvider — the full WS-Security → HTTP → Reg
     expect(result.statusCode).toBe('REJECTED');
     expect(result.reason).toBe('Documento inválido por valores anómalos.');
     expect(result.authorityId.length).toBeGreaterThan(0);
+    expect(result.referenceKind).toBe('synthesized');
     expect(result.rawPayload).toEqual(expect.objectContaining({ codigoResposta: -7 }));
   });
 

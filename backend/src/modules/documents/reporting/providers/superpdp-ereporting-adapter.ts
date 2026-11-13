@@ -146,6 +146,7 @@ function submitted(
       `Recorded by the accredited platform as ${label} ${reference}. This is the platform's own ` +
       'record, not a tax administration reference: transmission happens on the platform side.',
     authorityId: reference,
+    referenceKind: 'platform',
     observedAt: new Date(),
     rawPayload,
   };

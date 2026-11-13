@@ -110,7 +110,26 @@ export interface DeclaredInvoice {
  */
 export interface DeclarationResult extends RawAuthorityEvent {
   authorityId: string;
+  /**
+   * Who minted `authorityId` (issue #767). Absent means `authority`, the contract this field had
+   * before the kind existed, so a provider written against it keeps declaring unchanged.
+   */
+  referenceKind?: DeclarationReferenceKind;
 }
+
+/**
+ * - `authority`: the tax administration's own identifier for the declaration (NAV, myDATA).
+ * - `platform`: an intermediary's own record id; the platform transmits to the administration later.
+ * - `synthesized`: built by this code because the authority returns none (Portugal's AT), never to be
+ *   shown as the administration's confirmation number.
+ */
+export type DeclarationReferenceKind = 'authority' | 'platform' | 'synthesized';
+
+export const DECLARATION_REFERENCE_KINDS: readonly DeclarationReferenceKind[] = [
+  'authority',
+  'platform',
+  'synthesized',
+];
 
 /**
  * One payment, ready to declare  -  the payment-data twin of `DeclaredInvoice` (CGI art. 290 A).
