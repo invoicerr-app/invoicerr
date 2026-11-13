@@ -205,3 +205,89 @@ describe('Tiime profiles on the real header rows', () => {
     expect(invoices?.fileTypes).toEqual(['xlsx', 'zip']);
   });
 });
+
+const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+/** Style 1 displays a date (built-in format 14), style 0 does not. */
+const DATE_STYLES = `<styleSheet xmlns="${MAIN_NS}"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>`;
+
+/** A minimal one-sheet workbook whose sheet XML is written by hand, prolog included. */
+function workbookOf(sheetXml: string): Promise<Uint8Array> {
+  return zipOf({
+    'xl/workbook.xml': `<workbook xmlns="${MAIN_NS}"><sheets><sheet name="S" sheetId="1"/></sheets></workbook>`,
+    'xl/worksheets/sheet1.xml': sheetXml,
+    'xl/styles.xml': DATE_STYLES,
+  });
+}
+
+const sheetOf = (rows: string) => `<worksheet xmlns="${MAIN_NS}"><sheetData>${rows}</sheetData></worksheet>`;
+
+describe('reading a hostile workbook', () => {
+  it('keeps an out-of-range date serial as its number instead of crashing', async () => {
+    const grid = await onlyGrid(
+      await workbookOf(
+        sheetOf(
+          '<row r="1"><c r="A1" t="inlineStr"><is><t>date</t></is></c></row>' +
+            '<row r="2"><c r="A2" s="1"><v>1e300</v></c></row>' +
+            '<row r="3"><c r="A3" s="1"><v>-1e300</v></c></row>' +
+            '<row r="4"><c r="A4" s="1"><v>-1</v></c></row>' +
+            '<row r="5"><c r="A5" s="1"><v>2958466</v></c></row>' +
+            '<row r="6"><c r="A6" s="1"><v>45607</v></c></row>',
+        ),
+      ),
+    );
+    // Before the epoch or past 9999-12-31 is not a date an invoice carries: the profile's own date
+    // parsing then refuses the row, instead of the whole upload failing on a RangeError.
+    expect(grid.rows.map((row) => row[0])).toEqual(['1e+300', '-1e+300', '-1', '2958466', '2024-11-11']);
+  });
+
+  it('refuses a sheet past the row limit, and one past the column limit', async () => {
+    await expect(
+      readVendorExportFile(await workbookOf(sheetOf('<row r="10001"><c r="A10001"><v>1</v></c></row>'))),
+    ).rejects.toThrow('more than 10000 rows');
+    await expect(
+      readVendorExportFile(await workbookOf(sheetOf('<row r="1"><c r="GS1"><v>1</v></c></row>'))),
+    ).rejects.toThrow('more than 200 columns');
+  });
+
+  it('refuses a tiny sheet whose cell references would pad into millions of cells', async () => {
+    // One cell at the last allowed row and column: a few hundred bytes that pad to 10,000 x 200.
+    const sparse = await workbookOf(sheetOf('<row r="10000"><c r="GR10000"><v>1</v></c></row>'));
+    await expect(readVendorExportFile(sparse)).rejects.toThrow('more than 500000 cells');
+  });
+
+  it('counts cells across every workbook of an archive, not per workbook', async () => {
+    // Each workbook pads to 1,000 rows x 100 columns = 100,000 cells: fine alone, refused at six.
+    const workbook = await workbookOf(sheetOf('<row r="1000"><c r="CV1000"><v>1</v></c></row>'));
+    await expect(readVendorExportFile(workbook)).resolves.toBeDefined();
+    const archive = await zipOf(
+      Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`w${i}.xlsx`, workbook])),
+    );
+    await expect(readVendorExportFile(archive)).rejects.toThrow('more than 500000 cells');
+  });
+
+  it('does not expand nested internal entities (billion laughs)', async () => {
+    const lol =
+      '<!DOCTYPE worksheet [<!ENTITY a "lollollollollollollollollollol">' +
+      Array.from({ length: 9 }, (_, i) => {
+        const prev = String.fromCharCode(97 + i);
+        return `<!ENTITY ${String.fromCharCode(98 + i)} "${`&${prev};`.repeat(10)}">`;
+      }).join('') +
+      ']>';
+    const bytes = await workbookOf(
+      `<?xml version="1.0"?>${lol}` +
+        sheetOf('<row r="1"><c r="A1" t="inlineStr"><is><t>&j;</t></is></c></row>'),
+    );
+    // xmldom never expands a DTD entity: it reports it as not found, which refuses the part.
+    const started = performance.now();
+    await expect(readVendorExportFile(bytes)).rejects.toThrow('is not valid XML');
+    expect(performance.now() - started).toBeLessThan(5_000);
+  });
+
+  it('never resolves an external entity (XXE)', async () => {
+    const bytes = await workbookOf(
+      '<?xml version="1.0"?><!DOCTYPE worksheet [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>' +
+        sheetOf('<row r="1"><c r="A1" t="inlineStr"><is><t>&xxe;</t></is></c></row>'),
+    );
+    await expect(readVendorExportFile(bytes)).rejects.toThrow('is not valid XML');
+  });
+});

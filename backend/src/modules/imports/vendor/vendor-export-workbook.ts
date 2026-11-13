@@ -25,6 +25,15 @@ const MAX_WORKBOOKS_PER_ARCHIVE = 10;
 /** A row or column reference past these is refused rather than allocated. */
 const MAX_ROWS = 10_000;
 const MAX_COLUMNS = 200;
+/**
+ * Cells the padded grids of one upload may hold in total, across every workbook of an archive. The
+ * row and column limits alone allow ten workbooks of 10,000 x 200, and a single cell reference near
+ * those limits pads a few hundred bytes into two million cells. 500,000 still fits a 10,000-row
+ * invoice export of 50 columns, which is wider than any export a profile reads.
+ */
+const MAX_CELLS_PER_UPLOAD = 500_000;
+/** 9999-12-31 as a 1900-system serial. A larger or negative serial is not a date an export carries. */
+const MAX_DATE_SERIAL = 2_958_465;
 
 export interface VendorExportWorkbook {
   /** The workbook's path inside the archive, or `undefined` for a bare XLSX upload. */
@@ -240,14 +249,25 @@ function cellText(cell: XmlElement, strings: string[], dates: boolean[], date190
       if (raw.trim() === '') return '';
       const style = Number(cell.getAttribute('s') ?? 0);
       const serial = Number(raw);
-      if (dates[style] && Number.isFinite(serial)) return serialToIsoDate(serial, date1904);
+      // Out of range, `new Date` is invalid and `toISOString` throws: keep the number, and let the
+      // profile's date parsing refuse that one row instead of the whole upload failing.
+      if (dates[style] && serial >= 0 && serial <= MAX_DATE_SERIAL) return serialToIsoDate(serial, date1904);
       return numberText(raw);
     }
   }
 }
 
+/** What is left of `MAX_CELLS_PER_UPLOAD`, shared by every workbook of one upload. */
+interface CellBudget {
+  remaining: number;
+}
+
+function tooManyCells(): VendorExportFileError {
+  return new VendorExportFileError(`This export holds more than ${MAX_CELLS_PER_UPLOAD} cells.`);
+}
+
 /** Reads the first worksheet of an XLSX workbook already opened as a zip. */
-async function readWorkbookZip(zip: JSZip): Promise<VendorExportGrid> {
+async function readWorkbookZip(zip: JSZip, budget: CellBudget): Promise<VendorExportGrid> {
   const sheetPath = await firstSheetPath(zip);
   const sheetXml = await readPart(zip, sheetPath);
   if (!sheetXml) throw new VendorExportFileError('This XLSX file has no worksheet.');
@@ -260,6 +280,7 @@ async function readWorkbookZip(zip: JSZip): Promise<VendorExportGrid> {
 
   const rows: string[][] = [];
   let width = 0;
+  let height = 0;
   elements(sheet, 'row').forEach((rowElement, position) => {
     const rowNumber = Number(rowElement.getAttribute('r') ?? position + 1);
     if (!Number.isInteger(rowNumber) || rowNumber < 1 || rowNumber > MAX_ROWS) {
@@ -275,7 +296,11 @@ async function readWorkbookZip(zip: JSZip): Promise<VendorExportGrid> {
     });
     rows[rowNumber - 1] = cells;
     width = Math.max(width, cells.length);
+    height = Math.max(height, rowNumber);
+    // Checked while reading, so a sparse sheet is refused before its padding is ever allocated.
+    if (height * width > budget.remaining) throw tooManyCells();
   });
+  budget.remaining -= height * width;
 
   // An empty cell is simply absent from the sheet: pad so every row has the header row's width.
   const grid = Array.from({ length: rows.length }, (_, index) =>
@@ -306,8 +331,9 @@ export async function readVendorExportFile(bytes: Uint8Array): Promise<VendorExp
     throw new VendorExportFileError('This file is not an XLSX workbook or a ZIP archive.');
   }
   const zip = await loadZip(bytes);
+  const budget: CellBudget = { remaining: MAX_CELLS_PER_UPLOAD };
   if (isWorkbookZip(zip)) {
-    return { workbooks: [{ grid: await readWorkbookZip(zip) }], pdfFiles: [] };
+    return { workbooks: [{ grid: await readWorkbookZip(zip, budget) }], pdfFiles: [] };
   }
 
   const entries = Object.values(zip.files).filter((entry) => !entry.dir && !isMetadataEntry(entry.name));
@@ -330,7 +356,7 @@ export async function readVendorExportFile(bytes: Uint8Array): Promise<VendorExp
     if (!isWorkbookZip(innerZip)) {
       throw new VendorExportFileError(`"${entry.name}" is not a readable XLSX workbook.`);
     }
-    workbooks.push({ fileName: entry.name, grid: await readWorkbookZip(innerZip) });
+    workbooks.push({ fileName: entry.name, grid: await readWorkbookZip(innerZip, budget) });
   }
 
   const pdfFiles = entries.filter((entry) => /\.pdf$/i.test(entry.name)).map((entry) => entry.name);
