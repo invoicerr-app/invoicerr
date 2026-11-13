@@ -708,6 +708,11 @@ jobs:
       POLAR_PRODUCT_ID_MONTHLY: e2e-saas-lane-dummy-monthly
       POLAR_PRODUCT_ID_YEARLY: e2e-saas-lane-dummy-yearly
       POLAR_SERVER: sandbox
+      # Same reasoning for Stripe (`stripe-env.ts#assertStripeEnvConfiguredForBoot`): a `sk_test_`
+      # shaped key and a non-blank webhook secret let the backend boot; the plugin makes no Stripe
+      # call at boot and neither spec this job runs starts a checkout.
+      STRIPE_SECRET_KEY: sk_test_e2e_saas_lane_dummy_key
+      STRIPE_WEBHOOK_SECRET: whsec_e2e_saas_lane_dummy_secret
     services:
       postgres-test:
         image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
