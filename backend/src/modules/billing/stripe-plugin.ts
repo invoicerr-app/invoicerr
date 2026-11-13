@@ -1,5 +1,6 @@
 import { type StripePlan, stripe } from '@better-auth/stripe';
 import { isBillingEnabled } from './billing-flag';
+import { recordFounderPreorderEvent } from './founder-preorder';
 import { stripeClientFor } from './stripe-client';
 import { assertStripeEnvConfiguredForBoot } from './stripe-env';
 import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
@@ -118,6 +119,11 @@ export function buildStripePlugin(
       },
     },
     schema: { organization: { modelName: 'company' } },
+    // Every webhook event. The plugin only handles subscription checkouts; a founder pre-order is a
+    // one-off payment, recorded here (`founder-preorder.ts`). A throw makes Stripe retry the event.
+    onEvent: async (event) => {
+      await recordFounderPreorderEvent(event);
+    },
     subscription: {
       enabled: true,
       plans,
