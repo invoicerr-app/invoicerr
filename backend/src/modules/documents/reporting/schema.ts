@@ -211,7 +211,7 @@ export class InvalidReportingObligationProvenanceError extends Error {}
  * `provenance` and its optional `applicableFrom.provenance` identically, rather than duplicating the
  * same three checks twice inline.
  */
-function assertValidProvenance(
+export function assertValidProvenance(
   provenance: PolicyProvenance | null | undefined,
   context: string,
   label: string,
@@ -239,6 +239,54 @@ function assertValidProvenance(
           'say what would settle it.',
       );
     }
+  }
+}
+
+/**
+ * One `scope` entry's own rules, shared by the legacy fact validator below and the v2 obligation
+ * validator (`obligation-v2.ts`) so both formats refuse the same entry with the same message.
+ * `label` names the carrier in the message, e.g. `fact "pt-at"` or `obligation "pt-at:invoice"`.
+ */
+export function assertValidReportingScopeEntry(
+  entry: ReportingScopeEntry,
+  context: string,
+  label: string,
+): void {
+  if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown scope transaction category ` +
+        `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
+    );
+  }
+  if (entry.buyerType !== undefined) {
+    if (!Array.isArray(entry.buyerType) || entry.buyerType.length === 0) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an empty "scope.buyerType" - omit it to ` +
+          'leave the buyer type unrestricted.',
+      );
+    }
+    const unknownType = entry.buyerType.find((type) => !VALID_PARTY_TYPES.includes(type));
+    if (unknownType) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an unknown "scope.buyerType" party type ` +
+          `"${unknownType}" (must be one of ${VALID_PARTY_TYPES.join(', ')}).`,
+      );
+    }
+  }
+  if (
+    entry.buyerEstablishment !== undefined &&
+    entry.buyerEstablishment !== 'domestic' &&
+    entry.buyerEstablishment !== 'foreign'
+  ) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown "scope.buyerEstablishment" ` +
+        `"${String(entry.buyerEstablishment)}" (must be "domestic" or "foreign").`,
+    );
+  }
+  if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} declares a non-boolean "scope.vatOnCollection".`,
+    );
   }
 }
 
@@ -273,42 +321,7 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
       );
     }
     for (const entry of fact.scope) {
-      if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" has an unknown scope transaction category ` +
-            `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
-        );
-      }
-      if (entry.buyerType !== undefined) {
-        if (!Array.isArray(entry.buyerType) || entry.buyerType.length === 0) {
-          throw new InvalidReportingObligationProvenanceError(
-            `${context}: fact "${fact.providerId}" declares an empty "scope.buyerType" - omit it to ` +
-              'leave the buyer type unrestricted.',
-          );
-        }
-        const unknownType = entry.buyerType.find((type) => !VALID_PARTY_TYPES.includes(type));
-        if (unknownType) {
-          throw new InvalidReportingObligationProvenanceError(
-            `${context}: fact "${fact.providerId}" declares an unknown "scope.buyerType" party type ` +
-              `"${unknownType}" (must be one of ${VALID_PARTY_TYPES.join(', ')}).`,
-          );
-        }
-      }
-      if (
-        entry.buyerEstablishment !== undefined &&
-        entry.buyerEstablishment !== 'domestic' &&
-        entry.buyerEstablishment !== 'foreign'
-      ) {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" has an unknown "scope.buyerEstablishment" ` +
-            `"${String(entry.buyerEstablishment)}" (must be "domestic" or "foreign").`,
-        );
-      }
-      if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" declares a non-boolean "scope.vatOnCollection".`,
-        );
-      }
+      assertValidReportingScopeEntry(entry, context, `fact "${fact.providerId}"`);
     }
   }
 
