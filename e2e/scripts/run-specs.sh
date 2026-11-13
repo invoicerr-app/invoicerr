@@ -23,19 +23,23 @@ failed=()
 # filter through a process substitution, not a pipe: under `pipefail`, `grep -q` exiting on the
 # first match would SIGPIPE the filter and turn a match into a failure.
 plain() {
-  sed -E $'s/\x1b\\[[0-9;]*m//g' "$1"
+  local log="$1"
+  sed -E $'s/\x1b\\[[0-9;]*m//g' "$log"
 }
 
 ran_any_test() {
-  grep -qE 'Tests:[[:space:]]+[1-9]' <(plain "$1")
+  local log="$1"
+  grep -qE 'Tests:[[:space:]]+[1-9]' <(plain "$log")
 }
 
 browser_never_connected() {
-  grep -q 'The browser never connected' <(plain "$1")
+  local log="$1"
+  grep -q 'The browser never connected' <(plain "$log")
 }
 
 no_test_ran() {
-  grep -qE 'Tests:[[:space:]]+0([[:space:]]|$)' <(plain "$1") && ! ran_any_test "$1"
+  local log="$1"
+  grep -qE 'Tests:[[:space:]]+0([[:space:]]|$)' <(plain "$log") && ! ran_any_test "$log"
 }
 
 IFS=',' read -ra list <<< "$specs"
