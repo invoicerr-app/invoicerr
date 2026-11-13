@@ -7,6 +7,8 @@
  * expected numbers here are independently traceable to the same arithmetic that
  * file already proves against the REAL vendored EN 16931 Schematron.
  */
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 import { vi, type Mock } from 'vitest';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -302,6 +304,15 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       expect(ratio).toBeLessThan(factor * 3);
     }
 
+    /** Returns V8's own `gc()`. Flipping `--expose-gc` at runtime and reading `gc` from a fresh
+     *  context is the same route Jest's leak detector takes; it needs no CLI flag on the runner. */
+    function exposeGc(): () => void {
+      const existing = (globalThis as { gc?: () => void }).gc;
+      if (existing) return existing;
+      setFlagsFromString('--expose-gc');
+      return runInNewContext('gc') as () => void;
+    }
+
     const CII_WITH_ENTITIES = `<?xml version="1.0" encoding="utf-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">
   <rsm:SupplyChainTradeTransaction>
@@ -335,21 +346,38 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
       const SMALL = 5_000;
       const LARGE = SMALL * 4;
 
-      const start1 = performance.now();
-      const result1 = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBomb(SMALL)),
-        'application/xml',
-        'bomb.xml',
-      );
-      const elapsedSmall = performance.now() - start1;
+      const smallXml = new TextEncoder().encode(buildBomb(SMALL));
+      const largeXml = new TextEncoder().encode(buildBomb(LARGE));
+      const extract = (xml: Uint8Array) => extractReceivedInvoiceFields(xml, 'application/xml', 'bomb.xml');
 
-      const start2 = performance.now();
-      const result2 = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBomb(LARGE)),
-        'application/xml',
-        'bomb.xml',
-      );
-      const elapsedLarge = performance.now() - start2;
+      // One sample per size let a single garbage collection or a busy sibling worker decide the
+      // outcome: the large run allocates four times the nodes, so it is the one a pause lands on
+      // (CI measured about 7ms then 96ms once, ratio 14). Two things make the ratio a measurement
+      // of the parse itself. The heap is collected before every timed run, so no run pays for
+      // garbage an earlier one left behind. And noise only ever adds time, so the fastest of several
+      // interleaved rounds is the closest estimate of the parse's own cost. Measured on a loaded box
+      // over 20 trials: linear parse at most 4.4, a regex-style rescan from every tag at least 14.4.
+      const collectGarbage = exposeGc();
+      const time = async (xml: Uint8Array) => {
+        collectGarbage();
+        const start = performance.now();
+        const result = await extract(xml);
+        return { result, elapsed: performance.now() - start };
+      };
+      const ROUNDS = 5;
+      let elapsedSmall = Infinity;
+      let elapsedLarge = Infinity;
+      let result1: Awaited<ReturnType<typeof extract>> | undefined;
+      let result2: Awaited<ReturnType<typeof extract>> | undefined;
+      for (let round = 0; round < ROUNDS; round++) {
+        const small = await time(smallXml);
+        result1 = small.result;
+        elapsedSmall = Math.min(elapsedSmall, small.elapsed);
+
+        const large = await time(largeXml);
+        result2 = large.result;
+        elapsedLarge = Math.min(elapsedLarge, large.elapsed);
+      }
 
       // The old regex-based `extractAllBlocks` re-scanned the remaining document from every one of
       // these opening tags looking for a close tag that never comes — quadratic over the byte count.
