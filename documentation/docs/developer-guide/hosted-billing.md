@@ -267,3 +267,22 @@ owns checkout, the customer portal, webhook signature checks and the `subscripti
 - **Who can act**: a subscription's `referenceId` is a company id. Owners and admins of that company
   can subscribe, cancel, restore and open the portal; any member can list the subscription; anyone
   else is refused.
+
+## Stripe price catalog
+
+The hosted subscription is moving to Stripe Billing. Prices are configured, not coded: each one is a
+Stripe price id read from the environment (see `backend/.env.example`), and the amounts live in the
+Stripe dashboard.
+
+There are two grids, `standard` and `founder`, each with a monthly and a yearly price, read from
+`STRIPE_PRICE_<GRID>_<INTERVAL>`. The standard grid is required; the founder grid is optional but all
+or nothing. Every price id must be distinct, so any price on a subscription maps back to exactly one
+grid and interval.
+
+Each price is billed per seat in graduated tiers: the first seat, seats 2 to 4, and seat 5 onwards,
+each tier with its own unit amount. The subscription quantity is the seat count and Stripe computes
+the total, so twelve seats are billed as 1 seat at the first tier, 3 at the second and 8 at the third.
+
+To set up a test catalog, create four recurring prices in Stripe test mode, in EUR, with
+"Graduated pricing" and the three tiers above (up to 1, up to 4, then infinity), with each yearly
+amount at ten times the monthly one.
