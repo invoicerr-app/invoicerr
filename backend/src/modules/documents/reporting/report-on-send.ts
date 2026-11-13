@@ -52,10 +52,10 @@ import { logger } from '@/logger/logger.service';
 import { journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
-import { classifyDeclaration } from './classify';
+import { classifyObligation } from './classify';
 import { loadDeclarationOperation } from './operation-context';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
-import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
 
 export interface ReportOnSendInput {
   companyId: string;
@@ -70,7 +70,7 @@ export interface ReportOnSendInput {
  */
 export async function reportOnSendIfObligated(
   input: ReportOnSendInput,
-  catalog: ReportingObligationCatalog = defaultReportingObligationCatalog,
+  catalog: ReportingObligationCatalogV2 = defaultReportingObligationCatalogV2,
 ): Promise<void> {
   const { companyId, typeId, documentId, queueDispatcher } = input;
 
@@ -79,27 +79,40 @@ export async function reportOnSendIfObligated(
   // report — "no capability, no effect", never a crash.
   if (!queueDispatcher.enqueueReport) return;
 
-  let obligation: ReturnType<ReportingObligationCatalog['obligationFor']>;
+  let obligation: { providerId: string } | undefined;
   let blocked: { providerId: string; reason: string } | undefined;
   try {
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return;
-    const facts = catalog.providerFactsFor(countryCode, typeId);
-    if (facts.length === 0) return;
+    // Only a `sent` obligation is a send-time declaration: a payment one fires from
+    // `report-payment.ts`, and a periodic summary or return (`period-end`) is never declared once per
+    // document. Every upgraded legacy fact is `sent` or `payment`, and the classifier already puts a
+    // payment fact out on this trigger, so this filter changes nothing for the shipped files.
+    const candidates = catalog
+      .providerObligationsFor(countryCode, typeId)
+      .filter((candidate) => candidate.trigger === 'sent')
+      .flatMap((candidate) => {
+        const providerId = ReportingObligationCatalogV2.providerChannelId(candidate);
+        return providerId ? [{ candidate, providerId }] : [];
+      });
+    if (candidates.length === 0) return;
 
-    const operation = facts.some((fact) => fact.scope || fact.applicability)
+    const operation = candidates.some(
+      ({ candidate }) =>
+        candidate.scope.transactions || candidate.applicability || candidate.sellerConditions,
+    )
       ? await loadDeclarationOperation({ companyId, typeId, documentId })
       : undefined;
-    for (const fact of facts) {
-      const verdict = classifyDeclaration(fact, operation);
+    for (const { candidate, providerId } of candidates) {
+      const verdict = classifyObligation(candidate, operation);
       if (verdict.status === 'in') {
-        obligation = fact;
+        obligation = { providerId };
         break;
       }
-      // A later fact may still cover the operation: only the absence of ANY covering fact makes this
-      // an undetermined declaration worth a blocked row.
+      // A later obligation may still cover the operation: only the absence of ANY covering one makes
+      // this an undetermined declaration worth a blocked row.
       if (verdict.status === 'undetermined' && !blocked) {
-        blocked = { providerId: fact.providerId, reason: verdict.reason };
+        blocked = { providerId, reason: verdict.reason };
       }
     }
   } catch (error) {

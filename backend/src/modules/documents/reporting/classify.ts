@@ -18,6 +18,7 @@
  *   A guess here would either declare an operation the law excludes or hide a real obligation.
  */
 import { PartyType } from '../country-identifiers/schema';
+import { ReportingObligation } from './obligation-v2';
 import { ReportingObligationFact, ReportingScopeEntry } from './schema';
 
 export type LineNature = 'goods' | 'service';
@@ -77,7 +78,7 @@ function establishmentOf(operation: DeclarationOperation): 'domestic' | 'foreign
  * needs a buyer type to be classified as out.
  */
 function outBecauseOfSellerRegime(
-  fact: ReportingObligationFact,
+  scopeEntries: ReportingScopeEntry[] | undefined,
   operation: DeclarationOperation,
 ): string | undefined {
   const regime = operation.companyProfile?.vatRegime;
@@ -87,7 +88,7 @@ function outBecauseOfSellerRegime(
       'art. 261 to 261 E are outside the e-reporting set.'
     );
   }
-  for (const entry of fact.scope ?? []) {
+  for (const entry of scopeEntries ?? []) {
     if (entry.transactions === 'payments' && entry.vatOnCollection === true && !operation.vatOnCollection) {
       return (
         'The company opted for VAT on debits: payment data only covers VAT due on collection ' +
@@ -184,17 +185,71 @@ function scopeMatches(entry: ReportingScopeEntry, operation: DeclarationOperatio
 }
 
 /**
- * The one entry point. Returns the FIRST matching scope entry (file order), the same "first match
+ * What the classifier reads of an obligation, whichever shape it comes from: the legacy fact and the
+ * v2 obligation (issue #767) both reduce to this, so there is one decision procedure and never two
+ * that could drift apart.
+ */
+interface ClassifiableRule {
+  scope?: ReportingScopeEntry[];
+  windows?: { from: string; until?: string; companyProfile?: Record<string, string[]> }[];
+  sellerConditions?: Record<string, string[]>;
+}
+
+/**
+ * The legacy entry point. Returns the FIRST matching scope entry (file order), the same "first match
  * wins, never merged" convention `channel-policy/mandate.ts` already holds.
+ *
+ * `applicableFrom` is deliberately not read here, exactly as before v2: no shipped fact carries one,
+ * and `upgradeLegacyFacts` turns it into an applicability window that `classifyObligation` does judge.
  */
 export function classifyDeclaration(
   fact: ReportingObligationFact,
   operation: DeclarationOperation | undefined,
 ): DeclarationVerdict {
+  return classifyRule(
+    {
+      scope: fact.scope,
+      windows: fact.applicability?.map((window) => ({
+        from: window.from.date,
+        companyProfile: window.when?.companyProfile,
+      })),
+    },
+    operation,
+  );
+}
+
+/**
+ * The v2 entry point (issue #767): the same verdict `classifyDeclaration` gives the legacy fact an
+ * obligation was upgraded from (`classify.spec.ts` pins it on every shipped fact), plus what only v2
+ * can say: a window's `until` day and the obligation's own `sellerConditions`. It does not look at the
+ * obligation's `trigger` or channels: choosing which obligations a trigger asks about is the caller's job.
+ */
+export function classifyObligation(
+  obligation: ReportingObligation,
+  operation: DeclarationOperation | undefined,
+): DeclarationVerdict {
+  return classifyRule(
+    {
+      scope: obligation.scope.transactions,
+      windows: obligation.applicability?.map((window) => ({
+        from: window.from,
+        until: window.until,
+        companyProfile: window.when?.companyProfile,
+      })),
+      sellerConditions: obligation.sellerConditions?.companyProfile,
+    },
+    operation,
+  );
+}
+
+function classifyRule(
+  rule: ClassifiableRule,
+  operation: DeclarationOperation | undefined,
+): DeclarationVerdict {
   // The legacy shape  -  one unscoped, provider-discharged fact that covers every document of its type
   // (Portugal today)  -  needs no operation facts at all. Short-circuited first so that path never
   // reads the database and its behaviour stays byte-for-byte what it was before the classifier.
-  if (!fact.scope && !fact.applicability) {
+  if (!rule.scope && !rule.windows && !rule.sellerConditions) {
     return { status: 'in', scope: 'all' };
   }
 
@@ -205,16 +260,16 @@ export function classifyDeclaration(
     };
   }
 
-  const regimeReason = outBecauseOfSellerRegime(fact, operation);
+  const regimeReason = outBecauseOfSellerRegime(rule.scope, operation);
   if (regimeReason) return { status: 'out', reason: regimeReason };
 
   // Scope before applicability: an operation this fact does not cover is out even when the seller's
   // profile is incomplete, so a B2B invoice never journals a blocked B2C declaration for a missing
   // size category.
   let scope: ReportingScopeEntry | 'all' = 'all';
-  if (fact.scope && fact.scope.length > 0) {
+  if (rule.scope && rule.scope.length > 0) {
     let matched: ReportingScopeEntry | undefined;
-    for (const entry of fact.scope) {
+    for (const entry of rule.scope) {
       const verdict = scopeMatches(entry, operation);
       if (verdict.status === 'in') {
         matched = entry;
@@ -226,12 +281,26 @@ export function classifyDeclaration(
     scope = matched;
   }
 
-  if (fact.applicability && fact.applicability.length > 0) {
-    let sawMissing: string | undefined;
-    let matchingWindow: (typeof fact.applicability)[number] | undefined;
+  // v2 only (no legacy fact has one): a condition on the seller that holds for the whole obligation,
+  // judged after the scope for the same reason as the windows below.
+  if (rule.sellerConditions) {
+    const matched = matchesProfileCondition(rule.sellerConditions, operation.companyProfile ?? {});
+    if (matched.missing) {
+      return {
+        status: 'undetermined',
+        reason: `The company has not declared "${matched.missing}", which decides whether this obligation applies.`,
+      };
+    }
+    if (!matched.matches)
+      return { status: 'out', reason: "The company does not meet this obligation's conditions." };
+  }
 
-    for (const window of fact.applicability) {
-      const conditions = window.when?.companyProfile;
+  if (rule.windows && rule.windows.length > 0) {
+    let sawMissing: string | undefined;
+    let matchingWindow: (typeof rule.windows)[number] | undefined;
+
+    for (const window of rule.windows) {
+      const conditions = window.companyProfile;
       if (!conditions) {
         matchingWindow = window;
         break;
@@ -257,10 +326,17 @@ export function classifyDeclaration(
       return { status: 'out', reason: 'No applicability window matches this company.' };
     }
 
-    if (operation.documentIssueDate < matchingWindow.from.date) {
+    if (operation.documentIssueDate < matchingWindow.from) {
       return {
         status: 'out',
-        reason: `This obligation starts on ${matchingWindow.from.date} for this company.`,
+        reason: `This obligation starts on ${matchingWindow.from} for this company.`,
+      };
+    }
+    // `until` is exclusive (`obligation-v2.ts`), the same convention as every dated window in v2.
+    if (matchingWindow.until !== undefined && operation.documentIssueDate >= matchingWindow.until) {
+      return {
+        status: 'out',
+        reason: `This obligation ended on ${matchingWindow.until} for this company.`,
       };
     }
   }
