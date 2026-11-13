@@ -91,3 +91,17 @@ The NIP of point 3) is the `LEGAL_ID` identifier; the seat and address of point 
 address. Not modelled: the group of companies (point 5) and the unpaid contributions of a sp. z o.o.
 formed from the model agreement. Text read in the Kancelaria Sejmu consolidated text (t.j. Dz. U. z
 2024 r. poz. 18, with the amendments up to Dz. U. z 2026 r. poz. 644) on 2026-10-25.
+
+## Recapitulative statement parts
+
+The `codeLists` section of `countries/data/pl.json` carries `vatUePart`, the part of the VAT-UE(5)
+summary return (informacja podsumowująca) an intra-Community operation is reported in. Each entry is
+selected by an `operation` input: `C` for `GOODS_SUPPLY` (wewnątrzwspólnotowe dostawy towarów), `D` for
+`GOODS_ACQUISITION` (wewnątrzwspólnotowe nabycia towarów), `E` for `SERVICE_SUPPLY` (the services of
+art. 100 ust. 1 pkt 4 of the VAT act) and `F` for `CALL_OFF_STOCK_TRANSFER` (goods moved to another
+member state under a call-off stock arrangement). Any other operation throws `UnmappedCodeError`. The
+triangular-trade mark of parts C and D (column d, art. 135 to 138 of the VAT act) is a flag on the row,
+not a part, so it is not in the list. The list is read only through `code-lists/lookup.ts`; no
+declaration builds a VAT-UE return yet. Source: Dz.U. 2022 poz. 332, the consolidated text of the
+Minister of Finance regulation of 26 June 2020, annex 1 (form) and annex 2 (explanations, points 4 to
+7), read at api.sejm.gov.pl on 2026-11-13.
