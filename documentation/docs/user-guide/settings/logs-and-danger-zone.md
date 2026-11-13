@@ -19,6 +19,10 @@ numbers and request bodies are replaced with `[redacted]`, `[redacted-email]` or
 `details: { password }` is caught even when its value looks ordinary. What remains is the context an
 incident needs: path, status code, level, category, user and company ids, provider names, counts.
 
+This includes the lines of the authentication layer (sign-up, sign-in, password reset). They appear
+in stdout with the `Better Auth` context and the same timestamp format as the rest of the
+application, never with the email address or the password of the request.
+
 Two consequences worth knowing. A log line that used to show a client's email address now shows
 `[redacted-email]`, so support questions are answered from the client record, not from the log. And
 redaction is a safety net, not a licence to log personal data: if a line looks useless because it is
