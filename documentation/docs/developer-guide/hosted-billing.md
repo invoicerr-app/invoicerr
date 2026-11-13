@@ -259,15 +259,15 @@ The hosted subscription is moving to Stripe Billing. Prices are configured, not 
 Stripe price id read from the environment (see `backend/.env.example`), and the amounts live in the
 Stripe dashboard.
 
-There are two grids, `standard` and `founder`, each with a monthly and a yearly interval, and three
-seat tiers per interval: the first seat, seats 2 to 4, and seat 5 onwards. That makes twelve
-variables, named `STRIPE_PRICE_<GRID>_<INTERVAL>_<TIER>`. The standard grid is required; the founder
-grid is optional but all or nothing.
+There are two grids, `standard` and `founder`, each with a monthly and a yearly price, read from
+`STRIPE_PRICE_<GRID>_<INTERVAL>`. The standard grid is required; the founder grid is optional but all
+or nothing. Every price id must be distinct, so any price on a subscription maps back to exactly one
+grid and interval.
 
-A subscription for `n` seats carries one item per tier in use. Twelve seats on the standard monthly
-grid become three items: the first seat price with quantity 1, the seats 2 to 4 price with quantity 3,
-and the seat 5 onwards price with quantity 8. Every price id must be distinct, so any price on a
-subscription maps back to exactly one grid, interval and tier.
+Each price is billed per seat in graduated tiers: the first seat, seats 2 to 4, and seat 5 onwards,
+each tier with its own unit amount. The subscription quantity is the seat count and Stripe computes
+the total, so twelve seats are billed as 1 seat at the first tier, 3 at the second and 8 at the third.
 
-To set up a test catalog, create the prices in Stripe test mode as recurring, per unit, in EUR,
-with the yearly amount at ten times the monthly one.
+To set up a test catalog, create four recurring prices in Stripe test mode, in EUR, with
+"Graduated pricing" and the three tiers above (up to 1, up to 4, then infinity), with each yearly
+amount at ten times the monthly one.
