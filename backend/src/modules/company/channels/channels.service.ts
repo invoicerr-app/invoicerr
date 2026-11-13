@@ -17,7 +17,7 @@ import {
 import { defaultChannelPolicyCatalog } from '@/modules/documents/transports/channel-policy/registry';
 import { ChannelPolicyFact, ChannelRequirement } from '@/modules/documents/transports/channel-policy/schema';
 import { defaultOperatorCatalog } from '@/modules/documents/operators/registry';
-import { defaultReportingObligationCatalog } from '@/modules/documents/reporting/registry';
+import { defaultReportingObligationCatalogV2 } from '@/modules/documents/reporting/obligation-catalog';
 import { ReportableDocumentType } from '@/modules/documents/reporting/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
@@ -551,17 +551,24 @@ export class ChannelCredentialsService {
    * `channel-policy/data/*.json` just above, but a categorically different fact: NEVER a hint about
    * which TRANSPORT to use, always "declare this invoice's data to this authority, regardless of how
    * it was delivered". Empty for every country with no reporting-obligation file (the overwhelming
-   * majority) — see `ReportingObligationCatalog.factsFor`'s own header.
+   * majority): see `ReportingObligationCatalogV2.obligationsFor`.
+   *
+   * Read from the v2 catalog (issue #767), one row per document type and channel of each obligation:
+   * an upgraded legacy fact has exactly one of each, so the rows are the legacy facts, in file order.
    */
   async reportingObligations(companyId: string): Promise<ReportingObligationStatus[]> {
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return [];
 
-    return defaultReportingObligationCatalog.factsFor(countryCode).map((fact) => ({
-      providerId: fact.providerId,
-      appliesTo: fact.appliesTo,
-      provenance: fact.provenance,
-    }));
+    return defaultReportingObligationCatalogV2.obligationsFor(countryCode).flatMap((obligation) =>
+      obligation.scope.documentTypes.flatMap((appliesTo) =>
+        obligation.channels.map((channel) => ({
+          providerId: channel.id,
+          appliesTo,
+          provenance: obligation.legalBasis.provenance,
+        })),
+      ),
+    );
   }
 
   /**

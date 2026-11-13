@@ -18,7 +18,7 @@ function buildIndex(files: CountryReportingObligationFile[]): Record<string, Cou
  * left out here, the same "no permissive fallback" this catalog already held when it read
  * `ALL_REPORTING_OBLIGATION_FILES` directly.
  */
-function reportingObligationsFromComposedCatalog(): CountryReportingObligationFile[] {
+export function reportingObligationsFromComposedCatalog(): CountryReportingObligationFile[] {
   const files: CountryReportingObligationFile[] = [];
   for (const countryCode of defaultComposedCountryCatalog.countries()) {
     const reporting = defaultComposedCountryCatalog.get(countryCode)?.reporting;
