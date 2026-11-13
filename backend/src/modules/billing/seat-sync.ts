@@ -49,12 +49,8 @@ export async function countCompanySeats(companyId: string): Promise<number> {
 
 export const NO_FREE_SEAT_CODE = 'NO_FREE_SEAT';
 
-/** Thrown by `withSeatReservation` when a company already has as many members as it has bought seats
- *  for — a plain, framework-agnostic `Error` (never a Nest `HttpException`) because this module is
- *  called from BOTH a Nest service (`invitations.service.ts`) and `lib/auth.ts`, which runs entirely
- *  outside Nest DI and needs a `better-auth` `APIError` instead — each call site translates this into
- *  whatever surface it needs, the same split `account-lifecycle.ts#SoleOwnerError`'s own header
- *  documents for the exact same reason. */
+/** A plain `Error`, not an `HttpException`, because `lib/auth.ts` calls this outside Nest and maps it
+ *  to a better-auth `APIError`. */
 export class NoFreeSeatError extends Error {
   readonly code = NO_FREE_SEAT_CODE;
 
@@ -64,8 +60,7 @@ export class NoFreeSeatError extends Error {
   }
 }
 
-/** The lowest positive integer NOT already in `usedIndexes` — desk numbering starts at 1, matching how
- *  a human would number seats, never 0. */
+/** Desk numbering starts at 1. */
 function firstFreeIndex(usedIndexes: Iterable<number>): number {
   const used = new Set(usedIndexes);
   let index = 1;
@@ -93,17 +88,11 @@ export async function withSeatReservation<T>(
     return prisma.$transaction((tx) => createMembership(tx));
   }
 
-  // Ensures the row exists to lock — a brand-new company's very first reservation (see this file's own
-  // header) has no `company_subscription` row yet; `getOrCreateCompanySubscription`'s own upsert
-  // already handles two concurrent first-touches safely on its own.
+  // A brand-new company has no `company_subscription` row to lock yet.
   await getOrCreateCompanySubscription(companyId);
 
   return prisma.$transaction(
     async (tx) => {
-      // Row lock, held through the whole check-then-create-then-assign sequence below — see this
-      // file's own header on why. `lockCompanySubscriptionRow` is the ONE place this exact lock is
-      // issued (`company-subscription.store.ts`'s own header) — `seats-view.ts` takes the same lock
-      // for its own seat-index bookkeeping, for the same reason.
       await lockCompanySubscriptionRow(tx, companyId);
 
       const alreadyMember = await tx.userCompany.findUnique({
@@ -136,10 +125,7 @@ export async function withSeatReservation<T>(
 
       return result;
     },
-    // Generous timeout — this transaction holds its lock through the caller's own membership write
-    // (and, for `useInvitation`, an additional `invitationCode` update), not just this file's own
-    // reads. Prisma's 5s interactive-transaction default is comfortably enough normally, but not with
-    // room for a slow query queued behind a burst of coalesced calls for the same company.
+    // The lock is held through the caller's own writes, so leave room beyond Prisma's 5s default.
     { timeout: 15_000 },
   );
 }

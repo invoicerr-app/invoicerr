@@ -1,9 +1,4 @@
-/**
- * `Settings > Seats` — the company's own generative office plan. Reading is open to every company
- * member (the same "no `@Roles`" openness `GET /api/companies/members` already has — everyone can see
- * who sits where); moving a member to a different desk is OWNER/ADMIN only, the same pair
- * `billing.controller.ts` restricts checkout/portal to.
- */
+/** Reading the seat plan is open to every member; moving a desk is OWNER/ADMIN only. */
 import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 

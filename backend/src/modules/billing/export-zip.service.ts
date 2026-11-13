@@ -1,32 +1,10 @@
 /**
- * Builds the "everything this company ever had" zip — mailed to the OWNER by
- * `billing-lifecycle-sweep-runner.ts` the moment a subscription enters `ZIPPED` (see
- * `lifecycle.ts`'s own header), the company's last real chance to keep a copy before the real,
- * cascading deletion (`deletion.ts`) eventually runs.
+ * Builds the full-data zip mailed to the owner when a subscription enters `ZIPPED`. Existing exports
+ * were not reusable: accounting export is a ledger view and `archive/` only holds legally archived
+ * sent documents, so this dumps JSON plus a PDF (when renderable) for every document.
  *
- * No existing export was reusable whole: `accounting-export/` builds a CSV LEDGER view (amounts,
- * balances — never the documents' own rendered form or full field data) and `archive/` only holds
- * documents that were actually SENT under a country requiring legal archiving (DE/FR/PL/PT — see
- * `archive/retention/`'s own header), never a draft, a quote, or an invoice from an unarchived
- * country. So this is the documented fallback: one PDF (when the document type/status can render
- * one — see the per-document `try` below) plus one JSON dump of the STORED fields, per document,
- * for literally every `DocumentInstance` row the company has, regardless of type or status.
- *
- * A proper `@Injectable()` (not a plain function like this directory's other billing files) because
- * it needs `DocumentsService`'s own rendering pipeline (`renderInstancePdf`) — a class with its own
- * dozen-odd registries this file has no business reconstructing by hand.
- *
- * BOUNDING (added 2026-09-17 — a live incident, not a hypothetical): a company with a few thousand
- * documents used to build an UNBOUNDED zip — `zip.generateAsync` holds the entire archive in one JS
- * `Buffer` while it compresses — and hand that straight to an email attachment, well past ordinary SMTP
- * limits (10-25 MB). The send then fails, the company stays `BLOCKED`, and the NEXT sweep tick (default:
- * hourly) repeats the exact same unbounded, Chromium-rendering-every-PDF build forever, since nothing
- * about a company's size ever changes on its own. `buildCompanyZip` now streams the archive through
- * `generateNodeStream` into a bounded byte-and-time-capped pipeline instead of one `generateAsync`
- * call: compression happens incrementally rather than holding the whole structure in memory at once,
- * and a company whose export would exceed either cap gets a NAMED error (`ExportZipTooLargeError`/
- * `ExportZipTimedOutError`) the moment it crosses the line, rather than silently finishing an attachment
- * no mail server would ever accept.
+ * The archive is streamed with byte and time caps: an oversized attachment would fail to send and the
+ * hourly sweep would rebuild it forever.
  */
 import { Injectable } from '@nestjs/common';
 import { createWriteStream } from 'node:fs';
@@ -35,33 +13,20 @@ import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { createTempWorkspace } from '@/lib/temp-workspace';
-// `jszip` ships an `export = JSZip` (CJS) declaration — a plain `import JSZip from 'jszip'` compiles,
-// under ts-jest, to a `.default` access that does not exist on it (`jszip_1.default is not a
-// constructor` at runtime); the namespace form (`import * as JSZip`) instead fails `nest build`'s own
-// `tsc` outright ("not constructable... consider... import require"). `import X = require(...)` is
-// the one form TypeScript itself recommends for `export =` modules and is what actually satisfies
-// BOTH — confirmed directly against this exact repo's `nest build` AND `npx jest` while writing this.
+// `jszip` uses `export =`: the default import breaks under ts-jest and the namespace import fails
+// `tsc`, so `import = require` is the only form that works for both.
 import JSZip = require('jszip');
 
 import { DocumentsService } from '../documents/documents.service';
 import { listAllDocuments } from '../documents/persistence';
 import { logger } from '@/logger/logger.service';
 
-/** Hard ceiling on the ARCHIVE's own compressed bytes — far below the 10-25 MB an ordinary SMTP server
- *  accepts as an attachment, so a company whose documents exceed it fails FAST, with a diagnosable
- *  named error, rather than finishing a build that mailing would only reject anyway (see this file's
- *  own header). Exported so `billing-lifecycle-sweep-runner.ts` and this module's own spec can refer to
- *  the exact same number rather than a duplicated magic constant. */
+/** Well below the 10-25 MB attachment limit of ordinary SMTP servers. */
 export const EXPORT_ZIP_MAX_BYTES = 20 * 1024 * 1024; // 20 MiB
 
-/** Hard ceiling on how long ONE company's export may take to build — a large document count rendering
- *  through a slow or unreachable Chromium (`renderInstancePdf`, this file's own header) must not hang a
- *  sweep tick indefinitely; it fails with a named error instead, exactly like exceeding the byte cap. */
+/** A slow or unreachable Chromium must not hang a sweep tick indefinitely. */
 export const EXPORT_ZIP_MAX_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
-/** Thrown (never silently truncated) when the archive's own compressed bytes cross
- *  `EXPORT_ZIP_MAX_BYTES` mid-build — the caller (`billing-lifecycle-sweep-runner.ts`) counts this the
- *  same as any other `zipFailed`, but can log it BY NAME instead of an opaque stream error. */
 export class ExportZipTooLargeError extends Error {
   constructor(
     readonly companyId: string,
@@ -72,8 +37,6 @@ export class ExportZipTooLargeError extends Error {
   }
 }
 
-/** Thrown when building the archive takes longer than `EXPORT_ZIP_MAX_DURATION_MS` — see that
- *  constant's own header. */
 export class ExportZipTimedOutError extends Error {
   constructor(
     readonly companyId: string,
@@ -84,24 +47,14 @@ export class ExportZipTimedOutError extends Error {
   }
 }
 
-/** Optional overrides for `BillingExportService.buildCompanyZip`'s own bounds — every field defaults to
- *  the module-level constant above. `now` is an internal testing seam only (same convention as this
- *  module family's `now: Date = new Date()` parameters elsewhere, e.g. `company-subscription.store.ts`):
- *  production code never has a reason to pass it. */
+/** `now` is a test seam only. */
 export interface ExportZipLimits {
   maxBytes?: number;
   maxDurationMs?: number;
   now?: () => number;
 }
 
-/**
- * Streams `zip`'s own compressed output into a fresh temp file, counting bytes as they are produced —
- * NEVER via `generateAsync` (which assembles the entire archive as one in-memory `Buffer` before
- * returning it). Aborts the pipeline (deleting whatever partial file exists) the instant either cap is
- * crossed, so a runaway company never finishes a build only to be rejected at the mail step, and never
- * grows this process's own memory unboundedly while trying. Returns the temp file's own directory so
- * the caller can clean it up once done reading it back.
- */
+/** Streams to a temp file instead of `generateAsync`, which would hold the whole archive in memory. */
 async function streamZipToTempFile(
   zip: JSZip,
   companyId: string,
@@ -114,9 +67,6 @@ async function streamZipToTempFile(
   const startedAt = now();
   let bytesWritten = 0;
 
-  // A plain counting/guarding pass-through — the archive's bytes are never inspected or altered, only
-  // counted and timed, so this adds no meaningful overhead to the compression `generateNodeStream`
-  // itself performs.
   const guard = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       bytesWritten += chunk.length;
@@ -140,9 +90,7 @@ async function streamZipToTempFile(
     );
   } catch (error) {
     await rm(dir, { recursive: true, force: true }).catch(() => {
-      // Best-effort cleanup only — the temp directory is OS-reaped eventually either way, and a
-      // failure to delete it early must never mask the real error (`ExportZipTooLargeError`, e.g.)
-      // this function was already about to throw.
+      // Best-effort cleanup; must never mask the error being thrown.
     });
     throw error;
   }
@@ -154,20 +102,11 @@ async function streamZipToTempFile(
 export class BillingExportService {
   constructor(private readonly documentsService: DocumentsService) {}
 
-  /** The zip's bytes, ready to attach to an outgoing email. Never throws for a single document that
-   *  fails to render (an incomplete draft missing a required field, e.g.) — that document's JSON
-   *  still lands in the zip, just without a `.pdf` beside it, logged rather than aborting the WHOLE
-   *  export over one bad row. A genuinely fatal error DOES propagate: the initial
-   *  `listAllDocuments` scan, the zip library itself, or — new as of 2026-09-17 — this company's own export crossing
-   *  `EXPORT_ZIP_MAX_BYTES`/`EXPORT_ZIP_MAX_DURATION_MS` (`ExportZipTooLargeError`/
-   *  `ExportZipTimedOutError`, this file's own header). Callers that walk MANY companies (the billing
-   *  lifecycle sweep) must catch per company — one company's export failing, of any kind, must never
-   *  stop the rest of the pass; see `billing-lifecycle-sweep-runner.ts#sendZipToOwner`'s own try/catch. */
+  /** A document that fails to render still gets its JSON. Size/time cap errors propagate, so callers
+   *  walking many companies must catch per company. */
   async buildCompanyZip(companyId: string, limits: ExportZipLimits = {}): Promise<Buffer> {
     const zip = new JSZip();
-    // Every document of every type, paged until exhausted — an export a company takes its data away
-    // with cannot be "the most recently touched N". This used to pass a 1 000 000 `take` to stand in
-    // for "no cap", which is still a cap, just one nothing would ever report hitting.
+    // Paged until exhausted: a data takeaway export cannot be capped.
     const documents = await listAllDocuments(companyId);
 
     for (const doc of documents) {
@@ -175,13 +114,8 @@ export class BillingExportService {
       zip.file(`${dir}.json`, JSON.stringify(doc, null, 2));
       try {
         if (doc.status === 'imported') {
-          // Issue #549 - an imported document's real legal copy is its IMPORT_ORIGINAL archive, not
-          // a fresh render: `renderInstancePdf` itself refuses (409) whenever that original is not a
-          // PDF (structured XML/image the previous tool issued), which used to mean this "take your
-          // data away" export silently dropped the invoice's or credit note's ONLY legal copy and
-          // logged it as an ordinary render failure. Reaching for the archive directly instead, the
-          // same way `documents.controller.ts#downloadOriginal` does, means every imported document
-          // always leaves with a file here, whatever format its original was issued in.
+          // An imported document's legal copy is its original file, which may not be a PDF and
+          // which `renderInstancePdf` refuses to render.
           const original = await this.documentsService.downloadImportOriginal(companyId, doc.typeId, doc.id);
           zip.file(`${doc.typeId}/${original.filename}`, Buffer.from(original.bytes));
         } else {
@@ -213,7 +147,7 @@ export class BillingExportService {
       return await readFile(path);
     } finally {
       await rm(tempDir, { recursive: true, force: true }).catch(() => {
-        // Same best-effort cleanup rationale as `streamZipToTempFile`'s own catch above.
+        // Best-effort cleanup.
       });
     }
   }

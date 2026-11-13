@@ -20,14 +20,8 @@ import { memberHoldsSeat } from './seat-holders';
 export const SEAT_REQUIRED_CODE = 'SEAT_REQUIRED';
 
 /**
- * Throws (403, `{ message, code: SEAT_REQUIRED }`) when `userId` is currently WAITING for a seat in
- * `companyId` — resolves silently otherwise, including for a user with no membership row in this
- * company at all. That last case is checked EXPLICITLY, before ever consulting `memberHoldsSeat` (which
- * would also return `false` for it): a caller with no membership row is not over capacity, it simply
- * is not the kind of caller this gate exists to judge at all — a route reaching this far already has an
- * active company on the request, which normally implies membership, so this is a defensive no-op for an
- * edge case (a removal racing this very request, e.g.), never a real "no seat" refusal wearing the
- * wrong reason.
+ * Throws 403 `SEAT_REQUIRED` when `userId` is waiting for a seat. A caller with no membership row at all
+ * (e.g. a removal racing this request) is let through rather than refused with the wrong reason.
  */
 export async function assertUserHasSeatOrThrow(companyId: string, userId: string): Promise<void> {
   if (!isBillingEnabled()) return;

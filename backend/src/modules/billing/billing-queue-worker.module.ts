@@ -14,13 +14,8 @@ import {
 } from './queue/billing-queue.constants';
 
 /**
- * The CONSUMING half of the billing-lifecycle queue — the gate target for `WORKER_INLINE`
- * (default `true`), the exact same split `app.module.ts`'s own comment on
- * `DocumentsQueueWorkerModule` documents for the documents queue: `WorkerModule` (`ROLE=worker`)
- * ALWAYS imports this (gated only on `isBillingEnabled()` — a worker with no billing configured has
- * nothing to consume either); `AppModule` imports it only when `WORKER_INLINE !== 'false'` AND billing
- * is enabled. Nest only instantiates `@Processor()` classes reachable from an imported module, so
- * gating THIS import is enough to gate consumption entirely — a job is never consumed twice.
+ * Consuming half of the billing-lifecycle queue. Nest only instantiates `@Processor()` classes
+ * reachable from an imported module, so gating this import gates consumption entirely.
  *
  * Imports `BillingCoreModule` (never `BillingModule`, which also carries the HTTP controllers this worker
  * process has no use for) so

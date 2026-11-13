@@ -1,12 +1,7 @@
 /**
- * The read-only gate (product decision, 2026-09-15): once a company's subscription has fallen into
- * `BLOCKED` or `ZIPPED` (trial expired unpaid, or a paid subscription lapsed — either way `blocked`
- * 14 days, see `lifecycle.ts`'s own header), EVERY write is refused, not just `send`.
- * `send-gate.ts#assertCanSend` already gates the ONE emitting action even during `TRIAL` (a narrower,
- * earlier restriction) — this file is the broader companion for the fully-blocked case, and does not
- * call (or get called from) `assertCanSend`: the two gates check different things off the same row,
- * and a caller past `assertCompanyWritable` may still hit `assertCanSend`'s own narrower refusal on a
- * `send` action specifically (an active-but-still-mid-trial company, e.g.).
+ * Refuses every write once a company is `BLOCKED` or `ZIPPED`. Broader companion to
+ * `send-gate.ts#assertCanSend`; the two are independent and a caller may still hit the send gate.
+ * Applied globally via `CompanyWriteGuard`, so new write endpoints are covered automatically.
  *
  * Applied through ONE generic hook (`CompanyWriteGuard` in `company-write.guard.ts`), a global
  * `APP_GUARD` registered ONLY under the billing flag (`app.module.ts`, same
@@ -36,18 +31,10 @@ import { ForbiddenException } from '@nestjs/common';
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 
-/** Named per the product brief (2026-09-15) — the ONLY code a caller (frontend, API-key integration)
- *  can rely on to mean "this company is blocked; every write is refused, not just sending". */
+/** Stable error code clients rely on to mean "every write is refused, not just sending". */
 export const COMPANY_BLOCKED = 'COMPANY_BLOCKED';
 
-/**
- * Throws (403, `{ message, code: COMPANY_BLOCKED }`) when this company's subscription is `BLOCKED` or
- * `ZIPPED`; resolves silently for every other status (including `TRIAL`/`PAST_DUE`/`ACTIVE` — a
- * mid-trial or past-due company can still write everything except `send`, gated separately by
- * `send-gate.ts`). 403, not 402: `send-gate.ts` already answers every subscription refusal in this
- * codebase with `ForbiddenException` (`TRIAL_SEND_BLOCKED`/`SUBSCRIPTION_SEND_BLOCKED`) — one HTTP
- * status for "your subscription forbids this", not a mix a frontend would have to branch on twice.
- */
+/** 403 rather than 402 to match every other subscription refusal from `send-gate.ts`. */
 export async function assertCompanyWritable(companyId: string): Promise<void> {
   if (!isBillingEnabled()) return;
 
