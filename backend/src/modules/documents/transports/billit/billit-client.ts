@@ -222,13 +222,10 @@ export class BillitClient {
   /** Peppol directory lookup for one participant identifier, e.g. `0208:0563846944` or
    *  `9925:BE0437295999`. Read-only; see this file's header for why `send()` does not call it. */
   async getParticipantInformation(identifier: string): Promise<BillitParticipantInformation> {
-    const response = await this.request(
-      `/peppol/participantInformation/${encodeURIComponent(identifier)}`,
-      {
-        method: 'GET',
-        headers: this.headers(),
-      },
-    );
+    const response = await this.request(`/peppol/participantInformation/${encodeURIComponent(identifier)}`, {
+      method: 'GET',
+      headers: this.headers(),
+    });
     const body = await response.text();
     if (!response.ok) throw describeFailure(response.status, body);
 

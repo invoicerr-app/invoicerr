@@ -263,7 +263,10 @@ describe('attachment size cap', () => {
 
   it('skips an oversized attachment and keeps the notifica next to it', async () => {
     const download = vi.fn().mockImplementation(async (_uid: string, part: string) => ({
-      content: part === '1.2' ? sizedStream(PEC_ATTACHMENT_MAX_BYTES + 1).stream : bufferStream('<ricevutaConsegna/>'),
+      content:
+        part === '1.2'
+          ? sizedStream(PEC_ATTACHMENT_MAX_BYTES + 1).stream
+          : bufferStream('<ricevutaConsegna/>'),
     }));
 
     const message = await toPecInboundMessage({ download }, {
@@ -273,8 +276,18 @@ describe('attachment size cap', () => {
         part: '1',
         type: 'multipart/mixed',
         childNodes: [
-          { part: '1.2', type: 'application/octet-stream', disposition: 'attachment', dispositionParameters: { filename: 'big.bin' } },
-          { part: '1.3', type: 'application/xml', disposition: 'attachment', dispositionParameters: { filename: 'n.xml' } },
+          {
+            part: '1.2',
+            type: 'application/octet-stream',
+            disposition: 'attachment',
+            dispositionParameters: { filename: 'big.bin' },
+          },
+          {
+            part: '1.3',
+            type: 'application/xml',
+            disposition: 'attachment',
+            dispositionParameters: { filename: 'n.xml' },
+          },
         ],
       },
     } as never);

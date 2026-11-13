@@ -34,7 +34,10 @@ export interface ParsedXml {
 export function parseXml(xml: string): ParsedXml {
   const errors: string[] = [];
   if (Buffer.byteLength(xml, 'utf-8') > SDI_XML_MAX_BYTES) {
-    return { doc: undefined as unknown as XmlDocument, errors: [`document exceeds ${SDI_XML_MAX_BYTES} bytes`] };
+    return {
+      doc: undefined as unknown as XmlDocument,
+      errors: [`document exceeds ${SDI_XML_MAX_BYTES} bytes`],
+    };
   }
   const parser = new DOMParser({
     onError: (level: string, message: string) => {
