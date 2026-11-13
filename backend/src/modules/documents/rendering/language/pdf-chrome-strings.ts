@@ -105,7 +105,21 @@ export interface PdfChromeStrings {
   identifierLabels: Readonly<Record<string, string>>;
   /** Printed in place of a value the seller's country requires on this invoice. */
   identifierMissing: string;
+  /** Column headers of the standard document line (`descriptors/document-lines.ts`), by subfield key.
+   *  Read through `lineColumnHeader` below, never directly: only a column still carrying that file's
+   *  own English label is translated (#797). */
+  lineColumnLabels: Readonly<Record<LineColumnKey, string>>;
 }
+
+/** Subfield keys of the standard document line whose header this render layer translates. */
+export type LineColumnKey =
+  | 'description'
+  | 'quantity'
+  | 'unit'
+  | 'unitPrice'
+  | 'vatRate'
+  | 'discountPercent'
+  | 'date';
 
 type StringTuple<N extends number, R extends string[] = []> = R['length'] extends N
   ? R
@@ -143,6 +157,15 @@ const EN: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Exchange rate: ${rate} (${date})`,
   identifierLabels: { VAT: 'VAT number', LEGAL_ID: 'Registration number' },
   identifierMissing: 'missing',
+  lineColumnLabels: {
+    description: 'Designation',
+    quantity: 'Quantity',
+    unit: 'Unit',
+    unitPrice: 'Unit price',
+    vatRate: 'VAT rate',
+    discountPercent: 'Discount %',
+    date: 'Work date',
+  },
 };
 
 const FR: PdfChromeStrings = {
@@ -184,6 +207,15 @@ const FR: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Taux de change : ${rate} (${date})`,
   identifierLabels: { VAT: 'N° de TVA', LEGAL_ID: "N° d'immatriculation" },
   identifierMissing: 'manquant',
+  lineColumnLabels: {
+    description: 'Désignation',
+    quantity: 'Quantité',
+    unit: 'Unité',
+    unitPrice: 'Prix unitaire',
+    vatRate: 'Taux de TVA',
+    discountPercent: 'Remise %',
+    date: "Date d'exécution",
+  },
 };
 
 const IT: PdfChromeStrings = {
@@ -225,6 +257,15 @@ const IT: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Tasso di cambio: ${rate} (${date})`,
   identifierLabels: { VAT: 'Numero di partita IVA', LEGAL_ID: 'Numero di registrazione' },
   identifierMissing: 'mancante',
+  lineColumnLabels: {
+    description: 'Descrizione',
+    quantity: 'Quantità',
+    unit: 'Unità',
+    unitPrice: 'Prezzo unitario',
+    vatRate: 'Aliquota IVA',
+    discountPercent: 'Sconto %',
+    date: 'Data della prestazione',
+  },
 };
 
 const PL: PdfChromeStrings = {
@@ -266,6 +307,15 @@ const PL: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Kurs wymiany: ${rate} (${date})`,
   identifierLabels: { VAT: 'Numer VAT', LEGAL_ID: 'Numer rejestrowy' },
   identifierMissing: 'brak',
+  lineColumnLabels: {
+    description: 'Nazwa',
+    quantity: 'Ilość',
+    unit: 'Jednostka',
+    unitPrice: 'Cena jednostkowa',
+    vatRate: 'Stawka VAT',
+    discountPercent: 'Rabat %',
+    date: 'Data wykonania',
+  },
 };
 
 const DE: PdfChromeStrings = {
@@ -307,6 +357,15 @@ const DE: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Wechselkurs: ${rate} (${date})`,
   identifierLabels: { VAT: 'USt-IdNr.', LEGAL_ID: 'Registernummer' },
   identifierMissing: 'fehlt',
+  lineColumnLabels: {
+    description: 'Bezeichnung',
+    quantity: 'Menge',
+    unit: 'Einheit',
+    unitPrice: 'Einzelpreis',
+    vatRate: 'USt.-Satz',
+    discountPercent: 'Rabatt %',
+    date: 'Leistungsdatum',
+  },
 };
 
 const PT: PdfChromeStrings = {
@@ -348,6 +407,15 @@ const PT: PdfChromeStrings = {
   exchangeRate: (rate, date) => `Taxa de câmbio: ${rate} (${date})`,
   identifierLabels: { VAT: 'Número de IVA', LEGAL_ID: 'Número de registo' },
   identifierMissing: 'em falta',
+  lineColumnLabels: {
+    description: 'Designação',
+    quantity: 'Quantidade',
+    unit: 'Unidade',
+    unitPrice: 'Preço unitário',
+    vatRate: 'Taxa de IVA',
+    discountPercent: 'Desconto %',
+    date: 'Data da prestação',
+  },
 };
 
 const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {
@@ -366,4 +434,21 @@ const CHROME_STRINGS: Record<RenderLanguage, PdfChromeStrings> = {
  *  for a caller that reaches this with an unchecked value (e.g. straight from the database). */
 export function pdfChromeStrings(language: RenderLanguage): PdfChromeStrings {
   return CHROME_STRINGS[language] ?? EN;
+}
+
+/**
+ * The header a line-table column prints: the translation when the subfield is one of the standard line
+ * columns AND still carries that column's own English label, otherwise the label exactly as declared.
+ * A plugin's field, or a descriptor that renamed a standard column through `documentLineFields`'
+ * `overrides`, keeps its own wording, the same "labels are plain data" rule as every other label.
+ */
+export function lineColumnHeader(
+  subField: { key: string; label: string },
+  strings: PdfChromeStrings,
+): string {
+  const key = subField.key as LineColumnKey;
+  if (!Object.hasOwn(EN.lineColumnLabels, key) || EN.lineColumnLabels[key] !== subField.label) {
+    return subField.label;
+  }
+  return strings.lineColumnLabels[key];
 }
