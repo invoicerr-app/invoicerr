@@ -312,6 +312,8 @@ describe('every registered HTTP route carries an explicit authorization decision
     backup: process.env.BACKUP_S3_BUCKET,
     stripeKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhook: process.env.STRIPE_WEBHOOK_SECRET,
+    priceMonthly: process.env.STRIPE_PRICE_STANDARD_MONTHLY,
+    priceYearly: process.env.STRIPE_PRICE_STANDARD_YEARLY,
   };
 
   beforeAll(async () => {
@@ -321,10 +323,15 @@ describe('every registered HTTP route carries an explicit authorization decision
     process.env.WARNING__ENABLE_BILLING_FOR_USERS__WARNING = '1';
     process.env.BACKUP_S3_BUCKET = process.env.BACKUP_S3_BUCKET || 'route-authorization-spec';
     // Billing on means `lib/auth.ts` builds the Stripe plugin, which refuses to boot without a
-    // test-mode key and a webhook secret (`stripe-env.ts`). Throwaway strings, never a real secret:
-    // `preview: true` instantiates nothing, so no Stripe call is ever made with them.
+    // test-mode key, a webhook secret (`stripe-env.ts`) and the standard price catalog
+    // (`stripe-price-catalog.ts`). Throwaway strings, never a real secret: `preview: true`
+    // instantiates nothing, so no Stripe call is ever made with them.
     process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_route_authorization_spec';
     process.env.STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_route_authorization_spec';
+    process.env.STRIPE_PRICE_STANDARD_MONTHLY =
+      process.env.STRIPE_PRICE_STANDARD_MONTHLY || 'price_route_authorization_monthly';
+    process.env.STRIPE_PRICE_STANDARD_YEARLY =
+      process.env.STRIPE_PRICE_STANDARD_YEARLY || 'price_route_authorization_yearly';
 
     const { AppModule } = await import('@/app.module');
     app = await NestFactory.createApplicationContext(AppModule, {
@@ -345,6 +352,8 @@ describe('every registered HTTP route carries an explicit authorization decision
     restoreFlag('BACKUP_S3_BUCKET', flagsBefore.backup);
     restoreFlag('STRIPE_SECRET_KEY', flagsBefore.stripeKey);
     restoreFlag('STRIPE_WEBHOOK_SECRET', flagsBefore.stripeWebhook);
+    restoreFlag('STRIPE_PRICE_STANDARD_MONTHLY', flagsBefore.priceMonthly);
+    restoreFlag('STRIPE_PRICE_STANDARD_YEARLY', flagsBefore.priceYearly);
   });
 
   it('discovers the whole controller surface', () => {
