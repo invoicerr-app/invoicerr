@@ -2893,7 +2893,21 @@
         "fr-pa": {
           "label": "French accredited platform (PA)"
         },
-        "title": "Declarations"
+        "title": "Declarations",
+        "dischargedByTransport": "Declared by the delivery itself: nothing more to do.",
+        "document": {
+          "creditNote": "credit notes",
+          "invoice": "invoices"
+        },
+        "when": {
+          "issued": "When issued: {{documents}}",
+          "payment": "When paid: {{documents}}",
+          "periodEnd": "At the end of each period: {{documents}}",
+          "periodEndMonth": "At the end of each month: {{documents}}",
+          "periodEndQuarter": "At the end of each quarter: {{documents}}",
+          "periodEndYear": "At the end of each year: {{documents}}",
+          "sent": "When sent: {{documents}}"
+        }
       },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",

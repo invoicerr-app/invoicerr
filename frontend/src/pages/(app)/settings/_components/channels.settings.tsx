@@ -31,6 +31,12 @@ import { useGet } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
 import { ChannelConnectSheet } from "./channels.connect-sheet"
 import {
+  type DeclarationMoment,
+  type ReportableDocumentType,
+  type ReportingObligation,
+  summarizeDeclarations,
+} from "./channels.declarations"
+import {
   SettingsList,
   SettingsListRow,
   SettingsListSkeleton,
@@ -59,12 +65,6 @@ interface SuggestedChannel {
   mandatedFrom?: string
   effectiveNow?: boolean
   equivalentProviderIds?: string[]
-  provenance: ChannelProvenance
-}
-
-interface ReportingObligation {
-  providerId: string
-  appliesTo: "invoice" | "credit-note"
   provenance: ChannelProvenance
 }
 
@@ -347,7 +347,9 @@ export default function ChannelsSettings() {
         </div>
       )}
 
-      {reportingObligations.length > 0 && <DeclarationsSection obligations={reportingObligations} t={t} />}
+      {reportingObligations.length > 0 && (
+        <DeclarationsSection obligations={reportingObligations} t={t} language={i18n.language} />
+      )}
 
       {sheetProviderId &&
         (() => {
@@ -514,11 +516,63 @@ function ChannelBanner({
   )
 }
 
-function DeclarationsSection({ obligations, t }: { obligations: ReportingObligation[]; t: TFunction }) {
-  const byProvider = new Map<string, ReportingObligation>()
-  for (const obligation of obligations) {
-    if (!byProvider.has(obligation.providerId)) byProvider.set(obligation.providerId, obligation)
+function documentTypesLabel(t: TFunction, language: string, types: ReportableDocumentType[]): string {
+  const names = types.map((type) =>
+    type === "credit-note"
+      ? t("settings.channels.declarations.document.creditNote", "credit notes")
+      : t("settings.channels.declarations.document.invoice", "invoices"),
+  )
+  return new Intl.ListFormat(language, { style: "long", type: "conjunction" }).format(names)
+}
+
+/** One "when: what" line. Every key is written out so `i18n:check` sees it. */
+function momentLabel(t: TFunction, language: string, moment: DeclarationMoment): string {
+  const documents = documentTypesLabel(t, language, moment.documentTypes)
+  switch (moment.trigger) {
+    case "issued":
+      return t("settings.channels.declarations.when.issued", "When issued: {{documents}}", { documents })
+    case "sent":
+      return t("settings.channels.declarations.when.sent", "When sent: {{documents}}", { documents })
+    case "payment":
+      return t("settings.channels.declarations.when.payment", "When paid: {{documents}}", { documents })
+    case "period-end":
+      if (moment.period === "month")
+        return t(
+          "settings.channels.declarations.when.periodEndMonth",
+          "At the end of each month: {{documents}}",
+          {
+            documents,
+          },
+        )
+      if (moment.period === "quarter")
+        return t(
+          "settings.channels.declarations.when.periodEndQuarter",
+          "At the end of each quarter: {{documents}}",
+          { documents },
+        )
+      if (moment.period === "year")
+        return t(
+          "settings.channels.declarations.when.periodEndYear",
+          "At the end of each year: {{documents}}",
+          {
+            documents,
+          },
+        )
+      return t("settings.channels.declarations.when.periodEnd", "At the end of each period: {{documents}}", {
+        documents,
+      })
   }
+}
+
+function DeclarationsSection({
+  obligations,
+  t,
+  language,
+}: {
+  obligations: ReportingObligation[]
+  t: TFunction
+  language: string
+}) {
   return (
     <SettingsSection
       title={t("settings.channels.declarations.title", "Declarations")}
@@ -529,10 +583,10 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
       dataCy="channels-declarations"
     >
       <SettingsList>
-        {[...byProvider.values()].map((obligation) => (
+        {summarizeDeclarations(obligations).map((declaration) => (
           <SettingsListRow
-            key={obligation.providerId}
-            dataCy={`declaration-${obligation.providerId}`}
+            key={declaration.providerId}
+            dataCy={`declaration-${declaration.providerId}`}
             badge={
               <Badge variant="outline">
                 {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
@@ -541,16 +595,31 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
             title={
               <ProseHelp
                 title={t(
-                  `settings.channels.declarations.${obligation.providerId}.label`,
-                  DECLARATION_LABEL_DEFAULTS[obligation.providerId] ?? obligation.providerId.toUpperCase(),
+                  `settings.channels.declarations.${declaration.providerId}.label`,
+                  DECLARATION_LABEL_DEFAULTS[declaration.providerId] ?? declaration.providerId.toUpperCase(),
                 )}
-                dataCy={`declaration-${obligation.providerId}-source`}
+                dataCy={`declaration-${declaration.providerId}-source`}
                 className="text-sm font-medium text-foreground"
               >
-                {obligation.provenance.kind === "legal"
-                  ? obligation.provenance.sourceText
-                  : obligation.provenance.resolutionNote}
+                {declaration.provenance.kind === "legal"
+                  ? declaration.provenance.sourceText
+                  : declaration.provenance.resolutionNote}
               </ProseHelp>
+            }
+            meta={
+              <ul className="flex flex-col gap-0.5" data-cy={`declaration-${declaration.providerId}-moments`}>
+                {declaration.moments.map((moment) => (
+                  <li key={`${moment.trigger}-${moment.period ?? ""}`}>{momentLabel(t, language, moment)}</li>
+                ))}
+                {declaration.dischargedByTransport && (
+                  <li data-cy={`declaration-${declaration.providerId}-by-transport`}>
+                    {t(
+                      "settings.channels.declarations.dischargedByTransport",
+                      "Declared by the delivery itself: nothing more to do.",
+                    )}
+                  </li>
+                )}
+              </ul>
             }
           />
         ))}

@@ -18,6 +18,7 @@ import {
   defaultReportingObligationCatalog,
   reportingObligationsFromComposedCatalog,
 } from '@/modules/documents/reporting/registry';
+import { defaultReportingObligationCatalogV2 } from '@/modules/documents/reporting/obligation-catalog';
 import { ChannelCredentialsService } from './channels.service';
 
 // `legalChannels()`'s "automatic" flag reads the database-backed B2G rule, never the in-memory
@@ -432,7 +433,48 @@ describe('ChannelCredentialsService', () => {
         provenance: fact.provenance,
       }));
       expect(expected.length).toBeGreaterThan(0);
-      await expect(service.reportingObligations('company-1')).resolves.toEqual(expected);
+      const rows = await service.reportingObligations('company-1');
+      expect(
+        rows.map(({ providerId, appliesTo, provenance }) => ({ providerId, appliesTo, provenance })),
+      ).toEqual(expected);
+    });
+  });
+
+  // The settings card says what each declaration covers and when it happens: every row carries its
+  // obligation's id, kind, trigger, who discharges it and, for a periodic one, its period.
+  describe('reportingObligations(): each row carries its v2 obligation facts', () => {
+    it.each(
+      reportingObligationsFromComposedCatalog().map((file) => file.countryCode.toUpperCase()),
+    )('%s: id, kind, trigger, discharger and period come from the obligation', async (countryCode) => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: countryCode, countryCode });
+      const expected = defaultReportingObligationCatalogV2.obligationsFor(countryCode).flatMap((obligation) =>
+        obligation.scope.documentTypes.flatMap(() =>
+          obligation.channels.map((channel) => ({
+            obligationId: obligation.id,
+            kind: obligation.kind,
+            trigger: obligation.trigger,
+            dischargedBy: channel.dischargedBy,
+            period: obligation.timing && 'period' in obligation.timing ? obligation.timing.period : undefined,
+          })),
+        ),
+      );
+      const rows = await service.reportingObligations('company-1');
+      expect(
+        rows.map(({ obligationId, kind, trigger, dischargedBy, period }) => ({
+          obligationId,
+          kind,
+          trigger,
+          dischargedBy,
+          period,
+        })),
+      ).toEqual(expected);
+    });
+
+    it('a French company sees its payment declaration as its own row, triggered by the payment', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      const rows = await service.reportingObligations('company-1');
+      expect(rows.map((row) => row.trigger)).toEqual(['sent', 'sent', 'payment']);
+      expect(rows.map((row) => row.dischargedBy)).toEqual(['transport', 'provider', 'provider']);
     });
   });
 
