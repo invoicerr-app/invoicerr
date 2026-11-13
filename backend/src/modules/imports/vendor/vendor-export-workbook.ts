@@ -31,7 +31,7 @@ const MAX_COLUMNS = 200;
  * those limits pads a few hundred bytes into two million cells. 500,000 still fits a 10,000-row
  * invoice export of 50 columns, which is wider than any export a profile reads.
  */
-const MAX_CELLS_PER_UPLOAD = 500_000;
+const MAX_TOTAL_CELLS = 500_000;
 /** 9999-12-31 as a 1900-system serial. A larger or negative serial is not a date an export carries. */
 const MAX_DATE_SERIAL = 2_958_465;
 
@@ -93,6 +93,11 @@ function readCapped(file: JSZip.JSZipObject, cap: number): Promise<Buffer> {
 }
 
 function parseXml(xml: string, part: string): XmlDocument {
+  // No workbook part needs a DTD. xmldom expands no entity today, but refusing any DOCTYPE up front
+  // keeps external entities and entity expansion out even if the parser's defaults ever change.
+  if (/<!DOCTYPE/i.test(xml)) {
+    throw new VendorExportFileError(`The workbook part "${part}" declares a DOCTYPE, which is not allowed.`);
+  }
   const errors: string[] = [];
   const parser = new DOMParser({
     onError: (level: string, message: string) => {
@@ -249,21 +254,24 @@ function cellText(cell: XmlElement, strings: string[], dates: boolean[], date190
       if (raw.trim() === '') return '';
       const style = Number(cell.getAttribute('s') ?? 0);
       const serial = Number(raw);
-      // Out of range, `new Date` is invalid and `toISOString` throws: keep the number, and let the
-      // profile's date parsing refuse that one row instead of the whole upload failing.
-      if (dates[style] && serial >= 0 && serial <= MAX_DATE_SERIAL) return serialToIsoDate(serial, date1904);
-      return numberText(raw);
+      if (!dates[style]) return numberText(raw);
+      // Out of range, `new Date` is invalid and `toISOString` throws a bare RangeError: refuse the
+      // file with a readable error instead.
+      if (!(serial >= 0 && serial <= MAX_DATE_SERIAL)) {
+        throw new VendorExportFileError(`Invalid date in cell ${cell.getAttribute('r') ?? '(unknown)'}.`);
+      }
+      return serialToIsoDate(serial, date1904);
     }
   }
 }
 
-/** What is left of `MAX_CELLS_PER_UPLOAD`, shared by every workbook of one upload. */
+/** What is left of `MAX_TOTAL_CELLS`, shared by every workbook of one upload. */
 interface CellBudget {
   remaining: number;
 }
 
 function tooManyCells(): VendorExportFileError {
-  return new VendorExportFileError(`This export holds more than ${MAX_CELLS_PER_UPLOAD} cells.`);
+  return new VendorExportFileError(`This export holds more than ${MAX_TOTAL_CELLS} cells.`);
 }
 
 /** Reads the first worksheet of an XLSX workbook already opened as a zip. */
@@ -331,7 +339,7 @@ export async function readVendorExportFile(bytes: Uint8Array): Promise<VendorExp
     throw new VendorExportFileError('This file is not an XLSX workbook or a ZIP archive.');
   }
   const zip = await loadZip(bytes);
-  const budget: CellBudget = { remaining: MAX_CELLS_PER_UPLOAD };
+  const budget: CellBudget = { remaining: MAX_TOTAL_CELLS };
   if (isWorkbookZip(zip)) {
     return { workbooks: [{ grid: await readWorkbookZip(zip, budget) }], pdfFiles: [] };
   }
