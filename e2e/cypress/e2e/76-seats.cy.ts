@@ -297,9 +297,14 @@ describe('Settings > Seats', () => {
 
 			cy.login();
 			cy.visit('/settings/company');
-			cy.get('[data-cy="settings-nav"]', { timeout: 15000 }).should('be.visible');
+			// The company form loading proves the OWNER still reads the company. The sidebar nav is
+			// only displayed from the lg breakpoint (a select replaces it below), so assert it is
+			// rendered rather than visible: it does not exist at all on the blocked screen.
+			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+			cy.get('[data-cy="settings-nav"]').should('exist');
 			cy.get('[data-cy="not-enough-seats-screen"]').should('not.exist');
 			cy.get('[data-cy="unused-seats-banner"]').should('not.exist');
+			cy.request(`${api}/api/company/info`).its('status').should('eq', 200);
 		});
 
 		it('gives the blocked member access back once a seat is bought again', function () {
