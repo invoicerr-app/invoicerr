@@ -3,6 +3,10 @@ import { vi, type Mock } from 'vitest';
 import prisma from '@/prisma/prisma.service';
 
 import { deleteCompanyPermanently, deleteCompanyPermanentlyNow } from './deletion';
+import { cancelCompanyStripeSubscriptions } from './stripe-subscription-cancel';
+
+vi.mock('./stripe-subscription-cancel', () => ({ cancelCompanyStripeSubscriptions: vi.fn() }));
+const cancelStripe = cancelCompanyStripeSubscriptions as Mock;
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
@@ -93,6 +97,40 @@ describe('deleteCompanyPermanently', () => {
 
     expect(deleted).toBe(false);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('cancels the company Stripe subscriptions before the deletion transaction', async () => {
+    findSub.mockResolvedValue(dueRow());
+    const calls: string[] = [];
+    cancelStripe.mockImplementation(() => {
+      calls.push('cancel-stripe');
+      return Promise.resolve(1);
+    });
+    (prisma.company.delete as Mock).mockImplementation(() => {
+      calls.push('company');
+      return Promise.resolve({});
+    });
+
+    await deleteCompanyPermanently('company-1', NOW);
+
+    expect(cancelStripe).toHaveBeenCalledWith('company-1');
+    expect(calls).toEqual(['cancel-stripe', 'company']);
+  });
+
+  it('deletes nothing when Stripe cannot cancel, so the next sweep retries', async () => {
+    findSub.mockResolvedValue(dueRow());
+    cancelStripe.mockRejectedValue(new Error('Stripe is down'));
+
+    await expect(deleteCompanyPermanently('company-1', NOW)).rejects.toThrow('Stripe is down');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('never cancels the Stripe subscription of a company that is no longer due', async () => {
+    findSub.mockResolvedValue(dueRow({ status: 'ACTIVE' }));
+
+    await deleteCompanyPermanently('company-1', NOW);
+
+    expect(cancelStripe).not.toHaveBeenCalled();
   });
 
   describe('stale-read guard (race with a company that stopped being due)', () => {
@@ -204,5 +242,30 @@ describe('deleteCompanyPermanentlyNow, manual, OWNER-initiated deletion (danger 
     // this file's own "stale-read guard" tests above, because ACTIVE is never due for AUTOMATIC
     // deletion. This function has no such check: it is one, does not re-read after any await.
     expect(prisma.company.delete).toHaveBeenCalledWith({ where: { id: 'company-1' } });
+  });
+
+  it('cancels the company Stripe subscriptions before any row is touched', async () => {
+    const calls: string[] = [];
+    cancelStripe.mockImplementation(() => {
+      calls.push('cancel-stripe');
+      return Promise.resolve(1);
+    });
+    (prisma.company.delete as Mock).mockImplementation(() => {
+      calls.push('company');
+      return Promise.resolve({});
+    });
+
+    await deleteCompanyPermanentlyNow('company-1');
+
+    expect(cancelStripe).toHaveBeenCalledWith('company-1');
+    expect(calls).toEqual(['cancel-stripe', 'company']);
+  });
+
+  it('deletes nothing when Stripe cannot cancel', async () => {
+    cancelStripe.mockRejectedValue(new Error('Stripe is down'));
+
+    await expect(deleteCompanyPermanentlyNow('company-1')).rejects.toThrow('Stripe is down');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.company.delete).not.toHaveBeenCalled();
   });
 });

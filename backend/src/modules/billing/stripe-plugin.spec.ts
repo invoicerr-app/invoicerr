@@ -1,10 +1,16 @@
+import { vi } from 'vitest';
+
 import { BILLING_FLAG_NAME } from './billing-flag';
 import {
   buildStripePlans,
   buildStripePlugin,
   canActOnCompanySubscription,
   type FindCompanyRole,
+  subscriptionSyncHooks,
 } from './stripe-plugin';
+import { syncStripeSubscription } from './stripe-subscription-sync';
+
+vi.mock('./stripe-subscription-sync', () => ({ syncStripeSubscription: vi.fn() }));
 
 const roles: Record<string, string> = {
   'owner:c1': 'OWNER',
@@ -122,5 +128,22 @@ describe('buildStripePlugin', () => {
     expect(Object.keys(plugin?.endpoints ?? {})).toEqual(
       expect.arrayContaining(['stripeWebhook', 'upgradeSubscription', 'createBillingPortal']),
     );
+  });
+
+  it('syncs the company row from every subscription hook that reports a state', () => {
+    const plugin = buildStripePlugin(findCompanyRole, ENABLED);
+    expect(plugin?.options.subscription).toMatchObject(subscriptionSyncHooks);
+    expect(plugin?.options.subscription).not.toHaveProperty('onSubscriptionCancel');
+  });
+});
+
+describe('subscriptionSyncHooks', () => {
+  it.each(Object.keys(subscriptionSyncHooks))('%s hands the hook data to the company sync', async (hook) => {
+    const data = {
+      event: { created: 1 },
+      subscription: { id: 'ps1', referenceId: 'c1', status: 'active' },
+    };
+    await subscriptionSyncHooks[hook as keyof typeof subscriptionSyncHooks](data);
+    expect(syncStripeSubscription).toHaveBeenCalledWith(data);
   });
 });

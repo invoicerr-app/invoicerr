@@ -94,6 +94,24 @@ owns checkout, the customer portal, webhook signature checks and the `subscripti
   can subscribe, cancel, restore and open the portal; any member can list the subscription; anyone
   else is refused.
 
+### Subscription state on the company
+
+The plugin's subscription hooks (complete, created, updated, deleted) are mirrored onto the company's
+own row by `backend/src/modules/billing/stripe-subscription-sync.ts`:
+
+- Stripe `active` or `trialing` makes the company `ACTIVE`; any other status makes it `PAST_DUE`,
+  and the lifecycle above takes over from there.
+- `seats` is the subscription quantity and `interval` the plan price's interval.
+- `currentPeriodEnd` is only taken from a fact that still reports the subscription as paid.
+- The first paid fact stamps `firstPaidAt`, which is never cleared. A paid fact also clears the
+  suspension and deletion clocks.
+- Each fact carries the Stripe event's time. A fact older than the last one applied is dropped.
+- A non-paid fact changes nothing for a company still inside its own trial, for one already
+  suspended or archived, or while the company has another subscription that is paid.
+
+Deleting a company, from the lifecycle sweep or by its owner, first cancels every Stripe
+subscription it still has (`stripe-subscription-cancel.ts`). If Stripe refuses, nothing is deleted.
+
 ## Stripe price catalog
 
 The hosted subscription is moving to Stripe Billing. Prices are configured, not coded: each one is a
