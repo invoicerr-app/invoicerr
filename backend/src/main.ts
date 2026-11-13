@@ -4,6 +4,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { syncDatabaseSchema } from './prisma/sync-schema';
 import { assertSecretsConfiguredForBoot } from './lib/secret-guard';
 import { assertPolarEnvConfiguredForBoot } from './modules/billing/polar-env';
+import { assertStripeEnvConfiguredForBoot } from './modules/billing/stripe-env';
 import { createSwaggerBasicAuthMiddleware } from './lib/swagger-basic-auth';
 import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
@@ -28,6 +29,7 @@ async function bootstrap() {
   // opaquely, on the FIRST real checkout/webhook request. This turns that into a clean, named,
   // immediate refusal instead — before `app.listen()` ever runs.
   assertPolarEnvConfiguredForBoot();
+  assertStripeEnvConfiguredForBoot();
 
   const appUrlWarning = insecureAppUrlWarning(process.env.APP_URL);
   if (appUrlWarning) new Logger('Bootstrap').warn(appUrlWarning);
