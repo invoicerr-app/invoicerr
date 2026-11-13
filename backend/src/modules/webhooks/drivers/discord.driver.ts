@@ -1,16 +1,13 @@
 import type { Dispatcher } from 'undici';
 
-import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
-import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
-
 import { Logger } from '@nestjs/common';
-import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
 
-import { instanceIcon, instanceUrl } from './chat-webhook.driver';
+import { describeEvent, instanceIcon, instanceUrl } from './event-message';
+import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
 /**
- * Bound on how long one Discord 429 is worth waiting out: `send` awaits every driver in one batch,
- * so an unbounded wait would hang the others behind one rate-limited channel.
+ * Bound on how long one Discord 429 is worth waiting out in place: a longer wait would hold a queue
+ * worker, and the delivery queue's own backoff retries the job later anyway.
  */
 const MAX_RATE_LIMIT_WAIT_MS = 5_000;
 
@@ -39,26 +36,15 @@ function hexToDiscordColor(hex: string): number {
 export class DiscordDriver implements WebhookDriver {
   private readonly logger = new Logger(DiscordDriver.name);
 
-  supports(type: WebhookType) {
-    return type === WebhookType.DISCORD;
-  }
-
   async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
-    const eventType = payload.event as WebhookEvent;
-    const eventStyle = EVENT_STYLES[eventType] || {
-      color: '#5865F2',
-      emoji: '📢',
-      title: 'Event',
-    };
-
-    const description = formatPayloadForEvent(eventType, payload);
+    const message = describeEvent(payload, '#5865F2');
 
     const embed: DiscordEmbed = {
-      title: `${eventStyle.emoji} ${eventStyle.title}`,
+      title: message.title,
       type: 'rich',
-      description,
+      description: message.description,
       timestamp: new Date().toISOString(),
-      color: hexToDiscordColor(eventStyle.color),
+      color: hexToDiscordColor(message.color),
       author: {
         name: 'Invoicerr',
         url: instanceUrl(),
@@ -70,8 +56,8 @@ export class DiscordDriver implements WebhookDriver {
       },
     };
 
-    if (payload.company?.name) {
-      embed.fields = [{ name: 'Entreprise', value: payload.company.name, inline: true }];
+    if (message.companyName) {
+      embed.fields = [{ name: 'Entreprise', value: message.companyName, inline: true }];
     }
 
     const body = JSON.stringify({
@@ -94,16 +80,7 @@ export class DiscordDriver implements WebhookDriver {
   ): Promise<boolean> {
     let res: Response;
     try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        // Never follow redirects, like every driver's own fetch call (webhook-driver.interface.ts).
-        redirect: 'manual',
-        signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-        // Pins the address validated by the guard; see webhook-driver.interface.ts.
-        dispatcher,
-      } as RequestInit);
+      res = await postWebhookJson(url, body, dispatcher);
     } catch (err) {
       this.logger.warn(`Discord webhook send failed: ${err instanceof Error ? err.message : String(err)}`);
       return false;

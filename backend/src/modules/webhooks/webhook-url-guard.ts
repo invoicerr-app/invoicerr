@@ -1,13 +1,4 @@
-import {
-  OutboundUrlPolicy,
-  OutboundUrlValidationError,
-  ResolvedOutboundUrl,
-  assertPublicOutboundUrl,
-} from '@/utils/outbound-url';
-
-export { ResolvedOutboundUrl };
-
-export { OutboundUrlValidationError as WebhookUrlValidationError };
+import { OutboundUrlPolicy, ResolvedOutboundUrl, assertPublicOutboundUrl } from '@/utils/outbound-url';
 
 /**
  * SSRF guard for outbound webhook URLs: the URL is tenant-supplied but the request leaves this

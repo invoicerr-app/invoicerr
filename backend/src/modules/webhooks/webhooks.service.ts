@@ -8,11 +8,11 @@ import { RocketChatDriver } from './drivers/rocketchat.driver';
 import { SlackDriver } from './drivers/slack.driver';
 import { TeamsDriver } from './drivers/teams.driver';
 import { WebhookDriver } from './drivers/webhook-driver.interface';
-import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url-guard';
+import { assertPublicWebhookUrl } from './webhook-url-guard';
 import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
-import { ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
+import { OutboundUrlValidationError, ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { isEncryptedWebhookSecret } from './webhook-secret-format';
 import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
@@ -27,19 +27,27 @@ export interface WebhookCreateInput {
 
 export type WebhookUpdateInput = Partial<WebhookCreateInput>;
 
+/** One driver per type; the `Record` makes a new `WebhookType` without a driver a compile error. */
+const DRIVERS: Record<WebhookType, WebhookDriver> = {
+  [WebhookType.DISCORD]: new DiscordDriver(),
+  [WebhookType.GENERIC]: new GenericDriver(),
+  [WebhookType.MATTERMOST]: new MattermostDriver(),
+  [WebhookType.ROCKETCHAT]: new RocketChatDriver(),
+  [WebhookType.SLACK]: new SlackDriver(),
+  [WebhookType.TEAMS]: new TeamsDriver(),
+  [WebhookType.ZAPIER]: new ZapierDriver(),
+};
+
+/** Every read except the one-time reveal after `create` goes out without the HMAC key. */
+function withoutSecret<T extends { secret: string | null }>(
+  webhook: T,
+): Omit<T, 'secret'> & { secret: undefined } {
+  return { ...webhook, secret: undefined };
+}
+
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
-
-  private drivers: WebhookDriver[] = [
-    new DiscordDriver(),
-    new GenericDriver(),
-    new MattermostDriver(),
-    new RocketChatDriver(),
-    new SlackDriver(),
-    new TeamsDriver(),
-    new ZapierDriver(),
-  ];
 
   /**
    * SSRF guard at write time: a tenant-supplied URL is dereferenced by this server. The client only
@@ -50,7 +58,7 @@ export class WebhooksService {
     try {
       await assertPublicWebhookUrl(url);
     } catch (err) {
-      if (err instanceof WebhookUrlValidationError) {
+      if (err instanceof OutboundUrlValidationError) {
         // Never the reason: it is exactly the "which private range" detail that would turn this
         // endpoint into a scanner. The line exists only to separate this from an unrelated 400.
         this.logger.warn('Rejected webhook URL at write time — failed the outbound-URL SSRF guard');
@@ -102,15 +110,6 @@ export class WebhooksService {
     }
   }
 
-  private getDriver(type: WebhookType): WebhookDriver {
-    const driver = this.drivers.find((d) => d.supports(type));
-    if (!driver) {
-      this.logger.warn(`No webhook driver found for type: ${type}, using GenericDriver as fallback`);
-      return new GenericDriver();
-    }
-    return driver;
-  }
-
   /**
    * Get a single webhook scoped to the active company, without its secret.
    * Throws 404 when the webhook does not exist or belongs to another company.
@@ -119,14 +118,14 @@ export class WebhooksService {
     const wh = await prisma.webhook.findFirst({ where: { id, companyId } });
     if (!wh) throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
 
-    return { ...wh, secret: undefined };
+    return withoutSecret(wh);
   }
 
   /** List all webhooks of the active company, secrets excluded. */
   async list(companyId: string) {
     const webhooks = await prisma.webhook.findMany({ where: { companyId } });
 
-    return webhooks.map((w) => ({ ...w, secret: undefined }));
+    return webhooks.map(withoutSecret);
   }
 
   /**
@@ -144,7 +143,7 @@ export class WebhooksService {
     const webhook = await prisma.webhook.create({
       data: {
         url: body.url,
-        type: body.type ?? 'GENERIC',
+        type: body.type ?? WebhookType.GENERIC,
         events: body.events ?? [],
         secret: storedSecret,
         companyId,
@@ -211,7 +210,7 @@ export class WebhooksService {
           resolved = await assertPublicWebhookUrl(webhook.url);
         } catch (err) {
           // Never the reason: see `validateWebhookUrl`.
-          const known = err instanceof WebhookUrlValidationError;
+          const known = err instanceof OutboundUrlValidationError;
           this.logger.warn(
             `Skipped webhook dispatch: URL failed the outbound-URL SSRF guard at send time` +
               (known ? '' : ' (unexpected validation error)'),
@@ -219,8 +218,7 @@ export class WebhooksService {
           return false;
         }
 
-        const driver = this.getDriver(webhook.type);
-        return await driver.send(
+        return await DRIVERS[webhook.type].send(
           webhook.url,
           {
             event,
