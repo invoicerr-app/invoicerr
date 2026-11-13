@@ -31,7 +31,9 @@ export type VendorClientField =
   | 'countryCode'
   | 'currency'
   | 'language'
-  | 'vatNumber';
+  | 'vatNumber'
+  /** A national business registration number (SIREN, SIRET...), scheme left to the mapping. */
+  | 'registrationNumber';
 
 /**
  * The canonical invoice fields a vendor profile may declare. A vendor export is one row per
@@ -55,7 +57,27 @@ export type VendorInvoiceField =
   | 'totalNet'
   | 'totalVat'
   | 'totalGross'
+  | 'clientCountry'
+  | 'status'
   | 'originalFileName';
+
+/** A parsed file cell grid, as the import dialogs already build it. */
+export interface VendorExportGrid {
+  headers: string[];
+  rows: string[][];
+}
+
+/** The file shapes a vendor exports. `zip` is an archive holding the `xlsx`, possibly with PDFs. */
+export type VendorExportFileType = 'csv' | 'xlsx' | 'zip';
+
+/**
+ * One VAT amount column of an export that prints totals per rate instead of document lines. `rate`
+ * is the percentage as the tool prints it, kept as a decimal string so `5.5` stays exact.
+ */
+export interface VendorVatAmountColumn {
+  rate: string;
+  headers: string[];
+}
 
 export interface VendorExportProfile {
   /** Stable id: `<vendor>-<kind>[-<variant>]`. */
@@ -81,4 +103,13 @@ export interface VendorExportProfile {
   dateFormat?: 'auto' | 'iso' | 'day-first';
   /** A delimiter hint for the browser, when the tool's CSV is known to use it. */
   delimiterHint?: ';' | ',';
+  /** File shapes the tool delivers this export in. Absent means CSV only. */
+  fileTypes?: VendorExportFileType[];
+  /** Per-rate VAT amount columns, for an export with no line detail. */
+  vatAmountColumns?: VendorVatAmountColumn[];
+  /**
+   * Columns the tool prints that are known and deliberately not imported (running totals, bank
+   * transactions, the tool's own ids). Listed so a real export's header row is fully accounted for.
+   */
+  ignoredColumns?: string[];
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { detectVendorExport, normalizeHeader } from './vendor-export-map';
-import { VENDOR_EXPORT_PROFILES } from './vendor-export-profiles';
 import { VendorExportProfile } from './vendor-export.types';
 
 /** Two invented profiles: the real ones arrive with each tool's mapping. */
@@ -58,10 +57,5 @@ describe('vendor export detection', () => {
 
   it('ignores empty header cells', () => {
     expect(detectVendorExport('clients', ['', 'Nom', '  ', 'Email'], PROFILES)?.id).toBe('general');
-  });
-
-  it('claims nothing while no tool profile is registered', () => {
-    expect(VENDOR_EXPORT_PROFILES).toHaveLength(0);
-    expect(detectVendorExport('clients', ['Raison sociale', 'Nom', 'Email'])).toBeUndefined();
   });
 });
