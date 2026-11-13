@@ -59,7 +59,7 @@ function setup({
   sub.useCancelSubscription.mockReturnValue(cancel as never)
   mockedUseSeats.mockReturnValue({
     data: { seats: 1, members: Array.from({ length: members }, (_, i) => member(`m${i}`)), waiting: [] },
-  } as ReturnType<typeof queriesModule.useSeats>)
+  } as unknown as ReturnType<typeof queriesModule.useSeats>)
   const queryClient = new QueryClient()
   const invalidate = vi.spyOn(queryClient, "invalidateQueries")
   render(

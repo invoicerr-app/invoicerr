@@ -16,7 +16,6 @@ import {
   useOpenBillingPortal,
   useStartCheckout,
 } from "@/hooks/queries/use-company-subscription"
-import { queryKeys } from "@/lib/query-keys"
 import { SettingsSection } from "./settings-section"
 
 /** Statuses in which the company already pays through Stripe, so the portal is the way in. */
