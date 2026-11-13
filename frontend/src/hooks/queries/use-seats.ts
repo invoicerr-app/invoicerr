@@ -17,7 +17,7 @@ export interface SeatMemberView {
 }
 
 export interface SeatsView {
-  /** The bought quantity — read from Polar, never something this app writes back to it. */
+  /** The bought quantity - read from the billing provider, never something this app writes back to it. */
   seats: number
   /** Seated members, ordered by desk number. */
   members: SeatMemberView[]

@@ -9,10 +9,9 @@ import { tolerateUncaughtException } from '../support/e2e';
  * `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set, so `/api/billing/*` (and this whole tab) does not
  * exist at all on the ordinary CI stack.
  *
- * Seat QUANTITY is never pushed to Polar by this app (`backend/src/modules/billing/seat-sync.ts`'s
- * own header) — it only
- * ever reads what Polar says (a `subscription.*` webhook, or `seat-reconcile.ts`'s own SDK read).
- * `cy.task('setCompanySubscriptionSeats', ...)` stands in for that read, the same "write the row a
+ * Seat QUANTITY is never pushed to the billing provider by this app
+ * (`backend/src/modules/billing/seat-sync.ts`'s own header): it only ever reads what the provider's
+ * webhook says. `cy.task('setCompanySubscriptionSeats', ...)` stands in for that read, the same "write the row a
  * real event would otherwise set" shape `setStaleLegalAcceptance` already holds for `LegalAcceptance`.
  *
  * One finding worth recording (established by curling this exact flow against a throwaway SaaS-mode
