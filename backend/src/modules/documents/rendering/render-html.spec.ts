@@ -1,5 +1,6 @@
 import { renderDocumentHtml } from './render-html';
 import { DocumentTypeDescriptor } from '../descriptors/types';
+import { documentLineFields } from '../descriptors/document-lines';
 
 describe('renderDocumentHtml', () => {
   const baseCompany = {
@@ -1660,6 +1661,79 @@ describe('renderDocumentHtml', () => {
       expect(html).toContain('Brouillon — pas encore de numéro');
       expect(html).not.toContain('IVA');
       expect(html).not.toContain('>Stato:<');
+    });
+
+    describe('standard line column headers follow the document language (#797)', () => {
+      const linesDescriptor = (fields = documentLineFields({ required: true, vatRateRequired: true })) =>
+        ({
+          id: 'invoice',
+          label: 'Invoice',
+          fields: [{ key: 'lines', kind: 'array', label: 'Lines', fields }],
+          actions: [],
+        }) as DocumentTypeDescriptor;
+      const lines = [
+        {
+          description: 'Consulting',
+          quantity: 1,
+          unit: 'HUR',
+          unitPrice: 100,
+          vatRate: '20',
+          discountPercent: 0,
+          date: '2026-11-13',
+        },
+      ];
+      const render = (language: 'en' | 'fr', descriptor = linesDescriptor()) =>
+        renderDocumentHtml({
+          descriptor,
+          instance: { ...baseInstance, data: { lines } },
+          company: baseCompany,
+          referenceLabels: {},
+          totals: totalsFixture,
+          language,
+        });
+      const headers = (html: string) => [...html.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1]);
+      const ENGLISH = [
+        'Designation',
+        'Quantity',
+        'Unit',
+        'Unit price',
+        'VAT rate',
+        'Discount %',
+        'Work date',
+      ];
+
+      it('French: every standard column is in French, none in English', () => {
+        const printed = headers(render('fr'));
+        expect(printed).toEqual([
+          'Désignation',
+          'Quantité',
+          'Unité',
+          'Prix unitaire',
+          'Taux de TVA',
+          'Remise %',
+          'Date d&#039;exécution',
+        ]);
+        for (const english of ENGLISH) expect(printed).not.toContain(english);
+      });
+
+      it('English: the headers are the descriptor labels, exactly as before', () => {
+        expect(headers(render('en'))).toEqual(ENGLISH);
+      });
+
+      it("a renamed standard column or a plugin's own column keeps its declared label", () => {
+        const fields = [
+          ...documentLineFields({
+            required: true,
+            vatRateRequired: true,
+            overrides: { description: { label: 'Article' } },
+          }),
+          { key: 'batch', kind: 'text', label: 'Batch' },
+        ] as DocumentTypeDescriptor['fields'];
+        const printed = headers(render('fr', linesDescriptor(fields)));
+        expect(printed[0]).toBe('Article');
+        expect(printed).toContain('Batch');
+        expect(printed).toContain('Quantité');
+      });
     });
 
     it('the SEPA "scan to pay" caption translates too, in the same language as everything else', () => {
