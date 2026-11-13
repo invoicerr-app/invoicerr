@@ -2,11 +2,25 @@ import { Controller, Post, Param, Body, Logger, Get, Delete, UseGuards, Patch } 
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { WebhooksService } from './webhooks.service';
 import { AuthGuard } from '@/guards/auth.guard';
-import { WebhookEvent, WebhookType, CompanyRole } from '../../../prisma/generated/prisma/client';
+import {
+  Company,
+  CompanyRole,
+  Webhook,
+  WebhookEvent,
+  WebhookType,
+} from '../../../prisma/generated/prisma/client';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { Roles } from '@/decorators/roles.decorator';
 import { RequiresScope } from '@/utils/scope-check';
+
+/**
+ * Other webhooks subscribed to the WEBHOOK_* events receive this payload, never the secret, which
+ * belongs to the caller of the request alone. A failed dispatch is logged and never fails the request.
+ */
+function lifecyclePayload(webhook: Webhook, company: Company) {
+  return { webhook: { ...webhook, secret: undefined }, company };
+}
 
 @ApiTags('webhooks')
 @Controller('webhooks')
@@ -87,17 +101,9 @@ export class WebhooksController {
   @ApiResponse({ status: 201, description: 'Webhook created' })
   async create(@ActiveCompany() companyId: string, @Body() body: any) {
     const { webhook, company } = await this.webhooksService.create(companyId, body);
-
-    try {
-      // Other webhooks subscribed to WEBHOOK_CREATED receive this payload, never the plaintext secret
-      // that belongs to the caller of this request alone.
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_CREATED, {
-        webhook: { ...webhook, secret: undefined },
-        company,
-      });
-    } catch (err) {
-      this.logger.error('Failed to dispatch WEBHOOK_CREATED', err);
-    }
+    await this.webhookDispatcher
+      .dispatch(WebhookEvent.WEBHOOK_CREATED, lifecyclePayload(webhook, company))
+      .catch((err) => this.logger.error('Failed to dispatch WEBHOOK_CREATED', err));
 
     return { success: true, data: { ...webhook } };
   }
@@ -126,16 +132,9 @@ export class WebhooksController {
   @ApiResponse({ status: 404, description: 'Webhook not found' })
   async update(@ActiveCompany() companyId: string, @Param('id') id: string, @Body() body: any) {
     const { webhook, company } = await this.webhooksService.update(companyId, id, body);
-
-    try {
-      // Same as `create`: never forward the secret to another webhook's payload.
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_UPDATED, {
-        webhook: { ...webhook, secret: undefined },
-        company,
-      });
-    } catch (err) {
-      this.logger.error('Failed to dispatch WEBHOOK_UPDATED', err);
-    }
+    await this.webhookDispatcher
+      .dispatch(WebhookEvent.WEBHOOK_UPDATED, lifecyclePayload(webhook, company))
+      .catch((err) => this.logger.error('Failed to dispatch WEBHOOK_UPDATED', err));
 
     return { success: true, data: { ...webhook, secret: undefined } };
   }
@@ -150,16 +149,9 @@ export class WebhooksController {
   @ApiResponse({ status: 404, description: 'Webhook not found' })
   async remove(@ActiveCompany() companyId: string, @Param('id') id: string) {
     const { webhook, company } = await this.webhooksService.remove(companyId, id);
-
-    try {
-      // Same reasoning as `create` above.
-      await this.webhookDispatcher.dispatch(WebhookEvent.WEBHOOK_DELETED, {
-        webhook: { ...webhook, secret: undefined },
-        company,
-      });
-    } catch (err) {
-      this.logger.error('Failed to dispatch WEBHOOK_DELETED', err);
-    }
+    await this.webhookDispatcher
+      .dispatch(WebhookEvent.WEBHOOK_DELETED, lifecyclePayload(webhook, company))
+      .catch((err) => this.logger.error('Failed to dispatch WEBHOOK_DELETED', err));
 
     return { success: true };
   }

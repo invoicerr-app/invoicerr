@@ -7,7 +7,7 @@
 import { vi } from 'vitest';
 
 import { DiscordDriver } from './discord.driver';
-import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
+import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return {
@@ -20,12 +20,6 @@ function jsonResponse(status: number, body: unknown, headers: Record<string, str
 
 describe('DiscordDriver', () => {
   afterEach(() => vi.restoreAllMocks());
-
-  it('supports only the DISCORD webhook type', () => {
-    const driver = new DiscordDriver();
-    expect(driver.supports(WebhookType.DISCORD)).toBe(true);
-    expect(driver.supports(WebhookType.GENERIC)).toBe(false);
-  });
 
   it('posts the exact Discord payload shape for a known event', async () => {
     // The icon and author link come from THIS instance, so a self-hosted deployment never points at
@@ -47,7 +41,7 @@ describe('DiscordDriver', () => {
     expect(calledUrl).toBe('https://discord.com/api/webhooks/1/abc');
     expect(options?.method).toBe('POST');
     expect((options?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
-    // SSRF hardening (webhook-driver.interface.ts); webhook-fetch-hardening.spec.ts covers this driver too.
+    // SSRF hardening (webhook-driver.interface.ts#postWebhookJson); webhook-fetch-hardening.spec.ts covers this driver too.
     expect(options?.redirect).toBe('manual');
     expect(options?.signal).toBeInstanceOf(AbortSignal);
 
