@@ -641,7 +641,7 @@ jobs:
           # copied `data/*.json` into dist, and the app then boots with an empty country catalogue.
           (cd "$GITHUB_WORKSPACE/backend" && npm run build)
           (cd "$GITHUB_WORKSPACE/backend" && npm run start:test:built > "$GITHUB_WORKSPACE/logs/backend-shard-$SHARD.log" 2>&1 &)
-          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > /dev/null 2>&1 &)
+          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > "$GITHUB_WORKSPACE/logs/frontend-shard-$SHARD.log" 2>&1 &)
           # wait-on above only checked the DB/mail/Redis ports were open, not that the
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until the Cypress specs failed with confusing auth errors.
@@ -671,6 +671,16 @@ jobs:
         with:
           name: backend-logs-shard-${{ matrix.shard }}
           path: ${{ github.workspace }}/logs/backend-shard-${{ matrix.shard }}.log
+
+      # The Vite dev server's own output: a browser-side error raised while it serves a module
+      # (an optimized dependency failing to evaluate, for instance) is unexplained without it.
+      - name: Upload frontend logs
+        if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-logs-shard-${{ matrix.shard }}
+          path: ${{ github.workspace }}/logs/frontend-shard-${{ matrix.shard }}.log
 
       - name: Upload Cypress videos and screenshots
         if: failure() && steps.scope.outputs.needed == 'true'
@@ -845,7 +855,7 @@ jobs:
           # Built first, same reason as `cypress-run` above.
           (cd "$GITHUB_WORKSPACE/backend" && npm run build)
           (cd "$GITHUB_WORKSPACE/backend" && npm run start:test:built > "$GITHUB_WORKSPACE/logs/backend.log" 2>&1 &)
-          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > /dev/null 2>&1 &)
+          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > "$GITHUB_WORKSPACE/logs/frontend.log" 2>&1 &)
           "$GITHUB_WORKSPACE/e2e/node_modules/.bin/wait-on" http-get://localhost:4000/api/health --timeout 120000
           # Same Firefox-over-Electron reasoning as `cypress-run` above. `CYPRESS_expectSaas=1` makes
           # both specs' own `before()` hook fail the run instead of silently skipping if `saasMode`
@@ -859,6 +869,14 @@ jobs:
         with:
           name: backend-logs-saas
           path: ${{ github.workspace }}/logs/backend.log
+
+      - name: Upload frontend logs (SaaS lane)
+        if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-logs-saas
+          path: ${{ github.workspace }}/logs/frontend.log
 
       - name: Upload Cypress videos and screenshots (SaaS lane)
         if: failure() && steps.scope.outputs.needed == 'true'
@@ -1033,7 +1051,7 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/logs"
           # The previous step already ran `nest build`; boot that build, same reason as `cypress-run` above.
           (cd "$GITHUB_WORKSPACE/backend" && npm run start:test:built > "$GITHUB_WORKSPACE/logs/backend.log" 2>&1 &)
-          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > /dev/null 2>&1 &)
+          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > "$GITHUB_WORKSPACE/logs/frontend.log" 2>&1 &)
           "$GITHUB_WORKSPACE/e2e/node_modules/.bin/wait-on" http-get://localhost:4000/api/health --timeout 120000
           # Same Firefox-over-Electron reasoning as `cypress-run` above.
           (cd "$GITHUB_WORKSPACE/e2e" && ./node_modules/.bin/cypress run --browser firefox --spec "cypress/e2e/100-demo-mode.cy.ts")
@@ -1045,6 +1063,14 @@ jobs:
         with:
           name: backend-logs-demo
           path: ${{ github.workspace }}/logs/backend.log
+
+      - name: Upload frontend logs (demo lane)
+        if: failure() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-logs-demo
+          path: ${{ github.workspace }}/logs/frontend.log
 
       - name: Upload Cypress videos and screenshots (demo lane)
         if: failure() && steps.scope.outputs.needed == 'true'
