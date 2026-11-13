@@ -40,7 +40,22 @@
  * slowed down by a second round-trip that Billit itself already performs before accepting a
  * document. It exists because the live spec uses it to prove, in the same run, that the receiver it
  * deposits to is genuinely registered on the Peppol TEST network rather than assumed to be.
+ *
+ * ## Outbound-URL guard
+ *
+ * `baseUrl` comes from the company's own channel configuration, so it is checked by
+ * `assertPublicOutboundUrl` before every call and the request connects through
+ * `pinnedDispatcher(resolved)`, with redirects never followed: the same guard
+ * `superpdp/superpdp-client.ts` and `invopop/invopop-client.ts` apply. Without it, whoever can edit
+ * the channel could make the backend POST invoice XML to an internal address and read the answer
+ * back in the failure message.
  */
+import {
+  OutboundUrlValidationError,
+  type ResolvedOutboundUrl,
+  assertPublicOutboundUrl,
+  pinnedDispatcher,
+} from '@/utils/outbound-url';
 
 export interface BillitCredentials {
   /** e.g. `https://api.sandbox.billit.be/v1` - sandbox and production are different hosts. */
@@ -90,6 +105,10 @@ export class BillitApiError extends Error {
  * "Billit refused this" into an opaque JSON parse error.
  */
 function describeFailure(status: number, body: string): BillitApiError {
+  if (status >= 300 && status < 400) {
+    // Redirects are never followed (see this file's header); the body of one is not Billit's answer.
+    return new BillitApiError(`Billit answered HTTP ${status} (a redirect, never followed).`, status);
+  }
   let code: string | undefined;
   let description = body.slice(0, 500);
 
@@ -152,11 +171,38 @@ export class BillitClient {
     return `${this.credentials.baseUrl.replace(/\/+$/, '')}${path}`;
   }
 
+  /** Re-checked before every call, since DNS can change between calls. The message is generic on
+   *  purpose: it reaches the user, and naming the reason would make this guard a network-scanning
+   *  oracle. */
+  private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
+    try {
+      return await assertPublicOutboundUrl(this.credentials.baseUrl, {
+        allowedProtocols: ['http:', 'https:'],
+        allowedPorts: null,
+        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+      });
+    } catch (err) {
+      if (err instanceof OutboundUrlValidationError) {
+        throw new BillitApiError('Billit baseUrl failed outbound-URL validation.', 0);
+      }
+      throw err;
+    }
+  }
+
+  private async request(path: string, init: RequestInit): Promise<Response> {
+    const resolved = await this.resolveBaseUrl();
+    return fetch(this.url(path), {
+      ...init,
+      redirect: 'manual',
+      dispatcher: pinnedDispatcher(resolved),
+    } as RequestInit);
+  }
+
   /** Deposits ONE Peppol BIS Billing 3.0 UBL document. Resolves only on an accepted deposit; every
    *  other outcome throws `BillitApiError`, which `billit-transport.ts` lets propagate so BullMQ's
    *  own retries run before the send is ever recorded as failed. */
   async sendPeppolXml(xml: string): Promise<BillitSendResult> {
-    const response = await fetch(this.url('/peppol/sendxml'), {
+    const response = await this.request('/peppol/sendxml', {
       method: 'POST',
       headers: this.headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ XML: xml }),
@@ -176,13 +222,10 @@ export class BillitClient {
   /** Peppol directory lookup for one participant identifier, e.g. `0208:0563846944` or
    *  `9925:BE0437295999`. Read-only; see this file's header for why `send()` does not call it. */
   async getParticipantInformation(identifier: string): Promise<BillitParticipantInformation> {
-    const response = await fetch(
-      this.url(`/peppol/participantInformation/${encodeURIComponent(identifier)}`),
-      {
-        method: 'GET',
-        headers: this.headers(),
-      },
-    );
+    const response = await this.request(`/peppol/participantInformation/${encodeURIComponent(identifier)}`, {
+      method: 'GET',
+      headers: this.headers(),
+    });
     const body = await response.text();
     if (!response.ok) throw describeFailure(response.status, body);
 
