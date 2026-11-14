@@ -7,6 +7,14 @@ vi.mock("@/lib/auth", () => ({
   authClient: { useSession: () => mockUseSession() },
 }))
 
+// The OWNER/ADMIN actions have their own spec (`subscription-actions.spec.tsx`); here only whether
+// they are mounted, and for which company and status.
+vi.mock("@/pages/(app)/settings/_components/subscription-actions", () => ({
+  SubscriptionActions: ({ companyId, status }: { companyId: string; status: string }) => (
+    <div data-cy="subscription-actions-stub">{`${companyId}:${status}`}</div>
+  ),
+}))
+
 import BillingSettings from "@/pages/(app)/settings/_components/billing.settings"
 
 /** Same fetch-boundary mocking convention as `_preferences.spec.tsx`/`payments.settings.spec.tsx`. */
@@ -87,6 +95,16 @@ describe("<BillingSettings>", () => {
     expect(await screen.findByTestId("billing-status-badge")).toHaveTextContent("Trial")
     expect(screen.getByTestId("billing-days-remaining")).toHaveTextContent("10")
     expect(screen.queryByTestId("billing-member-notice")).not.toBeInTheDocument()
+    expect(screen.getByTestId("subscription-actions-stub")).toHaveTextContent("company-1:TRIAL")
+  })
+
+  it("gives an admin the subscription actions too", async () => {
+    mockSession("ADMIN")
+    installFetchMock({ "GET /api/billing/status": () => ({ body: TRIAL_STATUS }) })
+
+    renderBillingSettings()
+
+    expect(await screen.findByTestId("subscription-actions-stub")).toHaveTextContent("company-1:TRIAL")
   })
 
   it("shows the interval and no countdown for a paying company", async () => {
@@ -111,6 +129,7 @@ describe("<BillingSettings>", () => {
     renderBillingSettings()
 
     expect(await screen.findByTestId("billing-member-notice")).toBeInTheDocument()
+    expect(screen.queryByTestId("subscription-actions-stub")).not.toBeInTheDocument()
   })
 
   it("renders nothing when billing does not exist on this instance (404)", async () => {

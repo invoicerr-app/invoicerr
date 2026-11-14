@@ -102,6 +102,17 @@ owns checkout, the customer portal, webhook signature checks and the `subscripti
 - **Who can act**: a subscription's `referenceId` is a company id. Owners and admins of that company
   can subscribe, cancel, restore and open the portal; any member can list the subscription; anyone
   else is refused.
+- **Whose Stripe customer**: always the company's, never the one of the owner or admin who clicks.
+  Every call sends `customerType: "organization"`, the plugin's organization customer type, and the
+  backend refuses a call without it. The plugin's `organization` model is mapped onto the `Company`
+  table (`schema: { organization: { modelName: "company" } }`), so the customer id lives in
+  `Company.stripeCustomerId`. The first checkout creates that customer with the company's name and
+  email; every later checkout and every portal session reuses it, whichever manager opens it. The
+  Better Auth organization plugin is not used: the Stripe plugin logs "Organization plugin not found"
+  once at boot and skips only the member and name sync hooks that plugin would carry.
+- **Customer Portal**: card and SEPA Direct Debit, invoice history, seat quantity and cancellation
+  are what the portal offers once they are enabled in the Stripe dashboard (Settings > Billing >
+  Customer portal). Settings > Subscription opens it for owners and admins.
 
 ### Subscription state on the company
 
