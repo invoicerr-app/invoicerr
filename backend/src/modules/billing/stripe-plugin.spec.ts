@@ -8,9 +8,11 @@ import {
   type FindCompanyRole,
   subscriptionSyncHooks,
 } from './stripe-plugin';
+import { recordFounderPreorderEvent } from './founder-preorder';
 import { syncStripeSubscription } from './stripe-subscription-sync';
 
 vi.mock('./stripe-subscription-sync', () => ({ syncStripeSubscription: vi.fn() }));
+vi.mock('./founder-preorder', () => ({ recordFounderPreorderEvent: vi.fn() }));
 
 const roles: Record<string, string> = {
   'owner:c1': 'OWNER',
@@ -175,6 +177,13 @@ describe('buildStripePlugin', () => {
     const plugin = buildStripePlugin(deps, ENABLED);
     expect(plugin?.options.subscription).toMatchObject(subscriptionSyncHooks);
     expect(plugin?.options.subscription).not.toHaveProperty('onSubscriptionCancel');
+  });
+
+  it('hands every webhook event to the founder pre-order recorder', async () => {
+    const plugin = buildStripePlugin(deps, ENABLED);
+    const event = { type: 'checkout.session.completed', created: 1, data: { object: {} } };
+    await plugin?.options.onEvent?.(event as never);
+    expect(recordFounderPreorderEvent).toHaveBeenCalledWith(event);
   });
 });
 

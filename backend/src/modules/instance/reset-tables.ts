@@ -24,6 +24,7 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'Company',
   'company_subscription',
   'subscription',
+  'founder_preorder',
   'CurrencyRate',
   'user_company',
   'Client',
