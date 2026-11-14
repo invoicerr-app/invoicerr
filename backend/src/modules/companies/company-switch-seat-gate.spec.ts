@@ -56,7 +56,11 @@ const MEMBERS: Record<string, { userId: string; role: CompanyRole; createdAt: Da
 
 const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 
-function contextFor(method: string, companyId: string, handlerName: keyof CompaniesController): ExecutionContext {
+function contextFor(
+  method: string,
+  companyId: string,
+  handlerName: keyof CompaniesController,
+): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () => ({ method, companyId, user: { id: BLOCKED_MEMBER }, scopes: null }),
@@ -79,10 +83,13 @@ describe('switching company as a member without a seat', () => {
   beforeEach(() => {
     process.env[BILLING_FLAG_NAME] = 'true';
     getOrCreate.mockImplementation(async (companyId: string) => ({ status: 'ACTIVE', seats: 1, companyId }));
-    findMany.mockImplementation(async ({ where }: { where: { companyId: string } }) => MEMBERS[where.companyId] ?? []);
+    findMany.mockImplementation(
+      async ({ where }: { where: { companyId: string } }) => MEMBERS[where.companyId] ?? [],
+    );
     findUnique.mockImplementation(
       async ({ where }: { where: { userId_companyId: { userId: string; companyId: string } } }) =>
-        MEMBERS[where.userId_companyId.companyId]?.find((m) => m.userId === where.userId_companyId.userId) ?? null,
+        MEMBERS[where.userId_companyId.companyId]?.find((m) => m.userId === where.userId_companyId.userId) ??
+        null,
     );
     sessionUpdate.mockResolvedValue({});
   });
@@ -127,9 +134,9 @@ describe('switching company as a member without a seat', () => {
   });
 
   it('never lets the member switch into a company they do not belong to', async () => {
-    await expect(service.switchActiveCompany(BLOCKED_MEMBER, SESSION_ID, 'company-stranger')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.switchActiveCompany(BLOCKED_MEMBER, SESSION_ID, 'company-stranger'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(sessionUpdate).not.toHaveBeenCalled();
   });
 

@@ -89,7 +89,10 @@ export function NotEnoughSeatsScreen() {
               </ul>
               {switchFailed && (
                 <p className="text-sm text-destructive" role="alert" data-cy="not-enough-seats-switch-error">
-                  {t("seatGate.notEnoughSeats.switchError", "Couldn't switch company. Try again in a moment.")}
+                  {t(
+                    "seatGate.notEnoughSeats.switchError",
+                    "Couldn't switch company. Try again in a moment.",
+                  )}
                 </p>
               )}
             </div>
