@@ -1012,6 +1012,7 @@
     "facts": [
       {
         "providerId": "pdp",
+        "platformId": "fr-pa",
         "appliesTo": "invoice",
         "dischargedBy": "transport",
         "scope": [

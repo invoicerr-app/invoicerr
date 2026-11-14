@@ -2893,7 +2893,22 @@
         "fr-pa": {
           "label": "French accredited platform (PA)"
         },
-        "title": "Declarations"
+        "title": "Declarations",
+        "dischargedByTransport": "Declared by the delivery itself: nothing more to do.",
+        "partlyByTransport": "Invoices it delivers are declared with the delivery itself.",
+        "document": {
+          "creditNote": "credit notes",
+          "invoice": "invoices"
+        },
+        "when": {
+          "issued": "When issued: {{documents}}",
+          "payment": "When paid: {{documents}}",
+          "periodEnd": "At the end of each period: {{documents}}",
+          "periodEndMonth": "At the end of each month: {{documents}}",
+          "periodEndQuarter": "At the end of each quarter: {{documents}}",
+          "periodEndYear": "At the end of each year: {{documents}}",
+          "sent": "When sent: {{documents}}"
+        }
       },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",
@@ -2952,7 +2967,7 @@
         },
         "navLabel": "Legal channels",
         "pdp": {
-          "label": "Accredited platform (PDP)"
+          "label": "Accredited platform (PA)"
         },
         "peppol": {
           "label": "Peppol"
@@ -4236,7 +4251,7 @@
     "description": "Supplier invoices received via e-invoicing channels.",
     "emptyState": {
       "title": "No received invoices",
-      "description": "Supplier invoices received via PDP, SdI, Peppol or KSeF will appear here."
+      "description": "Supplier invoices received via PA, SdI, Peppol or KSeF will appear here."
     },
     "columns": {
       "date": "Date",
@@ -6058,7 +6073,7 @@
         "title_one": "{{count}} day left in your trial",
         "title_other": "{{count}} days left in your trial",
         "title": "{{count}} days left in your trial",
-        "description": "Everything works except sending documents (email, PDP/Chorus Pro/KSeF deposits). Subscribe to unlock sending."
+        "description": "Everything works except sending documents (email, PA/Chorus Pro/KSeF deposits). Subscribe to unlock sending."
       },
       "pastDue": {
         "title": "Your last payment failed",

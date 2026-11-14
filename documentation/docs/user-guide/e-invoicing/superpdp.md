@@ -95,11 +95,11 @@ You can now use these credentials to authenticate and call the SuperPDP API from
 
 Once your SuperPDP Application exists, open **Settings → E-invoicing** in Invoicerr. The screen has
 two levels: legal channels on the left, and the operators that implement the selected one on the
-right. France's own legal channel is **Accredited platform (PDP)**; it opens pre-selected, since it
+right. France's own legal channel is **Accredited platform (PA)**; it opens pre-selected, since it
 is this company's own obligation.
 
 Find **SuperPDP** in the operator list on the right (it is one of several operators implementing the
-same "Accredited platform (PDP)" legal channel: Billit, Iopole and Invopop are others) and click
+same "Accredited platform (PA)" legal channel: Billit, Iopole and Invopop are others) and click
 **Connect**. This opens a side sheet with the SuperPDP connection form:
 
 <img src="/img/settings-channels-connect-superpdp.png" alt="Connect SuperPDP side sheet" width="700" />

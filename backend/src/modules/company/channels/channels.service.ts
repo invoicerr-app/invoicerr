@@ -18,6 +18,12 @@ import { defaultChannelPolicyCatalog } from '@/modules/documents/transports/chan
 import { ChannelPolicyFact, ChannelRequirement } from '@/modules/documents/transports/channel-policy/schema';
 import { defaultOperatorCatalog } from '@/modules/documents/operators/registry';
 import { defaultReportingObligationCatalogV2 } from '@/modules/documents/reporting/obligation-catalog';
+import type {
+  ChannelDischarger,
+  ObligationKind,
+  ObligationPeriod,
+  ObligationTrigger,
+} from '@/modules/documents/reporting/obligation-v2';
 import { ReportableDocumentType } from '@/modules/documents/reporting/schema';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
@@ -120,8 +126,20 @@ export interface ChannelPolicyBanner {
  */
 export interface ReportingObligationStatus {
   providerId: string;
+  /** The platform the card shows this row under: the channel's `platformId`, else `providerId`.
+   *  France's "pdp" transport rows carry "fr-pa", so the one accredited platform shows once. */
+  platformId: string;
   appliesTo: ReportableDocumentType;
   provenance: PolicyProvenance;
+  /** The v2 obligation this row comes from (issue #767). */
+  obligationId: string;
+  kind: ObligationKind;
+  /** The event that creates the duty: the settings card says "when sent", "when paid", ... */
+  trigger: ObligationTrigger;
+  /** Who discharges it: `transport` means the delivery itself declares, nothing else to do. */
+  dischargedBy: ChannelDischarger;
+  /** Only for a periodic obligation (`timing.period`). */
+  period?: ObligationPeriod;
 }
 
 export interface UpsertChannelConfigBody {
@@ -564,8 +582,14 @@ export class ChannelCredentialsService {
       obligation.scope.documentTypes.flatMap((appliesTo) =>
         obligation.channels.map((channel) => ({
           providerId: channel.id,
+          platformId: channel.platformId ?? channel.id,
           appliesTo,
           provenance: obligation.legalBasis.provenance,
+          obligationId: obligation.id,
+          kind: obligation.kind,
+          trigger: obligation.trigger,
+          dischargedBy: channel.dischargedBy,
+          period: obligation.timing && 'period' in obligation.timing ? obligation.timing.period : undefined,
         })),
       ),
     );
