@@ -70,6 +70,15 @@ function createInvitationCodeViaUI(): Cypress.Chainable<string> {
 	return cy.get<string>('@seatsInvitationCode');
 }
 
+/** Fresh session for `email`: cookies cleared, real sign-in form. */
+function signInAs(email: string) {
+	cy.clearCookies();
+	cy.visit('/auth/sign-in');
+	cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(email);
+	cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+	cy.get('[data-cy="auth-submit-btn"]').click();
+}
+
 describe('Settings > Seats', () => {
 	let saasMode = false;
 
@@ -279,6 +288,8 @@ describe('Settings > Seats', () => {
 				.should('be.visible')
 				.and('contain.text', "Your company doesn't have enough seats");
 			cy.get('[data-cy="not-enough-seats-sign-out"]').should('be.visible');
+			// A single company: nothing to switch to, sign-out stays the only action.
+			cy.get('[data-cy="not-enough-seats-switch"]').should('not.exist');
 			cy.get('[data-cy="settings-nav"]').should('not.exist');
 
 			// The API refuses every read on the company, not just writes.
@@ -290,6 +301,47 @@ describe('Settings > Seats', () => {
 			}
 			// The legal routes are about the user, never the company: still reachable.
 			cy.request(`${api}/api/legal/status`).its('status').should('eq', 200);
+		});
+
+		it('lets a blocked member switch to another company they belong to, from the screen', function () {
+			if (!saasMode) this.skip();
+
+			// Seated again for a moment, so Mia can open a company of her own through the usual door.
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 2 });
+			signInAs(MEMBER_EMAIL);
+			cy.url({ timeout: 20000 }).should('include', '/dashboard');
+			cy.request({
+				method: 'POST',
+				url: `${api}/api/companies`,
+				body: {
+					name: 'Mia Solo Co',
+					phone: '+33123456789',
+					email: 'contact@mia-solo.example',
+					address: '1 Solo Street',
+					city: 'Paris',
+					postalCode: '75001',
+					country: 'France',
+					countryCode: 'FR',
+					currency: 'EUR',
+					identifiers: [{ scheme: 'LEGAL_ID', value: '73282932000074' }],
+				},
+			})
+				.its('status')
+				.should('be.oneOf', [200, 201]);
+
+			// Back to one seat: a fresh sign-in lands on Acme Corp (her oldest membership), blocked.
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 1 });
+			signInAs(MEMBER_EMAIL);
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 }).should('be.visible');
+			cy.get('[data-cy="not-enough-seats-sign-out"]').should('be.visible');
+			cy.get('[data-cy="not-enough-seats-switch-item"]').should('have.length', 1).and('contain.text', 'Mia Solo Co');
+
+			cy.intercept('POST', '**/api/companies/switch').as('switchCompany');
+			cy.get('[data-cy="not-enough-seats-switch-item"]').click();
+			cy.wait('@switchCompany').its('response.statusCode').should('be.oneOf', [200, 201]);
+
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 }).should('not.exist');
+			cy.request(`${api}/api/company/info`).its('body.name').should('eq', 'Mia Solo Co');
 		});
 
 		it('keeps the OWNER working, with no unused-seat banner, while a member is blocked', function () {

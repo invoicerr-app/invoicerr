@@ -6046,7 +6046,9 @@
   "seatGate": {
     "notEnoughSeats": {
       "title": "Your company doesn't have enough seats",
-      "description": "Every member needs a seat, and your company has more members than seats right now. Ask an owner or admin to buy more seats or to free one. You'll get access back automatically."
+      "description": "Every member needs a seat, and your company has more members than seats right now. Ask an owner or admin to buy more seats or to free one. You'll get access back automatically.",
+      "switchLabel": "Switch to another company",
+      "switchError": "Couldn't switch company. Try again in a moment."
     },
     "signOut": "Sign out",
     "errorTitle": "Couldn't check your seat",

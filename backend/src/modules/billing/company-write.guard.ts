@@ -16,8 +16,8 @@
  * `SEAT_REQUIRED` (product decision 2026-11-13: a member with no seat cannot even read). Only the
  * BLOCKED/ZIPPED check stays write-only. On a write it runs AFTER `assertCompanyWritable`: a company
  * that is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
- * A route marked `@SeatGateExempt()` (`seat-gate-exempt.decorator.ts`, today only the user-level legal
- * routes) skips the seat check.
+ * A route marked `@SeatGateExempt()` (`seat-gate-exempt.decorator.ts`: the user-level legal routes and
+ * the company switch) skips the seat check.
  *
  * Applied by `request.user.id` alone — deliberately WITHOUT branching on `request.scopes` (session vs.
  * API key): `AuthGuard` sets `request.user` to the KEY'S OWN HOLDER for an API-key-authenticated
