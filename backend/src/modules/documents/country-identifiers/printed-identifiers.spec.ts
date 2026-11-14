@@ -1,4 +1,4 @@
-import { printedPartyIdentifiers } from './printed-identifiers';
+import { buyerEstablishmentOf, printedPartyIdentifiers } from './printed-identifiers';
 
 const seller = {
   countryCode: 'FR',
@@ -60,5 +60,35 @@ describe('the buyerVatRegistered axis', () => {
     });
 
     expect(domestic.buyer.map((identifier) => identifier.scheme)).toEqual(['LEGAL_ID']);
+  });
+});
+
+describe('where the buyer is established, seen from the seller', () => {
+  it('reads a buyer in the seller country as domestic', () => {
+    expect(buyerEstablishmentOf('FR', 'FR')).toBe('DOMESTIC');
+  });
+
+  it('reads a buyer in another member state of the seller tax union as another union member', () => {
+    expect(buyerEstablishmentOf('FR', 'DE')).toBe('OTHER_UNION_MEMBER');
+  });
+
+  it('reads a buyer outside the seller tax union as non-union, instead of leaving it unknown', () => {
+    expect(buyerEstablishmentOf('FR', 'US')).toBe('NON_UNION');
+  });
+
+  it('leaves the establishment unknown when either country is missing', () => {
+    expect(buyerEstablishmentOf('FR', undefined)).toBeUndefined();
+    expect(buyerEstablishmentOf(undefined, 'DE')).toBeUndefined();
+  });
+
+  it('asks a buyer outside the union for exactly what it was asked before NON_UNION existed', () => {
+    const printed = printedPartyIdentifiers({
+      seller,
+      buyer: { countryCode: 'US', type: 'COMPANY', vatRegistered: true, identifiers: [] },
+      includeMissingRequired: true,
+    });
+
+    expect(printed.seller.map((identifier) => identifier.scheme)).toEqual(['LEGAL_ID', 'VAT']);
+    expect(printed.buyer).toEqual([]);
   });
 });

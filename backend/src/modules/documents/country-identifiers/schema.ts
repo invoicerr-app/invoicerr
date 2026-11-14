@@ -113,8 +113,14 @@ export interface DemoIdentifierVariable {
 
 export type InvoiceParty = 'SELLER' | 'BUYER';
 
-/** Where the buyer is established, seen from the seller's country. */
-export type BuyerEstablishment = 'DOMESTIC' | 'OTHER_UNION_MEMBER';
+/**
+ * Where the buyer is established, seen from the seller's country: the same country, another member of
+ * the seller's tax union, or outside it (a seller in no tax union sees every foreign buyer that way).
+ * `NON_UNION` exists so a rule can name an export buyer; before it, such a buyer had no establishment
+ * at all and no rule naming this axis could ever match it, which is still what happens to a rule that
+ * does not list `NON_UNION`.
+ */
+export type BuyerEstablishment = 'DOMESTIC' | 'OTHER_UNION_MEMBER' | 'NON_UNION';
 
 export type SellerVatRegime = 'STANDARD' | 'FRANCHISE_BASE';
 
@@ -282,7 +288,7 @@ const INVOICE_PARTIES: readonly InvoiceParty[] = ['SELLER', 'BUYER'];
 const CONDITION_VALUES: Record<keyof InvoiceIdentifierCondition, readonly unknown[]> = {
   sellerVatRegime: ['STANDARD', 'FRANCHISE_BASE'],
   buyerType: ['COMPANY', 'INDIVIDUAL'],
-  buyerEstablishment: ['DOMESTIC', 'OTHER_UNION_MEMBER'],
+  buyerEstablishment: ['DOMESTIC', 'OTHER_UNION_MEMBER', 'NON_UNION'],
   buyerVatRegistered: [true, false],
 };
 

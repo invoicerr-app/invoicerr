@@ -50,14 +50,15 @@ interface InvoiceContext {
 
 const normalize = (countryCode: string | undefined) => countryCode?.trim().toUpperCase() || undefined;
 
-function establishmentOf(
+/** Unknown only when a country is missing: a known foreign buyer outside the seller's union is `NON_UNION`. */
+export function buyerEstablishmentOf(
   seller: string | undefined,
   buyer: string | undefined,
 ): BuyerEstablishment | undefined {
   if (!seller || !buyer) return undefined;
   if (seller === buyer) return 'DOMESTIC';
   const union = defaultTaxUnionRegistry.taxUnionOf(seller);
-  return union && union === defaultTaxUnionRegistry.taxUnionOf(buyer) ? 'OTHER_UNION_MEMBER' : undefined;
+  return union && union === defaultTaxUnionRegistry.taxUnionOf(buyer) ? 'OTHER_UNION_MEMBER' : 'NON_UNION';
 }
 
 function axisMatches<T>(allowed: readonly T[] | undefined, actual: T | undefined): boolean {
@@ -121,7 +122,7 @@ export function printedPartyIdentifiers(input: PrintedPartyIdentifiersInput): Pr
   const context: InvoiceContext = {
     sellerVatRegime: input.seller.vatRegime,
     buyerType: input.buyer?.type,
-    buyerEstablishment: establishmentOf(sellerCountry, buyerCountry),
+    buyerEstablishment: buyerEstablishmentOf(sellerCountry, buyerCountry),
     buyerVatRegistered: input.buyer?.vatRegistered,
   };
   const requiredFor = (party: InvoiceParty) =>
