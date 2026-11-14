@@ -43,12 +43,12 @@ describe("company subscription calls", () => {
     const portal = renderHook(() => useOpenBillingPortal(), { wrapper }).result
     const cancel = renderHook(() => useCancelSubscription(), { wrapper }).result
 
-    await checkout.current.mutateAsync({ companyId: "company-1", annual: true, seats: 4 })
+    await checkout.current.mutateAsync({ companyId: "company-1", plan: "founder", annual: true, seats: 4 })
     await portal.current.mutateAsync({ companyId: "company-1" })
     await cancel.current.mutateAsync({ companyId: "company-1" })
 
     expect(subscription.upgrade).toHaveBeenCalledWith(
-      expect.objectContaining({ ...company, plan: "standard", annual: true, seats: 4 }),
+      expect.objectContaining({ ...company, plan: "founder", annual: true, seats: 4 }),
     )
     expect(subscription.billingPortal).toHaveBeenCalledWith(expect.objectContaining(company))
     expect(subscription.cancel).toHaveBeenCalledWith(expect.objectContaining(company))

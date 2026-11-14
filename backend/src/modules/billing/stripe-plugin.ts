@@ -19,8 +19,15 @@ export interface CompanyCustomerDetails {
 
 export type FindCompanyCustomerDetails = (companyId: string) => Promise<CompanyCustomerDetails | null>;
 
-export interface StripePluginDeps {
+export type CompanyHoldsFounderGrid = (companyId: string) => Promise<boolean>;
+
+/** What deciding whether a user may act on a company subscription reads. */
+export interface CompanyBillingAccess {
   findCompanyRole: FindCompanyRole;
+  companyHoldsFounderGrid: CompanyHoldsFounderGrid;
+}
+
+export interface StripePluginDeps extends CompanyBillingAccess {
   findCompanyCustomerDetails: FindCompanyCustomerDetails;
 }
 
@@ -40,8 +47,8 @@ export function buildStripePlans(catalog: StripePriceCatalog): StripePlan[] {
   );
 }
 
-// The founder plan exists so a founder subscription resolves to a plan, but nobody can check out
-// on it yet: who keeps the founder grid is decided per company in a later step (#971, slice 7).
+// Only a company that holds the founder grid may check out on the founder plan (`founder-grid.ts`):
+// granted per company, kept while it renews without interruption.
 const isFounderCheckout = (action: string, body: unknown): boolean =>
   action === 'upgrade-subscription' &&
   typeof (body as { plan?: unknown } | undefined)?.plan === 'string' &&
@@ -56,7 +63,7 @@ const namesCompanyCustomer = (body: unknown, query: unknown): boolean =>
   (query as { customerType?: unknown } | undefined)?.customerType === COMPANY_CUSTOMER_TYPE;
 
 export async function canActOnCompanySubscription(
-  findCompanyRole: FindCompanyRole,
+  { findCompanyRole, companyHoldsFounderGrid }: CompanyBillingAccess,
   userId: string,
   companyId: string,
   action: string,
@@ -64,7 +71,7 @@ export async function canActOnCompanySubscription(
   query?: unknown,
 ): Promise<boolean> {
   if (!namesCompanyCustomer(body, query)) return false;
-  if (isFounderCheckout(action, body)) return false;
+  if (isFounderCheckout(action, body) && !(await companyHoldsFounderGrid(companyId))) return false;
   const role = await findCompanyRole(userId, companyId);
   if (role === null) return false;
   return READ_ONLY_ACTIONS.has(action) || BILLING_MANAGERS.has(role);
@@ -86,7 +93,7 @@ export const subscriptionSyncHooks = {
 };
 
 export function buildStripePlugin(
-  { findCompanyRole, findCompanyCustomerDetails }: StripePluginDeps,
+  { findCompanyRole, companyHoldsFounderGrid, findCompanyCustomerDetails }: StripePluginDeps,
   env: NodeJS.ProcessEnv = process.env,
 ) {
   if (!isBillingEnabled(env)) return null;
@@ -115,7 +122,14 @@ export function buildStripePlugin(
       enabled: true,
       plans,
       authorizeReference: ({ user, referenceId, action }, ctx) =>
-        canActOnCompanySubscription(findCompanyRole, user.id, referenceId, action, ctx?.body, ctx?.query),
+        canActOnCompanySubscription(
+          { findCompanyRole, companyHoldsFounderGrid },
+          user.id,
+          referenceId,
+          action,
+          ctx?.body,
+          ctx?.query,
+        ),
       ...subscriptionSyncHooks,
     },
   });

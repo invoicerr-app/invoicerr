@@ -47,6 +47,7 @@ function setup({
   subscription = null as subscriptionModule.CompanyStripeSubscription | null,
   members = 3,
   url = "/settings/billing",
+  priceGrid = "standard" as "standard" | "founder",
 } = {}) {
   sub.useCompanyStripeSubscription.mockReturnValue({ data: subscription, isPending: false } as ReturnType<
     typeof subscriptionModule.useCompanyStripeSubscription
@@ -65,7 +66,7 @@ function setup({
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[url]}>
-        <SubscriptionActions companyId="company-1" status={status} />
+        <SubscriptionActions companyId="company-1" status={status} priceGrid={priceGrid} />
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -84,7 +85,7 @@ describe("<SubscriptionActions>", () => {
 
     fireEvent.click(screen.getByTestId("billing-subscribe-btn"))
     expect(checkout.mutate).toHaveBeenCalledWith(
-      { companyId: "company-1", annual: false, seats: 3 },
+      { companyId: "company-1", plan: "standard", annual: false, seats: 3 },
       expect.anything(),
     )
   })
@@ -95,12 +96,28 @@ describe("<SubscriptionActions>", () => {
     fireEvent.change(screen.getByTestId("billing-seats-input"), { target: { value: "5" } })
     fireEvent.click(screen.getByTestId("billing-subscribe-btn"))
     expect(checkout.mutate).toHaveBeenLastCalledWith(
-      { companyId: "company-1", annual: false, seats: 5 },
+      { companyId: "company-1", plan: "standard", annual: false, seats: 5 },
       expect.anything(),
     )
 
     fireEvent.change(screen.getByTestId("billing-seats-input"), { target: { value: "0" } })
     expect(screen.getByTestId("billing-seats-input")).toHaveValue(1)
+  })
+
+  it("checks a founder company out on the founder grid, and says so", () => {
+    const { checkout } = setup({ members: 1, priceGrid: "founder" })
+
+    expect(screen.getByTestId("billing-founder-note")).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId("billing-subscribe-btn"))
+    expect(checkout.mutate).toHaveBeenCalledWith(
+      { companyId: "company-1", plan: "founder", annual: false, seats: 1 },
+      expect.anything(),
+    )
+  })
+
+  it("shows no founder note to a standard company", () => {
+    setup()
+    expect(screen.queryByTestId("billing-founder-note")).not.toBeInTheDocument()
   })
 
   it("opens the portal and offers cancellation once the company has a subscription", () => {

@@ -681,6 +681,13 @@ model CompanySubscription {
   // members wait, never the OWNER.
   seats Int @default(1)
 
+  // The founder price grid (#760, `modules/billing/founder-grid.ts`). Granted per company by the
+  // operator (`pnpm billing:grant-founder <companyId>`), kept for as long as the company renews without
+  // interruption: the first time a founder-plan subscription of this company ends (Stripe `canceled`),
+  // `founderLostAt` is stamped and the founder grid is gone for good. Neither is ever cleared.
+  founderGrantedAt DateTime?
+  founderLostAt    DateTime?
+
   // The billing cadence of the active subscription, `null` until a real subscription exists (TRIAL has
   // no interval of its own). The price itself is never stored here: amounts live in Stripe, see
   // `billing/stripe-price-catalog.ts`.

@@ -19,6 +19,9 @@
  *    guarantee, so a fact older than the last one applied is dropped.
  *  - an `ACTIVE` fact clears `blockedAt`/`zipSentAt`/`deletionDueAt`: a company that pays again is
  *    out of the suspension and deletion clocks.
+ *  - `founderLostAt`: stamped by the `canceled` fact of a founder-plan subscription while the company
+ *    holds the founder grid (`founder-grid.ts`). Also written when the rest of the fact is held back
+ *    for a suspended company: a suspended founder whose subscription ends has still been interrupted.
  *
  * Two kinds of non-paid fact are held back without writing anything, not even `lastBillingFactAt`
  * (a watermark planted by a fact that changed nothing would later reject the still-pending,
@@ -42,12 +45,14 @@ import {
   CompanySubscriptionStatus,
 } from '../../../prisma/generated/prisma/client';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
+import { endsFounderGrid, holdsFounderGrid } from './founder-grid';
 
 /** The plugin's own `subscription` row fields this module reads. */
 export interface PluginSubscriptionRow {
   id: string;
   referenceId: string;
   status: string;
+  plan?: string | null;
   seats?: number | null;
   billingInterval?: string | null;
   periodEnd?: Date | null;
@@ -63,6 +68,9 @@ export interface StripeSubscriptionFacts {
   companyId: string;
   pluginSubscriptionId: string;
   status: Extract<CompanySubscriptionStatus, 'ACTIVE' | 'PAST_DUE'>;
+  /** The Stripe status as reported, and the plugin plan name: what `founder-grid.ts` reads. */
+  stripeStatus: string;
+  plan: string | undefined;
   seats: number | undefined;
   interval: CompanySubscriptionInterval | undefined;
   currentPeriodEnd: Date | undefined;
@@ -92,6 +100,8 @@ export function toStripeSubscriptionFacts({
     companyId: subscription.referenceId,
     pluginSubscriptionId: subscription.id,
     status: mapStripeSubscriptionStatus(subscription.status),
+    stripeStatus: subscription.status,
+    plan: subscription.plan ?? undefined,
     seats: typeof seats === 'number' && Number.isInteger(seats) && seats >= 1 ? seats : undefined,
     interval: mapStripeInterval(subscription.billingInterval),
     currentPeriodEnd: subscription.periodEnd ?? undefined,
@@ -155,9 +165,15 @@ export async function applyStripeSubscriptionFacts(
       return 'stale';
     }
 
+    const losesFounderGrid = endsFounderGrid(facts) && holdsFounderGrid(sub);
+    const founderLoss = losesFounderGrid ? { founderLostAt: facts.factAt } : {};
+
     const stillInsideOwnTrial = sub.status === 'TRIAL' && now.getTime() < sub.trialEndsAt.getTime();
     const alreadySuspended = sub.status === 'BLOCKED' || sub.status === 'ZIPPED';
-    if (facts.status === 'PAST_DUE' && (stillInsideOwnTrial || alreadySuspended)) return 'held_back';
+    if (facts.status === 'PAST_DUE' && (stillInsideOwnTrial || alreadySuspended)) {
+      if (losesFounderGrid) await tx.companySubscription.update({ where: { companyId }, data: founderLoss });
+      return 'held_back';
+    }
 
     const paid = facts.status === 'ACTIVE';
     await tx.companySubscription.update({
@@ -170,6 +186,7 @@ export async function applyStripeSubscriptionFacts(
         ...(paid && facts.currentPeriodEnd ? { currentPeriodEnd: facts.currentPeriodEnd } : {}),
         ...(paid && sub.firstPaidAt === null ? { firstPaidAt: facts.factAt } : {}),
         ...(paid ? { blockedAt: null, zipSentAt: null, deletionDueAt: null } : {}),
+        ...founderLoss,
       },
     });
     return 'applied';

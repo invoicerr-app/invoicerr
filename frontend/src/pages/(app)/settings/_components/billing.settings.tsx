@@ -82,7 +82,11 @@ export default function BillingSettings() {
         )}
       </SettingsSection>
       {canManageBilling && activeCompanyId && (
-        <SubscriptionActions companyId={activeCompanyId} status={status.status} />
+        <SubscriptionActions
+          companyId={activeCompanyId}
+          status={status.status}
+          priceGrid={status.priceGrid}
+        />
       )}
     </SettingsPage>
   )
