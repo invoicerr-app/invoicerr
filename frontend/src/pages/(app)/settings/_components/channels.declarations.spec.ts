@@ -7,6 +7,7 @@ const legal = { kind: "legal", sourceText: "Statute text" } as ReportingObligati
 function row(overrides: Partial<ReportingObligation>): ReportingObligation {
   return {
     providerId: "provider-a",
+    platformId: "provider-a",
     appliesTo: "invoice",
     provenance: legal,
     obligationId: "provider-a:invoice",
@@ -18,13 +19,34 @@ function row(overrides: Partial<ReportingObligation>): ReportingObligation {
 }
 
 describe("summarizeDeclarations", () => {
-  it("keeps one entry per provider, in the order the API sent them", () => {
+  it("keeps one entry per platform, in the order the API sent them", () => {
     const summaries = summarizeDeclarations([
-      row({ providerId: "provider-b" }),
+      row({ providerId: "provider-b", platformId: "provider-b" }),
       row({ providerId: "provider-a" }),
-      row({ providerId: "provider-b", trigger: "payment" }),
+      row({ providerId: "provider-b", platformId: "provider-b", trigger: "payment" }),
     ])
-    expect(summaries.map((s) => s.providerId)).toEqual(["provider-b", "provider-a"])
+    expect(summaries.map((s) => s.platformId)).toEqual(["provider-b", "provider-a"])
+  })
+
+  it("shows a transport and a provider of the same platform as one entry", () => {
+    const summaries = summarizeDeclarations([
+      row({ providerId: "transport-a", platformId: "platform", dischargedBy: "transport" }),
+      row({ providerId: "provider-a", platformId: "platform" }),
+      row({ providerId: "provider-a", platformId: "platform", trigger: "payment" }),
+    ])
+    expect(summaries).toHaveLength(1)
+    expect(summaries[0].platformId).toBe("platform")
+    expect(summaries[0].moments.map((m) => m.trigger)).toEqual(["sent", "payment"])
+    expect(summaries[0].deliveryDeclares).toBe("some")
+  })
+
+  it("explains the platform with its own declaration's source, not the delivery's", () => {
+    const delivery = { kind: "legal", sourceText: "Delivery text" } as ReportingObligation["provenance"]
+    const [summary] = summarizeDeclarations([
+      row({ platformId: "platform", dischargedBy: "transport", provenance: delivery }),
+      row({ platformId: "platform", provenance: legal }),
+    ])
+    expect(summary.provenance).toBe(legal)
   })
 
   it("merges the document types of one trigger into one moment", () => {
@@ -51,13 +73,14 @@ describe("summarizeDeclarations", () => {
   })
 
   it("says nothing more is needed only when every row is discharged by the delivery itself", () => {
-    expect(summarizeDeclarations([row({ dischargedBy: "transport" })])[0].dischargedByTransport).toBe(true)
+    expect(summarizeDeclarations([row({ dischargedBy: "transport" })])[0].deliveryDeclares).toBe("all")
     expect(
       summarizeDeclarations([
         row({ dischargedBy: "transport" }),
         row({ dischargedBy: "provider", trigger: "payment" }),
-      ])[0].dischargedByTransport,
-    ).toBe(false)
+      ])[0].deliveryDeclares,
+    ).toBe("some")
+    expect(summarizeDeclarations([row({})])[0].deliveryDeclares).toBe("none")
   })
 
   it("keeps the first row's provenance for the label's help", () => {

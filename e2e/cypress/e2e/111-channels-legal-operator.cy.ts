@@ -70,7 +70,7 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 			.should("contain.text", "France")
 			.and(
 				"contain.text",
-				"Since September 1, 2026, your invoices from France must go through Accredited platform (PDP).",
+				"Since September 1, 2026, your invoices from France must go through Accredited platform (PA).",
 			)
 			.and("not.have.class", "text-destructive")
 			.and("have.class", "bg-warning");
@@ -136,8 +136,16 @@ describe("Channels settings - legal channel, then operator (issue #527)", () => 
 		// obligations (pdp / fr-pa, countries/data/fr.json (section "reporting")) still render, apart from the
 		// delivery-channel nav above (never inside `[data-cy^="channel-nav-"]`).
 		cy.get('[data-cy="channels-declarations"]').should("exist");
-		cy.get('[data-cy="declaration-pdp"]').should("exist");
+		// One accredited platform, not two: the "pdp" transport's own declaring folds into "fr-pa".
+		cy.get('[data-cy="declaration-pdp"]').should("not.exist");
 		cy.get('[data-cy="declaration-fr-pa"]').should("have.length", 1);
+		cy.get('[data-cy="declaration-fr-pa-moments"]')
+			.should("contain.text", "When sent")
+			.and("contain.text", "When paid");
+		cy.get('[data-cy="declaration-fr-pa-by-transport"]').should(
+			"contain.text",
+			"Invoices it delivers are declared with the delivery itself.",
+		);
 	});
 
 	it('connects an operator via the side sheet built entirely from `credentialFields` - PROVIDER_FIELDS is gone, the fields come from GET /api/documents/transports', () => {

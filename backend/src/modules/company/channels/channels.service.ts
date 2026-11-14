@@ -126,6 +126,9 @@ export interface ChannelPolicyBanner {
  */
 export interface ReportingObligationStatus {
   providerId: string;
+  /** The platform the card shows this row under: the channel's `platformId`, else `providerId`.
+   *  France's "pdp" transport rows carry "fr-pa", so the one accredited platform shows once. */
+  platformId: string;
   appliesTo: ReportableDocumentType;
   provenance: PolicyProvenance;
   /** The v2 obligation this row comes from (issue #767). */
@@ -579,6 +582,7 @@ export class ChannelCredentialsService {
       obligation.scope.documentTypes.flatMap((appliesTo) =>
         obligation.channels.map((channel) => ({
           providerId: channel.id,
+          platformId: channel.platformId ?? channel.id,
           appliesTo,
           provenance: obligation.legalBasis.provenance,
           obligationId: obligation.id,

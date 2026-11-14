@@ -7,6 +7,9 @@ export type ObligationPeriod = "month" | "quarter" | "year"
 /** One row of `GET /channels`'s `reportingObligations`: one document type of one obligation's channel. */
 export interface ReportingObligation {
   providerId: string
+  /** The platform this row is shown under: a transport and a declaration provider that are the same
+   *  legal entity share it (France's "pdp" transport rows carry "fr-pa"). */
+  platformId: string
   appliesTo: ReportableDocumentType
   provenance: ChannelProvenance
   /** The v2 obligation this row comes from (issue #767). */
@@ -24,35 +27,50 @@ export interface DeclarationMoment {
   documentTypes: ReportableDocumentType[]
 }
 
-/** What the Declarations card shows for one provider. */
+/** How much of a platform's declaring its own deliveries already do. */
+export type DeliveryDeclares = "all" | "some" | "none"
+
+/** What the Declarations card shows for one platform. */
 export interface DeclarationSummary {
-  providerId: string
-  /** The first row's provenance: the source shown behind the label's help. */
+  platformId: string
+  /** The source shown behind the label's help: the first row the platform declares itself, else the
+   *  first row. */
   provenance: ChannelProvenance
   moments: DeclarationMoment[]
-  /** Every row is discharged by the delivery itself: the company has nothing more to do. */
-  dischargedByTransport: boolean
+  /** `all`: the delivery declares everything, nothing more to do; `some`: the invoices it delivers are
+   *  declared with the delivery, the rest the platform declares on its own. */
+  deliveryDeclares: DeliveryDeclares
 }
 
 /**
- * Folds the API rows into one summary per provider, in the order the API sent them: rows of the same
+ * Folds the API rows into one summary per platform, in the order the API sent them: rows of the same
  * trigger and period merge into one moment, so Portugal reads "when sent: invoices and credit notes"
- * and France's accredited platform gets one moment for the send and another for the payment.
+ * and France's accredited platform is one entry, with one moment for the send and another for the
+ * payment, even though its delivery and its own declarations sit in two registries.
  */
 export function summarizeDeclarations(rows: ReportingObligation[]): DeclarationSummary[] {
-  const byProvider = new Map<string, DeclarationSummary>()
+  const byPlatform = new Map<string, DeclarationSummary & { declaresItself: boolean }>()
   for (const row of rows) {
-    let summary = byProvider.get(row.providerId)
+    const byTransport = row.dischargedBy === "transport"
+    let summary = byPlatform.get(row.platformId)
     if (!summary) {
       summary = {
-        providerId: row.providerId,
+        platformId: row.platformId,
         provenance: row.provenance,
         moments: [],
-        dischargedByTransport: true,
+        deliveryDeclares: byTransport ? "all" : "none",
+        declaresItself: !byTransport,
       }
-      byProvider.set(row.providerId, summary)
+      byPlatform.set(row.platformId, summary)
+    } else {
+      if (!byTransport && !summary.declaresItself) {
+        summary.provenance = row.provenance
+        summary.declaresItself = true
+      }
+      if (byTransport ? summary.deliveryDeclares === "none" : summary.deliveryDeclares === "all") {
+        summary.deliveryDeclares = "some"
+      }
     }
-    if (row.dischargedBy !== "transport") summary.dischargedByTransport = false
     let moment = summary.moments.find((m) => m.trigger === row.trigger && m.period === row.period)
     if (!moment) {
       moment = { trigger: row.trigger, period: row.period, documentTypes: [] }
@@ -60,5 +78,5 @@ export function summarizeDeclarations(rows: ReportingObligation[]): DeclarationS
     }
     if (!moment.documentTypes.includes(row.appliesTo)) moment.documentTypes.push(row.appliesTo)
   }
-  return [...byProvider.values()]
+  return [...byPlatform.values()].map(({ declaresItself: _declaresItself, ...summary }) => summary)
 }

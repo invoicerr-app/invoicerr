@@ -476,6 +476,20 @@ describe('ChannelCredentialsService', () => {
       expect(rows.map((row) => row.trigger)).toEqual(['sent', 'sent', 'payment']);
       expect(rows.map((row) => row.dischargedBy)).toEqual(['transport', 'provider', 'provider']);
     });
+
+    it('a French company sees one accredited platform: the transport row is shown under "fr-pa"', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      const rows = await service.reportingObligations('company-1');
+      expect(rows.map((row) => row.providerId)).toEqual(['pdp', 'fr-pa', 'fr-pa']);
+      expect(new Set(rows.map((row) => row.platformId))).toEqual(new Set(['fr-pa']));
+    });
+
+    it('a Portuguese company keeps its provider as its platform', async () => {
+      mockedPrisma.company.findUnique.mockResolvedValue({ country: 'Portugal', countryCode: 'PT' });
+      const rows = await service.reportingObligations('company-1');
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.platformId === row.providerId)).toBe(true);
+    });
   });
 
   describe('deleteChannelConfig() — disconnect', () => {

@@ -585,8 +585,8 @@ function DeclarationsSection({
       <SettingsList>
         {summarizeDeclarations(obligations).map((declaration) => (
           <SettingsListRow
-            key={declaration.providerId}
-            dataCy={`declaration-${declaration.providerId}`}
+            key={declaration.platformId}
+            dataCy={`declaration-${declaration.platformId}`}
             badge={
               <Badge variant="outline">
                 {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
@@ -595,10 +595,10 @@ function DeclarationsSection({
             title={
               <ProseHelp
                 title={t(
-                  `settings.channels.declarations.${declaration.providerId}.label`,
-                  DECLARATION_LABEL_DEFAULTS[declaration.providerId] ?? declaration.providerId.toUpperCase(),
+                  `settings.channels.declarations.${declaration.platformId}.label`,
+                  DECLARATION_LABEL_DEFAULTS[declaration.platformId] ?? declaration.platformId.toUpperCase(),
                 )}
-                dataCy={`declaration-${declaration.providerId}-source`}
+                dataCy={`declaration-${declaration.platformId}-source`}
                 className="text-sm font-medium text-foreground"
               >
                 {declaration.provenance.kind === "legal"
@@ -607,15 +607,23 @@ function DeclarationsSection({
               </ProseHelp>
             }
             meta={
-              <ul className="flex flex-col gap-0.5" data-cy={`declaration-${declaration.providerId}-moments`}>
+              <ul className="flex flex-col gap-0.5" data-cy={`declaration-${declaration.platformId}-moments`}>
                 {declaration.moments.map((moment) => (
                   <li key={`${moment.trigger}-${moment.period ?? ""}`}>{momentLabel(t, language, moment)}</li>
                 ))}
-                {declaration.dischargedByTransport && (
-                  <li data-cy={`declaration-${declaration.providerId}-by-transport`}>
+                {declaration.deliveryDeclares === "all" && (
+                  <li data-cy={`declaration-${declaration.platformId}-by-transport`}>
                     {t(
                       "settings.channels.declarations.dischargedByTransport",
                       "Declared by the delivery itself: nothing more to do.",
+                    )}
+                  </li>
+                )}
+                {declaration.deliveryDeclares === "some" && (
+                  <li data-cy={`declaration-${declaration.platformId}-by-transport`}>
+                    {t(
+                      "settings.channels.declarations.partlyByTransport",
+                      "Invoices it delivers are declared with the delivery itself.",
                     )}
                   </li>
                 )}
