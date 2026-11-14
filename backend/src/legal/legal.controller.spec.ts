@@ -20,6 +20,10 @@ vi.mock('./legal-request-language', () => ({
 
 import { BadRequestException } from '@nestjs/common';
 
+import { Reflector } from '@nestjs/core';
+
+import { SEAT_GATE_EXEMPT_KEY } from '@/modules/billing/seat-gate-exempt.decorator';
+
 import { LegalController } from './legal.controller';
 import { LegalService } from './legal.service';
 
@@ -116,5 +120,14 @@ describe('LegalController.accept', () => {
       controller.accept(CLICKING_USER, { slugs: 'terms-of-service' } as never, fakeRequest()),
     ).toThrow(BadRequestException);
     expect(service.accept).not.toHaveBeenCalled();
+  });
+});
+
+describe('LegalController and the seat gate', () => {
+  // A member with no seat is refused every company route, reads included
+  // (`billing/company-write.guard.ts`). The legal routes are about the user, never the company, and
+  // must stay reachable so that member can still clear a pending re-acceptance.
+  it('is marked @SeatGateExempt() at the class level', () => {
+    expect(new Reflector().get(SEAT_GATE_EXEMPT_KEY, LegalController)).toBe(true);
   });
 });

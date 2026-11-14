@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { UnusedSeatsBanner } from "@/components/unused-seats-banner"
 import { useBillingStatus, useCompanies } from "@/hooks/queries"
 import { useGet } from "@/hooks/use-fetch"
 import { usePageHeader } from "@/hooks/use-page-header"
@@ -414,6 +415,7 @@ export default function Settings() {
         data-cy={`settings-tab-${currentTab}`}
       >
         <div className="max-w-6xl">
+          <UnusedSeatsBanner />
           <Content />
         </div>
       </div>

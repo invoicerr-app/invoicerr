@@ -12,9 +12,12 @@
  * populated by `AuthGuard` (or left `null`/`undefined` for a route with no active company).
  *
  * Also applies `seat-gate.ts#assertUserHasSeatOrThrow` — a member who has lost their seat (an
- * over-capacity company) is refused every write the same way a BLOCKED company is, named
- * `SEAT_REQUIRED` rather than `COMPANY_BLOCKED`. Checked AFTER `assertCompanyWritable`: a company that
- * is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
+ * over-capacity company) is refused EVERY request on the active company, READS INCLUDED, named
+ * `SEAT_REQUIRED` (product decision 2026-11-13: a member with no seat cannot even read). Only the
+ * BLOCKED/ZIPPED check stays write-only. On a write it runs AFTER `assertCompanyWritable`: a company
+ * that is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
+ * A route marked `@SeatGateExempt()` (`seat-gate-exempt.decorator.ts`: the user-level legal routes and
+ * the company switch) skips the seat check.
  *
  * Applied by `request.user.id` alone — deliberately WITHOUT branching on `request.scopes` (session vs.
  * API key): `AuthGuard` sets `request.user` to the KEY'S OWN HOLDER for an API-key-authenticated
@@ -29,10 +32,12 @@
  * unset for it and the `request.user?.id` guard below already exempts that case for free.
  */
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 import { RequestWithUser } from '@/types/request';
 
 import { assertUserHasSeatOrThrow } from './seat-gate';
+import { SEAT_GATE_EXEMPT_KEY } from './seat-gate-exempt.decorator';
 import { assertCompanyWritable } from './write-gate';
 
 /** Compared case-sensitively; Express/Nest report `request.method` upper-case. */
@@ -40,16 +45,28 @@ const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 @Injectable()
 export class CompanyWriteGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest() as RequestWithUser;
 
-    if (READ_ONLY_METHODS.has(request.method)) return true;
     if (!request.companyId) return true;
 
-    await assertCompanyWritable(request.companyId);
-    if (request.user?.id) {
+    if (!READ_ONLY_METHODS.has(request.method)) {
+      await assertCompanyWritable(request.companyId);
+    }
+    if (request.user?.id && !this.isSeatGateExempt(context)) {
       await assertUserHasSeatOrThrow(request.companyId, request.user.id);
     }
     return true;
+  }
+
+  private isSeatGateExempt(context: ExecutionContext): boolean {
+    return (
+      this.reflector.getAllAndOverride<boolean>(SEAT_GATE_EXEMPT_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) === true
+    );
   }
 }
