@@ -11,7 +11,12 @@ import { Readable } from 'node:stream';
 
 import { ImapFlow } from 'imapflow';
 
-import { ImapFlowPecInboxPort, toPecInboundMessage } from './imapflow-pec-inbox-port';
+import {
+  ImapFlowPecInboxPort,
+  PEC_ATTACHMENT_MAX_BYTES,
+  streamToBuffer,
+  toPecInboundMessage,
+} from './imapflow-pec-inbox-port';
 
 function bufferStream(content: string): Readable {
   return Readable.from([Buffer.from(content)]);
@@ -227,5 +232,66 @@ describe('ImapFlowPecInboxPort.fetchUnseen', () => {
     expect(fakeClient.calls[0]).toBe('lock');
     expect(fakeClient.calls[fakeClient.calls.length - 1]).toBe('release');
     expect(fakeClient.calls.filter((c) => c === 'release')).toHaveLength(1);
+  });
+});
+
+describe('attachment size cap', () => {
+  /** `total` bytes in 64 KB chunks, recording whether the consumer read it to the end. */
+  function sizedStream(total: number) {
+    const chunk = Buffer.alloc(64 * 1024, 0x61);
+    const state = { ended: false };
+    async function* gen() {
+      for (let sent = 0; sent < total; sent += chunk.length) {
+        yield chunk.subarray(0, Math.min(chunk.length, total - sent));
+      }
+      state.ended = true;
+    }
+    return { stream: Readable.from(gen()), state };
+  }
+
+  it('keeps an attachment of exactly PEC_ATTACHMENT_MAX_BYTES', async () => {
+    const { stream } = sizedStream(PEC_ATTACHMENT_MAX_BYTES);
+    const buffer = await streamToBuffer(stream, PEC_ATTACHMENT_MAX_BYTES);
+    expect(buffer?.length).toBe(PEC_ATTACHMENT_MAX_BYTES);
+  });
+
+  it('drops an attachment one byte over the cap, but still drains the IMAP stream to its end', async () => {
+    const { stream, state } = sizedStream(PEC_ATTACHMENT_MAX_BYTES + 1);
+    expect(await streamToBuffer(stream, PEC_ATTACHMENT_MAX_BYTES)).toBeNull();
+    expect(state.ended).toBe(true);
+  });
+
+  it('skips an oversized attachment and keeps the notifica next to it', async () => {
+    const download = vi.fn().mockImplementation(async (_uid: string, part: string) => ({
+      content:
+        part === '1.2'
+          ? sizedStream(PEC_ATTACHMENT_MAX_BYTES + 1).stream
+          : bufferStream('<ricevutaConsegna/>'),
+    }));
+
+    const message = await toPecInboundMessage({ download }, {
+      uid: 7,
+      envelope: { from: [{ address: 'someone@example.com' }] },
+      bodyStructure: {
+        part: '1',
+        type: 'multipart/mixed',
+        childNodes: [
+          {
+            part: '1.2',
+            type: 'application/octet-stream',
+            disposition: 'attachment',
+            dispositionParameters: { filename: 'big.bin' },
+          },
+          {
+            part: '1.3',
+            type: 'application/xml',
+            disposition: 'attachment',
+            dispositionParameters: { filename: 'n.xml' },
+          },
+        ],
+      },
+    } as never);
+
+    expect(message.attachments).toEqual([{ filename: 'n.xml', content: Buffer.from('<ricevutaConsegna/>') }]);
   });
 });
