@@ -216,6 +216,14 @@ the branch alone. A pull request with merge conflicts gets no run at all until t
 
 Old `pr-*` tags are not deleted automatically.
 
+## nginx config smoke test
+
+`nginx-smoke.yml` runs on a pull request that touches `nginx.conf`. It serves a stand-in web root
+through `nginx.conf` on `nginx:bookworm`, the base of `server-image`, and checks that `/`, a bundle
+under `/assets/` and `/config.json` answer 200 from `/usr/share/nginx/html`, and that a missing bundle
+stays a 404. On this base a `location` without a `root` looks under `/etc/nginx/html`, so a file that
+exists answers 404, and the browser shows a blank page.
+
 ## Docker image vulnerability scanning (Trivy)
 
 Every image this repository builds and pushes gets scanned for known OS package and Node
