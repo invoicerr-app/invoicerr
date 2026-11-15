@@ -74,9 +74,39 @@ COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend/src
 COPY entrypoint.sh /usr/share/nginx/entrypoint.sh
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
-
 RUN chmod +x /usr/share/nginx/entrypoint.sh
+
+# Run as an unprivileged user (uid/gid 10001), never root. A remote code execution in the backend, in
+# nginx or in the Chromium that renders PDFs (it parses HTML built from invoice data, and public share
+# links can trigger a render) must not be root in the container.
+#  - nginx: the `user` directive only means something to a root master process, and the pid file
+#    moves to /tmp; only the paths it writes at runtime are handed to the user (temp files in
+#    /var/cache/nginx, logs, and conf.d, where entrypoint.sh's ENABLE_HSTS edit rewrites
+#    default.conf in place).
+#  - port 80 stays: Docker (20.10+) sets net.ipv4.ip_unprivileged_port_start=0 in every container,
+#    so a non-root process may bind it without any capability. The Helm chart sets the same sysctl.
+#  - /data is the documents volume of docker-compose.yml and of the Helm chart: a NEW named volume
+#    copies this directory's owner, so it starts out writable. A volume created by an older, root
+#    image stays root-owned; entrypoint.sh detects that and prints the one-line fix.
+#  - the two .documents-* directories are the archive and inbound defaults when DOCUMENTS_ARCHIVE_DIR
+#    and DOCUMENTS_INBOUND_DIR are not set (relative to the backend's working directory).
+# Escape hatch for an operator who cannot fix volume ownership yet: run the container as root
+# (`user: "0:0"` in compose), which behaves exactly like the images before this change.
+RUN groupadd --system --gid 10001 invoicerr \
+ && useradd --system --uid 10001 --gid 10001 --create-home --home-dir /home/invoicerr \
+      --shell /usr/sbin/nologin invoicerr \
+ && sed -i -e '/^user /d' -e 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+ && mkdir -p /data /var/cache/nginx /var/log/nginx \
+      /usr/share/nginx/backend/src/.documents-archive /usr/share/nginx/backend/src/.documents-inbound \
+ && touch /usr/share/nginx/html/config.json \
+ && chown -R 10001:10001 /data /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+      /usr/share/nginx/html/config.json \
+      /usr/share/nginx/backend/src/.documents-archive /usr/share/nginx/backend/src/.documents-inbound \
+ && grep -q '^pid /tmp/nginx.pid;' /etc/nginx/nginx.conf
+
+USER 10001:10001
+
+EXPOSE 80
 
 # Which commit this image was built from — deliberately the LAST thing in the file.
 # `GIT_REVISION` changes on every build, so anything placed after an instruction that consumes it is
