@@ -53,11 +53,20 @@ arrival order) and the bought quantity is a hard ceiling on how many of them hol
 priority over the seats bought, never an exemption from buying one (promoting the whole company to
 OWNER seats nobody extra). The single exception is the longest-standing OWNER, who keeps a seat even at
 zero capacity so somebody can always log in and buy seats back. Whoever waits gets their seat back
-automatically (no action needed) the moment a seat frees up or is bought back. A member currently WAITING is refused every write via
-`company-write.guard.ts`/`seat-gate.ts` (403, `SEAT_REQUIRED`) and sees a full-app "waiting for a seat"
-takeover (`(app)/_layout.tsx`, driven by `GET /api/billing/seats`) naming the OWNER — the same
-gate `write-gate.ts#assertCompanyWritable`'s `COMPANY_BLOCKED` already holds for a blocked company,
-checked right alongside it.
+automatically (no action needed) the moment a seat frees up or is bought back. One user in one company is
+one seat, and a member with no seat can do nothing on that company, not even read (product decision
+2026-11-13): `company-write.guard.ts`/`seat-gate.ts` refuse every request on the active company, reads
+included, with 403 `SEAT_REQUIRED`, whether it comes from a session or from an API key that member
+created. `GET /api/billing/seats` answers that same refusal, and `(app)/_layout.tsx` turns it into a
+full-app "Your company doesn't have enough seats" takeover (`not-enough-seats-screen.tsx`) whose only
+action is signing out. Only routes marked `@SeatGateExempt()` skip the check: today the legal controller,
+which is about the user, never the company. The `BLOCKED`/`ZIPPED` check (`COMPANY_BLOCKED`) stays
+write-only and runs first on a write.
+
+**Unused seats.** When the company pays for more seats than it has members, OWNER and ADMIN see a red
+banner at the top of Settings (`unused-seats-banner.tsx`) with the number of unused seats and a link to
+Billing. A MEMBER never sees it. Invoicerr never changes the quantity itself: the fix is lowering it in
+the billing portal, or inviting someone.
 
 **The gate does not apply before a company exists** (issue #535). `GET /api/billing/seats` is guarded by
 `@ActiveCompany()`, which answers 403 for a session with no active company, the state a freshly

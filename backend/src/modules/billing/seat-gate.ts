@@ -1,13 +1,14 @@
 /**
- * The write-side half of the "no free seat" gate — the read side is the frontend's own waiting screen
- * (`(app)/_layout.tsx`), driven by `GET /api/billing/seats`. This is the API-level backstop: a member
- * who has lost their seat (an over-capacity company, `seat-holders.ts#seatHolders`) must not be able to
- * write through the API even if they never load the waiting screen — an API key, a stale tab, or a
- * client that ignores the frontend gate.
+ * The API side of the "not enough seats" gate; the frontend side is the full-screen
+ * `not-enough-seats-screen.tsx` (`(app)/_layout.tsx`), shown when `GET /api/billing/seats` itself
+ * answers `SEAT_REQUIRED`. A member who has lost their seat (an over-capacity company,
+ * `seat-holders.ts#seatHolders`: the most recently arrived members go first) can do NOTHING on that
+ * company through the API, not even read (product decision 2026-11-13): an API key, a stale tab, or a
+ * client that ignores the frontend gate gets the same refusal.
  *
- * Wired into `company-write.guard.ts` right alongside `write-gate.ts#assertCompanyWritable` — same
- * exemptions (GET/HEAD/OPTIONS, no active company), same "a no-op when billing
- * is disabled" first check.
+ * Wired into `company-write.guard.ts` for every method, alongside the write-only
+ * `write-gate.ts#assertCompanyWritable`. Exempt: no active company on the request, a route marked
+ * `@SeatGateExempt()`, and everything while billing is disabled.
  */
 import { ForbiddenException } from '@nestjs/common';
 
@@ -37,8 +38,8 @@ export async function assertUserHasSeatOrThrow(companyId: string, userId: string
 
   throw new ForbiddenException({
     message:
-      'This company has no free seat for you right now — ask the OWNER to free one, or buy ' +
-      'more in the billing settings. See Settings > Seats.',
+      'Your company does not have enough seats for you right now. Ask an owner or admin to buy ' +
+      'more seats in the billing settings, or to free one.',
     code: SEAT_REQUIRED_CODE,
   });
 }

@@ -12,6 +12,7 @@ import { RequestWithUser } from '@/types/request';
 import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { RequiresScope } from '@/utils/scope-check';
+import { SeatGateExempt } from '@/modules/billing/seat-gate-exempt.decorator';
 
 @ApiTags('companies')
 @Controller('companies')
@@ -32,6 +33,12 @@ export class CompaniesController {
 
   @Post('switch')
   @RequiresScope('company:write')
+  // A member left without a seat on the active company is refused every route on it, reads included
+  // (`billing/seat-gate.ts`); switching away is their way out, from the "not enough seats" screen.
+  // Exempt because it reads nothing of the active company: it only checks the caller's membership of
+  // the TARGET company and rewrites the session (`companies.service.ts#switchActiveCompany`). Keep it
+  // that way: anything returning data of the current company here would leak it to a seatless member.
+  @SeatGateExempt()
   @ApiOperation({
     summary: 'Switch active company',
     description: "Switches the current session's active company to one the caller belongs to.",

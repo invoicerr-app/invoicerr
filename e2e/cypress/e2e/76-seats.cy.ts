@@ -70,6 +70,15 @@ function createInvitationCodeViaUI(): Cypress.Chainable<string> {
 	return cy.get<string>('@seatsInvitationCode');
 }
 
+/** Fresh session for `email`: cookies cleared, real sign-in form. */
+function signInAs(email: string) {
+	cy.clearCookies();
+	cy.visit('/auth/sign-in');
+	cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(email);
+	cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+	cy.get('[data-cy="auth-submit-btn"]').click();
+}
+
 describe('Settings > Seats', () => {
 	let saasMode = false;
 
@@ -247,6 +256,122 @@ describe('Settings > Seats', () => {
 				expect(moved, 'moved member is still seated, not waiting').to.exist;
 				expect(moved!.seatIndex).to.eq(3);
 			});
+		});
+
+		// Product decision 2026-11-13: "1 user in 1 company = 1 seat". More seats than members: a red
+		// banner for OWNER/ADMIN. Fewer seats than members: the most recent members are blocked
+		// entirely, reads included, and only see the "not enough seats" screen.
+		it('shows the OWNER a red banner in Settings while a paid seat is unused', function () {
+			if (!saasMode) this.skip();
+
+			// Two members (John, Mia) on the three seats the previous test bought.
+			cy.login();
+			cy.visit('/settings/company');
+			cy.get('[data-cy="unused-seats-banner"]', { timeout: 15000 })
+				.should('be.visible')
+				.and('contain.text', '1 seat is paid for but unused')
+				.and('contain.text', 'pays for 3 seats and has 2 members');
+		});
+
+		it('blocks the most recent member entirely, reads included, once seats drop below members', function () {
+			if (!saasMode) this.skip();
+
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 1 });
+
+			cy.clearCookies();
+			cy.visit('/auth/sign-in');
+			cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(MEMBER_EMAIL);
+			cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+			cy.get('[data-cy="auth-submit-btn"]').click();
+
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 })
+				.should('be.visible')
+				.and('contain.text', "Your company doesn't have enough seats");
+			cy.get('[data-cy="not-enough-seats-sign-out"]').should('be.visible');
+			// A single company: nothing to switch to, sign-out stays the only action.
+			cy.get('[data-cy="not-enough-seats-switch"]').should('not.exist');
+			cy.get('[data-cy="settings-nav"]').should('not.exist');
+
+			// The API refuses every read on the company, not just writes.
+			for (const path of ['/api/clients', '/api/billing/seats', '/api/company/info']) {
+				cy.request({ url: `${api}${path}`, failOnStatusCode: false }).then((response) => {
+					expect(response.status, path).to.eq(403);
+					expect(response.body.code, path).to.eq('SEAT_REQUIRED');
+				});
+			}
+			// The legal routes are about the user, never the company: still reachable.
+			cy.request(`${api}/api/legal/status`).its('status').should('eq', 200);
+		});
+
+		it('lets a blocked member switch to another company they belong to, from the screen', function () {
+			if (!saasMode) this.skip();
+
+			// Seated again for a moment, so Mia can open a company of her own through the usual door.
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 2 });
+			signInAs(MEMBER_EMAIL);
+			cy.url({ timeout: 20000 }).should('include', '/dashboard');
+			cy.request({
+				method: 'POST',
+				url: `${api}/api/companies`,
+				body: {
+					name: 'Mia Solo Co',
+					phone: '+33123456789',
+					email: 'contact@mia-solo.example',
+					address: '1 Solo Street',
+					city: 'Paris',
+					postalCode: '75001',
+					country: 'France',
+					countryCode: 'FR',
+					currency: 'EUR',
+					identifiers: [{ scheme: 'LEGAL_ID', value: '73282932000074' }],
+				},
+			})
+				.its('status')
+				.should('be.oneOf', [200, 201]);
+
+			// Back to one seat: a fresh sign-in lands on Acme Corp (her oldest membership), blocked.
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 1 });
+			signInAs(MEMBER_EMAIL);
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 }).should('be.visible');
+			cy.get('[data-cy="not-enough-seats-sign-out"]').should('be.visible');
+			cy.get('[data-cy="not-enough-seats-switch-item"]').should('have.length', 1).and('contain.text', 'Mia Solo Co');
+
+			cy.intercept('POST', '**/api/companies/switch').as('switchCompany');
+			cy.get('[data-cy="not-enough-seats-switch-item"]').click();
+			cy.wait('@switchCompany').its('response.statusCode').should('be.oneOf', [200, 201]);
+
+			cy.get('[data-cy="not-enough-seats-screen"]', { timeout: 20000 }).should('not.exist');
+			cy.request(`${api}/api/company/info`).its('body.name').should('eq', 'Mia Solo Co');
+		});
+
+		it('keeps the OWNER working, with no unused-seat banner, while a member is blocked', function () {
+			if (!saasMode) this.skip();
+
+			cy.login();
+			cy.visit('/settings/company');
+			// The company form loading proves the OWNER still reads the company. The sidebar nav is
+			// only displayed from the lg breakpoint (a select replaces it below), so assert it is
+			// rendered rather than visible: it does not exist at all on the blocked screen.
+			cy.get('[data-cy="company-name-input"]', { timeout: 15000 }).should('be.visible');
+			cy.get('[data-cy="settings-nav"]').should('exist');
+			cy.get('[data-cy="not-enough-seats-screen"]').should('not.exist');
+			cy.get('[data-cy="unused-seats-banner"]').should('not.exist');
+			cy.request(`${api}/api/company/info`).its('status').should('eq', 200);
+		});
+
+		it('gives the blocked member access back once a seat is bought again', function () {
+			if (!saasMode) this.skip();
+
+			cy.task('setCompanySubscriptionSeats', { email: OWNER_EMAIL, seats: 2 });
+
+			cy.clearCookies();
+			cy.visit('/auth/sign-in');
+			cy.get('[data-cy="auth-email-input"]', { timeout: 10000 }).should('be.visible').type(MEMBER_EMAIL);
+			cy.get('[data-cy="auth-password-input"]').type(PASSWORD);
+			cy.get('[data-cy="auth-submit-btn"]').click();
+			cy.url({ timeout: 20000 }).should('include', '/dashboard');
+			cy.get('[data-cy="not-enough-seats-screen"]').should('not.exist');
+			cy.request(`${api}/api/clients`).its('status').should('eq', 200);
 		});
 	});
 });
