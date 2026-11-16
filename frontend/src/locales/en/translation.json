@@ -2886,7 +2886,7 @@
         "title": "{{operator}} no longer sends anything"
       },
       "declarations": {
-        "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate duty to declare invoice data to a tax authority, at the point each country requires.",
+        "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate duty to declare invoice data to a tax authority, as each country requires.",
         "pt-at": {
           "explanation": "Every invoice and credit note you issue must be communicated to the Portuguese Tax Authority (AT) by electronic transmission, separately from sending it to your client. (Decreto-Lei n.º 198/2012, art. 3)",
           "label": "Portuguese Tax Authority (AT)"
@@ -6032,7 +6032,7 @@
     }
   },
   "declarations": {
-    "description": "Tax-authority declarations Invoicerr filed automatically, at the point each country requires (for example when a document is issued or sent). One row per attempt, most recent first.",
+    "description": "Tax-authority declarations Invoicerr filed automatically, when each country requires it (for example when a document is issued or sent). One row per attempt, most recent first.",
     "filters": {
       "allStatuses": "All statuses"
     },

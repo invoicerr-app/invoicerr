@@ -524,7 +524,7 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
       title={t("settings.channels.declarations.title", "Declarations")}
       description={t(
         "settings.channels.declarations.description",
-        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate duty to declare invoice data to a tax authority, at the point each country requires.",
+        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate duty to declare invoice data to a tax authority, as each country requires.",
       )}
       dataCy="channels-declarations"
     >
