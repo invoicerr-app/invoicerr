@@ -18,6 +18,7 @@ import {
   SettingsFormFooter,
   SettingsIconDisc,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -45,7 +46,7 @@ export default function InvitationsSettings() {
   const [expiresInDays, setExpiresInDays] = useState<number | "">("")
   const [role, setRole] = useState<CompanyRole>("MEMBER")
 
-  const { data: invitations, loading, mutate } = useGet<InvitationCode[]>("/api/invitations")
+  const { data: invitations, loading, error, mutate } = useGet<InvitationCode[]>("/api/invitations")
   const { trigger: createInvitationApi, loading: creating } = usePost<InvitationCode>("/api/invitations")
   // The plaintext code leaves the API exactly once, in the create response. Keeping it here is the
   // only place a human can still read it: the list below is fed by rows that hold a digest.
@@ -197,6 +198,8 @@ export default function InvitationsSettings() {
       >
         {loading ? (
           <SettingsListSkeleton rows={3} />
+        ) : !invitations && error ? (
+          <SettingsListError onRetry={mutate} dataCy="invitations-load-error" />
         ) : !invitations || invitations.length === 0 ? (
           <EmptyState
             icon={TicketIcon}

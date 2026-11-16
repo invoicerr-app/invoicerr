@@ -19,6 +19,7 @@ import {
   SettingsFormFooter,
   SettingsIconDisc,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -149,7 +150,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
  */
 export default function SigningCertificatesSettings() {
   const { t } = useTranslation()
-  const { data, loading, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
+  const { data, loading, error, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
   const certs = data ?? []
   const [saved, flash] = useSavedFlash()
 
@@ -306,6 +307,10 @@ export default function SigningCertificatesSettings() {
       <div data-cy="signing-cert-list">
         {loading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !data && error ? (
+          <SettingsSection>
+            <SettingsListError onRetry={mutate} dataCy="signing-cert-load-error" />
+          </SettingsSection>
         ) : certs.length > 0 ? (
           <SettingsList>
             {certs.map((cert) => (
