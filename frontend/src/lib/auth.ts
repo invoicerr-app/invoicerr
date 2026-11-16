@@ -1,3 +1,4 @@
+import { stripeClient } from "@better-auth/stripe/client"
 import { createAuthClient } from "better-auth/react"
 
 // No genericOAuthClient plugin: since better-auth 1.7 the generic-OAuth plugin registers no
@@ -13,4 +14,9 @@ export const authClient = createAuthClient({
     // locale: ... })` and `session.user.locale` type-check without an `@ts-expect-error`.
     locale: "",
   },
+  // Hosted billing: checkout, Customer Portal and the company's subscription list. Every call names
+  // the company as `referenceId`; the backend's `authorizeReference` lets any member list and only an
+  // OWNER or ADMIN start a checkout, open the portal or cancel. On a self-hosted instance the
+  // endpoints do not exist and nothing in the app calls them (the Subscription tab is hidden).
+  plugins: [stripeClient({ subscription: true })],
 })

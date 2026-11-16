@@ -11,6 +11,19 @@ export type CompanyBillingRole = 'OWNER' | 'ADMIN' | 'MEMBER' | string;
 
 export type FindCompanyRole = (userId: string, companyId: string) => Promise<CompanyBillingRole | null>;
 
+/** What the company's Stripe customer is created with: its own name and billing email. */
+export interface CompanyCustomerDetails {
+  name: string;
+  email: string;
+}
+
+export type FindCompanyCustomerDetails = (companyId: string) => Promise<CompanyCustomerDetails | null>;
+
+export interface StripePluginDeps {
+  findCompanyRole: FindCompanyRole;
+  findCompanyCustomerDetails: FindCompanyCustomerDetails;
+}
+
 const READ_ONLY_ACTIONS = new Set(['list-subscription']);
 const BILLING_MANAGERS = new Set(['OWNER', 'ADMIN']);
 
@@ -34,13 +47,23 @@ const isFounderCheckout = (action: string, body: unknown): boolean =>
   typeof (body as { plan?: unknown } | undefined)?.plan === 'string' &&
   (body as { plan: string }).plan.toLowerCase() === 'founder';
 
+// A company subscription is always billed to the company's own Stripe customer: the plugin's
+// `organization` customer type, whose model is the Company table here. The default `user` type would
+// bill, and open the portal on, the Stripe customer of whoever clicks, so it is refused outright.
+const COMPANY_CUSTOMER_TYPE = 'organization';
+const namesCompanyCustomer = (body: unknown, query: unknown): boolean =>
+  (body as { customerType?: unknown } | undefined)?.customerType === COMPANY_CUSTOMER_TYPE ||
+  (query as { customerType?: unknown } | undefined)?.customerType === COMPANY_CUSTOMER_TYPE;
+
 export async function canActOnCompanySubscription(
   findCompanyRole: FindCompanyRole,
   userId: string,
   companyId: string,
   action: string,
   body?: unknown,
+  query?: unknown,
 ): Promise<boolean> {
+  if (!namesCompanyCustomer(body, query)) return false;
   if (isFounderCheckout(action, body)) return false;
   const role = await findCompanyRole(userId, companyId);
   if (role === null) return false;
@@ -62,7 +85,10 @@ export const subscriptionSyncHooks = {
   onSubscriptionDeleted: sync,
 };
 
-export function buildStripePlugin(findCompanyRole: FindCompanyRole, env: NodeJS.ProcessEnv = process.env) {
+export function buildStripePlugin(
+  { findCompanyRole, findCompanyCustomerDetails }: StripePluginDeps,
+  env: NodeJS.ProcessEnv = process.env,
+) {
   if (!isBillingEnabled(env)) return null;
   assertStripeEnvConfiguredForBoot(env);
   const plans = buildStripePlans(readStripePriceCatalog(env));
@@ -72,11 +98,24 @@ export function buildStripePlugin(findCompanyRole: FindCompanyRole, env: NodeJS.
     stripeClient: stripeClientFor(env) as unknown as StripePluginOptions['stripeClient'],
     stripeWebhookSecret: (env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
     createCustomerOnSignUp: false,
+    // Each company has its own Stripe customer, stored on `Company.stripeCustomerId`: the plugin's
+    // organization customer type with its `organization` model mapped onto the Company table. The
+    // better-auth organization plugin is not used (Invoicerr has its own companies and roles), so the
+    // plugin logs "Organization plugin not found" once at boot and skips only the member and name
+    // sync hooks that plugin would carry; seats stay the quantity the company buys.
+    organization: {
+      enabled: true,
+      getCustomerCreateParams: async (company) => {
+        const details = await findCompanyCustomerDetails(company.id);
+        return details ? { name: details.name, email: details.email } : {};
+      },
+    },
+    schema: { organization: { modelName: 'company' } },
     subscription: {
       enabled: true,
       plans,
       authorizeReference: ({ user, referenceId, action }, ctx) =>
-        canActOnCompanySubscription(findCompanyRole, user.id, referenceId, action, ctx?.body),
+        canActOnCompanySubscription(findCompanyRole, user.id, referenceId, action, ctx?.body, ctx?.query),
       ...subscriptionSyncHooks,
     },
   });

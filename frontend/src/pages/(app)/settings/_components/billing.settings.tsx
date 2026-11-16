@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { type CompanySubscriptionStatus, useBillingStatus, useCompanies } from "@/hooks/queries"
 import { SettingsPage, SettingsSection } from "./settings-section"
+import { SubscriptionActions } from "./subscription-actions"
 
 /** Chip tone per subscription status - a lifecycle, not a binary "good/bad": `success` while paying,
  *  `info` for a trial (informational, not yet an ask), `warning` once payment itself needs attention,
@@ -28,13 +29,13 @@ const STATUS_VARIANT: Record<
  * navigation to `/settings/billing` (a stale bookmark, a self-hosted instance where the tab was
  * visible a moment ago but the flag just got unset) must render nothing, not a half-populated screen.
  *
- * Read-only for now: it shows the current plan and what is counting down. Subscribing and managing the
- * subscription go through the Stripe plugin's checkout and customer portal, wired in a later step of
- * the Stripe billing work.
+ * Everyone sees the current plan and what is counting down. An OWNER or ADMIN also gets
+ * `SubscriptionActions`: Stripe Checkout when the company has no subscription, the Stripe Customer
+ * Portal and its cancellation page once it has one.
  */
 export default function BillingSettings() {
   const { t } = useTranslation()
-  const { activeRole } = useCompanies()
+  const { activeRole, activeCompanyId } = useCompanies()
   const canManageBilling = activeRole === "OWNER" || activeRole === "ADMIN"
   const { data: status, isSuccess } = useBillingStatus()
 
@@ -80,6 +81,9 @@ export default function BillingSettings() {
           </p>
         )}
       </SettingsSection>
+      {canManageBilling && activeCompanyId && (
+        <SubscriptionActions companyId={activeCompanyId} status={status.status} />
+      )}
     </SettingsPage>
   )
 }
