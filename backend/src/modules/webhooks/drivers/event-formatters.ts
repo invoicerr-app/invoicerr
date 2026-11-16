@@ -20,6 +20,17 @@ function documentNumber(payload: any): string {
   return document?.displayNumber || document?.number || payload?.documentId || 'N/A';
 }
 
+function documentHeading(payload: any): string {
+  return `**${documentLabel(payload.typeId)} #${documentNumber(payload)}**`;
+}
+
+function clientHeading(payload: any): string {
+  const client = payload.client;
+  const name =
+    client?.type === 'COMPANY' ? client?.name : `${client?.contactFirstname} ${client?.contactLastname}`;
+  return `**${name || 'N/A'}**`;
+}
+
 export interface EventStyle {
   color: string;
   emoji: string;
@@ -61,48 +72,42 @@ export const EVENT_STYLES: Record<WebhookEvent, EventStyle> = {
   [WebhookEvent.WEBHOOK_DELETED]: { color: '#ef4444', emoji: '🗑️', title: 'Webhook Deleted' },
 };
 
+const FORMATTERS: Record<WebhookEvent, (p: any) => string | null> = {
+  // Document events (generic)
+  [WebhookEvent.DOCUMENT_CREATED]: (p) => `${documentHeading(p)}\nCreated`,
+  [WebhookEvent.DOCUMENT_SENT]: (p) => `${documentHeading(p)}\nSent`,
+  [WebhookEvent.DOCUMENT_SEND_FAILED]: (p) => `${documentHeading(p)}\n⚠️ Send failed: ${p.error || 'N/A'}`,
+  [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: (p) =>
+    `${documentHeading(p)}\n🏛️ ${p.providerId || 'N/A'}: ${p.statusCode || 'N/A'}`,
+  [WebhookEvent.DOCUMENT_DELETED]: (p) => `${documentHeading(p)}\nDeleted`,
+  // `settlement` is the extra fact the payload carries for this event.
+  [WebhookEvent.DOCUMENT_SETTLED]: (p) =>
+    `${documentHeading(p)}\n✅ Settled (paid: ${p.settlement?.paidMinor ?? 'N/A'}, credited: ${p.settlement?.creditedMinor ?? 'N/A'})`,
+  [WebhookEvent.DOCUMENT_CANCELLED]: (p) => `${documentHeading(p)}\n🚫 Cancelled`,
+  [WebhookEvent.DOCUMENT_SIGNED]: (p) => `${documentHeading(p)}\n✍️ Signed`,
+
+  // Client events
+  [WebhookEvent.CLIENT_CREATED]: (p) =>
+    `${clientHeading(p)}\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
+  [WebhookEvent.CLIENT_UPDATED]: (p) => `${clientHeading(p)}\nEmail: ${p.client?.contactEmail || 'N/A'}`,
+  [WebhookEvent.CLIENT_DELETED]: (p) => clientHeading(p),
+  [WebhookEvent.CLIENT_SEARCHED]: (_p) => null,
+
+  // Company events
+  [WebhookEvent.COMPANY_CREATED]: (p: { company: Company }) => `**${p.company?.name || 'N/A'}**`,
+  [WebhookEvent.COMPANY_UPDATED]: (p: { company: Company }) =>
+    `**${p.company?.name || 'N/A'}**\nUpdate completed`,
+  [WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED]: (p: { company: Company }) =>
+    `**${p.company?.name || 'N/A'}**\nEmail template updated`,
+
+  // Webhook events
+  [WebhookEvent.WEBHOOK_CREATED]: (p) => `Type: ${p.webhook?.type || 'N/A'}\nURL: ${p.webhook?.url || 'N/A'}`,
+  [WebhookEvent.WEBHOOK_UPDATED]: (p) => `Type: ${p.webhook?.type || 'N/A'}\nURL: ${p.webhook?.url || 'N/A'}`,
+  [WebhookEvent.WEBHOOK_DELETED]: (p) => `Type: ${p.webhook?.type || 'N/A'}`,
+};
+
 export function formatPayloadForEvent(event: WebhookEvent, payload: any): string {
-  const formatters: Record<WebhookEvent, (p: any) => string | null> = {
-    // Document events (generic)
-    [WebhookEvent.DOCUMENT_CREATED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nCreated`,
-    [WebhookEvent.DOCUMENT_SENT]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nSent`,
-    [WebhookEvent.DOCUMENT_SEND_FAILED]: (p) =>
-      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n⚠️ Send failed: ${p.error || 'N/A'}`,
-    [WebhookEvent.DOCUMENT_AUTHORITY_EVENT]: (p) =>
-      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🏛️ ${p.providerId || 'N/A'}: ${p.statusCode || 'N/A'}`,
-    [WebhookEvent.DOCUMENT_DELETED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\nDeleted`,
-    // `settlement` is the extra fact the payload carries for this event.
-    [WebhookEvent.DOCUMENT_SETTLED]: (p) =>
-      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✅ Settled (paid: ${p.settlement?.paidMinor ?? 'N/A'}, credited: ${p.settlement?.creditedMinor ?? 'N/A'})`,
-    [WebhookEvent.DOCUMENT_CANCELLED]: (p) =>
-      `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n🚫 Cancelled`,
-    [WebhookEvent.DOCUMENT_SIGNED]: (p) => `**${documentLabel(p.typeId)} #${documentNumber(p)}**\n✍️ Signed`,
-
-    // Client events
-    [WebhookEvent.CLIENT_CREATED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}\nCity: ${p.client?.city || 'N/A'}`,
-    [WebhookEvent.CLIENT_UPDATED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**\nEmail: ${p.client?.contactEmail || 'N/A'}`,
-    [WebhookEvent.CLIENT_DELETED]: (p) =>
-      `**${(p.client?.type === 'COMPANY' ? p.client?.name : `${p.client?.contactFirstname} ${p.client?.contactLastname}`) || 'N/A'}**`,
-    [WebhookEvent.CLIENT_SEARCHED]: (_p) => null,
-
-    // Company events
-    [WebhookEvent.COMPANY_CREATED]: (p: { company: Company }) => `**${p.company?.name || 'N/A'}**`,
-    [WebhookEvent.COMPANY_UPDATED]: (p: { company: Company }) =>
-      `**${p.company?.name || 'N/A'}**\nUpdate completed`,
-    [WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED]: (p: { company: Company }) =>
-      `**${p.company?.name || 'N/A'}**\nEmail template updated`,
-
-    // Webhook events
-    [WebhookEvent.WEBHOOK_CREATED]: (p) =>
-      `Type: ${p.webhook?.type || 'N/A'}\nURL: ${p.webhook?.url || 'N/A'}`,
-    [WebhookEvent.WEBHOOK_UPDATED]: (p) =>
-      `Type: ${p.webhook?.type || 'N/A'}\nURL: ${p.webhook?.url || 'N/A'}`,
-    [WebhookEvent.WEBHOOK_DELETED]: (p) => `Type: ${p.webhook?.type || 'N/A'}`,
-  };
-
-  const formatter = formatters[event];
+  const formatter = FORMATTERS[event];
   if (formatter) {
     try {
       const result = formatter(payload);

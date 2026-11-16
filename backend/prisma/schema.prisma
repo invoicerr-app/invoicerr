@@ -2594,6 +2594,11 @@ model PendingStorageErasure {
 // checked in application code first: `authority-events.persistence.ts`'s own `createMany({
 // skipDuplicates: true })` is what makes two genuinely CONCURRENT sweep passes race safely — proven
 // against a real Redis/Postgres by `queue/__tests__/document-conformity-queue.redis.spec.ts`.
+//
+// `subjectKey` widens that key for a provider that legitimately reports the SAME code more than once
+// per document: a declaration provider journals one `SUBMITTED` for the invoice and one per recorded
+// payment, so each payment declaration carries its payment id here. Empty string, never NULL, for
+// every other row: Postgres treats NULLs as distinct, which would silently disable the dedup above.
 model DocumentAuthorityEvent {
   id         String           @id @default(cuid())
   company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -2641,8 +2646,12 @@ model DocumentAuthorityEvent {
   observedAt DateTime
   createdAt  DateTime @default(now())
 
+  // What this event is about within the document: "" for the document itself, a payment id for a
+  // payment declaration. Part of the dedup key below; see this model's own header.
+  subjectKey String @default("")
+
   // See this model's own header — the dedup key a concurrent sweep race relies on.
-  @@unique([documentId, providerId, statusCode])
+  @@unique([documentId, providerId, statusCode, subjectKey])
   @@index([companyId, documentId])
 }
 

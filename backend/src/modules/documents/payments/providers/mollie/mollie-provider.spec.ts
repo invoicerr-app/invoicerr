@@ -113,18 +113,17 @@ describe('MollieProvider.parseWebhookEvent', () => {
     expect(client.getPayment).toHaveBeenCalledWith('test_key', 'tr_1');
   });
 
-  it.each([
-    'failed',
-    'canceled',
-    'expired',
-  ])('maps a "%s" re-fetched payment to "checkout.failed"', async (status) => {
-    const client = fakeClient();
-    client.getPayment.mockResolvedValue({ status });
-    const provider = new MollieProvider(client);
+  it.each(['failed', 'canceled', 'expired'])(
+    'maps a "%s" re-fetched payment to "checkout.failed"',
+    async (status) => {
+      const client = fakeClient();
+      client.getPayment.mockResolvedValue({ status });
+      const provider = new MollieProvider(client);
 
-    const event = await provider.parseWebhookEvent('id=tr_1', {}, { apiKey: 'test_key' });
-    expect(event).toEqual({ type: 'checkout.failed', providerSessionId: 'tr_1' });
-  });
+      const event = await provider.parseWebhookEvent('id=tr_1', {}, { apiKey: 'test_key' });
+      expect(event).toEqual({ type: 'checkout.failed', providerSessionId: 'tr_1' });
+    },
+  );
 
   it.each(['open', 'pending', 'authorized'])('maps an in-flight "%s" status to "ignored"', async (status) => {
     const client = fakeClient();

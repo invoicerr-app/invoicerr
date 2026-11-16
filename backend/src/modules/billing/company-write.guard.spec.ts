@@ -55,30 +55,29 @@ describe('CompanyWriteGuard', () => {
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });
 
-  it.each([
-    'GET',
-    'HEAD',
-    'OPTIONS',
-  ])('allows a %s request from a seated member, even for a blocked company', async (method) => {
-    process.env[BILLING_FLAG_NAME] = 'true';
-    getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
-    assertSeat.mockResolvedValue(undefined);
-    await expect(guard.canActivate(createContext(method, 'company-1'))).resolves.toBe(true);
-    expect(getOrCreate).not.toHaveBeenCalled();
-    expect(assertSeat).toHaveBeenCalledWith('company-1', 'user-1');
-  });
+  it.each(['GET', 'HEAD', 'OPTIONS'])(
+    'allows a %s request from a seated member, even for a blocked company',
+    async (method) => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
+      assertSeat.mockResolvedValue(undefined);
+      await expect(guard.canActivate(createContext(method, 'company-1'))).resolves.toBe(true);
+      expect(getOrCreate).not.toHaveBeenCalled();
+      expect(assertSeat).toHaveBeenCalledWith('company-1', 'user-1');
+    },
+  );
 
   // Product decision 2026-11-13: a member with no seat cannot even read.
-  it.each([
-    'GET',
-    'HEAD',
-  ])('refuses a %s request from a member with no seat, named SEAT_REQUIRED', async (method) => {
-    process.env[BILLING_FLAG_NAME] = 'true';
-    assertSeat.mockRejectedValue(new ForbiddenException({ message: 'no seat', code: 'SEAT_REQUIRED' }));
-    const err = await guard.canActivate(createContext(method, 'company-1')).catch((e) => e);
-    expect(err).toBeInstanceOf(ForbiddenException);
-    expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
-  });
+  it.each(['GET', 'HEAD'])(
+    'refuses a %s request from a member with no seat, named SEAT_REQUIRED',
+    async (method) => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      assertSeat.mockRejectedValue(new ForbiddenException({ message: 'no seat', code: 'SEAT_REQUIRED' }));
+      const err = await guard.canActivate(createContext(method, 'company-1')).catch((e) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
+    },
+  );
 
   it('refuses a read through an API key whose holder has no seat', async () => {
     process.env[BILLING_FLAG_NAME] = 'true';

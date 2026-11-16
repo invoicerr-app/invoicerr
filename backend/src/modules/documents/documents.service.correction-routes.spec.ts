@@ -104,17 +104,16 @@ describe('DocumentsService#getCorrectionRoutes — the four gates', () => {
     // The country lookup never even runs for a draft — the 409 is structural, not data-dependent.
   });
 
-  it.each([
-    'sending',
-    'sent',
-    'send_failed',
-  ])('gate 4 passes for a "%s" (issued) invoice — only "draft" is refused', async (status) => {
-    (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
-    mockDocument({ status });
-    const { service } = buildService();
-    const decision = await service.getCorrectionRoutes('company-1', 'invoice', 'doc-1');
-    expect(decision.countryCode).toBe('FR');
-  });
+  it.each(['sending', 'sent', 'send_failed'])(
+    'gate 4 passes for a "%s" (issued) invoice — only "draft" is refused',
+    async (status) => {
+      (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('FR');
+      mockDocument({ status });
+      const { service } = buildService();
+      const decision = await service.getCorrectionRoutes('company-1', 'invoice', 'doc-1');
+      expect(decision.countryCode).toBe('FR');
+    },
+  );
 
   it('gate 5 (404, NAMED): the seller country has no correction-routes file at all', async () => {
     (countryPolicy.resolveCompanyCountryCode as Mock).mockResolvedValue('JP');

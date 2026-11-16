@@ -75,54 +75,52 @@ function openTemplateEditor(typeId: string) {
 /** The TipTap contenteditable root of whichever template's editor is open. */
 const EDITOR = '[data-testid="rich-text-editor"] .ProseMirror';
 
-/** How long the editor is given to catch up on a gesture before the next one is allowed to steal
- *  its focus: it reads a selection made through the DOM on its own next pass, and it restores the
- *  caret once, 20 ms after being focused. A click on any toolbar button BLURS the editor and drops
- *  a pass still pending, so an action that depends on such a selection has to wait for that pass. */
-const EDITOR_SETTLE_MS = 100;
+/** The slice of TipTap's editor that this spec reads; TipTap hangs the instance on its root node. */
+type EditorRoot = HTMLElement & {
+	editor: {
+		state: {
+			selection: { from: number; to: number; empty: boolean };
+			doc: { textBetween(from: number, to: number): string };
+		};
+	};
+};
+
+/** Selects the whole text of `label` as a DOM Range, which is what a user's drag builds. */
+function selectNodeText(label: HTMLElement) {
+	const range = label.ownerDocument.createRange();
+	range.selectNodeContents(label);
+	const selection = label.ownerDocument.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
 
 /**
  * Turns the last paragraph of the open editor into a link, through the real toolbar.
  *
- * The text is selected as a DOM Range, which is what a user's drag builds, but the editor's own
- * state only ADOPTS that selection on its next pass. When the toolbar click gets there first, the
- * link command runs against the collapsed caret instead: TipTap then stores the mark for the next
- * typed character rather than wrapping a range, so no anchor is rendered and no update ever reaches
- * the preview. That is a lost race, not a broken screen, so a failed attempt is retried (the editor
- * is re-focused and the range set again) and the caller asserts the anchor in the EDITOR, before
- * looking at the preview at all.
+ * ProseMirror only adopts a selection made through the DOM on its own next pass, and the focus it
+ * has just received resyncs the DOM selection from its state 20 ms later, which can collapse a
+ * range it has not adopted yet. A toolbar click that wins either race runs the link command against
+ * the collapsed caret, so no anchor is ever rendered. The toolbar is therefore only touched once the
+ * editor's own state holds exactly the paragraph's text; the range is set again while it does not.
  */
-function linkLastParagraph(href: string, attempt = 0) {
-	// A retry starts with the editor blurred, and a popover left open would swallow the next click.
-	if (attempt > 0) {
-		cy.get("body").then(() => {
-			if (Cypress.$('[data-cy="rich-text-editor-link-input"]').length > 0) {
-				cy.get('[data-cy="rich-text-editor-link-input"]').type("{esc}");
-			}
-		});
-	}
-
+function linkLastParagraph(href: string) {
 	cy.get(EDITOR).focus();
-	cy.wait(EDITOR_SETTLE_MS);
 	cy.get(`${EDITOR} p`)
 		.last()
-		.then(($label) => {
-			const label = $label[0];
-			const range = label.ownerDocument.createRange();
-			range.selectNodeContents(label);
-			const selection = label.ownerDocument.getSelection();
-			selection?.removeAllRanges();
-			selection?.addRange(range);
+		.invoke("text")
+		.then((labelText) => {
+			cy.get(EDITOR).should(($root) => {
+				const root = $root[0] as EditorRoot;
+				const { selection, doc } = root.editor.state;
+				const adopted = !selection.empty && doc.textBetween(selection.from, selection.to) === labelText;
+				if (!adopted) selectNodeText(Cypress._.last(root.querySelectorAll("p")) as HTMLElement);
+				expect(adopted, "the editor holds the paragraph as its selection").to.equal(true);
+			});
 		});
-	cy.wait(EDITOR_SETTLE_MS);
 
 	cy.get('[data-cy="rich-text-editor-link"]').click();
 	cy.get('[data-cy="rich-text-editor-link-input"]').type(href, { parseSpecialCharSequences: false });
 	cy.get('[data-cy="rich-text-editor-link-apply"]').click();
-
-	cy.get("body").then(() => {
-		if (Cypress.$(`${EDITOR} a`).length === 0 && attempt < 2) linkLastParagraph(href, attempt + 1);
-	});
 }
 
 describe("Settings — email templates per document type", () => {
@@ -252,8 +250,7 @@ describe("Settings — email templates per document type", () => {
 		// only "Edit"/"Close" sits directly on a template row, every other action is one level down) —
 		// it needs no open editor, since it operates on the STORED override, not on unsaved form state.
 		cy.get('[data-cy="email-template-menu-quote"]', { timeout: 15000 }).click();
-		cy.wait(50);
-		cy.get('[data-cy="email-template-reset-quote"]').click();
+		cy.get('[data-cy="email-template-reset-quote"]').should("be.visible").click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "reset to its default");
 
 		getDocumentEmailTemplate("quote").then((restored) => {

@@ -216,6 +216,14 @@ the branch alone. A pull request with merge conflicts gets no run at all until t
 
 Old `pr-*` tags are not deleted automatically.
 
+## nginx config smoke test
+
+`nginx-smoke.yml` runs on a pull request that touches `nginx.conf`. It serves a stand-in web root
+through `nginx.conf` on `nginx:bookworm`, the base of `server-image`, and checks that `/`, a bundle
+under `/assets/` and `/config.json` answer 200 from `/usr/share/nginx/html`, and that a missing bundle
+stays a 404. On this base a `location` without a `root` looks under `/etc/nginx/html`, so a file that
+exists answers 404, and the browser shows a blank page.
+
 ## Docker image vulnerability scanning (Trivy)
 
 Every image this repository builds and pushes gets scanned for known OS package and Node
@@ -240,6 +248,22 @@ run forever with nothing anyone could do about it, so it is reported but not gat
 gate to HIGH, or dropping `ignore-unfixed`, is a deliberate follow-up once the current baseline of
 findings is known and triaged, not something to do by just editing the `severity` input.
 :::
+
+## Docker smoke test (non-root image)
+
+`docker-smoke.yml` runs on a pull request that touches the Dockerfile, `entrypoint.sh`, `nginx.conf`,
+the backend's dependencies, the PDF renderer or the Helm chart. It builds the image (never pushed),
+starts it with Postgres, Redis and a fresh volume on `/data` the way `docker-compose.yml` does, and
+fails if:
+
+- any process in the container runs as root, or the container's user is not uid `10001`;
+- `/api/health` or the frontend on port 80 does not answer;
+- a PDF does not render through the image's own `render-pdf.js`, once with the default settings and
+  once with `CHROMIUM_SANDBOX=on` under `seccomp=unconfined`, the setting the docs give for the
+  Chromium sandbox. A notice on the run says whether the default settings used the sandbox.
+
+A second job renders the Helm chart and checks the api and worker pods keep `runAsNonRoot`, uid
+`10001`, `allowPrivilegeEscalation: false` and every capability dropped.
 
 ## API latency
 

@@ -264,24 +264,24 @@ describe('DocumentActionProcessor', () => {
       expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
     });
 
-    it.each([
-      SCHEDULE_SWEEP_JOB_NAME,
-      SCHEDULE_OCCURRENCE_JOB_NAME,
-    ])('never calls markSendFailed for a "%s" job — its own failure is recorded elsewhere (DocumentScheduleSweepRunner)', async (jobName) => {
-      const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
-      const processor = new DocumentActionProcessor(documentsService);
-      const job = {
-        id: 'x',
-        name: jobName,
-        data: { companyId: 'c', typeId: 'invoice', documentId: 'd', actionId: 'duplicate' },
-        attemptsMade: 1,
-        opts: { attempts: 1 },
-      } as unknown as import('bullmq').Job<DocumentActionJobData>;
+    it.each([SCHEDULE_SWEEP_JOB_NAME, SCHEDULE_OCCURRENCE_JOB_NAME])(
+      'never calls markSendFailed for a "%s" job — its own failure is recorded elsewhere (DocumentScheduleSweepRunner)',
+      async (jobName) => {
+        const documentsService = { runAction: vi.fn(), getType: vi.fn() } as unknown as DocumentsService;
+        const processor = new DocumentActionProcessor(documentsService);
+        const job = {
+          id: 'x',
+          name: jobName,
+          data: { companyId: 'c', typeId: 'invoice', documentId: 'd', actionId: 'duplicate' },
+          attemptsMade: 1,
+          opts: { attempts: 1 },
+        } as unknown as import('bullmq').Job<DocumentActionJobData>;
 
-      await processor.onFailed(job, new Error('boom'));
+        await processor.onFailed(job, new Error('boom'));
 
-      expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
-    });
+        expect(markSendFailedModule.markSendFailed).not.toHaveBeenCalled();
+      },
+    );
 
     describe('a declarative report job', () => {
       const REPORT_DATA: ReportJobData = {

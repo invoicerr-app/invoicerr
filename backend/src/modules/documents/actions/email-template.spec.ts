@@ -634,14 +634,17 @@ describe('credit-note and expense own emailTranslations — gap 3 of the multili
   it.each([
     ['credit-note', buildCreditNoteDescriptor()],
     ['expense', buildExpenseDescriptor()],
-  ] as const)('%s declares its own translated default for every non-English supported language', (_name, descriptor) => {
-    for (const language of NON_ENGLISH_LANGUAGES) {
-      const translated = descriptor.emailTranslations?.[language];
-      expect(translated).toBeDefined();
-      // Genuinely translated — never the English default surviving under a language key by accident.
-      expect(translated).not.toEqual(descriptor.email);
-    }
-  });
+  ] as const)(
+    '%s declares its own translated default for every non-English supported language',
+    (_name, descriptor) => {
+      for (const language of NON_ENGLISH_LANGUAGES) {
+        const translated = descriptor.emailTranslations?.[language];
+        expect(translated).toBeDefined();
+        // Genuinely translated — never the English default surviving under a language key by accident.
+        expect(translated).not.toEqual(descriptor.email);
+      }
+    },
+  );
 
   it.each([
     ['credit-note', buildCreditNoteDescriptor()],

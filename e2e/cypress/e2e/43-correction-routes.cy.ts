@@ -397,9 +397,11 @@ describe("Correct — the screen, browser level", () => {
 					// screen, the creation dialog already opens, the invoice reference is already
 					// resolved (the backend label combines client + issue date — never an empty field)
 					// and `lockedFromReference` already locks the currency, with no manual search at all.
+					// The list page forwards the pre-linked seed to its `/new` route at once, so the
+					// bare list URL is only transient; wait for where the navigation settles.
 					cy.location("pathname", { timeout: 10000 }).should(
 						"eq",
-						"/documents/credit-note",
+						"/documents/credit-note/new",
 					);
 					cy.get('[data-cy="document-create-dialog"]', {
 						timeout: 10000,
@@ -467,9 +469,10 @@ describe("Correct — the screen, browser level", () => {
 		cy.get(
 			'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
 		).click();
+		// The list page forwards the pre-linked seed to its `/new` route at once.
 		cy.location("pathname", { timeout: 10000 }).should(
 			"eq",
-			"/documents/credit-note",
+			"/documents/credit-note/new",
 		);
 		// The pre-linked invoice has resolved once it locks the currency.
 		cy.get('[data-cy="document-field-currency-input"] button', { timeout: 10000 }).should("be.disabled");
@@ -1056,9 +1059,10 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				// THE REAL mechanism, pre-linked — never a stub: navigation to the INVOICE screen (never
 				// credit-note: Poland has no separate credit-note instrument, countries/data/pl.json (section "correctionRoutes")'s
 				// own CREDIT_NOTE citation), a fresh create dialog opens.
+				// The list page forwards the pre-linked seed to its `/new` route at once.
 				cy.location("pathname", { timeout: 10000 }).should(
 					"eq",
-					"/documents/invoice",
+					"/documents/invoice/new",
 				);
 				cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
 					"be.visible",

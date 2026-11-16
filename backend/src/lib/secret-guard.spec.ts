@@ -51,17 +51,13 @@ describe('findInsecureSecret', () => {
     });
   });
 
-  it.each([
-    'changeme',
-    'CHANGEME',
-    'secret',
-    'password',
-    'your-secret',
-    'your_super_secret_key',
-  ])('flags known/obvious placeholder %p', (value) => {
-    const finding = findInsecureSecret({ BETTER_AUTH_SECRET: value });
-    expect(finding?.reason).toBe('placeholder');
-  });
+  it.each(['changeme', 'CHANGEME', 'secret', 'password', 'your-secret', 'your_super_secret_key'])(
+    'flags known/obvious placeholder %p',
+    (value) => {
+      const finding = findInsecureSecret({ BETTER_AUTH_SECRET: value });
+      expect(finding?.reason).toBe('placeholder');
+    },
+  );
 
   it('only checks the EFFECTIVE secret: a placeholder left in the unused variable does not trip the guard', () => {
     // BETTER_AUTH_SECRET wins the `||` fallback in lib/auth.ts — a stale JWT_SECRET placeholder

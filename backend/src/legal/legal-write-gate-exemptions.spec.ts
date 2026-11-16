@@ -64,25 +64,28 @@ describe('LegalAcceptanceGuard — write-gate exemption wiring (read/export/term
       DangerController.prototype.resetCompanyData,
       DangerController,
     ],
-  ])('%s carries NO exemption — it changes what the account holds while the relationship continues', (_name, method, handler, klass) => {
-    it('is refused with a pending re-acceptance, same as any other business write', async () => {
-      getPending.mockResolvedValue(['terms-of-service']);
-      const guard = new LegalAcceptanceGuard(new Reflector());
+  ])(
+    '%s carries NO exemption — it changes what the account holds while the relationship continues',
+    (_name, method, handler, klass) => {
+      it('is refused with a pending re-acceptance, same as any other business write', async () => {
+        getPending.mockResolvedValue(['terms-of-service']);
+        const guard = new LegalAcceptanceGuard(new Reflector());
 
-      const action = guard.canActivate(buildContext(method as string, handler as never, klass));
+        const action = guard.canActivate(buildContext(method as string, handler as never, klass));
 
-      await expect(action).rejects.toBeInstanceOf(ForbiddenException);
-      const error = await action.catch((e) => e);
-      expect(error.getResponse()).toMatchObject({ code: LEGAL_ACCEPTANCE_REQUIRED_CODE });
-    });
+        await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+        const error = await action.catch((e) => e);
+        expect(error.getResponse()).toMatchObject({ code: LEGAL_ACCEPTANCE_REQUIRED_CODE });
+      });
 
-    it('is reached once nothing is pending', async () => {
-      getPending.mockResolvedValue([]);
-      const guard = new LegalAcceptanceGuard(new Reflector());
+      it('is reached once nothing is pending', async () => {
+        getPending.mockResolvedValue([]);
+        const guard = new LegalAcceptanceGuard(new Reflector());
 
-      await expect(guard.canActivate(buildContext(method as string, handler as never, klass))).resolves.toBe(
-        true,
-      );
-    });
-  });
+        await expect(
+          guard.canActivate(buildContext(method as string, handler as never, klass)),
+        ).resolves.toBe(true);
+      });
+    },
+  );
 });

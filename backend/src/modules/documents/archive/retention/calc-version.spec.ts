@@ -62,14 +62,15 @@ describe('retentionBasis text: OLD vs NEW algorithm, over every real country fil
   const issueDate = new Date('2026-09-10T00:00:00.000Z');
   const archivedAt = new Date('2026-09-13T12:00:00.000Z');
 
-  it.each(
-    ALL_RETENTION_FILES.map((file) => [file.countryCode, file] as const),
-  )('%s: same retentionBasis text either way (text is NOT a usable discriminator)', (_code, file) => {
-    const oldResult = oldComputeRetention(file, archivedAt);
-    const newResult = computeRetention(file, archivedAt, issueDate);
+  it.each(ALL_RETENTION_FILES.map((file) => [file.countryCode, file] as const))(
+    '%s: same retentionBasis text either way (text is NOT a usable discriminator)',
+    (_code, file) => {
+      const oldResult = oldComputeRetention(file, archivedAt);
+      const newResult = computeRetention(file, archivedAt, issueDate);
 
-    expect(newResult.retentionBasis).toBe(inCurrentWording(oldResult.retentionBasis));
-  });
+      expect(newResult.retentionBasis).toBe(inCurrentWording(oldResult.retentionBasis));
+    },
+  );
 
   it('FR: the computed DATE nonetheless differs between the two algorithms — a real defect, invisible in the text', () => {
     const fr = ALL_RETENTION_FILES.find((f) => f.countryCode === 'FR');

@@ -93,59 +93,59 @@ const PL_USD_DOCUMENT = {
   vatNationalCurrencyVatMinor: 84_000,
 };
 
-describe.each([
-  ['CII', ciiFormatProvider] as const,
-  ['UBL', ublFormatProvider] as const,
-])('%s: issue #517, BT-6/BT-111 on a foreign-currency invoice, REAL vendored Schematron', (label, provider) => {
-  // BT-5/BT-6 are named `cbc:DocumentCurrencyCode`/`cbc:TaxCurrencyCode` in UBL but
-  // `ram:InvoiceCurrencyCode`/`ram:TaxCurrencyCode` in CII (@e-invoice-eu/core's own per-syntax
-  // mapping of the SAME semantic input this bridge builds, see `build-semantic-invoice.ts`'s own
-  // header), read back with the element name each REAL rendered syntax actually uses, never a
-  // syntax-blind guess.
-  const documentCurrencyTag = label === 'CII' ? 'ram:InvoiceCurrencyCode' : 'cbc:DocumentCurrencyCode';
-  const taxCurrencyTag = label === 'CII' ? 'ram:TaxCurrencyCode' : 'cbc:TaxCurrencyCode';
+describe.each([['CII', ciiFormatProvider] as const, ['UBL', ublFormatProvider] as const])(
+  '%s: issue #517, BT-6/BT-111 on a foreign-currency invoice, REAL vendored Schematron',
+  (label, provider) => {
+    // BT-5/BT-6 are named `cbc:DocumentCurrencyCode`/`cbc:TaxCurrencyCode` in UBL but
+    // `ram:InvoiceCurrencyCode`/`ram:TaxCurrencyCode` in CII (@e-invoice-eu/core's own per-syntax
+    // mapping of the SAME semantic input this bridge builds, see `build-semantic-invoice.ts`'s own
+    // header), read back with the element name each REAL rendered syntax actually uses, never a
+    // syntax-blind guess.
+    const documentCurrencyTag = label === 'CII' ? 'ram:InvoiceCurrencyCode' : 'cbc:DocumentCurrencyCode';
+    const taxCurrencyTag = label === 'CII' ? 'ram:TaxCurrencyCode' : 'cbc:TaxCurrencyCode';
 
-  it('FRANCE (USD invoice): the REAL Schematron accepts BT-6=EUR and BT-111=170.00', async () => {
-    const result = await provider.build(descriptor, FR_USD_DOCUMENT, FR_SELLER, US_BUYER);
+    it('FRANCE (USD invoice): the REAL Schematron accepts BT-6=EUR and BT-111=170.00', async () => {
+      const result = await provider.build(descriptor, FR_USD_DOCUMENT, FR_SELLER, US_BUYER);
 
-    // A failing assertion here prints EVERY BR-* rule the vendored Schematron actually fired, never
-    // swallowed: this is a gate, not a report.
-    expect(result.validation.errors).toEqual([]);
-    expect(result.validation.valid).toBe(true);
+      // A failing assertion here prints EVERY BR-* rule the vendored Schematron actually fired, never
+      // swallowed: this is a gate, not a report.
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
 
-    const xml = Buffer.from(result.bytes).toString('utf-8');
-    // BT-5 (invoice currency) stays USD, untouched.
-    expect(xml).toContain(`<${documentCurrencyTag}>USD</${documentCurrencyTag}>`);
-    // BT-6.
-    expect(xml).toContain(`<${taxCurrencyTag}>EUR</${taxCurrencyTag}>`);
-    // BT-111: the SECOND tax total, carrying only the converted amount (no per-rate breakdown, see
-    // `build-semantic-invoice.ts`'s own header on why there is no EN 16931 field for a converted
-    // TAXABLE amount).
-    expect(xml).toContain('170.00');
-  }, 30_000);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      // BT-5 (invoice currency) stays USD, untouched.
+      expect(xml).toContain(`<${documentCurrencyTag}>USD</${documentCurrencyTag}>`);
+      // BT-6.
+      expect(xml).toContain(`<${taxCurrencyTag}>EUR</${taxCurrencyTag}>`);
+      // BT-111: the SECOND tax total, carrying only the converted amount (no per-rate breakdown, see
+      // `build-semantic-invoice.ts`'s own header on why there is no EN 16931 field for a converted
+      // TAXABLE amount).
+      expect(xml).toContain('170.00');
+    }, 30_000);
 
-  it('POLAND (USD invoice): the REAL Schematron accepts BT-6=PLN and BT-111=840.00', async () => {
-    const result = await provider.build(descriptor, PL_USD_DOCUMENT, PL_SELLER, US_BUYER);
+    it('POLAND (USD invoice): the REAL Schematron accepts BT-6=PLN and BT-111=840.00', async () => {
+      const result = await provider.build(descriptor, PL_USD_DOCUMENT, PL_SELLER, US_BUYER);
 
-    expect(result.validation.errors).toEqual([]);
-    expect(result.validation.valid).toBe(true);
+      expect(result.validation.errors).toEqual([]);
+      expect(result.validation.valid).toBe(true);
 
-    const xml = Buffer.from(result.bytes).toString('utf-8');
-    expect(xml).toContain(`<${documentCurrencyTag}>USD</${documentCurrencyTag}>`);
-    expect(xml).toContain(`<${taxCurrencyTag}>PLN</${taxCurrencyTag}>`);
-    expect(xml).toContain('840.00');
-  }, 30_000);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      expect(xml).toContain(`<${documentCurrencyTag}>USD</${documentCurrencyTag}>`);
+      expect(xml).toContain(`<${taxCurrencyTag}>PLN</${taxCurrencyTag}>`);
+      expect(xml).toContain('840.00');
+    }, 30_000);
 
-  it('a document with NO vatNationalCurrency (the ordinary case) never emits BT-6/a second TaxTotal: byte-for-byte the pre-existing single-TaxTotal output', async () => {
-    const plainDocument = {
-      ...FR_USD_DOCUMENT,
-      vatNationalCurrency: undefined,
-      vatNationalCurrencyVatMinor: undefined,
-    };
-    const result = await provider.build(descriptor, plainDocument, FR_SELLER, US_BUYER);
+    it('a document with NO vatNationalCurrency (the ordinary case) never emits BT-6/a second TaxTotal: byte-for-byte the pre-existing single-TaxTotal output', async () => {
+      const plainDocument = {
+        ...FR_USD_DOCUMENT,
+        vatNationalCurrency: undefined,
+        vatNationalCurrencyVatMinor: undefined,
+      };
+      const result = await provider.build(descriptor, plainDocument, FR_SELLER, US_BUYER);
 
-    expect(result.validation.errors).toEqual([]);
-    const xml = Buffer.from(result.bytes).toString('utf-8');
-    expect(xml).not.toContain('TaxCurrencyCode');
-  }, 30_000);
-});
+      expect(result.validation.errors).toEqual([]);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      expect(xml).not.toContain('TaxCurrencyCode');
+    }, 30_000);
+  },
+);

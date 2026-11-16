@@ -86,7 +86,10 @@ beforeAll(async () => {
   const launch = vi.spyOn(chromium, 'launch');
   try {
     await renderPdf('<html><body>warm-up</body></html>');
-    browser = await launch.mock.results[0].value;
+    // The LAST launch is the browser renderPdf kept: in CHROMIUM_SANDBOX=auto a host that refuses the
+    // sandbox (AppArmor-restricted user namespaces on the Ubuntu CI runner) rejects the first,
+    // sandboxed launch and render-pdf.ts falls back to a second, --no-sandbox one.
+    browser = await launch.mock.results[launch.mock.results.length - 1].value;
   } catch (error) {
     if (process.env.CI || !String(error).includes('PDF renderer unavailable')) throw error;
     rendererAvailable = false;

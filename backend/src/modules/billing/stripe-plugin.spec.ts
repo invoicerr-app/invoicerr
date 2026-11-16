@@ -29,16 +29,14 @@ const ORG = 'organization';
 const COMPANY = { customerType: ORG };
 
 describe('canActOnCompanySubscription', () => {
-  it.each([
-    'upgrade-subscription',
-    'cancel-subscription',
-    'restore-subscription',
-    'billing-portal',
-  ])('lets an owner or admin %s, never a plain member', async (action) => {
-    expect(await canActOnCompanySubscription(access, 'owner', 'c1', action, COMPANY)).toBe(true);
-    expect(await canActOnCompanySubscription(access, 'admin', 'c1', action, COMPANY)).toBe(true);
-    expect(await canActOnCompanySubscription(access, 'member', 'c1', action, COMPANY)).toBe(false);
-  });
+  it.each(['upgrade-subscription', 'cancel-subscription', 'restore-subscription', 'billing-portal'])(
+    'lets an owner or admin %s, never a plain member',
+    async (action) => {
+      expect(await canActOnCompanySubscription(access, 'owner', 'c1', action, COMPANY)).toBe(true);
+      expect(await canActOnCompanySubscription(access, 'admin', 'c1', action, COMPANY)).toBe(true);
+      expect(await canActOnCompanySubscription(access, 'member', 'c1', action, COMPANY)).toBe(false);
+    },
+  );
 
   it('lets any member list the company subscription', async () => {
     expect(await canActOnCompanySubscription(access, 'member', 'c1', 'list-subscription', COMPANY)).toBe(

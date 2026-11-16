@@ -198,6 +198,24 @@ Setting a `POSTGRES_PASSWORD` that does not match what is actually inside the da
 fail to connect; it does not reset anything inside Postgres by itself.
 :::
 
+:::warning[Upgrading to an image that runs as non-root]
+The image runs as the unprivileged user `invoicerr` (uid/gid `10001`), no longer as root. A volume
+created by an older image is still owned by root, and the container stops at boot with an error that
+names the directory it cannot write. Hand the volume to that user once, then start again:
+
+```bash
+docker compose down
+docker run --rm -u 0 -v <project>_documents_data:/data ghcr.io/invoicerr-app/invoicerr:latest \
+  chown -R 10001:10001 /data
+docker compose up -d
+```
+
+(`docker volume ls` shows the volume's real name.) A bind mount needs the same `chown` on the host
+directory. If you cannot change ownership right away, `user: "0:0"` under the `invoicerr` service runs
+the container as root, exactly like the older images, until you can. A volume created by the new
+image is owned by `10001` from the start and needs nothing.
+:::
+
 One thing that is **not** automatic: if a release actually **drops a country** from one of the
 document-action policy / identifier-requirements / B2G-routing catalogs, removing that country's
 database rows is a deliberate, separate step — every automatic boot path only ever adds/updates
@@ -230,11 +248,33 @@ These are set under the `invoicerr` service's `environment` key.
 | `DOCUMENTS_INBOUND_DIR` | Where received invoices, expense attachments and company logos are stored. Same rule: inside the volume (`/data/documents-inbound`). |
 | `DOCUMENTS_TEMP_DIR` | Optional. The one directory this process uses for short-lived files: today, the ZIP built for a company data export before it is streamed or mailed. Defaults to `<system temp>/invoicerr-temp`; point it at a tmpfs or a size-capped volume on a small host. Each unit of work gets its own `0700` subdirectory, deleted as soon as it is read back, and a directory left by a crash is deleted after 24 hours. The root must be a real directory, not a symlink, owned by the user the backend runs as and with mode `0700`; the sweep only removes directories the application created, so anything else under that root is left alone. |
 | `DEFAULT_LOCALE` | Optional. Instance-wide fallback language (`en`, `fr`, `it`, `pl`, `de`, or `pt`) for any document or system email whose client/company/user never set one of their own — see [Document Language](./document-language.md) for the full cascade. Left unset, everything renders in English exactly as before. |
+| `CHROMIUM_SANDBOX` | Optional, `auto` by default. Whether the Chromium that renders PDFs runs inside its own sandbox, an extra wall between a malicious document and the rest of the container. `auto` uses the sandbox when the kernel and the container runtime allow it, and otherwise renders without it and logs a warning once. `on` refuses to render without it; `off` never uses it. Docker's default seccomp profile blocks the user namespaces the sandbox needs, so `auto` falls back; see [Chromium sandbox](#chromium-sandbox) to turn it on. |
 | `PDF_RENDER_CONCURRENCY` | Optional, `4` by default. How many PDFs one process renders at once; further requests wait their turn. Up to this many Chromium pages stay open between renders so the next one starts faster, which costs memory even when idle. |
 | `SESSION_CACHE_TTL_MS` | Optional, `10000` (10 seconds) by default. How long the API keeps a signed-in session in memory instead of reading it from the database on every request. Sign-outs, company switches and membership or role changes are still seen by the very next request. `0` turns the cache off. |
 | `ADDRESS_AUTOCOMPLETE_URL` | Optional, empty by default. Turns on address suggestions (street, house number, postcode, city, country) while typing a client's or your company's address - see [Address autocomplete](#address-autocomplete) below. |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
+
+## Chromium sandbox
+
+PDFs are rendered by a headless Chromium inside the container, which runs as a non-root user. On top of
+that, Chromium can isolate each page in its own sandbox, which needs Linux user namespaces. Docker's
+default seccomp profile blocks them, so with the default `CHROMIUM_SANDBOX=auto` the log says
+`Chromium sandbox unavailable, falling back to --no-sandbox` and PDFs render without it. To render
+inside the sandbox, relax seccomp for the `invoicerr` service and make the sandbox mandatory:
+
+```yaml
+services:
+  invoicerr:
+    security_opt:
+      - seccomp=unconfined # or seccomp=/path/to/profile.json allowing clone/unshare with CLONE_NEWUSER
+    environment:
+      - CHROMIUM_SANDBOX=on
+```
+
+No extra capability (`cap_add`) is needed. `seccomp=unconfined` lifts the system call filter for the
+whole container: a custom profile, Docker's default one plus `clone`, `unshare` and `setns`, is the
+narrower choice. CI renders a PDF both ways on every change to the image (`docker-smoke.yml`).
 
 ## HTTP on a LAN or HTTPS behind a reverse proxy
 

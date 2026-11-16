@@ -274,16 +274,14 @@ describe('@RequiresScope / @RequiresDocumentTypeScope — wired onto the REST co
     },
   ];
 
-  it.each(cases)('$name#$method carries the expected scope metadata', ({
-    Controller,
-    method,
-    key,
-    expected,
-  }) => {
-    const handler = (Controller.prototype as unknown as Record<string, object>)[method];
-    expect(handler).toBeDefined();
-    expect(Reflect.getMetadata(key, handler)).toEqual(expected);
-  });
+  it.each(cases)(
+    '$name#$method carries the expected scope metadata',
+    ({ Controller, method, key, expected }) => {
+      const handler = (Controller.prototype as unknown as Record<string, object>)[method];
+      expect(handler).toBeDefined();
+      expect(Reflect.getMetadata(key, handler)).toEqual(expected);
+    },
+  );
 });
 
 describe('@RequiresScope / @RequiresDocumentTypeScope — real refusal on a real route', () => {

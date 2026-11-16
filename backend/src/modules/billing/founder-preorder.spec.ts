@@ -106,24 +106,24 @@ describe('recording a pre-order from the Stripe webhook', () => {
     data: { object: session },
   });
 
-  it.each([
-    'checkout.session.completed',
-    'checkout.session.async_payment_succeeded',
-  ])('records a paid session once, keyed by its id (%s)', async (type) => {
-    expect(await recordFounderPreorderEvent(event(type))).toBe('recorded');
-    expect(prisma.founderPreorder.upsert).toHaveBeenCalledWith({
-      where: { stripeCheckoutSessionId: 'cs_1' },
-      create: {
-        stripeCheckoutSessionId: 'cs_1',
-        stripeCustomerId: 'cus_buyer',
-        email: 'buyer@example.com',
-        seats: 3,
-        interval: 'yearly',
-        paidAt: new Date(1_800_000_000 * 1000),
-      },
-      update: {},
-    });
-  });
+  it.each(['checkout.session.completed', 'checkout.session.async_payment_succeeded'])(
+    'records a paid session once, keyed by its id (%s)',
+    async (type) => {
+      expect(await recordFounderPreorderEvent(event(type))).toBe('recorded');
+      expect(prisma.founderPreorder.upsert).toHaveBeenCalledWith({
+        where: { stripeCheckoutSessionId: 'cs_1' },
+        create: {
+          stripeCheckoutSessionId: 'cs_1',
+          stripeCustomerId: 'cus_buyer',
+          email: 'buyer@example.com',
+          seats: 3,
+          interval: 'yearly',
+          paidAt: new Date(1_800_000_000 * 1000),
+        },
+        update: {},
+      });
+    },
+  );
 
   it('ignores other events and sessions that are not paid pre-orders', async () => {
     expect(await recordFounderPreorderEvent(event('customer.subscription.updated'))).toBe('ignored');
