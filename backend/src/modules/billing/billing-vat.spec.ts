@@ -2,6 +2,12 @@ import { vi } from 'vitest';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
 import {
+  type CompanyTaxProfile,
+  type CustomerVatClient,
+  customerVatFooter,
+  isReverseChargeCompany,
+  stripeEuVatValue,
+  syncCustomerForCheckout,
   applyVatMentionToInvoiceEvent,
   assertBillingVatConfiguredForBoot,
   readBillingVatMode,
@@ -64,12 +70,10 @@ describe('vatCheckoutSessionParams', () => {
     expect(vatCheckoutSessionParams('franchise')).toEqual({});
   });
 
-  it('charges VAT through Stripe Tax, with an address and an optional VAT number', () => {
+  it('charges VAT through Stripe Tax and never lets Checkout rewrite the synced customer', () => {
     expect(vatCheckoutSessionParams('charge')).toEqual({
       automatic_tax: { enabled: true },
-      billing_address_collection: 'required',
-      tax_id_collection: { enabled: true },
-      customer_update: { address: 'auto', name: 'auto' },
+      customer_update: { address: 'never', name: 'never' },
     });
   });
 });
@@ -153,5 +157,114 @@ describe('applyVatMentionToInvoiceEvent', () => {
     await expect(
       applyVatMentionToInvoiceEvent(invoiceCreated({ id: 'in_1', status: 'draft' }), 'franchise', update),
     ).rejects.toThrow('stripe down');
+  });
+});
+
+const profile = (countryCode: string | null, vat: CompanyTaxProfile['vat']): CompanyTaxProfile => ({
+  address: { line1: '1 Hauptstrasse', postalCode: '10115', city: 'Berlin', countryCode },
+  vat,
+});
+const VALID_DE = profile('DE', { value: 'DE123456789', validationStatus: 'VALID' });
+
+describe('isReverseChargeCompany', () => {
+  it('is true for a company in another EU member state with a VAT number validated by VIES', () => {
+    expect(isReverseChargeCompany(VALID_DE)).toBe(true);
+  });
+
+  it.each([
+    ['a French company', profile('FR', { value: 'FR12345678901', validationStatus: 'VALID' })],
+    ['a VAT number not validated', profile('DE', { value: 'DE123456789', validationStatus: null })],
+    ['an invalid VAT number', profile('DE', { value: 'DE123456789', validationStatus: 'INVALID' })],
+    ['VIES unavailable', profile('DE', { value: 'DE123456789', validationStatus: 'UNAVAILABLE' })],
+    ['no VAT number', profile('DE', null)],
+    ['a company outside the EU', profile('CH', { value: 'CHE123456789', validationStatus: 'VALID' })],
+    ['an unknown country', profile(null, { value: 'DE123456789', validationStatus: 'VALID' })],
+  ])('is false for %s', (_name, p) => {
+    expect(isReverseChargeCompany(p)).toBe(false);
+  });
+});
+
+describe('customerVatFooter', () => {
+  it('is the franchise mention for every company under the franchise', () => {
+    expect(customerVatFooter('franchise', VALID_DE)).toBe(VAT_FRANCHISE_MENTION);
+    expect(customerVatFooter('franchise', null)).toBe(VAT_FRANCHISE_MENTION);
+  });
+
+  it('is the reverse charge mention for a reverse charged company, none otherwise', () => {
+    expect(customerVatFooter('charge', VALID_DE)).toBe(VAT_REVERSE_CHARGE_MENTION);
+    expect(customerVatFooter('charge', profile('FR', null))).toBe('');
+  });
+});
+
+describe('stripeEuVatValue', () => {
+  it('keeps a prefixed number, strips spaces and dots', () => {
+    expect(stripeEuVatValue(profile('DE', { value: 'de 123.456.789', validationStatus: 'VALID' }))).toBe(
+      'DE123456789',
+    );
+  });
+
+  it('adds the country prefix, EL for Greece', () => {
+    expect(stripeEuVatValue(profile('IT', { value: '12345678901', validationStatus: 'VALID' }))).toBe(
+      'IT12345678901',
+    );
+    expect(stripeEuVatValue(profile('GR', { value: '123456789', validationStatus: 'VALID' }))).toBe(
+      'EL123456789',
+    );
+  });
+});
+
+describe('syncCustomerForCheckout', () => {
+  function recordingClient(existing: Array<{ id: string; type: string; value: string }> = []) {
+    const calls: unknown[][] = [];
+    const client: CustomerVatClient = {
+      updateCustomer: async (...args) => calls.push(['update', ...args]),
+      listTaxIds: async () => existing,
+      createTaxId: async (...args) => calls.push(['createTaxId', ...args]),
+      deleteTaxId: async (...args) => calls.push(['deleteTaxId', ...args]),
+    };
+    return { calls, client };
+  }
+
+  it('writes only the franchise footer under the franchise', async () => {
+    const { calls, client } = recordingClient();
+    await syncCustomerForCheckout('franchise', 'cus_1', VALID_DE, client);
+    expect(calls).toEqual([['update', 'cus_1', { invoice_settings: { footer: VAT_FRANCHISE_MENTION } }]]);
+  });
+
+  it('gives a reverse charged company its mention, address and EU VAT number', async () => {
+    const { calls, client } = recordingClient();
+    await syncCustomerForCheckout('charge', 'cus_1', VALID_DE, client);
+    expect(calls).toEqual([
+      [
+        'update',
+        'cus_1',
+        {
+          invoice_settings: { footer: VAT_REVERSE_CHARGE_MENTION },
+          address: {
+            line1: '1 Hauptstrasse',
+            line2: undefined,
+            postal_code: '10115',
+            city: 'Berlin',
+            state: undefined,
+            country: 'DE',
+          },
+        },
+      ],
+      ['createTaxId', 'cus_1', { type: 'eu_vat', value: 'DE123456789' }],
+    ]);
+  });
+
+  it('does not add the EU VAT number twice', async () => {
+    const { calls, client } = recordingClient([{ id: 'txi_1', type: 'eu_vat', value: 'DE123456789' }]);
+    await syncCustomerForCheckout('charge', 'cus_1', VALID_DE, client);
+    expect(calls.map((c) => c[0])).toEqual(['update']);
+  });
+
+  it('removes an EU VAT number that would let Stripe reverse charge an invoice with no mention', async () => {
+    const notValidated = profile('DE', { value: 'DE123456789', validationStatus: null });
+    const { calls, client } = recordingClient([{ id: 'txi_1', type: 'eu_vat', value: 'DE123456789' }]);
+    await syncCustomerForCheckout('charge', 'cus_1', notValidated, client);
+    expect(calls[0]).toMatchObject(['update', 'cus_1', { invoice_settings: { footer: '' } }]);
+    expect(calls.slice(1)).toEqual([['deleteTaxId', 'cus_1', 'txi_1']]);
   });
 });

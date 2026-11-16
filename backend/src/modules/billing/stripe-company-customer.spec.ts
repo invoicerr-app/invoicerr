@@ -19,6 +19,7 @@ vi.mock('./stripe-client', () => ({
   stripeClientFor: () => ({
     customers: {
       search: async () => ({ data: [] }),
+      update: async (id: string) => ({ id }),
       list: async function* () {},
       create: async (params: Record<string, unknown>) => {
         stripeCalls.customersCreated.push(params);
@@ -80,6 +81,7 @@ function setup({ founder = false } = {}) {
       companyHoldsFounderGrid: async (companyId) => founder && companyId === 'company-1',
       findCompanyCustomerDetails: async (companyId) =>
         companyId === 'company-1' ? { name: 'Acme Corp', email: 'billing@acme.test' } : null,
+      findCompanyTaxProfile: async () => null,
     },
     ENV,
   );

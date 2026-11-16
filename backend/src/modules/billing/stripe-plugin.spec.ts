@@ -144,7 +144,11 @@ const checkoutParamsOf = (plugin: ReturnType<typeof buildStripePlugin>) =>
   )?.getCheckoutSessionParams;
 
 describe('buildStripePlugin', () => {
-  const deps = { ...access, findCompanyCustomerDetails: async () => null };
+  const deps = {
+    ...access,
+    findCompanyCustomerDetails: async () => null,
+    findCompanyTaxProfile: async () => null,
+  };
   const ENABLED = {
     [BILLING_FLAG_NAME]: 'true',
     STRIPE_SECRET_KEY: 'sk_test_x',
@@ -205,18 +209,18 @@ describe('buildStripePlugin', () => {
 
   it('adds nothing to a checkout under the franchise, the default', async () => {
     const plugin = buildStripePlugin(deps, ENABLED);
-    const result = await checkoutParamsOf(plugin)?.({} as never, undefined, {} as never);
+    const result = await checkoutParamsOf(plugin)?.({ subscription: { referenceId: 'c1' } }, undefined, {});
     expect(result).toEqual({ params: {} });
   });
 
-  it('turns on automatic tax and VAT number collection at checkout when VAT is charged', async () => {
+  it('turns on automatic tax at checkout when VAT is charged, keeping the synced address', async () => {
     const plugin = buildStripePlugin(deps, { ...ENABLED, BILLING_VAT: 'charge' });
-    const result = await checkoutParamsOf(plugin)?.({} as never, undefined, {} as never);
+    const result = await checkoutParamsOf(plugin)?.({ subscription: { referenceId: 'c1' } }, undefined, {});
     expect(result?.params).toMatchObject({
       automatic_tax: { enabled: true },
-      tax_id_collection: { enabled: true },
-      billing_address_collection: 'required',
+      customer_update: { address: 'never', name: 'never' },
     });
+    expect(result?.params).not.toHaveProperty('tax_id_collection');
   });
 
   it('creates the company customer with the franchise mention as its invoice footer', async () => {

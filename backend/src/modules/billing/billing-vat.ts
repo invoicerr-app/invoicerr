@@ -4,17 +4,20 @@
  * Two modes, chosen by `BILLING_VAT` (read once at boot, refused when unknown):
  *
  * - `franchise` (default): the publisher is under the French VAT franchise. No VAT is charged and
- *   every subscription invoice carries the mention required by article 293 B of the CGI. The mention
- *   is set as the invoice footer of each company's Stripe customer when it is created, so the first
- *   invoice of a checkout already carries it, and on every draft subscription invoice Stripe sends
- *   (`invoice.created`), so a customer created before the mention existed gets it from its next one.
- * - `charge`: VAT is charged through Stripe Tax. Checkout turns on automatic tax, requires a billing
- *   address and offers to enter a VAT number. Stripe Tax applies French VAT (20%) to French customers
- *   and to EU consumers, and the reverse charge to an EU business whose VAT number it accepted; it
- *   then reports `reverse_charge` as the taxability reason of the invoice taxes. A draft invoice in
- *   that case gets the reverse charge mention (article 283-2 of the CGI, article 196 of directive
- *   2006/112/EC) as its footer; any other draft invoice gets no footer, so a franchise mention left on
- *   an older customer never reaches an invoice that charges VAT.
+ *   every subscription invoice carries the mention required by article 293 B of the CGI.
+ * - `charge`: VAT is charged through Stripe Tax. French VAT (20%) applies, except the reverse charge
+ *   for a company established in another EU member state whose VAT number Invoicerr validated
+ *   (`PartyIdentifier` scheme `VAT`, `validationStatus` `VALID`, from VIES). Such an invoice carries
+ *   the reverse charge mention (article 283-2 of the CGI, article 196 of directive 2006/112/EC).
+ *
+ * The first invoice of a checkout is finalized by Stripe the moment the subscription starts, so it
+ * cannot be edited afterwards. Its mention therefore comes from the company's Stripe customer, synced
+ * from the company record right before the checkout session is created (`syncCustomerForCheckout`):
+ * the invoice footer (the mention of the mode, or none), the billing address, and the EU VAT number
+ * only when it gives the reverse charge. Checkout then neither collects a VAT number nor rewrites the
+ * address, so Stripe Tax and the footer decide from the same data. Renewals are also covered by the
+ * `invoice.created` webhook, which sets the footer of each draft invoice from the taxes Stripe Tax
+ * actually applied.
  *
  * Stripe Tax itself (head office address, French registration) is configured once in the Stripe
  * dashboard; the code only switches it on per checkout. Subscriptions created under the franchise
@@ -68,12 +71,137 @@ export function vatCheckoutSessionParams(mode: BillingVatMode): Stripe.Checkout.
   if (mode === 'franchise') return {};
   return {
     automatic_tax: { enabled: true },
-    billing_address_collection: 'required',
-    tax_id_collection: { enabled: true },
-    // Stripe refuses a VAT number collected on an existing customer unless Checkout may write the
-    // name and address it was entered with back onto that customer.
-    customer_update: { address: 'auto', name: 'auto' },
+    // The address and VAT number are the company's, synced onto the customer before checkout
+    // (`syncCustomerForCheckout`); Checkout must not replace them, or the footer of the first invoice
+    // could disagree with the tax Stripe applies.
+    customer_update: { address: 'never', name: 'never' },
   };
+}
+
+/** EU member states (ISO 3166-1 alpha-2). Greece is `GR` here; Stripe and VIES prefixes say `EL`. */
+const EU_MEMBER_STATES = new Set([
+  'AT',
+  'BE',
+  'BG',
+  'CY',
+  'CZ',
+  'DE',
+  'DK',
+  'EE',
+  'ES',
+  'FI',
+  'FR',
+  'GR',
+  'HR',
+  'HU',
+  'IE',
+  'IT',
+  'LT',
+  'LU',
+  'LV',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SE',
+  'SI',
+  'SK',
+]);
+const PUBLISHER_COUNTRY = 'FR';
+
+/** What the tax of a company's subscription is decided from: its own record in Invoicerr. */
+export interface CompanyTaxProfile {
+  address: {
+    line1: string;
+    line2?: string | null;
+    postalCode: string;
+    city: string;
+    state?: string | null;
+    countryCode: string | null;
+  };
+  /** The company's VAT number and whether Invoicerr validated it (VIES). */
+  vat: { value: string; validationStatus: string | null } | null;
+}
+
+export type FindCompanyTaxProfile = (companyId: string) => Promise<CompanyTaxProfile | null>;
+
+const countryOf = (profile: CompanyTaxProfile): string =>
+  (profile.address.countryCode ?? '').trim().toUpperCase();
+
+/** The reverse charge applies to a company established in another EU member state with a VAT number
+ *  Invoicerr validated. */
+export function isReverseChargeCompany(profile: CompanyTaxProfile): boolean {
+  const country = countryOf(profile);
+  return (
+    country !== PUBLISHER_COUNTRY &&
+    EU_MEMBER_STATES.has(country) &&
+    profile.vat !== null &&
+    profile.vat.value.trim() !== '' &&
+    profile.vat.validationStatus === 'VALID'
+  );
+}
+
+/** The footer every invoice of this customer starts with, the first one included. */
+export function customerVatFooter(mode: BillingVatMode, profile: CompanyTaxProfile | null): string {
+  if (mode === 'franchise') return VAT_FRANCHISE_MENTION;
+  return profile !== null && isReverseChargeCompany(profile) ? VAT_REVERSE_CHARGE_MENTION : '';
+}
+
+/** A VAT number as Stripe's `eu_vat` type wants it: country prefix included, no spaces. */
+export function stripeEuVatValue(profile: CompanyTaxProfile): string {
+  const raw = (profile.vat?.value ?? '').replace(/[\s.-]/g, '').toUpperCase();
+  const prefix = countryOf(profile) === 'GR' ? 'EL' : countryOf(profile);
+  return /^[A-Z]{2}/.test(raw) ? raw : `${prefix}${raw}`;
+}
+
+/** The Stripe calls syncing a customer needs. */
+export interface CustomerVatClient {
+  updateCustomer: (customerId: string, params: Stripe.CustomerUpdateParams) => Promise<unknown>;
+  listTaxIds: (customerId: string) => Promise<Array<{ id: string; type: string; value: string }>>;
+  createTaxId: (customerId: string, params: { type: 'eu_vat'; value: string }) => Promise<unknown>;
+  deleteTaxId: (customerId: string, taxId: string) => Promise<unknown>;
+}
+
+/**
+ * Brings the company's Stripe customer in line with its record before a checkout session is created,
+ * so the first invoice, finalized at once, already carries the right mention. Under the franchise only
+ * the footer is written. With VAT charged: the address, the footer, and the `eu_vat` tax id exactly
+ * when the company gets the reverse charge (any other `eu_vat` id is removed, so Stripe Tax cannot
+ * reverse charge an invoice whose footer says nothing). A failed call throws: no checkout opens on a
+ * customer whose mention is not set.
+ */
+export async function syncCustomerForCheckout(
+  mode: BillingVatMode,
+  customerId: string,
+  profile: CompanyTaxProfile | null,
+  client: CustomerVatClient,
+): Promise<void> {
+  const footer = customerVatFooter(mode, profile);
+  if (mode === 'franchise' || profile === null) {
+    await client.updateCustomer(customerId, { invoice_settings: { footer } });
+    return;
+  }
+  const { address } = profile;
+  await client.updateCustomer(customerId, {
+    invoice_settings: { footer },
+    address: {
+      line1: address.line1,
+      line2: address.line2 ?? undefined,
+      postal_code: address.postalCode,
+      city: address.city,
+      state: address.state ?? undefined,
+      country: countryOf(profile) || undefined,
+    },
+  });
+  const wanted = isReverseChargeCompany(profile) ? stripeEuVatValue(profile) : null;
+  const euVatIds = (await client.listTaxIds(customerId)).filter((taxId) => taxId.type === 'eu_vat');
+  for (const taxId of euVatIds) {
+    if (taxId.value.toUpperCase() !== wanted) await client.deleteTaxId(customerId, taxId.id);
+  }
+  if (wanted !== null && !euVatIds.some((taxId) => taxId.value.toUpperCase() === wanted)) {
+    await client.createTaxId(customerId, { type: 'eu_vat', value: wanted });
+  }
 }
 
 /** The fields of a Stripe invoice the footer decision reads. */

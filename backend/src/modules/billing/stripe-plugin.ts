@@ -3,7 +3,10 @@ import { isBillingEnabled } from './billing-flag';
 import {
   applyVatMentionToInvoiceEvent,
   assertBillingVatConfiguredForBoot,
+  type CustomerVatClient,
+  type FindCompanyTaxProfile,
   readBillingVatMode,
+  syncCustomerForCheckout,
   vatCheckoutSessionParams,
   vatCustomerCreateParams,
 } from './billing-vat';
@@ -14,6 +17,7 @@ import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from 
 import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
 
 type StripePluginOptions = Parameters<typeof stripe>[0];
+type CheckoutSubscription = { referenceId: string; stripeCustomerId?: string | null };
 type CheckoutSessionParamsHook = NonNullable<
   Extract<NonNullable<StripePluginOptions['subscription']>, { enabled: true }>['getCheckoutSessionParams']
 >;
@@ -40,6 +44,18 @@ export interface CompanyBillingAccess {
 
 export interface StripePluginDeps extends CompanyBillingAccess {
   findCompanyCustomerDetails: FindCompanyCustomerDetails;
+  findCompanyTaxProfile: FindCompanyTaxProfile;
+}
+
+/** The Stripe calls `billing-vat.ts` makes on a customer, over the real client. */
+export function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
+  const client = () => stripeClientFor(env);
+  return {
+    updateCustomer: (customerId, params) => client().customers.update(customerId, params),
+    listTaxIds: async (customerId) => (await client().customers.listTaxIds(customerId, { limit: 100 })).data,
+    createTaxId: (customerId, params) => client().customers.createTaxId(customerId, params),
+    deleteTaxId: (customerId, taxId) => client().customers.deleteTaxId(customerId, taxId),
+  };
 }
 
 const READ_ONLY_ACTIONS = new Set(['list-subscription']);
@@ -104,7 +120,12 @@ export const subscriptionSyncHooks = {
 };
 
 export function buildStripePlugin(
-  { findCompanyRole, companyHoldsFounderGrid, findCompanyCustomerDetails }: StripePluginDeps,
+  {
+    findCompanyRole,
+    companyHoldsFounderGrid,
+    findCompanyCustomerDetails,
+    findCompanyTaxProfile,
+  }: StripePluginDeps,
   env: NodeJS.ProcessEnv = process.env,
 ) {
   if (!isBillingEnabled(env)) return null;
@@ -144,11 +165,20 @@ export function buildStripePlugin(
     subscription: {
       enabled: true,
       plans,
-      // Automatic tax, billing address and VAT number when VAT is charged; nothing under the franchise.
+      // The first invoice is finalized as soon as the checkout completes, so the company's customer
+      // gets its VAT mention, address and VAT number before the session is created (`billing-vat.ts`).
       // The plugin types the ESM build of `stripe`, this backend the CJS one (same shape).
-      getCheckoutSessionParams: (() => ({
-        params: vatCheckoutSessionParams(vatMode),
-      })) as unknown as CheckoutSessionParamsHook,
+      getCheckoutSessionParams: (async ({ subscription }: { subscription: CheckoutSubscription }) => {
+        if (subscription.stripeCustomerId) {
+          await syncCustomerForCheckout(
+            vatMode,
+            subscription.stripeCustomerId,
+            await findCompanyTaxProfile(subscription.referenceId),
+            customerVatClientFor(env),
+          );
+        }
+        return { params: vatCheckoutSessionParams(vatMode) };
+      }) as unknown as CheckoutSessionParamsHook,
       authorizeReference: ({ user, referenceId, action }, ctx) =>
         canActOnCompanySubscription(
           { findCompanyRole, companyHoldsFounderGrid },
