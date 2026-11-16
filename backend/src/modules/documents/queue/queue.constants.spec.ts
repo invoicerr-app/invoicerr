@@ -28,14 +28,11 @@ describe('readDocumentActionQueueAttempts', () => {
   // Every one of these makes `attemptsMade + 1 < attempts` false on the FIRST failure, so the job is
   // abandoned rather than retried: `NaN` compares false against anything, and `0`/a negative number
   // are already below `attemptsMade + 1`. A malformed value must therefore never reach BullMQ.
-  it.each([
-    'three',
-    '',
-    'NaN',
-    '0',
-    '-1',
-  ])('refuses %p and falls back to 3 attempts rather than silently disabling retries', (value) => {
-    process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS = value;
-    expect(readDocumentActionQueueAttempts()).toBe(3);
-  });
+  it.each(['three', '', 'NaN', '0', '-1'])(
+    'refuses %p and falls back to 3 attempts rather than silently disabling retries',
+    (value) => {
+      process.env.DOCUMENT_ACTION_QUEUE_ATTEMPTS = value;
+      expect(readDocumentActionQueueAttempts()).toBe(3);
+    },
+  );
 });

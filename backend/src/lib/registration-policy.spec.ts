@@ -9,17 +9,12 @@ describe('isSignupDisabledByEnv', () => {
     expect(isSignupDisabledByEnv({})).toBe(false);
   });
 
-  it.each([
-    '1',
-    'true',
-    'TRUE',
-    'True',
-    ' 1 ',
-    ' true ',
-    '\ttrue\n',
-  ])('is true for DISABLE_AUTH=%p', (value) => {
-    expect(isSignupDisabledByEnv({ DISABLE_AUTH: value })).toBe(true);
-  });
+  it.each(['1', 'true', 'TRUE', 'True', ' 1 ', ' true ', '\ttrue\n'])(
+    'is true for DISABLE_AUTH=%p',
+    (value) => {
+      expect(isSignupDisabledByEnv({ DISABLE_AUTH: value })).toBe(true);
+    },
+  );
 
   it.each(['0', 'false', 'FALSE', 'yes', '2', '', '  '])('is false for DISABLE_AUTH=%p', (value) => {
     expect(isSignupDisabledByEnv({ DISABLE_AUTH: value })).toBe(false);

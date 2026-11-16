@@ -134,108 +134,105 @@ const LEGS = [
   },
 ] as const;
 
-describe.each(LEGS)('intra-Community distance sale of GOODS, $seller seller → $buyer consumer', ({
-  seller,
-  buyer,
-  vatRateId,
-  sellerStandardRate,
-  destinationStandardRate,
-}) => {
-  it('the seller can declare GOODS at all — the overlay puts the choice on this country’s own invoice line', () => {
-    expect(supplyTypeOptions(seller)).toContain('GOODS');
-  });
+describe.each(LEGS)(
+  'intra-Community distance sale of GOODS, $seller seller → $buyer consumer',
+  ({ seller, buyer, vatRateId, sellerStandardRate, destinationStandardRate }) => {
+    it('the seller can declare GOODS at all — the overlay puts the choice on this country’s own invoice line', () => {
+      expect(supplyTypeOptions(seller)).toContain('GOODS');
+    });
 
-  it('no declared distance-sales regime: the send is REFUSED by name, never taxed on a guess (art. 59c)', () => {
-    const call = () =>
-      resolveInvoiceCrossBorderTax({
-        seller: { countryCode: seller },
+    it('no declared distance-sales regime: the send is REFUSED by name, never taxed on a guess (art. 59c)', () => {
+      const call = () =>
+        resolveInvoiceCrossBorderTax({
+          seller: { countryCode: seller },
+          buyer: { countryCode: buyer },
+          data: goodsInvoice(seller, vatRateId),
+        });
+      expect(call).toThrow(UndeclaredDistanceSalesRegimeError);
+      expect(call).toThrow(/EUR 10 000/);
+      expect(call).toThrow(new RegExp(`from ${seller} to ${buyer}`));
+    });
+
+    it(`ORIGIN (below the threshold): taxed in ${seller} at ${seller}'s own standard rate — art. 32, art. 59c(1)`, () => {
+      const resolved = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: seller, distanceSalesRegime: 'ORIGIN' },
         buyer: { countryCode: buyer },
         data: goodsInvoice(seller, vatRateId),
       });
-    expect(call).toThrow(UndeclaredDistanceSalesRegimeError);
-    expect(call).toThrow(/EUR 10 000/);
-    expect(call).toThrow(new RegExp(`from ${seller} to ${buyer}`));
-  });
 
-  it(`ORIGIN (below the threshold): taxed in ${seller} at ${seller}'s own standard rate — art. 32, art. 59c(1)`, () => {
-    const resolved = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: seller, distanceSalesRegime: 'ORIGIN' },
-      buyer: { countryCode: buyer },
-      data: goodsInvoice(seller, vatRateId),
+      const line = (resolved.data.lines as Record<string, unknown>[])[0];
+      expect(line.vatRate).toBe(String(sellerStandardRate));
+      expect(line.__crossBorderCategory).toBe('S');
+
+      const totals = computeDocumentTotals(descriptor, resolved.data);
+      expect(totals.netMinor).toBe(NET_MINOR);
+      expect(totals.vatMinor).toBe((NET_MINOR * sellerStandardRate) / 100);
+      expect(totals.grossMinor).toBe(NET_MINOR + (NET_MINOR * sellerStandardRate) / 100);
+      // An origin-taxed supply goes on the ordinary domestic VAT return, so nothing to caveat.
+      expect(resolved.warnings).toEqual([]);
     });
 
-    const line = (resolved.data.lines as Record<string, unknown>[])[0];
-    expect(line.vatRate).toBe(String(sellerStandardRate));
-    expect(line.__crossBorderCategory).toBe('S');
+    it(`DESTINATION (threshold crossed, or opted in): taxed in ${buyer} at ${buyer}'s own standard rate — art. 33(a), One-Stop-Shop`, () => {
+      const resolved = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: seller, distanceSalesRegime: 'DESTINATION' },
+        buyer: { countryCode: buyer },
+        data: goodsInvoice(seller, vatRateId),
+      });
 
-    const totals = computeDocumentTotals(descriptor, resolved.data);
-    expect(totals.netMinor).toBe(NET_MINOR);
-    expect(totals.vatMinor).toBe((NET_MINOR * sellerStandardRate) / 100);
-    expect(totals.grossMinor).toBe(NET_MINOR + (NET_MINOR * sellerStandardRate) / 100);
-    // An origin-taxed supply goes on the ordinary domestic VAT return, so nothing to caveat.
-    expect(resolved.warnings).toEqual([]);
-  });
+      const line = (resolved.data.lines as Record<string, unknown>[])[0];
+      expect(line.vatRate).toBe(String(destinationStandardRate));
+      expect(line.__crossBorderCategory).toBe('S');
 
-  it(`DESTINATION (threshold crossed, or opted in): taxed in ${buyer} at ${buyer}'s own standard rate — art. 33(a), One-Stop-Shop`, () => {
-    const resolved = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: seller, distanceSalesRegime: 'DESTINATION' },
-      buyer: { countryCode: buyer },
-      data: goodsInvoice(seller, vatRateId),
+      const totals = computeDocumentTotals(descriptor, resolved.data);
+      expect(totals.netMinor).toBe(NET_MINOR);
+      expect(totals.vatMinor).toBe((NET_MINOR * destinationStandardRate) / 100);
+      expect(totals.grossMinor).toBe(NET_MINOR + (NET_MINOR * destinationStandardRate) / 100);
+      // The destination's own reduced rates are not modelled; the branch says so instead of applying
+      // a standard rate silently.
+      expect(resolved.warnings).toHaveLength(1);
+      expect(formatServerMessage(resolved.warnings[0])).toMatch(
+        new RegExp(`STANDARD VAT rate \\(${destinationStandardRate}%\\)`),
+      );
     });
 
-    const line = (resolved.data.lines as Record<string, unknown>[])[0];
-    expect(line.vatRate).toBe(String(destinationStandardRate));
-    expect(line.__crossBorderCategory).toBe('S');
+    it('the two regimes genuinely differ for this pair — the choice the overlay unlocks is worth money', () => {
+      const origin = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: seller, distanceSalesRegime: 'ORIGIN' },
+        buyer: { countryCode: buyer },
+        data: goodsInvoice(seller, vatRateId),
+      });
+      const destination = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: seller, distanceSalesRegime: 'DESTINATION' },
+        buyer: { countryCode: buyer },
+        data: goodsInvoice(seller, vatRateId),
+      });
 
-    const totals = computeDocumentTotals(descriptor, resolved.data);
-    expect(totals.netMinor).toBe(NET_MINOR);
-    expect(totals.vatMinor).toBe((NET_MINOR * destinationStandardRate) / 100);
-    expect(totals.grossMinor).toBe(NET_MINOR + (NET_MINOR * destinationStandardRate) / 100);
-    // The destination's own reduced rates are not modelled; the branch says so instead of applying
-    // a standard rate silently.
-    expect(resolved.warnings).toHaveLength(1);
-    expect(formatServerMessage(resolved.warnings[0])).toMatch(
-      new RegExp(`STANDARD VAT rate \\(${destinationStandardRate}%\\)`),
-    );
-  });
-
-  it('the two regimes genuinely differ for this pair — the choice the overlay unlocks is worth money', () => {
-    const origin = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: seller, distanceSalesRegime: 'ORIGIN' },
-      buyer: { countryCode: buyer },
-      data: goodsInvoice(seller, vatRateId),
-    });
-    const destination = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: seller, distanceSalesRegime: 'DESTINATION' },
-      buyer: { countryCode: buyer },
-      data: goodsInvoice(seller, vatRateId),
+      const originVat = computeDocumentTotals(descriptor, origin.data).vatMinor;
+      const destinationVat = computeDocumentTotals(descriptor, destination.data).vatMinor;
+      expect(destinationVat - originVat).toBe(
+        (NET_MINOR * (destinationStandardRate - sellerStandardRate)) / 100,
+      );
+      expect(originVat).not.toBe(destinationVat);
     });
 
-    const originVat = computeDocumentTotals(descriptor, origin.data).vatMinor;
-    const destinationVat = computeDocumentTotals(descriptor, destination.data).vatMinor;
-    expect(destinationVat - originVat).toBe(
-      (NET_MINOR * (destinationStandardRate - sellerStandardRate)) / 100,
-    );
-    expect(originVat).not.toBe(destinationVat);
-  });
+    it('a line that declares NOTHING is untouched by this change: still a SERVICE, still the seller’s own rate, still no block (art. 45)', () => {
+      // The guarantee for every invoice stored before this overlay existed — none of them carries the
+      // key, and none of them may change meaning because the screen gained a control.
+      const resolved = resolveInvoiceCrossBorderTax({
+        seller: { countryCode: seller },
+        buyer: { countryCode: buyer },
+        data: undeclaredInvoice(vatRateId),
+      });
 
-  it('a line that declares NOTHING is untouched by this change: still a SERVICE, still the seller’s own rate, still no block (art. 45)', () => {
-    // The guarantee for every invoice stored before this overlay existed — none of them carries the
-    // key, and none of them may change meaning because the screen gained a control.
-    const resolved = resolveInvoiceCrossBorderTax({
-      seller: { countryCode: seller },
-      buyer: { countryCode: buyer },
-      data: undeclaredInvoice(vatRateId),
+      const line = (resolved.data.lines as Record<string, unknown>[])[0];
+      expect(line.vatRate).toBe(String(sellerStandardRate));
+      expect(line.__crossBorderCategory).toBe('S');
+      expect(computeDocumentTotals(descriptor, resolved.data).vatMinor).toBe(
+        (NET_MINOR * sellerStandardRate) / 100,
+      );
+      expect(formatServerMessages(resolved.warnings)).toContainEqual(
+        expect.stringContaining('no declared supply type'),
+      );
     });
-
-    const line = (resolved.data.lines as Record<string, unknown>[])[0];
-    expect(line.vatRate).toBe(String(sellerStandardRate));
-    expect(line.__crossBorderCategory).toBe('S');
-    expect(computeDocumentTotals(descriptor, resolved.data).vatMinor).toBe(
-      (NET_MINOR * sellerStandardRate) / 100,
-    );
-    expect(formatServerMessages(resolved.warnings)).toContainEqual(
-      expect.stringContaining('no declared supply type'),
-    );
-  });
-});
+  },
+);

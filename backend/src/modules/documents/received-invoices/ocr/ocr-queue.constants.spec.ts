@@ -32,14 +32,11 @@ describe('readReceivedInvoiceOcrConcurrency', () => {
   // A concurrency of `0` (or anything else non-positive) would silently stop this worker from ever
   // consuming an OCR job at all — every upload left "pending" forever with nothing in the logs to
   // explain why. A malformed value must therefore fall back to the default, never reach `@Processor()`.
-  it.each([
-    'four',
-    '',
-    'NaN',
-    '0',
-    '-1',
-  ])('refuses %p and falls back to 1 rather than silently stopping the worker', (value) => {
-    process.env.RECEIVED_INVOICE_OCR_CONCURRENCY = value;
-    expect(readReceivedInvoiceOcrConcurrency()).toBe(1);
-  });
+  it.each(['four', '', 'NaN', '0', '-1'])(
+    'refuses %p and falls back to 1 rather than silently stopping the worker',
+    (value) => {
+      process.env.RECEIVED_INVOICE_OCR_CONCURRENCY = value;
+      expect(readReceivedInvoiceOcrConcurrency()).toBe(1);
+    },
+  );
 });

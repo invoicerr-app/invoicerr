@@ -313,11 +313,12 @@ describe('countries/data: the forms require what every invoice requires', () => 
     expect(() => loadComposedCountryFilesFrom(tmpDir)).not.toThrow();
   });
 
-  it.each(
-    Object.entries(independentlyParsedFiles()).filter(([, file]) => file.identifiers),
-  )('shipped %s.json: no drift', (_countryCode, file) => {
-    expect(formDriftsFrom(file.identifiers!)).toEqual([]);
-  });
+  it.each(Object.entries(independentlyParsedFiles()).filter(([, file]) => file.identifiers))(
+    'shipped %s.json: no drift',
+    (_countryCode, file) => {
+      expect(formDriftsFrom(file.identifiers!)).toEqual([]);
+    },
+  );
 });
 
 describe('countries/data: an empty catalogue directory is refused', () => {

@@ -168,31 +168,27 @@ describe('seedCountryCompany: invoice balances', () => {
 });
 
 describe('seedCountryCompany: company-law details', () => {
-  it.each([
-    'DE',
-    'DZ',
-    'FR',
-    'IT',
-    'PL',
-    'PT',
-  ] as const)('a %s demo company can issue an invoice: nothing its company law requires is missing', async (countryCode) => {
-    vi.mocked(prisma.company.create).mockClear();
-    vi.mocked(prisma.partyIdentifier.create).mockClear();
-    await seedWithFake(countryCode);
+  it.each(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT'] as const)(
+    'a %s demo company can issue an invoice: nothing its company law requires is missing',
+    async (countryCode) => {
+      vi.mocked(prisma.company.create).mockClear();
+      vi.mocked(prisma.partyIdentifier.create).mockClear();
+      await seedWithFake(countryCode);
 
-    const created = vi.mocked(prisma.company.create).mock.calls[0][0].data;
-    const identifiers = vi
-      .mocked(prisma.partyIdentifier.create)
-      .mock.calls.map(([call]) => call.data as { scheme: string; value: string });
-    const mentions = companyLawMentions({
-      countryCode,
-      documentTypeId: 'invoice',
-      language: 'en',
-      details: created.companyLaw,
-      identifiers,
-    });
+      const created = vi.mocked(prisma.company.create).mock.calls[0][0].data;
+      const identifiers = vi
+        .mocked(prisma.partyIdentifier.create)
+        .mock.calls.map(([call]) => call.data as { scheme: string; value: string });
+      const mentions = companyLawMentions({
+        countryCode,
+        documentTypeId: 'invoice',
+        language: 'en',
+        details: created.companyLaw,
+        identifiers,
+      });
 
-    expect(mentions.missing).toEqual([]);
-    expect(mentions.lines.length).toBeGreaterThan(0);
-  });
+      expect(mentions.missing).toEqual([]);
+      expect(mentions.lines.length).toBeGreaterThan(0);
+    },
+  );
 });

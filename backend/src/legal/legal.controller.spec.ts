@@ -85,11 +85,11 @@ describe('LegalController.status', () => {
 });
 
 describe('LegalController.accept', () => {
-  it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', () => {
+  it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', async () => {
     const { controller, service } = buildController();
     (service.accept as Mock).mockResolvedValue({ accepted: ['terms-of-service'] });
 
-    controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
+    await controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
 
     expect(service.accept).toHaveBeenCalledWith('user-1', ['terms-of-service'], {
       ipAddress: '203.0.113.9',
@@ -97,11 +97,11 @@ describe('LegalController.accept', () => {
     });
   });
 
-  it('tolerates a missing body and a missing user-agent header', () => {
+  it('tolerates a missing body and a missing user-agent header', async () => {
     const { controller, service } = buildController();
     (service.accept as Mock).mockResolvedValue({ accepted: [] });
 
-    controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
+    await controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
 
     expect(service.accept).toHaveBeenCalledWith('user-1', undefined, {
       ipAddress: '203.0.113.9',

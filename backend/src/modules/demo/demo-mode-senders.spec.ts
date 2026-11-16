@@ -73,26 +73,26 @@ describe('demo mode blocks every registered transport (TransportRegistry)', () =
 });
 
 describe('demo mode blocks every registered tax-authority declaration provider (DeclarationProviderRegistry)', () => {
-  it.each([
-    'pt-at',
-    'a-future-declaration-provider',
-  ] as const)('declaration provider "%s" is refused in demo mode and allowed otherwise', async (providerId) => {
-    const { DeclarationProviderRegistry } = await import('../documents/reporting/declaration-provider');
-    const registry = new DeclarationProviderRegistry();
-    const declare = vi.fn().mockResolvedValue({ statusCode: 'DONE', authorityId: 'abc', rawPayload: {} });
-    registry.register({ providerId, declare });
-    const invoice = {} as never;
+  it.each(['pt-at', 'a-future-declaration-provider'] as const)(
+    'declaration provider "%s" is refused in demo mode and allowed otherwise',
+    async (providerId) => {
+      const { DeclarationProviderRegistry } = await import('../documents/reporting/declaration-provider');
+      const registry = new DeclarationProviderRegistry();
+      const declare = vi.fn().mockResolvedValue({ statusCode: 'DONE', authorityId: 'abc', rawPayload: {} });
+      registry.register({ providerId, declare });
+      const invoice = {} as never;
 
-    setDemoMode(false);
-    await expect(registry.resolve(providerId)!.declare('c1', invoice)).resolves.toMatchObject({
-      authorityId: 'abc',
-    });
+      setDemoMode(false);
+      await expect(registry.resolve(providerId)!.declare('c1', invoice)).resolves.toMatchObject({
+        authorityId: 'abc',
+      });
 
-    setDemoMode(true);
-    await expect(registry.resolve(providerId)!.declare('c1', invoice)).rejects.toBeInstanceOf(
-      DemoModeBlockedError,
-    );
-  });
+      setDemoMode(true);
+      await expect(registry.resolve(providerId)!.declare('c1', invoice)).rejects.toBeInstanceOf(
+        DemoModeBlockedError,
+      );
+    },
+  );
 
   it('list() enumerates every registered provider id', async () => {
     const { DeclarationProviderRegistry } = await import('../documents/reporting/declaration-provider');
@@ -103,37 +103,35 @@ describe('demo mode blocks every registered tax-authority declaration provider (
 });
 
 describe('demo mode blocks every registered payment provider (PaymentProviderRegistry)', () => {
-  it.each([
-    'stripe',
-    'mollie',
-    'paypal',
-    'a-future-payment-provider',
-  ] as const)('payment provider "%s" is refused in demo mode and allowed otherwise', async (id) => {
-    const { PaymentProviderRegistry } = await import('../documents/payments/payment-provider-registry');
-    const registry = new PaymentProviderRegistry();
-    const createCheckoutSession = vi
-      .fn()
-      .mockResolvedValue({ providerSessionId: 'cs_1', checkoutUrl: 'https://example.test' });
-    registry.register({ id, createCheckoutSession, parseWebhookEvent: vi.fn() });
-    const input = {
-      amountMinor: 100,
-      currency: 'EUR',
-      description: 'x',
-      successUrl: 'a',
-      cancelUrl: 'b',
-      metadata: {},
-    };
+  it.each(['stripe', 'mollie', 'paypal', 'a-future-payment-provider'] as const)(
+    'payment provider "%s" is refused in demo mode and allowed otherwise',
+    async (id) => {
+      const { PaymentProviderRegistry } = await import('../documents/payments/payment-provider-registry');
+      const registry = new PaymentProviderRegistry();
+      const createCheckoutSession = vi
+        .fn()
+        .mockResolvedValue({ providerSessionId: 'cs_1', checkoutUrl: 'https://example.test' });
+      registry.register({ id, createCheckoutSession, parseWebhookEvent: vi.fn() });
+      const input = {
+        amountMinor: 100,
+        currency: 'EUR',
+        description: 'x',
+        successUrl: 'a',
+        cancelUrl: 'b',
+        metadata: {},
+      };
 
-    setDemoMode(false);
-    await expect(registry.resolve(id)!.createCheckoutSession({}, input)).resolves.toMatchObject({
-      providerSessionId: 'cs_1',
-    });
+      setDemoMode(false);
+      await expect(registry.resolve(id)!.createCheckoutSession({}, input)).resolves.toMatchObject({
+        providerSessionId: 'cs_1',
+      });
 
-    setDemoMode(true);
-    await expect(registry.resolve(id)!.createCheckoutSession({}, input)).rejects.toBeInstanceOf(
-      DemoModeBlockedError,
-    );
-  });
+      setDemoMode(true);
+      await expect(registry.resolve(id)!.createCheckoutSession({}, input)).rejects.toBeInstanceOf(
+        DemoModeBlockedError,
+      );
+    },
+  );
 });
 
 describe('demo mode blocks the mail sender (MailService)', () => {

@@ -42,17 +42,12 @@ describe('unitCodeFor', () => {
     expect(unitCodeFor(text)).toBe('C62');
   });
 
-  it.each([
-    'm',
-    'lata',
-    'tag',
-    'pc',
-    'std',
-    'satz',
-    'ora',
-  ])('leaves the ambiguous word "%s" as free text', (word) => {
-    expect(knownUnitCode(word)).toBeUndefined();
-  });
+  it.each(['m', 'lata', 'tag', 'pc', 'std', 'satz', 'ora'])(
+    'leaves the ambiguous word "%s" as free text',
+    (word) => {
+      expect(knownUnitCode(word)).toBeUndefined();
+    },
+  );
 
   it('never lists one word under two codes', () => {
     const words = Object.values(UNAMBIGUOUS_UNIT_WORDS).flat();

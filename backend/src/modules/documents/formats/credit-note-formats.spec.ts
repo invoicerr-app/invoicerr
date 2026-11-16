@@ -392,10 +392,13 @@ describe('issue #472 - what is refused rather than built', () => {
     ['xrechnung', xrechnungFormatProvider, DE_DATA, DE_SELLER, DE_PUBLIC_BUYER],
     ['fatturapa', fatturapaFormatProvider, IT_DATA, IT_SELLER, IT_BUYER],
     ['fa3', fa3FormatProvider, FR_DATA, FR_SELLER, DE_BUYER],
-  ] as const)('%s: a document with no number produces no file at all - never a "DRAFT" placeholder', async (_id, provider, data, seller, buyer) => {
-    // An INVOICE build (no `options.creditNote`), so the only reason to refuse is the missing number.
-    await expect(
-      provider.build(invoiceDescriptor, doc(data, null), seller, buyer, 'company-1'),
-    ).rejects.toThrow(/no legal number/);
-  });
+  ] as const)(
+    '%s: a document with no number produces no file at all - never a "DRAFT" placeholder',
+    async (_id, provider, data, seller, buyer) => {
+      // An INVOICE build (no `options.creditNote`), so the only reason to refuse is the missing number.
+      await expect(
+        provider.build(invoiceDescriptor, doc(data, null), seller, buyer, 'company-1'),
+      ).rejects.toThrow(/no legal number/);
+    },
+  );
 });

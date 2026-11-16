@@ -43,16 +43,14 @@ describe('assertCanSend', () => {
       expect(err.getResponse()).toMatchObject({ code: TRIAL_SEND_BLOCKED });
     });
 
-    it.each([
-      'PAST_DUE',
-      'BLOCKED',
-      'ZIPPED',
-      'DELETED',
-    ])('blocks a %s subscription with SUBSCRIPTION_SEND_BLOCKED', async (status) => {
-      getOrCreate.mockResolvedValue({ status });
-      const err = await assertCanSend('company-1').catch((e) => e);
-      expect(err).toBeInstanceOf(ForbiddenException);
-      expect(err.getResponse()).toMatchObject({ code: SUBSCRIPTION_SEND_BLOCKED });
-    });
+    it.each(['PAST_DUE', 'BLOCKED', 'ZIPPED', 'DELETED'])(
+      'blocks a %s subscription with SUBSCRIPTION_SEND_BLOCKED',
+      async (status) => {
+        getOrCreate.mockResolvedValue({ status });
+        const err = await assertCanSend('company-1').catch((e) => e);
+        expect(err).toBeInstanceOf(ForbiddenException);
+        expect(err.getResponse()).toMatchObject({ code: SUBSCRIPTION_SEND_BLOCKED });
+      },
+    );
   });
 });
