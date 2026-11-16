@@ -1,7 +1,7 @@
 /**
  * SSRF hardening at send time: a validated endpoint can still answer with a 30x to an internal
- * address. Every driver owning a `fetch()` must set `redirect: 'manual'` and the bounded timeout, so
- * removing either turns this red.
+ * address. `postWebhookJson` sets `redirect: 'manual'` and the bounded timeout; each driver is checked
+ * so one that bypasses it, or a helper that drops either, turns this red.
  */
 
 import { vi } from 'vitest';

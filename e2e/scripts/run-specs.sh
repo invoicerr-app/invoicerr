@@ -17,16 +17,29 @@ limit_min="${SPEC_TIMEOUT_MIN:-15}"
 cypress_bin="${CYPRESS_BIN:-npx cypress}"
 failed=()
 
+# Cypress colours its output on CI, so the summary line reads `Tests:<ESC>[39m  <ESC>[31m0` and
+# not `Tests:  0`. Every check below reads the log through this filter, which drops the SGR colour
+# sequences; matching the raw log never saw `Tests: 0`, so the retry never fired. grep reads the
+# filter through a process substitution, not a pipe: under `pipefail`, `grep -q` exiting on the
+# first match would SIGPIPE the filter and turn a match into a failure.
+plain() {
+  local log="$1"
+  sed -E $'s/\x1b\\[[0-9;]*m//g' "$log"
+}
+
 ran_any_test() {
-  grep -qE 'Tests:[[:space:]]+[1-9]' "$1"
+  local log="$1"
+  grep -qE 'Tests:[[:space:]]+[1-9]' <(plain "$log")
 }
 
 browser_never_connected() {
-  grep -q 'The browser never connected' "$1"
+  local log="$1"
+  grep -q 'The browser never connected' <(plain "$log")
 }
 
 no_test_ran() {
-  grep -qE 'Tests:[[:space:]]+0([[:space:]]|$)' "$1" && ! ran_any_test "$1"
+  local log="$1"
+  grep -qE 'Tests:[[:space:]]+0([[:space:]]|$)' <(plain "$log") && ! ran_any_test "$log"
 }
 
 IFS=',' read -ra list <<< "$specs"
