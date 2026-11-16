@@ -1,164 +1,46 @@
 import type { Dispatcher } from 'undici';
 
-import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
-import { WebhookEvent, WebhookType } from '../../../../prisma/generated/prisma/client';
+import { describeEvent } from './event-message';
+import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
-import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
-
-export class TeamsAdaptiveCard {
-  private data: Record<string, any> = {
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    type: 'AdaptiveCard',
-    version: '1.2',
-    body: [],
-  };
-
-  addTextBlock(text: string, weight?: 'default' | 'lighter' | 'normal' | 'bolder'): this {
-    this.data.body.push({
-      type: 'TextBlock',
-      text,
-      weight: weight || 'default',
-    });
-    return this;
-  }
-
-  setTitle(title: string, color?: string): this {
-    this.data.body.unshift({
-      type: 'TextBlock',
-      text: title,
-      weight: 'bolder',
-      size: 'large',
-      color: color || 'accent', // 'accent', 'good', 'warning', 'attention'
-    });
-    return this;
-  }
-
-  addFactSet(facts: Array<{ name: string; value: string }>): this {
-    this.data.body.push({
-      type: 'FactSet',
-      facts: facts.map((f) => ({ name: f.name + ':', value: f.value })),
-    });
-    return this;
-  }
-
-  setFooter(text: string): this {
-    this.data.body.push({
-      type: 'TextBlock',
-      text,
-      size: 'small',
-      weight: 'lighter',
-      color: 'light',
-      spacing: 'large',
-    });
-    return this;
-  }
-
-  setAccentColor(color: 'accent' | 'good' | 'warning' | 'attention'): this {
-    this.data.body.unshift({
-      type: 'Container',
-      style: color,
-      items: [],
-    });
-    return this;
-  }
-
-  build(): Record<string, any> {
-    return this.data;
-  }
-}
-
-export class TeamsWebhook {
-  private webhook: string;
-  private card: TeamsAdaptiveCard | null = null;
-  private text: string = '';
-
-  constructor(webhookUrl: string) {
-    this.webhook = webhookUrl;
-  }
-
-  setText(text: string): this {
-    this.text = text;
-    return this;
-  }
-
-  setCard(card: TeamsAdaptiveCard): this {
-    this.card = card;
-    return this;
-  }
-
-  async send(dispatcher?: Dispatcher): Promise<Response> {
-    const payload: any = {
-      type: 'message',
-      attachments: [],
-    };
-
-    if (this.card) {
-      payload.attachments.push({
-        contentType: 'application/vnd.microsoft.card.adaptive',
-        content: this.card.build(),
-      });
-    } else if (this.text) {
-      payload.attachments.push({
-        contentType: 'application/vnd.microsoft.card.adaptive',
-        content: {
-          $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-          type: 'AdaptiveCard',
-          version: '1.2',
-          body: [
-            {
-              type: 'TextBlock',
-              text: this.text,
-            },
-          ],
-        },
-      });
-    }
-
-    const response = await fetch(this.webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      redirect: 'manual',
-      signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-      // Pins the address validated by the guard; see webhook-driver.interface.ts.
-      dispatcher,
-    } as RequestInit);
-
-    this.text = '';
-    this.card = null;
-
-    return response;
-  }
-}
-
+/** A Teams incoming-webhook message wrapping one Adaptive Card 1.2. */
 export class TeamsDriver implements WebhookDriver {
-  supports(type: WebhookType) {
-    return type === WebhookType.TEAMS;
-  }
-
   async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
-    const hook = new TeamsWebhook(url);
+    const message = describeEvent(payload, 'accent');
 
-    const eventType = payload.event as WebhookEvent;
-    const eventStyle = EVENT_STYLES[eventType] || {
-      color: 'accent',
-      emoji: '📢',
-      title: 'Event',
-    };
+    const cardBody: Record<string, unknown>[] = [
+      { type: 'TextBlock', text: message.title, weight: 'bolder', size: 'large', color: message.color },
+      { type: 'TextBlock', text: message.description, weight: 'default' },
+      {
+        type: 'TextBlock',
+        text: `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
+        size: 'small',
+        weight: 'lighter',
+        color: 'light',
+        spacing: 'large',
+      },
+    ];
 
-    const description = formatPayloadForEvent(eventType, payload);
-
-    const card = new TeamsAdaptiveCard()
-      .setTitle(`${eventStyle.emoji} ${eventStyle.title}`, eventStyle.color)
-      .addTextBlock(description)
-      .setFooter(`Invoicerr Webhooks • ${new Date().toLocaleString()}`);
-
-    if (payload.company?.name) {
-      card.addFactSet([{ name: 'Entreprise', value: payload.company.name }]);
+    if (message.companyName) {
+      cardBody.push({ type: 'FactSet', facts: [{ name: 'Entreprise:', value: message.companyName }] });
     }
 
-    const res = await hook.setCard(card).send(dispatcher);
+    const body = JSON.stringify({
+      type: 'message',
+      attachments: [
+        {
+          contentType: 'application/vnd.microsoft.card.adaptive',
+          content: {
+            $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+            type: 'AdaptiveCard',
+            version: '1.2',
+            body: cardBody,
+          },
+        },
+      ],
+    });
 
+    const res = await postWebhookJson(url, body, dispatcher);
     return res.ok;
   }
 }
