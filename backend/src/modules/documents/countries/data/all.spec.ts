@@ -180,6 +180,14 @@ describe('countries/data: invoice identifier requirements are checked at load ti
     expect(zz.identifiers?.invoiceRequirements).toHaveLength(1);
   });
 
+  it('loads a rule conditioned on a buyer established outside the seller tax union', () => {
+    writeRule({ party: 'BUYER', scheme: 'VAT', when: { buyerEstablishment: ['NON_UNION'] }, provenance });
+
+    const [zz] = loadComposedCountryFilesFrom(tmpDir);
+
+    expect(zz.identifiers?.invoiceRequirements?.[0].when?.buyerEstablishment).toEqual(['NON_UNION']);
+  });
+
   it('refuses a rule with no provenance', () => {
     writeRule({ party: 'SELLER', scheme: 'VAT' });
 
@@ -313,11 +321,12 @@ describe('countries/data: the forms require what every invoice requires', () => 
     expect(() => loadComposedCountryFilesFrom(tmpDir)).not.toThrow();
   });
 
-  it.each(
-    Object.entries(independentlyParsedFiles()).filter(([, file]) => file.identifiers),
-  )('shipped %s.json: no drift', (_countryCode, file) => {
-    expect(formDriftsFrom(file.identifiers!)).toEqual([]);
-  });
+  it.each(Object.entries(independentlyParsedFiles()).filter(([, file]) => file.identifiers))(
+    'shipped %s.json: no drift',
+    (_countryCode, file) => {
+      expect(formDriftsFrom(file.identifiers!)).toEqual([]);
+    },
+  );
 });
 
 describe('countries/data: an empty catalogue directory is refused', () => {

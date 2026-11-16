@@ -44,36 +44,35 @@ describe('ReceivedInvoiceOcrDispatcher.enqueue', () => {
     );
   });
 
-  it.each([
-    'completed',
-    'failed',
-  ])('clears a TERMINAL (%s) job under the same id before adding a fresh one', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new ReceivedInvoiceOcrDispatcher(queue as never);
+  it.each(['completed', 'failed'])(
+    'clears a TERMINAL (%s) job under the same id before adding a fresh one',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new ReceivedInvoiceOcrDispatcher(queue as never);
 
-    await dispatcher.enqueue(INPUT);
+      await dispatcher.enqueue(INPUT);
 
-    expect(existing.remove).toHaveBeenCalled();
-    expect(queue.add).toHaveBeenCalled();
-  });
+      expect(existing.remove).toHaveBeenCalled();
+      expect(queue.add).toHaveBeenCalled();
+    },
+  );
 
-  it.each([
-    'waiting',
-    'active',
-    'delayed',
-  ])('leaves a still IN-FLIGHT (%s) job alone — never enqueues a duplicate', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new ReceivedInvoiceOcrDispatcher(queue as never);
+  it.each(['waiting', 'active', 'delayed'])(
+    'leaves a still IN-FLIGHT (%s) job alone — never enqueues a duplicate',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new ReceivedInvoiceOcrDispatcher(queue as never);
 
-    await dispatcher.enqueue(INPUT);
+      await dispatcher.enqueue(INPUT);
 
-    expect(existing.remove).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
-  });
+      expect(existing.remove).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('ReceivedInvoiceOcrDispatcher.getResult', () => {

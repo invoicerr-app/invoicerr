@@ -6,6 +6,7 @@ import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ProseHelp } from "@/components/ui/prose-help"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -79,7 +80,9 @@ export default function DeclarationsPage() {
 
   return (
     <div className="page-content space-y-5" data-cy="declarations-page">
-      <p className="text-sm text-muted-foreground">{t("declarations.description")}</p>
+      <ProseHelp title={t("declarations.description")} className="text-sm" dataCy="declarations-description">
+        {t("declarations.help")}
+      </ProseHelp>
 
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Select value={status ?? ALL_STATUSES_VALUE} onValueChange={handleStatusChange}>

@@ -395,6 +395,7 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
             dataOperacao: result.dataOperacao,
           },
           authorityId,
+          referenceKind: 'synthesized',
         };
       }
 
@@ -407,6 +408,7 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
           dataOperacao: result.dataOperacao,
         },
         authorityId,
+        referenceKind: 'synthesized',
       };
     },
   };

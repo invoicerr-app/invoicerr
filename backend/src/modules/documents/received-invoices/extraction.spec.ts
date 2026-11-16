@@ -270,37 +270,24 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     // field-mapping fact about what our own providers emit — the same reasoning
     // `received-invoices.service.spec.ts`'s own hand-written `MINIMAL_CII_XML` fixture already relies on.
 
-    // A fixed absolute-ms budget on wall-clock time is a flaky proxy for "not quadratic": a shared CI
-    // runner measured 170ms on a fixture that runs in ~29ms locally (same code, same input) — noise
-    // from the box, not a regression. What we actually want to assert never changes with the runner's
-    // speed: growing the ADVERSARIAL input by `factor` should grow the time by roughly `factor` (linear
-    // scan cost), never by roughly `factor²` (the old regex's own re-scan-from-every-open-tag
-    // behaviour). So the test below times the SAME operation at two input sizes and checks the RATIO
-    // instead of either raw number. `factor * 3` is deliberately generous — linear work lands near
-    // `factor`×, real quadratic work lands near `factor²`× (16× at factor=4), so 12× catches the
-    // regression with slack to spare for scheduler jitter — and `absoluteCapMs` stays only as a filet
-    // against a genuinely hung process, wide enough to never fire from ordinary CI slowness.
+    // How "no catastrophic backtracking" is asserted, and why it is ONE absolute budget.
     //
-    // A RATIO IS ONLY A MEASUREMENT WHEN BOTH SIDES ARE MEASURABLE. This helper used to serve three
-    // tests, and the two that have since been rewritten below (the billion-laughs one and the size
-    // bound) both timed operations that finish in a fraction of a millisecond: measured on an idle
-    // box, 0.22ms and 0.16ms for the two billion-laughs documents. `Math.max(elapsedSmall, 1)` then
-    // floors the denominator to 1 and the "ratio" degenerates into the raw duration of the larger
-    // run, so a single garbage collection pause decides the outcome. It did, twice in a row, on a
-    // branch that changed nothing but Markdown (CI on PR #441: 3.5259509999959846 and then
-    // 3.0397850000008475, both against a bound of 3). Neither of those two properties actually needs
-    // a stopwatch, and both now assert a deterministic fact instead. The one caller left is the
-    // quadratic-backtracking test, which has no equivalent: linear and quadratic scans of the same
-    // malformed document return the SAME empty extraction, so growth over time is the only place the
-    // difference shows. Its own measurements are 4ms and 18ms on that same idle box, an order of
-    // magnitude clear of the floor.
-    function assertGrowthAtMostLinear(elapsedSmall: number, elapsedLarge: number, factor: number) {
-      const absoluteCapMs = 2000;
-      expect(elapsedLarge).toBeLessThan(absoluteCapMs);
-      // Floors the denominator so timer-resolution noise (sub-millisecond runs) can't inflate the ratio.
-      const ratio = elapsedLarge / Math.max(elapsedSmall, 1);
-      expect(ratio).toBeLessThan(factor * 3);
-    }
+    // This used to time the same operation at two input sizes and assert that the ratio stayed
+    // under 12. A ratio of two wall-clock measurements is only as stable as the quieter of the two:
+    // the small run took a few milliseconds, so one scheduler stall or garbage collection pause on
+    // a loaded shared runner moved the ratio past the bound (14.0 against 12, on a branch that never
+    // touched this module). Comparing two measured durations is the flaky part, so it is gone.
+    //
+    // What replaces it is a single timed run against a budget, with an input shaped so the budget
+    // sits far from BOTH outcomes instead of between two close ones. The old regex-based reader
+    // re-scanned the rest of the document from every opening tag looking for a close tag that never
+    // comes: its cost is (opening tags) x (bytes after them). A parser's cost is (opening tags) +
+    // (bytes after them). So the deposit below is a few thousand never-closed opening tags followed
+    // by a long run of plain text: the product explodes while the sum stays small. Measured on a
+    // busy dev box, same input: about 100 ms for the current parser, about 25 s once the old
+    // regex is put back in front of it (so 10x headroom under the budget on one side, 25x over it
+    // on the other; a CI runner is faster on both sides, which keeps the gap). The deposit stays
+    // under the reader's own byte cap, so the parser really walks it instead of refusing it.
 
     const CII_WITH_ENTITIES = `<?xml version="1.0" encoding="utf-8"?>
 <rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">
@@ -326,40 +313,36 @@ describe('received-invoices/extraction — proven against OUR OWN outbound artif
     });
 
     it('a deposit rich in never-closed opening tags is rejected fast — no catastrophic backtracking', async () => {
-      const buildBomb = (openTagCount: number) =>
+      const OPEN_TAG_COUNT = 5_000;
+      const TRAILING_TEXT_BYTES = 4_000_000;
+      const BUDGET_MS = 1_000;
+      const buildBomb = (openTagCount: number, trailingTextBytes: number) =>
         '<?xml version="1.0"?><rsm:CrossIndustryInvoice ' +
         'xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" ' +
         'xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">' +
-        '<ram:IncludedSupplyChainTradeLineItem>'.repeat(openTagCount); // deliberately never closed
+        '<ram:IncludedSupplyChainTradeLineItem>'.repeat(openTagCount) + // deliberately never closed
+        'x'.repeat(trailingTextBytes);
 
-      const SMALL = 5_000;
-      const LARGE = SMALL * 4;
-
-      const start1 = performance.now();
-      const result1 = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBomb(SMALL)),
+      // Untimed warm-up on a tiny deposit, so module loading and JIT compilation of the reader are
+      // not billed to the timed run below.
+      const warmUp = await extractReceivedInvoiceFields(
+        new TextEncoder().encode(buildBomb(10, 10)),
         'application/xml',
         'bomb.xml',
       );
-      const elapsedSmall = performance.now() - start1;
 
-      const start2 = performance.now();
-      const result2 = await extractReceivedInvoiceFields(
-        new TextEncoder().encode(buildBomb(LARGE)),
-        'application/xml',
-        'bomb.xml',
-      );
-      const elapsedLarge = performance.now() - start2;
+      const bomb = new TextEncoder().encode(buildBomb(OPEN_TAG_COUNT, TRAILING_TEXT_BYTES));
+      const start = performance.now();
+      const result = await extractReceivedInvoiceFields(bomb, 'application/xml', 'bomb.xml');
+      const elapsedMs = performance.now() - start;
 
-      // The old regex-based `extractAllBlocks` re-scanned the remaining document from every one of
-      // these opening tags looking for a close tag that never comes — quadratic over the byte count.
-      // A real parser fails fast on the same input instead of stalling the event loop; see this
-      // describe block's own comment for why growth (not a raw ms figure) is what gets asserted.
-      assertGrowthAtMostLinear(elapsedSmall, elapsedLarge, 4);
+      expect(elapsedMs).toBeLessThan(BUDGET_MS);
       // Malformed (never actually closed) — an honest empty extraction, never a thrown error.
-      expect(result1).toEqual({ syntax: null, fields: {} });
-      expect(result2).toEqual({ syntax: null, fields: {} });
-    });
+      expect(warmUp).toEqual({ syntax: null, fields: {} });
+      expect(result).toEqual({ syntax: null, fields: {} });
+      // A regression is synchronous and cannot be interrupted, so give it room to finish and fail
+      // on the budget above rather than on the runner's default per-test timeout.
+    }, 120_000);
 
     it('never resolves an external entity (XXE) — the file it points at is never read', async () => {
       const xxe = `<?xml version="1.0"?>

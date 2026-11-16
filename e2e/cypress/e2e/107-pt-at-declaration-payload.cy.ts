@@ -252,16 +252,14 @@ describe("Issue #501 - a Portuguese invoice is declared with its real ATCUD, and
 		});
 	});
 
-	// pt-at now carries two facts (invoice, credit note) and the Channels screen shows one row per
-	// provider: that row must keep describing the invoice's obligation (DL 198/2012 art. 3.º n.º 1), as
-	// before issue #501, rather than whichever fact came last. Issue #527 moved declarations into their
-	// own section, apart from delivery channels (never in the same list) - `declaration-pt-at`, never
-	// `channel-pt-at`.
-	it("the Channels screen still describes pt-at by the invoice's obligation, once", () => {
+	// pt-at carries two facts (invoice, credit note) and the Channels screen shows one row per provider,
+	// in the declarations section, never among delivery channels. Its help is the written explanation,
+	// never the research provenance stored with the fact.
+	it("the Channels screen describes pt-at once, with its written explanation", () => {
 		cy.visit("/settings/channels");
 		cy.get('[data-cy="declaration-pt-at"]', { timeout: 20000 })
 			.should("have.length", 1)
-			.and("contain.text", 'Artigo 3.º ("Comunicação dos elementos das faturas"), n.º 1')
-			.and("not.contain.text", 'Artigo 1.º ("Objeto")');
+			.and("contain.text", "Decreto-Lei n.º 198/2012, art. 3")
+			.and("not.contain.text", "pgdlisboa.pt");
 	});
 });

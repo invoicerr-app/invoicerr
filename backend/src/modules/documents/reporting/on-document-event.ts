@@ -41,7 +41,7 @@ import { classifyObligation, DeclarationOperation } from './classify';
 import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
 import { ObligationTrigger } from './obligation-v2';
 import { loadDeclarationOperation } from './operation-context';
-import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
+import { declarationSubjectKey, REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
 
 export type DocumentEvent = 'issued' | 'sent' | 'payment';
 
@@ -151,6 +151,7 @@ export async function reportOnDocumentEvent(
           ...details,
           providerId: blocked.providerId,
         },
+        declarationSubjectKey(payment?.paymentId),
       );
     }
     return;
@@ -177,11 +178,16 @@ export async function reportOnDocumentEvent(
       REPORT_FAILED_STATUS_CODE,
       `Could not enqueue the ${payment ? 'payment ' : ''}declaration job: ${message}`,
       { ...details, providerId, originalMessage: message },
+      declarationSubjectKey(payment?.paymentId),
     );
   }
 }
 
-/** Journals a synthetic declaration event, and only logs if even that write fails. */
+/**
+ * Journals a synthetic declaration event, and only logs if even that write fails. `subjectKey` keeps
+ * each payment's entry apart from the invoice's own and from every other payment of the same invoice
+ * (`report-job.ts#declarationSubjectKey`).
+ */
 async function journalOrLog(
   companyId: string,
   documentId: string,
@@ -189,9 +195,18 @@ async function journalOrLog(
   statusCode: string,
   reason: string,
   details: Record<string, unknown>,
+  subjectKey: string,
 ): Promise<void> {
   try {
-    const journaled = await journalSyntheticEvent(companyId, documentId, providerId, statusCode, reason);
+    const journaled = await journalSyntheticEvent(
+      companyId,
+      documentId,
+      providerId,
+      statusCode,
+      reason,
+      undefined,
+      subjectKey,
+    );
     if (journaled === 0) {
       // A dedup no-op (`DocumentAuthorityEvent`'s own `@@unique`): an earlier attempt already
       // journaled this same code for this document.

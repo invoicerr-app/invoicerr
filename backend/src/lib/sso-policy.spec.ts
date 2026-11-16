@@ -317,18 +317,13 @@ describe('providerIdFromEndpointContext', () => {
     expect(providerIdFromEndpointContext({ body: { email: 'a@b.com', password: 'x' } })).toBeNull();
   });
 
-  it.each([
-    null,
-    undefined,
-    'string',
-    42,
-    {},
-    { params: {} },
-    { params: { id: '' } },
-  ])('never throws and returns null for %p', (context) => {
-    expect(() => providerIdFromEndpointContext(context)).not.toThrow();
-    expect(providerIdFromEndpointContext(context)).toBeNull();
-  });
+  it.each([null, undefined, 'string', 42, {}, { params: {} }, { params: { id: '' } }])(
+    'never throws and returns null for %p',
+    (context) => {
+      expect(() => providerIdFromEndpointContext(context)).not.toThrow();
+      expect(providerIdFromEndpointContext(context)).toBeNull();
+    },
+  );
 });
 
 describe('companyForOAuthSignup — the company a brand-new OAuth user belongs to', () => {
@@ -455,18 +450,12 @@ describe('emailDomain', () => {
     expect(emailDomain('a@b@acme.com')).toBe('acme.com');
   });
 
-  it.each([
-    null,
-    undefined,
-    '',
-    'nope',
-    '@acme.com',
-    'alice@',
-    'alice@ acme.com',
-    'alice@acme com',
-  ])('is null for %p', (email) => {
-    expect(emailDomain(email as string)).toBeNull();
-  });
+  it.each([null, undefined, '', 'nope', '@acme.com', 'alice@', 'alice@ acme.com', 'alice@acme com'])(
+    'is null for %p',
+    (email) => {
+      expect(emailDomain(email as string)).toBeNull();
+    },
+  );
 });
 
 describe('normalizeDomains', () => {

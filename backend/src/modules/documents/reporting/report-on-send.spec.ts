@@ -277,6 +277,8 @@ describe('reportOnSendIfObligated', () => {
       'nav',
       REPORT_FAILED_STATUS_CODE,
       expect.stringContaining('Redis is down'),
+      undefined,
+      '', // the document's own entry, not a payment's
     );
   });
 

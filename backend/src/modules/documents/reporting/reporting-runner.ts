@@ -25,8 +25,10 @@ import {
 } from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
 import {
+  DECLARATION_REFERENCE_KINDS,
   DeclarationProviderRegistry,
   DeclarationProvider,
+  DeclarationReferenceKind,
   DeclarationResult,
   DeclaredInvoice,
   DeclaredPayment,
@@ -43,7 +45,12 @@ import { findOwnedDocument } from '../persistence';
 import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
-import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
+import {
+  declarationSubjectKey,
+  REPORT_BLOCKED_STATUS_CODE,
+  REPORT_FAILED_STATUS_CODE,
+  ReportJobData,
+} from './report-job';
 
 export class InvalidDeclarationResultError extends Error {}
 
@@ -67,6 +74,17 @@ export function assertNonEmptyDeclarationResult(result: DeclarationResult, provi
         'refusing to journal it.',
     );
   }
+  if (result.referenceKind !== undefined && !DECLARATION_REFERENCE_KINDS.includes(result.referenceKind)) {
+    throw new InvalidDeclarationResultError(
+      `Declaration provider "${providerId}" returned an unknown reference kind "${String(result.referenceKind)}" ` +
+        `(expected one of ${DECLARATION_REFERENCE_KINDS.join(', ')}); refusing to journal it.`,
+    );
+  }
+}
+
+/** Who minted a declaration's `authorityId`; absent reads as the authority, its historical meaning. */
+export function declarationReferenceKindOf(result: DeclarationResult): DeclarationReferenceKind {
+  return result.referenceKind ?? 'authority';
 }
 
 /**
@@ -304,11 +322,27 @@ export class ReportingRunner {
 
     assertNonEmptyDeclarationResult(result, data.providerId);
 
-    const journaled = await createAuthorityEvents(data.companyId, data.documentId, data.providerId, [result]);
-    this.logger.log(
-      `Declaration for document ${data.documentId} ("${data.providerId}") journaled: ` +
-        `statusCode="${result.statusCode}", authorityId="${result.authorityId}".`,
+    const journaled = await createAuthorityEvents(
+      data.companyId,
+      data.documentId,
+      data.providerId,
+      [result],
+      declarationSubjectKey(data.paymentId),
     );
+    const subject = data.paymentId ? ` payment ${data.paymentId}` : '';
+    if (journaled > 0) {
+      this.logger.log(
+        `Declaration for document ${data.documentId}${subject} ("${data.providerId}") journaled: ` +
+          `statusCode="${result.statusCode}", authorityId="${result.authorityId}" ` +
+          `(${declarationReferenceKindOf(result)}).`,
+      );
+    } else {
+      this.logger.warn(
+        `Declaration for document ${data.documentId}${subject} ("${data.providerId}") was accepted by ` +
+          `the provider (statusCode="${result.statusCode}", authorityId="${result.authorityId}") but ` +
+          'NOT journaled: an identical row already exists.',
+      );
+    }
     // Same "only on a genuinely new row" rule as the "blocked" branch above.
     if (journaled > 0) {
       await this.eventsPublisher?.publish(data.companyId, {
@@ -340,6 +374,8 @@ export class ReportingRunner {
       data.providerId,
       REPORT_BLOCKED_STATUS_CODE,
       reason,
+      undefined,
+      declarationSubjectKey(data.paymentId),
     );
     if (journaled > 0) {
       await this.eventsPublisher?.publish(data.companyId, {
@@ -462,6 +498,8 @@ export class ReportingRunner {
         data.providerId,
         REPORT_FAILED_STATUS_CODE,
         error.message,
+        undefined,
+        declarationSubjectKey(data.paymentId),
       );
       // Same "only on a genuinely new row" rule as `runReport`'s own
       // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.

@@ -40,16 +40,12 @@ describe('mapPolarSubscriptionStatus', () => {
     expect(mapPolarSubscriptionStatus(status)).toBe('ACTIVE');
   });
 
-  it.each([
-    'past_due',
-    'unpaid',
-    'canceled',
-    'incomplete',
-    'incomplete_expired',
-    'paused',
-  ])('%s maps to PAST_DUE', (status) => {
-    expect(mapPolarSubscriptionStatus(status)).toBe('PAST_DUE');
-  });
+  it.each(['past_due', 'unpaid', 'canceled', 'incomplete', 'incomplete_expired', 'paused'])(
+    '%s maps to PAST_DUE',
+    (status) => {
+      expect(mapPolarSubscriptionStatus(status)).toBe('PAST_DUE');
+    },
+  );
 });
 
 describe('mapPolarRecurringInterval', () => {
@@ -220,33 +216,30 @@ describe('applySubscriptionWebhook', () => {
     const trialEndsAt = new Date('2026-09-20T00:00:00Z');
     const now = new Date('2026-09-16T00:00:00Z'); // still 4 days inside the trial
 
-    it.each([
-      'incomplete',
-      'canceled',
-      'past_due',
-      'unpaid',
-      'paused',
-    ])('keeps TRIAL when a stalled/abandoned checkout reports "%s" mid-trial, instead of writing PAST_DUE', async (polarStatus) => {
-      getOrCreate.mockResolvedValue({
-        companyId: 'company-1',
-        status: 'TRIAL',
-        trialEndsAt,
-        lastPolarFactAt: null,
-      });
-
-      await applySubscriptionWebhook(
-        {
+    it.each(['incomplete', 'canceled', 'past_due', 'unpaid', 'paused'])(
+      'keeps TRIAL when a stalled/abandoned checkout reports "%s" mid-trial, instead of writing PAST_DUE',
+      async (polarStatus) => {
+        getOrCreate.mockResolvedValue({
           companyId: 'company-1',
-          polarSubscriptionId: 'sub_1',
-          polarCustomerId: 'cus_1',
-          status: polarStatus,
-          recurringInterval: 'month',
-        },
-        now,
-      );
+          status: 'TRIAL',
+          trialEndsAt,
+          lastPolarFactAt: null,
+        });
 
-      expect(update).not.toHaveBeenCalled();
-    });
+        await applySubscriptionWebhook(
+          {
+            companyId: 'company-1',
+            polarSubscriptionId: 'sub_1',
+            polarCustomerId: 'cus_1',
+            status: polarStatus,
+            recurringInterval: 'month',
+          },
+          now,
+        );
+
+        expect(update).not.toHaveBeenCalled();
+      },
+    );
 
     it(
       'records NOTHING at all while the status write is held back — not even the ids/interval/' +
@@ -374,73 +367,82 @@ describe('applySubscriptionWebhook', () => {
     it.each([
       ['BLOCKED', blockedFacts],
       ['ZIPPED', zippedFacts],
-    ])('a %s company is NOT walked back to PAST_DUE by a non-active status (writes stay refused, the clock is never restarted)', async (label, row) => {
-      getOrCreate.mockResolvedValue({ status: label, ...row });
+    ])(
+      'a %s company is NOT walked back to PAST_DUE by a non-active status (writes stay refused, the clock is never restarted)',
+      async (label, row) => {
+        getOrCreate.mockResolvedValue({ status: label, ...row });
 
-      await applySubscriptionWebhook(
-        {
-          companyId: 'company-1',
-          polarSubscriptionId: 'sub_1',
-          polarCustomerId: 'cus_1',
-          status: 'past_due',
-          recurringInterval: 'month',
-        },
-        now,
-      );
+        await applySubscriptionWebhook(
+          {
+            companyId: 'company-1',
+            polarSubscriptionId: 'sub_1',
+            polarCustomerId: 'cus_1',
+            status: 'past_due',
+            recurringInterval: 'month',
+          },
+          now,
+        );
 
-      expect(update).not.toHaveBeenCalled();
-    });
-
-    it.each([
-      ['BLOCKED', blockedFacts],
-      ['ZIPPED', zippedFacts],
-    ])('a %s company records NOTHING at all for a non-active fact - not even lastPolarFactAt/ids, and no cache invalidation', async (label, row) => {
-      getOrCreate.mockResolvedValue({ status: label, ...row });
-
-      await applySubscriptionWebhook(
-        {
-          companyId: 'company-1',
-          polarSubscriptionId: 'sub_1',
-          polarCustomerId: 'cus_1',
-          status: 'canceled',
-          recurringInterval: 'month',
-          factAt: new Date('2026-11-11T00:00:00Z'),
-        },
-        now,
-      );
-
-      expect(update).not.toHaveBeenCalled();
-      expect(invalidateFacts).not.toHaveBeenCalled();
-    });
+        expect(update).not.toHaveBeenCalled();
+      },
+    );
 
     it.each([
       ['BLOCKED', blockedFacts],
       ['ZIPPED', zippedFacts],
-    ])('an ACTIVE fact on a %s company still reactivates it normally, clearing the block/zip clocks', async (label, row) => {
-      getOrCreate.mockResolvedValue({ status: label, ...row });
+    ])(
+      'a %s company records NOTHING at all for a non-active fact - not even lastPolarFactAt/ids, and no cache invalidation',
+      async (label, row) => {
+        getOrCreate.mockResolvedValue({ status: label, ...row });
 
-      await applySubscriptionWebhook(
-        {
-          companyId: 'company-1',
-          polarSubscriptionId: 'sub_1',
-          polarCustomerId: 'cus_1',
-          status: 'active',
-          recurringInterval: 'month',
-        },
-        now,
-      );
+        await applySubscriptionWebhook(
+          {
+            companyId: 'company-1',
+            polarSubscriptionId: 'sub_1',
+            polarCustomerId: 'cus_1',
+            status: 'canceled',
+            recurringInterval: 'month',
+            factAt: new Date('2026-11-11T00:00:00Z'),
+          },
+          now,
+        );
 
-      expect(update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            status: 'ACTIVE',
-            blockedAt: null,
-            zipSentAt: null,
-            deletionDueAt: null,
+        expect(update).not.toHaveBeenCalled();
+        expect(invalidateFacts).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['BLOCKED', blockedFacts],
+      ['ZIPPED', zippedFacts],
+    ])(
+      'an ACTIVE fact on a %s company still reactivates it normally, clearing the block/zip clocks',
+      async (label, row) => {
+        getOrCreate.mockResolvedValue({ status: label, ...row });
+
+        await applySubscriptionWebhook(
+          {
+            companyId: 'company-1',
+            polarSubscriptionId: 'sub_1',
+            polarCustomerId: 'cus_1',
+            status: 'active',
+            recurringInterval: 'month',
+          },
+          now,
+        );
+
+        expect(update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: 'ACTIVE',
+              blockedAt: null,
+              zipSentAt: null,
+              deletionDueAt: null,
+            }),
           }),
-        }),
-      );
-    });
+        );
+      },
+    );
   });
 
   describe('two webhooks for the SAME subscription, delivered out of order (active vs. canceled)', () => {

@@ -151,6 +151,8 @@ describe('reportOnDocumentEvent', () => {
       'zz-issued-api',
       REPORT_BLOCKED_STATUS_CODE,
       expect.any(String),
+      undefined,
+      '', // the document's own entry, not a payment's
     );
   });
 

@@ -33,6 +33,12 @@ export interface ReportJobData {
   paymentId?: string;
 }
 
+/** The journal's `subjectKey` for a declaration: its payment id, or "" for the invoice itself. Without
+ *  it every payment `SUBMITTED` after the first would be dropped as a duplicate of the earlier row. */
+export function declarationSubjectKey(paymentId?: string): string {
+  return paymentId ?? '';
+}
+
 /** Journaled when the runner cannot even ATTEMPT the declaration — credentials for `providerId` are
  *  missing/invalid for this company right now (`ChannelNotConnectedError`). NEVER retried (a missing
  *  credential does not fix itself between BullMQ backoff attempts) — the same "immediate, honest,
