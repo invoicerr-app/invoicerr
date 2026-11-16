@@ -1,24 +1,11 @@
 import type { Dispatcher } from 'undici';
 
-import { WEBHOOK_FETCH_TIMEOUT_MS, WebhookDriver } from './webhook-driver.interface';
-import { WebhookType } from '../../../../prisma/generated/prisma/client';
+import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
+/** The raw payload as JSON, unsigned. */
 export class ZapierDriver implements WebhookDriver {
-  supports(type: WebhookType) {
-    return type === WebhookType.ZAPIER;
-  }
-
   async send(url: string, payload: any, _secret?: string | null, dispatcher?: Dispatcher): Promise<boolean> {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      redirect: 'manual',
-      signal: AbortSignal.timeout(WEBHOOK_FETCH_TIMEOUT_MS),
-      // Pins the address validated by the guard; see webhook-driver.interface.ts.
-      dispatcher,
-    } as RequestInit);
-
+    const res = await postWebhookJson(url, JSON.stringify(payload), dispatcher);
     return res.ok;
   }
 }

@@ -34,25 +34,28 @@ describe('ReportingObligationCatalogV2: pinned against the legacy catalog on the
     expect(v2.countries().sort()).toEqual(ALL_REPORTING_OBLIGATION_FILES.map((f) => f.countryCode).sort());
   });
 
-  it.each(
-    countries,
-  )('%s: obligationsFor lists the same entries as factsFor, in file order', (countryCode) => {
-    const facts = legacy.factsFor(countryCode);
-    expect(facts.length).toBeGreaterThan(0);
-    expect(ids(v2.obligationsFor(countryCode))).toEqual(idsOf(countryCode, facts));
-  });
+  it.each(countries)(
+    '%s: obligationsFor lists the same entries as factsFor, in file order',
+    (countryCode) => {
+      const facts = legacy.factsFor(countryCode);
+      expect(facts.length).toBeGreaterThan(0);
+      expect(ids(v2.obligationsFor(countryCode))).toEqual(idsOf(countryCode, facts));
+    },
+  );
 
-  it.each(
-    countries.flatMap((c) => DOCUMENT_TYPES.map((t) => [c, t] as const)),
-  )('%s / %s: providerObligationsFor and unscopedProviderObligationFor match their legacy counterparts', (countryCode, typeId) => {
-    expect(ids(v2.providerObligationsFor(countryCode, typeId))).toEqual(
-      idsOf(countryCode, legacy.providerFactsFor(countryCode, typeId)),
-    );
-    const fact = legacy.obligationFor(countryCode, typeId);
-    const obligation = v2.unscopedProviderObligationFor(countryCode, typeId);
-    expect(obligation?.id).toBe(fact ? idsOf(countryCode, [fact])[0] : undefined);
-    if (obligation) expect(ReportingObligationCatalogV2.providerChannelId(obligation)).toBe(fact?.providerId);
-  });
+  it.each(countries.flatMap((c) => DOCUMENT_TYPES.map((t) => [c, t] as const)))(
+    '%s / %s: providerObligationsFor and unscopedProviderObligationFor match their legacy counterparts',
+    (countryCode, typeId) => {
+      expect(ids(v2.providerObligationsFor(countryCode, typeId))).toEqual(
+        idsOf(countryCode, legacy.providerFactsFor(countryCode, typeId)),
+      );
+      const fact = legacy.obligationFor(countryCode, typeId);
+      const obligation = v2.unscopedProviderObligationFor(countryCode, typeId);
+      expect(obligation?.id).toBe(fact ? idsOf(countryCode, [fact])[0] : undefined);
+      if (obligation)
+        expect(ReportingObligationCatalogV2.providerChannelId(obligation)).toBe(fact?.providerId);
+    },
+  );
 
   it.each(
     countries.flatMap((c) =>

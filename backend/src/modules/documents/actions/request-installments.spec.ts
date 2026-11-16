@@ -294,14 +294,17 @@ describe('request-installments', () => {
         },
       }),
     ],
-  ])('refuses (409) when the quote is already invoiced by anything but its deposit: %s (issue #953)', async (_label, alreadyRaised) => {
-    mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
-    mockCreatedInvoices();
-    mockInvoicesRaisedFromQuote([alreadyRaised]);
+  ])(
+    'refuses (409) when the quote is already invoiced by anything but its deposit: %s (issue #953)',
+    async (_label, alreadyRaised) => {
+      mockQuote({ lines: [{ description: 'Service', quantity: 1, unitPrice: 250, vatRate: '20' }] });
+      mockCreatedInvoices();
+      mockInvoicesRaisedFromQuote([alreadyRaised]);
 
-    await expect(runInstallments([50, 50])).rejects.toMatchObject({ status: 409 });
-    expect(persistence.upsertDocument).not.toHaveBeenCalled();
-  });
+      await expect(runInstallments([50, 50])).rejects.toMatchObject({ status: 409 });
+      expect(persistence.upsertDocument).not.toHaveBeenCalled();
+    },
+  );
 
   it('after a deposit, the plan DEDUCTS it: deposit + installments total the quote, never more (issue #953)', async () => {
     // Quote: net 250.00 (25000) @ 20% -> gross 300.00 (30000). Its 30% deposit is already invoiced:

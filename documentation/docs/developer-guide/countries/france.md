@@ -101,7 +101,9 @@ Happy path: a French company issues an invoice to a private client, the invoice 
 (`capabilities.eReporting`) and calls that adapter. SuperPDP is the first adapter. The record id the
 platform returns is journaled on the Declarations screen and labelled as the platform's own record,
 not a tax-administration reference: the platform aggregates and transmits later. Recording a payment
-on a service invoice taxed on collection enqueues its own payment declaration.
+on a service invoice taxed on collection enqueues its own payment declaration. Each payment
+declaration is journaled under its payment id (`DocumentAuthorityEvent.subjectKey`), so the invoice
+declaration and every partial payment keep their own row even though all of them report `SUBMITTED`.
 
 "Never silent": no connected channel, no adapter for the connected operator, no usable credential,
 or an operation the classifier cannot establish all end in `report:blocked` with a readable reason.

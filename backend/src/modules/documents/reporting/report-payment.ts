@@ -18,7 +18,7 @@ import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { classifyDeclaration } from './classify';
 import { loadDeclarationOperation } from './operation-context';
-import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
+import { declarationSubjectKey, REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
 import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
 
 export interface ReportPaymentInput {
@@ -94,6 +94,8 @@ export async function reportPaymentIfObligated(
           blocked.providerId,
           REPORT_BLOCKED_STATUS_CODE,
           blocked.reason,
+          undefined,
+          declarationSubjectKey(paymentId),
         );
       } catch (journalError) {
         logger.error('Could not journal a blocked payment declaration', {
@@ -132,6 +134,8 @@ export async function reportPaymentIfObligated(
         obligation.providerId,
         REPORT_FAILED_STATUS_CODE,
         `Could not enqueue the payment declaration job: ${message}`,
+        undefined,
+        declarationSubjectKey(paymentId),
       );
     } catch (journalError) {
       logger.error('Could not even journal a payment report failure', {

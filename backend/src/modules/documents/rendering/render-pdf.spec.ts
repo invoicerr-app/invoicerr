@@ -37,7 +37,12 @@ vi.mock('node:fs', async () => {
   return { ...actual };
 });
 
-const ENV_KEYS = ['CHROMIUM_EXECUTABLE_PATH', 'PUPPETEER_EXECUTABLE_PATH', 'PDF_RENDER_CONCURRENCY'] as const;
+const ENV_KEYS = [
+  'CHROMIUM_EXECUTABLE_PATH',
+  'PUPPETEER_EXECUTABLE_PATH',
+  'PDF_RENDER_CONCURRENCY',
+  'CHROMIUM_SANDBOX',
+] as const;
 const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string>> = {};
 
 beforeAll(() => {
@@ -382,5 +387,78 @@ describe('renderPdf', () => {
         expect.objectContaining({ executablePath: '/usr/bin/chromium-browser' }),
       );
     });
+  });
+});
+
+describe('Chromium sandbox (CHROMIUM_SANDBOX)', () => {
+  function asUid(uid: number) {
+    vi.spyOn(process, 'getuid').mockReturnValue(uid);
+  }
+
+  it('auto, non-root: launches sandboxed, without --no-sandbox', async () => {
+    asUid(10001);
+    const { renderPdf, chromium } = await load();
+
+    await renderPdf('<html></html>');
+
+    expect(chromium.launch).toHaveBeenCalledTimes(1);
+    expect(chromium.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ chromiumSandbox: true, args: [] }),
+    );
+  });
+
+  it('auto, root: never tries the sandbox (Chromium refuses it as root)', async () => {
+    asUid(0);
+    const { renderPdf, chromium } = await load();
+
+    await renderPdf('<html></html>');
+
+    expect(chromium.launch).toHaveBeenCalledTimes(1);
+    expect(chromium.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ chromiumSandbox: false, args: ['--no-sandbox'] }),
+    );
+  });
+
+  it('auto, non-root: falls back to --no-sandbox when the host refuses the sandbox, and still renders', async () => {
+    asUid(10001);
+    const { renderPdf, chromium } = await load();
+    chromium.launch.mockRejectedValueOnce(new Error('No usable sandbox!'));
+
+    await expect(renderPdf('<html></html>')).resolves.toBeDefined();
+
+    expect(chromium.launch).toHaveBeenCalledTimes(2);
+    expect(chromium.launch).toHaveBeenLastCalledWith(
+      expect.objectContaining({ chromiumSandbox: false, args: ['--no-sandbox'] }),
+    );
+  });
+
+  it('on: a sandbox failure is an error, never a silent --no-sandbox', async () => {
+    asUid(10001);
+    process.env.CHROMIUM_SANDBOX = 'on';
+    const { renderPdf, chromium } = await load();
+    chromium.launch.mockRejectedValueOnce(new Error('No usable sandbox!'));
+
+    await expect(renderPdf('<html></html>')).rejects.toThrow(/No usable sandbox/);
+    expect(chromium.launch).toHaveBeenCalledTimes(1);
+  });
+
+  it('off: keeps --no-sandbox even when not root', async () => {
+    asUid(10001);
+    process.env.CHROMIUM_SANDBOX = 'off';
+    const { renderPdf, chromium } = await load();
+
+    await renderPdf('<html></html>');
+
+    expect(chromium.launch).toHaveBeenCalledWith(
+      expect.objectContaining({ chromiumSandbox: false, args: ['--no-sandbox'] }),
+    );
+  });
+
+  it('reads the mode from its usual spellings', async () => {
+    const { resolveChromiumSandboxMode } = await import('./render-pdf.js');
+    expect(resolveChromiumSandboxMode({ CHROMIUM_SANDBOX: 'TRUE' })).toBe('on');
+    expect(resolveChromiumSandboxMode({ CHROMIUM_SANDBOX: '0' })).toBe('off');
+    expect(resolveChromiumSandboxMode({ CHROMIUM_SANDBOX: 'maybe' })).toBe('auto');
+    expect(resolveChromiumSandboxMode({})).toBe('auto');
   });
 });

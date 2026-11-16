@@ -578,7 +578,11 @@ function DeclarationsSection({
       title={t("settings.channels.declarations.title", "Declarations")}
       description={t(
         "settings.channels.declarations.description",
-        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "Not a delivery channel: a separate duty to declare invoice data to a tax authority.",
+      )}
+      help={t(
+        "settings.channels.declarations.help",
+        "Your invoice still leaves by whatever transport you chose. The declaration is filed separately, at the point each country requires.",
       )}
       dataCy="channels-declarations"
     >
@@ -601,9 +605,7 @@ function DeclarationsSection({
                 dataCy={`declaration-${declaration.platformId}-source`}
                 className="text-sm font-medium text-foreground"
               >
-                {declaration.provenance.kind === "legal"
-                  ? declaration.provenance.sourceText
-                  : declaration.provenance.resolutionNote}
+                {t(`settings.channels.declarations.${declaration.platformId}.explanation`, "")}
               </ProseHelp>
             }
             meta={

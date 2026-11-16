@@ -322,6 +322,21 @@ describe('CompanyService - the company profile its country asks for', () => {
     });
   });
 
+  it('a German company is asked its EC sales list period, and nothing else', async () => {
+    await withCompany(async (companyId) => {
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { country: 'Germany', countryCode: 'DE' },
+      });
+
+      const attributes = (await service.getCompanyInfo(companyId))?.companyProfileAttributes ?? [];
+      expect(attributes.map((attribute) => attribute.key)).toEqual(['ecSalesListPeriod']);
+      expect(attributes[0].values.map((value) => value.value)).toEqual(['MONTHLY', 'QUARTERLY', 'ANNUAL']);
+      expect(attributes[0].askedWhen).toBeUndefined();
+      expect(attributes[0].derived).toBeUndefined();
+    });
+  });
+
   it('stores a declared size category, and clears it with null', async () => {
     await withCompany(async (companyId) => {
       expect(

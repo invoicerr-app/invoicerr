@@ -43,36 +43,35 @@ describe('DocumentQueueDispatcher.enqueueAction', () => {
     );
   });
 
-  it.each([
-    'completed',
-    'failed',
-  ])('clears a TERMINAL (%s) job under the same id before adding a fresh one', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
+  it.each(['completed', 'failed'])(
+    'clears a TERMINAL (%s) job under the same id before adding a fresh one',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new DocumentQueueDispatcher(queue as never);
 
-    await dispatcher.enqueueAction(INPUT);
+      await dispatcher.enqueueAction(INPUT);
 
-    expect(existing.remove).toHaveBeenCalled();
-    expect(queue.add).toHaveBeenCalled();
-  });
+      expect(existing.remove).toHaveBeenCalled();
+      expect(queue.add).toHaveBeenCalled();
+    },
+  );
 
-  it.each([
-    'waiting',
-    'active',
-    'delayed',
-  ])('leaves a still IN-FLIGHT (%s) job alone — never enqueues a duplicate', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
+  it.each(['waiting', 'active', 'delayed'])(
+    'leaves a still IN-FLIGHT (%s) job alone — never enqueues a duplicate',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new DocumentQueueDispatcher(queue as never);
 
-    await dispatcher.enqueueAction(INPUT);
+      await dispatcher.enqueueAction(INPUT);
 
-    expect(existing.remove).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
-  });
+      expect(existing.remove).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    },
+  );
 
   // A malformed `DOCUMENT_ACTION_QUEUE_ATTEMPTS` must not reach BullMQ: `NaN` loses every
   // `attemptsMade + 1 < attempts` comparison, so the send that fails once — a momentary network
@@ -128,24 +127,21 @@ describe('DocumentQueueDispatcher.enqueueScheduleOccurrence', () => {
   // result in exactly ONE enqueue — see schedule-sweep.ts's own header. Unlike `enqueueAction`, this
   // must skip UNCONDITIONALLY, even for a job already terminal (completed/failed): re-running the
   // exact same occurrence is never a legitimate retry for a schedule.
-  it.each([
-    'waiting',
-    'active',
-    'delayed',
-    'completed',
-    'failed',
-  ])('skips unconditionally when a job already exists under this id (%s) — never a duplicate occurrence', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
+  it.each(['waiting', 'active', 'delayed', 'completed', 'failed'])(
+    'skips unconditionally when a job already exists under this id (%s) — never a duplicate occurrence',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new DocumentQueueDispatcher(queue as never);
 
-    const enqueued = await dispatcher.enqueueScheduleOccurrence('schedule-sched-1-1234', OCCURRENCE_DATA);
+      const enqueued = await dispatcher.enqueueScheduleOccurrence('schedule-sched-1-1234', OCCURRENCE_DATA);
 
-    expect(enqueued).toBe(false);
-    expect(existing.remove).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
-  });
+      expect(enqueued).toBe(false);
+      expect(existing.remove).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    },
+  );
 });
 
 const REPORT_DATA: ReportJobData = {
@@ -178,24 +174,21 @@ describe('DocumentQueueDispatcher.enqueueReport', () => {
   // is UNCONDITIONAL, whatever the existing job's state (never "clear a terminal one and retry" —
   // see this method's own header for why a declaration's own retry happens INSIDE the one job, via
   // BullMQ's own attempts, never by re-enqueuing a second job).
-  it.each([
-    'completed',
-    'failed',
-    'waiting',
-    'active',
-    'delayed',
-  ])('a job already existing under this id (%s) is left alone — never a duplicate declaration', async (state) => {
-    const queue = fakeQueue();
-    const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
-    queue.getJob.mockResolvedValue(existing);
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
+  it.each(['completed', 'failed', 'waiting', 'active', 'delayed'])(
+    'a job already existing under this id (%s) is left alone — never a duplicate declaration',
+    async (state) => {
+      const queue = fakeQueue();
+      const existing = { getState: vi.fn().mockResolvedValue(state), remove: vi.fn() };
+      queue.getJob.mockResolvedValue(existing);
+      const dispatcher = new DocumentQueueDispatcher(queue as never);
 
-    const enqueued = await dispatcher.enqueueReport(REPORT_DATA);
+      const enqueued = await dispatcher.enqueueReport(REPORT_DATA);
 
-    expect(enqueued).toBe(false);
-    expect(existing.remove).not.toHaveBeenCalled();
-    expect(queue.add).not.toHaveBeenCalled();
-  });
+      expect(enqueued).toBe(false);
+      expect(existing.remove).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('DocumentQueueDispatcher.registerScheduleSweepRepeatable', () => {

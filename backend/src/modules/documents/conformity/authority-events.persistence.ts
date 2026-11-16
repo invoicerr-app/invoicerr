@@ -24,6 +24,7 @@ export interface DocumentAuthorityEventResult {
   rawPayload: Prisma.JsonValue | null;
   observedAt: Date;
   createdAt: Date;
+  subjectKey: string;
 }
 
 /**
@@ -37,12 +38,16 @@ export interface DocumentAuthorityEventResult {
  * Returns how many rows were ACTUALLY newly created (Prisma's own `createMany` count already excludes
  * skipped duplicates) — what `conformity-sweep-runner.spec.ts`'s own dedup test asserts on directly,
  * rather than re-querying afterwards to find out.
+ *
+ * `subjectKey` is part of that unique key: a payment declaration passes its payment id, so a second
+ * payment's `SUBMITTED` is a new row rather than a skipped duplicate of the first.
  */
 export async function createAuthorityEvents(
   companyId: string,
   documentId: string,
   providerId: string,
   events: RawAuthorityEvent[],
+  subjectKey = '',
 ): Promise<number> {
   if (events.length === 0) return 0;
   const { count } = await prisma.documentAuthorityEvent.createMany({
@@ -55,6 +60,7 @@ export async function createAuthorityEvents(
       reason: event.reason ?? null,
       rawPayload: (event.rawPayload ?? undefined) as Prisma.InputJsonValue | undefined,
       observedAt: event.observedAt,
+      subjectKey,
     })),
     skipDuplicates: true,
   });
@@ -75,8 +81,15 @@ export async function journalSyntheticEvent(
   statusCode: string,
   reason: string,
   observedAt: Date = new Date(),
+  subjectKey = '',
 ): Promise<number> {
-  return createAuthorityEvents(companyId, documentId, providerId, [{ statusCode, reason, observedAt }]);
+  return createAuthorityEvents(
+    companyId,
+    documentId,
+    providerId,
+    [{ statusCode, reason, observedAt }],
+    subjectKey,
+  );
 }
 
 /** Every authority event journaled for this document, most recent (by `observedAt`) first — what the

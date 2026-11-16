@@ -80,6 +80,9 @@ export function domesticCurrencyFor(meta: Pick<CountryMeta, 'countryCode'>): str
   return currency;
 }
 
+/** `PartyIdentifier.validationSource` of a VAT number the demo seed declares verified without asking VIES. */
+export const DEMO_SEED_VAT_SOURCE = 'demo-seed';
+
 async function createDomesticAndForeignClients(
   deps: Deps,
   rng: Rng,
@@ -93,11 +96,20 @@ async function createDomesticAndForeignClients(
   const makeClient = async (
     name: string,
     clientMeta: CountryMeta,
-    opts: { isSupplier?: boolean } = {},
+    opts: { isSupplier?: boolean; vatPreVerified?: boolean } = {},
   ): Promise<string> => {
     const { city, postalCode } = pickCity(rng, clientMeta);
     const contact = pickContactName(rng, clientMeta);
-    const identifiers = generatePartyIdentifiers(rng, clientMeta.countryCode);
+    const generated = generatePartyIdentifiers(rng, clientMeta.countryCode);
+    // The cross-border client's VAT number is generated, so VIES would never confirm it: the tax engine
+    // only treats a buyer as a business on a stored VALID verdict (`resolve-invoice-tax.ts`,
+    // `resolveBuyerRole`), and the demo's intra-EU B2B sale would fall back to B2C and charge the
+    // seller's own VAT (#797). That row is therefore written below as pre-verified by the seed and kept
+    // away from `createClient`, whose identifier upsert would send it to VIES.
+    const preVerifiedVat = opts.vatPreVerified
+      ? generated.find((entry) => entry.scheme === 'VAT')
+      : undefined;
+    const identifiers = generated.filter((entry) => entry !== preVerifiedVat);
     const created = await deps.clientsService.createClient(companyId, {
       id: '',
       name,
@@ -115,12 +127,25 @@ async function createDomesticAndForeignClients(
       contactEmail: `${contact.firstname}.${contact.lastname}@example-demo.invoicerr.app`.toLowerCase(),
       identifiers: identifiers.map((entry) => ({ scheme: entry.scheme, value: entry.value })),
     } as never);
-    return (created as { id: string }).id;
+    const clientId = (created as { id: string }).id;
+    if (preVerifiedVat) {
+      await prisma.partyIdentifier.create({
+        data: {
+          clientId,
+          scheme: preVerifiedVat.scheme,
+          value: preVerifiedVat.value,
+          validationStatus: 'VALID',
+          validatedAt: new Date(),
+          validationSource: DEMO_SEED_VAT_SOURCE,
+        },
+      });
+    }
+    return clientId;
   };
 
   const domestic = await makeClient(domesticName, meta);
   const supplier = await makeClient(supplierName, meta, { isSupplier: true });
-  const foreign = await makeClient(foreignName, foreignMeta);
+  const foreign = await makeClient(foreignName, foreignMeta, { vatPreVerified: true });
   return { domestic, foreign, supplier };
 }
 

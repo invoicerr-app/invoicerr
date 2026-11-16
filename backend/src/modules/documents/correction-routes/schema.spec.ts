@@ -54,18 +54,19 @@ describe('assertValidCorrectionRouteFact', () => {
   // THE GATE this whole module exists to enforce — in its original wording: "a route with status
   // required/allowed/forbidden WITHOUT legal provenance -> loading FAILS". One test per status, each
   // a candidate mutation (flip the coupling check and one of these three starts passing).
-  it.each([
-    'required',
-    'allowed',
-    'forbidden',
-  ] as const)('rejects status "%s" paired with UNVERIFIED provenance — required/allowed/forbidden may never hide behind no citation', (status) => {
-    const fact = baseFact({
-      status,
-      provenance: { kind: 'unverified', resolutionNote: 'Not researched yet.' },
-    });
-    expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(InvalidCorrectionRouteProvenanceError);
-    expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(/legal citation/);
-  });
+  it.each(['required', 'allowed', 'forbidden'] as const)(
+    'rejects status "%s" paired with UNVERIFIED provenance — required/allowed/forbidden may never hide behind no citation',
+    (status) => {
+      const fact = baseFact({
+        status,
+        provenance: { kind: 'unverified', resolutionNote: 'Not researched yet.' },
+      });
+      expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(
+        InvalidCorrectionRouteProvenanceError,
+      );
+      expect(() => assertValidCorrectionRouteFact(fact, 'test')).toThrow(/legal citation/);
+    },
+  );
 
   it('rejects status "unverified" paired with LEGAL provenance — the inverse mutation', () => {
     const fact = baseFact({

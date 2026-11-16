@@ -30,6 +30,7 @@ import {
 import {
   SettingsFormFooter,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
@@ -550,7 +551,7 @@ function DefinitionRow({ definition, documentTypeLabel }: DefinitionRowProps) {
  */
 export default function CustomFieldsSettings() {
   const { t } = useTranslation()
-  const { data: definitions, isLoading } = useCompanyCustomFieldDefinitions()
+  const { data: definitions, isLoading, isError, refetch } = useCompanyCustomFieldDefinitions()
   const { data: documentTypes } = useDocumentTypesList()
 
   const documentTypeLabel = (documentTypeId: string | null) =>
@@ -571,6 +572,8 @@ export default function CustomFieldsSettings() {
       >
         {isLoading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !definitions && isError ? (
+          <SettingsListError onRetry={() => refetch()} dataCy="custom-fields-load-error" />
         ) : documentDefinitions.length === 0 ? (
           <EmptyState
             icon={SlidersHorizontal}
@@ -594,6 +597,8 @@ export default function CustomFieldsSettings() {
       <SettingsSection title={t("settings.customFields.list.clientTitle")} dataCy="custom-fields-list-client">
         {isLoading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !definitions && isError ? (
+          <SettingsListError onRetry={() => refetch()} dataCy="custom-fields-client-load-error" />
         ) : clientDefinitions.length === 0 ? (
           <EmptyState
             icon={Users}

@@ -24,6 +24,54 @@
       }
     ]
   },
+  "codeLists": {
+    "countryCode": "PL",
+    "lists": [
+      {
+        "id": "vatUePart",
+        "label": "VAT-UE summary return part, the section of the Polish recapitulative statement an intra-Community operation is reported in",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Obwieszczenie Ministra Finansów z dnia 20 stycznia 2022 r. (Dz.U. 2022 poz. 332), jednolity tekst rozporządzenia Ministra Finansów z dnia 26 czerwca 2020 r. w sprawie informacji podsumowującej, załącznik nr 1, wzór VAT-UE(5): \"C. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYCH DOSTAWACH TOWARÓW\", \"D. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYCH NABYCIACH TOWARÓW\", \"E. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYM ŚWIADCZENIU USŁUG\", \"F. INFORMACJA O PRZEMIESZCZENIACH TOWARÓW W PROCEDURZE MAGAZYNU TYPU CALL-OFF STOCK NA TERYTORIUM PAŃSTWA CZŁONKOWSKIEGO INNE NIŻ TERYTORIUM KRAJU\"",
+          "sourceCheckedAt": "2026-11-13"
+        },
+        "entries": [
+          {
+            "code": "C",
+            "label": "Intra-Community supplies of goods",
+            "when": {
+              "operation": ["GOODS_SUPPLY"]
+            },
+            "notes": "Część C, wewnątrzwspólnotowe dostawy towarów. Column d marks the second taxpayer in a simplified triangular procedure (art. 135-138 ustawy o VAT); it is a flag on the row, not a separate part."
+          },
+          {
+            "code": "D",
+            "label": "Intra-Community acquisitions of goods",
+            "when": {
+              "operation": ["GOODS_ACQUISITION"]
+            },
+            "notes": "Część D, wewnątrzwspólnotowe nabycia towarów. Column d is the same triangular flag as part C."
+          },
+          {
+            "code": "E",
+            "label": "Intra-Community supplies of services",
+            "when": {
+              "operation": ["SERVICE_SUPPLY"]
+            },
+            "notes": "Część E, wewnątrzwspólnotowe świadczenie usług: the services of art. 100 ust. 1 pkt 4 ustawy o VAT (objaśnienia, załącznik nr 2, pkt 6)."
+          },
+          {
+            "code": "F",
+            "label": "Transfers of goods under call-off stock arrangements to another member state",
+            "when": {
+              "operation": ["CALL_OFF_STOCK_TRANSFER"]
+            },
+            "notes": "Część F, przemieszczenia towarów w procedurze magazynu typu call-off stock; column c names a replaced customer (art. 13j) and column d marks a return transfer (art. 13l ust. 2)."
+          }
+        ]
+      }
+    ]
+  },
   "policy": {
     "countryCode": "PL",
     "documentTypes": [

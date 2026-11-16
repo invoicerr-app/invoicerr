@@ -74,9 +74,24 @@ export function splitCiiIncludedNotes(ciiXml: string): string {
 export function splitCiiIncludedNotesInObject(cii: Record<string, unknown>): void {
   const invoiceRoot = cii?.['rsm:CrossIndustryInvoice'] as Record<string, unknown> | undefined;
   const exchangedDocument = invoiceRoot?.['rsm:ExchangedDocument'] as Record<string, unknown> | undefined;
-  const includedNote = exchangedDocument?.['ram:IncludedNote'] as Record<string, unknown> | undefined;
-  const contents = includedNote?.['ram:Content'];
-  if (!exchangedDocument || !Array.isArray(contents)) return; // nothing to split — safe no-op
+  const includedNote = exchangedDocument?.['ram:IncludedNote'];
+  if (!exchangedDocument || !includedNote) return; // nothing to split: safe no-op
+
+  // Newer generator releases already emit one note per mention; only the `#CODE#` prefix is left.
+  if (Array.isArray(includedNote)) {
+    for (const note of includedNote as Record<string, unknown>[]) {
+      if (note['ram:SubjectCode'] !== undefined) continue;
+      const m = /^#([A-Z0-9]{3})#([\s\S]*)$/.exec(String(note['ram:Content'] ?? ''));
+      if (m) {
+        note['ram:Content'] = m[2];
+        note['ram:SubjectCode'] = m[1];
+      }
+    }
+    return;
+  }
+
+  const contents = (includedNote as Record<string, unknown>)['ram:Content'];
+  if (!Array.isArray(contents)) return;
 
   exchangedDocument['ram:IncludedNote'] = contents.map((raw) => {
     const m = /^#([A-Z0-9]{3})#([\s\S]*)$/.exec(String(raw));
@@ -101,6 +116,9 @@ function escapeXmlText(value: string): string {
  */
 export function applyCiiSellerLegalDescription(ciiXml: string, description: string | undefined): string {
   if (!description) return ciiXml;
+  const seller = /<ram:SellerTradeParty>([\s\S]*?)<\/ram:SellerTradeParty>/.exec(ciiXml);
+  // Newer generator releases map BT-33 themselves: never emit a second Description.
+  if (seller?.[1].includes('<ram:Description>')) return ciiXml;
   return ciiXml.replace(
     /(<ram:SellerTradeParty>[\s\S]*?<ram:Name>[^<]*<\/ram:Name>)/,
     `$1<ram:Description>${escapeXmlText(description)}</ram:Description>`,
@@ -124,7 +142,7 @@ export function applyCiiSellerLegalDescriptionInObject(
     | Record<string, unknown>
     | undefined;
   const seller = agreement?.['ram:SellerTradeParty'] as Record<string, unknown> | undefined;
-  if (!seller) return;
+  if (!seller || 'ram:Description' in seller) return;
   // Rebuild in place so `ram:Description` keeps the position the UN/CEFACT TradePartyType sequence
   // gives it (right after `ram:Name`): the renderer serialises object keys in insertion order.
   const rebuilt: Record<string, unknown> = {};
