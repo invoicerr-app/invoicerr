@@ -2,11 +2,13 @@
  * Shapes shared by the vendor export reader. The three tools this covers publish
  * their exports under their own French column names, so the knowledge of "which column is which"
  * lives in `vendor-export-profiles.ts` as DATA: this file only names the canonical fields a profile
- * may map onto. The mapped row shapes arrive with the mapping itself.
+ * may map onto, and the mapped row shape the existing client import consumes.
  *
  * Nothing here talks to Prisma or Nest. `vendor-export-map.ts` is a pure function over a parsed
  * file, which is what makes "one test per tool and per export type" possible without a database.
  */
+import { ClientImportRow } from '../../clients/import/client-import.types';
+
 export type VendorId = 'abby' | 'henrri' | 'tiime';
 export type VendorExportKind = 'clients' | 'invoices';
 
@@ -112,4 +114,38 @@ export interface VendorExportProfile {
    * transactions, the tool's own ids). Listed so a real export's header row is fully accounted for.
    */
   ignoredColumns?: string[];
+}
+
+/** One row's fate after mapping: mapped rows are sent to the existing import preview/confirm. */
+export type VendorRowStatus = 'mapped' | 'rejected' | 'duplicate';
+
+/**
+ * One rejected row's reason, as an i18n key plus its values rather than a finished English
+ * sentence: the preview is a UI surface, so the browser renders the key in the reader's own
+ * language (see `vendor-export-messages.ts`).
+ */
+export interface VendorRowError {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
+export interface VendorMappedClientRow {
+  rowNumber: number;
+  status: VendorRowStatus;
+  row: ClientImportRow;
+  errors?: VendorRowError[];
+  duplicateOfRow?: number;
+  /** Which of the two duplicate rules named in `duplicateOfRow` matched. */
+  duplicateMatchedOn?: 'email' | 'name_country';
+}
+
+/**
+ * A tool whose export exists but cannot be read as columns. Abby is the case this reader has to
+ * name honestly: it exports invoices as a PDF archive only, so there is no row-shaped file to map.
+ */
+export interface UnsupportedVendorExport {
+  vendor: VendorId;
+  kind: VendorExportKind;
+  reason: string;
+  source: string;
 }
