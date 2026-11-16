@@ -58,6 +58,9 @@ describe('invoice "validate" (issue #581)', () => {
   // issuance makes due (Portugal's AT communication) are enqueued here, not only on send.
   it('fires the "issued" declaration hook once the invoice is numbered without being sent', async () => {
     mockCompany({ countryCode: 'PT', mandate: undefined, document: draftDocument() });
+    // A Portuguese company goes through the ATCUD preflight before numbering; its own rules are
+    // `atcud-issuance.spec.ts`'s concern, and this spec mocks the country catalog wholesale.
+    vi.spyOn(atcudIssuance, 'runAtcudPreflight').mockResolvedValue(undefined);
     mockAtomicNumbering(validatedDocument());
 
     await runInvoiceAction('validate', documentData, { currentStatus: 'draft' }, new TransportRegistry());
