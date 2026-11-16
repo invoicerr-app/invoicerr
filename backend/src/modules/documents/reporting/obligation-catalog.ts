@@ -3,21 +3,18 @@ import {
   ChannelDischarger,
   CountryReportingObligationFileV2,
   InvalidReportingObligationError,
+  isV2ReportingSource,
   ReportingObligation,
+  ReportingObligationSource,
   upgradeLegacyFacts,
 } from './obligation-v2';
 import { reportingObligationsFromComposedCatalog } from './registry';
-import { CountryReportingObligationFile, ReportableDocumentType } from './schema';
+import { ReportableDocumentType } from './schema';
 
-/** A country's `reporting` section as the catalog accepts it: still legacy facts, or already v2. */
-export type ReportingObligationSource = CountryReportingObligationFile | CountryReportingObligationFileV2;
-
-function isV2(file: ReportingObligationSource): file is CountryReportingObligationFileV2 {
-  return Array.isArray((file as CountryReportingObligationFileV2).obligations);
-}
+export type { ReportingObligationSource } from './obligation-v2';
 
 function toV2(file: ReportingObligationSource): CountryReportingObligationFileV2 {
-  if (!isV2(file)) return upgradeLegacyFacts(file);
+  if (!isV2ReportingSource(file)) return upgradeLegacyFacts(file);
   assertValidReportingObligationFileV2(
     file,
     `countries/data/${(file.countryCode ?? '').toLowerCase()}.json#reporting`,
@@ -38,9 +35,9 @@ function covers(obligation: ReportingObligation, typeId: ReportableDocumentType 
 /**
  * Read API over the v2 obligation format (issue #767). Every country file is upgraded or validated
  * once, when the catalog is built, so a malformed file fails at load with a named error rather than
- * at the first send. Nothing reads this catalog yet: the consumers still read the legacy
- * `ReportingObligationCatalog` in `registry.ts`, and each query below answers the same question as
- * its legacy counterpart, which `obligation-catalog.spec.ts` pins against the shipped files.
+ * at the first send. Every consumer reads it since #768 (the event hook, the runner, the profile sync,
+ * the Declarations screen and the channels settings); the legacy `ReportingObligationCatalog` in
+ * `registry.ts` is left for #769 to delete.
  *
  * Same "no database mirror" choice as the legacy catalog: the files are small and read in memory.
  * Lookups never fall back: a country with no file, or an absent country code, has no obligation.

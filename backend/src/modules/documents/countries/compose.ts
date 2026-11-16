@@ -28,7 +28,7 @@ import { CountryChannelPolicyFile } from '../transports/channel-policy/schema';
 import { CountryRetentionFile } from '../archive/retention/schema';
 import { CountryMentionsFile } from '../mentions/schema';
 import { CountryLocalizedMentionsFile } from '../tax/localized-mentions';
-import { CountryReportingObligationFile } from '../reporting/schema';
+import { ReportingObligationSource } from '../reporting/obligation-v2';
 import { CountryDomesticReverseChargeFile } from '../domestic-reverse-charge/schema';
 import { CountryFieldOverlayFile } from '../country-fields/schema';
 import { CountryContentRequirementsFile } from '../content-requirements/schema';
@@ -55,7 +55,7 @@ export interface ComposedCountryView {
   retention?: CountryRetentionFile;
   mentions?: CountryMentionsFile;
   localizedMentions?: CountryLocalizedMentionsFile;
-  reporting?: CountryReportingObligationFile;
+  reporting?: ReportingObligationSource;
   domesticReverseCharge?: CountryDomesticReverseChargeFile;
   countryFields?: CountryFieldOverlayFile;
   contentRequirements?: CountryContentRequirementsFile;

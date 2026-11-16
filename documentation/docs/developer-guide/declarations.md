@@ -10,8 +10,36 @@ B2C and payment data, an EC sales list, a VAT return. Delivery to the buyer is c
 [Operators and channels](./operators-and-channels.md); this page covers the declaration side.
 
 The model is being rebuilt in five steps (issues #766 to #770). This page describes the v2
-**obligation format** (#767). It lives beside the legacy `reporting` facts and nothing reads it yet:
-every country file still declares legacy facts, and `upgradeLegacyFacts` turns them into v2.
+**obligation format** (#767) and the document events that fire it (#768). The shipped country files
+are written in v2, and every consumer reads the v2 catalog (`reporting/obligation-catalog.ts`). A
+section still written in legacy `reporting` facts is accepted and upgraded on load by
+`upgradeLegacyFacts`, until #769 removes that shape.
+
+## When a declaration is enqueued
+
+One hook, `reporting/on-document-event.ts`, is called by every document event that can make a
+declaration due. It never throws: the event has already happened.
+
+| Event | Called from | Fires obligations whose trigger is |
+| --- | --- | --- |
+| `issued` | the invoice "validate" action, once the invoice is numbered and locked without being sent | `issued` |
+| `sent` | `actions/async-send.ts`, after delivery and the "sent" write | `issued`, `sent` |
+| `payment` | the invoice "record-payment" action, after the payment row is written | `payment` |
+
+A `period-end` obligation is never fired by a document event (#770).
+
+For each event the hook takes the seller country's provider-discharged obligations with a matching
+trigger, classifies each against the operation (`classify.ts`), and enqueues the first one that
+covers it. When none covers it but one could not be decided (no client type, no company size
+category), it journals `report:blocked` with the reason instead of declaring on a guess.
+
+A `sent` event also fires `issued` obligations, because a document sent straight from draft is
+issued by that send. A document validated first and sent later therefore fires the same obligation
+twice. The runner (`reporting-runner.ts`) declares it once: before declaring, it looks for an
+authority result already journaled for that document and provider, and skips the job if one exists.
+That check does not apply to a provider that also has a `payment` obligation on the same document
+type, because its invoice and payment results share status codes; such a provider's document
+obligations are triggered by `sent` only.
 
 ## Vocabulary
 
@@ -82,7 +110,7 @@ error whose message names the file and the obligation:
 | `providerId`, `appliesTo`, scope categories | `id`, e.g. `pt-at:invoice`, `fr-pa:invoice:b2c` |
 | the file's `countryCode` | `authority.countryCode` |
 | (every legacy fact is per-document data) | `kind: "data"`, `unit: "document"` |
-| a `payments` scope, or anything else | `trigger: "payment"`, or `trigger: "sent"`, as the legacy runner already applies them |
+| a `payments` scope, or anything else | `trigger: "payment"`, or `trigger: "sent"`, as the legacy runner applied them |
 | `appliesTo`, `scope` | `scope.documentTypes`, `scope.transactions` |
 | `provenance` | `legalBasis.provenance` |
 | `applicableFrom`, `applicability` | `applicability` windows |

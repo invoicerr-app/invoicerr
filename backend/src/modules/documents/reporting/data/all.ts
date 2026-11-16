@@ -1,26 +1,24 @@
 /**
- * Issue #603 step 6: the data physically moved to `countries/data/<cc>.json` (one file per country,
- * `reporting` section) - `countries/data/all.ts` is now the only place that reads or validates it,
- * and `registry.ts`'s own default constructor already reads `defaultComposedCountryCatalog` directly,
- * not this array. `ALL_REPORTING_OBLIGATION_FILES` below still exists, and still exports the exact
- * same content, purely for the handful of callers that import it directly instead of going through
- * `registry.ts` (`reporting/list-declarations.ts`, `countries/compose.spec.ts`) - it now DERIVES from
- * the composed catalog rather than reading a file itself, so there is nothing left here to validate:
- * that already happened once, centrally, in `countries/data/all.ts`.
+ * Every country's reporting section, read from `countries/data/<cc>.json` through the composed
+ * catalog (`countries/data/all.ts` already validated each one at load), in the v2 obligation shape.
+ * Since issue #768 the shipped files are written in v2; a section still in the legacy `facts` shape is
+ * upgraded here with `upgradeLegacyFacts`, so every reader sees v2. Kept for the callers that import
+ * the array directly instead of going through `obligation-catalog.ts`.
  */
 import { defaultComposedCountryCatalog } from '../../countries/registry';
-import { CountryReportingObligationFile } from '../schema';
+import { CountryReportingObligationFileV2, isV2ReportingSource, upgradeLegacyFacts } from '../obligation-v2';
 
-function reportingFromComposedCatalog(): CountryReportingObligationFile[] {
-  const files: CountryReportingObligationFile[] = [];
+function reportingFromComposedCatalog(): CountryReportingObligationFileV2[] {
+  const files: CountryReportingObligationFileV2[] = [];
   for (const countryCode of defaultComposedCountryCatalog.countries()) {
     const reporting = defaultComposedCountryCatalog.get(countryCode)?.reporting;
-    if (reporting) files.push(reporting);
+    // A section still written in legacy `facts` is upgraded here, so every reader sees v2 (#768).
+    if (reporting) files.push(isV2ReportingSource(reporting) ? reporting : upgradeLegacyFacts(reporting));
   }
   return files;
 }
 
 /** Every wired jurisdiction's reporting obligation, one file per country - see this module's own
  *  header. A country with no entry here has no obligation at all. */
-export const ALL_REPORTING_OBLIGATION_FILES: CountryReportingObligationFile[] =
+export const ALL_REPORTING_OBLIGATION_FILES: CountryReportingObligationFileV2[] =
   reportingFromComposedCatalog();

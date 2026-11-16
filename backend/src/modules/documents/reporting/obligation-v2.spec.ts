@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LEGACY_REPORTING_FILES } from './__fixtures__/legacy-reporting-files';
 import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
 import {
   assertValidReportingObligation,
@@ -217,11 +218,12 @@ describe('v2 reporting obligation validator', () => {
 });
 
 describe('upgradeLegacyFacts', () => {
-  const byCountry = Object.fromEntries(ALL_REPORTING_OBLIGATION_FILES.map((f) => [f.countryCode, f]));
+  // The legacy facts as they last shipped, frozen when #768 rewrote the country files in v2.
+  const byCountry = Object.fromEntries(LEGACY_REPORTING_FILES.map((f) => [f.countryCode, f]));
 
-  it('upgrades every shipped legacy file into a valid v2 file', () => {
-    expect(ALL_REPORTING_OBLIGATION_FILES.length).toBeGreaterThan(0);
-    for (const file of ALL_REPORTING_OBLIGATION_FILES) {
+  it('upgrades every formerly shipped legacy file into a valid v2 file', () => {
+    expect(LEGACY_REPORTING_FILES.length).toBeGreaterThan(0);
+    for (const file of LEGACY_REPORTING_FILES) {
       const upgraded = upgradeLegacyFacts(file);
       expect(upgraded.countryCode).toBe(file.countryCode);
       expect(upgraded.obligations).toHaveLength(file.facts.length);
@@ -273,6 +275,21 @@ describe('upgradeLegacyFacts', () => {
         fact.applicability?.map((w) => [w.from.date, w.when?.companyProfile]),
       );
     });
+  });
+
+  // Issue #768 rewrote the country files through this very upgrade. The only hand edit is Portugal's
+  // trigger: the AT communication is due once the document is issued, not when it is sent, so both
+  // its obligations moved to "issued" with a timing note saying so. Anything else drifting fails here.
+  it('the shipped v2 files are the upgrade of the legacy facts, but for the Portuguese trigger', () => {
+    const shipped = Object.fromEntries(ALL_REPORTING_OBLIGATION_FILES.map((f) => [f.countryCode, f]));
+    expect(shipped.FR).toEqual(upgradeLegacyFacts(byCountry.FR));
+    const upgradedPt = upgradeLegacyFacts(byCountry.PT);
+    expect(shipped.PT.obligations.map((o) => [o.trigger, o.timingNote])).toEqual(
+      upgradedPt.obligations.map(() => ['issued', expect.stringContaining('DL 198/2012, art. 3')]),
+    );
+    expect(shipped.PT.obligations.map(({ trigger, timingNote, ...rest }) => rest)).toEqual(
+      upgradedPt.obligations.map(({ trigger, timingNote, ...rest }) => rest),
+    );
   });
 
   it('carries a single applicableFrom over as an unconditioned window', () => {

@@ -368,12 +368,9 @@ describe('reportOnSendIfObligated', () => {
     });
 
     // THE MUTATION TARGET: a send trigger that ignored `trigger` would declare a periodic summary once
-    // per invoice. Only a `sent` obligation is a send-time declaration.
-    it.each([
-      'period-end',
-      'payment',
-      'issued',
-    ] as const)('never fires a "%s" obligation on send', async (trigger) => {
+    // per invoice. A send fires the `sent` obligations and, since #768, the `issued` ones (a document
+    // sent straight from draft is issued by that send); never a payment or periodic one.
+    it.each(['period-end', 'payment'] as const)('never fires a "%s" obligation on send', async (trigger) => {
       // A period-end obligation is declared per period, so the validator requires its channels to say so.
       const periodic =
         trigger === 'period-end'
@@ -385,6 +382,11 @@ describe('reportOnSendIfObligated', () => {
       const enqueueReport = await send(v2Catalog({ ...v2Obligation, trigger, ...periodic }));
       expect(enqueueReport).not.toHaveBeenCalled();
       expect(mockedJournalSynthetic).not.toHaveBeenCalled();
+    });
+
+    it('fires an "issued" obligation on send: a document sent straight from draft is issued by it', async () => {
+      const enqueueReport = await send(v2Catalog({ ...v2Obligation, trigger: 'issued' }));
+      expect(enqueueReport).toHaveBeenCalledWith(expect.objectContaining({ providerId: 'zz-api' }));
     });
 
     it('never fires an obligation with no provider channel', async () => {

@@ -18,7 +18,11 @@ import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/commo
 import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
 
-import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
+import {
+  createAuthorityEvents,
+  hasDeclarationResult,
+  journalSyntheticEvent,
+} from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
 import {
   DeclarationProviderRegistry,
@@ -28,9 +32,9 @@ import {
   DeclaredPayment,
 } from './declaration-provider';
 import { buildDeclaredInvoice, UndeclarableDocumentError } from './build-declared-invoice';
-import { classifyDeclaration } from './classify';
+import { classifyObligation } from './classify';
+import { defaultReportingObligationCatalogV2 } from './obligation-catalog';
 import { loadDeclarationOperation } from './operation-context';
-import { defaultReportingObligationCatalog } from './registry';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveCreditNoteFormatSource } from '../formats/credit-note-source';
@@ -147,10 +151,37 @@ export class ReportingRunner {
   async runReport(data: ReportJobData): Promise<{ journaled: number }> {
     const provider = this.providerRegistry.resolve(data.providerId);
     if (!provider) {
-      // Defensive only — `report-on-send.ts` only ever enqueues a provider id a
+      // Defensive only: `on-document-event.ts` only ever enqueues a provider id a
       // `reporting/data/*.json` fact named, and the registry is built from that same set in
       // production. Loud, never a silent no-op.
       this.logger.warn(`No declaration provider registered for "${data.providerId}" — nothing declared.`);
+      return { journaled: 0 };
+    }
+
+    // The obligations this job may discharge: the payment ones for a payment job, the document ones
+    // (issued or sent) otherwise, so a payment never re-declares the invoice and the reverse.
+    const ownObligations = defaultReportingObligationCatalogV2
+      .obligationsForProvider(data.providerId, data.typeId)
+      .filter((obligation) =>
+        data.paymentId ? obligation.trigger === 'payment' : obligation.trigger !== 'payment',
+      );
+
+    // Declared once (issue #768): validating fires the `issued` obligation and a later send fires it
+    // again. The job id already dedups a second enqueue while the first job is still in BullMQ's
+    // history, but that history is bounded, so the journal is the durable answer. Only for a provider
+    // with no payment obligation on this type: one that also declares payments under the same id
+    // (France's platform) journals both under the same codes, so its events cannot tell an invoice
+    // declaration from a payment one, and its documents are declared from the send alone.
+    if (
+      !data.paymentId &&
+      !defaultReportingObligationCatalogV2
+        .obligationsForProvider(data.providerId, data.typeId)
+        .some((obligation) => obligation.trigger === 'payment') &&
+      (await hasDeclarationResult(data.companyId, data.documentId, data.providerId))
+    ) {
+      this.logger.log(
+        `Document ${data.documentId} was already declared to "${data.providerId}": nothing declared again.`,
+      );
       return { journaled: 0 };
     }
 
@@ -219,10 +250,15 @@ export class ReportingRunner {
     // the document may have changed while the job waited (or between two BullMQ attempts). A fact
     // that no longer covers the operation sends nothing; an operation that became unclassifiable is
     // journaled `report:blocked`, never declared on a guess.
-    const ownFacts = defaultReportingObligationCatalog.factsForProvider(data.providerId, data.typeId);
-    // An id the catalog no longer names: the job was already enqueued under a fact that existed when
-    // the document was sent, so it still runs. Only a fact the catalog still carries is re-classified.
-    const needsOperation = Boolean(payment) || ownFacts.some((fact) => fact.scope || fact.applicability);
+    // An id the catalog no longer names: the job was already enqueued under an obligation that existed
+    // when the document was issued, so it still runs (in-flight job data from before #768 included).
+    // Only an obligation the catalog still carries is re-classified.
+    const needsOperation =
+      Boolean(payment) ||
+      ownObligations.some(
+        (obligation) =>
+          obligation.scope.transactions || obligation.applicability || obligation.sellerConditions,
+      );
     const operation = needsOperation
       ? await loadDeclarationOperation({
           companyId: data.companyId,
@@ -236,8 +272,11 @@ export class ReportingRunner {
       : undefined;
     if (operation?.lineNatures) declaredInvoice.lineNatures = operation.lineNatures;
 
-    const verdicts = ownFacts.map((fact) => ({ fact, verdict: classifyDeclaration(fact, operation) }));
-    if (ownFacts.length > 0 && !verdicts.some(({ verdict }) => verdict.status === 'in')) {
+    const verdicts = ownObligations.map((obligation) => ({
+      obligation,
+      verdict: classifyObligation(obligation, operation),
+    }));
+    if (ownObligations.length > 0 && !verdicts.some(({ verdict }) => verdict.status === 'in')) {
       const undetermined = verdicts.find(({ verdict }) => verdict.status === 'undetermined');
       if (undetermined && undetermined.verdict.status === 'undetermined') {
         const journaled = await this.journalBlocked(data, undetermined.verdict.reason);

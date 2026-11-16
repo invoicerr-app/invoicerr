@@ -44,7 +44,8 @@ export type ObligationKind = 'data' | 'summary' | 'return';
 /**
  * What makes the obligation due. `sent` is the only trigger the legacy shape knew (every legacy
  * fact fired from `report-on-send.ts`), `payment` is the legacy `payments` scope
- * (`report-payment.ts`); `issued` and `period-end` are new and read by nothing yet (#768, #770).
+ * (`report-payment.ts`); `issued` is fired by the "validate" action and by every send
+ * (`on-document-event.ts`, #768); `period-end` is read by nothing yet (#770).
  */
 export type ObligationTrigger = 'issued' | 'sent' | 'payment' | 'period-end';
 
@@ -133,6 +134,19 @@ export interface ReportingObligation {
 export interface CountryReportingObligationFileV2 {
   countryCode: string;
   obligations: ReportingObligation[];
+}
+
+/**
+ * A country's `reporting` section as `countries/data/<cc>.json` may hold it: v2 `obligations`
+ * (every shipped file since #768), or legacy `facts`, still accepted and upgraded at load until #769
+ * removes the legacy shape.
+ */
+export type ReportingObligationSource = CountryReportingObligationFile | CountryReportingObligationFileV2;
+
+export function isV2ReportingSource(
+  file: ReportingObligationSource,
+): file is CountryReportingObligationFileV2 {
+  return Array.isArray((file as CountryReportingObligationFileV2).obligations);
 }
 
 export class InvalidReportingObligationError extends Error {}

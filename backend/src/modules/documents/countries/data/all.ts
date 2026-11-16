@@ -50,6 +50,7 @@ import { assertValidRetentionRule } from '../../archive/retention/schema';
 import { assertValidMentionRule } from '../../mentions/schema';
 import { assertValidLocalizedMentions } from '../../tax/localized-mentions';
 import { assertValidReportingObligationFact } from '../../reporting/schema';
+import { assertValidReportingObligationFileV2, isV2ReportingSource } from '../../reporting/obligation-v2';
 import { assertValidDomesticReverseChargeCategory } from '../../domestic-reverse-charge/schema';
 import { assertValidCountryFields } from '../../country-fields/schema';
 import { assertValidContentRequirementFact } from '../../content-requirements/schema';
@@ -284,6 +285,11 @@ function validateReportingSection(
 ): void {
   if (!reporting) return;
   assertSectionCountryCode(reporting, 'reporting', ctx);
+  if (isV2ReportingSource(reporting)) {
+    assertValidReportingObligationFileV2(reporting, `${filePath}#reporting`);
+    return;
+  }
+  // Legacy `facts`, still accepted until #769 removes the shape.
   for (const fact of reporting.facts) {
     assertValidReportingObligationFact(fact, `${filePath}#reporting`);
   }
