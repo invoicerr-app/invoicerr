@@ -524,7 +524,11 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
       title={t("settings.channels.declarations.title", "Declarations")}
       description={t(
         "settings.channels.declarations.description",
-        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "Not a delivery channel: a separate duty to declare invoice data to a tax authority.",
+      )}
+      help={t(
+        "settings.channels.declarations.help",
+        "Your invoice still leaves by whatever transport you chose. The declaration is filed separately, at the point each country requires.",
       )}
       dataCy="channels-declarations"
     >
@@ -547,9 +551,7 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
                 dataCy={`declaration-${obligation.providerId}-source`}
                 className="text-sm font-medium text-foreground"
               >
-                {obligation.provenance.kind === "legal"
-                  ? obligation.provenance.sourceText
-                  : obligation.provenance.resolutionNote}
+                {t(`settings.channels.declarations.${obligation.providerId}.explanation`, "")}
               </ProseHelp>
             }
           />
