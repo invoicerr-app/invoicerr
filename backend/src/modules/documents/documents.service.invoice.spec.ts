@@ -222,7 +222,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect((result.document!.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
     expect(persistence.upsertDocument).toHaveBeenCalledWith(
       'company-1',
       'invoice',
@@ -262,7 +262,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     expect(result.changed).toBe(true);
-    const persistedLines = (result.document?.data as typeof dataWithLineDate).lines;
+    const persistedLines = (result.document!.data as typeof dataWithLineDate).lines;
     expect(persistedLines[0].date).toBe('2026-01-15');
     // The second line never set one — omitting it on a per-line basis is exactly as valid as omitting
     // it on every line (the ordinary `validInvoiceData` fixture, exercised by the very first test in

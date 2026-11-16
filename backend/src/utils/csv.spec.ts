@@ -41,17 +41,13 @@ describe('escapeCsvCell', () => {
     // THE constraint the guard lives under: this file is read by accounting software, and an escape
     // that turns an amount into text breaks the export's one job. A negative amount begins with a
     // formula trigger and must still come out a number.
-    it.each([
-      '-120.00',
-      '-0.01',
-      '-1',
-      '-1234.56',
-      '+120.00',
-      '-.5',
-    ])('the amount %s is emitted bare — still a number to a spreadsheet and to an importer', (amount) => {
-      expect(escapeCsvCell(amount)).toBe(amount);
-      expect(isSpreadsheetFormula(amount)).toBe(false);
-    });
+    it.each(['-120.00', '-0.01', '-1', '-1234.56', '+120.00', '-.5'])(
+      'the amount %s is emitted bare — still a number to a spreadsheet and to an importer',
+      (amount) => {
+        expect(escapeCsvCell(amount)).toBe(amount);
+        expect(isSpreadsheetFormula(amount)).toBe(false);
+      },
+    );
 
     it('a payload that merely OPENS like a negative number is still guarded', () => {
       // The carve-out is an exact match, never a prefix match, so the arithmetic a spreadsheet

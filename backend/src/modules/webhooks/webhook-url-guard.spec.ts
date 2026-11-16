@@ -25,13 +25,12 @@ describe('assertPublicWebhookUrl', () => {
       expect(lookup).not.toHaveBeenCalled();
     });
 
-    it.each([
-      'gopher://example.com/',
-      'ftp://example.com/',
-      'data:text/plain;base64,aGk=',
-    ])('rejects non-http(s) scheme: %s', async (url) => {
-      await expect(assertPublicWebhookUrl(url)).rejects.toThrow(OutboundUrlValidationError);
-    });
+    it.each(['gopher://example.com/', 'ftp://example.com/', 'data:text/plain;base64,aGk='])(
+      'rejects non-http(s) scheme: %s',
+      async (url) => {
+        await expect(assertPublicWebhookUrl(url)).rejects.toThrow(OutboundUrlValidationError);
+      },
+    );
 
     it('rejects a string that is not a URL at all, without throwing an uncaught error', async () => {
       await expect(assertPublicWebhookUrl('not a url')).rejects.toThrow(OutboundUrlValidationError);

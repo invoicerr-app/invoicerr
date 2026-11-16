@@ -299,15 +299,11 @@ describe('a tenant provider may only ever vouch for a user inside its own compan
     expect(companyThatMustVouchForLink(viaSsoPlugin)).toBe(COMPANY_B);
   });
 
-  it.each([
-    null,
-    undefined,
-    42,
-    'link-account',
-    {},
-    { action: 'link-account' },
-  ])('never throws on the untrusted shape %p that better-auth hands the hook', (source) => {
-    expect(() => companyThatMustVouchForLink(source)).not.toThrow();
-    expect(companyThatMustVouchForLink(source)).toBeNull();
-  });
+  it.each([null, undefined, 42, 'link-account', {}, { action: 'link-account' }])(
+    'never throws on the untrusted shape %p that better-auth hands the hook',
+    (source) => {
+      expect(() => companyThatMustVouchForLink(source)).not.toThrow();
+      expect(companyThatMustVouchForLink(source)).toBeNull();
+    },
+  );
 });

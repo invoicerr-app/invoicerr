@@ -815,26 +815,31 @@ describe('receipt-style document emails', () => {
     [0, '0.00 EUR', '1200.00 EUR'],
     [40000, '400.00 EUR', '800.00 EUR'],
     [120000, '1200.00 EUR', '0.00 EUR'],
-  ])('renders all receipt variables with %i paid in document minor units', async (paid, paidText, dueText) => {
-    if (paid) {
-      (listPayments as Mock).mockResolvedValue([
-        { amountMinor: 500, currency: 'USD', documentAmountMinor: paid },
-      ]);
-    }
-    const { mail, send } = sendReceipt();
-    const result = await send();
-    const options = mail.mock.calls[0][1];
-    const summary = `9 nov. 2026 | 9 déc. 2026 | ${paidText} | ${dueText} | {unknown}`;
-    expect(options.subject).toBe('9 nov. 2026 / {unknown}');
-    expect(options.html).toContain(summary);
-    expect(options.text).toContain(summary);
-    const url = options.html.match(/href="([^"]+)"/)?.[1];
-    expect(url).toMatch(/^https:\/\/billing\.example\.test\/api\/public\/documents\/[a-f0-9]{64}\/pdf$/);
-    expect(options.text).toContain(`View invoice (${url})`);
-    expect(result.message.match(/Unknown email template placeholder/g)).toHaveLength(1);
-    expect(createShareLinkToken).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(vi.mocked(createShareLinkToken).mock.calls)).not.toContain(url?.split('/').at(-2));
-  });
+  ])(
+    'renders all receipt variables with %i paid in document minor units',
+    async (paid, paidText, dueText) => {
+      if (paid) {
+        (listPayments as Mock).mockResolvedValue([
+          { amountMinor: 500, currency: 'USD', documentAmountMinor: paid },
+        ]);
+      }
+      const { mail, send } = sendReceipt();
+      const result = await send();
+      const options = mail.mock.calls[0][1];
+      const summary = `9 nov. 2026 | 9 déc. 2026 | ${paidText} | ${dueText} | {unknown}`;
+      expect(options.subject).toBe('9 nov. 2026 / {unknown}');
+      expect(options.html).toContain(summary);
+      expect(options.text).toContain(summary);
+      const url = options.html.match(/href="([^"]+)"/)?.[1];
+      expect(url).toMatch(/^https:\/\/billing\.example\.test\/api\/public\/documents\/[a-f0-9]{64}\/pdf$/);
+      expect(options.text).toContain(`View invoice (${url})`);
+      expect(result.message.match(/Unknown email template placeholder/g)).toHaveLength(1);
+      expect(createShareLinkToken).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(vi.mocked(createShareLinkToken).mock.calls)).not.toContain(
+        url?.split('/').at(-2),
+      );
+    },
+  );
 
   it.each(['policy', 'status'])('blocks delivery when sharing is denied by %s', async (gate) => {
     if (gate === 'policy') {

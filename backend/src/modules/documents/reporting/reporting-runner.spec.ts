@@ -208,19 +208,22 @@ describe('ReportingRunner.runReport', () => {
     ['null', null],
     ['empty', ''],
     ['blank', '   '],
-  ])('a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called', async (_label, displayNumber) => {
-    mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
-    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
-    const runner = buildRunner({ providerId: 'nav', declare });
+  ])(
+    'a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called',
+    async (_label, displayNumber) => {
+      mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
+      const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+      const runner = buildRunner({ providerId: 'nav', declare });
 
-    const attempt = runner.runReport(JOB_DATA);
-    await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
-    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
-      /Refusing to declare invoice doc-1: it has no number/,
-    );
-    expect(declare).not.toHaveBeenCalled();
-    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
-  });
+      const attempt = runner.runReport(JOB_DATA);
+      await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
+      await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
+        /Refusing to declare invoice doc-1: it has no number/,
+      );
+      expect(declare).not.toHaveBeenCalled();
+      expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+    },
+  );
 
   // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.
   it('a provider returning an empty authorityId is REFUSED — never journaled as a success', async () => {

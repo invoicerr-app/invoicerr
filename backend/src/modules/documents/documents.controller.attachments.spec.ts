@@ -65,26 +65,24 @@ describe('DocumentsController.downloadAttachment — Content-Type is never the r
     expect(headers['Content-Type']).toBe('application/pdf');
   });
 
-  it.each([
-    'text/html',
-    'image/svg+xml',
-    'application/javascript',
-    'text/plain',
-  ])('never echoes a disallowed mime (%s) — serves application/octet-stream instead', async (untrustedMime) => {
-    // `AttachmentsService.download` faithfully returns whatever mime it was asked for — this is the
-    // exact shape a query-string-controlled `?mime=` produces against a file the caller could not
-    // have uploaded as that type through THIS controller's own upload route (which enforces the
-    // allowlist), but could through a different one sharing the same storage.
-    const download = vi
-      .fn()
-      .mockResolvedValue({ bytes: Buffer.from('<script>evil</script>'), mime: untrustedMime });
-    const controller = buildController({ download });
-    const { res, headers } = fakeResponse();
+  it.each(['text/html', 'image/svg+xml', 'application/javascript', 'text/plain'])(
+    'never echoes a disallowed mime (%s) — serves application/octet-stream instead',
+    async (untrustedMime) => {
+      // `AttachmentsService.download` faithfully returns whatever mime it was asked for — this is the
+      // exact shape a query-string-controlled `?mime=` produces against a file the caller could not
+      // have uploaded as that type through THIS controller's own upload route (which enforces the
+      // allowlist), but could through a different one sharing the same storage.
+      const download = vi
+        .fn()
+        .mockResolvedValue({ bytes: Buffer.from('<script>evil</script>'), mime: untrustedMime });
+      const controller = buildController({ download });
+      const { res, headers } = fakeResponse();
 
-    await controller.downloadAttachment(COMPANY_ID, FILE_REF, untrustedMime, res);
+      await controller.downloadAttachment(COMPANY_ID, FILE_REF, untrustedMime, res);
 
-    expect(headers['Content-Type']).toBe('application/octet-stream');
-  });
+      expect(headers['Content-Type']).toBe('application/octet-stream');
+    },
+  );
 
   it('always sets X-Content-Type-Options: nosniff', async () => {
     const download = vi.fn().mockResolvedValue({ bytes: Buffer.from('x'), mime: 'image/png' });

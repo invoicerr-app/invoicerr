@@ -47,16 +47,15 @@ describe('CompanyWriteGuard', () => {
     else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
   });
 
-  it.each([
-    'GET',
-    'HEAD',
-    'OPTIONS',
-  ])('always allows a %s request, even for a blocked company', async (method) => {
-    process.env[BILLING_FLAG_NAME] = 'true';
-    getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
-    await expect(guard.canActivate(createContext(method, 'company-1'))).resolves.toBe(true);
-    expect(getOrCreate).not.toHaveBeenCalled();
-  });
+  it.each(['GET', 'HEAD', 'OPTIONS'])(
+    'always allows a %s request, even for a blocked company',
+    async (method) => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
+      await expect(guard.canActivate(createContext(method, 'company-1'))).resolves.toBe(true);
+      expect(getOrCreate).not.toHaveBeenCalled();
+    },
+  );
 
   it('allows a write with no active company on the request', async () => {
     process.env[BILLING_FLAG_NAME] = 'true';

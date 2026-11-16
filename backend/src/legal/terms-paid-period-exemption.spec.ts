@@ -98,24 +98,22 @@ describe('filterPendingSlugsAfterPaidPeriodGrace', () => {
     expect(result).toEqual(['terms-of-service']);
   });
 
-  it.each([
-    'BLOCKED',
-    'ZIPPED',
-    'PAST_DUE',
-    'TRIAL',
-  ] as const)('never excuses a Company whose status is %s, even with a future currentPeriodEnd on file — closes the non-payment reopening path', async (status) => {
-    findSub.mockResolvedValue({
-      status,
-      currentPeriodEnd: new Date('2027-01-01T00:00:00.000Z'),
-    } as CompanySubscription);
-    releasePublishedAt.mockResolvedValue(PUBLISHED_AT);
+  it.each(['BLOCKED', 'ZIPPED', 'PAST_DUE', 'TRIAL'] as const)(
+    'never excuses a Company whose status is %s, even with a future currentPeriodEnd on file — closes the non-payment reopening path',
+    async (status) => {
+      findSub.mockResolvedValue({
+        status,
+        currentPeriodEnd: new Date('2027-01-01T00:00:00.000Z'),
+      } as CompanySubscription);
+      releasePublishedAt.mockResolvedValue(PUBLISHED_AT);
 
-    const result = await filterPendingSlugsAfterPaidPeriodGrace(
-      ['terms-of-service'],
-      'company-1',
-      PUBLISHED_AT,
-    );
+      const result = await filterPendingSlugsAfterPaidPeriodGrace(
+        ['terms-of-service'],
+        'company-1',
+        PUBLISHED_AT,
+      );
 
-    expect(result).toEqual(['terms-of-service']);
-  });
+      expect(result).toEqual(['terms-of-service']);
+    },
+  );
 });

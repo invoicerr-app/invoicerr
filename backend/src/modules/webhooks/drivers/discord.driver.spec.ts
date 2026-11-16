@@ -40,7 +40,7 @@ describe('DiscordDriver', () => {
     const [calledUrl, options] = fetchSpy.mock.calls[0];
     expect(calledUrl).toBe('https://discord.com/api/webhooks/1/abc');
     expect(options?.method).toBe('POST');
-    expect((options?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect((options!.headers as Record<string, string>)['Content-Type']).toBe('application/json');
     // SSRF hardening (webhook-driver.interface.ts#postWebhookJson); webhook-fetch-hardening.spec.ts covers this driver too.
     expect(options?.redirect).toBe('manual');
     expect(options?.signal).toBeInstanceOf(AbortSignal);
