@@ -106,5 +106,5 @@ describeLive('PDP live round-trip (superpdp sandbox) — Factur-X deposit accept
     }
     const allReasons = events.map((e) => JSON.stringify(e.data?.reason ?? '')).join(' ');
     expect(allReasons).not.toContain('BT-23');
-  }, 180_000);
+  }, 360_000);
 });

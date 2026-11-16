@@ -71,5 +71,5 @@ describeLive('PDP live round-trip (superpdp sandbox) - a credit note (381 + BG-3
     const invoiceNumber = `INV-LIVE-472-${timestamp}`;
     await deposit(invoiceNumber);
     await deposit(`CN-LIVE-472-${timestamp}`, { displayNumber: invoiceNumber, issueDate: today });
-  }, 240_000);
+  }, 600_000);
 });
