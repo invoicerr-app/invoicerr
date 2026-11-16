@@ -236,7 +236,7 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     expect(secondPoll.journaled).toBe(0);
     const after = await listAuthorityEvents(companyId, documentId);
     expect(after.length).toBe(before); // not one extra row from re-polling the identical events
-  }, 180_000);
+  }, 360_000);
 
   it('a NON-COMPLIANT deposit (mentions/BT-23 deliberately skipped): does the platform answer fr:213?', async () => {
     const timestamp = Date.now();
@@ -283,5 +283,5 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
     expect(rejected).toBeDefined();
     expect(rejected!.reason).toEqual(expect.stringContaining('BG-1'));
     console.log('fr:213 REPRODUCED LIVE — reason:', rejected!.reason);
-  }, 180_000);
+  }, 360_000);
 });

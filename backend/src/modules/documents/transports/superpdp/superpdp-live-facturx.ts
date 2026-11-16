@@ -142,10 +142,12 @@ export async function depositLiveFacturx(
  * the old loop was 10 x 500ms (about 5s) and the sandbox measured 8 to 12s on 2026-11-06 and 07,
  * so four nightly runs went red on a deposit that was simply still being processed (only
  * `api:uploaded` was journaled at the last read). A verdict landing in under a second is the common
- * case and costs one first read; the budget only matters on the slow days. Exported so a spec's
- * failure message can name the real window instead of restating a second copy of the number.
+ * case and costs one first read; the budget only matters on the slow days. The fr:202 verdict
+ * usually follows the deposit by about 13s, but some sandbox days it stays pending past 90s while
+ * fr:200/201 arrive on time, hence the wider window. Exported so a spec's failure message can name
+ * the real window instead of restating a second copy of the number.
  */
-export const LIVE_VERDICT_BUDGET_MS = 90_000;
+export const LIVE_VERDICT_BUDGET_MS = 240_000;
 
 const FIRST_POLL_DELAY_MS = 500;
 const MAX_POLL_DELAY_MS = 5_000;
