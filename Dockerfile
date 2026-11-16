@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:26-bookworm AS backend-builder
+FROM --platform=$BUILDPLATFORM node:26.13.1-bookworm AS backend-builder
 # PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
 # `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
 # no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
@@ -25,7 +25,7 @@ RUN npm run build
 # and its native canvas binaries (about 100 MB), have no use there.
 RUN rm -rf node_modules/pdfjs-dist node_modules/@napi-rs/canvas*
 
-FROM --platform=$BUILDPLATFORM node:26-bookworm AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:26.13.1-bookworm AS frontend-builder
 # Matches backend-builder's version for consistency only; this stage has no native deps.
 
 WORKDIR /app
