@@ -98,6 +98,7 @@ describe('SuperPDP e-reporting adapter  -  B2C transaction', () => {
       },
     ]);
     expect(result.authorityId).toBe('42');
+    expect(result.referenceKind).toBe('platform');
     expect(result.statusCode).toBe('SUBMITTED');
     expect(result.statusText).toContain("platform's own record");
     expect(result.observedAt).toBeInstanceOf(Date);
@@ -194,6 +195,7 @@ describe('SuperPDP e-reporting adapter  -  B2C payment', () => {
       },
     ]);
     expect(result.authorityId).toBe('99');
+    expect(result.referenceKind).toBe('platform');
   });
 });
 

@@ -19,7 +19,11 @@ import { DeclarationProvider, DeclarationResult } from './declaration-provider';
 import { DeclarationProviderRegistry } from './declaration-provider';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
-import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
+import {
+  declarationReferenceKindOf,
+  InvalidDeclarationResultError,
+  ReportingRunner,
+} from './reporting-runner';
 import { UndeclarableDocumentError } from './build-declared-invoice';
 
 vi.mock('../persistence');
@@ -211,6 +215,24 @@ describe('ReportingRunner.runReport', () => {
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow(InvalidDeclarationResultError);
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+  });
+
+  it('a provider naming a reference kind no code knows is REFUSED, never journaled with a guessed origin', async () => {
+    const declare = vi.fn().mockResolvedValue({ ...SUCCESS_RESULT, referenceKind: 'minted-somewhere' });
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(/reference kind "minted-somewhere"/);
+    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+  });
+
+  it('a provider naming no reference kind still declares: its reference is the authority own (the historical contract)', async () => {
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await runner.runReport(JOB_DATA);
+
+    expect(declarationReferenceKindOf(SUCCESS_RESULT)).toBe('authority');
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledTimes(1);
   });
 
   it('a provider returning an empty statusCode is REFUSED the same way', async () => {

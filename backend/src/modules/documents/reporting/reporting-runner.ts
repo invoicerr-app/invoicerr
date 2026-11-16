@@ -21,8 +21,10 @@ import { fromMinor } from '@/utils/financial';
 import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
 import {
+  DECLARATION_REFERENCE_KINDS,
   DeclarationProviderRegistry,
   DeclarationProvider,
+  DeclarationReferenceKind,
   DeclarationResult,
   DeclaredInvoice,
   DeclaredPayment,
@@ -63,6 +65,17 @@ export function assertNonEmptyDeclarationResult(result: DeclarationResult, provi
         'refusing to journal it.',
     );
   }
+  if (result.referenceKind !== undefined && !DECLARATION_REFERENCE_KINDS.includes(result.referenceKind)) {
+    throw new InvalidDeclarationResultError(
+      `Declaration provider "${providerId}" returned an unknown reference kind "${String(result.referenceKind)}" ` +
+        `(expected one of ${DECLARATION_REFERENCE_KINDS.join(', ')}); refusing to journal it.`,
+    );
+  }
+}
+
+/** Who minted a declaration's `authorityId`; absent reads as the authority, its historical meaning. */
+export function declarationReferenceKindOf(result: DeclarationResult): DeclarationReferenceKind {
+  return result.referenceKind ?? 'authority';
 }
 
 /**
@@ -268,7 +281,8 @@ export class ReportingRunner {
     const journaled = await createAuthorityEvents(data.companyId, data.documentId, data.providerId, [result]);
     this.logger.log(
       `Declaration for document ${data.documentId} ("${data.providerId}") journaled: ` +
-        `statusCode="${result.statusCode}", authorityId="${result.authorityId}".`,
+        `statusCode="${result.statusCode}", authorityId="${result.authorityId}" ` +
+        `(${declarationReferenceKindOf(result)}).`,
     );
     // Same "only on a genuinely new row" rule as the "blocked" branch above.
     if (journaled > 0) {
