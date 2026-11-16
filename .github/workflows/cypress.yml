@@ -157,7 +157,7 @@ jobs:
       DATABASE_URL: postgresql://postgres@localhost:5432/invoicerr_test?schema=public
     services:
       postgres:
-        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -229,7 +229,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       postgres:
-        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: postgres
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -417,7 +417,7 @@ jobs:
       ADDRESS_AUTOCOMPLETE_URL: http://127.0.0.1:19876
     services:
       postgres-test:
-        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -723,7 +723,7 @@ jobs:
       POLAR_SERVER: sandbox
     services:
       postgres-test:
-        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -909,7 +909,7 @@ jobs:
       DEMO_MODE: "true"
     services:
       postgres-test:
-        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
