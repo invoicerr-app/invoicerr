@@ -10,6 +10,8 @@ export interface BillingStatusView {
   interval: "MONTH" | "YEAR" | null
   trialEndsAt: string
   daysRemaining: number | null
+  /** The price grid a checkout uses: `founder` while the company holds the founder grid. */
+  priceGrid: "standard" | "founder"
 }
 
 /**

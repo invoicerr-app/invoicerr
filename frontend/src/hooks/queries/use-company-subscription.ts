@@ -56,16 +56,27 @@ export function billingReturnUrl(query = ""): string {
 }
 
 /**
- * Starts a Stripe Checkout for the standard grid and redirects the browser to it. `seats` is the
- * quantity the manager chose; Invoicerr never changes it afterwards (the seat count is whatever
- * the subscription says). The founder grid is refused by the backend at checkout.
+ * Starts a Stripe Checkout on the company's price grid (`priceGrid` from `GET /api/billing/status`)
+ * and redirects the browser to it. `seats` is the quantity the manager chose; Invoicerr never changes
+ * it afterwards (the seat count is whatever the subscription says). The backend refuses the founder
+ * plan to a company that does not hold the founder grid.
  */
 export function useStartCheckout() {
   return useMutation({
-    mutationFn: async ({ companyId, annual, seats }: { companyId: string; annual: boolean; seats: number }) =>
+    mutationFn: async ({
+      companyId,
+      plan,
+      annual,
+      seats,
+    }: {
+      companyId: string
+      plan: "standard" | "founder"
+      annual: boolean
+      seats: number
+    }) =>
       unwrap(
         await authClient.subscription.upgrade({
-          plan: "standard",
+          plan,
           annual,
           seats,
           referenceId: companyId,

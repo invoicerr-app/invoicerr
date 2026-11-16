@@ -1,7 +1,9 @@
 /** Pure shape of `GET /api/billing/status`, testable without booting Nest. */
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
+import { priceGridOf } from './founder-grid';
 import { addDays, BLOCKED_DAYS } from './lifecycle';
 import { paidThroughEndOfDay } from './paid-period-grace';
+import type { PriceGrid } from './stripe-price-catalog';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -19,6 +21,9 @@ export interface BillingStatusView {
    *  For PAST_DUE it is the end of the paid period, and `0` (not `null`) once none is left, since the
    *  block lands on the next sweep tick and `null` would read as nothing urgent. */
   daysRemaining: number | null;
+  /** The price grid a checkout uses: `founder` while the company holds the founder grid
+   *  (`founder-grid.ts`), `standard` otherwise. */
+  priceGrid: PriceGrid;
 }
 
 export function computeBillingStatusView(
@@ -44,5 +49,6 @@ export function computeBillingStatusView(
     interval: sub.interval,
     trialEndsAt: sub.trialEndsAt.toISOString(),
     daysRemaining,
+    priceGrid: priceGridOf(sub),
   };
 }

@@ -22,6 +22,8 @@ function sub(overrides: Partial<CompanySubscription>): CompanySubscription {
     currentPeriodEnd: null,
     seats: 1,
     interval: null,
+    founderGrantedAt: null,
+    founderLostAt: null,
     billingWarningMilestonesSent: [],
     createdAt: NOW,
     updatedAt: NOW,
@@ -82,6 +84,12 @@ describe('computeBillingStatusView', () => {
 
   it('is null defensively when BLOCKED carries no blockedAt', () => {
     expect(computeView(sub({ status: 'BLOCKED', blockedAt: null }), NOW).daysRemaining).toBeNull();
+  });
+
+  it('tells the checkout which price grid applies: founder only while the grid is held', () => {
+    expect(computeView(sub({})).priceGrid).toBe('standard');
+    expect(computeView(sub({ founderGrantedAt: NOW })).priceGrid).toBe('founder');
+    expect(computeView(sub({ founderGrantedAt: NOW, founderLostAt: NOW })).priceGrid).toBe('standard');
   });
 
   it('carries seats and interval through unchanged', () => {

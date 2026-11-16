@@ -158,5 +158,19 @@ when the founder grid is set. A plan's price is the grid's monthly price and its
 yearly one, so a checkout picks the interval with `annual: true`. The seat count is the subscription
 quantity; no plan carries a separate seat price.
 
-Nobody can check out on the `founder` plan yet: the plan exists so that a founder subscription maps
-back to it, and who keeps the founder grid is decided per company in a later step.
+### Founder grid
+
+The founder grid is applied per company and kept for as long as the company renews without
+interruption (`modules/billing/founder-grid.ts`).
+
+- **Granting**: the operator runs `npm run billing:grant-founder -- <companyId>` in the backend
+  directory (the Docker image ships `backend/scripts` and runs them with `tsx`). It stamps
+  `CompanySubscription.founderGrantedAt`.
+- **Checkout**: only an OWNER or ADMIN of a company that holds the grid may check out on the `founder`
+  plan; the backend refuses it to every other company. `GET /api/billing/status` returns `priceGrid`
+  (`founder` or `standard`) and Settings > Subscription checks out on that plan.
+- **Losing it**: the first time a founder-plan subscription of the company ends (Stripe `canceled`),
+  `founderLostAt` is stamped and the company is back on the standard grid for good. A failed payment
+  that Stripe still retries (`past_due`, `unpaid`), a cancellation scheduled for the period end and
+  withdrawn before it, an abandoned checkout and a switch between the monthly and yearly founder
+  prices do not end it. Granting it again after a loss is refused.

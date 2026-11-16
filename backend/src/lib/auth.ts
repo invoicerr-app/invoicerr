@@ -33,6 +33,7 @@ import {
 import { recordLegalAcceptance } from '../legal/legal-acceptance';
 import { REQUIRED_ACCEPTANCE_SLUGS } from '../legal/legal-documents';
 import { isBillingEnabled } from '../modules/billing/billing-flag';
+import { companyHoldsFounderGrid } from '../modules/billing/founder-grid';
 import { buildStripePlugin } from '../modules/billing/stripe-plugin';
 import {
   SoleOwnerError,
@@ -369,6 +370,7 @@ const stripePlugin = buildStripePlugin({
     });
     return membership?.role ?? null;
   },
+  companyHoldsFounderGrid,
   findCompanyCustomerDetails: (companyId) =>
     prisma.company.findUnique({ where: { id: companyId }, select: { name: true, email: true } }),
 });

@@ -47,6 +47,8 @@ function subRow(overrides: Record<string, unknown> = {}) {
     blockedAt: null,
     zipSentAt: null,
     deletionDueAt: null,
+    founderGrantedAt: null,
+    founderLostAt: null,
     ...overrides,
   };
 }
@@ -56,6 +58,8 @@ function facts(overrides: Partial<StripeSubscriptionFacts> = {}): StripeSubscrip
     companyId: 'c1',
     pluginSubscriptionId: 'ps1',
     status: 'ACTIVE',
+    stripeStatus: 'active',
+    plan: 'standard',
     seats: 3,
     interval: 'YEAR',
     currentPeriodEnd: PERIOD_END,
@@ -103,6 +107,7 @@ describe('mapping', () => {
           id: 'ps1',
           referenceId: 'c1',
           status: 'active',
+          plan: 'founder',
           seats: 4,
           billingInterval: 'month',
           periodEnd: PERIOD_END,
@@ -112,6 +117,8 @@ describe('mapping', () => {
       companyId: 'c1',
       pluginSubscriptionId: 'ps1',
       status: 'ACTIVE',
+      stripeStatus: 'active',
+      plan: 'founder',
       seats: 4,
       interval: 'MONTH',
       currentPeriodEnd: PERIOD_END,
@@ -246,5 +253,63 @@ describe('syncStripeSubscription', () => {
 
     expect(outcome).toBe('applied');
     expect(update.mock.calls[0][0].data).toMatchObject({ status: 'ACTIVE', seats: 5, interval: 'MONTH' });
+  });
+});
+
+describe('founder grid', () => {
+  const GRANTED = new Date('2026-10-01T00:00:00.000Z');
+  const founder = (overrides: Record<string, unknown> = {}) =>
+    subRow({ status: 'ACTIVE', firstPaidAt: GRANTED, founderGrantedAt: GRANTED, ...overrides });
+  const canceled = (overrides: Partial<StripeSubscriptionFacts> = {}) =>
+    facts({ status: 'PAST_DUE', stripeStatus: 'canceled', plan: 'founder', ...overrides });
+
+  it('is lost when a founder subscription of a holder is canceled', async () => {
+    arrange(founder());
+    expect(await applyStripeSubscriptionFacts(canceled(), NOW)).toBe('applied');
+    expect(update.mock.calls[0][0].data).toMatchObject({ status: 'PAST_DUE', founderLostAt: FACT_AT });
+  });
+
+  it.each([
+    ['past_due', 'founder'],
+    ['unpaid', 'founder'],
+    ['incomplete_expired', 'founder'],
+    ['active', 'founder'],
+    ['canceled', 'standard'],
+  ])('is kept on a %s fact about a %s subscription', async (stripeStatus, plan) => {
+    arrange(founder());
+    const status = stripeStatus === 'active' ? 'ACTIVE' : 'PAST_DUE';
+    await applyStripeSubscriptionFacts(facts({ status, stripeStatus, plan }), NOW);
+    expect(update.mock.calls[0][0].data).not.toHaveProperty('founderLostAt');
+  });
+
+  it('is not lost twice: the first loss date stays', async () => {
+    arrange(founder({ founderLostAt: GRANTED }));
+    await applyStripeSubscriptionFacts(canceled(), NOW);
+    expect(update.mock.calls[0][0].data).not.toHaveProperty('founderLostAt');
+  });
+
+  it('is not stamped on a company that never held it', async () => {
+    arrange(founder({ founderGrantedAt: null }));
+    await applyStripeSubscriptionFacts(canceled(), NOW);
+    expect(update.mock.calls[0][0].data).not.toHaveProperty('founderLostAt');
+  });
+
+  it('is lost by a suspended company too, without touching the rest of the row', async () => {
+    arrange(founder({ status: 'BLOCKED', blockedAt: GRANTED }));
+    expect(await applyStripeSubscriptionFacts(canceled(), NOW)).toBe('held_back');
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0][0].data).toEqual({ founderLostAt: FACT_AT });
+  });
+
+  it('is kept when the company already pays through another subscription (a late event)', async () => {
+    arrange(founder(), { otherPaid: true });
+    expect(await applyStripeSubscriptionFacts(canceled(), NOW)).toBe('held_back');
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('is kept on a stale cancellation, older than the last fact applied', async () => {
+    arrange(founder({ lastBillingFactAt: NOW }));
+    expect(await applyStripeSubscriptionFacts(canceled(), NOW)).toBe('stale');
+    expect(update).not.toHaveBeenCalled();
   });
 });

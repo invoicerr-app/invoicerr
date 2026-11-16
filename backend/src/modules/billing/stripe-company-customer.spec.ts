@@ -10,6 +10,7 @@ import { buildStripePlugin, type FindCompanyRole } from './stripe-plugin';
 const stripeCalls = vi.hoisted(() => ({
   customersCreated: [] as Record<string, unknown>[],
   checkoutCustomers: [] as unknown[],
+  checkoutPrices: [] as unknown[],
   portalCustomers: [] as unknown[],
 }));
 
@@ -31,8 +32,9 @@ vi.mock('./stripe-client', () => ({
     },
     checkout: {
       sessions: {
-        create: async (params: { customer?: unknown }) => {
+        create: async (params: { customer?: unknown; line_items?: { price?: unknown }[] }) => {
           stripeCalls.checkoutCustomers.push(params.customer);
+          stripeCalls.checkoutPrices.push(params.line_items?.[0]?.price);
           return { id: 'cs_test', url: 'https://checkout.stripe.test/cs_test' };
         },
       },
@@ -56,9 +58,11 @@ const ENV = {
   STRIPE_WEBHOOK_SECRET: 'whsec_x',
   STRIPE_PRICE_STANDARD_MONTHLY: 'price_sm',
   STRIPE_PRICE_STANDARD_YEARLY: 'price_sy',
+  STRIPE_PRICE_FOUNDER_MONTHLY: 'price_fm',
+  STRIPE_PRICE_FOUNDER_YEARLY: 'price_fy',
 };
 
-function setup() {
+function setup({ founder = false } = {}) {
   const db: Record<string, Record<string, unknown>[]> = {
     user: [],
     session: [],
@@ -73,6 +77,7 @@ function setup() {
   const plugin = buildStripePlugin(
     {
       findCompanyRole,
+      companyHoldsFounderGrid: async (companyId) => founder && companyId === 'company-1',
       findCompanyCustomerDetails: async (companyId) =>
         companyId === 'company-1' ? { name: 'Acme Corp', email: 'billing@acme.test' } : null,
     },
@@ -108,6 +113,7 @@ function setup() {
 beforeEach(() => {
   stripeCalls.customersCreated.length = 0;
   stripeCalls.checkoutCustomers.length = 0;
+  stripeCalls.checkoutPrices.length = 0;
   stripeCalls.portalCustomers.length = 0;
 });
 
@@ -198,5 +204,30 @@ describe('company Stripe customer', () => {
       }),
     ).rejects.toMatchObject({ status: 'UNAUTHORIZED' });
     expect(stripeCalls.portalCustomers).toEqual([]);
+  });
+
+  it('checks out on the founder price only for a company that holds the founder grid', async () => {
+    const founderBody = {
+      plan: 'founder',
+      annual: true,
+      seats: 1,
+      referenceId: 'company-1',
+      customerType: 'organization' as const,
+      successUrl: BILLING_URL,
+      cancelUrl: BILLING_URL,
+      disableRedirect: true,
+    };
+
+    const standard = setup();
+    const standardOwner = await standard.signIn('owner@acme.test', 'OWNER', 'cus_owner_personal');
+    await expect(
+      standard.auth.api.upgradeSubscription({ body: founderBody, headers: standardOwner }),
+    ).rejects.toMatchObject({ status: 'UNAUTHORIZED' });
+    expect(stripeCalls.checkoutPrices).toEqual([]);
+
+    const founder = setup({ founder: true });
+    const founderOwner = await founder.signIn('owner@acme.test', 'OWNER', 'cus_owner_personal');
+    await founder.auth.api.upgradeSubscription({ body: founderBody, headers: founderOwner });
+    expect(stripeCalls.checkoutPrices).toEqual(['price_fy']);
   });
 });

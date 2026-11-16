@@ -3424,6 +3424,7 @@
       "actions": {
         "subscribeTitle": "Subscribe",
         "subscribeDescription": "Your company has {{count}} members. Choose how many seats to buy: each member needs one, and you pay per seat. Payment happens on Stripe.",
+        "founderNote": "Your company has founder pricing. It stays yours as long as the subscription renews without interruption.",
         "subscribeDescription_one": "Your company has 1 member. Choose how many seats to buy: each member needs one, and you pay per seat. Payment happens on Stripe.",
         "interval": "Billing period",
         "seatQuantity": "Seats",
