@@ -215,7 +215,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect((result.document!.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
     expect(persistence.upsertDocument).toHaveBeenCalledWith(
       'company-1',
       'quote',
@@ -242,7 +242,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as Record<string, unknown>).clientReference).toBeUndefined();
+    expect((result.document!.data as Record<string, unknown>).clientReference).toBeUndefined();
   });
 
   // Issue #145 — the quote line's own optional `date` (quote.descriptor.ts, added alongside the
@@ -270,7 +270,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as typeof dataWithLineDate).lines[0].date).toBe('2026-02-10');
+    expect((result.document!.data as typeof dataWithLineDate).lines[0].date).toBe('2026-02-10');
     expect(persistence.upsertDocument).toHaveBeenCalledWith(
       'company-1',
       'quote',
@@ -295,7 +295,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
     const result = await service.runAction('company-1', 'quote', 'save-draft', { data: validQuoteData });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as typeof validQuoteData).lines[0]).not.toHaveProperty('date');
+    expect((result.document!.data as typeof validQuoteData).lines[0]).not.toHaveProperty('date');
   });
 
   // THE MUTATION TARGET: `runAction` strips every caller-supplied `__`-prefixed sidecar key BEFORE

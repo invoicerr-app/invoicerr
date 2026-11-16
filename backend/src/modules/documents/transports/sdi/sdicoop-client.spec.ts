@@ -242,19 +242,18 @@ describe('parseRiceviFileResponse', () => {
     }
   });
 
-  it.each([
-    'EI01',
-    'EI02',
-    'EI03',
-  ] as const)('throws a named %s error (business Errore), with its verbatim meaning, never a silent success', (code) => {
-    expect(() => parseRiceviFileResponse(ERRORE_XML(code), REQUEST)).toThrow(new RegExp(code));
-    try {
-      parseRiceviFileResponse(ERRORE_XML(code), REQUEST);
-      throw new Error('expected parseRiceviFileResponse to throw');
-    } catch (err) {
-      expect((err as SdiCoopError).code).toBe(code);
-    }
-  });
+  it.each(['EI01', 'EI02', 'EI03'] as const)(
+    'throws a named %s error (business Errore), with its verbatim meaning, never a silent success',
+    (code) => {
+      expect(() => parseRiceviFileResponse(ERRORE_XML(code), REQUEST)).toThrow(new RegExp(code));
+      try {
+        parseRiceviFileResponse(ERRORE_XML(code), REQUEST);
+        throw new Error('expected parseRiceviFileResponse to throw');
+      } catch (err) {
+        expect((err as SdiCoopError).code).toBe(code);
+      }
+    },
+  );
 
   it('MUTATION TARGET #1 — throws when the response carries NEITHER a usable IdentificativoSdI NOR an Errore', () => {
     expect(() => parseRiceviFileResponse(MALFORMED_XML_NO_REFERENCE, REQUEST)).toThrow(

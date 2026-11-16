@@ -500,6 +500,24 @@ cert-manager has issued the certificate (`kubectl get certificate`), the app is 
    goes wrong — it does **not** revert a database migration or catalog purge that already ran; check
    the release notes for the version you are rolling back from before relying on it for either.
 
+### Non-root pods
+
+The api, worker and `catalogs-release` pods run as uid/gid `10001` with every capability dropped and
+`allowPrivilegeEscalation: false` (`podSecurityContext` and `containerSecurityContext` in
+`values.yaml`). Two things come with it:
+
+- `fsGroup: 10001` has the kubelet hand the documents PVC to that group when it is mounted, so a PVC
+  written by an older image (which ran as root) keeps working after the upgrade.
+- The api pod sets the sysctl `net.ipv4.ip_unprivileged_port_start=0` so nginx can listen on port 80
+  without root. It is a namespaced "safe" sysctl, allowed by default since Kubernetes 1.22; a cluster
+  whose policy rejects pod sysctls refuses the pod with a clear event.
+
+`seccompProfile: RuntimeDefault` blocks the user namespaces Chromium's sandbox needs, so PDFs render
+without it (the default `CHROMIUM_SANDBOX=auto` logs a warning once). To render inside the sandbox,
+give the api and worker pods a seccomp profile that allows `clone`/`unshare` with `CLONE_NEWUSER`
+(`type: Unconfined`, or a `Localhost` profile) and set `CHROMIUM_SANDBOX=on`. No added capability is
+needed.
+
 ### Upgrading from a chart that pulled `latest`
 
 The chart's defaults now follow the Kubernetes rules SonarCloud checks. On `helm upgrade`, with

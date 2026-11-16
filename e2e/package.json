@@ -10,7 +10,7 @@
     "asn1js": "^3.1.0",
     "axe-core": "4.14.0",
     "bullmq": "^5.81.5",
-    "cypress": "^15.21.1",
+    "cypress": "^15.21.2",
     "cypress-axe": "1.7.0",
     "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
-    "pdfjs-dist": "^6.4.299",
+    "pdfjs-dist": "^6.5.438",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "wait-on": "^9.5.1"
