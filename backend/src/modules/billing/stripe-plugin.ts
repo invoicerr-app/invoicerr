@@ -1,5 +1,12 @@
 import { type StripePlan, stripe } from '@better-auth/stripe';
 import { isBillingEnabled } from './billing-flag';
+import {
+  applyVatMentionToInvoiceEvent,
+  assertBillingVatConfiguredForBoot,
+  readBillingVatMode,
+  vatCheckoutSessionParams,
+  vatCustomerCreateParams,
+} from './billing-vat';
 import { recordFounderPreorderEvent } from './founder-preorder';
 import { stripeClientFor } from './stripe-client';
 import { assertStripeEnvConfiguredForBoot } from './stripe-env';
@@ -7,6 +14,9 @@ import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from 
 import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
 
 type StripePluginOptions = Parameters<typeof stripe>[0];
+type CheckoutSessionParamsHook = NonNullable<
+  Extract<NonNullable<StripePluginOptions['subscription']>, { enabled: true }>['getCheckoutSessionParams']
+>;
 
 export type CompanyBillingRole = 'OWNER' | 'ADMIN' | 'MEMBER' | string;
 
@@ -99,6 +109,8 @@ export function buildStripePlugin(
 ) {
   if (!isBillingEnabled(env)) return null;
   assertStripeEnvConfiguredForBoot(env);
+  assertBillingVatConfiguredForBoot(env);
+  const vatMode = readBillingVatMode(env);
   const plans = buildStripePlans(readStripePriceCatalog(env));
 
   return stripe({
@@ -115,18 +127,28 @@ export function buildStripePlugin(
       enabled: true,
       getCustomerCreateParams: async (company) => {
         const details = await findCompanyCustomerDetails(company.id);
-        return details ? { name: details.name, email: details.email } : {};
+        const vat = vatCustomerCreateParams(vatMode);
+        return details ? { ...vat, name: details.name, email: details.email } : vat;
       },
     },
     schema: { organization: { modelName: 'company' } },
     // Every webhook event. The plugin only handles subscription checkouts; a founder pre-order is a
-    // one-off payment, recorded here (`founder-preorder.ts`). A throw makes Stripe retry the event.
+    // one-off payment, recorded here (`founder-preorder.ts`), and a draft invoice gets its VAT mention
+    // (`billing-vat.ts`). A throw makes Stripe retry the event.
     onEvent: async (event) => {
       await recordFounderPreorderEvent(event);
+      await applyVatMentionToInvoiceEvent(event, vatMode, (invoiceId, footer) =>
+        stripeClientFor(env).invoices.update(invoiceId, { footer }),
+      );
     },
     subscription: {
       enabled: true,
       plans,
+      // Automatic tax, billing address and VAT number when VAT is charged; nothing under the franchise.
+      // The plugin types the ESM build of `stripe`, this backend the CJS one (same shape).
+      getCheckoutSessionParams: (() => ({
+        params: vatCheckoutSessionParams(vatMode),
+      })) as unknown as CheckoutSessionParamsHook,
       authorizeReference: ({ user, referenceId, action }, ctx) =>
         canActOnCompanySubscription(
           { findCompanyRole, companyHoldsFounderGrid },
