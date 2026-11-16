@@ -110,6 +110,21 @@ describe('reporting obligation fact validation', () => {
     ).not.toThrow();
   });
 
+  it('rejects an empty "platformId"', () => {
+    expect(() =>
+      assertValidReportingObligationFact(
+        {
+          providerId: 'pdp',
+          platformId: '  ',
+          appliesTo: 'invoice',
+          dischargedBy: 'transport',
+          provenance: { kind: 'legal', sourceText: 'CGI art. 289 E.', sourceCheckedAt: '2026-09-16' },
+        },
+        'fixture',
+      ),
+    ).toThrow(/empty "platformId"/);
+  });
+
   it('rejects an invalid "dischargedBy"', () => {
     expect(() =>
       assertValidReportingObligationFact(

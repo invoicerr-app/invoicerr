@@ -151,6 +151,14 @@ export interface ReportingObligationFact {
    * maintained sources" risk `channel-policy/schema.ts`'s own `providerId` already accepts.
    */
   providerId: string;
+  /**
+   * The platform the settings card shows this fact under, when it is not `providerId` itself.
+   * Only useful on a `'transport'`-discharged fact whose transport and declaration provider are the
+   * same legal entity under two registry ids: France's "pdp" transport and "fr-pa" declaration
+   * provider are both the one accredited platform (CGI art. 289 E and 290), so the card must show
+   * one platform, not two. A display key only: no runtime path resolves it.
+   */
+  platformId?: string;
   appliesTo: ReportableDocumentType;
   dischargedBy: ReportingDischargeMethod;
   /**
@@ -299,6 +307,11 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
   if (!fact.providerId?.trim()) {
     throw new InvalidReportingObligationProvenanceError(
       `${context}: a reporting-obligation fact is missing its "providerId".`,
+    );
+  }
+  if (fact.platformId !== undefined && (typeof fact.platformId !== 'string' || !fact.platformId.trim())) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: fact "${fact.providerId}" declares an empty "platformId".`,
     );
   }
   if (fact.appliesTo !== 'invoice' && fact.appliesTo !== 'credit-note') {

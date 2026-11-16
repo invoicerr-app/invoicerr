@@ -20,7 +20,7 @@ export interface ChannelProvenance {
  *  only the English fallback + translation key stem. A channel this map has no opinion about (a
  *  future legal channel the operator catalogue grows) falls back to its bare, upper-cased id. */
 const LEGAL_CHANNEL_LABEL_DEFAULTS: Record<string, string> = {
-  pdp: "Accredited platform (PDP)",
+  pdp: "Accredited platform (PA)",
   sdi: "Sistema di Interscambio (SdI)",
   ksef: "KSeF",
   "chorus-pro": "Chorus Pro",

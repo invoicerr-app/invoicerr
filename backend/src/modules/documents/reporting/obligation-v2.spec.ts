@@ -165,6 +165,11 @@ describe('v2 reporting obligation validator', () => {
     ['a channel with no id', (o) => (o.channels[0].id = ''), /"export" channel with no "id"/],
     ['an unknown unit', (o) => (o.channels[0].unit = 'batch'), /unknown "unit" "batch"/],
     [
+      'an empty platform id',
+      (o) => (o.channels[0].platformId = ' '),
+      /channel "zm-csv" has an empty "platformId"/,
+    ],
+    [
       'the same channel twice',
       (o) => (o.channels[1] = { ...o.channels[0] }),
       /channel "export:zm-csv" twice/,
@@ -251,6 +256,12 @@ describe('upgradeLegacyFacts', () => {
       ['pdp:invoice:b2b-domestic', 'sent', 'transport'],
       ['fr-pa:invoice:b2c', 'sent', 'provider'],
       ['fr-pa:invoice:payments', 'payment', 'provider'],
+    ]);
+    // One accredited platform behind both registry ids: the transport channel names it.
+    expect(upgraded.obligations.map((o) => o.channels[0].platformId)).toEqual([
+      'fr-pa',
+      undefined,
+      undefined,
     ]);
     legacy.facts.forEach((fact, index) => {
       const obligation = upgraded.obligations[index];

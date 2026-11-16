@@ -71,6 +71,10 @@ export interface ObligationChannel {
    *  `providerId` holds. */
   id: string;
   unit: ChannelUnit;
+  /** The platform the settings card groups this channel under, when it is not `id` itself: a
+   *  transport and a declaration provider that are the same legal entity (legacy `platformId`).
+   *  A display key only, never resolved at runtime. */
+  platformId?: string;
 }
 
 export interface ObligationAuthority {
@@ -313,6 +317,12 @@ export function assertValidReportingObligation(obligation: ReportingObligation, 
         `${where}'s channel "${channel.id}" has an unknown "unit" "${String(channel.unit)}" (must be one of ${UNITS.join(', ')}).`,
       );
     }
+    if (
+      channel.platformId !== undefined &&
+      (typeof channel.platformId !== 'string' || !channel.platformId.trim())
+    ) {
+      fail(`${where}'s channel "${channel.id}" has an empty "platformId".`);
+    }
     const key = `${channel.dischargedBy}:${channel.id}`;
     if (seen.has(key)) fail(`${where} lists channel "${key}" twice.`);
     seen.add(key);
@@ -381,7 +391,14 @@ function upgradeFact(
     trigger: paymentEntries > 0 ? 'payment' : 'sent',
     scope: { documentTypes: [fact.appliesTo], ...(fact.scope ? { transactions: fact.scope } : {}) },
     legalBasis: { provenance: fact.provenance },
-    channels: [{ dischargedBy: fact.dischargedBy, id: fact.providerId, unit: 'document' }],
+    channels: [
+      {
+        dischargedBy: fact.dischargedBy,
+        id: fact.providerId,
+        unit: 'document',
+        ...(fact.platformId ? { platformId: fact.platformId } : {}),
+      },
+    ],
   };
   const windows: ObligationApplicabilityWindow[] = [];
   if (fact.applicableFrom) {
