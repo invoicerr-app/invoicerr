@@ -547,9 +547,7 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
                 dataCy={`declaration-${obligation.providerId}-source`}
                 className="text-sm font-medium text-foreground"
               >
-                {obligation.provenance.kind === "legal"
-                  ? obligation.provenance.sourceText
-                  : obligation.provenance.resolutionNote}
+                {t(`settings.channels.declarations.${obligation.providerId}.explanation`, "")}
               </ProseHelp>
             }
           />

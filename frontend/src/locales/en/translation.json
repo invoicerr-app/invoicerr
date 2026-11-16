@@ -2888,10 +2888,16 @@
       "declarations": {
         "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
         "pt-at": {
+          "explanation": "Every invoice and credit note you issue must be communicated to the Portuguese Tax Authority (AT) by electronic transmission, separately from sending it to your client. (Decreto-Lei n.º 198/2012, art. 3)",
           "label": "Portuguese Tax Authority (AT)"
         },
         "fr-pa": {
+          "explanation": "Your sales to private individuals, and the payments you receive when VAT is due on payment, must be reported to the tax administration through your accredited platform (e-reporting). When this applies to you depends on your company size, set in your company settings. (CGI art. 290 and 290 A)",
           "label": "French accredited platform (PA)"
+        },
+        "pdp": {
+          "explanation": "For an invoice to another business established in France, the accredited platform that delivers it also passes its data to the tax administration: you have nothing more to declare. (CGI art. 289 E)",
+          "label": "Accredited platform (PDP)"
         },
         "title": "Declarations"
       },
