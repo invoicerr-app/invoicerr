@@ -3677,3 +3677,27 @@ model Subscription {
   @@index([stripeSubscriptionId])
   @@map("subscription")
 }
+
+// A founder pre-order (#760, #971 slice 8): a subscription paid in advance, before the hosted service
+// opens, through a one-off Stripe Checkout payment (mode `payment`, metadata `invoicerr_preorder =
+// founder`). Recorded from the webhook (`founder-preorder.ts`), then claimed for a company once it
+// exists: the company gets the founder grid and a founder subscription whose first period, already
+// paid, starts at the opening date. No foreign key to Company on purpose: a pre-order is a payment
+// record (refunds, audits) that must outlive the company that claimed it.
+model FounderPreorder {
+  id                      String    @id @default(cuid())
+  stripeCheckoutSessionId String    @unique
+  stripeCustomerId        String
+  email                   String
+  seats                   Int
+  // `monthly` or `yearly` (`stripe-price-catalog.ts#BillingInterval`): the prepaid period's length.
+  interval                String
+  paidAt                  DateTime
+  claimedByCompanyId      String?
+  claimedAt               DateTime?
+  stripeSubscriptionId    String?
+  createdAt               DateTime  @default(now())
+
+  @@index([email])
+  @@map("founder_preorder")
+}

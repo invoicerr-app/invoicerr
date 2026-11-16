@@ -3,7 +3,7 @@
  * as long as they renew without interruption.
  *
  * - Granted per company by the operator (`grantFounderGrid`, `pnpm billing:grant-founder <companyId>`).
- *   Pre-orders will grant it on their own in a later step (slice 8).
+ *   A claimed founder pre-order grants it on its own (`founder-preorder.ts`).
  * - Held while `founderGrantedAt` is set and `founderLostAt` is not. Only a holder may check out on the
  *   founder plan (`stripe-plugin.ts#canActOnCompanySubscription`); the frontend picks the plan from
  *   `GET /api/billing/status` (`priceGrid`).

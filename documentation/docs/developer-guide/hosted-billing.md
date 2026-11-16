@@ -165,7 +165,7 @@ interruption (`modules/billing/founder-grid.ts`).
 
 - **Granting**: the operator runs `npm run billing:grant-founder -- <companyId>` in the backend
   directory (the Docker image ships `backend/scripts` and runs them with `tsx`). It stamps
-  `CompanySubscription.founderGrantedAt`.
+  `CompanySubscription.founderGrantedAt`. Claiming a founder pre-order grants it too (below).
 - **Checkout**: only an OWNER or ADMIN of a company that holds the grid may check out on the `founder`
   plan; the backend refuses it to every other company. `GET /api/billing/status` returns `priceGrid`
   (`founder` or `standard`) and Settings > Subscription checks out on that plan.
@@ -174,3 +174,29 @@ interruption (`modules/billing/founder-grid.ts`).
   that Stripe still retries (`past_due`, `unpaid`), a cancellation scheduled for the period end and
   withdrawn before it, an abandoned checkout and a switch between the monthly and yearly founder
   prices do not end it. Granting it again after a loss is refused.
+
+### Founder pre-orders
+
+A founder pre-order is a subscription paid in advance, before the hosted service opens
+(`modules/billing/founder-preorder.ts`). Its prepaid period starts on the opening date, then the
+subscription renews on the founder grid.
+
+- **Paying**: a one-off Stripe Checkout payment (mode `payment`) with a Stripe customer attached and
+  the metadata `invoicerr_preorder=founder`, `seats` (a positive integer) and `interval` (`monthly` or
+  `yearly`). How the session is created (a Payment Link, the public site) is outside the backend.
+- **Recording**: the Stripe webhook stores one `FounderPreorder` row per paid session
+  (`checkout.session.completed`, or `checkout.session.async_payment_succeeded` for a delayed payment
+  method). Replays land on the same row. A paid session missing one of the fields above is logged as
+  an error for the operator and not recorded.
+- **Claiming**: once the buyer's company exists, the operator runs
+  `npm run billing:claim-preorder -- <preorderId> <companyId>`. The company gets the founder grid and
+  a Stripe subscription on the founder price for the interval bought, quantity = the seats paid for,
+  in trial until `BILLING_OPENING_DATE` + one interval, so the prepaid period is not charged again.
+  The webhook mirrors it like any other subscription and the company is ACTIVE, paid through the end
+  of that period. A pre-order claimed after its prepaid period is billed from the claim on. The
+  subscription goes on the company's own Stripe customer; a company without one takes the
+  pre-order's.
+- **Refused claims**: a pre-order already claimed, a company that already has a live subscription,
+  a company that lost the founder grid, or a pre-order whose Stripe customer already bills another
+  company. Nothing is charged or written in those cases. Refunds stay a manual operation in Stripe.
+
