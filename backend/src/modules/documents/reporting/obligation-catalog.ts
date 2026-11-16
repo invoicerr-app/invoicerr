@@ -38,9 +38,9 @@ function covers(obligation: ReportingObligation, typeId: ReportableDocumentType 
 /**
  * Read API over the v2 obligation format (issue #767). Every country file is upgraded or validated
  * once, when the catalog is built, so a malformed file fails at load with a named error rather than
- * at the first send. Nothing reads this catalog yet: the consumers still read the legacy
- * `ReportingObligationCatalog` in `registry.ts`, and each query below answers the same question as
- * its legacy counterpart, which `obligation-catalog.spec.ts` pins against the shipped files.
+ * at the first send. `report-on-send.ts`, `list-declarations.ts` and `channels.service.ts` read it;
+ * each query below answers the same question as its legacy counterpart in `registry.ts`, which
+ * `obligation-catalog.spec.ts` pins against the shipped files.
  *
  * Same "no database mirror" choice as the legacy catalog: the files are small and read in memory.
  * Lookups never fall back: a country with no file, or an absent country code, has no obligation.
