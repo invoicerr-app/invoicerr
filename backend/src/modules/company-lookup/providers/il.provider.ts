@@ -1,6 +1,6 @@
 /**
  * Israel — רשם החברות (Registrar of Companies), published as a data.gov.il dataset.
- * Docs: https://data.gov.il/dataset/ico_gis (no credentials).
+ * Docs: https://data.gov.il/dataset/ica_companies (no credentials).
  *
  * The field names are Hebrew and the address arrives split across columns. Israeli VAT equals the
  * company number, so no separate VAT lookup is needed.
@@ -39,7 +39,7 @@ export class IsraelRegistrarProvider implements CompanyRegistryProvider {
   readonly label = 'רשם החברות (data.gov.il)';
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'מספר חברה (9 digits)';
-  readonly docsUrl = 'https://data.gov.il/dataset/ico_gis';
+  readonly docsUrl = 'https://data.gov.il/dataset/ica_companies';
   readonly credentialEnvVars = [] as const;
 
   constructor(private readonly timeoutMs = 8000) {}

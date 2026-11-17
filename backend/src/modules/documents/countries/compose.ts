@@ -37,6 +37,7 @@ import { CountryCompanyLookupSection } from '../../company-lookup/coverage/schem
 import { CountryPaymentTermsFile } from '../payment-terms/schema';
 import { CountryEinvoiceCodesFile } from '../einvoice-codes/schema';
 import { CountryCompanyLawFile } from '../company-law/schema';
+import { CountryCashRecordingFile } from '../payment-ledger/cash-recording-schema';
 import { CountryCompanyProfileFile } from '../company-profile/schema';
 import { CountryCodeListsFile } from '../code-lists/schema';
 
@@ -64,6 +65,7 @@ export interface ComposedCountryView {
   paymentTerms?: CountryPaymentTermsFile;
   einvoiceCodes?: CountryEinvoiceCodesFile;
   companyLaw?: CountryCompanyLawFile;
+  cashRecording?: CountryCashRecordingFile;
   companyProfile?: CountryCompanyProfileFile;
   codeLists?: CountryCodeListsFile;
 }
@@ -91,6 +93,7 @@ export const COMPOSED_COUNTRY_SECTION_KEYS: ReadonlyArray<keyof Omit<ComposedCou
   'paymentTerms',
   'einvoiceCodes',
   'companyLaw',
+  'cashRecording',
   'companyProfile',
   'codeLists',
 ];

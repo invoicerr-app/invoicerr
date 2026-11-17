@@ -10,7 +10,7 @@
     "dev": "vite",
     "start": "vite",
     "start:test": "dotenv -e .env.test vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node precompress.ts dist",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",

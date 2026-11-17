@@ -1,5 +1,6 @@
 import prisma from '@/prisma/prisma.service';
 
+import { ledgerClock, lockPaymentLedger, sealPendingPayments } from '../payment-ledger/seal';
 import { SettlementPaymentInput } from './compute-settlement';
 
 /**
@@ -7,9 +8,10 @@ import { SettlementPaymentInput } from './compute-settlement';
  * persistence.ts already holds for `DocumentInstance`: every query scoped by `companyId`, so a
  * scripted client can never read or write another company's payments by guessing an id.
  *
- * A payment is never UPDATED or DELETED by anything in this module — recording one is a single,
- * complete act (see compute-settlement.ts's own header on why a payment isn't a document with a
- * lifecycle). Correcting a mis-entered one is out of scope here.
+ * A payment is never UPDATED or DELETED: recording one is a single, complete act (see
+ * compute-settlement.ts's own header on why a payment isn't a document with a lifecycle), and the
+ * database refuses both (`payment-ledger/`). A mis-entered payment is corrected by a reversing one
+ * (`payment-ledger/reverse.ts`).
  */
 
 export interface DocumentPaymentResult {
@@ -31,6 +33,10 @@ export interface DocumentPaymentResult {
   paidAt: Date;
   note: string | null;
   createdAt: Date;
+  /** Position in the company's payment ledger; null only between insert and seal. */
+  ledgerSequence: number | null;
+  /** The payment this one reverses, for a reversing entry. */
+  reversesPaymentId: string | null;
 }
 
 export interface RecordPaymentInput {
@@ -45,11 +51,13 @@ export interface RecordPaymentInput {
   method?: string;
   paidAt: Date;
   note?: string;
+  /** Set only by `payment-ledger/reverse.ts`: the payment this negative one cancels. */
+  reversesPaymentId?: string;
 }
 
 /** Prisma's `Decimal | null` -> plain `number | null` — the one boundary this file crosses that type
  *  at, same convention as currency-rates.store.ts's own `toResult`. */
-function toPaymentResult(row: {
+export function toPaymentResult(row: {
   id: string;
   documentId: string;
   amountMinor: number;
@@ -62,6 +70,8 @@ function toPaymentResult(row: {
   paidAt: Date;
   note: string | null;
   createdAt: Date;
+  ledgerSequence: number | null;
+  reversesPaymentId: string | null;
 }): DocumentPaymentResult {
   return {
     id: row.id,
@@ -76,24 +86,33 @@ function toPaymentResult(row: {
     paidAt: row.paidAt,
     note: row.note,
     createdAt: row.createdAt,
+    ledgerSequence: row.ledgerSequence,
+    reversesPaymentId: row.reversesPaymentId,
   };
 }
 
 export async function recordPayment(input: RecordPaymentInput): Promise<DocumentPaymentResult> {
-  const row = await prisma.documentPayment.create({
-    data: {
-      companyId: input.companyId,
-      documentId: input.documentId,
-      amountMinor: input.amountMinor,
-      currency: input.currency,
-      documentAmountMinor: input.documentAmountMinor,
-      conversionRate: input.conversionRate ?? null,
-      conversionRateAsOf: input.conversionRateAsOf ?? null,
-      conversionSource: input.conversionSource ?? null,
-      method: input.method ?? null,
-      paidAt: input.paidAt,
-      note: input.note ?? null,
-    },
+  const row = await prisma.$transaction(async (tx) => {
+    await lockPaymentLedger(tx, input.companyId);
+    const created = await tx.documentPayment.create({
+      data: {
+        companyId: input.companyId,
+        documentId: input.documentId,
+        amountMinor: input.amountMinor,
+        currency: input.currency,
+        documentAmountMinor: input.documentAmountMinor,
+        conversionRate: input.conversionRate ?? null,
+        conversionRateAsOf: input.conversionRateAsOf ?? null,
+        conversionSource: input.conversionSource ?? null,
+        method: input.method ?? null,
+        paidAt: input.paidAt,
+        note: input.note ?? null,
+        reversesPaymentId: input.reversesPaymentId ?? null,
+        createdAt: await ledgerClock(tx),
+      },
+    });
+    await sealPendingPayments(tx, input.companyId);
+    return tx.documentPayment.findUniqueOrThrow({ where: { id: created.id } });
   });
   return toPaymentResult(row);
 }

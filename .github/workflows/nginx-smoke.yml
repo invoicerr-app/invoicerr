@@ -6,6 +6,9 @@ name: nginx config smoke test
 # runtime /config.json written by entrypoint.sh. A location without a `root` falls back to
 # /etc/nginx/html on this base and answers 404 for files that exist, which is a blank page in the
 # browser. It also keeps the 404 rules of /assets/ and /config.json: a miss must not get index.html.
+# Compression: a stand-in backend on :3000 answers /api, and the checks assert which responses carry
+# Content-Encoding: gzip (static `.gz` files, JSON over 1 KB) and which must not (PDF, SSE, auth,
+# small bodies, clients that do not ask for it).
 on:
   pull_request:
     paths:
@@ -27,27 +30,67 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Start nginx with nginx.conf and a stand-in web root
+      - name: Start a stand-in backend and nginx with nginx.conf
         run: |
-          mkdir -p web/assets
+          mkdir -p web/assets api
           echo '<!doctype html><title>spa-shell</title><script type="module" src="/assets/index-smoke.js"></script>' > web/index.html
           echo 'console.log("bundle")' > web/assets/index-smoke.js
+          # A different body in the .gz proves nginx serves the build-time file, not its own gzip.
+          echo 'console.log("precompressed")' | gzip -9 > web/assets/index-smoke.js.gz
+          for i in $(seq 1 200); do echo ".c$i{color:red}"; done > web/assets/index-smoke.css
           echo '{"VITE_OIDC_PROVIDER_ID": ""}' > web/config.json
-          docker run -d --name web -p 8080:80 \
+          python3 - > api/list.json <<'PY'
+          import json
+          print(json.dumps({"items": [{"id": f"doc-{i}", "status": "draft", "total": "100.00"} for i in range(100)]}))
+          PY
+          cp api/list.json api/session.json
+          cp api/list.json api/events.txt
+          head -c 4096 /dev/urandom > api/doc.pdf
+          echo '{"ok":true}' > api/small.json
+          cat > stub.py <<'PY'
+          import http.server
+          ROUTES = {
+              "/api/documents": ("list.json", "application/json; charset=utf-8"),
+              "/api/small": ("small.json", "application/json; charset=utf-8"),
+              "/api/auth/get-session": ("session.json", "application/json; charset=utf-8"),
+              "/api/documents/events": ("events.txt", "text/event-stream"),
+              "/api/documents/1/pdf": ("doc.pdf", "application/pdf"),
+          }
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  name, ctype = ROUTES.get(self.path.split("?")[0], (None, None))
+                  if name is None:
+                      self.send_response(404); self.end_headers(); return
+                  body = open("api/" + name, "rb").read()
+                  self.send_response(200)
+                  self.send_header("Content-Type", ctype)
+                  self.send_header("Content-Length", str(len(body)))
+                  self.end_headers()
+                  self.wfile.write(body)
+          http.server.ThreadingHTTPServer(("127.0.0.1", 3000), Handler).serve_forever()
+          PY
+          nohup python3 stub.py > stub.log 2>&1 &
+          # Host network: nginx.conf proxies /api to localhost:3000, which must be the stub above.
+          docker run -d --name web --network host \
             -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
             -v "$PWD/web:/usr/share/nginx/html:ro" \
             nginx:bookworm
-          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://localhost:8080/ && exit 0; sleep 1; done
-          docker logs web; exit 1
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null localhost/ && curl -fsS -o /dev/null localhost/api/small && exit 0
+            sleep 1
+          done
+          docker logs web; cat stub.log; exit 1
 
       - name: Files are served from the web root
         run: |
+          # No scheme in the URLs: curl defaults to plain HTTP, the only thing this local nginx serves.
           check() { # path, expected status, text the body must contain
-            body=$(curl -sS -o - -w '\n%{http_code}' "http://localhost:8080$1")
+            local path="$1" status="$2" text="$3"
+            body=$(curl -sS -o - -w '\n%{http_code}' "localhost$path")
             code=${body##*$'\n'}
-            echo "$1 -> $code"
-            test "$code" = "$2"
-            grep -q -- "$3" <<<"$body"
+            echo "$path -> $code"
+            test "$code" = "$status"
+            grep -q -- "$text" <<<"$body"
           }
           check / 200 spa-shell
           check /some/client/route 200 spa-shell
@@ -55,6 +98,37 @@ jobs:
           check /config.json 200 VITE_OIDC_PROVIDER_ID
           # Misses stay 404 and never get the SPA shell.
           check /assets/missing-chunk.js 404 '404'
+
+      - name: Responses are compressed only where they should be
+        run: |
+          encoding() { # path, Accept-Encoding value -> Content-Encoding header value (empty if none)
+            local path="$1" accept="$2"
+            curl -sS -o /dev/null -D - -H "Accept-Encoding: $accept" "localhost$path" \
+              | tr -d '\r' | awk -F': ' 'tolower($1)=="content-encoding" {print $2}'
+          }
+          expect() { # path, Accept-Encoding, expected Content-Encoding
+            local path="$1" accept="$2" want="$3"
+            got=$(encoding "$path" "$accept")
+            echo "$path (Accept-Encoding: ${accept:-none}) -> Content-Encoding: ${got:-none}"
+            test "$got" = "$want"
+          }
+          expect /assets/index-smoke.js gzip gzip
+          curl -sS --compressed localhost/assets/index-smoke.js | grep -q 'console.log("precompressed")'
+          expect /assets/index-smoke.css gzip gzip
+          expect /api/documents gzip gzip
+          expect /api/documents 'gzip, deflate, br' gzip
+          expect /api/documents '' ''
+          expect /api/small gzip ''
+          expect /api/documents/1/pdf gzip ''
+          expect /api/documents/events gzip ''
+          expect /api/auth/get-session gzip ''
+          # The decompressed JSON is byte-for-byte what the backend sent.
+          curl -sS --compressed localhost/api/documents | cmp - api/list.json
+          curl -sS -H 'Accept-Encoding: gzip' localhost/api/documents/1/pdf | cmp - api/doc.pdf
+          # Compressed responses keep the security headers and tell caches the body varies.
+          headers=$(curl -sS -o /dev/null -D - -H 'Accept-Encoding: gzip' localhost/api/documents)
+          grep -qi '^content-security-policy:' <<<"$headers"
+          grep -qi '^vary: accept-encoding' <<<"$headers"
 
       - name: nginx logs
         if: always()

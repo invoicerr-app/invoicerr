@@ -103,8 +103,13 @@ started from `e2e/cypress.config.ts` instead:
   before its company step, is answered in the browser: a spec that drives the wizard with a country
   that has a register calls `cy.stubCompanyLookup()` before it. Without it, a register that hangs
   holds the wizard for up to eight seconds per provider in the chain, longer than the spec waits.
-  `18-onboarding-wizard.cy.ts` is the one exception: its France case tests the lookup itself and
-  reaches the real chain on purpose.
+  `18-onboarding-wizard.cy.ts`, which tests the lookup itself, is stubbed the same way by default.
+
+The real registers are checked by `company-lookup-live.yml`, every night and from the "Run workflow"
+button, never on a pull request or in the merge queue. It runs
+`backend/src/modules/company-lookup/company-lookup.live.spec.ts` and `18-onboarding-wizard.cy.ts`
+with `COMPANY_LOOKUP_LIVE=1`, which turns the stub off and opens the spec's live-only test. A red run
+there means a register changed or is down; it blocks no merge.
 
 The KSeF and Chorus Pro variables only repoint the test or sandbox environment: a channel connected
 in production always talks to the real authority, and a unit test next to each client guards that.
@@ -223,6 +228,12 @@ through `nginx.conf` on `nginx:bookworm`, the base of `server-image`, and checks
 under `/assets/` and `/config.json` answer 200 from `/usr/share/nginx/html`, and that a missing bundle
 stays a 404. On this base a `location` without a `root` looks under `/etc/nginx/html`, so a file that
 exists answers 404, and the browser shows a blank page.
+
+It also starts a stand-in backend on port 3000 and checks compression: a bundle with a `.gz` next to
+it is answered from that file (`gzip_static`), a CSS file and a JSON response over 1 KB come back with
+`Content-Encoding: gzip`, and the decompressed JSON is byte-for-byte what the backend sent. A PDF, an
+SSE stream, an `/api/auth` response, a body under 1 KB and a request without `Accept-Encoding` must
+come back uncompressed.
 
 ## Docker image vulnerability scanning (Trivy)
 

@@ -20,20 +20,32 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *   - a country with a register whose search comes up empty — the wizard still
  *     advances and manual entry wins.
  *
- * The France cases make real, live calls through the backend's actual provider chain
- * (INSEE SIRENE, then the worldwide GLEIF/Peppol fallbacks) — deliberately not mocked,
- * so a false-green from stubbing the exact piece being verified is impossible.
- * 55208131766522 is EDF's real, long-published head-office SIRET (also used by
- * backend/src/modules/company-lookup/company-lookup.live.spec.ts). 10433218196005 is a
- * freshly-generated, checksum-valid SIRET confirmed empty against the FULL chain (INSEE,
- * GLEIF, Peppol) at the time this spec was written — deliberately NOT this suite's usual
- * placeholder (73282932000074), which turns out to be registered in the public Peppol
- * Directory under a demo company, i.e. it is a "found" case, not a "not found" one.
+ * The register search is stubbed by default (`cy.stubCompanyLookup()`), so this spec never waits on a
+ * public server in the required e2e lane. With COMPANY_LOOKUP_LIVE=1 (the nightly
+ * `company-lookup-live.yml` workflow) nothing is stubbed and the France cases go through the real
+ * provider chain (INSEE SIRENE, then the worldwide GLEIF/Peppol fallbacks).
+ * 55208131766522 is EDF's real head-office SIRET (also used by company-lookup.live.spec.ts).
+ * 10433218196005 is a checksum-valid SIRET that the full chain does not know, unlike the suite's
+ * usual placeholder 73282932000074, which the Peppol Directory lists under a demo company.
  */
 
 // Named distinctly from 16-company-lookup.cy.ts's own top-level `apiUrl` — neither spec
 // file is an ES module (no import/export), so `tsc` sees both at the same global scope.
 const onboardingApiUrl = Cypress.env("apiUrl") as string;
+
+// Cypress delivers `--env COMPANY_LOOKUP_LIVE=1` as a number, hence `String(...)`.
+const liveLookup = String(Cypress.env("COMPANY_LOOKUP_LIVE")) === "1";
+
+// Stubs the register search unless the live gate is open, and returns the alias to wait on.
+// `pathname` is exact: a glob would also catch `/api/company-lookup/capabilities/:cc`.
+function watchLookup(): `@${string}` {
+	if (!liveLookup) {
+		cy.stubCompanyLookup();
+		return "@companyLookupStub";
+	}
+	cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as("lookup");
+	return "@lookup";
+}
 
 beforeEach(() => {
 	cy.login();
@@ -68,35 +80,8 @@ function finishFromChannelsStep() {
 }
 
 describe("Onboarding wizard — company-lookup drives the identifier step", () => {
-	/**
-	 * Two very different claims lived inside a single test, and one of them made the daily
-	 * green depend on a third-party government API.
-	 *
-	 *   — "the journey works": the search fires, the wizard advances, what the user
-	 *     typed ends up in the database. True whether the register answers or not. ALWAYS run.
-	 *   — "the French register really answers and fills the form": true only if
-	 *     recherche-entreprises.api.gouv.fr is up. This is an INTEGRATION proof, valuable
-	 *     but it has no place in a suite that must be green offline.
-	 *
-	 * The second therefore self-gates on COMPANY_LOOKUP_LIVE=1, like the backend's own
-	 * `*.live.spec.ts`. This is not a weakened assertion: it's the same requirement, filed where its
-	 * failure means something. A suite that turns red because a third party is down learns to be
-	 * ignored.
-	 */
-	// `String(...)` rather than `=== "1"`: passed via `--env COMPANY_LOOKUP_LIVE=1`, Cypress delivers
-	// it as a NUMBER. The strict string comparison used to fail, so the gate could never open —
-	// a test behind a sealed door proves nothing and doesn't say so. Verified in both
-	// states before writing it here.
-	const liveLookup = String(Cypress.env("COMPANY_LOOKUP_LIVE")) === "1";
-
 	it("the wizard advances and persists what the user typed, registry or not", () => {
-		// Targets the exact PATH. Two successive traps here: `**/api/company-lookup**` also caught
-		// `/capabilities/FR`, whose body has no `found` — and replacing it with
-		// `company-lookup?*` changed nothing, because in a glob `?` is a ONE-character wildcard,
-		// not a literal question mark. It therefore still matched the `/` of `/capabilities`.
-		cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
-			"lookup",
-		);
+		const lookup = watchLookup();
 
 		openCreateCompanyDialog();
 		cy.assertAccessible();
@@ -108,8 +93,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 		cy.assertAccessible();
 		cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
 
-		// The search FIRES — that's on our own code, not on the register's.
-		cy.wait("@lookup", { timeout: 20000 });
+		cy.wait(lookup, { timeout: 20000 });
 
 		// The name gets overwritten: the test no longer depends on what the register returned.
 		cy.get('[data-cy="onboarding-company-name-input"]', { timeout: 10000 })
@@ -147,12 +131,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 	(liveLookup ? it : it.skip)(
 		"[COMPANY_LOOKUP_LIVE=1, skipped by default] a country with a real register: search fires on Next and the real result is persisted",
 		() => {
-			// `**/api/company-lookup**` ALSO caught `/capabilities/FR`, whose body has no
-			// `found`: the test was waiting on the wrong request and read `undefined`. The search is the
-			// only call with a query string.
-			cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
-				"lookup",
-			);
+			const lookup = watchLookup();
 
 			openCreateCompanyDialog();
 			pickCountryAndAdvance("France");
@@ -173,7 +152,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 			// This is not a relaxed requirement: what follows proves STRICTLY MORE. A boolean in
 			// a response says the register answered; EDF's name and address read back from the
 			// database prove they travelled the whole journey through to being recorded.
-			cy.wait("@lookup", { timeout: 20000 });
+			cy.wait(lookup, { timeout: 20000 });
 
 			// Advances to the company step regardless — submit without retyping the name,
 			// so whatever reaches the database is exactly what the pre-fill produced.
@@ -212,12 +191,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 					"US has no dedicated register, only worldwide fallbacks",
 				).to.eq("PARTIAL");
 
-				// `**/api/company-lookup**` ALSO caught `/capabilities/FR`, whose body has no
-				// `found`: the test was waiting on the wrong request and read `undefined`. The search is
-				// the only call with a query string.
-				cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
-					"lookup",
-				);
+				const lookup = watchLookup();
 
 				openCreateCompanyDialog();
 				pickCountryAndAdvance("United States");
@@ -245,7 +219,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 				cy.get('[data-cy="onboarding-company-name-input"]', {
 					timeout: 10000,
 				}).should("be.visible");
-				cy.get("@lookup.all").should("have.length", 0);
+				cy.get(`${lookup}.all`).should("have.length", 0);
 
 				cy.get('[data-cy="onboarding-company-name-input"]')
 					.clear()
@@ -268,13 +242,7 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 	});
 
 	it("a register that finds nothing: the wizard still advances and manual entry wins", () => {
-		// Targets the exact PATH. Two successive traps here: `**/api/company-lookup**` also caught
-		// `/capabilities/FR`, whose body has no `found` — and replacing it with
-		// `company-lookup?*` changed nothing, because in a glob `?` is a ONE-character wildcard,
-		// not a literal question mark. It therefore still matched the `/` of `/capabilities`.
-		cy.intercept({ method: "GET", pathname: "/api/company-lookup" }).as(
-			"lookup",
-		);
+		const lookup = watchLookup();
 
 		openCreateCompanyDialog();
 		pickCountryAndAdvance("France");
@@ -284,8 +252,8 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 			.type("10433218196005", { force: true });
 		cy.get('[data-cy="onboarding-identifier-next-btn"]').click();
 
-		// The real register was asked and genuinely came up empty — not a stubbed miss.
-		cy.wait("@lookup", { timeout: 20000 })
+		// Stubbed, this is the stub's miss; live, the real chain must come up empty for this SIRET.
+		cy.wait(lookup, { timeout: 20000 })
 			.its("response.body")
 			.then((body) => {
 				expect(body.found, "this SIRET is not a registered company").to.eq(

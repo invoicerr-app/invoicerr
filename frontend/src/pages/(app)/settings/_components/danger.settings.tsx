@@ -37,6 +37,7 @@ interface CompanyDataResetPreflight {
   blocked: boolean
   retainedDocuments: number
   retentionUntil: string | null
+  paymentRecords: number
   counts: {
     documents: number
     clients: number
@@ -230,7 +231,18 @@ export default function DangerZoneSettings() {
                 })}
               </p>
             )}
-            {resetBlocked && (
+            {resetBlocked && !preflight?.retainedDocuments && (
+              <Alert variant="destructive" data-cy="danger-payment-ledger-blocked-alert">
+                <Lock aria-hidden="true" />
+                <AlertTitle>{t("settings.dangerZone.resetCompanyData.paymentLedgerBlockedTitle")}</AlertTitle>
+                <AlertDescription>
+                  {t("settings.dangerZone.resetCompanyData.paymentLedgerBlockedDescription", {
+                    count: preflight?.paymentRecords ?? 0,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
+            {resetBlocked && !!preflight?.retainedDocuments && (
               <Alert variant="destructive" data-cy="danger-retention-blocked-alert">
                 <Lock aria-hidden="true" />
                 <AlertTitle>{t("settings.dangerZone.resetCompanyData.retentionBlockedTitle")}</AlertTitle>

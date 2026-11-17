@@ -94,6 +94,9 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 - `compliance-live.yml` — real-API round-trips, `workflow_dispatch` **or** a nightly `schedule` cron
   (inert on any branch but the repository default, per the file's own comment). See
   `documentation/docs/developer-guide/live-testing.md`.
+- `company-lookup-live.yml`: the real company registers (backend live spec plus
+  `18-onboarding-wizard.cy.ts` with `COMPANY_LOOKUP_LIVE=1`), nightly or `workflow_dispatch`, outside
+  the merge queue; the required lane stubs the register search.
 
 ## Architecture
 

@@ -64,6 +64,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { BillitClient, BillitCredentials } from './billit/billit-client';
 import {
@@ -203,7 +204,7 @@ export function buildBillitTransport(deps: BillitTransportDeps): DocumentTranspo
         buildInput.descriptor,
         buildInput.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         ctx.companyId,
         buildInput.options,
       );

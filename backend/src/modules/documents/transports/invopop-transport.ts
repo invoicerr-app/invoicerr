@@ -53,6 +53,7 @@ import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { GOBL_MIME, GoblLineInput, buildGoblInvoice } from './invopop/gobl-invoice';
@@ -250,7 +251,7 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
         dueDate: typeof data.dueDate === 'string' ? data.dueDate : null,
         currency,
         seller: companyToFormatParty(company),
-        buyer: clientToFormatParty(client),
+        buyer: clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         lines,
         notes: typeof data.notes === 'string' ? data.notes : null,
       });

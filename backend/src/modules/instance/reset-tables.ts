@@ -50,6 +50,8 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'DocumentInstance',
   'DocumentSchedule',
   'DocumentPayment',
+  'PaymentLedgerClosure',
+  'PaymentLedgerArchive',
   'PaymentCheckoutSession',
   'BankStatement',
   'BankStatementLine',

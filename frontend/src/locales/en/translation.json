@@ -2584,7 +2584,9 @@
         "countsSummary": "Will delete: {{documents}} document(s), {{clients}} client(s), {{articles}} article(s), {{projects}} project(s), {{timeEntries}} time entries, {{bankStatements}} bank statement(s), {{archives}} archived file(s).",
         "button": "Reset Company Data",
         "retentionBlockedTitle": "Blocked by legal retention",
-        "retentionBlockedDescription": "{{count}} document(s) issued by this company must still be kept until {{date}} under the archiving law of their own country. Resetting is refused until then."
+        "retentionBlockedDescription": "{{count}} document(s) issued by this company must still be kept until {{date}} under the archiving law of their own country. Resetting is refused until then.",
+        "paymentLedgerBlockedTitle": "Blocked by recorded payments",
+        "paymentLedgerBlockedDescription": "This company has recorded {{count}} payment(s). Payment records can never be deleted, so the documents they settle cannot be either. Deleting the whole company remains possible."
       },
       "deleteCompany": {
         "title": "Delete Company",

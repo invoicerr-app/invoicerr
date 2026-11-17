@@ -571,6 +571,8 @@ model Company {
   documentSchedules       DocumentSchedule[]
   documentNumberSequences DocumentNumberSequence[]
   documentPayments        DocumentPayment[]
+  paymentLedgerClosures   PaymentLedgerClosure[]
+  paymentLedgerArchives   PaymentLedgerArchive[]
   documentArchives        DocumentArchive[]
   documentAuthorityEvents DocumentAuthorityEvent[]
   documentDownloadTokens  DocumentDownloadToken[]
@@ -1612,6 +1614,12 @@ model DocumentInstance {
   // Poland, see `../vat-currency/nbp-rates-client.ts`'s own header).
   vatNationalCurrencyRateSource   String?
 
+  // The buyer's identifiers (VAT number with its validation verdict, legal ids) as they stood when this
+  // document was numbered, frozen for the same reason `displayNumber` is: editing the client afterwards
+  // must not rewrite an issued document's PDF, XML or declarations. Null until numbered, and for a
+  // document with no buyer. Shape and readers: `buyer-identifiers/frozen-buyer-identifiers.ts`.
+  buyerIdentifiers Json?
+
   // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
   // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
   // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated
@@ -1887,7 +1895,9 @@ model DocumentPayment {
   id         String           @id @default(cuid())
   company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId  String
-  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  // NoAction, not Cascade: a recorded payment outlives any attempt to delete its document. The
+  // check runs at the end of the statement, so deleting the whole company still removes both.
+  document   DocumentInstance @relation(fields: [documentId], references: [id], onDelete: NoAction)
   documentId String
 
   // The amount ACTUALLY received, in the payment's OWN currency (`currency` below) — exactly what
@@ -1960,6 +1970,18 @@ model DocumentPayment {
   // `reconciledBy` just above already holds for a bank line.
   fromCheckoutSession PaymentCheckoutSession[]
 
+  // Payment ledger (`payment-ledger/`). Rows are append-only, enforced by a database trigger: the
+  // only UPDATE accepted fills these seal columns on a row that has none yet, and a DELETE is only
+  // accepted once the owning company row is gone. A wrong payment is corrected by a reversing row.
+  ledgerSequence    Int?
+  previousHash      String?
+  hash              String?
+  signature         String?
+  reversesPaymentId String?          @unique
+  reverses          DocumentPayment? @relation("PaymentReversal", fields: [reversesPaymentId], references: [id], onDelete: NoAction)
+  reversedBy        DocumentPayment? @relation("PaymentReversal")
+
+  @@unique([companyId, ledgerSequence])
   @@index([companyId, documentId])
 }
 
@@ -3709,4 +3731,50 @@ model FounderPreorder {
 
   @@index([email])
   @@map("founder_preorder")
+}
+
+/// A chained, signed summary of the payments recorded in one UTC period (`payment-ledger/closures.ts`).
+/// Append-only under the same trigger as `DocumentPayment`.
+model PaymentLedgerClosure {
+  id        String  @id @default(cuid())
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+
+  /// DAILY, MONTHLY or YEARLY.
+  kind        String
+  periodStart DateTime
+  periodEnd   DateTime
+
+  sequence             Int
+  paymentCount         Int
+  firstPaymentSequence Int?
+  lastPaymentSequence  Int?
+  /// `{ [currency]: minor }`, summed from `amountMinor` of the payments recorded in the period.
+  totals               Json
+  /// Same shape, every payment recorded since the ledger began up to `periodEnd`.
+  perpetualTotals      Json
+
+  previousHash String?
+  hash         String
+  signature    String
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, kind, periodStart])
+  @@unique([companyId, sequence])
+}
+
+/// Every generated payment-ledger archive, kept as generated: when, by whom, for which period, its
+/// digest and its content. Append-only under the same trigger as `DocumentPayment`.
+model PaymentLedgerArchive {
+  id          String   @id @default(cuid())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  periodStart DateTime
+  periodEnd   DateTime
+  generatedBy String?
+  sha256      String
+  content     String
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
 }

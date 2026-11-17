@@ -83,8 +83,7 @@ describe('CurrencyRateSweepRunner.runSweep - real Postgres, scope (b) derivation
 
   afterAll(async () => {
     await prisma.currencyRate.deleteMany({ where: { companyId } });
-    await prisma.documentPayment.deleteMany({ where: { companyId } });
-    await prisma.documentInstance.deleteMany({ where: { companyId } });
+    // Payments are append-only: only deleting the company takes them, and their documents, away.
     await prisma.client.deleteMany({ where: { companyId } });
     await prisma.company.delete({ where: { id: companyId } });
   });

@@ -252,6 +252,7 @@ These are set under the `invoicerr` service's `environment` key.
 | `PDF_RENDER_CONCURRENCY` | Optional, `4` by default. How many PDFs one process renders at once; further requests wait their turn. Up to this many Chromium pages stay open between renders so the next one starts faster, which costs memory even when idle. |
 | `SESSION_CACHE_TTL_MS` | Optional, `10000` (10 seconds) by default. How long the API keeps a signed-in session in memory instead of reading it from the database on every request. Sign-outs, company switches and membership or role changes are still seen by the very next request. `0` turns the cache off. |
 | `ADDRESS_AUTOCOMPLETE_URL` | Optional, empty by default. Turns on address suggestions (street, house number, postcode, city, country) while typing a client's or your company's address - see [Address autocomplete](#address-autocomplete) below. |
+| `CASH_RECORDING_PUBLISHER_NAME` / `CASH_RECORDING_PUBLISHER_REPRESENTATIVE` / `CASH_RECORDING_PUBLISHER_CITY` / `CASH_RECORDING_MARKETED_SINCE` | Optional. The publisher's details printed on the French payment-records attestation: company name, signatory, city of signature, first marketing date. Left unset, the line stays blank - see [Payment records](./billing/payment-records.md). |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
 
@@ -318,6 +319,22 @@ The sign-in page names the cause:
   `APP_URL` says `https://` while the page was opened over `http://`. Open the `https://` address,
   or set `APP_URL` to the `http://` one.
 :::
+
+## Response compression
+
+The container's nginx compresses what it sends when the browser asks for it (`Accept-Encoding: gzip`),
+with nothing to configure:
+
+- The app's JavaScript, CSS and HTML are compressed once when the image is built, and nginx sends the
+  stored `.gz` file. The first page load drops from about 1.5 MB to about 420 KB.
+- API responses over 1 KB in JSON, XML, CSV or plain text are compressed on the fly, typically by 70
+  to 85 percent.
+- PDFs, zip archives, images and the live event streams are sent as they are, as are sign-in and
+  session responses (`/api/auth`).
+
+A reverse proxy in front (Caddy, Traefik, nginx, Cloudflare) passes these responses through unchanged:
+it does not compress them a second time. API clients that send no `Accept-Encoding` header, such as
+`curl` without `--compressed`, keep receiving uncompressed responses.
 
 ## Address autocomplete
 

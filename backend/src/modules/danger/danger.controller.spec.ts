@@ -23,6 +23,7 @@ function buildController() {
       blocked: false,
       retainedDocuments: 0,
       retentionUntil: null,
+      paymentRecords: 0,
       counts: {
         documents: 0,
         clients: 0,

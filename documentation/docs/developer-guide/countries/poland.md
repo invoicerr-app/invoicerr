@@ -1,6 +1,6 @@
 ---
 title: "Poland e-invoicing in Invoicerr"
-description: "Invoicerr ships Poland country data — policy, identifiers, tax, corrections, B2G routing and channel policy. Which mechanisms are covered, read from the application's own files."
+description: "Invoicerr ships Poland country data: policy, identifiers, tax, corrections, B2G routing, channel policy and declarations. Which mechanisms are covered, read from the application's own files."
 sidebar_label: "Poland (supported)"
 keywords: [Poland e-invoicing, FA(3), KSeF]
 ---
@@ -19,9 +19,9 @@ Table A rather than the ECB, frozen at issue.
 This page is a pointer by design. Everything Invoicerr knows about Poland lives in its own data
 files, and two pages already say it without anyone retyping it:
 
-- [Poland in the country compliance matrix](../country-support/pl.md) — every mechanism, and the
+- [Poland in the country compliance matrix](../country-support/pl.md): every mechanism, and the
   catalogue each answer comes from, regenerated from those files on every docs build.
-- [Compliance — Poland](/compliance/pl) — the same coverage, written for someone deciding whether
+- [Compliance, Poland](/compliance/pl): the same coverage, written for someone deciding whether
   to use Invoicerr in Poland.
 
 To widen that coverage, or to add a country of your own, see [Adding a
@@ -92,7 +92,20 @@ address. Not modelled: the group of companies (point 5) and the unpaid contribut
 formed from the model agreement. Text read in the Kancelaria Sejmu consolidated text (t.j. Dz. U. z
 2024 r. poz. 18, with the amendments up to Dz. U. z 2026 r. poz. 644) on 2026-10-25.
 
-## Recapitulative statement parts
+## Declarations
+
+Polish law asks a VAT-registered company for two periodic filings. Invoicerr files neither today:
+`countries/data/pl.json` has no `reporting` section, so no declaration fires for a Polish company on
+issue, send or payment, and nothing is exported for one.
+
+| Filing | What the VAT act asks | In Invoicerr |
+| --- | --- | --- |
+| JPK_VAT (the JPK_V7M or JPK_V7K file) | The VAT return (art. 99 ust. 1) and the VAT records of art. 109 ust. 3, sent together as one electronic document (art. 99 ust. 11c). Monthly, by the 25th of the following month (art. 109 ust. 3b); a small taxpayer filing quarterly still sends its records for each month (art. 99 ust. 2 and 3, art. 109 ust. 3c). | Not built. |
+| VAT-UE (informacja podsumowująca) | A summary of intra-Community supplies and acquisitions of goods, triangular supplies, services taxed in the buyer's member state under art. 28b, and call-off stock transfers (art. 100 ust. 1). Monthly, electronically, by the 25th of the month after the tax point (art. 100 ust. 3). | Only the part code list below; no return is built. |
+
+Text read in the consolidated VAT act (Dz.U. 2025 poz. 775) at api.sejm.gov.pl on 2026-11-17.
+
+### Recapitulative statement parts
 
 The `codeLists` section of `countries/data/pl.json` carries `vatUePart`, the part of the VAT-UE(5)
 summary return (informacja podsumowująca) an intra-Community operation is reported in. Each entry is

@@ -2,7 +2,7 @@ import { vi, type Mock } from 'vitest';
 
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { NO_MAIL_SERVER_CONFIGURED_MESSAGE } from '@/mail/mail.service';
-import { DangerService, RETENTION_BLOCKED } from './danger.service';
+import { DangerService, PAYMENT_LEDGER_BLOCKED, RETENTION_BLOCKED } from './danger.service';
 
 /** A minimal, in-memory stand-in for `prisma.dangerOtp` — just enough of Prisma's own API surface
  *  (`findUnique`, `upsert`, `updateMany`, `findUniqueOrThrow`, `deleteMany`) for
@@ -160,6 +160,7 @@ let prismaMock: {
   dangerOtp: ReturnType<typeof fakeDangerOtpTable>;
   company: { findUnique: Mock };
   documentArchive: ReturnType<typeof fakeScopedTable> & { findMany: Mock };
+  documentPayment: { count: Mock };
   pendingStorageErasure: ReturnType<typeof fakePendingStorageErasureTable>;
   documentInstance: ReturnType<typeof fakeScopedTable>;
   documentSchedule: ReturnType<typeof fakeScopedTable>;
@@ -216,6 +217,7 @@ function build() {
     company: { findUnique: vi.fn().mockResolvedValue({ name: 'Acme Corp' }) },
     documentArchive: { ...fakeScopedTable(deleteCalls, 'documentArchive'), findMany: vi.fn() },
     pendingStorageErasure: fakePendingStorageErasureTable(),
+    documentPayment: { count: vi.fn().mockResolvedValue(0) },
     documentInstance: fakeScopedTable(deleteCalls, 'documentInstance'),
     documentSchedule: fakeScopedTable(deleteCalls, 'documentSchedule'),
     documentNumberSequence: fakeScopedTable(deleteCalls, 'documentNumberSequence'),
@@ -452,6 +454,24 @@ describe('DangerService#resetCompanyData — retention block', () => {
 
     const err = await service.resetCompanyData(USER, 'co-1', otp).catch((e) => e);
     expect(err.getResponse()).toMatchObject({ retainedDocuments: 1 });
+  });
+});
+
+describe('DangerService#resetCompanyData: payment ledger block', () => {
+  it('refuses (409, PAYMENT_LEDGER_BLOCKED) when the company has recorded payments, nothing deleted', async () => {
+    const { service, mailService } = build();
+    const otp = await requestAndExtractOtp(service, mailService, 'co-1');
+    prismaMock.documentPayment.count.mockResolvedValue(3);
+
+    const preflight = await service.getCompanyDataResetPreflight('co-1');
+    expect(preflight).toMatchObject({ blocked: true, retainedDocuments: 0, paymentRecords: 3 });
+
+    const err = await service.resetCompanyData(USER, 'co-1', otp).catch((e) => e);
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getResponse()).toMatchObject({ code: PAYMENT_LEDGER_BLOCKED, paymentRecords: 3 });
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(prismaMock.documentPayment.count).toHaveBeenCalledWith({ where: { companyId: 'co-1' } });
   });
 });
 

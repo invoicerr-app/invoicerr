@@ -564,6 +564,10 @@ against a real cluster:
   the symptom if you install an older chart: `kubectl get job` shows `0/1`, `kubectl get pods`
   shows nothing at all for it, and `kubectl describe job/invoicerr-catalogs-release` names the
   missing ServiceAccount.
+- **Compression happens in the pod.** The api pod's own nginx already compresses the frontend and
+  the API's JSON (see [Response compression](./docker-installation.md#response-compression)).
+  There is nothing to turn on in the Ingress; ingress-nginx forwards the compressed responses as they
+  are.
 - **First-boot ordering.** A Kubernetes Deployment has no equivalent of `docker-compose.yml`'s
   `depends_on: condition: service_healthy`: `api` and `worker` start at the same time as Redis and
   each other. The chart's `api` and `worker` Deployments carry `initContainers` that wait for Redis

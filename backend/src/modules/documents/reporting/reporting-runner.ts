@@ -34,6 +34,7 @@ import { defaultReportingObligationCatalog } from './registry';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveCreditNoteFormatSource } from '../formats/credit-note-source';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
 import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
@@ -191,7 +192,7 @@ export class ReportingRunner {
       document,
       companyToFormatParty(company),
       client
-        ? clientToFormatParty(client)
+        ? clientToFormatParty(withIssuedBuyerIdentifiers(client, document))
         : // No buyer on file at all (unreachable for a genuinely SENT invoice — every shipped type
           // requires a client to reach "sent" — but never trusted blind): an empty party rather than
           // a crash, so a genuine platform-side rejection ("buyer identity missing") is what surfaces,
