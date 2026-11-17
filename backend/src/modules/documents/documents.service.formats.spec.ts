@@ -230,6 +230,31 @@ describe('DocumentsService#downloadDocumentFormat — the four gates, un-mocked 
     expect(xml).toContain('INV-2026-0001');
   }, 30_000);
 
+  it.each(['cii', 'ubl'] as const)(
+    "the %s artifact carries the buyer's VAT number frozen at numbering, not the client's current one",
+    async (format) => {
+      mockDocument({});
+      (persistence.findOwnedDocument as Mock).mockResolvedValue({
+        ...(await (persistence.findOwnedDocument as Mock)()),
+        buyerIdentifiers: [
+          {
+            scheme: 'VAT',
+            value: 'DE111111111',
+            validationStatus: 'VALID',
+            validatedAt: '2026-08-29T10:00:00.000Z',
+            validationSource: 'VIES',
+          },
+        ],
+      });
+      const { service } = buildService();
+      const result = await service.downloadDocumentFormat('company-1', 'invoice', 'doc-1', format);
+      const xml = Buffer.from(result.bytes).toString('utf-8');
+      expect(xml).toContain('DE111111111');
+      expect(xml).not.toContain('DE123456789');
+    },
+    30_000,
+  );
+
   it('the happy path: a real UBL artifact is built, validated, and served', async () => {
     mockDocument({});
     const { service } = buildService();

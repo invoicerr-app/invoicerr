@@ -45,7 +45,7 @@ const BUYER_NAME = 'Buyer Corp';
 async function renderInvoice(
   seller: Seller,
   buyer: Buyer,
-  options: { status?: string; purpose?: RenderPurpose } = {},
+  options: { status?: string; purpose?: RenderPurpose; buyerIdentifiers?: unknown } = {},
 ): Promise<{ seller: string; buyer: string }> {
   (prisma.company.findUnique as Mock).mockResolvedValue({
     name: SELLER_NAME,
@@ -91,6 +91,7 @@ async function renderInvoice(
       displayNumber: null,
       atcud: null,
       acceptedOption: null,
+      buyerIdentifiers: options.buyerIdentifiers ?? null,
     },
     options.purpose ?? 'on-demand',
   );
@@ -141,6 +142,28 @@ describe('the invoice PDF prints the parties identifiers', () => {
     expect(buyer).toContain('Umsatzsteuer-Identifikationsnummer (USt-IdNr.): DE123456789');
     expect(seller).not.toContain('DE123456789');
     expect(buyer).not.toContain('732829320');
+  });
+
+  it("prints the buyer's identifiers as they were when the document was numbered, not the client's current ones", async () => {
+    const { buyer } = await renderInvoice(
+      { country: 'France', identifiers: [{ scheme: 'LEGAL_ID', value: '732829320' }] },
+      { country: 'Germany', identifiers: [{ scheme: 'VAT', value: 'DE999999999' }] },
+      {
+        status: 'sent',
+        buyerIdentifiers: [
+          {
+            scheme: 'VAT',
+            value: 'DE123456789',
+            validationStatus: 'VALID',
+            validatedAt: '2026-09-30T08:00:00.000Z',
+            validationSource: 'VIES',
+          },
+        ],
+      },
+    );
+
+    expect(buyer).toContain('DE123456789');
+    expect(buyer).not.toContain('DE999999999');
   });
 
   it('flags the VAT number of a VAT-registered French seller as missing on the working copy', async () => {

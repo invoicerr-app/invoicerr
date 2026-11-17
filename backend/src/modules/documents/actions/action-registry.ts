@@ -86,6 +86,9 @@ export interface DocumentInstanceResult {
   vatNationalCurrencyRate?: { toString(): string } | null;
   vatNationalCurrencyRateAsOf?: Date | null;
   vatNationalCurrencyRateSource?: string | null;
+  /** See `DocumentInstance.buyerIdentifiers`'s own schema comment: the buyer's identifiers frozen at
+   *  numbering. Read through `buyer-identifiers/frozen-buyer-identifiers.ts`, never directly. */
+  buyerIdentifiers?: unknown;
   /** See `DocumentInstance.acceptedOption`'s own schema comment - issue #373 ("quotes with
    *  options"): the option name the client chose when accepting a quote that offers 2+ of them, null
    *  until an acceptance path writes it (or forever, for a quote that never had 2+ options). Read by

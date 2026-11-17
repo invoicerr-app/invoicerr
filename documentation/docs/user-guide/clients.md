@@ -124,6 +124,20 @@ suggests a **Document Language** when the country has one clear choice. Both are
 points: change either one freely. Editing an existing client never changes its currency or language
 on its own; only picking a different country fills in the currency again.
 
+## Editing a client after issuing documents
+
+Editing a client changes the documents you issue from then on, never the ones already issued. When a
+document gets its number, it keeps the client's identifiers as they stand at that moment: the VAT
+number with the result of its last validation, and the legal identifiers.
+
+:::info[What stays as issued]
+- The PDF, the e-invoice XML and every declaration sent for an issued document keep the identifiers
+  it was numbered with, even after you correct the client's VAT number or a new validation finds it
+  invalid.
+- A credit note keeps the identifiers of the invoice it corrects.
+- A draft has no number yet, so it always shows the client's current details.
+:::
+
 ## Restricting payment methods for a client
 
 By default, a client is offered every [payment method](billing/payment-methods.md) your company
