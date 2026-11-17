@@ -213,3 +213,22 @@ R. 123-237, 1° is the `LEGAL_ID` identifier, already printed with the identifie
 office of 3° is the company address. Not modelled: liquidation (4°), foreign companies (5°),
 locataire-gérant (6°), contrat d'appui (7°), EIRL (8°), and the SA "à directoire et conseil de
 surveillance" wording. All texts were read at codes.droit.org, edition of 2026-10-01.
+
+## Payment records (CGI art. 286, I, 3° bis)
+
+A VAT-registered business recording payments from consumers in software must use software meeting
+conditions of inalterability, security, retention and archiving, proven by a certificate or by an
+individual attestation from the publisher. The `cashRecording` section of
+`countries/data/fr.json` carries:
+
+- the obligation and its scope, quoted from CGI art. 286, I, 3° bis and BOI-TVA-DECLA-30-10-30;
+- three exclusions: businesses selling only to professionals, businesses under the VAT franchise
+  or the agricultural flat-rate scheme or making only exempt supplies (CGI art. 286, II), and
+  foreign businesses not established in France;
+- the attestation model of BOI-LETTRE-000242, applicable since 2026-02-21, rendered per company;
+- the French notice put in every payment archive.
+
+The ledger itself is not French: payments are append-only, chained and closed for every company
+(see [Payment ledger](../payment-ledger.md)). Closures are an addition here: the BOFiP does not
+require them from invoicing software that can give the total of a period. NF525 certification is
+not covered.

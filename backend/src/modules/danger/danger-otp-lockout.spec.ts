@@ -157,6 +157,7 @@ function build() {
     dangerOtp: fakeTable,
     company: { findUnique: vi.fn().mockResolvedValue({ name: 'Acme Corp', language: 'en' }) },
     documentArchive: { ...emptyScopedTable(), findMany: vi.fn().mockResolvedValue([]) },
+    documentPayment: { count: vi.fn().mockResolvedValue(0) },
     pendingStorageErasure: emptyScopedTable(),
     documentInstance: emptyScopedTable(),
     documentSchedule: emptyScopedTable(),

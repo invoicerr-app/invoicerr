@@ -40,6 +40,10 @@ const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
  *  message to string-match" convention. */
 export const RETENTION_BLOCKED = 'RETENTION_BLOCKED';
 
+/** "This company has recorded payments": the payment ledger is append-only (`documents/payment-ledger/`),
+ *  so deleting the documents those payments settle is refused. Deleting the whole company is not. */
+export const PAYMENT_LEDGER_BLOCKED = 'PAYMENT_LEDGER_BLOCKED';
+
 /** The one code a caller can rely on to mean "this company burnt its guesses and must wait the
  *  cooldown out" — same "a named code, not just a message to string-match" convention as
  *  `RETENTION_BLOCKED` above and `companies.service.ts#SELF_SERVICE_EXPORT_RATE_LIMITED_CODE`, whose
@@ -67,6 +71,8 @@ export interface CompanyDataResetPreflight {
   /** The LATEST `retentionUntil` among every retained archive — the date the screen shows the owner
    *  as "come back after this". `null` only when `blocked` is `false`. */
   retentionUntil: string | null;
+  /** Payments recorded by this company. Any at all blocks the reset: they are append-only. */
+  paymentRecords: number;
   counts: CompanyDataResetCounts;
 }
 
@@ -193,8 +199,8 @@ export class DangerService {
     });
     const retainedDocumentIds = new Set(retainedArchives.map((archive) => archive.documentId));
 
-    const [documents, clients, articles, projects, timeEntries, bankStatements, archives] = await Promise.all(
-      [
+    const [documents, clients, articles, projects, timeEntries, bankStatements, archives, paymentRecords] =
+      await Promise.all([
         prisma.documentInstance.count({ where: { companyId } }),
         prisma.client.count({ where: { companyId } }),
         prisma.article.count({ where: { companyId } }),
@@ -202,15 +208,16 @@ export class DangerService {
         prisma.timeEntry.count({ where: { companyId } }),
         prisma.bankStatement.count({ where: { companyId } }),
         prisma.documentArchive.count({ where: { companyId } }),
-      ],
-    );
+        prisma.documentPayment.count({ where: { companyId } }),
+      ]);
 
     return {
-      blocked: retainedDocumentIds.size > 0,
+      blocked: retainedDocumentIds.size > 0 || paymentRecords > 0,
       retainedDocuments: retainedDocumentIds.size,
       // Rows are ordered `retentionUntil desc` above, so the first one is the LATEST date — the one
       // the owner actually needs to wait out (the shortest-lived retained document is not the blocker).
       retentionUntil: retainedArchives[0]?.retentionUntil?.toISOString() ?? null,
+      paymentRecords,
       counts: { documents, clients, articles, projects, timeEntries, bankStatements, archives },
     };
   }
@@ -247,6 +254,19 @@ export class DangerService {
     }
 
     const preflight = await this.getCompanyDataResetPreflight(companyId);
+    if (preflight.retainedDocuments === 0 && preflight.paymentRecords > 0) {
+      logger.warn('Company data reset refused: the company has recorded payments', {
+        category: 'danger',
+        details: { userId: user.id, companyId, paymentRecords: preflight.paymentRecords },
+      });
+      throw new ConflictException({
+        message:
+          `${preflight.paymentRecords} payment record(s) cannot be deleted, refusing to reset. ` +
+          'Nothing was deleted.',
+        code: PAYMENT_LEDGER_BLOCKED,
+        paymentRecords: preflight.paymentRecords,
+      });
+    }
     if (preflight.blocked) {
       // Defense in depth, not the primary guard — the SCREEN already disables this action once
       // `GET .../preflight` reports `blocked` (see danger.settings.tsx), so reaching this branch means

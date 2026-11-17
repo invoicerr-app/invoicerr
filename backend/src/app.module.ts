@@ -17,6 +17,7 @@ import { CompanyModule } from './modules/company/company.module';
 import { CountryReadinessModule } from './modules/country-readiness/country-readiness.module';
 import { ConfigModule } from '@nestjs/config';
 import { AccountingExportModule } from './modules/documents/accounting-export/accounting-export.module';
+import { PaymentLedgerModule } from './modules/documents/payment-ledger/payment-ledger.module';
 import { RevenueReportModule } from './modules/documents/revenue-report/revenue-report.module';
 import { BankReconciliationModule } from './modules/documents/bank-reconciliation/bank-reconciliation.module';
 import { PaymentsModule } from './modules/documents/payments/payments.module';
@@ -176,6 +177,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // own module (see accounting-export.module.ts's own header for why it never joins DocumentsModule).
     AccountingExportModule,
     RevenueReportModule,
+    PaymentLedgerModule,
     PublicDocumentsModule,
     // The ONE `@Public()` route for the six `TrasmissioneFatture`
     // notifiche SdI pushes at us (see `sdi-notifiche.module.ts`'s own header on why its own module,
