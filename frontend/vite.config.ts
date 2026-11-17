@@ -157,6 +157,6 @@ export default defineConfig({
     setupFiles: ["./src/test/node-webstorage.ts", "./src/test/setup.ts"],
     // Colocated `*.spec.ts(x)` next to the code they cover — the same convention as the backend.
     // Cypress owns `e2e/`, which is a separate npm project and never seen by this glob.
-    include: ["src/**/*.spec.{ts,tsx}"],
+    include: ["src/**/*.spec.{ts,tsx}", "*.spec.ts"],
   },
 })

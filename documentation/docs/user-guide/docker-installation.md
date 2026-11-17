@@ -319,6 +319,22 @@ The sign-in page names the cause:
   or set `APP_URL` to the `http://` one.
 :::
 
+## Response compression
+
+The container's nginx compresses what it sends when the browser asks for it (`Accept-Encoding: gzip`),
+with nothing to configure:
+
+- The app's JavaScript, CSS and HTML are compressed once when the image is built, and nginx sends the
+  stored `.gz` file. The first page load drops from about 1.5 MB to about 420 KB.
+- API responses over 1 KB in JSON, XML, CSV or plain text are compressed on the fly, typically by 70
+  to 85 percent.
+- PDFs, zip archives, images and the live event streams are sent as they are, as are sign-in and
+  session responses (`/api/auth`).
+
+A reverse proxy in front (Caddy, Traefik, nginx, Cloudflare) passes these responses through unchanged:
+it does not compress them a second time. API clients that send no `Accept-Encoding` header, such as
+`curl` without `--compressed`, keep receiving uncompressed responses.
+
 ## Address autocomplete
 
 Off by default: leave `ADDRESS_AUTOCOMPLETE_URL` unset and the address fields work exactly as

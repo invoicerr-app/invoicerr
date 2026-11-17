@@ -224,6 +224,12 @@ under `/assets/` and `/config.json` answer 200 from `/usr/share/nginx/html`, and
 stays a 404. On this base a `location` without a `root` looks under `/etc/nginx/html`, so a file that
 exists answers 404, and the browser shows a blank page.
 
+It also starts a stand-in backend on port 3000 and checks compression: a bundle with a `.gz` next to
+it is answered from that file (`gzip_static`), a CSS file and a JSON response over 1 KB come back with
+`Content-Encoding: gzip`, and the decompressed JSON is byte-for-byte what the backend sent. A PDF, an
+SSE stream, an `/api/auth` response, a body under 1 KB and a request without `Accept-Encoding` must
+come back uncompressed.
+
 ## Docker image vulnerability scanning (Trivy)
 
 Every image this repository builds and pushes gets scanned for known OS package and Node
