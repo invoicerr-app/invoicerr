@@ -51,7 +51,8 @@ client, article, project, time entry, bank statement/reconciliation, and archive
 attachment. The company itself, its settings, members, subscription, channels, and e-mail templates
 all stay. Requires the e-mail code, then typing **RESET** to confirm. Refused outright if any
 document must still be kept under its own country's archiving law — the screen shows the date that
-retention lifts.
+retention lifts. Also refused while the company has recorded payments: they can never be deleted
+(see [Payment records](../billing/payment-records.md)), so neither can their documents.
 
 ### Delete Company
 
