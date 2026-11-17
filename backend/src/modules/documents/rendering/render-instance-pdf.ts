@@ -33,6 +33,7 @@ import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals'
 import { findLinkedCreditNote, LinkedCreditNote, linkedCreditNoteTotals } from '../totals/linked-credit-note';
 import { RenderLanguage } from './language/supported-languages';
 import { resolveRecipientLanguage } from './language/resolve-recipient-language';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { logoDataUriFor } from './branding/logo-storage';
 import { renderDocumentHtml, RenderDocumentHtmlInput } from './render-html';
 import { renderPdf } from './render-pdf';
@@ -376,6 +377,7 @@ export async function renderDocumentInstance(
     | 'vatNationalCurrencyVatMinor'
     | 'vatNationalCurrencyRate'
     | 'vatNationalCurrencyRateAsOf'
+    | 'buyerIdentifiers'
   >,
   // Issue #494: required, so every caller says which copy it renders. See `status-line-policy.ts`.
   purpose: RenderPurpose,
@@ -488,7 +490,8 @@ export async function renderDocumentInstance(
   const quoteCommonLineTotals = quoteOptionTotals
     ? computeCommonLineTotals(instanceData, totalsOptions)
     : null;
-  const recipientClient = await recipientClientFor(companyId, descriptor, instanceData);
+  const liveRecipientClient = await recipientClientFor(companyId, descriptor, instanceData);
+  const recipientClient = liveRecipientClient && withIssuedBuyerIdentifiers(liveRecipientClient, instance);
   const language = resolveRecipientLanguage(recipientClient?.language, company.language);
   const paymentMethods = await paymentMethodsFor(
     descriptor,

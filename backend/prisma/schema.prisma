@@ -1661,6 +1661,12 @@ model DocumentInstance {
   // Poland, see `../vat-currency/nbp-rates-client.ts`'s own header).
   vatNationalCurrencyRateSource   String?
 
+  // The buyer's identifiers (VAT number with its validation verdict, legal ids) as they stood when this
+  // document was numbered, frozen for the same reason `displayNumber` is: editing the client afterwards
+  // must not rewrite an issued document's PDF, XML or declarations. Null until numbered, and for a
+  // document with no buyer. Shape and readers: `buyer-identifiers/frozen-buyer-identifiers.ts`.
+  buyerIdentifiers Json?
+
   // Issue #373 ("quotes with options"): the OPTION NAME the client chose when accepting a quote that
   // offers two or more (`documents/options/quote-options.ts#deriveQuoteOptions` - the distinct,
   // non-empty `option` tags a quote's own `data.lines` carry, in first-appearance order). A dedicated

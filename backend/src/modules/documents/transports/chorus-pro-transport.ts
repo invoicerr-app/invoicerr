@@ -115,6 +115,7 @@ import {
 } from './chorus-pro/choruspro-client';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import {
@@ -431,7 +432,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         buildInput.descriptor,
         buildInput.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         ctx.companyId,
         buildInput.options,
       );

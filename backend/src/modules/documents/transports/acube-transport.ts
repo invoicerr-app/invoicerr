@@ -102,6 +102,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { AcubeClient, AcubeEnvironment } from './acube/acube-client';
 import {
@@ -245,7 +246,7 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
         buildInput.descriptor,
         buildInput.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         ctx.companyId,
         buildInput.options,
       );

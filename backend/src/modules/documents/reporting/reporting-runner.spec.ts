@@ -169,6 +169,27 @@ describe('ReportingRunner.runReport', () => {
   });
 
   // Credentials absent → `report:blocked`, journaled, NEVER a crash.
+  it("declares the buyer's VAT number frozen at numbering, not the client's current one", async () => {
+    mockedFindOwnedDocument.mockResolvedValue({
+      ...FIXTURE_DOCUMENT,
+      buyerIdentifiers: [
+        {
+          scheme: 'VAT',
+          value: 'HU11111111',
+          validationStatus: 'VALID',
+          validatedAt: null,
+          validationSource: null,
+        },
+      ],
+    });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await runner.runReport(JOB_DATA);
+
+    expect(declare.mock.calls[0][1].buyer.vatNumber).toBe('HU11111111');
+  });
+
   it('missing credentials (ChannelNotConnectedError): journals report:blocked, never calls createAuthorityEvents', async () => {
     const declare = vi.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
     const runner = buildRunner({ providerId: 'nav', declare });
@@ -583,6 +604,32 @@ describe('ReportingRunner.runReport: credit notes and the ATCUD (issue #501)', (
       [SUCCESS_RESULT],
       '',
     );
+  });
+
+  it("a credit note declares the buyer's VAT number it froze at numbering, not the client's current one", async () => {
+    const frozenCreditNote = {
+      ...CREDIT_NOTE,
+      buyerIdentifiers: [
+        {
+          scheme: 'VAT',
+          value: 'HU11111111',
+          validationStatus: null,
+          validatedAt: null,
+          validationSource: null,
+        },
+      ],
+    };
+    mockedFindOwnedDocument.mockImplementation(async (_companyId: string, typeId: string, id: string) => {
+      if (typeId === 'credit-note' && id === 'cn-1') return frozenCreditNote;
+      if (typeId === 'invoice' && id === 'inv-1') return INVOICE;
+      throw new Error(`unexpected document ${typeId}/${id}`);
+    });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    await runner.runReport(CN_JOB);
+
+    expect(declare.mock.calls[0][1].buyer.vatNumber).toBe('HU11111111');
   });
 
   it('a credit note that corrects no invoice is never declared: UndeclarableDocumentError, provider never called', async () => {

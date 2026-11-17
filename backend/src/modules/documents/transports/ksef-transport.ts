@@ -37,6 +37,7 @@ import {
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { companyToFormatParty, clientToFormatParty } from '../formats/party-snapshot';
 import prisma from '@/prisma/prisma.service';
 import {
@@ -226,7 +227,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         INVOICE_DESCRIPTOR,
         ctx.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         // Needed to resolve a KOR's own corrected-invoice lookup (`formats/national/fa3-kor.ts`) when
         // `ctx.document.data.correctsInvoiceId` is set — every OTHER (non-correcting) invoice ignores
         // this parameter entirely, same as before this was added.
