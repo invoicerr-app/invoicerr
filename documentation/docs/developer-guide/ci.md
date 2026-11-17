@@ -103,8 +103,13 @@ started from `e2e/cypress.config.ts` instead:
   before its company step, is answered in the browser: a spec that drives the wizard with a country
   that has a register calls `cy.stubCompanyLookup()` before it. Without it, a register that hangs
   holds the wizard for up to eight seconds per provider in the chain, longer than the spec waits.
-  `18-onboarding-wizard.cy.ts` is the one exception: its France case tests the lookup itself and
-  reaches the real chain on purpose.
+  `18-onboarding-wizard.cy.ts`, which tests the lookup itself, is stubbed the same way by default.
+
+The real registers are checked by `company-lookup-live.yml`, every night and from the "Run workflow"
+button, never on a pull request or in the merge queue. It runs
+`backend/src/modules/company-lookup/company-lookup.live.spec.ts` and `18-onboarding-wizard.cy.ts`
+with `COMPANY_LOOKUP_LIVE=1`, which turns the stub off and opens the spec's live-only test. A red run
+there means a register changed or is down; it blocks no merge.
 
 The KSeF and Chorus Pro variables only repoint the test or sandbox environment: a channel connected
 in production always talks to the real authority, and a unit test next to each client guards that.

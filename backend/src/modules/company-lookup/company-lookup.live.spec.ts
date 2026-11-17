@@ -10,8 +10,10 @@
 import { vi } from 'vitest';
 
 import { CompanyLookupService } from './company-lookup.service';
+import { USER_AGENT } from './http';
 import { PeppolDirectoryProvider } from './providers/peppol-directory.provider';
 import { CompanyLookupRegistry } from './registry';
+import { ProviderLookupError } from './types';
 
 const live = process.env.COMPANY_LOOKUP_LIVE === '1';
 const describeLive = live ? describe : describe.skip;
@@ -20,6 +22,21 @@ describeLive('company lookup — live registries', () => {
   const service = new CompanyLookupService(new CompanyLookupRegistry());
 
   vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
+
+  // The service swallows a provider failure and falls back to the next source (often GLEIF), so the
+  // result alone cannot tell an outage from a contract change. Its per-provider warning can.
+  const failures = new Map<string, string>();
+  beforeEach(() => {
+    failures.clear();
+    const logger = (service as unknown as { logger: { warn: (message: string) => void } }).logger;
+    const warn = logger.warn.bind(logger);
+    vi.spyOn(logger, 'warn').mockImplementation((message: string) => {
+      const match = /^(\S+) lookup failed for \S+: (.*)$/.exec(message);
+      if (match) failures.set(match[1], match[2]);
+      warn(message);
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   const cases: { country: string; value: string; expect: RegExp; source: string }[] = [
     // EDF's head-office SIRET — a branch SIRET is deliberately rejected (see fr.provider.ts).
@@ -46,6 +63,11 @@ describeLive('company lookup — live registries', () => {
 
   it.each(cases)('$country resolves through $source', async ({ country, value, expect: pattern, source }) => {
     const result = await service.lookup({ countryCode: country, value });
+    const failure = failures.get(source);
+    if (failure && result.source !== source) {
+      const outage = await transientOutage(source, failure);
+      if (outage) return reportUnavailable(outage);
+    }
     expect(result.error).toBeUndefined();
     expect(result.found).toBe(true);
     expect(result.source).toBe(source);
@@ -69,6 +91,9 @@ describeLive('company lookup — live registries', () => {
   it('falls back to the GLEIF index for a country with no register API', async () => {
     // Bloomberg Finance L.P. — a US entity, reachable by its LEI with no key at all.
     const result = await service.lookup({ countryCode: 'US', value: '5493001KJTIIGC8Y1R12' });
+    if (result.error === 'PROVIDER_ERROR' && isTimeout(result.message)) {
+      return reportUnavailable(`gleif: ${result.message}`);
+    }
     expect(result.error).toBeUndefined();
     expect(result.found).toBe(true);
     expect(result.source).toBe('gleif');
@@ -89,11 +114,55 @@ describeLive('company lookup — live registries', () => {
   });
 
   it('finds a Peppol participant through the public directory', async () => {
-    const company = await new PeppolDirectoryProvider().lookup({
-      countryCode: 'DK',
-      scheme: 'LEGAL_ID',
-      value: '25313763',
-    });
+    let company: Awaited<ReturnType<PeppolDirectoryProvider['lookup']>>;
+    try {
+      company = await new PeppolDirectoryProvider().lookup({
+        countryCode: 'DK',
+        scheme: 'LEGAL_ID',
+        value: '25313763',
+      });
+    } catch (err) {
+      if (err instanceof ProviderLookupError && isTimeout(err.message)) {
+        return reportUnavailable(`peppol-directory: ${err.message}`);
+      }
+      throw err;
+    }
     expect(company?.name).toMatch(/Arla/i);
   });
 });
+
+/** Matches the message `http.ts` gives an aborted request. */
+function isTimeout(message: string | undefined): boolean {
+  return /^Registry timed out after \d+ms$/.test(message ?? '');
+}
+
+/**
+ * An outage this nightly run should report rather than fail on: a registry that did not answer in
+ * time, or cvrapi.dk refusing the runner's IP once its free quota is spent (a 403 whose body says
+ * QUOTA_EXCEEDED, re-read here because the provider only keeps the status line). Any other failure,
+ * and any wrong data, still fails the test.
+ */
+async function transientOutage(providerId: string, failure: string): Promise<string | null> {
+  if (isTimeout(failure)) return `${providerId}: ${failure}`;
+  if (providerId === 'dk-cvr' && /^Registry responded 403\b/.test(failure)) {
+    try {
+      const res = await fetch('https://cvrapi.dk/api?search=25313763&country=dk', {
+        headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+        signal: AbortSignal.timeout(8000),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (body.error === 'QUOTA_EXCEEDED') return `${providerId}: cvrapi.dk quota exceeded for this IP`;
+    } catch {
+      // An unreadable body proves nothing about the quota: let the assertions decide.
+    }
+  }
+  return null;
+}
+
+/** Same treatment as a saturated VIES member state: visible in the log and, on Actions, as a warning. */
+function reportUnavailable(message: string): void {
+  console.warn(`Registry unavailable: ${message}`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    process.stdout.write(`::warning title=Registry unavailable::${message}\n`);
+  }
+}
