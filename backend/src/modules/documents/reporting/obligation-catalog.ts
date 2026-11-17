@@ -37,7 +37,8 @@ function covers(obligation: ReportingObligation, typeId: ReportableDocumentType 
  * once, when the catalog is built, so a malformed file fails at load with a named error rather than
  * at the first send. Every consumer reads it since #768 (the event hook, the runner, the profile sync,
  * the Declarations screen and the channels settings); the legacy `ReportingObligationCatalog` in
- * `registry.ts` is left for #769 to delete.
+ * `registry.ts` is left for #769 to delete. Each query below answers the same question as its legacy
+ * counterpart, which `obligation-catalog.spec.ts` pins against the last shipped legacy facts.
  *
  * Same "no database mirror" choice as the legacy catalog: the files are small and read in memory.
  * Lookups never fall back: a country with no file, or an absent country code, has no obligation.
