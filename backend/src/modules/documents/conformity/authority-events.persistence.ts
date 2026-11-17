@@ -92,6 +92,29 @@ export async function journalSyntheticEvent(
   );
 }
 
+/**
+ * Whether a provider already answered a declaration of this document: any event under `providerId`
+ * other than the synthetic ones this codebase writes itself (`report:` and `poll:` codes). Read by
+ * `reporting-runner.ts` so that an invoice validated today and sent next week is declared once, even
+ * after BullMQ has dropped the first job from its history (issue #768).
+ */
+export async function hasDeclarationResult(
+  companyId: string,
+  documentId: string,
+  providerId: string,
+): Promise<boolean> {
+  const event = await prisma.documentAuthorityEvent.findFirst({
+    where: {
+      companyId,
+      documentId,
+      providerId,
+      NOT: [{ statusCode: { startsWith: 'report:' } }, { statusCode: { startsWith: 'poll:' } }],
+    },
+    select: { id: true },
+  });
+  return event !== null;
+}
+
 /** Every authority event journaled for this document, most recent (by `observedAt`) first — what the
  *  frontend's own conformity timeline renders (`GET /documents/:id/authority-events`). */
 export async function listAuthorityEvents(

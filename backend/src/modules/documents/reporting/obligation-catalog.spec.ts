@@ -12,11 +12,14 @@ import {
   ReportingObligation,
   upgradeLegacyFacts,
 } from './obligation-v2';
-import { defaultReportingObligationCatalog, reportingObligationsFromComposedCatalog } from './registry';
+import { LEGACY_REPORTING_FILES } from './__fixtures__/legacy-reporting-files';
+import { ReportingObligationCatalog, reportingObligationsFromComposedCatalog } from './registry';
 import { ReportableDocumentType, ReportingObligationFact } from './schema';
 
 const DOCUMENT_TYPES: ReportableDocumentType[] = ['invoice', 'credit-note'];
-const legacy = defaultReportingObligationCatalog;
+// The legacy facts as they last shipped: #768 rewrote the country files in v2, which the legacy
+// catalog no longer reads.
+const legacy = new ReportingObligationCatalog(LEGACY_REPORTING_FILES);
 const v2 = defaultReportingObligationCatalogV2;
 
 /** The ids the upgrade gives these legacy facts, in order. */

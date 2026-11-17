@@ -3,9 +3,19 @@
  * `if countryCode === 'HU'` anywhere in the product code), the same discipline
  * `transports/channel-policy/registry.spec.ts` already holds for its own mechanism.
  */
+import { LEGACY_REPORTING_FILES } from './__fixtures__/legacy-reporting-files';
 import { ALL_REPORTING_OBLIGATION_FILES } from './data/all';
+import { assertValidReportingObligationFileV2 } from './obligation-v2';
 import { assertValidReportingObligationFact } from './schema';
-import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import {
+  defaultReportingObligationCatalog as shippedLegacyCatalog,
+  ReportingObligationCatalog,
+} from './registry';
+
+// Issue #768 rewrote the shipped country files in v2, which the legacy catalog no longer reads: its
+// default instance is now empty (pinned below), and the real-data cases run on the facts as they
+// last shipped. Issue #769 deletes this legacy catalog and this spec's legacy half with it.
+const defaultReportingObligationCatalog = new ReportingObligationCatalog(LEGACY_REPORTING_FILES);
 
 describe('reporting obligation files — loaded, not hard-coded', () => {
   // HU ("nav") and GR ("mydata") — the first two countries this mechanism ever shipped a reporting
@@ -39,9 +49,17 @@ describe('reporting obligation files — loaded, not hard-coded', () => {
     expect(defaultReportingObligationCatalog.obligationFor(undefined, 'invoice')).toBeUndefined();
   });
 
-  it('every shipped file has already passed provenance validation at load time', () => {
+  it('the default legacy catalog reads nothing once every shipped file is v2 (#768)', () => {
+    expect(shippedLegacyCatalog.factsFor('FR')).toEqual([]);
+    expect(shippedLegacyCatalog.factsFor('PT')).toEqual([]);
+  });
+
+  it('every shipped file has already passed validation at load time', () => {
     expect(ALL_REPORTING_OBLIGATION_FILES.length).toBe(2);
     for (const file of ALL_REPORTING_OBLIGATION_FILES) {
+      expect(() => assertValidReportingObligationFileV2(file, 'test')).not.toThrow();
+    }
+    for (const file of LEGACY_REPORTING_FILES) {
       for (const fact of file.facts) {
         expect(() => assertValidReportingObligationFact(fact, 'test')).not.toThrow();
       }

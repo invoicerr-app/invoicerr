@@ -3,24 +3,42 @@ import { vi, type Mock } from 'vitest';
 import { journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
-import { classifyDeclaration } from './classify';
+import { classifyObligation } from './classify';
+import { ReportingObligationCatalogV2 } from './obligation-catalog';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
 import { reportPaymentIfObligated } from './report-payment';
-import { ReportingObligationCatalog } from './registry';
 
 vi.mock('@/logger/logger.service', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock('../conformity/authority-events.persistence');
 vi.mock('../country-policy/country-policy');
 vi.mock('./operation-context', () => ({ loadDeclarationOperation: vi.fn().mockResolvedValue({}) }));
-vi.mock('./classify');
+vi.mock('./classify', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./classify')>()),
+  classifyObligation: vi.fn(),
+}));
 
 const mockedJournal = journalSyntheticEvent as Mock;
 const mockedCountry = resolveCompanyCountryCode as Mock;
-const mockedClassify = classifyDeclaration as Mock;
+const mockedClassify = classifyObligation as Mock;
 
-const catalog = {
-  providerFactsFor: () => [{ providerId: 'fr-pa' }],
-} as unknown as ReportingObligationCatalog;
+// One payment obligation declared through the "fr-pa" provider (issue #768 moved the resolution to
+// `on-document-event.ts`, which reads the v2 catalog).
+const catalog = new ReportingObligationCatalogV2([
+  {
+    countryCode: 'XX',
+    obligations: [
+      {
+        id: 'xx-payment',
+        authority: { countryCode: 'XX' },
+        kind: 'data',
+        trigger: 'payment',
+        scope: { documentTypes: ['invoice'] },
+        legalBasis: { provenance: { kind: 'unverified', resolutionNote: 'fixture' } },
+        channels: [{ dischargedBy: 'provider', id: 'fr-pa', unit: 'document' }],
+      },
+    ],
+  },
+]);
 
 function input(paymentId: string, enqueueReport: Mock) {
   return {

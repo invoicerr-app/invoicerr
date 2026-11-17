@@ -14,8 +14,9 @@ import prisma from '@/prisma/prisma.service';
 import { resolveB2gRoutingRule } from '@/modules/documents/b2g-routing/b2g-routing';
 import { encryptJson } from '@/utils/secret-crypto';
 import { ChannelEnvironment } from '../../../../prisma/generated/prisma/client';
+import { LEGACY_REPORTING_FILES } from '@/modules/documents/reporting/__fixtures__/legacy-reporting-files';
 import {
-  defaultReportingObligationCatalog,
+  ReportingObligationCatalog,
   reportingObligationsFromComposedCatalog,
 } from '@/modules/documents/reporting/registry';
 import { defaultReportingObligationCatalogV2 } from '@/modules/documents/reporting/obligation-catalog';
@@ -423,11 +424,13 @@ describe('ChannelCredentialsService', () => {
   // Issue #767: the read moved to the v2 catalog. Pinned row for row against what the legacy catalog
   // returned for every shipped country, so the settings screen sees exactly the same list.
   describe('reportingObligations(): the v2 catalog returns exactly the legacy rows', () => {
+    // The legacy facts as they last shipped (#768 rewrote the country files in v2).
+    const legacyCatalog = new ReportingObligationCatalog(LEGACY_REPORTING_FILES);
     it.each(reportingObligationsFromComposedCatalog().map((file) => file.countryCode.toUpperCase()))(
       '%s: same rows, same order, same provenance',
       async (countryCode) => {
         mockedPrisma.company.findUnique.mockResolvedValue({ country: countryCode, countryCode });
-        const expected = defaultReportingObligationCatalog.factsFor(countryCode).map((fact) => ({
+        const expected = legacyCatalog.factsFor(countryCode).map((fact) => ({
           providerId: fact.providerId,
           appliesTo: fact.appliesTo,
           provenance: fact.provenance,

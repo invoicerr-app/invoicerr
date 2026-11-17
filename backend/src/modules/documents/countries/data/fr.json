@@ -1009,135 +1009,190 @@
   },
   "reporting": {
     "countryCode": "FR",
-    "facts": [
+    "obligations": [
       {
-        "providerId": "pdp",
-        "platformId": "fr-pa",
-        "appliesTo": "invoice",
-        "dischargedBy": "transport",
-        "scope": [
+        "id": "pdp:invoice:b2b-domestic",
+        "authority": {
+          "countryCode": "FR"
+        },
+        "kind": "data",
+        "trigger": "sent",
+        "scope": {
+          "documentTypes": ["invoice"],
+          "transactions": [
+            {
+              "transactions": "b2b-domestic"
+            }
+          ]
+        },
+        "legalBasis": {
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "Code général des impôts, art. 289 E : « Les données des factures électroniques émises en application du I de l'article 289 bis sont transmises à l'administration par la plateforme agréée choisie par l'assujetti. » - texte consolidé en vigueur, issu de la LOI n° 2026-103 du 19 février 2026, art. 123, lu directement à la source primaire (codes.droit.org, PDF officiel du Code général des impôts, 15 Mo, HTTP 200, extrait via pdftotext -layout). Légifrance and the JORF were retried the same day and, from this environment, returned either a Cloudflare wall (\"Just a moment...\") or an empty JavaScript shell - never the text itself.",
+            "sourceCheckedAt": "2026-09-16"
+          }
+        },
+        "channels": [
           {
-            "transactions": "b2b-domestic"
+            "dischargedBy": "transport",
+            "id": "pdp",
+            "unit": "document",
+            "platformId": "fr-pa"
           }
         ],
-        "periodicity": "None — discharged continuously, as a legal side effect of the PDP transport's own delivery of each invoice; never a separate periodic act, and never triggered by this catalog's own send-time hook (report-on-send.ts excludes every 'transport'-discharged fact — see registry.ts#obligationFor's own header).",
-        "provenance": {
-          "kind": "legal",
-          "sourceText": "Code général des impôts, art. 289 E : « Les données des factures électroniques émises en application du I de l'article 289 bis sont transmises à l'administration par la plateforme agréée choisie par l'assujetti. » — texte consolidé en vigueur, issu de la LOI n° 2026-103 du 19 février 2026, art. 123, lu directement à la source primaire (codes.droit.org, PDF officiel du Code général des impôts, 15 Mo, HTTP 200, extrait via pdftotext -layout). Légifrance and the JORF were retried the same day and, from this environment, returned either a Cloudflare wall (\"Just a moment...\") or an empty JavaScript shell — never the text itself.",
-          "sourceCheckedAt": "2026-09-16"
-        },
-        "notes": "Art. 289 bis I mandates e-invoicing through an accredited platform (PDP) between two VAT-liable persons established in France ('B2B domestic') — the scope this fact covers. Art. 289 E (quoted above) then puts the duty to TRANSMIT that invoice's data to the tax administration on the PDP itself, never on the issuing company — exactly what `dischargedBy: \"transport\"` expresses: this catalog has nothing to enqueue for a B2B-domestic French invoice, because the transport that already carries it (transports/pdp-transport.ts, proven live end to end on 2026-08-29) is itself the party the law makes responsible on the administration side. `providerId` names a `transports/transport-registry.ts` id here (\"pdp\"), never a `DeclarationProviderRegistry` one — see schema.ts's own header on this deliberate field reuse. `applicableFrom` is deliberately omitted: art. 289 bis's own size-tiered rollout (large/mid companies first, small/micro a year later) is fixed by décret n° 2022-1299 as later modified, and by LOI n° 2026-103's own art. 123 transitional provisions — neither was readable in brut text from this environment on 2026-09-16 (a Légifrance JORFTEXT/LODA id for the décret, and a guessed codes.droit.org codified-article path, were both tried; the former returned only Légifrance's own navigation shell, the latter 404'd) — so no date is asserted, honestly, rather than guessed from secondary commentary."
+        "timingNote": "None - discharged continuously, as a legal side effect of the PDP transport's own delivery of each invoice; never a separate periodic act, and never triggered by this catalog's own send-time hook (report-on-send.ts excludes every 'transport'-discharged fact - see registry.ts#obligationFor's own header).",
+        "notes": "Art. 289 bis I mandates e-invoicing through an accredited platform (PDP) between two VAT-liable persons established in France ('B2B domestic') - the scope this fact covers. Art. 289 E (quoted above) then puts the duty to TRANSMIT that invoice's data to the tax administration on the PDP itself, never on the issuing company - exactly what `dischargedBy: \"transport\"` expresses: this catalog has nothing to enqueue for a B2B-domestic French invoice, because the transport that already carries it (transports/pdp-transport.ts, proven live end to end on 2026-08-29) is itself the party the law makes responsible on the administration side. `providerId` names a `transports/transport-registry.ts` id here (\"pdp\"), never a `DeclarationProviderRegistry` one - see schema.ts's own header on this deliberate field reuse. `applicableFrom` is deliberately omitted: art. 289 bis's own size-tiered rollout (large/mid companies first, small/micro a year later) is fixed by décret n° 2022-1299 as later modified, and by LOI n° 2026-103's own art. 123 transitional provisions - neither was readable in brut text from this environment on 2026-09-16 (a Légifrance JORFTEXT/LODA id for the décret, and a guessed codes.droit.org codified-article path, were both tried; the former returned only Légifrance's own navigation shell, the latter 404'd) - so no date is asserted, honestly, rather than guessed from secondary commentary."
       },
       {
-        "providerId": "fr-pa",
-        "appliesTo": "invoice",
-        "dischargedBy": "provider",
-        "scope": [
+        "id": "fr-pa:invoice:b2c",
+        "authority": {
+          "countryCode": "FR"
+        },
+        "kind": "data",
+        "trigger": "sent",
+        "scope": {
+          "documentTypes": ["invoice"],
+          "transactions": [
+            {
+              "transactions": "b2c",
+              "buyerType": ["INDIVIDUAL"],
+              "buyerEstablishment": "domestic"
+            }
+          ]
+        },
+        "legalBasis": {
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "CGI art. 290, I: the assujettis established or domiciled in France communicate to the administration, in electronic form, the data of the listed operations, including 2° les ventes de biens et prestations de services aux personnes non assujetties; the article excludes operations exempt under CGI art. 261 to 261 E. CGI art. 290, III states that the data are « transmises [...] par la plateforme agréée choisie par la personne assujettie ». Fields and frequency: CGI ann. II art. 242 nonies M (fields) and O (frequency), created by décret n° 2026-677 du 27 juillet 2026. XML format and per-day aggregation of B2C data: CGI ann. IV art. 41 septies L, M, O and P, arrêté du 27 juillet 2026. Read on 2026-10-24 from codes.droit.org (consolidated CGI and annexes, official PDFs) and from the DILA open-data JORF and LEGI archives (echanges.dila.gouv.fr/OPENDATA), which serve the JORF text Légifrance blocks. Penalty: CGI art. 1788 D, 500 EUR per missed transmission, capped at 15 000 EUR a year.",
+            "sourceCheckedAt": "2026-10-24"
+          }
+        },
+        "channels": [
           {
-            "transactions": "b2c",
-            "buyerType": ["INDIVIDUAL"],
-            "buyerEstablishment": "domestic"
+            "dischargedBy": "provider",
+            "id": "fr-pa",
+            "unit": "document"
           }
         ],
         "applicability": [
           {
-            "when": { "companyProfile": { "sizeCategory": ["LARGE", "MID"] } },
-            "from": {
-              "date": "2026-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: the e-reporting obligation starts on 1 September 2026 for large companies and intermediate-sized companies (ETI), and on 1 September 2027 for small and medium-sized enterprises and micro-enterprises. The category is assessed on 1 January 2025 under LME art. 51 (loi n° 2008-776 du 4 août 2008).",
-                "sourceCheckedAt": "2026-10-24"
-              }
-            }
-          },
-          {
-            "when": { "companyProfile": { "vatGroupMember": ["MEMBER"] } },
-            "from": {
-              "date": "2026-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: a member of an assujetti unique is bound with the large-company tier on 1 September 2026, whatever its own size category.",
-                "sourceCheckedAt": "2026-10-24"
-              }
-            }
-          },
-          {
+            "from": "2026-09-01",
             "when": {
-              "companyProfile": { "sizeCategory": ["SME", "MICRO"], "vatGroupMember": ["NOT_MEMBER"] }
-            },
-            "from": {
-              "date": "2027-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: small and medium-sized enterprises and micro-enterprises that are not members of an assujetti unique are bound from 1 September 2027.",
-                "sourceCheckedAt": "2026-10-24"
+              "companyProfile": {
+                "sizeCategory": ["LARGE", "MID"]
               }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: the e-reporting obligation starts on 1 September 2026 for large companies and intermediate-sized companies (ETI), and on 1 September 2027 for small and medium-sized enterprises and micro-enterprises. The category is assessed on 1 January 2025 under LME art. 51 (loi n° 2008-776 du 4 août 2008).",
+              "sourceCheckedAt": "2026-10-24"
+            }
+          },
+          {
+            "from": "2026-09-01",
+            "when": {
+              "companyProfile": {
+                "vatGroupMember": ["MEMBER"]
+              }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: a member of an assujetti unique is bound with the large-company tier on 1 September 2026, whatever its own size category.",
+              "sourceCheckedAt": "2026-10-24"
+            }
+          },
+          {
+            "from": "2027-09-01",
+            "when": {
+              "companyProfile": {
+                "sizeCategory": ["SME", "MICRO"],
+                "vatGroupMember": ["NOT_MEMBER"]
+              }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 and 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: small and medium-sized enterprises and micro-enterprises that are not members of an assujetti unique are bound from 1 September 2027.",
+              "sourceCheckedAt": "2026-10-24"
             }
           }
         ],
-        "periodicity": "Each operation is declared as it is issued: the accredited platform stores it and aggregates it to the tax administration on the schedule its own company record declares (CGI ann. II art. 242 nonies O, created by décret n° 2026-677 du 27 juillet 2026): three transmissions per month for the réel normal mensuel regime, one per month for the réel normal trimestriel and réel simplifié regimes, and one per two calendar months under the franchise en base.",
-        "provenance": {
-          "kind": "legal",
-          "sourceText": "CGI art. 290, I: the assujettis established or domiciled in France communicate to the administration, in electronic form, the data of the listed operations, including 2° les ventes de biens et prestations de services aux personnes non assujetties; the article excludes operations exempt under CGI art. 261 to 261 E. CGI art. 290, III states that the data are « transmises [...] par la plateforme agréée choisie par la personne assujettie ». Fields and frequency: CGI ann. II art. 242 nonies M (fields) and O (frequency), created by décret n° 2026-677 du 27 juillet 2026. XML format and per-day aggregation of B2C data: CGI ann. IV art. 41 septies L, M, O and P, arrêté du 27 juillet 2026. Read on 2026-10-24 from codes.droit.org (consolidated CGI and annexes, official PDFs) and from the DILA open-data JORF and LEGI archives (echanges.dila.gouv.fr/OPENDATA), which serve the JORF text Légifrance blocks. Penalty: CGI art. 1788 D, 500 EUR per missed transmission, capped at 15 000 EUR a year.",
-          "sourceCheckedAt": "2026-10-24"
-        },
+        "timingNote": "Each operation is declared as it is issued: the accredited platform stores it and aggregates it to the tax administration on the schedule its own company record declares (CGI ann. II art. 242 nonies O, created by décret n° 2026-677 du 27 juillet 2026): three transmissions per month for the réel normal mensuel regime, one per month for the réel normal trimestriel and réel simplifié regimes, and one per two calendar months under the franchise en base.",
         "notes": "Slice 1 covers domestic B2C sales (buyer INDIVIDUAL, established in France) only. The international B2B flows art. 290 I 1° also lists (10.1 and 10.2 of the DGFiP external specifications) are deliberately out of this ticket and left to their own adapter work: they must not be pushed through the B2C transaction route. The scope uses the same buyer-type vocabulary as the channel mandate. Limit: CGI art. 290 I 2° is drawn by the place of taxation (goods taxed in France, services located in France), not by the buyer's establishment; this product stores the buyer's country only, so a French consumer is taken as domestic and a foreign consumer stays out of this fact. B2C operations exempt under art. 261 to 261 E (including a seller under the franchise en base) are outside this fact and the classifier answers out, never declares them. The provider id names the legal channel (plateforme agréée), never an operator: operators/data/*.json decides which connected platform can discharge it."
       },
       {
-        "providerId": "fr-pa",
-        "appliesTo": "invoice",
-        "dischargedBy": "provider",
-        "scope": [
+        "id": "fr-pa:invoice:payments",
+        "authority": {
+          "countryCode": "FR"
+        },
+        "kind": "data",
+        "trigger": "payment",
+        "scope": {
+          "documentTypes": ["invoice"],
+          "transactions": [
+            {
+              "transactions": "payments",
+              "buyerType": ["INDIVIDUAL"],
+              "vatOnCollection": true
+            }
+          ]
+        },
+        "legalBasis": {
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "CGI art. 290 A, I: payment data of operations covered by art. 289 bis and art. 290 « pour lesquelles la taxe est exigible à l'encaissement », except reverse charge, are transmitted through the same accredited platform. Payment fields and frequency: CGI ann. II art. 242 nonies P, created by décret n° 2026-677 du 27 juillet 2026. Payment XML and deadlines: CGI ann. IV art. 41 septies P, arrêté du 27 juillet 2026. Read on 2026-10-24 from codes.droit.org (consolidated CGI and annexes, official PDFs) and from the DILA open-data JORF and LEGI archives. The start dates come from loi n° 2022-1157 art. 26 III B as applied by LOI n° 2026-103 art. 123 V B.",
+            "sourceCheckedAt": "2026-10-24"
+          }
+        },
+        "channels": [
           {
-            "transactions": "payments",
-            "buyerType": ["INDIVIDUAL"],
-            "vatOnCollection": true
+            "dischargedBy": "provider",
+            "id": "fr-pa",
+            "unit": "document"
           }
         ],
         "applicability": [
           {
-            "when": { "companyProfile": { "sizeCategory": ["LARGE", "MID"] } },
-            "from": {
-              "date": "2026-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: payment data follows the same size-tiered calendar, 1 September 2026 for large and intermediate-sized companies and 1 September 2027 for SMEs and micro-enterprises.",
-                "sourceCheckedAt": "2026-10-24"
-              }
-            }
-          },
-          {
-            "when": { "companyProfile": { "vatGroupMember": ["MEMBER"] } },
-            "from": {
-              "date": "2026-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: a member of an assujetti unique is bound with the large-company tier on 1 September 2026.",
-                "sourceCheckedAt": "2026-10-24"
-              }
-            }
-          },
-          {
+            "from": "2026-09-01",
             "when": {
-              "companyProfile": { "sizeCategory": ["SME", "MICRO"], "vatGroupMember": ["NOT_MEMBER"] }
-            },
-            "from": {
-              "date": "2027-09-01",
-              "provenance": {
-                "kind": "legal",
-                "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: SMEs and micro-enterprises that are not members of an assujetti unique are bound from 1 September 2027.",
-                "sourceCheckedAt": "2026-10-24"
+              "companyProfile": {
+                "sizeCategory": ["LARGE", "MID"]
               }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: payment data follows the same size-tiered calendar, 1 September 2026 for large and intermediate-sized companies and 1 September 2027 for SMEs and micro-enterprises.",
+              "sourceCheckedAt": "2026-10-24"
+            }
+          },
+          {
+            "from": "2026-09-01",
+            "when": {
+              "companyProfile": {
+                "vatGroupMember": ["MEMBER"]
+              }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: a member of an assujetti unique is bound with the large-company tier on 1 September 2026.",
+              "sourceCheckedAt": "2026-10-24"
+            }
+          },
+          {
+            "from": "2027-09-01",
+            "when": {
+              "companyProfile": {
+                "sizeCategory": ["SME", "MICRO"],
+                "vatGroupMember": ["NOT_MEMBER"]
+              }
+            },
+            "provenance": {
+              "kind": "legal",
+              "sourceText": "Loi n° 2022-1157 du 16 août 2022, art. 26, III, B, applied to CGI art. 290 A by LOI n° 2026-103 du 19 février 2026, art. 123, V, B: SMEs and micro-enterprises that are not members of an assujetti unique are bound from 1 September 2027.",
+              "sourceCheckedAt": "2026-10-24"
             }
           }
         ],
-        "periodicity": "One payment declaration per month under the réel normal mensuel regime, and one per two calendar months under the franchise en base: CGI ann. II art. 242 nonies P (payment fields and frequency), created by décret n° 2026-677 du 27 juillet 2026, and CGI ann. IV art. 41 septies P (payment XML and deadlines), arrêté du 27 juillet 2026.",
-        "provenance": {
-          "kind": "legal",
-          "sourceText": "CGI art. 290 A, I: payment data of operations covered by art. 289 bis and art. 290 « pour lesquelles la taxe est exigible à l'encaissement », except reverse charge, are transmitted through the same accredited platform. Payment fields and frequency: CGI ann. II art. 242 nonies P, created by décret n° 2026-677 du 27 juillet 2026. Payment XML and deadlines: CGI ann. IV art. 41 septies P, arrêté du 27 juillet 2026. Read on 2026-10-24 from codes.droit.org (consolidated CGI and annexes, official PDFs) and from the DILA open-data JORF and LEGI archives. The start dates come from loi n° 2022-1157 art. 26 III B as applied by LOI n° 2026-103 art. 123 V B.",
-          "sourceCheckedAt": "2026-10-24"
-        },
+        "timingNote": "One payment declaration per month under the réel normal mensuel regime, and one per two calendar months under the franchise en base: CGI ann. II art. 242 nonies P (payment fields and frequency), created by décret n° 2026-677 du 27 juillet 2026, and CGI ann. IV art. 41 septies P (payment XML and deadlines), arrêté du 27 juillet 2026.",
         "notes": "Payment data is only due when VAT is exigible on collection: the classifier answers out when the company exercised the option for VAT on debits, and out for a goods-only invoice. Slice 1 declares domestic B2C service payments; the domestic B2B service payment slice art. 290 A also covers is deliberately left to its own ticket. A company under the franchise en base is not declared before legal counsel answers whether art. 290 A reaches it (open question on the issue), and its obligation starts 2027-09-01 anyway. The amount is split by VAT rate from the invoice's own lines, never recomputed."
       }
     ]
