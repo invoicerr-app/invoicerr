@@ -1701,5 +1701,105 @@
         }
       }
     ]
+  },
+  "cashRecording": {
+    "countryCode": "FR",
+    "obligation": {
+      "conditions": ["inalterability", "security", "retention", "archiving"],
+      "summary": "A VAT-registered business that records payments from consumers in software must use software meeting the four conditions, whatever the payment method, bank transfer included.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "CGI art. 286, I, 3° bis: « 3° bis Si elle effectue des livraisons de biens et des prestations de services ne donnant pas lieu à facturation conformément à l'article 289 du présent code et enregistre ces opérations au moyen d'un logiciel ou d'un système de caisse, utiliser un logiciel ou un système satisfaisant à des conditions d'inaltérabilité, de sécurisation, de conservation et d'archivage des données en vue du contrôle de l'administration fiscale, attestées par un certificat délivré par un organisme accrédité dans les conditions prévues à l'article L. 433-4 du code de la consommation ou par une attestation individuelle de l'éditeur, conforme à un modèle fixé par l'administration ; Les données archivées mentionnées au premier alinéa du présent 3° bis sont restituées dans un format répondant aux normes établies par l'administration. » BOI-TVA-DECLA-30-10-30-20260325, https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325 § 30: « quel que soit le mode de règlement (espèces, chèques, cartes bancaires, virements, prélèvements, etc.) » ; § 40: « Un logiciel, quelle que soit sa qualification (de caisse, comptable, de gestion ou de facturation), qui dispose d'une fonctionnalité de caisse doit satisfaire aux conditions »",
+        "sourceCheckedAt": "2026-10-24"
+      }
+    },
+    "exclusions": [
+      {
+        "id": "business-customers-only",
+        "summary": "Businesses whose whole turnover is made with professional customers.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "BOI-TVA-DECLA-30-10-30-20260325, https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325 § 10: « En conséquence, les assujettis qui réalisent l'intégralité de leur chiffre d'affaires avec un ou des professionnels sont exclus du dispositif, puisque les opérations réalisées entre professionnels uniquement (« B to B ») font obligatoirement l'objet d'une facturation. »",
+          "sourceCheckedAt": "2026-11-17"
+        }
+      },
+      {
+        "id": "franchise-flat-rate-or-exempt",
+        "summary": "Businesses under the VAT franchise, the agricultural flat-rate refund scheme, or making only VAT-exempt supplies.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "CGI art. 286, II, 2: « 2. Les assujettis bénéficiant d'une franchise de taxe mentionnée aux articles 293 B et 293 B bis, ceux placés sous le régime du remboursement forfaitaire prévu aux articles 298 quater et 298 quinquies et ceux effectuant exclusivement des opérations ou des prestations exonérées de taxe sur la valeur ajoutée sont dispensés de l'obligation mentionnée au 3° bis du I. »",
+          "sourceCheckedAt": "2026-10-24"
+        }
+      },
+      {
+        "id": "foreign-not-established",
+        "summary": "Foreign businesses registered for VAT in France but not established there.",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "BOI-TVA-DECLA-30-10-30-20260325, https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325 § 20: « Toutefois, par mesure de tempérament, les entreprises étrangères immatriculées à la TVA non établies en France sont hors champ du dispositif. »",
+          "sourceCheckedAt": "2026-11-17"
+        }
+      }
+    ],
+    "attestation": {
+      "availableFrom": "2026-02-21",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "BOI-TVA-DECLA-30-10-30-20260325, https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325 § 270: « L'article 125 de la loi n° 2026-103 du 19 février 2026 de finances pour 2026 a rétabli la possibilité, à compter du 21 février 2026, de justifier du respect des conditions d'inaltérabilité, de sécurisation, de conservation et d'archivage des données d'un logiciel ou d'un système de caisse par la production d'une attestation individuelle délivrée par l'éditeur. »",
+        "sourceCheckedAt": "2026-11-17"
+      },
+      "model": {
+        "reference": "BOI-LETTRE-000242-20260325",
+        "fileName": "attestation-individuelle-logiciel-caisse",
+        "blocks": [
+          {
+            "heading": "Attestation individuelle relative à l'utilisation d'un logiciel ou d'un système de caisse sécurisé",
+            "text": "Les volets 1 et 2 de cette attestation doivent être présentés à l'administration fiscale en cas de contrôle. Elle n'a de valeur que si son volet 2 est dûment complété et signé par l'entreprise utilisatrice du logiciel / système."
+          },
+          {
+            "heading": "Volet 1 : Partie à remplir par l'éditeur ou intégrateur du logiciel ou du système de caisse",
+            "text": "Je soussigné, {publisherRepresentative}, représentant légal de la société {publisherName}, éditeur du logiciel {softwareName}, atteste que les fonctionnalités de caisse de ce logiciel, mises sur le marché à compter du {marketedSince}, dans sa version n° {softwareVersion}, satisfont aux conditions d'inaltérabilité, de sécurisation, de conservation et d'archivage des données en vue du contrôle de l'administration fiscale, prévues au 3° bis du I de l'article 286 du code général des impôts."
+          },
+          {
+            "text": "Le périmètre couvert par cette attestation concerne les fonctionnalités suivantes :\n- l'enregistrement des règlements reçus sur les factures et autres documents (saisie manuelle, rapprochement bancaire, paiement en ligne) ;\n- l'inaltérabilité de ces enregistrements : aucune modification ni suppression, correction par une écriture d'annulation qui référence l'enregistrement d'origine ;\n- la sécurisation par chaînage (empreinte SHA-256 de l'enregistrement précédent) et signature de chaque enregistrement, avec vérification de la chaîne ;\n- les clôtures journalières, mensuelles et annuelles, avec totaux de la période et cumul perpétuel, elles-mêmes chaînées et signées ;\n- l'archivage périodique des enregistrements et des clôtures dans un format ouvert (JSON), accompagné d'une notice en français et d'une empreinte, chaque génération étant tracée."
+          },
+          {
+            "text": "Les fonctionnalités suivantes ne sont pas couvertes par cette attestation :\n- les données saisies ou modifiées en dehors du logiciel, notamment directement dans la base de données ;\n- les modules et extensions de tiers."
+          },
+          {
+            "text": "Fait à {publisherCity}, le {generatedOn},\n\nSignature du représentant légal de l'éditeur du logiciel ou système de caisse :"
+          },
+          {
+            "text": "Il est rappelé que l'établissement d'une fausse attestation est un délit pénal passible de trois ans d'emprisonnement et de 45 000 € d'amende (code pénal [C. pén.], art. 441-1). L'usage d'une fausse attestation est passible des mêmes peines."
+          },
+          {
+            "heading": "Volet 2 : Partie à remplir par l'entreprise qui utilise le logiciel ou le système de caisse",
+            "text": "Je soussigné, ________, représentant légal de la société {companyName}, certifie avoir acquis ou téléchargé le ________, auprès de ________, le logiciel / système de caisse mentionné au volet 1 de cette attestation. J'atteste utiliser ce logiciel / système de caisse pour enregistrer les règlements de mes clients particuliers, conformément à la réglementation fiscale en vigueur, depuis le ________."
+          },
+          {
+            "text": "Fait à ________, le ________,\n\nSignature du représentant légal :"
+          },
+          {
+            "text": "Il est rappelé que l'établissement d'une fausse attestation est un délit pénal passible de trois ans d'emprisonnement et de 45 000 € d'amende (C. pén., art. 441-1). L'usage d'une fausse attestation est passible des mêmes peines."
+          }
+        ],
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "BOI-LETTRE-000242-20260325, https://bofip.impots.gouv.fr/bofip/10692-PGP.html/identifiant=BOI-LETTRE-000242-20260325, volet 1, § 10: « Je soussigné, NOM Prénom, représentant légal de la société RAISON SOCIALE, éditeur du logiciel / système de caisse nom et références caractérisant le logiciel ou système, atteste que ce logiciel/système OU les fonctionnalités de caisse de ce logiciel/système (1), mis sur le marché à compter du DATE, dans sa version n° nom et références caractérisant la version du logiciel OU système, sous le numéro de licence (2), satisfait OU satisfont aux conditions d'inaltérabilité, de sécurisation, de conservation et d'archivage des données en vue du contrôle de l'administration fiscale, prévues au 3° bis du I de l'article 286 du code général des impôts. » Volet 2, § 20: « Je soussigné, NOM Prénom, représentant légal de la société RAISON SOCIALE, certifie avoir acquis ou téléchargé le DATE, auprès de RAISON SOCIALE du distributeur, le logiciel / système de caisse mentionné au volet 1 de cette attestation. J'atteste utiliser ce logiciel / système de caisse pour enregistrer les règlements de mes clients particuliers, conformément à la réglementation fiscale en vigueur, depuis le DATE. » The optional version-root mention (note 3, tolerance of § 380) and the licence number (note 2, « Quand il existe une licence ») are left out: Invoicerr is distributed without a licence number.",
+          "sourceCheckedAt": "2026-11-17"
+        }
+      }
+    },
+    "archive": {
+      "language": "fr",
+      "notice": "Cette archive contient, pour la période indiquée, les enregistrements de règlements de l'entreprise et les clôtures de période, au format JSON (format ouvert, encodage UTF-8). « payments » liste chaque règlement dans l'ordre de son numéro de séquence : identifiant, document réglé, montant reçu en unités mineures (centimes) et sa devise, montant converti dans la devise du document, taux de conversion éventuel, mode de règlement, date de règlement déclarée (paidAt), date d'enregistrement (createdAt), règlement annulé le cas échéant (reversesPaymentId), empreinte de l'enregistrement précédent (previousHash), empreinte SHA-256 de l'enregistrement (hash) et signature HMAC-SHA256 de cette empreinte (signature). Une annulation est un règlement de montant négatif qui référence le règlement d'origine ; aucun enregistrement n'est jamais modifié ni supprimé. « closures » liste les clôtures journalières (DAILY), mensuelles (MONTHLY) et annuelles (YEARLY), calculées en temps universel (UTC) sur la date d'enregistrement : nombre de règlements, totaux par devise de la période, cumul perpétuel par devise, premier et dernier numéro de séquence couverts, chaînage et signature. « verification » donne le résultat du contrôle de la chaîne complète au moment de la génération. L'empreinte SHA-256 du fichier est restituée avec le téléchargement et conservée dans le journal des archives.",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "BOI-TVA-DECLA-30-10-30-20260325, https://bofip.impots.gouv.fr/bofip/10691-PGP.html/identifiant=BOI-TVA-DECLA-30-10-30-20260325 § 230: « Les archives doivent pouvoir être lues aisément par l'administration en cas de contrôle, y compris lorsque l'entreprise a changé de logiciel ou de système de caisse. À cette fin, les données d'archivage doivent être enregistrées dans un format ouvert. Une notice explicative en langue française doit être jointe au contenu de l'archive. » § 240: « Le logiciel ou système de caisse doit prévoir une traçabilité de la génération des données d'archives, selon un procédé fiable. »",
+        "sourceCheckedAt": "2026-11-17"
+      }
+    },
+    "notes": "Every payment row is append-only in the database for every country; this section only says what French law asks of it and renders the attestation and archive notice. Closures are written on the recording date in UTC: § 170 of the same BOFiP does not require closures from invoicing software able to give the total of a period, so they are an addition, not the basis of compliance."
   }
 }

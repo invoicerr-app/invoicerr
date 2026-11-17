@@ -59,6 +59,7 @@ import { byCodeUnit } from '@/lib/compare';
 import { assertValidPaymentTerms } from '../../payment-terms/schema';
 import { assertValidEinvoiceCodes } from '../../einvoice-codes/schema';
 import { assertValidCompanyLawSection } from '../../company-law/schema';
+import { assertValidCashRecordingSection } from '../../payment-ledger/cash-recording-schema';
 import { assertProfileConditionIsDeclared, assertValidCompanyProfile } from '../../company-profile/schema';
 import { assertValidCodeLists } from '../../code-lists/schema';
 
@@ -373,6 +374,16 @@ function validateCompanyLawSection(
   assertValidCompanyLawSection(companyLaw, `${filePath}#companyLaw`);
 }
 
+function validateCashRecordingSection(
+  cashRecording: ComposedCountryView['cashRecording'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!cashRecording) return;
+  assertSectionCountryCode(cashRecording, 'cashRecording', ctx);
+  assertValidCashRecordingSection(cashRecording, `${filePath}#cashRecording`);
+}
+
 function loadCountryFile(dir: string, code: string): ComposedCountryView {
   const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
@@ -406,6 +417,7 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validatePaymentTermsSection(parsed.paymentTerms, ctx, filePath);
   validateEinvoiceCodesSection(parsed.einvoiceCodes, ctx, filePath);
   validateCompanyLawSection(parsed.companyLaw, ctx, filePath);
+  validateCashRecordingSection(parsed.cashRecording, ctx, filePath);
 
   return parsed;
 }

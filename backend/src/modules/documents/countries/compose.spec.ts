@@ -91,6 +91,7 @@ describe('countries/compose: section coverage per country (pinned on purpose, se
         'companyLookup',
         'paymentTerms',
         'companyLaw',
+        'cashRecording',
         'companyProfile',
       ],
       IT: [
