@@ -76,19 +76,21 @@ jobs:
             -v "$PWD/web:/usr/share/nginx/html:ro" \
             nginx:bookworm
           for _ in $(seq 1 30); do
-            curl -fsS -o /dev/null http://localhost/ && curl -fsS -o /dev/null http://localhost/api/small && exit 0
+            curl -fsS -o /dev/null localhost/ && curl -fsS -o /dev/null localhost/api/small && exit 0
             sleep 1
           done
           docker logs web; cat stub.log; exit 1
 
       - name: Files are served from the web root
         run: |
+          # No scheme in the URLs: curl defaults to plain HTTP, the only thing this local nginx serves.
           check() { # path, expected status, text the body must contain
-            body=$(curl -sS -o - -w '\n%{http_code}' "http://localhost$1")
+            local path="$1" status="$2" text="$3"
+            body=$(curl -sS -o - -w '\n%{http_code}' "localhost$path")
             code=${body##*$'\n'}
-            echo "$1 -> $code"
-            test "$code" = "$2"
-            grep -q -- "$3" <<<"$body"
+            echo "$path -> $code"
+            test "$code" = "$status"
+            grep -q -- "$text" <<<"$body"
           }
           check / 200 spa-shell
           check /some/client/route 200 spa-shell
@@ -100,16 +102,18 @@ jobs:
       - name: Responses are compressed only where they should be
         run: |
           encoding() { # path, Accept-Encoding value -> Content-Encoding header value (empty if none)
-            curl -sS -o /dev/null -D - -H "Accept-Encoding: $2" "http://localhost$1" \
+            local path="$1" accept="$2"
+            curl -sS -o /dev/null -D - -H "Accept-Encoding: $accept" "localhost$path" \
               | tr -d '\r' | awk -F': ' 'tolower($1)=="content-encoding" {print $2}'
           }
           expect() { # path, Accept-Encoding, expected Content-Encoding
-            got=$(encoding "$1" "$2")
-            echo "$1 (Accept-Encoding: ${2:-none}) -> Content-Encoding: ${got:-none}"
-            test "$got" = "$3"
+            local path="$1" accept="$2" want="$3"
+            got=$(encoding "$path" "$accept")
+            echo "$path (Accept-Encoding: ${accept:-none}) -> Content-Encoding: ${got:-none}"
+            test "$got" = "$want"
           }
           expect /assets/index-smoke.js gzip gzip
-          curl -sS --compressed http://localhost/assets/index-smoke.js | grep -q 'console.log("precompressed")'
+          curl -sS --compressed localhost/assets/index-smoke.js | grep -q 'console.log("precompressed")'
           expect /assets/index-smoke.css gzip gzip
           expect /api/documents gzip gzip
           expect /api/documents 'gzip, deflate, br' gzip
@@ -119,10 +123,10 @@ jobs:
           expect /api/documents/events gzip ''
           expect /api/auth/get-session gzip ''
           # The decompressed JSON is byte-for-byte what the backend sent.
-          curl -sS --compressed http://localhost/api/documents | cmp - api/list.json
-          curl -sS -H 'Accept-Encoding: gzip' http://localhost/api/documents/1/pdf | cmp - api/doc.pdf
+          curl -sS --compressed localhost/api/documents | cmp - api/list.json
+          curl -sS -H 'Accept-Encoding: gzip' localhost/api/documents/1/pdf | cmp - api/doc.pdf
           # Compressed responses keep the security headers and tell caches the body varies.
-          headers=$(curl -sS -o /dev/null -D - -H 'Accept-Encoding: gzip' http://localhost/api/documents)
+          headers=$(curl -sS -o /dev/null -D - -H 'Accept-Encoding: gzip' localhost/api/documents)
           grep -qi '^content-security-policy:' <<<"$headers"
           grep -qi '^vary: accept-encoding' <<<"$headers"
 
