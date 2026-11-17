@@ -56,6 +56,7 @@ import { ConformitySweepRunner } from '../../conformity/conformity-sweep-runner'
 import { buildSuperPdpStatusPoller } from '../../conformity/pollers/superpdp-status-poller';
 import { liveDescribe } from '../live-gate';
 import { SuperPdpApiError, SuperPdpClient } from './superpdp-client';
+import { classifyLiveVerdict, reportInconclusiveVerdict } from './live-verdict-outcome';
 import { buildLiveFacturx, depositLiveFacturx, LIVE_VERDICT_BUDGET_MS } from './superpdp-live-facturx';
 import {
   resolveSandboxCompany,
@@ -148,15 +149,17 @@ async function pollUntilTerminal(companyId: string, documentId: string, depositI
       2,
     ),
   );
-  if (!sawTerminal) {
-    throw new Error(
-      `superpdp answered NO terminal status (fr:202 or fr:213) for deposit ${depositId} within ` +
-        `${LIVE_VERDICT_BUDGET_MS / 1000}s - journaled: ` +
-        `${JSON.stringify(journaled.map((e) => e.statusCode))}. ` +
-        `The poller ran, the platform had not decided.`,
-    );
-  }
-  return { runner, job, journaled };
+  const outcome = classifyLiveVerdict(journaled.map((e) => e.statusCode));
+  return { runner, job, journaled, outcome };
+}
+
+function noTerminalStatusError(depositId: string, journaled: { statusCode: string }[]): Error {
+  return new Error(
+    `superpdp answered NO terminal status (fr:202 or fr:213) for deposit ${depositId} within ` +
+      `${LIVE_VERDICT_BUDGET_MS / 1000}s - journaled: ` +
+      `${JSON.stringify(journaled.map((e) => e.statusCode))}. ` +
+      `The poller ran, the platform had not decided.`,
+  );
 }
 
 /** The gated plain CII is always fixed; with `includeMentions: false` the EMBEDDED artifact actually
@@ -204,7 +207,16 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
       depositId,
     );
     cleanupCompanyId = companyId;
-    const { runner, job, journaled } = await pollUntilTerminal(companyId, documentId, depositId);
+    const { runner, job, journaled, outcome } = await pollUntilTerminal(companyId, documentId, depositId);
+    if (outcome === 'inconclusive') {
+      reportInconclusiveVerdict(
+        depositId,
+        journaled.map((e) => e.statusCode),
+        LIVE_VERDICT_BUDGET_MS,
+      );
+      return;
+    }
+    if (outcome === 'failed') throw noTerminalStatusError(depositId, journaled);
 
     const codes = journaled.map((e) => e.statusCode);
     expect(codes).toEqual(expect.arrayContaining(['fr:200', 'fr:201', 'fr:202']));
@@ -270,7 +282,9 @@ describeLive('PDP conformity poller — REAL sweep code journals a REAL platform
       depositId,
     );
     cleanupCompanyId = companyId;
-    const { journaled } = await pollUntilTerminal(companyId, documentId, depositId);
+    const { journaled, outcome } = await pollUntilTerminal(companyId, documentId, depositId);
+    // No inconclusive escape here: this deposit exists to prove the platform rejects it.
+    if (outcome !== 'decided') throw noTerminalStatusError(depositId, journaled);
 
     // HARD assertion, not a soft `if` — reproduced live, twice (the raw payload: a real
     // BR-FR-05/BT-22 rejection, "Element

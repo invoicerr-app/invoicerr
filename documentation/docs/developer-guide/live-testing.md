@@ -811,6 +811,15 @@ Workflow: **`.github/workflows/compliance-live.yml`** (manual `workflow_dispatch
   executed a single live spec, which is also why the older `*-live.spec.ts` (hyphen) half of the old
   pattern is gone from the command above: `src/live-spec-naming.spec.ts` now guarantees no such file
   exists.
+- **An inconclusive SuperPDP verdict is a warning, not a failure.** In
+  `superpdp-conformity.live.spec.ts`, the compliant deposit waits up to `LIVE_VERDICT_BUDGET_MS`
+  for fr:202. The sandbox sometimes withholds fr:202 on a single deposit for minutes while every
+  other deposit of the same run gets its verdict in seconds, and a longer budget was measured not
+  to help. When fr:200 and fr:201 are journaled but neither fr:202 nor fr:213 arrived, the test
+  passes with a `::warning` annotation and a section in the job summary naming the deposit and its
+  journal. A missing fr:200 or fr:201, or an fr:213 on the compliant deposit, is still a hard
+  failure, and the non-compliant deposit must still be rejected with fr:213. Nothing is
+  re-deposited automatically.
 - **Still not reconciled, named honestly rather than fixed silently**: the workflow's env block sets
   a few flags this codebase no longer reads (`EMAIL_LIVE`, `PDP_AFNOR_LIVE`,
   `COMPLIANCE_LIVE_DB_TESTS`) - harmless (nothing consumes them) rather than wrong. The
