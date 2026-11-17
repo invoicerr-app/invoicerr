@@ -51,8 +51,9 @@ function iso(date: Date | null): string | null {
 }
 
 function sortedTotals(totals: Record<string, number>): [string, number][] {
+  // Code-unit order, not localeCompare: the canonical hash must not depend on the host locale.
   return Object.keys(totals)
-    .sort()
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .map((currency) => [currency, totals[currency]]);
 }
 

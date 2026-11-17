@@ -112,12 +112,9 @@ function assertProvenance(
   fail(`${where}: unknown provenance kind`);
 }
 
-export function assertValidCashRecordingSection(file: CountryCashRecordingFile, context: string): void {
-  const fail = (reason: string): never => {
-    throw new InvalidCashRecordingSectionError(`${context}: ${reason}`);
-  };
+type Fail = (reason: string) => never;
 
-  const { obligation, exclusions, attestation, archive } = file;
+function assertObligation(obligation: CountryCashRecordingFile['obligation'], fail: Fail) {
   if (!obligation || !Array.isArray(obligation.conditions) || obligation.conditions.length === 0) {
     fail('obligation.conditions must list at least one condition');
   }
@@ -126,7 +123,9 @@ export function assertValidCashRecordingSection(file: CountryCashRecordingFile, 
   }
   if (!nonEmpty(obligation.summary)) fail('obligation.summary is required');
   assertProvenance(obligation.provenance, 'obligation', fail);
+}
 
+function assertExclusions(exclusions: CountryCashRecordingFile['exclusions'], fail: Fail) {
   if (!Array.isArray(exclusions)) fail('exclusions must be an array');
   const ids = new Set<string>();
   for (const rule of exclusions) {
@@ -135,11 +134,12 @@ export function assertValidCashRecordingSection(file: CountryCashRecordingFile, 
     if (!nonEmpty(rule.summary)) fail(`exclusions[${rule.id}].summary is required`);
     assertProvenance(rule.provenance, `exclusions[${rule.id}]`, fail);
   }
+}
 
-  if (!attestation) fail('attestation is required');
-  if (!ISO_DATE.test(attestation.availableFrom ?? '')) fail('attestation.availableFrom must be yyyy-mm-dd');
-  assertProvenance(attestation.provenance, 'attestation', fail);
-  const model = attestation.model;
+function assertAttestationModel(
+  model: CountryCashRecordingFile['attestation']['model'] | undefined,
+  fail: Fail,
+) {
   if (!model || !nonEmpty(model.reference)) fail('attestation.model.reference is required');
   if (!FILE_NAME.test(model.fileName ?? ''))
     fail('attestation.model.fileName must be lowercase, digits and dashes');
@@ -153,9 +153,29 @@ export function assertValidCashRecordingSection(file: CountryCashRecordingFile, 
     }
   });
   assertProvenance(model.provenance, 'attestation.model', fail);
+}
 
+function assertAttestation(attestation: CountryCashRecordingFile['attestation'], fail: Fail) {
+  if (!attestation) fail('attestation is required');
+  if (!ISO_DATE.test(attestation.availableFrom ?? '')) fail('attestation.availableFrom must be yyyy-mm-dd');
+  assertProvenance(attestation.provenance, 'attestation', fail);
+  assertAttestationModel(attestation.model, fail);
+}
+
+function assertArchive(archive: CountryCashRecordingFile['archive'], fail: Fail) {
   if (!archive || !nonEmpty(archive.language) || !nonEmpty(archive.notice)) {
     fail('archive.language and archive.notice are required');
   }
   assertProvenance(archive.provenance, 'archive', fail);
+}
+
+export function assertValidCashRecordingSection(file: CountryCashRecordingFile, context: string): void {
+  const fail: Fail = (reason) => {
+    throw new InvalidCashRecordingSectionError(`${context}: ${reason}`);
+  };
+
+  assertObligation(file.obligation, fail);
+  assertExclusions(file.exclusions, fail);
+  assertAttestation(file.attestation, fail);
+  assertArchive(file.archive, fail);
 }
