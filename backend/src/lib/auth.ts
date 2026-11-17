@@ -52,6 +52,7 @@ import { devOnlyOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
 import { appOrigin } from '@/utils/app-origin';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -373,6 +374,34 @@ const stripePlugin = buildStripePlugin({
   companyHoldsFounderGrid,
   findCompanyCustomerDetails: (companyId) =>
     prisma.company.findUnique({ where: { id: companyId }, select: { name: true, email: true } }),
+  findCompanyTaxProfile: async (companyId) => {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        address: true,
+        addressLine2: true,
+        postalCode: true,
+        city: true,
+        state: true,
+        country: true,
+        countryCode: true,
+        partyIdentifiers: { where: { scheme: 'VAT' }, select: { value: true, validationStatus: true } },
+      },
+    });
+    if (!company) return null;
+    const vat = company.partyIdentifiers[0];
+    return {
+      address: {
+        line1: company.address,
+        line2: company.addressLine2,
+        postalCode: company.postalCode,
+        city: company.city,
+        state: company.state,
+        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? null,
+      },
+      vat: vat ? { value: vat.value, validationStatus: vat.validationStatus } : null,
+    };
+  },
 });
 
 export const auth = betterAuth({

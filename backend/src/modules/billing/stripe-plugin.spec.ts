@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
+import { VAT_FRANCHISE_MENTION } from './billing-vat';
 import {
   buildStripePlans,
   buildStripePlugin,
@@ -130,8 +131,24 @@ describe('buildStripePlans', () => {
   });
 });
 
+// The checkout hook as the plugin calls it; its options type is a union with `{ enabled: false }`.
+const checkoutParamsOf = (plugin: ReturnType<typeof buildStripePlugin>) =>
+  (
+    plugin?.options.subscription as
+      | {
+          getCheckoutSessionParams?: (
+            ...args: unknown[]
+          ) => Promise<{ params?: unknown }> | { params?: unknown };
+        }
+      | undefined
+  )?.getCheckoutSessionParams;
+
 describe('buildStripePlugin', () => {
-  const deps = { ...access, findCompanyCustomerDetails: async () => null };
+  const deps = {
+    ...access,
+    findCompanyCustomerDetails: async () => null,
+    findCompanyTaxProfile: async () => null,
+  };
   const ENABLED = {
     [BILLING_FLAG_NAME]: 'true',
     STRIPE_SECRET_KEY: 'sk_test_x',
@@ -182,6 +199,56 @@ describe('buildStripePlugin', () => {
     const event = { type: 'checkout.session.completed', created: 1, data: { object: {} } };
     await plugin?.options.onEvent?.(event as never);
     expect(recordFounderPreorderEvent).toHaveBeenCalledWith(event);
+  });
+
+  it('refuses to build with an unknown BILLING_VAT', () => {
+    expect(() => buildStripePlugin(deps, { ...ENABLED, BILLING_VAT: 'maybe' })).toThrow(
+      /BILLING_VAT must be "franchise" or "charge"/,
+    );
+  });
+
+  it('adds nothing to a checkout under the franchise, the default', async () => {
+    const plugin = buildStripePlugin(deps, ENABLED);
+    const result = await checkoutParamsOf(plugin)?.({ subscription: { referenceId: 'c1' } }, undefined, {});
+    expect(result).toEqual({ params: {} });
+  });
+
+  it('turns on automatic tax at checkout when VAT is charged, keeping the synced address', async () => {
+    const plugin = buildStripePlugin(deps, { ...ENABLED, BILLING_VAT: 'charge' });
+    const result = await checkoutParamsOf(plugin)?.({ subscription: { referenceId: 'c1' } }, undefined, {});
+    expect(result?.params).toMatchObject({
+      automatic_tax: { enabled: true },
+      customer_update: { address: 'never', name: 'never' },
+    });
+    expect(result?.params).not.toHaveProperty('tax_id_collection');
+  });
+
+  it('creates the company customer with the franchise mention as its invoice footer', async () => {
+    const plugin = buildStripePlugin(
+      { ...deps, findCompanyCustomerDetails: async () => ({ name: 'Acme', email: 'billing@acme.test' }) },
+      ENABLED,
+    );
+    const params = await plugin?.options.organization?.getCustomerCreateParams?.({ id: 'c1' } as never);
+    expect(params).toEqual({
+      name: 'Acme',
+      email: 'billing@acme.test',
+      invoice_settings: { footer: VAT_FRANCHISE_MENTION },
+    });
+  });
+
+  it('creates the company customer with no footer when VAT is charged', async () => {
+    const plugin = buildStripePlugin(
+      { ...deps, findCompanyCustomerDetails: async () => ({ name: 'Acme', email: 'billing@acme.test' }) },
+      { ...ENABLED, BILLING_VAT: 'charge' },
+    );
+    const params = await plugin?.options.organization?.getCustomerCreateParams?.({ id: 'c1' } as never);
+    expect(params).toEqual({ name: 'Acme', email: 'billing@acme.test' });
+  });
+
+  it('leaves every event that is not a created invoice to the other handlers', async () => {
+    const plugin = buildStripePlugin(deps, ENABLED);
+    const event = { type: 'checkout.session.completed', created: 1, data: { object: { id: 'cs_1' } } };
+    await expect(plugin?.options.onEvent?.(event as never)).resolves.toBeUndefined();
   });
 });
 
