@@ -9,6 +9,7 @@ import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { createRoot } from "react-dom/client"
 import { queryClient } from "./lib/query-client"
+import { loadRuntimeConfig } from "./lib/runtime-config"
 import { registerSW } from "virtual:pwa-register"
 import { WORKER_RELOADED_KEY, reloadOnWorkerTakeover } from "./lib/worker-takeover-reload"
 
@@ -55,19 +56,6 @@ if (!("Cypress" in window)) {
       // Same reasoning: without storage there is nothing to clear.
     }
   })
-}
-
-async function loadRuntimeConfig() {
-  try {
-    const res = await fetch("/config.json", { cache: "no-store" })
-    if (res.ok) {
-      ;(window as any).__APP_CONFIG__ = await res.json()
-      return
-    }
-  } catch (e) {
-    // ignore, fallback to empty config
-  }
-  ;(window as any).__APP_CONFIG__ = {}
 }
 
 async function bootstrap() {
