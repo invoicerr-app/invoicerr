@@ -11,7 +11,7 @@
  */
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
-import { companyMemberIds } from '@/modules/companies/company-member-ids';
+import { companyMemberIds } from '@/modules/company/company-member-ids';
 
 import {
   drainStorageErasureJournal,
