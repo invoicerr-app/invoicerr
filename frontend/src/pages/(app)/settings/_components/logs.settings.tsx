@@ -5,22 +5,10 @@ import { useTranslation } from "react-i18next"
 
 import { LogDetailsDialog } from "./__components/log-details-dialog"
 import { LogsFilters } from "./__components/logs-filters"
+import type { Log, LogLevel } from "./__components/log-level"
 import { LogsTable } from "./__components/logs-table"
 import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
 import { useSse } from "@/hooks/use-fetch"
-
-export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL"
-
-export type Log = {
-  id: string
-  level: LogLevel
-  category: string
-  message: string
-  timestamp: Date
-  userId?: string
-  path?: string
-  details: Record<string, unknown>
-}
 
 export function LogsSettings() {
   const { t } = useTranslation()

@@ -3,7 +3,7 @@
 import { Calendar, RefreshCw, Search } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import type { LogLevel } from "../logs.settings"
+import { type LogLevel, levelBadgeProps } from "./log-level"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
@@ -27,30 +27,6 @@ type LogsFiltersProps = {
 }
 
 const LOG_LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"]
-
-/** The chip a log LEVEL renders as, everywhere one appears (this bar's own toggle, the table row, the
- *  detail dialog) — mapped onto the semantic tokens rather than a raw palette colour so light/dark and
- *  the app's own accent stay in sync. Duplicated per-file (this screen has no shared module of its
- *  own in scope) rather than centralized. FATAL is the one level a plain `Badge` variant can't reach
- *  (solid `destructive` is already spent on it) — everything below it, including ERROR, gets the
- *  softer destructive fill so FATAL still reads as the loudest row on screen. */
-function levelBadgeProps(level: LogLevel): {
-  variant?: "secondary" | "warning" | "info" | "destructive"
-  className?: string
-} {
-  switch (level) {
-    case "DEBUG":
-      return { variant: "secondary" }
-    case "INFO":
-      return { variant: "info" }
-    case "WARN":
-      return { variant: "warning" }
-    case "ERROR":
-      return { className: "border-transparent bg-destructive-soft text-destructive-soft-foreground" }
-    case "FATAL":
-      return { variant: "destructive" }
-  }
-}
 
 export function LogsFilters({
   levelFilter,
