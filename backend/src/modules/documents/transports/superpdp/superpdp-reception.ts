@@ -85,7 +85,9 @@ export interface SuperPdpReceptionStatusPusher {
   pushPaid(companyId: string, pdpInboundId: string): Promise<void>;
 }
 
-async function resolveClient(
+/** This company's connected SuperPDP client, or `null` when the channel is not connected. Also used by
+ *  `conformity/pollers/superpdp-reception-poller.ts`. */
+export async function resolveClient(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SuperPdpClient | null> {

@@ -312,8 +312,9 @@ async function requireConnectedChorusPro(
 
 /** Builds a REAL `ChorusProClient` for this company's connected credentials — one instance per call,
  *  same "no shared, cross-request state beyond the client's own short-lived token cache" choice every
- *  sibling transport's own client construction makes. */
-function buildClient(credentials: ChorusProCredentials): ChorusProClient {
+ *  sibling transport's own client construction makes. Also used by
+ *  `conformity/pollers/chorus-pro-status-poller.ts`, so the poller reaches the same endpoints. */
+export function buildChorusProClient(credentials: ChorusProCredentials): ChorusProClient {
   const urls = chorusProUrlsFor(credentials.environment);
   const config: ChorusProClientConfig = { ...urls, ...credentials };
   return new ChorusProClient(config, new FetchChorusProHttpPort());
@@ -465,7 +466,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         },
       });
 
-      const chorusProClient = buildClient(credentials);
+      const chorusProClient = buildChorusProClient(credentials);
 
       let numeroFluxDepot: string;
       try {

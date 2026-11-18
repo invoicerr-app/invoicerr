@@ -42,15 +42,10 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 
+import { mapChorusProStatus } from '../../transports/chorus-pro/choruspro-client';
 import {
-  ChorusProClient,
-  FetchChorusProHttpPort,
-  mapChorusProStatus,
-} from '../../transports/chorus-pro/choruspro-client';
-import {
+  buildChorusProClient,
   CHORUS_PRO_PROVIDER_ID,
-  chorusProUrlsFor,
-  ChorusProCredentials,
   extractChorusProCredentials,
 } from '../../transports/chorus-pro-transport';
 import {
@@ -77,15 +72,6 @@ function isTerminalChorusProStatus(statusCode: string): boolean {
 
 export interface ChorusProStatusPollerDeps {
   channelCredentials: ChannelCredentialsService;
-}
-
-/** Same "one instance per call, no shared cross-request state beyond the client's own short-lived
- *  token cache" choice `chorus-pro-transport.ts#buildClient` makes — kept as a SEPARATE, small copy
- *  here rather than importing that transport's own (unexported) helper: this poller has no other
- *  reason to depend on the transport module beyond its exported credential/URL constants. */
-function buildClient(credentials: ChorusProCredentials): ChorusProClient {
-  const urls = chorusProUrlsFor(credentials.environment);
-  return new ChorusProClient({ ...urls, ...credentials }, new FetchChorusProHttpPort());
 }
 
 async function resolveChorusProConfig(
@@ -120,7 +106,7 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const resolved = await resolveChorusProConfig(deps.channelCredentials, companyId);
       const credentials = extractChorusProCredentials(resolved)!; // proved non-null above
-      const client = buildClient(credentials);
+      const client = buildChorusProClient(credentials);
 
       const cr = await client.consulterCr(transportRef);
       const mapped = mapChorusProStatus(cr.statutFlux);
