@@ -37,6 +37,7 @@
  * imported document's `client`/`issueDate`/`lines`/etc. are validated exactly as strictly as a normal
  * one's, only the STATUS they land on and the extra import-only facts (below) differ.
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -72,7 +73,6 @@ import { buildImportPrefill } from './einvoice-import-prefill';
  *  against it (`fa3-kor.ts#resolveFaVatKorContext`) takes the "look up the observed KSeF number"
  *  branch instead of the "never submitted to KSeF" statutory exception. This is exactly right, since
  *  this invoice genuinely WAS submitted to KSeF, just not by this application. */
-const KSEF_PROVIDER_ID = 'ksef';
 
 export class DocumentImportValidationError extends BadRequestException {
   constructor(errors: ValidationError[]) {

@@ -42,6 +42,7 @@
  * field this codebase can act on for message kinds the specification never actually documents as
  * carrying one.
  */
+import { SDI_PEC_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -60,7 +61,7 @@ import { SdiClient, SdiNotificaOutcome } from '../sdi/sdi-client';
 import { PecInboundMessage } from './pec-inbox-port';
 import { SDI_REPLY_ADDRESS_HINT_TYPES } from './pec-protocol';
 
-export const SDI_PEC_PROVIDER_ID = 'sdi-pec';
+export { SDI_PEC_PROVIDER_ID };
 
 /** The ONE domain every address the read specification documents (the first-submission address,
  *  `pec-protocol.ts#SDI_PEC_FIRST_SUBMISSION_ADDRESS`, and whatever SdI later replies from) actually

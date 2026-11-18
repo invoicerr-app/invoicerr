@@ -33,6 +33,7 @@
  *  - anything else (a different channel, or never sent through a transport that reports one at all) —
  *    the statutory exception applies outright: `NrKSeFN`, no number to wait for, ever.
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException } from '@nestjs/common';
 
 import { listAuthorityEvents } from '../../conformity/authority-events.persistence';
@@ -48,8 +49,6 @@ export interface FaVatKorContext {
    *  branch instead (see this file's own header). */
   originalKsefNumber?: string;
 }
-
-const KSEF_PROVIDER_ID = 'ksef';
 
 /** The original invoice's own `ksefNumber`, read back from its journaled `DocumentAuthorityEvent`
  *  rows (providerId "ksef") — the ONLY place a post-deposit `ksefNumber` is ever persisted in this

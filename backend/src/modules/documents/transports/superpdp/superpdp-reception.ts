@@ -38,13 +38,14 @@
  * lifecycle expects for a buyer's "prise en charge" is still not named by any source this codebase
  * could reach; see each constant's own note below.
  */
+import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { extractSuperPdpCredentials } from '../superpdp-transport';
 import { SuperPdpApiError, SuperPdpClient, SuperPdpStatusCreate } from './superpdp-client';
 
-export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
+export const PDP_RECEPTION_PROVIDER_ID = PDP_PROVIDER_ID;
 
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the
  *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `fr:204` is the closest status the

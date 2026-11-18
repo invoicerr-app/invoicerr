@@ -44,6 +44,7 @@
  * contract every transport in this directory enforces ("accepted with no usable reference is a
  * failure") without pretending to know an `IdentificativoSdI` that does not exist yet.
  */
+import { SDI_PEC_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -152,7 +153,7 @@ export interface SdiPecTransportDeps {
   mailService: MailService;
 }
 
-export const SDI_PEC_PROVIDER_ID = 'sdi-pec';
+export { SDI_PEC_PROVIDER_ID };
 
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 

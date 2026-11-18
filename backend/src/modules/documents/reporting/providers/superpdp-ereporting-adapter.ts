@@ -12,6 +12,7 @@
  * pretends this integration was exercised. Everything below is the published schema, not a guess at
  * a private API.
  */
+import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import {
@@ -24,7 +25,7 @@ import { EReportingAdapter } from '../ereporting-adapter';
 import { SuperPdpClient, SuperPdpB2cTransactionInput } from '../../transports/superpdp/superpdp-client';
 import { extractSuperPdpCredentials } from '../../transports/superpdp-transport';
 
-const TRANSPORT_ID = 'pdp';
+const TRANSPORT_ID = PDP_PROVIDER_ID;
 
 /** The four values the platform's `company_patch.vat_regime` enum accepts, keyed by the company
  *  profile's own French regime. A value outside this table is refused: the platform would reject it

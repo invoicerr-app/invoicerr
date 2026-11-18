@@ -97,6 +97,7 @@
  * `conformity/authority-status-poller.ts` exists for — `conformity/pollers/chorus-pro-status-poller.ts`
  * registers one, the same shape `superpdp-status-poller.ts`/`ksef-status-poller.ts` already hold.
  */
+import { CHORUS_PRO_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -169,7 +170,7 @@ export interface ChorusProTransportDeps {
   facturxFormatProvider: DocumentFormatProvider;
 }
 
-export const CHORUS_PRO_PROVIDER_ID = 'chorus-pro';
+export { CHORUS_PRO_PROVIDER_ID };
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
  *  makes for the identical reason - see `superpdp-transport.ts`'s own header. */

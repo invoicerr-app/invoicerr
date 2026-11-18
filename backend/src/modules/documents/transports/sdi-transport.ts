@@ -38,6 +38,7 @@
  * transport or by a poller (`conformity/authority-status-poller.ts`'s own header: "sdi" registers
  * none, deliberately).
  */
+import { SDI_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -110,7 +111,7 @@ export interface SdiTransportDeps {
   httpPort?: SdiHttpPort;
 }
 
-const PROVIDER_ID = 'sdi';
+const PROVIDER_ID = SDI_PROVIDER_ID;
 
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 

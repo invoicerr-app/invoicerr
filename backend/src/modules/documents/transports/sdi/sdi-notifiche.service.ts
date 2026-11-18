@@ -65,6 +65,7 @@
  *     `sdi-transport.ts`'s own header) — no company has ever registered ANY URL with AdE for this
  *     channel — but the check is built now, honestly, rather than assumed away.
  */
+import { SDI_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -81,7 +82,7 @@ import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../../queue/do
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
 import { NOTIFICA_TYPE_LABELS, ParsedSdiNotifica, parseSdiNotifica, SdiNotificaType } from './sdi-notifiche';
 
-export const SDI_PROVIDER_ID = 'sdi';
+export { SDI_PROVIDER_ID };
 
 interface ResolvedNotificaDocument {
   id: string;
