@@ -53,23 +53,17 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { buildS3ClientFromEnv, isMissingObjectError, requireEnv as requireS3Env } from '@/lib/s3-client';
 
 import { ArchivedArtifactInput, computeContentHash } from './hashing';
 import { extFor } from './storage-path';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `ARCHIVE_STORAGE=s3 (or an s3:// archive is being read) but "${name}" is not set — refusing to ` +
-        `silently fall back to local disk, or to a half-configured S3 client, for a legal archive.`,
-    );
-  }
-  return value;
-}
+const missingEnvMessage = (name: string): string =>
+  `ARCHIVE_STORAGE=s3 (or an s3:// archive is being read) but "${name}" is not set — refusing to ` +
+  `silently fall back to local disk, or to a half-configured S3 client, for a legal archive.`;
 
-function isTruthyFlag(value: string | undefined): boolean {
-  return value === '1' || value?.toLowerCase() === 'true';
+function requireEnv(name: string): string {
+  return requireS3Env(name, missingEnvMessage);
 }
 
 /** Everything needed to talk to S3 EXCEPT the bucket name, which for a WRITE comes straight from
@@ -81,15 +75,7 @@ function isTruthyFlag(value: string | undefined): boolean {
  *  `ARCHIVE_S3_FORCE_PATH_STYLE` is needed by some S3-compatible endpoints (including some Scaleway
  *  setups) that do not support virtual-hosted-style addressing — AWS itself does not need this. */
 function buildClient(): S3Client {
-  return new S3Client({
-    region: requireEnv('ARCHIVE_S3_REGION'),
-    endpoint: process.env.ARCHIVE_S3_ENDPOINT || undefined,
-    forcePathStyle: isTruthyFlag(process.env.ARCHIVE_S3_FORCE_PATH_STYLE),
-    credentials: {
-      accessKeyId: requireEnv('ARCHIVE_S3_ACCESS_KEY_ID'),
-      secretAccessKey: requireEnv('ARCHIVE_S3_SECRET_ACCESS_KEY'),
-    },
-  });
+  return buildS3ClientFromEnv('ARCHIVE_S3', missingEnvMessage);
 }
 
 /** `s3://<bucket>/<documentId>/<contentHash>` -> `{ bucket, prefix }`. Throws (never silently
@@ -105,17 +91,6 @@ function parseS3Uri(uri: string): { bucket: string; prefix: string } {
 
 function objectKey(prefix: string, role: string, mime: string): string {
   return `${prefix}/${role}.${extFor(mime)}`.toLowerCase();
-}
-
-/** True for both flavors of "this object does not exist" the SDK can throw: `GetObjectCommand`
- *  raises a named `NoSuchKey` error, `HeadObjectCommand` raises a named `NotFound` error instead
- *  (same underlying 404, different error shape per S3 API operation) — callers below must treat both
- *  identically as "missing", never as a real failure. */
-function isMissingObjectError(err: unknown): boolean {
-  const name = (err as { name?: string } | undefined)?.name;
-  const statusCode = (err as { $metadata?: { httpStatusCode?: number } } | undefined)?.$metadata
-    ?.httpStatusCode;
-  return name === 'NoSuchKey' || name === 'NotFound' || statusCode === 404;
 }
 
 /** See `storage.ts#persistArtifacts` for the caller-facing contract this mirrors exactly (same
