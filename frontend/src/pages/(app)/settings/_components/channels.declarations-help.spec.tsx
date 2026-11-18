@@ -52,10 +52,17 @@ function renderScreen() {
   )
 }
 
-const obligation = (providerId: string) => ({
+// A row of the v2 shape (issue #767): the help is keyed on the platform a row is shown under, so
+// France's "pdp" transport row and its "fr-pa" provider row share one entry, as the API sends them.
+const obligation = (providerId: string, platformId = providerId, dischargedBy = "provider") => ({
   providerId,
+  platformId,
   appliesTo: "invoice",
   provenance: { kind: "legal", sourceText: rawSourceText, sourceCheckedAt: "2026-10-24" },
+  obligationId: `${providerId}-obligation`,
+  kind: "data",
+  trigger: "sent",
+  dischargedBy,
 })
 
 afterEach(() => {
@@ -64,12 +71,12 @@ afterEach(() => {
 
 describe("Channels settings - Declarations help", () => {
   it("shows the curated, translated explanation behind each declaration's help, never the research provenance", async () => {
-    installFetchMock([obligation("pdp"), obligation("fr-pa"), obligation("pt-at")])
+    installFetchMock([obligation("pdp", "fr-pa", "transport"), obligation("fr-pa"), obligation("pt-at")])
     renderScreen()
 
-    for (const providerId of ["pdp", "fr-pa", "pt-at"]) {
-      const help = await screen.findByTestId(`declaration-${providerId}-source-help`)
-      expect(help).toHaveTextContent(i18n.t(`settings.channels.declarations.${providerId}.explanation`))
+    for (const platformId of ["fr-pa", "pt-at"]) {
+      const help = await screen.findByTestId(`declaration-${platformId}-source-help`)
+      expect(help).toHaveTextContent(i18n.t(`settings.channels.declarations.${platformId}.explanation`))
       expect(help).not.toHaveTextContent(rawSourceText)
     }
   })

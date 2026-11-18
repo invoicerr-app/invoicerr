@@ -17,6 +17,9 @@ UBL 2.1 as the format it carries; there is no channel mandate for an ordinary B2
 not backed by a transport this app talks to yet, so a send to a government client is refused, naming
 the channel, rather than silently falling back to email. The AT monthly declaration now carries each
 document's real ATCUD and declares credit notes too (as `NC`, referencing the invoice they correct).
+Both obligations are triggered by `issued` (DL 198/2012, art. 3: the communication covers documents
+issued, by the 5th of the following month), so an invoice validated and never sent is declared too,
+and one validated then sent is declared once. See [Declarations](../declarations.md).
 See [Compliance - Portugal](/compliance/pt) for the full, sourced picture.
 
 This page is a pointer by design. Everything Invoicerr knows about Portugal lives in its own data

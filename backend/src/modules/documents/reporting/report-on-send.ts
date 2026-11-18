@@ -47,15 +47,9 @@
  * `dischargedBy: 'transport'` (the PDP already carries the data) or whose `scope`/`applicability`
  * does not cover the operation is classified `out` and enqueues nothing either.
  */
-import { logger } from '@/logger/logger.service';
-
-import { journalSyntheticEvent } from '../conformity/authority-events.persistence';
-import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
-import { classifyDeclaration } from './classify';
-import { loadDeclarationOperation } from './operation-context';
-import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
-import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
+import { reportOnDocumentEvent } from './on-document-event';
 
 export interface ReportOnSendInput {
   companyId: string;
@@ -66,144 +60,13 @@ export interface ReportOnSendInput {
 
 /**
  * Called from `actions/async-send.ts`, unconditionally, for EVERY type/transport, right after the
- * archive call. NEVER throws.
+ * archive call. NEVER throws. The resolution, classification and journaling live in
+ * `on-document-event.ts` (issue #768), shared with the "validate" and "record-payment" hooks; a send
+ * fires both the `sent` and the `issued` obligations.
  */
 export async function reportOnSendIfObligated(
   input: ReportOnSendInput,
-  catalog: ReportingObligationCatalog = defaultReportingObligationCatalog,
+  catalog: ReportingObligationCatalogV2 = defaultReportingObligationCatalogV2,
 ): Promise<void> {
-  const { companyId, typeId, documentId, queueDispatcher } = input;
-
-  // A dispatcher with no `enqueueReport` at all (every EXISTING bare-mock jest fixture across
-  // quote/invoice/credit-note actions — see `queue/queue.constants.ts`'s own header) simply cannot
-  // report — "no capability, no effect", never a crash.
-  if (!queueDispatcher.enqueueReport) return;
-
-  let obligation: ReturnType<ReportingObligationCatalog['obligationFor']>;
-  let blocked: { providerId: string; reason: string } | undefined;
-  try {
-    const countryCode = await resolveCompanyCountryCode(companyId);
-    if (!countryCode) return;
-    const facts = catalog.providerFactsFor(countryCode, typeId);
-    if (facts.length === 0) return;
-
-    const operation = facts.some((fact) => fact.scope || fact.applicability)
-      ? await loadDeclarationOperation({ companyId, typeId, documentId })
-      : undefined;
-    for (const fact of facts) {
-      const verdict = classifyDeclaration(fact, operation);
-      if (verdict.status === 'in') {
-        obligation = fact;
-        break;
-      }
-      // A later fact may still cover the operation: only the absence of ANY covering fact makes this
-      // an undetermined declaration worth a blocked row.
-      if (verdict.status === 'undetermined' && !blocked) {
-        blocked = { providerId: fact.providerId, reason: verdict.reason };
-      }
-    }
-  } catch (error) {
-    // Resolving WHETHER an obligation even exists failed — before this function ever learns a
-    // `providerId` to journal a lost declaration against, so (unlike the enqueue failure below) there
-    // is nothing yet worth recording on the document's own timeline; NEVER propagate either way (this
-    // file's own header).
-    logger.error('Failed to resolve a reporting obligation after a successful send', {
-      category: 'documents',
-      details: {
-        companyId,
-        typeId,
-        documentId,
-        message: error instanceof Error ? error.message : String(error),
-      },
-    });
-    return;
-  }
-  if (!obligation) {
-    // "Never silent": an operation the law may cover but whose facts cannot be established (no
-    // company size category, no client type, no buyer country) is journaled as blocked with its own
-    // reason, never declared on a guess and never dropped without a trace.
-    if (blocked) {
-      try {
-        await journalSyntheticEvent(
-          companyId,
-          documentId,
-          blocked.providerId,
-          REPORT_BLOCKED_STATUS_CODE,
-          blocked.reason,
-        );
-      } catch (journalError) {
-        logger.error('Could not journal a blocked declaration after a successful send', {
-          category: 'documents',
-          details: {
-            companyId,
-            typeId,
-            documentId,
-            providerId: blocked.providerId,
-            message: journalError instanceof Error ? journalError.message : String(journalError),
-          },
-        });
-      }
-    }
-    return;
-  }
-
-  try {
-    await queueDispatcher.enqueueReport({
-      companyId,
-      documentId,
-      typeId,
-      providerId: obligation.providerId,
-    });
-  } catch (error) {
-    // NEVER propagate — see this file's own header. The delivery already succeeded; a failure to
-    // even ENQUEUE the declaration (a Redis hiccup — extremely rare, `DocumentQueueModule` requires
-    // Redis at boot) must not be allowed to look like the send itself failed.
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to enqueue a declarative report after a successful send', {
-      category: 'documents',
-      details: { companyId, typeId, documentId, providerId: obligation.providerId, message },
-    });
-
-    // "Never silent" (this file's own header, updated) — journaled with the obligation's OWN
-    // `providerId` (never a made-up one): `list-declarations.ts` only surfaces events whose
-    // `providerId` a country's `reporting/data/*.json` file actually names, so journaling under
-    // anything else would make this failure invisible on the exact screen it exists to inform.
-    try {
-      const journaled = await journalSyntheticEvent(
-        companyId,
-        documentId,
-        obligation.providerId,
-        REPORT_FAILED_STATUS_CODE,
-        `Could not enqueue the declaration job: ${message}`,
-      );
-      if (journaled === 0) {
-        // A dedup no-op (`DocumentAuthorityEvent`'s own `@@unique`) — some EARLIER attempt for this
-        // exact document already journaled this same terminal code; nothing new to say.
-        logger.info(
-          `report:failed for document ${documentId} ("${obligation.providerId}") was already ` +
-            'journaled by an earlier attempt — this enqueue failure adds no new row.',
-          { category: 'documents' },
-        );
-      }
-    } catch (journalError) {
-      // BELT AND SUSPENDERS — the same posture `conformity-sweep-runner.ts#runPoll`'s own compensating
-      // 'poll:blocked' write and `reporting-runner.ts#recordTerminalFailure` both hold: never trust
-      // the FALLBACK write itself not to fail either, and never let it crash this function.
-      logger.error(
-        `Could not even journal report:failed for document ${documentId} ("${obligation.providerId}") ` +
-          'after an enqueue failure',
-        {
-          category: 'documents',
-          details: {
-            companyId,
-            typeId,
-            documentId,
-            providerId: obligation.providerId,
-            originalMessage: message,
-            journalMessage: journalError instanceof Error ? journalError.message : String(journalError),
-          },
-        },
-      );
-    }
-  }
+  await reportOnDocumentEvent({ event: 'sent', ...input }, catalog);
 }

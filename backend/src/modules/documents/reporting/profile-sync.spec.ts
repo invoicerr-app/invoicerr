@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import * as countryPolicy from '../country-policy/country-policy';
 import { DeclarationProviderRegistry } from './declaration-provider';
 import { syncDeclaredCompanyProfile } from './profile-sync';
-import { ReportingObligationCatalog } from './registry';
+import { ReportingObligationCatalogV2 } from './obligation-catalog';
 
 vi.mock('../country-policy/country-policy');
 
 const mockedResolveCountry = countryPolicy.resolveCompanyCountryCode as Mock;
 
-const catalog = new ReportingObligationCatalog([
+// A legacy-shaped section, upgraded by the v2 catalog exactly like a country file still in `facts`.
+const catalog = new ReportingObligationCatalogV2([
   {
     countryCode: 'ZZ',
     facts: [

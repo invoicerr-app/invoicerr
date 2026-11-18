@@ -25,6 +25,7 @@ import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
+import { reportOnDocumentEvent } from '../reporting/on-document-event';
 import { reportPaymentIfObligated } from '../reporting/report-payment';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolvePaymentConversion } from '../settlement/convert-payment';
@@ -917,6 +918,16 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
         if (INVOICE_DECREMENTS_STOCK) {
           await applyStockOnIssuance(companyId, document);
         }
+        // Issue #768: validating issues the invoice, so the declarations its issuance makes due
+        // (Portugal's AT communication) are enqueued now, not left for a send that may never come.
+        // Never throws; a later send fires the same obligation again and the runner declares once.
+        await reportOnDocumentEvent({
+          event: 'issued',
+          companyId,
+          typeId: 'invoice',
+          documentId,
+          queueDispatcher: deps.queueDispatcher,
+        });
       }
       return { document, changed: true, message: 'Validated.' };
     },

@@ -150,8 +150,9 @@ form collects.
 the seller's behalf, not that it can deliver an invoice. The two are independent: a French operator
 can emit invoices and also declare B2C data, while an email transport emits but declares nothing.
 
-The country file names the LEGAL channel, never the operator. France's two `reporting` facts carry
-`providerId: "fr-pa"`, registered by `reporting/providers/fr-pa-declaration-provider.ts`. That
+The country file names the LEGAL channel, never the operator (format, catalog API and the
+`DeclarationProvider` contract: [Declarations](./declarations.md)). France's two provider `reporting`
+facts carry `providerId: "fr-pa"`, registered by `reporting/providers/fr-pa-declaration-provider.ts`. That
 provider:
 
 1. reads the company's active channel rows (`ChannelCredentialsService.listCompanyChannels`);
@@ -183,7 +184,8 @@ one catalogue flag plus one adapter.
 
 The first adapter is `reporting/providers/superpdp-ereporting-adapter.ts`, built on the published
 SuperPDP OpenAPI routes `POST /v1.beta/b2c_transactions`, `POST /v1.beta/b2c_payments` and
-`PATCH /v1.beta/companies`. Its live round-trip is gated by `SUPERPDP_LIVE` (see
+`PATCH /v1.beta/companies`. A SuperPDP declaration returns the platform's own record id, so its
+`DeclarationResult.referenceKind` is `platform`, never `authority`. Its live round-trip is gated by `SUPERPDP_LIVE` (see
 [Live testing](./live-testing.md)); the unit spec checks the published wire shapes only.
 
 

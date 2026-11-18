@@ -1,4 +1,5 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
+import { isV2ReportingSource, ReportingObligationSource } from './obligation-v2';
 import { CountryReportingObligationFile, ReportableDocumentType, ReportingObligationFact } from './schema';
 
 function buildIndex(files: CountryReportingObligationFile[]): Record<string, CountryReportingObligationFile> {
@@ -18,8 +19,8 @@ function buildIndex(files: CountryReportingObligationFile[]): Record<string, Cou
  * left out here, the same "no permissive fallback" this catalog already held when it read
  * `ALL_REPORTING_OBLIGATION_FILES` directly.
  */
-function reportingObligationsFromComposedCatalog(): CountryReportingObligationFile[] {
-  const files: CountryReportingObligationFile[] = [];
+export function reportingObligationsFromComposedCatalog(): ReportingObligationSource[] {
+  const files: ReportingObligationSource[] = [];
   for (const countryCode of defaultComposedCountryCatalog.countries()) {
     const reporting = defaultComposedCountryCatalog.get(countryCode)?.reporting;
     if (reporting) files.push(reporting);
@@ -45,7 +46,16 @@ function reportingObligationsFromComposedCatalog(): CountryReportingObligationFi
 export class ReportingObligationCatalog {
   private readonly files: Record<string, CountryReportingObligationFile>;
 
-  constructor(files: CountryReportingObligationFile[] = reportingObligationsFromComposedCatalog()) {
+  /**
+   * Since #768 nothing in production reads this legacy view: every consumer reads
+   * `ReportingObligationCatalogV2`, and every shipped country file is v2. The default therefore only
+   * keeps the sections still written in legacy `facts` (none shipped), and #769 deletes the class.
+   */
+  constructor(
+    files: CountryReportingObligationFile[] = reportingObligationsFromComposedCatalog().filter(
+      (file): file is CountryReportingObligationFile => !isV2ReportingSource(file),
+    ),
+  ) {
     this.files = buildIndex(files);
   }
 

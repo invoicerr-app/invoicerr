@@ -12,10 +12,10 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DeclarationProviderRegistry } from './declaration-provider';
 import { buildDeclarationProviderRegistry } from './providers/build-registry';
-import { defaultReportingObligationCatalog, ReportingObligationCatalog } from './registry';
+import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
 
 export interface DeclaredProfileSyncDeps {
-  catalog?: ReportingObligationCatalog;
+  catalog?: ReportingObligationCatalogV2;
   buildRegistry?: () => DeclarationProviderRegistry;
 }
 
@@ -23,14 +23,21 @@ export async function syncDeclaredCompanyProfile(
   companyId: string,
   deps: DeclaredProfileSyncDeps = {},
 ): Promise<void> {
-  const catalog = deps.catalog ?? defaultReportingObligationCatalog;
+  const catalog = deps.catalog ?? defaultReportingObligationCatalogV2;
   try {
     const countryCode = await resolveCompanyCountryCode(companyId);
     if (!countryCode) return;
 
-    const declarativeFacts = catalog.factsFor(countryCode).filter((fact) => fact.dischargedBy === 'provider');
-    if (declarativeFacts.length === 0) return;
-    const providerIds = new Set(declarativeFacts.map((fact) => fact.providerId));
+    // Every provider channel of the country's obligations: the channels a transport or an export
+    // discharges have no declaration provider to push a profile to.
+    const providerIds = new Set(
+      catalog
+        .obligationsFor(countryCode)
+        .flatMap((obligation) => obligation.channels)
+        .filter((channel) => channel.dischargedBy === 'provider')
+        .map((channel) => channel.id),
+    );
+    if (providerIds.size === 0) return;
 
     const registry = deps.buildRegistry
       ? deps.buildRegistry()

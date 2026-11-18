@@ -151,6 +151,14 @@ export interface ReportingObligationFact {
    * maintained sources" risk `channel-policy/schema.ts`'s own `providerId` already accepts.
    */
   providerId: string;
+  /**
+   * The platform the settings card shows this fact under, when it is not `providerId` itself.
+   * Only useful on a `'transport'`-discharged fact whose transport and declaration provider are the
+   * same legal entity under two registry ids: France's "pdp" transport and "fr-pa" declaration
+   * provider are both the one accredited platform (CGI art. 289 E and 290), so the card must show
+   * one platform, not two. A display key only: no runtime path resolves it.
+   */
+  platformId?: string;
   appliesTo: ReportableDocumentType;
   dischargedBy: ReportingDischargeMethod;
   /**
@@ -211,7 +219,7 @@ export class InvalidReportingObligationProvenanceError extends Error {}
  * `provenance` and its optional `applicableFrom.provenance` identically, rather than duplicating the
  * same three checks twice inline.
  */
-function assertValidProvenance(
+export function assertValidProvenance(
   provenance: PolicyProvenance | null | undefined,
   context: string,
   label: string,
@@ -243,6 +251,54 @@ function assertValidProvenance(
 }
 
 /**
+ * One `scope` entry's own rules, shared by the legacy fact validator below and the v2 obligation
+ * validator (`obligation-v2.ts`) so both formats refuse the same entry with the same message.
+ * `label` names the carrier in the message, e.g. `fact "pt-at"` or `obligation "pt-at:invoice"`.
+ */
+export function assertValidReportingScopeEntry(
+  entry: ReportingScopeEntry,
+  context: string,
+  label: string,
+): void {
+  if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown scope transaction category ` +
+        `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
+    );
+  }
+  if (entry.buyerType !== undefined) {
+    if (!Array.isArray(entry.buyerType) || entry.buyerType.length === 0) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an empty "scope.buyerType" - omit it to ` +
+          'leave the buyer type unrestricted.',
+      );
+    }
+    const unknownType = entry.buyerType.find((type) => !VALID_PARTY_TYPES.includes(type));
+    if (unknownType) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an unknown "scope.buyerType" party type ` +
+          `"${unknownType}" (must be one of ${VALID_PARTY_TYPES.join(', ')}).`,
+      );
+    }
+  }
+  if (
+    entry.buyerEstablishment !== undefined &&
+    entry.buyerEstablishment !== 'domestic' &&
+    entry.buyerEstablishment !== 'foreign'
+  ) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown "scope.buyerEstablishment" ` +
+        `"${String(entry.buyerEstablishment)}" (must be "domestic" or "foreign").`,
+    );
+  }
+  if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} declares a non-boolean "scope.vatOnCollection".`,
+    );
+  }
+}
+
+/**
  * The one gate a fact cannot get past without a real provenance — called from two independent
  * places (`data/all.ts` when a file loads; this module's own specs), the same "never trust a single
  * call site" discipline `channel-policy/schema.ts`'s own `assertValidChannelPolicyFact` documents.
@@ -251,6 +307,11 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
   if (!fact.providerId?.trim()) {
     throw new InvalidReportingObligationProvenanceError(
       `${context}: a reporting-obligation fact is missing its "providerId".`,
+    );
+  }
+  if (fact.platformId !== undefined && (typeof fact.platformId !== 'string' || !fact.platformId.trim())) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: fact "${fact.providerId}" declares an empty "platformId".`,
     );
   }
   if (fact.appliesTo !== 'invoice' && fact.appliesTo !== 'credit-note') {
@@ -273,42 +334,7 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
       );
     }
     for (const entry of fact.scope) {
-      if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" has an unknown scope transaction category ` +
-            `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
-        );
-      }
-      if (entry.buyerType !== undefined) {
-        if (!Array.isArray(entry.buyerType) || entry.buyerType.length === 0) {
-          throw new InvalidReportingObligationProvenanceError(
-            `${context}: fact "${fact.providerId}" declares an empty "scope.buyerType" - omit it to ` +
-              'leave the buyer type unrestricted.',
-          );
-        }
-        const unknownType = entry.buyerType.find((type) => !VALID_PARTY_TYPES.includes(type));
-        if (unknownType) {
-          throw new InvalidReportingObligationProvenanceError(
-            `${context}: fact "${fact.providerId}" declares an unknown "scope.buyerType" party type ` +
-              `"${unknownType}" (must be one of ${VALID_PARTY_TYPES.join(', ')}).`,
-          );
-        }
-      }
-      if (
-        entry.buyerEstablishment !== undefined &&
-        entry.buyerEstablishment !== 'domestic' &&
-        entry.buyerEstablishment !== 'foreign'
-      ) {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" has an unknown "scope.buyerEstablishment" ` +
-            `"${String(entry.buyerEstablishment)}" (must be "domestic" or "foreign").`,
-        );
-      }
-      if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
-        throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" declares a non-boolean "scope.vatOnCollection".`,
-        );
-      }
+      assertValidReportingScopeEntry(entry, context, `fact "${fact.providerId}"`);
     }
   }
 
