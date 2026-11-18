@@ -75,5 +75,3 @@ export class DomesticReverseChargeCatalog {
     return this.categoriesFor(countryCode).find((c) => c.key === key);
   }
 }
-
-export const defaultDomesticReverseChargeCatalog = new DomesticReverseChargeCatalog();

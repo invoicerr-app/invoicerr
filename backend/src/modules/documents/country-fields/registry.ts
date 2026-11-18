@@ -69,5 +69,3 @@ export class CountryFieldOverlayCatalog {
     return file.overlays.find((overlay) => overlay.typeId === typeId)?.operations ?? [];
   }
 }
-
-export const defaultCountryFieldOverlayCatalog = new CountryFieldOverlayCatalog();

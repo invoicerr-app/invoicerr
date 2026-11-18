@@ -18,10 +18,6 @@ export function isValidSiret(siret: string): boolean {
   return sum % 10 === 0;
 }
 
-export function extractSirenFromSiret(siret: string): string {
-  return formatSiret(siret).slice(0, 9);
-}
-
 export function calculateFrenchVAT(siren: string): string {
   const key = (12 + 3 * (parseInt(siren, 10) % 97)) % 97;
   return `FR${key.toString().padStart(2, '0')}${siren}`;

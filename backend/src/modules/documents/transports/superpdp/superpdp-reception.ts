@@ -46,10 +46,6 @@ import { SuperPdpApiError, SuperPdpClient, SuperPdpStatusCreate } from './superp
 
 export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
 
-/** Reçue — emitted BY THE PLATFORM ITSELF the instant an inbound deposit reaches this company's own
- *  account (proven live on the "in" twin's own `events[0]`, `superpdp-reception.live.spec.ts`) — this
- *  code is NEVER pushed by this codebase, only ever read (`superpdp-reception-poller.ts`). */
-export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the
  *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `fr:204` is the closest status the
  *  create enum accepts ("Acknowledged"); `fr:203` ("Made available") is platform-emitted and refused

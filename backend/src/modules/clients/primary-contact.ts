@@ -48,11 +48,3 @@ export function withDerivedContactFields<T extends { contacts?: readonly Contact
 ): T & DerivedPrimaryContactFields {
   return { ...client, ...derivePrimaryContactFields(client.contacts) };
 }
-
-/** Primary first, then by position: the order the API and the contacts list expect. */
-export function orderContactsPrimaryFirst<T extends ContactLike>(contacts: readonly T[]): T[] {
-  return [...contacts].sort((a, b) => {
-    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-    return (a.position ?? 0) - (b.position ?? 0);
-  });
-}
