@@ -4,7 +4,8 @@
  * every problem, a bad GUID included, with HTTP 200 and a `Message` field: inspect the body.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchText, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchText, toDate } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -45,10 +46,10 @@ export class AustraliaAbrProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://abr.business.gov.au/Documentation/Default';
   readonly credentialEnvVars = ['ABR_GUID'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.ABR_GUID;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

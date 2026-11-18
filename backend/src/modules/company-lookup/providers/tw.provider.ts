@@ -6,7 +6,8 @@
  * calendar: "0760221" is 1987-02-21.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const GCIS_URL = 'https://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6';
@@ -47,10 +48,10 @@ export class TaiwanGcisProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://data.gcis.nat.gov.tw/main/api';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

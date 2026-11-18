@@ -5,7 +5,8 @@
  * Vietnam publishes no API of its own, so the tax code leaves the instance: the country note says so.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const VIETQR_URL = 'https://api.vietqr.io/v2/business';
@@ -18,10 +19,10 @@ export class VietnamTaxCodeProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.vietqr.io/danh-sach-api/api-tra-cuu-thong-tin-doanh-nghiep/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

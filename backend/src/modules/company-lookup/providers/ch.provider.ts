@@ -4,9 +4,9 @@
  * Docs: https://www.zefix.admin.ch/ZefixPublicREST/ (ZEFIX_USER + ZEFIX_PASSWORD, HTTP Basic).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const ZEFIX_URL = 'https://www.zefix.admin.ch/ZefixPublicREST/api/v1/company/uid';
 // Zefix answers in German, so the country is named in German too.
@@ -20,10 +20,10 @@ export class SwitzerlandZefixProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.zefix.admin.ch/ZefixPublicREST/';
   readonly credentialEnvVars = ['ZEFIX_USER', 'ZEFIX_PASSWORD'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.ZEFIX_USER && !!process.env.ZEFIX_PASSWORD;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {
