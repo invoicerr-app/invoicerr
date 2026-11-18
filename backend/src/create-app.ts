@@ -7,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import { skipBodyParserFor } from './lib/body-parser-auth-skip';
 import { createAuthRateLimitMiddleware, createRedisAuthRateLimitCounterStore } from './lib/auth-rate-limit';
 import { injectClientIpHeaderMiddleware } from './lib/client-ip-header';
-import { devOnlyOrigins } from './lib/dev-origins';
+import { allowedBrowserOrigins } from './lib/dev-origins';
 import { createLibRedisClient } from './lib/redis-connection';
 import { resolveTrustProxyHops } from './lib/trust-proxy';
 import { auth } from './lib/auth';
@@ -66,15 +66,11 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   app.getHttpAdapter().getInstance().set('trust proxy', resolveTrustProxyHops());
   app.enableCors({
     credentials: true,
-    // `devOnlyOrigins()` is `[]` in production — see that function's own header for the vulnerability
-    // an unconditional `http://localhost:5173` entry used to open (any page running on a victim's own
-    // localhost:5173 could read/write the API with their session cookies). `lib/auth.ts`'s own
-    // `trustedOrigins` makes the identical call for the exact same reason.
-    origin: [
-      ...devOnlyOrigins(),
-      process.env.APP_URL,
-      ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
-    ].filter(Boolean),
+    // The dev origin is absent in production: see `devOnlyOrigins()`'s own header for the
+    // vulnerability an unconditional `http://localhost:5173` entry used to open (any page running on a
+    // victim's own localhost:5173 could read/write the API with their session cookies). `lib/auth.ts`'s
+    // own `trustedOrigins` reads the same list, for the exact same reason.
+    origin: allowedBrowserOrigins(),
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');

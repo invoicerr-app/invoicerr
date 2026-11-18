@@ -18,3 +18,18 @@ export const DEV_FRONTEND_ORIGIN = 'http://localhost:5173';
 export function devOnlyOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
   return env.NODE_ENV === 'production' ? [] : [DEV_FRONTEND_ORIGIN];
 }
+
+/**
+ * Every browser origin allowed to call the API with the session cookie: `main.ts`'s CORS `origin` and
+ * `lib/auth.ts`'s better-auth `trustedOrigins` both read THIS list, so one can never be widened without
+ * the other. It used to be written out by hand in both files, and the two copies had already drifted
+ * apart on how they dropped unset entries. Empty entries (`CORS_ORIGINS="a,,b"`, an unset `APP_URL`)
+ * are dropped: an empty origin matches no request.
+ */
+export function allowedBrowserOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
+  return [
+    ...devOnlyOrigins(env),
+    env.APP_URL,
+    ...(env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
+  ].filter((origin): origin is string => Boolean(origin));
+}

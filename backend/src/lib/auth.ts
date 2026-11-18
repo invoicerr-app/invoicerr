@@ -48,7 +48,7 @@ import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
 import { redactLogText } from '../logger/redaction';
 import { CLIENT_IP_HEADER } from './client-ip-header';
-import { devOnlyOrigins } from './dev-origins';
+import { allowedBrowserOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
 import { appOrigin } from '@/utils/app-origin';
@@ -370,11 +370,7 @@ export const auth = betterAuth({
   baseURL: appOrigin(),
   // Fall back to JWT_SECRET so existing deployments that only set it keep working
   secret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET,
-  trustedOrigins: [
-    ...devOnlyOrigins(),
-    process.env.APP_URL,
-    ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
-  ].filter((origin): origin is string => typeof origin === 'string'),
+  trustedOrigins: allowedBrowserOrigins(),
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
