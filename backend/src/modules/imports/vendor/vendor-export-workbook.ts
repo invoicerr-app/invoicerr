@@ -348,6 +348,11 @@ export async function readVendorExportFile(bytes: Uint8Array): Promise<VendorExp
   if (entries.length > MAX_ARCHIVE_ENTRIES) {
     throw new VendorExportFileError(`This archive holds more than ${MAX_ARCHIVE_ENTRIES} files.`);
   }
+  // An archive inside the archive is not something a tool exports, and reading it would multiply
+  // every limit above by its own nesting: refuse it rather than skip it silently.
+  if (entries.some((entry) => /\.(zip|7z|rar|tar|gz|tgz)$/i.test(entry.name))) {
+    throw new VendorExportFileError('This archive holds another archive. Upload the export itself.');
+  }
   const workbookEntries = entries.filter((entry) => /\.xlsx$/i.test(entry.name));
   if (workbookEntries.length === 0) {
     throw new VendorExportFileError('This archive holds no XLSX export.');

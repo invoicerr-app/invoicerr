@@ -11,6 +11,7 @@ import { globalGuardProviders } from '@/guards/global-guards';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { ClientPortalModule } from './modules/client-portal/client-portal.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { VendorImportModule } from './modules/imports/vendor/vendor-import.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { CompanyLookupModule } from './modules/company-lookup/company-lookup.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -145,6 +146,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     CompanyModule,
     CountryReadinessModule,
     ClientsModule,
+    VendorImportModule,
     SireneModule,
     CompanyLookupModule,
     DangerModule,
