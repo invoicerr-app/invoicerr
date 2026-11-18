@@ -1,4 +1,4 @@
-import { Log, LogLevel } from 'prisma/generated/prisma/client';
+import { Log, LogLevel, Prisma } from 'prisma/generated/prisma/client';
 
 import { Logger } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
@@ -32,11 +32,20 @@ interface LogOptions {
   companyId?: string | null;
 }
 
+/** What `fetchLogs` can filter on. */
+export interface LogFilters {
+  level?: LogLevel;
+  category?: string;
+  userId?: string;
+  /** Scopes to exactly one company's own rows: see `modules/logger/logger.controller.ts#streamLogs`,
+   *  the one caller that passes this, for why a direct DB-level filter now replaces the userId-
+   *  membership post-filter that file used to need before this column existed. */
+  companyId?: string;
+}
+
 export class LoggerService {
   private prisma = prisma;
   private inLogger = new Logger();
-
-  constructor() {}
 
   /** Resolves once the row is written or its failure reported; never rejects. */
   private createLog(level: LogLevel, message: string, options: LogOptions): Promise<void> {
@@ -156,31 +165,15 @@ export class LoggerService {
   }
 
   public async fetchLogs(
-    filters: {
-      level?: LogLevel;
-      category?: string;
-      userId?: string;
-      startDate?: Date;
-      endDate?: Date;
-      /** Scopes to exactly one company's own rows — see `modules/logger/logger.controller.ts#streamLogs`,
-       *  the one caller that passes this, for why a direct DB-level filter now replaces the userId-
-       *  membership post-filter that file used to need before this column existed. */
-      companyId?: string;
-    } = {},
+    filters: LogFilters = {},
     pagination: { skip: number; take: number } = { skip: 0, take: 50 },
   ): Promise<Log[]> {
-    const whereClause: any = {};
+    const whereClause: Prisma.LogWhereInput = {};
 
     if (filters.level) whereClause.level = filters.level;
     if (filters.category) whereClause.category = filters.category;
     if (filters.userId) whereClause.userId = filters.userId;
     if (filters.companyId) whereClause.companyId = filters.companyId;
-
-    if (filters.startDate || filters.endDate) {
-      whereClause.timestamp = {};
-      if (filters.startDate) whereClause.timestamp.gte = filters.startDate; // greater than or equal
-      if (filters.endDate) whereClause.timestamp.lte = filters.endDate; // less than or equal
-    }
 
     return this.prisma.log.findMany({
       where: whereClause,
