@@ -7,7 +7,8 @@ sidebar_position: 12
 Invoicerr is self-hosted-first: everything below is invisible and inert on any instance that never
 sets `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (`backend/src/modules/billing/billing-flag.ts`): no
 `/api/billing/*` route, no Settings tab, no banner, no lifecycle sweep, no Stripe plugin registered.
-This page documents the operator's own hosted offering, billed through Stripe.
+This page documents the operator's own hosted offering, billed through Stripe. The setup steps an
+operator follows are in [Billing on a self-hosted instance](../user-guide/self-hosting-billing.md).
 
 Invoicerr bills per **company**, never per user: a company's subscription is a Stripe subscription
 whose `referenceId` is the company id.
@@ -132,9 +133,58 @@ own row by `backend/src/modules/billing/stripe-subscription-sync.ts`:
 Deleting a company, from the lifecycle sweep or by its owner, first cancels every Stripe
 subscription it still has (`stripe-subscription-cancel.ts`). If Stripe refuses, nothing is deleted.
 
+## VAT
+
+`BILLING_VAT` (`modules/billing/billing-vat.ts`) is read once at boot; any value other than `franchise`
+or `charge` refuses to boot.
+
+- `franchise` (default): no VAT. Each company's Stripe customer is created with the invoice footer
+  "TVA non applicable, art. 293 B du CGI".
+- `charge`: the checkout session enables Stripe Tax (`automatic_tax`). French VAT applies, except the
+  reverse charge for a company established in another EU member state whose VAT number Invoicerr
+  validated through VIES. Stripe Tax itself (head office address, registration) is set up once in the
+  Stripe dashboard.
+
+The first invoice of a checkout is finalized by Stripe the moment the subscription starts, so its mention
+comes from the company's Stripe customer, synced from the company record right before the checkout
+session is created: footer, billing address, and the EU VAT number only when it gives the reverse
+charge. Checkout neither collects a VAT number nor rewrites the address. Renewals get their footer from
+the `invoice.created` webhook, from the taxes Stripe Tax actually applied. Subscriptions created under
+the franchise keep running without automatic tax after a switch to `charge`: moving them is an operator
+step.
+
+## Subscription invoices
+
+Stripe collects the payment; the invoice the subscriber receives is an ordinary Invoicerr invoice,
+issued by one company of the instance, so it goes through the same numbering, tax engine, Factur-X and
+transmission path as every other invoice (`modules/billing/subscription-invoice.ts`).
+
+1. **Recording**: the `invoice.paid` webhook stores one `SubscriptionInvoice` row per paid Stripe
+   invoice, idempotently on the Stripe invoice id. A zero invoice (a trial start) is ignored. A failed
+   write throws, so Stripe retries the event.
+2. **Issuing**: the billing sweep (`subscription-invoice-issuer.ts`) turns each pending row into an
+   invoice of the company named in `BILLING_INVOICE_ISSUER_COMPANY_ID`. The subscribing company becomes
+   a client of the issuer (created once, with the company's email and identifiers), the Stripe lines
+   become invoice lines, the invoice is sent through the issuer's own transport, and the Stripe payment
+   is recorded on it. With the variable unset, rows wait and nothing is issued.
+
+VAT is decided by the issuer company's own settings, as for any other invoice, so they must match
+`BILLING_VAT`: under the franchise its `exemptVat` setting is on. On a hosted instance the issuer's own
+subscription must be active, or the send gate refuses to send.
+
+A Stripe invoice with a negative line (a proration credit), a discount, or more lines than the event
+holds is kept with its reason in `lastError` and left to the operator: Invoicerr lines are never
+negative, and folding a credit into another line would misstate what was sold.
+
+## Lifecycle sweep interval
+
+The lifecycle sweep, and the subscription invoice issuing that runs with it, repeats every
+`BILLING_LIFECYCLE_SWEEP_INTERVAL_MS` milliseconds, one hour by default, so a trial that ends mid-day is
+blocked within the hour.
+
 ## Stripe price catalog
 
-The hosted subscription is moving to Stripe Billing. Prices are configured, not coded: each one is a
+The hosted subscription is billed through Stripe Billing. Prices are configured, not coded: each one is a
 Stripe price id read from the environment (see `backend/.env.example`), and the amounts live in the
 Stripe dashboard.
 
