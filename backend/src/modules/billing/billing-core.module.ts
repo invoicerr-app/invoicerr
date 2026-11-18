@@ -29,21 +29,25 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
+import { ClientsModule } from '../clients/clients.module';
 import { DocumentsCoreModule } from '../documents/documents-core.module';
 import { MailService } from '@/mail/mail.service';
 
 import { redisConnection } from '../documents/queue/redis.config';
 import { BillingExportService } from './export-zip.service';
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
+import { SubscriptionInvoiceIssuer } from './subscription-invoice-issuer';
 import { BILLING_BULL_CONFIG_KEY, Q_BILLING_LIFECYCLE } from './queue/billing-queue.constants';
 
 @Module({
   imports: [
     DocumentsCoreModule,
+    // `ClientsService` for the subscription invoices' clients (`subscription-invoice-issuer.ts`).
+    ClientsModule,
     BullModule.forRoot(BILLING_BULL_CONFIG_KEY, { connection: redisConnection() }),
     BullModule.registerQueue({ configKey: BILLING_BULL_CONFIG_KEY, name: Q_BILLING_LIFECYCLE }),
   ],
-  providers: [MailService, BillingExportService, BillingLifecycleSweepRunner],
-  exports: [BullModule, BillingLifecycleSweepRunner],
+  providers: [MailService, BillingExportService, BillingLifecycleSweepRunner, SubscriptionInvoiceIssuer],
+  exports: [BullModule, BillingLifecycleSweepRunner, SubscriptionInvoiceIssuer],
 })
 export class BillingCoreModule {}
