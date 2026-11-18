@@ -1,6 +1,5 @@
 import { ClientsController } from '@/modules/clients/clients.controller';
 import { ClientsService } from '@/modules/clients/clients.service';
-import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { ViesProvider } from '../company-lookup/providers/vies.provider';
@@ -31,7 +30,6 @@ function vatValidationClient(): VatValidationPort {
   providers: [
     ClientsService,
     ClientImportService,
-    JwtService,
     // A missing provider is a boot error. VIES failures degrade to UNAVAILABLE, never an exception.
     { provide: 'VAT_VALIDATION_CLIENT', useFactory: vatValidationClient },
   ],

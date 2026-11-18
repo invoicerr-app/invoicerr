@@ -1,7 +1,6 @@
 import { CompanyController } from '@/modules/company/company.controller';
 import { CompanyService } from '@/modules/company/company.service';
 import { MailService } from '@/mail/mail.service';
-import { JwtService } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { AtcudSeriesController } from './atcud-series/atcud-series.controller';
@@ -38,7 +37,6 @@ import { SsoService } from './sso/sso.service';
   ],
   providers: [
     CompanyService,
-    JwtService,
     CurrencyRatesService,
     ChannelCredentialsService,
     BrandingService,
