@@ -50,6 +50,7 @@
  * answers with an ARRAY of one metadata object where the OpenAPI document declares a single object.
  * See `getInvoice()`'s own comment.
  */
+import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 
 /** Everything this client needs to talk to one Iopole account. `apiBaseUrl`/`tokenUrl` are fixed per
  *  environment by the transport, never company-supplied - see this file's own header on SSRF. */
@@ -127,10 +128,6 @@ const DEFAULT_MAX_RETRIES = 3;
  * platform's own clock skew, and small enough that a token is not re-fetched on every call.
  */
 const TOKEN_SAFETY_MARGIN_MS = 60_000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * The platform validates the UPLOADED FILE'S OWN NAME, not only its bytes: the OpenAPI document
@@ -268,7 +265,7 @@ export class IopoleClient {
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
-        await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
+        await sleep(backoffDelayMs(attempt));
       }
 
       const token = await this.authenticate();

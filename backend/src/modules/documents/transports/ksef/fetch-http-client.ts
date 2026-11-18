@@ -2,6 +2,7 @@
  * Fetch-based HTTP client adapter for the KSeF client.
  * Wraps the global `fetch` with timeout and retry logic.
  */
+import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 import { KsefHttpClient, HttpRequest, HttpResponse } from './ksef-client';
 
 export interface FetchHttpClientOpts {
@@ -28,7 +29,7 @@ export class FetchKsefHttpClient implements KsefHttpClient {
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
         // Exponential backoff: 500ms, 1000ms, 2000ms...
-        await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
+        await sleep(backoffDelayMs(attempt));
       }
 
       const controller = new AbortController();
@@ -82,8 +83,4 @@ export class FetchKsefHttpClient implements KsefHttpClient {
     }
     throw lastError;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

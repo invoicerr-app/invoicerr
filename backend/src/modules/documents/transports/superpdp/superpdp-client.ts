@@ -46,6 +46,7 @@
  * could still answer with a 30x pointing the SAME request at an internal one, which an auto-followed
  * redirect would silently complete.
  */
+import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 import {
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
@@ -426,7 +427,7 @@ export class SuperPdpClient {
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
-        await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
+        await sleep(backoffDelayMs(attempt));
       }
 
       // Resolved (and pinned) SEPARATELY from whatever `authenticate()` does internally: that call may
@@ -835,10 +836,6 @@ function guessMime(content: Buffer | Uint8Array): string {
     return 'application/xml';
   }
   return 'application/xml';
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function toUint8Array(data: Buffer | Uint8Array): Uint8Array<ArrayBuffer> {

@@ -53,6 +53,7 @@
  * already carry. `getInvoice()` below is the read side such a poller would build on; nothing calls it
  * in production today, and it is kept rather than trimmed for exactly that reason.
  */
+import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 
 /** LIVE-confirmed: the two are different HOSTS, not a request parameter - see this file's header. */
 export type AcubeEnvironment = 'sandbox' | 'production';
@@ -144,10 +145,6 @@ function decodeTokenExpiry(token: string): number | null {
   } catch {
     return null;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** A-Cube answers errors in two different shapes depending on which layer refused: the JWT firewall
@@ -290,7 +287,7 @@ export class AcubeClient {
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       if (attempt > 0) {
-        await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
+        await sleep(backoffDelayMs(attempt));
       }
 
       const token = await this.authenticate();
