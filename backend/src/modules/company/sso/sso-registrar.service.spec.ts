@@ -27,6 +27,7 @@ import { SsoRegistrarService, buildCompanyProvider } from './sso-registrar.servi
 vi.mock('@/utils/outbound-url', () => ({
   __esModule: true,
   assertPublicOutboundUrl: vi.fn().mockResolvedValue(undefined),
+  allowPrivateOutboundForTesting: () => process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
   OutboundUrlValidationError: class extends Error {},
 }));
 

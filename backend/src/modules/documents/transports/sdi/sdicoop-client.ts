@@ -71,6 +71,7 @@ import { create } from 'xmlbuilder2';
 import { SdiHttpPort, SdiStatusResult, SdiSubmitRequest, SdiSubmitResult } from './sdi-client';
 import { firstByLocalName, parseXml, textOf } from './xml-helpers';
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
   assertPublicOutboundUrl,
@@ -357,7 +358,7 @@ export class SdiCoopClient implements SdiHttpPort {
   private async resolveEndpoint(): Promise<ResolvedOutboundUrl | null> {
     try {
       return await assertPublicOutboundUrl(this.config.endpoint, {
-        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+        allowPrivateForTesting: allowPrivateOutboundForTesting(),
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {

@@ -51,6 +51,7 @@
  * back in the failure message.
  */
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   type ResolvedOutboundUrl,
   assertPublicOutboundUrl,
@@ -179,7 +180,7 @@ export class BillitClient {
       return await assertPublicOutboundUrl(this.credentials.baseUrl, {
         allowedProtocols: ['http:', 'https:'],
         allowedPorts: null,
-        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+        allowPrivateForTesting: allowPrivateOutboundForTesting(),
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {

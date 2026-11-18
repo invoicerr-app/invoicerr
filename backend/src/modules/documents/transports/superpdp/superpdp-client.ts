@@ -48,6 +48,7 @@
  */
 import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
   assertPublicOutboundUrl,
@@ -323,7 +324,7 @@ export class SuperPdpClient {
         // https-only/port-443 policy `sso.service.ts` applies to a company's OIDC endpoints.
         allowedProtocols: ['http:', 'https:'],
         allowedPorts: null,
-        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+        allowPrivateForTesting: allowPrivateOutboundForTesting(),
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {
