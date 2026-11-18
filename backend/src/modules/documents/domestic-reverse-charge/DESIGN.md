@@ -110,7 +110,7 @@ carries a country or a legal category today. The next wave needs:
   including every `.spec.ts` in `tax/`) or imported as a module-level constant the way `LOCALIZED_MENTION`
   already is. Given `LOCALIZED_MENTION` already sets the precedent of a module-level table read directly
   by `tax-engine.ts`, and this catalog is of the exact same size class ("four countries, at most a
-  couple dozen rows total"), **importing `defaultDomesticReverseChargeCatalog` directly, the same way,
+  couple dozen rows total"), **importing a module-level `DomesticReverseChargeCatalog` instance directly, the same way,
   is the lower-risk choice** — no signature change on `determineLineTax`/`determineTax`, no ripple
   through every existing call site and spec. This is the next wave's call to make, not this one's; it is
   named here because "how does the pure engine learn a country fact" is exactly the question
@@ -137,7 +137,7 @@ something in the shape of:
 
 ```ts
 const hasDomesticReverseCharge = rows.some((row) =>
-  defaultDomesticReverseChargeCatalog.categoryFor(sellerCC, row.domesticReverseChargeCategory as string),
+  domesticReverseChargeCatalog.categoryFor(sellerCC, row.domesticReverseChargeCategory as string),
 );
 if ((input.seller.taxScheme && input.seller.taxScheme !== 'STANDARD') || hasDomesticReverseCharge) {
   return applyDomesticTaxScheme(/* ... */);

@@ -8,6 +8,7 @@ import {
 } from '@/modules/company/revenue-basis/resolve-revenue-basis';
 
 import { loadCurrencyContext } from '../contributions/currency-consolidation';
+import { isValidIsoDay } from '../date-params';
 import { listAllDocuments } from '../persistence';
 import { listPaymentsInRange } from '../settlement/payments';
 import { decimalsFor, fromMinor } from '@/utils/financial';
@@ -30,8 +31,6 @@ import { buildCashedRevenuePeriods, CashedPaymentLike, CashedRevenuePeriod } fro
  * single number this product could compute is authoritative across five different countries' rules.
  */
 
-const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
 export const CASHED_REVENUE_DISCLAIMER =
   'This is an aid to help prepare a revenue declaration, not the official declaration itself. ' +
   'Verify every figure against your own accounting records and your local tax authority’s rules ' +
@@ -39,7 +38,7 @@ export const CASHED_REVENUE_DISCLAIMER =
 
 function parseDateParam(name: string, value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
-  if (!DATE_PARAM_PATTERN.test(value) || Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime())) {
+  if (!isValidIsoDay(value)) {
     throw new BadRequestException(`"${name}" must be a valid date in YYYY-MM-DD format.`);
   }
   return value;

@@ -13,19 +13,18 @@
  * (`modules/documents/queue/redis-required.guard.ts`), so the fix does not need to wait for someone to
  * actually scale the API to notice the gap.
  *
- * Deliberately its OWN `ioredis` client rather than importing
- * `modules/documents/queue/redis.config.ts` — a different module's internal helper. Mirroring that
- * file's host/port/URL precedence here (rather than depending on it) keeps `lib/` and
- * `modules/documents/` decoupled, the same "own plain instance, not a shared import" choice
- * `lib/auth.ts` already makes for its own Prisma client (see that file's own header).
+ * Its client comes from `lib/redis-connection.ts`, the backend's single Redis client factory, rather
+ * than from `modules/documents/queue/redis.config.ts` (a different module's internal helper): `lib/`
+ * stays decoupled from `modules/documents/`.
  *
  * `createPendingSignupStore` takes the client as a parameter specifically so a spec can drive it
  * against a fake honoring the same minimal interface, without opening a real connection — the same
  * "pure function over injected facts" shape `lib/secret-guard.ts#assertSecretsConfiguredForBoot`
  * already uses `env` for.
  */
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 
+import { createLibRedisClient } from '@/lib/redis-connection';
 import { AccountMembership } from '@/modules/auth-extended/account-lifecycle';
 
 /** The exact subset of `ioredis`'s own API this module calls — never the whole client — so a test
@@ -90,9 +89,8 @@ export function createPendingSignupStore(client: PendingSignupRedisClient): Pend
   };
 }
 
-/** Same `REDIS_URL` / `REDIS_HOST`+`REDIS_PORT`+`REDIS_PASSWORD` precedence as
- *  `modules/documents/queue/redis.config.ts#createIoredisClient` (kept in sync deliberately, not
- *  imported — see this file's own header). Called at module scope by every consumer that needs this
+/** Built by `lib/redis-connection.ts#createLibRedisClient`, so it resolves the same Redis as every
+ *  other client of this backend (see this file's own header). Called at module scope by every consumer that needs this
  *  store (`lib/auth.ts`, `invitations/invitations.controller.ts`) — each gets its own client, the same
  *  "no shared instance required, only shared key names" choice `invitations.controller.ts`'s own
  *  comment on this explains.
@@ -102,11 +100,5 @@ export function createPendingSignupStore(client: PendingSignupRedisClient): Pend
  * opens a connection or leaves an open handle behind, which matters for a future spec that imports
  * `invitations.controller.ts` without ever exercising `POST /invitations/validate`. */
 export function createRedisClientForPendingSignups(): Redis {
-  if (process.env.REDIS_URL) return new Redis(process.env.REDIS_URL, { lazyConnect: true });
-  return new Redis({
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
-    lazyConnect: true,
-  });
+  return createLibRedisClient({ lazyConnect: true });
 }

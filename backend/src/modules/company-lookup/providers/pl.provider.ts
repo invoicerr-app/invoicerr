@@ -5,9 +5,9 @@
  * The mandatory `date` answers "as of" that day and must not be in the future in Polish local time.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { localDate } from './shared';
+import { credentialsPresent, localDate } from './shared';
 
 const WL_URL = 'https://wl-api.mf.gov.pl/api/search/nip';
 
@@ -47,10 +47,10 @@ export class PolandWykazProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

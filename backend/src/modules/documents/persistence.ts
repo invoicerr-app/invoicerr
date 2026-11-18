@@ -3,6 +3,7 @@ import { ConflictException, InternalServerErrorException, NotFoundException } fr
 import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from './actions/action-registry';
+import { dayMs } from './date-params';
 
 /**
  * Shared, tenant-safe persistence for document instances — used by action handlers (e.g.
@@ -533,18 +534,11 @@ export interface ListDocumentsPageResult {
   pageSize: number;
 }
 
-/** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
- *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
- *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
- *  why this whole file doesn't reuse that module instead). Exported (issue #418) so the dashboard's
- *  own period-scoped contributions (contributions/invoice-contributions.ts and friends) compute the
- *  SAME `[fromMs, toMs]` bounds `dateValueInRange` below compares against, rather than a second,
- *  possibly-drifting conversion of the same `YYYY-MM-DD` string - THE CONSISTENCY RULE a period tile
- *  and the list its `link` opens both depend on. */
-export function dayMs(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
+/** Re-exported (issue #418) so the dashboard's own period-scoped contributions
+ *  (contributions/invoice-contributions.ts and friends) compute the SAME `[fromMs, toMs]` bounds
+ *  `dateValueInRange` below compares against - THE CONSISTENCY RULE a period tile and the list its
+ *  `link` opens both depend on. */
+export { dayMs };
 
 /** Whether `dateValue` (whatever `data[dateFieldKey]` currently holds — normally an ISO string, e.g.
  *  from a 'date' field's own `toISOString()`) falls within `[fromMs, toMs]`, each bound optional and

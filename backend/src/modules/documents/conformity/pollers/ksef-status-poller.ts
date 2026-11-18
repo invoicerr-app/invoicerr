@@ -54,6 +54,7 @@
  * access token minted under the credential that was just REPLACED, for as long as that token's own
  * TTL allows, silently outliving the very rotation meant to end its use.
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { createHash } from 'node:crypto';
 
 import {
@@ -71,7 +72,7 @@ import {
   RawAuthorityEvent,
 } from '../authority-status-poller';
 
-export const KSEF_PROVIDER_ID = 'ksef';
+export { KSEF_PROVIDER_ID };
 
 /** Refreshed this far ahead of the cached token's own `expiresAt` — the identical 60s safety margin
  *  `transports/superpdp/superpdp-client.ts`'s own token cache already applies, so a token technically still

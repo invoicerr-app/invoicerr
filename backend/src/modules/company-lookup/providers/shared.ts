@@ -22,3 +22,9 @@ export function localDate(timeZone: string): string {
     day: '2-digit',
   }).format(new Date());
 }
+
+/** Whether every credential a provider declares in `credentialEnvVars` is set (non-empty). A provider
+ *  that declares none is always configured. Read on every call, so a test that sets a variable sees it. */
+export function credentialsPresent(envVars: readonly string[]): boolean {
+  return envVars.every((name) => !!process.env[name]);
+}

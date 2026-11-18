@@ -2,33 +2,13 @@
 
 import { useTranslation } from "react-i18next"
 
-import type { Log, LogLevel } from "../logs.settings"
+import { type Log, levelBadgeProps } from "./log-level"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type LogDetailsDialogProps = {
   log: Log | null
   onClose: () => void
-}
-
-/** The chip a log LEVEL renders as — see `logs-filters.tsx`'s own copy of this mapping for why it is
- *  duplicated per-file rather than shared. */
-function levelBadgeProps(level: LogLevel): {
-  variant?: "secondary" | "warning" | "info" | "destructive"
-  className?: string
-} {
-  switch (level) {
-    case "DEBUG":
-      return { variant: "secondary" }
-    case "INFO":
-      return { variant: "info" }
-    case "WARN":
-      return { variant: "warning" }
-    case "ERROR":
-      return { className: "border-transparent bg-destructive-soft text-destructive-soft-foreground" }
-    case "FATAL":
-      return { variant: "destructive" }
-  }
 }
 
 export function LogDetailsDialog({ log, onClose }: LogDetailsDialogProps) {

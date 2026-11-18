@@ -15,11 +15,10 @@
  */
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
-import { extractSuperPdpCredentials } from '../../transports/superpdp-transport';
-import { SuperPdpClient, SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
+import { SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
 import { extractReceivedInvoiceFields, ExtractionResult } from '../../received-invoices/extraction';
 import { extFor } from '../../received-invoices/storage';
-import { PDP_RECEPTION_PROVIDER_ID } from '../../transports/superpdp/superpdp-reception';
+import { PDP_RECEPTION_PROVIDER_ID, resolveClient } from '../../transports/superpdp/superpdp-reception';
 
 export interface SuperPdpInboundFile {
   bytes: Buffer;
@@ -49,16 +48,6 @@ export interface ReceptionPoller {
 
 export interface SuperPdpReceptionPollerDeps {
   channelCredentials: ChannelCredentialsService;
-}
-
-async function resolveClient(
-  channelCredentials: ChannelCredentialsService,
-  companyId: string,
-): Promise<SuperPdpClient | null> {
-  const resolved = await channelCredentials.resolveActive(companyId, PDP_RECEPTION_PROVIDER_ID);
-  const credentials = resolved && extractSuperPdpCredentials(resolved);
-  if (!credentials) return null;
-  return new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
 }
 
 export const RECEPTION_PAGE_SIZE = 100;

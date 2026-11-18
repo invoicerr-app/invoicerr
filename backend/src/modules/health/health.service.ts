@@ -3,7 +3,7 @@ import type Redis from 'ioredis';
 
 import { logPersistenceHealth, LogPersistenceSnapshot } from '@/logger/log-persistence-health';
 import { getInstalledVersion } from '@/lib/app-version';
-import { createIoredisClient } from '@/modules/documents/queue/redis.config';
+import { createLibRedisClient } from '@/lib/redis-connection';
 import prisma from '@/prisma/prisma.service';
 
 export const HEALTH_CHECK_TIMEOUT_MS = 2000;
@@ -98,7 +98,7 @@ export class HealthService implements OnModuleDestroy {
   private async pingRedis(): Promise<void> {
     if (!this.redis) {
       // No offline queue: while disconnected a PING fails at once instead of waiting for a reconnect.
-      this.redis = createIoredisClient({
+      this.redis = createLibRedisClient({
         lazyConnect: true,
         enableOfflineQueue: false,
         maxRetriesPerRequest: 1,

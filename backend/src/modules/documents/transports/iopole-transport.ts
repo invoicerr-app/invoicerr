@@ -50,6 +50,7 @@
  * hard-success contract (documentation/docs/developer-guide/live-testing.md): a reference nobody can
  * look up is not a reference at all.
  */
+import { IOPOLE_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -107,7 +108,7 @@ export interface IopoleTransportDeps {
   facturxFormatProvider: DocumentFormatProvider;
 }
 
-export const IOPOLE_PROVIDER_ID = 'iopole';
+export { IOPOLE_PROVIDER_ID };
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
  *  makes for the identical reason - see `superpdp-transport.ts`'s own header. */

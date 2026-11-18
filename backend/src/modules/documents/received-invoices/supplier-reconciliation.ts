@@ -40,13 +40,7 @@
  */
 import prisma from '@/prisma/prisma.service';
 
-/** How many of this company's own VAT identifiers / same-named clients are scanned for a match — the
- *  same bounded, honest-linear-scan discipline `received-invoices.service.ts`'s own
- *  `DUPLICATE_CHECK_LIMIT` already uses for the identical reason: this is a per-upload reconciliation
- *  check, not a hot read path, and 1000 comfortably covers any real company's client book. A company
- *  with MORE than this many VAT-bearing clients degrades to "not found" rather than a slow scan —
- *  never a wrong match, only a missed one, which the screen's own manual fallback still covers. */
-const SUPPLIER_MATCH_SCAN_LIMIT = 1000;
+import { ClientMatchResult, matchClientByVatThenName } from '../client-book-match';
 
 export interface SupplierMatchCriteria {
   /** Raw text off `extraction.ts`'s own `supplierVatId` (RAM `SpecifiedTaxRegistration/ID` / UBL
@@ -64,80 +58,22 @@ export interface SupplierMatchCriteria {
   supplierName?: string;
 }
 
-export type SupplierMatchResult =
-  | { outcome: 'matched'; clientId: string; matchedBy: 'vat' | 'name' }
-  | { outcome: 'unmatched'; reason: 'no-criteria' | 'not-found' }
-  /** Deliberately NOT a variant of `unmatched`: an ambiguous match is a DIFFERENT fact than "nothing
-   *  matched" — this company DOES already know of a candidate (or several), it just cannot pick ONE
-   *  safely. Named separately so a caller (and this module's own tests) can tell "never heard of this
-   *  vendor" apart from "heard of it more than once" without inspecting `reason` strings. */
-  | { outcome: 'ambiguous'; matchedBy: 'vat' | 'name'; candidateIds: string[] };
-
-/** VAT numbers compare on digits/letters only, case-insensitively — see `SupplierMatchCriteria.vatId`
- *  above for why this (and ONLY this) field gets normalized before comparison. */
-function normalizeVat(value: string): string {
-  return value.replace(/\s+/g, '').toUpperCase();
-}
+export type SupplierMatchResult = ClientMatchResult;
 
 /**
  * Matches a deposited invoice's supplier against THIS company's own client book — never another
  * company's (every query below is scoped by `companyId`, the same multi-tenancy discipline as every
  * other read in this codebase), and never a soft-deleted client (`isActive: false` — resurrecting a
  * deleted client via an incoming invoice would be a stranger surprise than simply asking the user to
- * pick one). VAT is tried FIRST ("VAT-first") and, on a clean miss (zero identifier
- * rows share the normalized value), name is tried as the fallback — but an AMBIGUOUS vat match returns
- * immediately as `ambiguous`, never silently falling through to a name guess: the safest reading of
- * "an identifier that points to two clients" is to name the ambiguity, not to paper over it with a
- * second, weaker heuristic.
+ * pick one). VAT is tried FIRST ("VAT-first"), name as the fallback, an ambiguous VAT hit never
+ * falling through to a name guess: the rule lives in `../client-book-match.ts`, shared with the
+ * import's buyer matching.
  */
 export async function reconcileSupplierClient(
   companyId: string,
   criteria: SupplierMatchCriteria,
 ): Promise<SupplierMatchResult> {
-  const vatId = criteria.vatId?.trim();
-  const supplierName = criteria.supplierName?.trim();
-
-  if (vatId) {
-    const normalized = normalizeVat(vatId);
-    const identifiers = await prisma.partyIdentifier.findMany({
-      where: { scheme: 'VAT', client: { companyId, isActive: true } },
-      take: SUPPLIER_MATCH_SCAN_LIMIT,
-      select: { value: true, clientId: true },
-    });
-    const matchingClientIds = new Set<string>(
-      identifiers
-        .filter((identifier) => normalizeVat(identifier.value) === normalized)
-        .map((identifier) => identifier.clientId)
-        .filter((clientId): clientId is string => clientId !== null),
-    );
-    const candidates = Array.from(matchingClientIds);
-    if (candidates.length === 1) {
-      return { outcome: 'matched', clientId: candidates[0], matchedBy: 'vat' };
-    }
-    if (candidates.length > 1) {
-      return { outcome: 'ambiguous', matchedBy: 'vat', candidateIds: candidates };
-    }
-    // Zero VAT matches — an honest miss, not an error: fall through to the name fallback below.
-  }
-
-  if (supplierName) {
-    const clients = await prisma.client.findMany({
-      where: { companyId, isActive: true, name: supplierName },
-      take: SUPPLIER_MATCH_SCAN_LIMIT,
-      select: { id: true },
-    });
-    if (clients.length === 1) {
-      return { outcome: 'matched', clientId: clients[0].id, matchedBy: 'name' };
-    }
-    if (clients.length > 1) {
-      return { outcome: 'ambiguous', matchedBy: 'name', candidateIds: clients.map((client) => client.id) };
-    }
-  }
-
-  if (!vatId && !supplierName) {
-    return { outcome: 'unmatched', reason: 'no-criteria' };
-  }
-  return { outcome: 'unmatched', reason: 'not-found' };
+  return matchClientByVatThenName(companyId, { vatId: criteria.vatId, name: criteria.supplierName });
 }
 
 /**

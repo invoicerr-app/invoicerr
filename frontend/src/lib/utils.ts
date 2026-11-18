@@ -47,13 +47,3 @@ export function formatAmount(value: number, country?: string | null): string {
     maximumFractionDigits: 2,
   })
 }
-
-/** Turns free text into a safe, lowercase, hyphenated filename segment (accents stripped). */
-export function slugifyFilename(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Mn}/gu, "") // strip combining accent marks left behind by NFD normalization
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-}

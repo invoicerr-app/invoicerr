@@ -5,7 +5,8 @@
  * Answers whether a company is reachable over Peppol and under which participant id, which the
  * invoice pipeline needs to pick a channel. Only registered participants are listed, so it runs last.
  */
-import { alnum, digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, alnum, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -26,10 +27,10 @@ export class PeppolDirectoryProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://directory.peppol.eu/public/menuitem-docs-rest-api';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

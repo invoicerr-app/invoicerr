@@ -10,8 +10,10 @@
  * REDIS_URL set on the backend) work with no backend env change at all.
  */
 import type { ConnectionOptions } from 'bullmq';
-import Redis, { type RedisOptions } from 'ioredis';
+import type Redis from 'ioredis';
+import type { RedisOptions } from 'ioredis';
 
+import { createLibRedisClient } from '@/lib/redis-connection';
 import { redactUrlCredentials } from '@/utils/redact-url';
 
 export function redisConnection(): ConnectionOptions {
@@ -28,22 +30,14 @@ export function redisConnection(): ConnectionOptions {
 
 /**
  * A genuine `ioredis` client (as opposed to `redisConnection()`'s own return value above, which is a
- * BullMQ-flavored `ConnectionOptions` — its `{ url }` shape is a `bullmq` extension ioredis's own
- * constructor does not understand) — for the document-events pub/sub bridge (T1/R8,
+ * BullMQ-flavored `ConnectionOptions`: its `{ url }` shape is a `bullmq` extension ioredis's own
+ * constructor does not understand), for the document-events pub/sub bridge (T1/R8,
  * `document-events-publisher.ts`/`document-events-bridge.ts`), which talks to Redis directly rather
- * than through BullMQ. Same precedence as `redisConnection()`, deliberately kept in sync: two Redis
- * connection helpers agreeing on different rules would be its own bug waiting to happen.
+ * than through BullMQ. Built by the backend's single client factory, `lib/redis-connection.ts`, which
+ * applies the same precedence as `redisConnection()`.
  */
 export function createIoredisClient(options: RedisOptions = {}): Redis {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, options);
-  }
-  return new Redis({
-    ...options,
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
-  });
+  return createLibRedisClient(options);
 }
 
 /**

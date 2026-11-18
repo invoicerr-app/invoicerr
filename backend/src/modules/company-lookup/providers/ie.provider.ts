@@ -3,9 +3,9 @@
  * Docs: https://services.cro.ie/ (CRO_API_USER + CRO_API_KEY, HTTP Basic).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const CRO_URL = 'https://services.cro.ie/cws/companies';
 
@@ -17,10 +17,10 @@ export class IrelandCroProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://services.cro.ie/';
   readonly credentialEnvVars = ['CRO_API_USER', 'CRO_API_KEY'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.CRO_API_USER && !!process.env.CRO_API_KEY;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

@@ -4,9 +4,9 @@
  * with an empty password). Holds no VAT data, so it only answers on the company number.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const COMPANIES_HOUSE_URL = 'https://api.company-information.service.gov.uk/company';
 
@@ -18,10 +18,10 @@ export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://developer.company-information.service.gov.uk/';
   readonly credentialEnvVars = ['COMPANIES_HOUSE_API_KEY'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.COMPANIES_HOUSE_API_KEY;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

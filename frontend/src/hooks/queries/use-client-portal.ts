@@ -21,13 +21,13 @@ export function usePortalStatement(enabled: boolean) {
   })
 }
 
+const PORTAL_QUOTES_KEY = ["portal", "quotes"]
+
 export function usePortalQuotes(enabled: boolean) {
-  return usePortalApiQuery<PortalQuoteRow[]>(["portal", "quotes"], "/api/portal/quotes", {
+  return usePortalApiQuery<PortalQuoteRow[]>(PORTAL_QUOTES_KEY, "/api/portal/quotes", {
     enabled,
   })
 }
-
-const PORTAL_QUOTES_KEY = ["portal", "quotes"]
 
 /** Starts the EXISTING, OTP-hardened signature request (see the backend's own
  *  `PortalService.requestQuoteSignature` header) — never signs anything itself. Invalidates the

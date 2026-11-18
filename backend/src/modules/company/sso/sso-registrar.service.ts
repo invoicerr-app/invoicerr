@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger, Optional, OnModuleInit } from '@nestjs/comm
 import { genericOAuth } from 'better-auth/plugins';
 
 import { auth } from '@/lib/auth';
-import { assertPublicOutboundUrl } from '@/utils/outbound-url';
+import { allowPrivateOutboundForTesting, assertPublicOutboundUrl } from '@/utils/outbound-url';
 import {
   companyIdFromProviderId,
   companyProviderId,
@@ -68,7 +68,7 @@ function removeProviderEntry(entries: ProviderEntry[], providerId: string): void
  * rebinding window, it does not close it; doing so would mean patching better-auth.
  */
 async function assertResolvedEndpointsArePublic(resolved: SsoProviderResolved): Promise<void> {
-  const allowPrivateForTesting = process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
+  const allowPrivateForTesting = allowPrivateOutboundForTesting();
   const urls = [resolved.discoveryUrl, resolved.authorizationUrl, resolved.tokenUrl, resolved.userInfoUrl];
   for (const url of urls) {
     if (!url) continue;

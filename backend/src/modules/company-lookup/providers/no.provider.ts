@@ -6,7 +6,8 @@
  * the `registrertIMvaregisteret` flag decides, never the number's shape.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const BRREG_URL = 'https://data.brreg.no/enhetsregisteret/api/enheter';
@@ -19,10 +20,10 @@ export class NorwayBrregProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://data.brreg.no/enhetsregisteret/api/dokumentasjon/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

@@ -3,9 +3,9 @@
  * Docs: https://cvrapi.dk/documentation (no credentials, but a descriptive User-Agent is mandatory).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const CVRAPI_URL = 'https://cvrapi.dk/api';
 
@@ -17,10 +17,10 @@ export class DenmarkCvrProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://cvrapi.dk/documentation';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

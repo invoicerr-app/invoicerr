@@ -4,6 +4,7 @@
  * (`document-import-csv.service.ts`), both of which funnel into the same
  * `document-import.service.ts#importDocument` core.
  */
+import type { ClientMatchResult } from '../client-book-match';
 
 /** The two types v1 of #340 covers (the owner's own decision): "v1 scope: invoices and credit
  *  notes ... Importing from the official original ... is a later step." */
@@ -86,10 +87,7 @@ export interface ImportDocumentResult {
  *  Deliberately the same three-outcome shape `received-invoices/supplier-reconciliation.ts` already
  *  uses for the supplier side: "nothing matched" and "more than one candidate" are different facts,
  *  and an ambiguous VAT hit never silently falls through to a weaker name guess. */
-export type ImportClientMatch =
-  | { outcome: 'matched'; clientId: string; matchedBy: 'vat' | 'name' }
-  | { outcome: 'unmatched'; reason: 'no-criteria' | 'not-found' }
-  | { outcome: 'ambiguous'; matchedBy: 'vat' | 'name'; candidateIds: string[] };
+export type ImportClientMatch = ClientMatchResult;
 
 /** The buyer party as the file states it, ready to seed a client-creation form. Never persisted by
  *  the pre-fill itself: creating a client is the user's decision, made on the import screen. */

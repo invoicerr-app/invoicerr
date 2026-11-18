@@ -1,5 +1,10 @@
 import { appendFileSync } from 'node:fs';
 
+import {
+  PDP_ACCEPTED_STATUS_CODE,
+  PDP_REJECTED_STATUS_CODE,
+} from '@/modules/documents/conformity/pollers/superpdp-status-poller';
+
 /**
  * What a live conformity journal proves once the verdict budget has run out.
  *
@@ -14,7 +19,7 @@ import { appendFileSync } from 'node:fs';
  */
 export type LiveVerdictOutcome = 'decided' | 'inconclusive' | 'failed';
 
-const TERMINAL_CODES = ['fr:202', 'fr:213'];
+const TERMINAL_CODES = [PDP_ACCEPTED_STATUS_CODE, PDP_REJECTED_STATUS_CODE];
 const PRE_VERDICT_CODES = ['fr:200', 'fr:201'];
 
 export function classifyLiveVerdict(codes: readonly string[]): LiveVerdictOutcome {

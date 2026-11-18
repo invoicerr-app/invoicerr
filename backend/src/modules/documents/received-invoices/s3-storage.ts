@@ -47,22 +47,16 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { buildS3ClientFromEnv, isMissingObjectError, requireEnv as requireS3Env } from '@/lib/s3-client';
 
 import { assertValidContentHash, extFor } from './storage-path';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `INBOUND_STORAGE=s3 but "${name}" is not set — refusing to silently fall back to local disk, or ` +
-        `to a half-configured S3 client, for an uploaded inbound file.`,
-    );
-  }
-  return value;
-}
+const missingEnvMessage = (name: string): string =>
+  `INBOUND_STORAGE=s3 but "${name}" is not set — refusing to silently fall back to local disk, or ` +
+  `to a half-configured S3 client, for an uploaded inbound file.`;
 
-function isTruthyFlag(value: string | undefined): boolean {
-  return value === '1' || value?.toLowerCase() === 'true';
+function requireEnv(name: string): string {
+  return requireS3Env(name, missingEnvMessage);
 }
 
 /** Everything needed to talk to S3 EXCEPT the bucket name — see `archive/s3-storage.ts#buildClient`'s
@@ -70,15 +64,7 @@ function isTruthyFlag(value: string | undefined): boolean {
  *  while `INBOUND_S3_FORCE_PATH_STYLE` exists for providers (some Scaleway/MinIO setups included) that
  *  need path-style addressing. */
 function buildClient(): S3Client {
-  return new S3Client({
-    region: requireEnv('INBOUND_S3_REGION'),
-    endpoint: process.env.INBOUND_S3_ENDPOINT || undefined,
-    forcePathStyle: isTruthyFlag(process.env.INBOUND_S3_FORCE_PATH_STYLE),
-    credentials: {
-      accessKeyId: requireEnv('INBOUND_S3_ACCESS_KEY_ID'),
-      secretAccessKey: requireEnv('INBOUND_S3_SECRET_ACCESS_KEY'),
-    },
-  });
+  return buildS3ClientFromEnv('INBOUND_S3', missingEnvMessage);
 }
 
 /** `<companyId>/<sha256>.<ext>` — lowercased, exactly like `archive/s3-storage.ts#objectKey`'s own
@@ -87,16 +73,6 @@ function buildClient(): S3Client {
  *  for the hash half of this key. */
 function objectKey(companyId: string, sha256: string, mime: string): string {
   return `${companyId}/${sha256}.${extFor(mime)}`.toLowerCase();
-}
-
-/** True for both flavors of "this object does not exist" the SDK can throw — see
- *  `archive/s3-storage.ts#isMissingObjectError`'s own header for why GET and HEAD name the "missing"
- *  case differently under the hood despite both being a plain 404. */
-function isMissingObjectError(err: unknown): boolean {
-  const name = (err as { name?: string } | undefined)?.name;
-  const statusCode = (err as { $metadata?: { httpStatusCode?: number } } | undefined)?.$metadata
-    ?.httpStatusCode;
-  return name === 'NoSuchKey' || name === 'NotFound' || statusCode === 404;
 }
 
 /** See `storage.ts#persistInboundFile` for the caller-facing contract. `assertValidContentHash` runs

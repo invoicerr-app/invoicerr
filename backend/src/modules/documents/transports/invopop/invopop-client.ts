@@ -46,6 +46,7 @@
  * full argument rather than re-deriving it here.
  */
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
   assertPublicOutboundUrl,
@@ -180,7 +181,7 @@ export class InvopopClient {
       return await assertPublicOutboundUrl(this.baseUrl, {
         allowedProtocols: ['http:', 'https:'],
         allowedPorts: null,
-        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+        allowPrivateForTesting: allowPrivateOutboundForTesting(),
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {

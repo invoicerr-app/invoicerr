@@ -36,7 +36,7 @@ const STATUS_LABEL_KEY: Record<string, string> = {
 }
 
 // Theme tokens only (index.css) — the same success/destructive/warning triad every other status
-// chip in the app already renders through (see document-settlement.tsx's own TONE_CLASSES header).
+// chip in the app already renders through (the `Badge` tone variants in components/ui/badge.tsx).
 const STATUS_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
   ACCEPTED: "success",
   SUBMITTED: "success",
