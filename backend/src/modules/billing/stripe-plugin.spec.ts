@@ -10,10 +10,12 @@ import {
   subscriptionSyncHooks,
 } from './stripe-plugin';
 import { recordFounderPreorderEvent } from './founder-preorder';
+import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
 import { syncStripeSubscription } from './stripe-subscription-sync';
 
 vi.mock('./stripe-subscription-sync', () => ({ syncStripeSubscription: vi.fn() }));
 vi.mock('./founder-preorder', () => ({ recordFounderPreorderEvent: vi.fn() }));
+vi.mock('./subscription-invoice', () => ({ recordPaidSubscriptionInvoiceEvent: vi.fn() }));
 
 const roles: Record<string, string> = {
   'owner:c1': 'OWNER',
@@ -199,6 +201,13 @@ describe('buildStripePlugin', () => {
     const event = { type: 'checkout.session.completed', created: 1, data: { object: {} } };
     await plugin?.options.onEvent?.(event as never);
     expect(recordFounderPreorderEvent).toHaveBeenCalledWith(event);
+  });
+
+  it('hands every webhook event to the paid invoice recorder', async () => {
+    const plugin = buildStripePlugin(deps, ENABLED);
+    const event = { type: 'invoice.paid', created: 1, data: { object: {} } };
+    await plugin?.options.onEvent?.(event as never);
+    expect(recordPaidSubscriptionInvoiceEvent).toHaveBeenCalledWith(event);
   });
 
   it('refuses to build with an unknown BILLING_VAT', () => {

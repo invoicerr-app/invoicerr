@@ -11,6 +11,7 @@ import {
   vatCustomerCreateParams,
 } from './billing-vat';
 import { recordFounderPreorderEvent } from './founder-preorder';
+import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
 import { stripeClientFor } from './stripe-client';
 import { assertStripeEnvConfiguredForBoot } from './stripe-env';
 import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
@@ -154,10 +155,12 @@ export function buildStripePlugin(
     },
     schema: { organization: { modelName: 'company' } },
     // Every webhook event. The plugin only handles subscription checkouts; a founder pre-order is a
-    // one-off payment, recorded here (`founder-preorder.ts`), and a draft invoice gets its VAT mention
-    // (`billing-vat.ts`). A throw makes Stripe retry the event.
+    // one-off payment, recorded here (`founder-preorder.ts`), a paid invoice is kept for its Invoicerr
+    // invoice (`subscription-invoice.ts`), and a draft invoice gets its VAT mention (`billing-vat.ts`).
+    // A throw makes Stripe retry the event.
     onEvent: async (event) => {
       await recordFounderPreorderEvent(event);
+      await recordPaidSubscriptionInvoiceEvent(event);
       await applyVatMentionToInvoiceEvent(event, vatMode, (invoiceId, footer) =>
         stripeClientFor(env).invoices.update(invoiceId, { footer }),
       );

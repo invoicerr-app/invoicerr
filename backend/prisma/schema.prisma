@@ -3733,6 +3733,38 @@ model FounderPreorder {
   @@map("founder_preorder")
 }
 
+/// A paid Stripe subscription invoice, and the Invoicerr invoice issued for it by the company named in
+/// `BILLING_INVOICE_ISSUER_COMPANY_ID` (`billing/subscription-invoice.ts`). Recorded by the Stripe
+/// webhook, issued by the billing sweep. No relation to `Company`: the record outlives a deleted
+/// subscriber, as the invoice it points at does.
+model SubscriptionInvoice {
+  id                String    @id @default(cuid())
+  stripeInvoiceId   String    @unique
+  stripeCustomerId  String
+  // The subscribing company, found from its Stripe customer when the payment was recorded.
+  companyId         String?
+  currency          String
+  // What Stripe collected, tax included, in the currency's minor unit: the payment recorded on the invoice.
+  amountPaid        Int
+  // The Stripe invoice lines the Invoicerr invoice is built from (`SubscriptionInvoiceLine[]`).
+  lines             Json
+  paidAt            DateTime
+  // Set once the client exists in the issuer company, so a retry never creates a second one.
+  issuerCompanyId   String?
+  clientId          String?
+  documentId        String?
+  issuedAt          DateTime?
+  // Set once the Stripe payment is recorded on the sent invoice: the row is then done.
+  paymentRecordedAt DateTime?
+  attempts          Int       @default(0)
+  lastError         String?
+  createdAt         DateTime  @default(now())
+
+  @@index([paymentRecordedAt])
+  @@index([companyId])
+  @@map("subscription_invoice")
+}
+
 /// A chained, signed summary of the payments recorded in one UTC period (`payment-ledger/closures.ts`).
 /// Append-only under the same trigger as `DocumentPayment`.
 model PaymentLedgerClosure {
