@@ -6,6 +6,7 @@ import { StatusMark } from "@/components/ui/status-mark"
 import { statusPresentation } from "./status-presentation"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toCalendarDate } from "@/lib/calendar-date"
 import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 
@@ -67,9 +68,9 @@ export function settlementBadgeInfo(
   return { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
 }
 
+/** Today as a bare "YYYY-MM-DD" calendar day in the user's own timezone (`lib/calendar-date.ts`). */
 export function localIsoDate(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  return toCalendarDate(new Date()) ?? ""
 }
 
 interface DocumentSettlementBadgeProps {

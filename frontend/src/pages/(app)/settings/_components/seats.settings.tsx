@@ -30,16 +30,11 @@ import { ApiError } from "@/hooks/use-api-query"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { authClient } from "@/lib/auth"
 
-import { OfficeRoom } from "./seats/office-svg"
+import { memberName, OfficeRoom } from "./seats/office-svg"
 import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
-}
-
-function memberName(member: SeatMemberView): string {
-  const name = `${member.firstname} ${member.lastname}`.trim()
-  return name || member.email
 }
 
 const ROLE_BADGE_VARIANT: Record<SeatMemberView["role"], "default" | "secondary" | "outline"> = {

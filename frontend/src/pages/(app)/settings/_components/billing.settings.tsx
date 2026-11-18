@@ -18,7 +18,7 @@ import {
   useSetBillingEmail,
   useStartCheckout,
 } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { authClient } from "@/lib/auth"
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
 
@@ -49,11 +49,6 @@ const BILLING_EMAIL_TAKEN_CODE = "BILLING_EMAIL_TAKEN"
  *  triggering it at all (`hasCompanyCustomer`/`legacyPortalAvailable` gate which buttons even render),
  *  this is only the click-time safety net for the narrow race where that fact changed a moment ago. */
 const BILLING_NO_COMPANY_CUSTOMER_CODE = "BILLING_NO_COMPANY_CUSTOMER"
-
-function apiErrorCode(error: unknown): string | undefined {
-  if (!(error instanceof ApiError)) return undefined
-  return (error.body as { code?: string } | undefined)?.code
-}
 
 /**
  * Settings > Subscription — only ever reached when `-[tab].tsx` decided to show the "billing" tab at

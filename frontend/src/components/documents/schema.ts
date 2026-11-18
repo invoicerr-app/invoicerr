@@ -87,7 +87,8 @@ function baseSchemaFor(field: DocumentFieldDescriptor): FieldSchema {
   }
 }
 
-function isPresentValue(value: unknown): boolean {
+/** A non-blank string, or any other non-null value. Also used by `field-renderers/primitive-fields.tsx`. */
+export function isPresentValue(value: unknown): boolean {
   return typeof value === "string" ? value.trim() !== "" : value != null
 }
 
