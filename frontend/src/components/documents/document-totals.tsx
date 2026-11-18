@@ -56,18 +56,6 @@ export function useDocumentOptionTotals(descriptor: DocumentTypeDescriptor) {
   )
 }
 
-/** The LIVE mirror of `useDocumentOptionTotals`, for the common (untagged) lines' own informational
- *  total - see `computeCommonLineTotals`'s own header. */
-export function useCommonLineTotals(descriptor: DocumentTypeDescriptor) {
-  const { t } = useTranslation()
-  const formValues = useWatch()
-  const { data: company } = useCompany()
-  return useMemo(
-    () => computeCommonLineTotals(descriptor, formValues, t, company?.exemptVat),
-    [formValues, descriptor, t, company?.exemptVat],
-  )
-}
-
 /**
  * The pure half of `useDocumentTotals`: the same net/VAT/gross for ANY `values` object shaped like
  * the document's data — the live form above, or a SAVED record's `instance.data` (the list's own
