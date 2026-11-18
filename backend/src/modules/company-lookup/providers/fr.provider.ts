@@ -7,7 +7,8 @@
  */
 import { calculateFrenchVAT, isValidSiret } from '@/modules/sirene/sirene.utils';
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const SEARCH_URL = 'https://recherche-entreprises.api.gouv.fr/search';
@@ -49,10 +50,10 @@ export class FranceProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://recherche-entreprises.api.gouv.fr/docs/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return true;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

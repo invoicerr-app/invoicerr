@@ -23,7 +23,7 @@ import { afterCompanyGone } from "@/lib/after-company-gone"
 import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "./settings-section"
-import InstanceResetSection from "./instance-reset.section"
+import InstanceResetSection, { isOtpLockedError } from "./instance-reset.section"
 import TransferCompanySection from "./transfer-company.section"
 
 /** A fixed keyword typed exactly, uppercase — the same "type to confirm" convention every host of a
@@ -47,15 +47,6 @@ interface CompanyDataResetPreflight {
     bankStatements: number
     archives: number
   }
-}
-
-/** The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
- *  expired, or already locked — the backend folds all three into the same message on purpose, so a
- *  caller here can never narrow down a guess). The ONE outcome the backend does surface distinctly is
- *  the permanent lockout on the REQUEST step itself (five failed confirmations, for good) — matched on
- *  the response text since that refusal carries no separate error code, only this one stable phrase. */
-function isOtpLockedError(error: unknown): boolean {
-  return error instanceof Error && /locked/i.test(error.message)
 }
 
 export default function DangerZoneSettings() {

@@ -5,13 +5,14 @@
  * is time-boxed, non-2xx is an error (except the 404 that means "not found"),
  * and nothing here ever throws an unhandled rejection into Nest.
  */
+import { INVOICERR_USER_AGENT } from '@/utils/user-agent';
 import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
 import { ProviderLookupError } from './types';
 
 export const DEFAULT_TIMEOUT_MS = 8000;
 
 /** Identifies us to registries that reject anonymous clients (cvrapi.dk, SEC…). */
-export const USER_AGENT = 'invoicerr/1.0 (+https://github.com/Impre-visible/invoicerr)';
+export const USER_AGENT = INVOICERR_USER_AGENT;
 
 export interface FetchJsonOptions {
   method?: 'GET' | 'POST';

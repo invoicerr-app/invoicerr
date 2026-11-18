@@ -38,18 +38,15 @@
  * lifecycle expects for a buyer's "prise en charge" is still not named by any source this codebase
  * could reach; see each constant's own note below.
  */
+import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { extractSuperPdpCredentials } from '../superpdp-transport';
 import { SuperPdpApiError, SuperPdpClient, SuperPdpStatusCreate } from './superpdp-client';
 
-export const PDP_RECEPTION_PROVIDER_ID = 'pdp';
+export const PDP_RECEPTION_PROVIDER_ID = PDP_PROVIDER_ID;
 
-/** Reçue — emitted BY THE PLATFORM ITSELF the instant an inbound deposit reaches this company's own
- *  account (proven live on the "in" twin's own `events[0]`, `superpdp-reception.live.spec.ts`) — this
- *  code is NEVER pushed by this codebase, only ever read (`superpdp-reception-poller.ts`). */
-export const PDP_RECEPTION_RECEIVED_CODE = 'fr:202';
 /** Prise en charge — pushed automatically the moment this codebase has successfully imported the
  *  deposit as a `received-invoice` (`reception-sweep-runner.ts`). `fr:204` is the closest status the
  *  create enum accepts ("Acknowledged"); `fr:203` ("Made available") is platform-emitted and refused
@@ -88,7 +85,9 @@ export interface SuperPdpReceptionStatusPusher {
   pushPaid(companyId: string, pdpInboundId: string): Promise<void>;
 }
 
-async function resolveClient(
+/** This company's connected SuperPDP client, or `null` when the channel is not connected. Also used by
+ *  `conformity/pollers/superpdp-reception-poller.ts`. */
+export async function resolveClient(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SuperPdpClient | null> {

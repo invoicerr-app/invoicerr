@@ -1,5 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
+import { effectiveAuthSecret } from '@/lib/auth-secret';
+
 /**
  * Hashing and signing of payment-ledger records. Each record's hash covers its own fields and the
  * previous record's hash, so changing or removing any sealed record breaks every hash after it.
@@ -106,7 +108,7 @@ export function sha256Hex(text: string): string {
 /** Same derivation as `lib/invitation-code.ts`: a purpose-specific key from the instance secret, so
  *  rotating that secret makes earlier signatures fail verification while the hash chain still holds. */
 function signingKey(): Buffer {
-  const secret = process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET || '';
+  const secret = effectiveAuthSecret() ?? '';
   return createHmac('sha256', secret).update(SIGNING_LABEL).digest();
 }
 

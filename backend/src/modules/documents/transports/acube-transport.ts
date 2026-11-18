@@ -91,6 +91,7 @@
  * `AcubeJurisdiction` plus `JURISDICTION_HOSTS` in the client, so reaching that access point later is
  * a host-table row and a format choice, never a second authentication design.
  */
+import { ACUBE_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -147,7 +148,7 @@ export interface AcubeTransportDeps {
   clientFactory?: (credentials: AcubeCredentials) => Pick<AcubeClient, 'sendInvoice' | 'getBaseUrl'>;
 }
 
-const PROVIDER_ID = 'acube';
+const PROVIDER_ID = ACUBE_PROVIDER_ID;
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes
  *  for the identical reason: this transport is reached ONLY through `invoiceTransportId`, so it is

@@ -8,10 +8,27 @@
  * `use-backend-health`.
  */
 
+type RuntimeConfigWindow = Window & { __APP_CONFIG__?: Record<string, string | undefined> }
+
+/** Fetches /config.json into `window.__APP_CONFIG__`; called once by `main.tsx` before the first render.
+ *  Never throws: a missing or unreadable file leaves an empty config, so every read falls back to
+ *  `import.meta.env`. */
+export async function loadRuntimeConfig(): Promise<void> {
+  try {
+    const res = await fetch("/config.json", { cache: "no-store" })
+    if (res.ok) {
+      ;(window as RuntimeConfigWindow).__APP_CONFIG__ = await res.json()
+      return
+    }
+  } catch (e) {
+    // ignore, fallback to empty config
+  }
+  ;(window as RuntimeConfigWindow).__APP_CONFIG__ = {}
+}
+
 /** Runtime value first, build-time `import.meta.env` second (which is what `npm run dev` relies on). */
 export function getEnvVariable(key: string): string | undefined {
-  const runtime = (window as unknown as { __APP_CONFIG__?: Record<string, string | undefined> })
-    .__APP_CONFIG__
+  const runtime = (window as RuntimeConfigWindow).__APP_CONFIG__
   return runtime?.[key] || (import.meta.env as unknown as Record<string, string | undefined>)[key]
 }
 

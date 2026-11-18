@@ -62,7 +62,7 @@ import { ensureDefaultExpenseCategoriesSeeded } from '@/modules/documents/expens
 import { withSeatReservation } from '@/modules/billing/seat-sync';
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
-import { companyMemberIds } from '@/modules/companies/company-member-ids';
+import { companyMemberIds } from '@/modules/company/company-member-ids';
 import { loadPaymentTerms } from '@/modules/company/payment-terms/load-payment-terms';
 import { NEW_COMPANY_TEMPLATE } from '@/modules/documents/rendering/branding/templates';
 import { appOrigin } from '@/utils/app-origin';

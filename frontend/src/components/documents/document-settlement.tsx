@@ -6,6 +6,7 @@ import { StatusMark } from "@/components/ui/status-mark"
 import { statusPresentation } from "./status-presentation"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toCalendarDate } from "@/lib/calendar-date"
 import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 
@@ -67,20 +68,9 @@ export function settlementBadgeInfo(
   return { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
 }
 
-// Exported so a different screen rendering the same tone/label pair (clients/_components/
-// client-statement.tsx's own per-row badge) never invents a second color
-// mapping for the exact same three states. Theme tokens (index.css), the same three
-// document-status-badge.tsx already uses — they switch with `.dark` on their own.
-export const TONE_CLASSES: Record<SettlementTone, string> = {
-  neutral: "bg-secondary text-secondary-foreground",
-  success: "bg-success text-success-foreground",
-  warning: "bg-warning text-warning-foreground",
-  destructive: "bg-destructive-soft text-destructive-soft-foreground",
-}
-
+/** Today as a bare "YYYY-MM-DD" calendar day in the user's own timezone (`lib/calendar-date.ts`). */
 export function localIsoDate(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  return toCalendarDate(new Date()) ?? ""
 }
 
 interface DocumentSettlementBadgeProps {

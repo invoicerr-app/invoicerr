@@ -29,7 +29,11 @@ import {
 } from '@/lib/sso-domain-verification';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
-import { OutboundUrlValidationError, assertPublicOutboundUrl } from '@/utils/outbound-url';
+import {
+  allowPrivateOutboundForTesting,
+  OutboundUrlValidationError,
+  assertPublicOutboundUrl,
+} from '@/utils/outbound-url';
 import { appOrigin } from '@/utils/app-origin';
 
 /**
@@ -160,7 +164,7 @@ async function assertEndpointsArePublic(endpoints: {
   tokenUrl?: string;
   userInfoUrl?: string;
 }): Promise<void> {
-  const allowPrivateForTesting = process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
+  const allowPrivateForTesting = allowPrivateOutboundForTesting();
   for (const [field, url] of Object.entries(endpoints)) {
     if (!url) continue;
     try {

@@ -183,4 +183,3 @@ export function buildClientSchema(
 }
 
 export type ClientSchema = ReturnType<typeof buildClientSchema>
-export type ClientSchemaValues = z.infer<ClientSchema>

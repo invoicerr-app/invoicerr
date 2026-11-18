@@ -3,9 +3,9 @@
  * Docs: https://api.business.govt.nz/api-details#api=nzbn-v5 (NZBN_API_KEY).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const NZBN_URL = 'https://api.business.govt.nz/gateway/nzbn/v5/entities';
 
@@ -17,10 +17,10 @@ export class NewZealandNzbnProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://api.business.govt.nz/api-details#api=nzbn-v5';
   readonly credentialEnvVars = ['NZBN_API_KEY'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.NZBN_API_KEY;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

@@ -20,6 +20,12 @@ export class ApiError extends Error {
   }
 }
 
+/** The machine-readable `code` a coded backend refusal carries in its JSON body, if any. */
+export function apiErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.body as { code?: string } | undefined)?.code
+}
+
 /** Exported so a hook that needs to fan out to SEVERAL queries at once (e.g. a multi-target
  *  'reference' field searching across every entity it allows — see useMultiEntityReferenceSearch)
  *  can build each one with `useQueries` instead of duplicating this fetch/error-shape logic. */

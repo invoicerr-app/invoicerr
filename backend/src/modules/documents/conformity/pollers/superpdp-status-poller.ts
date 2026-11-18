@@ -13,6 +13,7 @@
  * live" stayed green while every real deposit was silently PENDING forever. The lifecycle lives in
  * `events[]`, and ONLY there. This poller reads `events[]` and nothing else.
  */
+import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
@@ -26,7 +27,7 @@ import {
   RawAuthorityEvent,
 } from '../authority-status-poller';
 
-export const PDP_PROVIDER_ID = 'pdp';
+export { PDP_PROVIDER_ID };
 
 /** fr:202 ("Reçue par la plateforme" — the platform's own final ACCEPTANCE) and fr:213 ("Rejetée") —
  *  the only two codes the live proof ever observed ending a deposit's lifecycle. Every

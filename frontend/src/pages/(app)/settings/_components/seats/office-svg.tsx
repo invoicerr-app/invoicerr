@@ -108,7 +108,8 @@ const COL_GAP = 64
 const ROW_GAP = 64
 const MARGIN = 36
 
-function memberName(member: SeatMemberView): string {
+/** A seat member's display name, falling back to the email. Also used by `seats.settings.tsx`. */
+export function memberName(member: SeatMemberView): string {
   const name = `${member.firstname} ${member.lastname}`.trim()
   return name || member.email
 }

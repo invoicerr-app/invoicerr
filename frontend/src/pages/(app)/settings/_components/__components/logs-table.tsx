@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { Log, LogLevel } from "../logs.settings"
+import { type Log, levelBadgeProps } from "./log-level"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -13,26 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 type LogsTableProps = {
   logs: Log[]
   onSelectLog: (log: Log) => void
-}
-
-/** The chip a log LEVEL renders as — see `logs-filters.tsx`'s own copy of this mapping for why it is
- *  duplicated per-file rather than shared. */
-function levelBadgeProps(level: LogLevel): {
-  variant?: "secondary" | "warning" | "info" | "destructive"
-  className?: string
-} {
-  switch (level) {
-    case "DEBUG":
-      return { variant: "secondary" }
-    case "INFO":
-      return { variant: "info" }
-    case "WARN":
-      return { variant: "warning" }
-    case "ERROR":
-      return { className: "border-transparent bg-destructive-soft text-destructive-soft-foreground" }
-    case "FATAL":
-      return { variant: "destructive" }
-  }
 }
 
 const ITEMS_PER_PAGE = 50

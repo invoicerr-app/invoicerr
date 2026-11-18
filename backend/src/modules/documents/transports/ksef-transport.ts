@@ -27,6 +27,7 @@
  * never a success: a reference nobody can look up is not a reference at all (the exact same
  * hard-success contract `superpdp-transport.ts` already enforces for its own deposit id).
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -79,7 +80,7 @@ export interface KsefTransportDeps {
   fa3FormatProvider: DocumentFormatProvider;
 }
 
-const PROVIDER_ID = 'ksef';
+const PROVIDER_ID = KSEF_PROVIDER_ID;
 
 /** Same "module-level constant, reached only through invoiceTransportId" choice `superpdp-transport.ts`
  *  makes for the identical reason — see that file's own header. */

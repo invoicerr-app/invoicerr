@@ -42,6 +42,7 @@
  *    (`conformity/pollers/`), which is separate work and is deliberately not guessed at here - the
  *    same named remainder `superpdp-transport.ts`'s own header records for superpdp.
  */
+import { INVOPOP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -95,7 +96,7 @@ export const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   },
 ];
 
-const PROVIDER_ID = 'invopop';
+const PROVIDER_ID = INVOPOP_PROVIDER_ID;
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes,
  *  for the identical reason: this transport is reached ONLY through `invoiceTransportId`, so it is

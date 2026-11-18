@@ -6,9 +6,9 @@
  * company number, so no separate VAT lookup is needed.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const CKAN_URL = 'https://data.gov.il/api/3/action/datastore_search';
 const COMPANIES_RESOURCE = 'f004176c-b85f-4542-8901-7b3176f9a054';
@@ -42,10 +42,10 @@ export class IsraelRegistrarProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://data.gov.il/dataset/ica_companies';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

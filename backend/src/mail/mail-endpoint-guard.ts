@@ -26,6 +26,7 @@
  */
 import { logger } from '@/logger/logger.service';
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
   assertPublicOutboundHost,
@@ -125,7 +126,7 @@ export async function assertTenantSmtpEndpoint(
 ): Promise<ResolvedOutboundUrl | null> {
   try {
     return await assertPublicOutboundHost(host, port, {
-      allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+      allowPrivateForTesting: allowPrivateOutboundForTesting(),
     });
   } catch (error) {
     if (error instanceof OutboundUrlValidationError) {

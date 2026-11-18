@@ -46,7 +46,9 @@
  * could still answer with a 30x pointing the SAME request at an internal one, which an auto-followed
  * redirect would silently complete.
  */
+import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
 import {
+  allowPrivateOutboundForTesting,
   OutboundUrlValidationError,
   ResolvedOutboundUrl,
   assertPublicOutboundUrl,
@@ -322,7 +324,7 @@ export class SuperPdpClient {
         // https-only/port-443 policy `sso.service.ts` applies to a company's OIDC endpoints.
         allowedProtocols: ['http:', 'https:'],
         allowedPorts: null,
-        allowPrivateForTesting: process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1',
+        allowPrivateForTesting: allowPrivateOutboundForTesting(),
       });
     } catch (err) {
       if (err instanceof OutboundUrlValidationError) {
@@ -426,7 +428,7 @@ export class SuperPdpClient {
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
-        await sleep(Math.min(500 * 2 ** (attempt - 1), 5_000));
+        await sleep(backoffDelayMs(attempt));
       }
 
       // Resolved (and pinned) SEPARATELY from whatever `authenticate()` does internally: that call may
@@ -835,10 +837,6 @@ function guessMime(content: Buffer | Uint8Array): string {
     return 'application/xml';
   }
   return 'application/xml';
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function toUint8Array(data: Buffer | Uint8Array): Uint8Array<ArrayBuffer> {

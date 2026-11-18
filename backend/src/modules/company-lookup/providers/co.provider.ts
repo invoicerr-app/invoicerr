@@ -4,7 +4,8 @@
  * and status, but no address, which stays manual.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const RUES_URL = 'https://www.datos.gov.co/resource/c82u-588k.json';
@@ -30,10 +31,10 @@ export class ColombiaRuesProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.datos.gov.co/d/c82u-588k';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

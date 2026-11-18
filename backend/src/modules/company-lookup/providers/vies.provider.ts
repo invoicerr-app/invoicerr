@@ -9,7 +9,8 @@
  */
 import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
 import { defaultLookupCoverage } from '../coverage/registry';
-import { fetchJson, stripVatPrefix } from '../http';
+import { DEFAULT_TIMEOUT_MS, fetchJson, stripVatPrefix } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -78,10 +79,10 @@ export class ViesProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://ec.europa.eu/taxation_customs/vies/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return true;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

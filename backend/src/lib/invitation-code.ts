@@ -33,6 +33,8 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { effectiveAuthSecret } from './auth-secret';
+
 /** Domain separation label — change the suffix, not the prefix, if the scheme is ever versioned. */
 const HASH_KEY_LABEL = 'invoicerr/invitation-code/v1';
 
@@ -40,7 +42,7 @@ const HASH_KEY_LABEL = 'invoicerr/invitation-code/v1';
 export const INVITATION_CODE_PREFIX_LENGTH = 8;
 
 function hashingKey(): Buffer {
-  const masterSecret = process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET || '';
+  const masterSecret = effectiveAuthSecret() ?? '';
   return createHmac('sha256', masterSecret).update(HASH_KEY_LABEL).digest();
 }
 

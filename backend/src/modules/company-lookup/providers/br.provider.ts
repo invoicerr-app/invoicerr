@@ -3,9 +3,9 @@
  * Docs: https://brasilapi.com.br/docs#tag/CNPJ (no credentials).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const BRASILAPI_CNPJ = 'https://brasilapi.com.br/api/cnpj/v1';
 
@@ -37,10 +37,10 @@ export class BrazilCnpjProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://brasilapi.com.br/docs#tag/CNPJ';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

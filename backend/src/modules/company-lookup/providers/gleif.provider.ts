@@ -6,7 +6,8 @@
  * the entity has in its own national register. PARTIAL by nature, since only entities that obtained
  * an LEI are indexed, so a miss here is not evidence the company does not exist.
  */
-import { alnum, digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, alnum, digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -32,10 +33,10 @@ export class GleifProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.gleif.org/en/lei-data/gleif-api';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {
