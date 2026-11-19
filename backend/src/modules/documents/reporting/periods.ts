@@ -18,7 +18,7 @@ const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 function parseDateOnly(value: string): Date {
   const match = DATE_ONLY.exec(value);
   const date = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))) : null;
-  if (!date || date.toISOString().slice(0, 10) !== value) {
+  if (date?.toISOString().slice(0, 10) !== value) {
     throw new InvalidTriggerDateError(`"${value}" is not a calendar date in the YYYY-MM-DD form.`);
   }
   return date;

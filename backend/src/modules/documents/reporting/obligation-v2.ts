@@ -366,7 +366,9 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 function assertValidDeadline(deadline: unknown, where: string): void {
-  const keys = Object.keys((deadline as Record<string, unknown> | null | undefined) ?? {}).sort();
+  const keys = Object.keys((deadline as Record<string, unknown> | null | undefined) ?? {}).sort((a, b) =>
+    a.localeCompare(b),
+  );
   const value = deadline as Record<string, unknown>;
   if (keys.length === 1 && keys[0] === 'daysAfterTrigger') {
     if (!isNonNegativeInteger(value.daysAfterTrigger)) {
