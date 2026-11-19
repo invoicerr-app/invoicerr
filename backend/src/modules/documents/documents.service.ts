@@ -360,6 +360,28 @@ export function buildOriginalContentDisposition(filename: string): string {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
+/** "invoice"/"cancel": the one action gated by `correction-routes/cancel-policy.ts` instead of the
+ *  ordinary country-policy table (see `resolveActionPolicy`'s own header). */
+function isInvoiceCancel(typeId: string, actionId: string): boolean {
+  return typeId === 'invoice' && actionId === 'cancel';
+}
+
+/** The country policy's OWN per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`): a
+ *  409 when the decision restricts the action to statuses that do not include `status`. */
+function assertPolicyAllowsStatus(
+  decision: CountryPolicyDecision | undefined,
+  typeId: string,
+  actionId: string,
+  status: string,
+): void {
+  if (decision?.restrictedToStatuses && !decision.restrictedToStatuses.includes(status)) {
+    throw new ConflictException(
+      `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
+        `policy to status(es) ${decision.restrictedToStatuses.join(', ')}, not "${status}".`,
+    );
+  }
+}
+
 @Injectable()
 export class DocumentsService implements OnModuleInit {
   constructor(
@@ -836,7 +858,7 @@ export class DocumentsService implements OnModuleInit {
     typeId: string,
     actionId: string,
   ): Promise<CountryPolicyDecision> {
-    if (typeId === 'invoice' && actionId === 'cancel') {
+    if (isInvoiceCancel(typeId, actionId)) {
       const countryCode = await resolveCompanyCountryCode(companyId);
       return resolveCancelPolicyForCountry(countryCode);
     }
@@ -846,6 +868,35 @@ export class DocumentsService implements OnModuleInit {
       return this.appendCorrectiveInvoiceGuidance(typeId, decision, countryCode);
     }
     return decision;
+  }
+
+  /**
+   * Steps 1-3 of the field view `describeTypeForCompany` documents below: the country field overlay
+   * and VAT rate catalog, then this company's own expense categories, then its own custom fields.
+   * `runAction` validates against exactly this, so "what the form offers" and "what gets checked"
+   * never drift apart. Deliberately stops BEFORE step 4 (`applyB2gDocumentFieldHints`), which only
+   * `describeTypeForCompany` layers on (see `runAction`'s own comment on that gap).
+   */
+  private async companyFields(
+    companyId: string,
+    typeId: string,
+    descriptor: DocumentTypeDescriptor,
+    countryCode: string | undefined,
+  ): Promise<DocumentFieldDescriptor[]> {
+    const companyViewFields = applyCompanyFieldView({
+      typeId,
+      fields: descriptor.fields,
+      countryCode,
+      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
+      vatRateCatalog: this.vatRateCatalog,
+    });
+    // Enriched expense categories - this company's own expense categories, patched onto the "category"
+    // field's `options` (a no-op for every type other than "expense" - see that module's own header).
+    // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
+    // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
+    // `custom:`-prefixed one - see company-custom-fields/persistence.ts#toFieldDescriptor).
+    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, companyViewFields);
+    return applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
   }
 
   /**
@@ -911,7 +962,7 @@ export class DocumentsService implements OnModuleInit {
     // costs nothing extra to keep out of the Promise.all below and evaluate separately, reusing the
     // SAME `countryCode` this method already resolves rather than `resolveActionPolicy`'s own
     // redundant extra company lookup for that one action.
-    const isCancel = (actionId: string) => typeId === 'invoice' && actionId === 'cancel';
+    const isCancel = (actionId: string) => isInvoiceCancel(typeId, actionId);
     const batchedActionIds = descriptor.actions.map((a) => a.id).filter((id) => !isCancel(id));
 
     const [batchedDecisions, countryCode] = await Promise.all([
@@ -926,20 +977,7 @@ export class DocumentsService implements OnModuleInit {
       isCancel(action.id) ? cancelDecision! : decisionByActionId.get(action.id)!,
     );
 
-    const companyViewFields = applyCompanyFieldView({
-      typeId,
-      fields: descriptor.fields,
-      countryCode,
-      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
-      vatRateCatalog: this.vatRateCatalog,
-    });
-    // Enriched expense categories — this company's own expense categories, patched onto the "category"
-    // field's `options` (a no-op for every type other than "expense" — see that module's own header).
-    // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
-    // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
-    // `custom:`-prefixed one — see company-custom-fields/persistence.ts#toFieldDescriptor).
-    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, companyViewFields);
-    const fieldsWithCustom = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+    const fieldsWithCustom = await this.companyFields(companyId, typeId, descriptor, countryCode);
     const fields = await this.applyB2gDocumentFieldHints(fieldsWithCustom, companyId, clientId);
 
     return {
@@ -1481,16 +1519,8 @@ export class DocumentsService implements OnModuleInit {
     // the record's eventual status is entirely up to the type's own lifecycle (`transitions`), which
     // this restriction narrows only once a status actually exists to narrow. The descriptor's own
     // `availableWhen: 'always'` already treats a never-saved record as satisfied the exact same way.
-    if (
-      !isAdmittedReplay &&
-      currentStatus !== undefined &&
-      policyDecision?.restrictedToStatuses &&
-      !policyDecision.restrictedToStatuses.includes(currentStatus)
-    ) {
-      throw new ConflictException(
-        `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
-          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${currentStatus}".`,
-      );
+    if (!isAdmittedReplay && currentStatus !== undefined) {
+      assertPolicyAllowsStatus(policyDecision, typeId, actionId, currentStatus);
     }
 
     // Reviewer finding #2 on the #468 lock: a "send" retry of a LOCKED record (today, an invoice or
@@ -1574,17 +1604,7 @@ export class DocumentsService implements OnModuleInit {
     // (describeTypeForCompany) but never independently enforced here, same as before this feature
     // existed.
     const countryCode = await resolveCompanyCountryCode(companyId);
-    const countryViewFields = applyCompanyFieldView({
-      typeId,
-      fields: descriptor.fields,
-      countryCode,
-      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
-      vatRateCatalog: this.vatRateCatalog,
-    });
-    // Same composition as describeTypeForCompany's own — see that method's own comment right above its
-    // identical call: a no-op for every type other than "expense".
-    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, countryViewFields);
-    const fields = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+    const fields = await this.companyFields(companyId, typeId, descriptor, countryCode);
 
     // Strips every caller-controlled `__`-prefixed sidecar key (descriptors/validate.ts's own header)
     // from the RAW body BEFORE it is validated or handed to ANY handler — "save-draft" included, not
@@ -2233,15 +2253,7 @@ export class DocumentsService implements OnModuleInit {
           'actually starts.',
       );
     }
-    if (
-      policyDecision.restrictedToStatuses &&
-      !policyDecision.restrictedToStatuses.includes(instance.status)
-    ) {
-      throw new ConflictException(
-        `Action "download-xml" of document type "${typeId}" is restricted by this company's country ` +
-          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
-      );
-    }
+    assertPolicyAllowsStatus(policyDecision, typeId, 'download-xml', instance.status);
     // Issue #472 - a status the action is available from does not guarantee a number: a credit note
     // issued before issue #471 gave the type a numbering sits in "sent" with none, and must never be
     // numbered after the fact (`credit-note.descriptor.ts`, "Numbering"). No number, no file - never a
