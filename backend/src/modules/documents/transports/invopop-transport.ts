@@ -50,6 +50,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
 
@@ -139,8 +140,12 @@ async function requireConnectedInvopop(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<InvopopCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractInvopopCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractInvopopCredentials,
+  );
   if (!credentials) {
     logger.warn('Invopop transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

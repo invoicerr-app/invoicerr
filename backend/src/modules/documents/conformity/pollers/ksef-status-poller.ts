@@ -57,15 +57,13 @@
 import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { createHash } from 'node:crypto';
 
-import {
-  ChannelCredentialsService,
-  ResolvedChannelConfig,
-} from '@/modules/company/channels/channels.service';
+import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { authenticate, extractKsefCredentials, KsefCredentials } from '../../transports/ksef-transport';
 import { FetchKsefHttpClient } from '../../transports/ksef/fetch-http-client';
 import { InvoiceStatusResponse, KsefClient } from '../../transports/ksef/ksef-client';
 import { loadVendorizedKeys } from '../../transports/ksef/ksef-public-keys';
+import { resolveChannelCredentials } from '../../transports/resolve-channel-credentials';
 import {
   AuthorityStatusPoller,
   ChannelNotConnectedError,
@@ -181,11 +179,12 @@ async function resolveKsefCredentials(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<KsefCredentials> {
-  const resolved: ResolvedChannelConfig | null = await channelCredentials.resolveActive(
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
     companyId,
     KSEF_PROVIDER_ID,
+    extractKsefCredentials,
   );
-  const credentials = resolved && extractKsefCredentials(resolved);
   if (!credentials) throw new ChannelNotConnectedError(KSEF_PROVIDER_ID);
   return credentials;
 }

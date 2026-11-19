@@ -41,6 +41,7 @@
 import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { logger } from '@/logger/logger.service';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from '../resolve-channel-credentials';
 
 import { extractSuperPdpCredentials } from '../superpdp-transport';
 import { SuperPdpApiError, SuperPdpClient, SuperPdpStatusCreate } from './superpdp-client';
@@ -91,8 +92,12 @@ export async function resolveClient(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SuperPdpClient | null> {
-  const resolved = await channelCredentials.resolveActive(companyId, PDP_RECEPTION_PROVIDER_ID);
-  const credentials = resolved && extractSuperPdpCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PDP_RECEPTION_PROVIDER_ID,
+    extractSuperPdpCredentials,
+  );
   if (!credentials) return null;
   return new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
 }

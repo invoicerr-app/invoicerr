@@ -35,6 +35,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
@@ -114,8 +115,12 @@ async function requireConnectedKsef(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<KsefCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractKsefCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractKsefCredentials,
+  );
   if (!credentials) {
     logger.warn('KSeF transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

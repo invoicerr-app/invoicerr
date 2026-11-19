@@ -53,6 +53,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -208,8 +209,12 @@ async function requireConnectedSdiPec(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SdiPecCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, SDI_PEC_PROVIDER_ID);
-  const credentials = resolved && extractSdiPecCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    SDI_PEC_PROVIDER_ID,
+    extractSdiPecCredentials,
+  );
   if (!credentials) {
     logger.warn('SdI-via-PEC transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
