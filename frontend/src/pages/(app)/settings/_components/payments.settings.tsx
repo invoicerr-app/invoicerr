@@ -16,19 +16,9 @@ import { useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { copyToClipboard } from "@/lib/clipboard"
 import type { Company } from "@/types"
+import type { ChannelEnvironment, ChannelsResponse } from "@/types/channels"
 
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
-
-type ChannelEnvironment = "TEST" | "PROD"
-
-interface ConfiguredChannel {
-  providerId: string
-  environment: ChannelEnvironment
-  isActive: boolean
-}
-interface ChannelsResponse {
-  configured: ConfiguredChannel[]
-}
 
 interface PaymentProviderField {
   key: string

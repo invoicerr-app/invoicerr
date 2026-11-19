@@ -1,3 +1,4 @@
+import type { DueDateTerm } from "@/lib/due-date"
 import type { PartyIdentifier } from "./client"
 
 export type CompanyRole = "OWNER" | "ADMIN" | "MEMBER"
@@ -125,10 +126,10 @@ export interface CompanyProfileAttribute {
 /** `GET /api/company/payment-terms`. Mirrors the backend's
  *  `payment-terms/resolve-payment-terms.ts#ResolvedPaymentTerms`. */
 export interface ResolvedPaymentTerms {
-  quote: { days: number; mode: "net" | "endOfMonth" } | null
-  invoice: { days: number; mode: "net" | "endOfMonth" } | null
+  quote: DueDateTerm | null
+  invoice: DueDateTerm | null
   cap: { maxNetDays: number; maxEndOfMonthDays: number } | null
-  countryInvoiceFallback: { days: number; mode: "net" | "endOfMonth" } | null
+  countryInvoiceFallback: DueDateTerm | null
   exceedsCap: { quote: boolean; invoice: boolean }
 }
 

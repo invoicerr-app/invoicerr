@@ -26,7 +26,8 @@ const KSEF_CODE = /^pl:(\d+)$/
  *  REPORT to a tax authority has a problem. Still shown on the document LIST (same as a real
  *  rejection — see `DocumentConformityListIndicator` in the section) because it is exactly the kind
  *  of thing a company needs to notice and act on, same "never silent" principle as a rejection. */
-const DECLARATION_ISSUE_CODES = new Set(["report:blocked", "report:failed"])
+export const DECLARATION_ISSUE_CODES = { blocked: "report:blocked", failed: "report:failed" } as const
+const DECLARATION_ISSUE_CODE_SET = new Set<string>(Object.values(DECLARATION_ISSUE_CODES))
 
 function isAccepted(code: string): boolean {
   if (ACCEPTED_CODES.has(code)) return true
@@ -41,7 +42,7 @@ function isRejected(code: string): boolean {
 }
 
 function isDeclarationIssue(code: string): boolean {
-  return DECLARATION_ISSUE_CODES.has(code)
+  return DECLARATION_ISSUE_CODE_SET.has(code)
 }
 
 /**

@@ -2,6 +2,7 @@ import { Gavel, SearchX } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
+import { DECLARATION_ISSUE_CODES } from "@/components/documents/conformity-verdict"
 import BetterPagination from "@/components/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,8 +32,8 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   ACCEPTED: "declarations.status.accepted",
   SUBMITTED: "declarations.status.submitted",
   REJECTED: "declarations.status.rejected",
-  "report:blocked": "declarations.status.blocked",
-  "report:failed": "declarations.status.failed",
+  [DECLARATION_ISSUE_CODES.blocked]: "declarations.status.blocked",
+  [DECLARATION_ISSUE_CODES.failed]: "declarations.status.failed",
 }
 
 // Theme tokens only (index.css) — the same success/destructive/warning triad every other status
@@ -41,8 +42,8 @@ const STATUS_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
   ACCEPTED: "success",
   SUBMITTED: "success",
   REJECTED: "destructive",
-  "report:blocked": "warning",
-  "report:failed": "warning",
+  [DECLARATION_ISSUE_CODES.blocked]: "warning",
+  [DECLARATION_ISSUE_CODES.failed]: "warning",
 }
 
 const ALL_STATUSES_VALUE = "all"

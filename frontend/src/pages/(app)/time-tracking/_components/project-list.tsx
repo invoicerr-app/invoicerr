@@ -6,9 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ListSkeleton, PanelSection } from "../../_shared/data-list"
 import { EmptyState } from "@/components/ui/empty-state"
-import { currencies } from "@/lib/constants/currencies"
 import { cn } from "@/lib/utils"
-import { useCompany, useUpdateProject } from "@/hooks/queries"
+import { useCompanyCurrencySymbol, useUpdateProject } from "@/hooks/queries"
 import type { Project } from "@/types"
 
 import { ProjectUpsert } from "./project-upsert"
@@ -22,8 +21,7 @@ interface ProjectListProps {
 
 export function ProjectList({ projects, loading, selectedProjectId, onSelect }: ProjectListProps) {
   const { t } = useTranslation()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
+  const currencySymbol = useCompanyCurrencySymbol("")
   const { mutateAsync: updateProject } = useUpdateProject()
 
   const [createOpen, setCreateOpen] = useState(false)

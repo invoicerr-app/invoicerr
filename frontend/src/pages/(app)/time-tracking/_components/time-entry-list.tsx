@@ -10,10 +10,10 @@ import { ListSkeleton, PanelSection } from "../../_shared/data-list"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useCompany, useDeleteTimeEntry, useTimeEntries } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import { useCompanyCurrencySymbol, useDeleteTimeEntry, useTimeEntries } from "@/hooks/queries"
 import type { GenerateInvoiceFromTimeEntriesResult, Project, TimeEntry } from "@/types"
 
+import { entryAmount } from "./entry-amount"
 import { GenerateInvoiceDialog } from "./generate-invoice-dialog"
 import { TimeEntryUpsert } from "./time-entry-upsert"
 
@@ -21,15 +21,10 @@ interface TimeEntryListProps {
   project: Project
 }
 
-function amountFor(entry: TimeEntry): number {
-  return (entry.durationMinutes / 60) * (entry.effectiveHourlyRate ?? 0)
-}
-
 export function TimeEntryList({ project }: TimeEntryListProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
+  const currencySymbol = useCompanyCurrencySymbol("")
 
   const { data: entries = [], isLoading } = useTimeEntries({ projectId: project.id })
   const { mutateAsync: deleteEntry } = useDeleteTimeEntry()
@@ -159,7 +154,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                       {(entry.durationMinutes / 60).toFixed(2)}
                     </TableCell>
                     <TableCell dir="ltr" className="amount text-right">
-                      {amountFor(entry).toFixed(2)}
+                      {entryAmount(entry).toFixed(2)}
                       {currencySymbol}
                     </TableCell>
                     <TableCell>

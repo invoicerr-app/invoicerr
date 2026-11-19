@@ -254,3 +254,4 @@ export {
   type DocumentImportCsvConfirmResult,
   type DocumentImportCsvVariables,
 } from "./use-document-import"
+export { useCompanyCurrencySymbol } from "./use-company"

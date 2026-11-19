@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import {
-  type ChannelProvenance,
   ChannelBannerSource,
   countryName,
   formatMandateDate,
@@ -29,6 +28,12 @@ import {
 import { apiFetch } from "@/hooks/use-api-query"
 import { useGet } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
+import type {
+  ChannelPolicyBanner,
+  ChannelsResponse,
+  ConfiguredChannel,
+  LegalChannelStatus,
+} from "@/types/channels"
 import { ChannelConnectSheet } from "./channels.connect-sheet"
 import {
   type DeclarationMoment,
@@ -45,74 +50,11 @@ import {
   SettingsSection,
 } from "./settings-section"
 
-type ChannelEnvironment = "TEST" | "PROD"
-type ChannelRequirement = "suggested" | "mandated"
-
-interface ConfiguredChannel {
-  providerId: string
-  channel: string
-  environment: ChannelEnvironment
-  isActive: boolean
-  operatorId?: string | null
-  /** Issue #527 - this ACTIVE row would be refused by the send preflight for a domestic operation,
-   *  right now - see `channels.service.ts#ChannelConfigStatus.blockedBySend`'s own backend header. */
-  blockedBySend?: boolean
-}
-
-interface SuggestedChannel {
-  providerId: string
-  requirement?: ChannelRequirement
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  equivalentProviderIds?: string[]
-  provenance: ChannelProvenance
-}
-
-/** Mirrors the backend's `LegalChannelStatus` (`channels.service.ts`) - see that interface's own
- *  header for what each field means and how it is computed. This is the settings screen's LEVEL-1
- *  nav, design C ("legal channel, then operator"). */
-interface LegalChannelStatus {
-  id: string
-  requirement?: ChannelRequirement
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  equivalentProviderIds?: string[]
-  provenance?: ChannelProvenance
-  automatic: boolean
-  lawful: boolean
-  mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[]
-  /** Owner review of #527 - every OTHER country whose own B2G routing runs THROUGH this channel
-   *  automatically (e.g. "chorus-pro" names FR here, for every non-French company). Combined with
-   *  `mandatedElsewhere` above by `channelHasHomeElsewhere` below to tell "this is specifically
-   *  another country's own channel" (show "outside your invoicing country") apart from "this is a
-   *  homeless, genuinely cross-border network" (Peppol - show "not accepted for your domestic
-   *  invoices" instead). Mirrors the backend's `LegalChannelStatus.automaticElsewhere`. */
-  automaticElsewhere: string[]
-}
-
 /** Owner review of #527 - "this legal channel belongs to a specific country" (theirs, shown to you)
  *  versus "this is a network with no home anywhere, just not usable for YOUR domestic invoices" -
  *  see `LegalChannelStatus.automaticElsewhere`'s own header for why both signals are needed. */
 function channelHasHomeElsewhere(channel: LegalChannelStatus): boolean {
   return channel.mandatedElsewhere.length > 0 || channel.automaticElsewhere.length > 0
-}
-
-/** Mirrors the backend's `ChannelPolicyBanner` - design A's obligation banner, folded onto design C. */
-interface ChannelPolicyBanner {
-  countryCode?: string
-  tone: "mandated" | "suggested" | "none"
-  legalChannelId?: string
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  provenance?: ChannelProvenance
-}
-
-interface ChannelsResponse {
-  configured: ConfiguredChannel[]
-  suggested: SuggestedChannel[]
-  reportingObligations: ReportingObligation[]
-  legalChannels: LegalChannelStatus[]
-  banner: ChannelPolicyBanner
 }
 
 const DECLARATION_LABEL_DEFAULTS: Record<string, string> = {

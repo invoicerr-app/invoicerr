@@ -15,8 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useClientSearch, useCompany, useCreateProject, useUpdateProject } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import {
+  useClientSearch,
+  useCompanyCurrencySymbol,
+  useCreateProject,
+  useUpdateProject,
+} from "@/hooks/queries"
 import { typeErrors } from "@/lib/zod-messages"
 import type { Project } from "@/types"
 
@@ -48,8 +52,7 @@ export function ProjectUpsert({ project, defaultClientId, open, onOpenChange }: 
   const { t } = useTranslation()
   const projectSchema = useMemo(() => buildProjectSchema(t), [t])
   const isEdit = !!project
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const [clientSearch, setClientSearch] = useState("")
   const { data: clients = [] } = useClientSearch(clientSearch)

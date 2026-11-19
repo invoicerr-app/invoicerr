@@ -14,6 +14,7 @@ import {
   useCompanies,
   useReceivedInvoiceReconciliation,
 } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
@@ -81,7 +82,7 @@ export function DocumentReconciliationSection({ documentId }: DocumentReconcilia
   const acceptVariance = useAcceptVariance()
   const [reason, setReason] = useState("")
 
-  const canAccept = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canAccept = isCompanyAdmin(activeRole)
 
   const handleAccept = async () => {
     try {
