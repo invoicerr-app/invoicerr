@@ -29,6 +29,7 @@ import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanyChannelConfig } from '../../../../prisma/generated/prisma/client';
 import { byCodeUnit } from '@/lib/compare';
+import { toChannelEnvironment } from '../channel-environment';
 
 /** What a transport gets back once credentials are resolved: `config` is already decrypted, and this
  *  shape never leaves the server. */
@@ -146,12 +147,6 @@ export interface UpsertChannelConfigBody {
   environment?: string;
   config: Record<string, unknown>;
   isActive?: boolean;
-}
-
-/** Coerce an untrusted string to ChannelEnvironment, defaulting to TEST. */
-function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
-  if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
-  return ChannelEnvironment.TEST;
 }
 
 /** 256 random bits, hex-encoded. Kept in the clear because it is a scoping label, not a secret, and the

@@ -23,16 +23,11 @@ import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { Injectable } from '@nestjs/common';
 
+import { isMissingObjectError } from '@/lib/s3-client';
+
 import { createBackupEncryptStream } from './backup-crypto';
 import { backupS3Bucket, backupS3Prefix } from './backup.constants';
 import { buildS3ClientFromEnv } from './s3-client';
-
-function isMissingObjectError(err: unknown): boolean {
-  const name = (err as { name?: string } | undefined)?.name;
-  const statusCode = (err as { $metadata?: { httpStatusCode?: number } } | undefined)?.$metadata
-    ?.httpStatusCode;
-  return name === 'NoSuchKey' || name === 'NotFound' || statusCode === 404;
-}
 
 function requireBucket(): string {
   const bucket = backupS3Bucket();

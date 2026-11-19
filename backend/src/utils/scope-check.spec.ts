@@ -27,6 +27,14 @@ describe('hasScope', () => {
   });
 });
 
+describe('hasAnyScope', () => {
+  it('is true whenever at least one candidate is granted', () => {
+    expect(hasAnyScope({ scopes: ['invoices:read'] }, ['quotes:read', 'invoices:read'])).toBe(true);
+    expect(hasAnyScope({ scopes: ['clients:read'] }, ['quotes:read', 'invoices:read'])).toBe(false);
+    expect(hasAnyScope({ scopes: [] }, ['quotes:read'])).toBe(false);
+  });
+});
+
 /**
  * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES` are a POSITIVE allow-list of document-type
  * resources, so a new pair added to the registry and classified nowhere joins them only if someone

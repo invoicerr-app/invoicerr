@@ -1,11 +1,8 @@
 import { z } from 'zod';
 
-import {
-  canWriteDocumentType,
-  DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
-  scopeForDocumentType,
-} from './scope-mapping';
+import { hasAnyScope } from '@/utils/scope-check';
+
+import { canWriteDocumentType, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {
@@ -57,7 +54,7 @@ export const runDocumentActionTool: ToolDescriptor<typeof inputSchema> = {
     '"delete" is destructive and irreversible: it permanently removes a draft that has never been ' +
     'numbered, with no confirmation step.',
   annotations: { destructiveHint: true },
-  isRegistered: (scopes) => hasAnyScope(DOCUMENT_WRITE_SCOPES, scopes),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, DOCUMENT_WRITE_SCOPES),
   inputSchema,
   handler: async (ctx, input) => {
     if (!canWriteDocumentType(ctx.scopes, input.typeId)) {

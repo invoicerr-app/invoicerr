@@ -14,7 +14,10 @@ export function hasScope(request: Pick<RequestWithUser, 'scopes'>, scope: ApiKey
 /** True when the caller holds AT LEAST ONE of the given scopes — the "read OR write" shape a route
  *  that only needs to LOOK at a resource (but would also accept a write-scoped key) wants, mirroring
  *  `mcp/tools/scope-mapping.ts`'s own any-of check for the exact same reason. */
-export function hasAnyScope(request: Pick<RequestWithUser, 'scopes'>, scopes: ApiKeyScope[]): boolean {
+export function hasAnyScope(
+  request: Pick<RequestWithUser, 'scopes'>,
+  scopes: readonly ApiKeyScope[],
+): boolean {
   return scopes.some((scope) => hasScope(request, scope));
 }
 
