@@ -173,6 +173,15 @@ The full per-country picture is generated from those data files on every documen
 
 ## Quick start
 
+> [!WARNING]
+> Until the first CalVer stable release (`26.11.0`) is published, `:latest` on ghcr.io and the release
+> GitHub marks as "Latest" are still `v1.4.5c`. The whole 1.x line has three published security
+> advisories that are not patched there and never will be (see
+> [SECURITY.md](./SECURITY.md#known-unpatched-issues-on-the-current-release-line)), and the compose
+> file below is written for the v2 line. Set `image:` to the newest v2 tag listed on the
+> [releases page](https://github.com/invoicerr-app/invoicerr/releases) instead of `:latest` until
+> then.
+
 A prebuilt image is published at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr),
 built for `linux/amd64` and `linux/arm64`. `linux/arm/v7` (32-bit ARM) is no longer built: Node.js
 stopped publishing `linux-armv7l` binaries starting with Node 24. See the
@@ -354,6 +363,10 @@ plus everyone who has translated the interface on Weblate.
 Private vulnerability reporting is enabled: open a
 [security advisory](https://github.com/invoicerr-app/invoicerr/security/advisories/new) rather than a
 public issue. Please do not report a vulnerability in an issue, a pull request or a discussion.
+
+The 1.x line, `v1.4.5c` included, has three published advisories that are fixed only from
+`v2.0.0-alpha.1` onwards and will not be backported. [SECURITY.md](./SECURITY.md) lists them; an
+instance still on 1.x is affected by all three until it upgrades.
 
 The paths between the API's routes and the database tables are also checked by
 [Wyro](https://wyro.in/scan/invoicerr-app/invoicerr), a free and independent architecture scanner.
