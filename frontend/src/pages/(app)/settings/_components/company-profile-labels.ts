@@ -1,7 +1,7 @@
 import type { CompanyProfileAttribute } from "@/types"
 
 /** The narrow translator shape these helpers need: i18next's `t` with a raw-text fallback. */
-export type ProfileTranslator = (key: string, options?: { defaultValue?: string }) => string
+type ProfileTranslator = (key: string, options?: { defaultValue?: string }) => string
 
 /**
  * A country declares its profile questions as data, so their text is plain English until the

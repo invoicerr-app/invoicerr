@@ -17,31 +17,6 @@ import type { TFunction } from "i18next"
  *  later with a less specific message. */
 const VALID_CURRENCIES = new Set(Object.keys(currencies))
 
-/** The fixed (non-identifier) columns this import understands - mirrors
- *  `backend/.../import/client-import-template.ts#CLIENT_IMPORT_TEMPLATE_HEADERS` minus the
- *  `identifier:*` ones, which are matched by prefix instead (see `mapRow` below). */
-const KNOWN_COLUMNS = [
-  "type",
-  "kind",
-  "isSupplier",
-  "name",
-  "contactFirstname",
-  "contactLastname",
-  "contactEmail",
-  "contactPhone",
-  "address",
-  "addressLine2",
-  "postalCode",
-  "city",
-  "state",
-  "country",
-  "countryCode",
-  "currency",
-  "language",
-  "description",
-  "foundedAt",
-] as const
-
 export interface ClientImportRowWire {
   rowNumber: number
   type?: "COMPANY" | "INDIVIDUAL"
@@ -96,7 +71,7 @@ const FOUNDED_AT_PATTERN = /^\d{4}-\d{2}-\d{2}$/
  *  the wizard's own pickers could never produce (a typo'd type, an unparseable date, a non-boolean
  *  supplier flag) is never silently coerced to that default - it is returned in `shapeErrors`, naming
  *  the column and the value, so `validateRow` can reject the row instead of guessing what the user
- *  meant. Any column NOT in `KNOWN_COLUMNS` and not prefixed `identifier:` is ignored (a stray extra
+ *  meant. Any column NOT read below (the fixed columns of `ClientImportRowWire`) and not prefixed `identifier:` is ignored (a stray extra
  *  column, or a typo'd HEADER, is not fatal - the columns that DO match still import); this is
  *  deliberately different from an unrecognised VALUE in a column this import DOES understand. */
 export function mapRow(
@@ -258,5 +233,3 @@ export function validateRow(
   const errors = result.error.issues.map((issue) => issue.message)
   return { rowNumber: wire.rowNumber, wire, localErrors: errors }
 }
-
-export { KNOWN_COLUMNS }

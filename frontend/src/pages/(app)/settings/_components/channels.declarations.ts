@@ -28,10 +28,10 @@ export interface DeclarationMoment {
 }
 
 /** How much of a platform's declaring its own deliveries already do. */
-export type DeliveryDeclares = "all" | "some" | "none"
+type DeliveryDeclares = "all" | "some" | "none"
 
 /** What the Declarations card shows for one platform. */
-export interface DeclarationSummary {
+interface DeclarationSummary {
   platformId: string
   /** The source shown behind the label's help: the first row the platform declares itself, else the
    *  first row. */

@@ -17,13 +17,13 @@ export function groupIntoIslands(deskCount: number): number[] {
   return islands
 }
 
-export interface DeskSlot {
+interface DeskSlot {
   /** 1-based desk number — matches `SeatMemberView.seatIndex`. */
   index: number
   occupant: SeatMemberView | null
 }
 
-export interface DeskIsland {
+interface DeskIsland {
   islandIndex: number
   desks: DeskSlot[]
 }
@@ -36,7 +36,7 @@ export interface DeskIsland {
  * `seats-view.ts#ensureSeatIndexesAssigned`) is simply absent from the plan rather than crashing it;
  * `unplaced` surfaces them separately so the page can still render something sensible.
  */
-export interface OfficeLayout {
+interface OfficeLayout {
   islands: DeskIsland[]
   unplaced: SeatMemberView[]
 }

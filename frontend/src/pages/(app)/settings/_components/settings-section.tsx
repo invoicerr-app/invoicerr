@@ -232,7 +232,7 @@ export function useSavedFlash(durationMs = 2400): [boolean, () => void] {
 /** The "Saved" mark: always in the DOM (no layout shift when it appears), faded in only while
  *  `visible`, and hidden from assistive tech otherwise — the success toast is what a screen reader
  *  hears; this is the eye's static confirmation. */
-export function SavedIndicator({ visible, dataCy }: { visible: boolean; dataCy?: string }) {
+function SavedIndicator({ visible, dataCy }: { visible: boolean; dataCy?: string }) {
   const { t } = useTranslation()
   return (
     <span
@@ -435,7 +435,7 @@ export function SettingsListError({ onRetry, dataCy }: { onRetry: () => void; da
   )
 }
 
-export interface SettingsRowMenuItem {
+interface SettingsRowMenuItem {
   label: ReactNode
   icon?: LucideIcon
   onSelect: () => void

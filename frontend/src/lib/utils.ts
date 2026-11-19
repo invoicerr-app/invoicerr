@@ -1,6 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
-import { resolveCountryCode } from "@/lib/country-code"
 
 // The theme's named shadows and radii, so an override of one actually replaces it.
 const twMerge = extendTailwindMerge({
@@ -25,25 +24,4 @@ export function dataCy(value: string): Record<string, string> {
     return { "data-cy": value }
   }
   return {}
-}
-
-const FALLBACK_LOCALE = "en-US"
-
-function resolveAmountLocale(country?: string | null): string {
-  if (!country) return FALLBACK_LOCALE
-  const code = resolveCountryCode(country)
-  if (!code) return FALLBACK_LOCALE
-  try {
-    return new Intl.Locale(`und-${code}`).maximize().toString()
-  } catch {
-    return FALLBACK_LOCALE
-  }
-}
-
-/** Formats a monetary amount with a thousands separator adapted to the company's country, keeping 2 decimal places. */
-export function formatAmount(value: number, country?: string | null): string {
-  return value.toLocaleString(resolveAmountLocale(country), {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }

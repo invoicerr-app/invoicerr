@@ -121,7 +121,7 @@ function LaptopShape({ x }: { x: number }) {
   )
 }
 
-export function Monitors({ display }: { display: DeskDisplay }) {
+function Monitors({ display }: { display: DeskDisplay }) {
   switch (display) {
     case "single-monitor":
       return <Screen x={DESK_CENTER_X - 15} width={30} />
@@ -185,7 +185,7 @@ const MOUSE_HEIGHT = 9
  *  rect into a proper capsule rather than a rect with merely-rounded corners. Gapped off the desk's
  *  actual near-edge object (`nearEdgeBounds`, passed in by the caller) — a keyboard, or a laptop sitting
  *  somewhere else entirely — never a keyboard position that might not be what's actually there. */
-export function MouseDot({ side, display }: { side: MouseSide; display: DeskDisplay }) {
+function MouseDot({ side, display }: { side: MouseSide; display: DeskDisplay }) {
   const { x: nearX, width: nearWidth } = nearEdgeBounds(display)
   const cx = side === "right" ? nearX + nearWidth + MOUSE_GAP : nearX - MOUSE_GAP
   return (
@@ -208,7 +208,7 @@ export function MouseDot({ side, display }: { side: MouseSide; display: DeskDisp
  *  lets the same shape serve both the small per-desk decoration (kept well inside the desk's own
  *  footprint — a first pass overflowed the desk edge at full size) and the larger room-level
  *  `FloorPlant` below. */
-export function PottedPlant({
+function PottedPlant({
   x,
   y,
   leafCount = 5,
@@ -239,7 +239,7 @@ export function PottedPlant({
   )
 }
 
-export function Cup({ x, y }: { x: number; y: number }) {
+function Cup({ x, y }: { x: number; y: number }) {
   return (
     <g
       transform={`translate(${x} ${y})`}
@@ -252,7 +252,7 @@ export function Cup({ x, y }: { x: number; y: number }) {
   )
 }
 
-export function Notepad({ x, y }: { x: number; y: number }) {
+function Notepad({ x, y }: { x: number; y: number }) {
   return (
     <g
       transform={`translate(${x} ${y})`}

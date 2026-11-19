@@ -6,7 +6,6 @@ import { Primitive } from "@radix-ui/react-primitive"
 import { Slot } from "@radix-ui/react-slot"
 import * as React from "react"
 
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export type InputBaseContextProps = Pick<InputBaseProps, "autoFocus" | "disabled"> & {
@@ -71,16 +70,6 @@ function InputBase({ autoFocus, disabled, className, onClick, error, ...props }:
   )
 }
 
-function InputBaseFlexWrapper({ className, ...props }: React.ComponentProps<typeof Primitive.div>) {
-  return (
-    <Primitive.div
-      data-slot="input-base-flex-wrapper"
-      className={cn("flex flex-1 flex-wrap", className)}
-      {...props}
-    />
-  )
-}
-
 function InputBaseControl({ ref, onFocus, onBlur, ...props }: React.ComponentProps<typeof Slot>) {
   const { controlRef, autoFocus, disabled, onFocusedChange } = useInputBase()
 
@@ -121,29 +110,6 @@ function InputBaseAdornment({ className, asChild, children, ...props }: InputBas
   )
 }
 
-function InputBaseAdornmentButton({
-  type = "button",
-  variant = "ghost",
-  size = "icon",
-  disabled: disabledProp,
-  className,
-  ...props
-}: React.ComponentProps<typeof Button>) {
-  const { disabled } = useInputBase()
-
-  return (
-    <Button
-      data-slot="input-base-adornment-button"
-      type={type}
-      variant={variant}
-      size={size}
-      disabled={disabled || disabledProp}
-      className={cn("size-6", className)}
-      {...props}
-    />
-  )
-}
-
 function InputBaseInput({ className, ...props }: React.ComponentProps<typeof Primitive.input>) {
   return (
     <Primitive.input
@@ -157,26 +123,4 @@ function InputBaseInput({ className, ...props }: React.ComponentProps<typeof Pri
   )
 }
 
-function InputBaseTextarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return (
-    <textarea
-      data-slot="input-base-textarea"
-      className={cn(
-        "placeholder:text-muted-foreground min-h-16 flex-1 bg-transparent focus:outline-none disabled:pointer-events-none",
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-export {
-  InputBase,
-  InputBaseFlexWrapper,
-  InputBaseControl,
-  InputBaseAdornment,
-  InputBaseAdornmentButton,
-  InputBaseInput,
-  InputBaseTextarea,
-  useInputBase,
-}
+export { InputBase, InputBaseControl, InputBaseAdornment, InputBaseInput }
