@@ -87,6 +87,13 @@ Each channel says who discharges it and what one discharge covers.
 
 Optional fields: `authority.name`, `scope.transactions`, `sellerConditions`, `applicability`,
 `legalBasis.validFrom` and `validUntil`, `timing`, `timingNote` (free text, never parsed) and `notes`.
+
+`timing` is exactly one of `deadline` or `period`. A per-document deadline is either
+`{ "daysAfterTrigger": 8 }` or a day of a later month, `{ "monthsAfterTrigger": 1, "dayOfMonth": 5 }`
+for "by the 5th of the following month". `dayOfMonth` runs from 1 to 28 so every month has that day.
+`reporting/periods.ts#declarationDueDate` turns a deadline and the trigger date into the due date, in
+UTC calendar days, and answers nothing for a period obligation. Portugal's two obligations carry the
+5th-of-next-month deadline.
 A channel may carry `platformId` when two channels are the same legal entity seen from two registries:
 France's accredited platform (PA) is both the `pdp` transport, for a B2B-domestic invoice, and the
 `fr-pa` declaration provider, for B2C, international and payment data. Both channels carry
