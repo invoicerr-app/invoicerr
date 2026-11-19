@@ -40,6 +40,7 @@
  * to derive `availableWhen` FROM — `transitions` stays absent and `availableWhen` remains the sole,
  * explicit, hand-declared fact, exactly as it was before this file existed.
  */
+import { ConflictException } from '@nestjs/common';
 import { ActionResult, DocumentInstanceResult } from '../actions/action-registry';
 import {
   DocumentActionDescriptor,
@@ -370,4 +371,25 @@ export function findUndeclaredStatusInstances(
     if (!isDeclared) violations.push({ typeId, status });
   }
   return violations;
+}
+
+/**
+ * The statuses a type's own "save-draft" action LOCKS (`DocumentActionDescriptor.lockedStatuses`,
+ * issue #468): "save-draft" is the only action that rewrites a document's `data`, so a status it
+ * locks is one whose content can no longer change, i.e. an ISSUED status. Read by
+ * `rendering/archived-pdf-policy.ts` (see its header), `rendering/status-line-policy.ts` and
+ * `documents.service.ts#runAction`.
+ */
+export function issuedStatusesOf(descriptor: DocumentTypeDescriptor): readonly string[] {
+  return descriptor.actions.find((action) => action.id === 'save-draft')?.lockedStatuses ?? [];
+}
+
+/** The 409 thrown when an action is refused because the document left draft (a locked status): the
+ *  one wording `documents.service.ts#runAction` and the invoice/credit-note "save-draft" handlers
+ *  share. */
+export function lockedStatusConflict(actionId: string, typeId: string, status: string): ConflictException {
+  return new ConflictException(
+    `Action "${actionId}" of document type "${typeId}" is refused once the document has left ` +
+      `draft (status "${status}"): an issued document is never rewritten.`,
+  );
 }

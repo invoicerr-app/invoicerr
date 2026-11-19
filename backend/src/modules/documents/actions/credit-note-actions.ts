@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
@@ -6,6 +6,7 @@ import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { resolveCorrectionRoutesForCountry } from '../correction-routes/correction-routes';
 import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { lockedStatusConflict } from '../descriptors/lifecycle';
 import { resolveCreditNoteDeliverySource } from '../formats/credit-note-source';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
@@ -395,10 +396,7 @@ function registerCreditNoteSaveDraftAction(
 ): void {
   registry.register('credit-note', 'save-draft', async (ctx) => {
     if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
-      throw new ConflictException(
-        `Action "save-draft" of document type "credit-note" is refused once the document has left ` +
-          `draft (status "${ctx.currentStatus}"): an issued document is never rewritten.`,
-      );
+      throw lockedStatusConflict('save-draft', 'credit-note', ctx.currentStatus);
     }
     assertCreditNoteAmountSourceIsUnambiguous(ctx.data);
     await assertCreditNoteAllowedForCountry(ctx.companyId, ctx.data);

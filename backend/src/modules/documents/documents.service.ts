@@ -97,6 +97,8 @@ import {
   allowedFromStatuses as computeAllowedFromStatuses,
   checkTransitionResult,
   findUndeclaredStatusInstances,
+  issuedStatusesOf,
+  lockedStatusConflict,
   validateLifecycle,
 } from './descriptors/lifecycle';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
@@ -1463,10 +1465,7 @@ export class DocumentsService implements OnModuleInit {
       // `restrictedToStatuses` 409 further down - a scripted client (and e2e) can then tell WHICH
       // gate refused it, which is exactly what proves the CODE guard fired, not merely country data.
       if (currentStatus !== undefined && action.lockedStatuses?.includes(currentStatus)) {
-        throw new ConflictException(
-          `Action "${actionId}" of document type "${typeId}" is refused once the document has left ` +
-            `draft (status "${currentStatus}"): an issued document is never rewritten.`,
-        );
+        throw lockedStatusConflict(actionId, typeId, currentStatus);
       }
       throw new ConflictException(
         currentStatus === undefined
@@ -1541,7 +1540,7 @@ export class DocumentsService implements OnModuleInit {
       currentStatus !== undefined &&
       currentStatus !== 'sending' &&
       existingData !== undefined &&
-      descriptor.actions.find((a) => a.id === 'save-draft')?.lockedStatuses?.includes(currentStatus)
+      issuedStatusesOf(descriptor).includes(currentStatus)
     ) {
       payload.data = existingData;
     }
@@ -1613,7 +1612,8 @@ export class DocumentsService implements OnModuleInit {
     // Reassigned onto `payload.data` itself (never a second, parallel variable) so every later read of
     // it in this same method — row-selection/reference validation, `stampRowIds`, the handler call
     // itself — sees the SAME cleaned object, with no raw copy left for anything to read by mistake.
-    if (!(currentStatus === 'sending' && actionId === 'send')) {
+    const isInFlightSendReplay = currentStatus === 'sending' && actionId === 'send';
+    if (!isInFlightSendReplay) {
       payload.data = stripSidecarKeys(fields, payload.data ?? {});
     }
 
@@ -1625,7 +1625,7 @@ export class DocumentsService implements OnModuleInit {
     // `descriptors/validate.ts#dropEmptyRows`'s own header for what "empty" means, field by field, and
     // why a half-filled row is deliberately left for `validateAgainstDescriptor` below to judge on its
     // own merits rather than silently discarded here too.
-    if (!(currentStatus === 'sending' && actionId === 'send')) {
+    if (!isInFlightSendReplay) {
       payload.data = dropEmptyRows(fields, payload.data ?? {});
     }
 

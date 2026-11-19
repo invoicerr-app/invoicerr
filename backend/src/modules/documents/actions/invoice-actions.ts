@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
@@ -19,6 +19,7 @@ import {
 import { resolveInvoiceValidationTransmission } from '../country-policy/invoice-validation-transmission';
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { lockedStatusConflict } from '../descriptors/lifecycle';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { takeDocumentNumberForTransitionWithStatus } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -631,10 +632,7 @@ function registerInvoiceSaveDraftAction(registry: ActionRegistry, webhooks?: Doc
     // Same message `documents.service.ts#runAction` throws for the exact same reason - see this
     // function's own header for why this can only ever fire if a caller skipped `runAction`.
     if (ctx.documentId && ctx.currentStatus && ctx.currentStatus !== 'draft') {
-      throw new ConflictException(
-        `Action "save-draft" of document type "invoice" is refused once the document has left draft ` +
-          `(status "${ctx.currentStatus}"): an issued document is never rewritten.`,
-      );
+      throw lockedStatusConflict('save-draft', 'invoice', ctx.currentStatus);
     }
     return performSaveDraft(
       ctx.companyId,
