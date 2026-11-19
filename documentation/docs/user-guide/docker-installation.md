@@ -44,6 +44,15 @@ skip versions when upgrading: pull the new image and restart.
 
 ## Quick start
 
+:::danger[The latest tag still points at 1.x for now]
+Until the first CalVer stable release (`26.11.0`) is published, `:latest` is still `v1.4.5c`, and so
+is the release GitHub marks as "Latest". The 1.x line has three published security advisories that
+are not patched there and never will be, listed in the project's
+[security policy](https://github.com/invoicerr-app/invoicerr/blob/dev/SECURITY.md#known-unpatched-issues-on-the-current-release-line).
+The compose file below also expects the v2 line. Until then, replace `:latest` with the newest v2
+tag from the [releases page](https://github.com/invoicerr-app/invoicerr/releases).
+:::
+
 1. Create a `.env` file next to where `docker-compose.yml` will live, holding the two secrets the
    compose file below reads:
 
