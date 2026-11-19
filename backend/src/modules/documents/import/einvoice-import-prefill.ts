@@ -20,12 +20,12 @@ import { BadRequestException } from '@nestjs/common';
 
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
+import { matchClientByVatThenName } from '../client-book-match';
 import {
   DocumentExtractionResult,
   ExtractedDocumentFields,
   extractImportFields,
 } from '../received-invoices/extraction';
-import { matchBuyerClient } from './client-match';
 import {
   ImportableTypeId,
   ImportClientMatch,
@@ -307,7 +307,7 @@ export async function buildImportPrefill(
     };
   }
 
-  const clientMatch: ImportClientMatch = await matchBuyerClient(companyId, draft.buyer);
+  const clientMatch: ImportClientMatch = await matchClientByVatThenName(companyId, draft.buyer);
   if (clientMatch.outcome === 'matched') {
     draft.fields.client = clientMatch.clientId;
   }

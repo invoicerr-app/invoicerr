@@ -1,5 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
-
 import prisma from '@/prisma/prisma.service';
 
 import { PaymentCheckoutSessionStatus } from '../../../../prisma/generated/prisma/client';
@@ -112,22 +110,6 @@ export async function findSessionByProviderRef(
       providerId_providerSessionId: { providerId, providerSessionId },
     },
   });
-}
-
-/** 404s (rather than returning null) for a session id that doesn't exist or belongs to another company
- *  — the same "existence and ownership are indistinguishable from outside" convention
- *  `persistence.ts#findOwnedDocument` already holds. Not used by the webhook path (which has no
- *  company-authenticated caller to scope by — see `findSessionByProviderRef` above); only by the
- *  staff-facing read. */
-export async function findOwnedSession(
-  companyId: string,
-  sessionId: string,
-): Promise<PaymentCheckoutSessionResult> {
-  const session = await prisma.paymentCheckoutSession.findFirst({ where: { id: sessionId, companyId } });
-  if (!session) {
-    throw new NotFoundException(`Payment checkout session "${sessionId}" not found.`);
-  }
-  return session;
 }
 
 /**

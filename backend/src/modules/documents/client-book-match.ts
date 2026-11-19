@@ -4,7 +4,8 @@
  * Two callers, one per side of a document:
  *  - `received-invoices/supplier-reconciliation.ts#reconcileSupplierClient`: the SELLER of a received
  *    invoice, matched at upload time;
- *  - `import/client-match.ts#matchBuyerClient`: the BUYER of a structured import file (issue #758).
+ *  - `import/einvoice-import-prefill.ts#buildImportPrefill`: the BUYER of a structured import file
+ *    (issue #758).
  * Before this module each held its own copy ("Mirrors ... exactly"), so the rule could drift between
  * reception and import without anything noticing.
  *

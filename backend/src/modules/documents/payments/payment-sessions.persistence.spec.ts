@@ -6,7 +6,6 @@ import {
   attachSessionPayment,
   claimSessionForCompletion,
   createCheckoutSession,
-  findOwnedSession,
   findPendingSessionForDocument,
   findSessionByProviderRef,
   markSessionFailed,
@@ -68,19 +67,6 @@ describe('findPendingSessionForDocument', () => {
       where: { companyId: 'company-1', documentId: 'doc-1', providerId: 'stripe', status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
     });
-  });
-});
-
-describe('findOwnedSession', () => {
-  it('404s (rather than returning null) for a session unknown to this company', async () => {
-    findFirst.mockResolvedValue(null);
-    await expect(findOwnedSession('company-1', 'missing')).rejects.toThrow('not found');
-  });
-
-  it('returns the row when it belongs to this company', async () => {
-    findFirst.mockResolvedValue({ id: 'session-1', companyId: 'company-1' });
-    const result = await findOwnedSession('company-1', 'session-1');
-    expect(result.id).toBe('session-1');
   });
 });
 

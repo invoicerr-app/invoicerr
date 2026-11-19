@@ -1,10 +1,5 @@
 import { CountryVatRatesFile } from './schema';
-import {
-  resolveVatRateFact,
-  resolveVatRatePercentage,
-  VatRateCatalog,
-  vatRateFieldOptions,
-} from './registry';
+import { resolveVatRatePercentage, VatRateCatalog, vatRateFieldOptions } from './registry';
 
 const FR_FILE: CountryVatRatesFile = {
   countryCode: 'FR',
@@ -146,26 +141,5 @@ describe('resolveVatRatePercentage', () => {
     const catalog = new VatRateCatalog([IT_FILE]);
     expect(resolveVatRatePercentage(catalog, 'IT', 'it-esente')).toBe(0);
     expect(resolveVatRatePercentage(catalog, 'IT', 'it-non-imponibile')).toBe(0);
-  });
-});
-
-describe('resolveVatRateFact', () => {
-  it('returns the full VatRateFact — category included — for the canonical id form', () => {
-    const catalog = new VatRateCatalog([IT_FILE]);
-    expect(resolveVatRateFact(catalog, 'IT', 'it-esente')).toMatchObject({
-      id: 'it-esente',
-      rate: 0,
-      category: 'EXEMPT',
-    });
-    expect(resolveVatRateFact(catalog, 'IT', 'it-non-imponibile')).toMatchObject({
-      id: 'it-non-imponibile',
-      rate: 0,
-      category: 'ZERO',
-    });
-  });
-
-  it('is undefined for a value that resolves to neither an id nor a known percentage', () => {
-    const catalog = new VatRateCatalog([FR_FILE]);
-    expect(resolveVatRateFact(catalog, 'FR', 'not-a-rate')).toBeUndefined();
   });
 });

@@ -157,8 +157,8 @@ export function resolveVatRatePercentage(
  * slug), so no country needs to be known in advance to look one up. Exists for
  * `totals/compute-totals.ts#extractVatRate`, which computes a document's totals from its own
  * descriptor/data ALONE — it has no notion of "which company", let alone which country, it is being
- * asked about, unlike every other reader in this module (`resolveVatRatePercentage`/
- * `resolveVatRateFact` above, both scoped to one already-known seller country).
+ * asked about, unlike every other reader in this module (`resolveVatRatePercentage` above, scoped to
+ * one already-known seller country).
  */
 export function findVatRateById(catalog: VatRateCatalog, id: string): VatRateFact | undefined {
   for (const countryCode of catalog.countries()) {
@@ -166,22 +166,4 @@ export function findVatRateById(catalog: VatRateCatalog, id: string): VatRateFac
     if (found) return found;
   }
   return undefined;
-}
-
-/** The SAME rate a `resolveVatRatePercentage` lookup found, in full — for a caller that also needs
- *  the `category`/`id`/provenance (e.g. `fatturapa-provider.ts#mapNatura`'s own Natura derivation),
- *  never only the bare number. `undefined` under the exact same "matches neither form" condition
- *  `resolveVatRatePercentage` itself refuses on. */
-export function resolveVatRateFact(
-  catalog: VatRateCatalog,
-  countryCode: string,
-  storedValue: string,
-): VatRateFact | undefined {
-  const rates = catalog.ratesFor(countryCode);
-  const byId = rates.find((rate) => rate.id === storedValue);
-  if (byId) return byId;
-
-  const asPercentage = Number(storedValue);
-  if (!Number.isFinite(asPercentage)) return undefined;
-  return rates.find((rate) => rate.rate === asPercentage);
 }

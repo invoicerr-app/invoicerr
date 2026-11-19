@@ -74,5 +74,3 @@ export class SigningProviderRegistry {
     return this.byAlgo.get(algo) ?? this.byAlgo.get('none')!;
   }
 }
-
-export const defaultSigningRegistry = new SigningProviderRegistry();
