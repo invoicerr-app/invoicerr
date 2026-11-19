@@ -164,13 +164,8 @@ import {
   validateRowSelections,
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
-import { resolveInvoiceCrossBorderTaxForCompany } from './tax/load-and-resolve';
-import {
-  isInvoiceTaxBlockError,
-  companyTaxScheme,
-  parseDistanceSalesRegime,
-  resolveInvoiceCrossBorderTax,
-} from './tax/resolve-invoice-tax';
+import { buildCrossBorderTaxInput, resolveInvoiceCrossBorderTaxForCompany } from './tax/load-and-resolve';
+import { isInvoiceTaxBlockError, resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
 import { CredentialFieldDescriptor, TransportRegistry } from './transports/transport-registry';
 import { defaultOperatorCatalog } from './operators/registry';
 import { OperatorFact } from './operators/schema';
@@ -2338,23 +2333,12 @@ export class DocumentsService implements OnModuleInit {
         : data;
       const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
       try {
-        dataForBuild = resolveInvoiceCrossBorderTax({
-          seller: {
-            country: company.country,
-            countryCode: company.countryCode,
-            taxScheme: companyTaxScheme(company),
-            // This call site reads its own company row. `parseDistanceSalesRegime` is the SHARED
-            // narrowing parser (`tax/resolve-invoice-tax.ts`), not a second hand-written mapping, so the
-            // two sites can never disagree about what a stored value means; only the row-reading is
-            // duplicated.
-            distanceSalesRegime: parseDistanceSalesRegime(company.distanceSalesRegime),
-          },
-          buyer: { country: client.country, countryCode: client.countryCode },
-          buyerVat: buyerVatRow
-            ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
-            : undefined,
-          data: taxData,
-        }).data;
+        // This call site reads its own company/client rows; `buildCrossBorderTaxInput` is the SHARED
+        // mapping (`tax/load-and-resolve.ts`), so the two sites can never disagree about what a stored
+        // value means; only the row-reading is duplicated.
+        dataForBuild = resolveInvoiceCrossBorderTax(
+          buildCrossBorderTaxInput(company, client, buyerVatRow, taxData),
+        ).data;
         if (creditNoteSource) {
           dataForBuild = { ...dataForBuild, issueDate: data.issueDate };
         }
