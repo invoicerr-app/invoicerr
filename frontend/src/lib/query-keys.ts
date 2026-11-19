@@ -19,10 +19,15 @@ export const queryKeys = {
   projects: {
     list: (filters: { clientId?: string; includeArchived?: boolean } = {}) =>
       ["projects", "list", filters] as const,
+    listsAll: () => ["projects", "list"] as const,
   },
   timeEntries: {
     list: (filters: { projectId?: string; clientId?: string; unbilledOnly?: boolean } = {}) =>
       ["timeEntries", "list", filters] as const,
+    listsAll: () => ["timeEntries", "list"] as const,
+  },
+  documentReferences: {
+    entity: (entity: string) => ["document-references", entity] as const,
   },
   bankStatements: {
     list: () => ["bankStatements", "list"] as const,
