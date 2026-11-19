@@ -214,10 +214,6 @@ export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor,
   actions: DocumentActionDescriptorView[];
 }
 
-/** What `GET /documents/:id/settlement` hands back — see `DocumentsService.getSettlement`. Same
- *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
- *  `warnings` are new (item 8, credit matching — settlement/credits.ts): empty arrays for any type that
- *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 /**
  * One document type's email template as a settings screen reads it — the template that CURRENTLY
  * applies (never the raw override alone), where it came from, and the vocabulary this type offers.
@@ -259,6 +255,10 @@ function buildEmailTemplateView(
   };
 }
 
+/** What `GET /documents/:id/settlement` hands back - see `DocumentsService.getSettlement`. Same
+ *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
+ *  `warnings` are new (item 8, credit matching - settlement/credits.ts): empty arrays for any type that
+ *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 export interface DocumentSettlementView {
   totals: DocumentTotals;
   payments: DocumentPaymentResult[];
@@ -627,20 +627,6 @@ export class DocumentsService implements OnModuleInit {
     return company?.name ?? '';
   }
 
-  /**
-   * Every widget declared for `location` (dashboard/statistics) by a document type the active
-   * company's TYPE registry knows about — see contributions/collect-widgets.ts for the actual
-   * assembly (declared-but-unimplemented handling included). Deliberately NOT filtered by the
-   * country-action policy: a widget is an aggregate view, not an operation a country can forbid —
-   * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
-   * actions.
-   *
-   * `period` (issue #418) is only ever set by the controller for the "dashboard" location (the
-   * statistics screen has no period selector) and is `undefined` by default - every contribution's
-   * own "no period -> exactly today's behavior" guarantee (see contributions/invoice-contributions.ts
-   * and friends) is what makes threading it through here safe for every EXISTING caller of this
-   * method (the statistics controller route, any future one) without touching them at all.
-   */
   /** The dashboard's invoicing overview (contributions/invoice-overview.ts), in the company's own
    *  currency. Empty lists and zeros for a company with no invoice type or no invoices. */
   async invoiceOverview(companyId: string): Promise<InvoiceOverview> {
@@ -685,6 +671,20 @@ export class DocumentsService implements OnModuleInit {
     });
   }
 
+  /**
+   * Every widget declared for `location` (dashboard/statistics) by a document type the active
+   * company's TYPE registry knows about - see contributions/collect-widgets.ts for the actual
+   * assembly (declared-but-unimplemented handling included). Deliberately NOT filtered by the
+   * country-action policy: a widget is an aggregate view, not an operation a country can forbid -
+   * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
+   * actions.
+   *
+   * `period` (issue #418) is only ever set by the controller for the "dashboard" location (the
+   * statistics screen has no period selector) and is `undefined` by default - every contribution's
+   * own "no period -> exactly today's behavior" guarantee (see contributions/invoice-contributions.ts
+   * and friends) is what makes threading it through here safe for every EXISTING caller of this
+   * method (the statistics controller route, any future one) without touching them at all.
+   */
   async collectWidgets(
     companyId: string,
     location: WidgetLocation,
@@ -777,73 +777,6 @@ export class DocumentsService implements OnModuleInit {
   }
 
   /**
-   * The descriptor a FRONTEND actually renders — `getType` above, but with:
-   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
-   *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
-   *    layered on the result of the one before it:
-   *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
-   *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
-   *        field like the invoice line's `vatRate`.
-   *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` — this company's own ACTIVE
-   *        expense categories (enriched expense categories, product decision 2026-09-15), patched onto
-   *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
-   *        — a no-op for every type but "expense" (see that function's own header).
-   *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
-   *        ACTIVE custom field definitions (custom fields), appended as plain `add`
-   *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
-   *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
-   *        that happens to be scoped by company instead of by country — see that function's own
-   *        header for why it composes AFTER the country view, never before or in place of it.
-   *     4. `applyB2gDocumentFieldHints` (below) — the CLIENT's own country's B2G rule, when one
-   *        resolves and `clientId` is given.
-   *
-   * All four are VIEWS layered on top of the plain descriptor, never a change to
-   * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
-   * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
-   * that build a service with no company at all) is unaffected. `runAction` (further down) composes
-   * the exact same steps 1-3 (never step 4 — see that method's own comment) before validating, so
-   * "what the form offers" and "what actually gets checked/blocked" can never drift apart — the same
-   * discipline this module already holds for country policy and status.
-   *
-   * `policyBlockedReason` is PLAIN TEXT, not an i18n key — same convention as `label`/`message`
-   * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
-   * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
-   * from "explicitly not blocked" here, only "has a reason" from "doesn't".
-   *
-   * `clientId` (optional) adds a FOURTH, orthogonal source on top of the ones composed above — see
-   * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
-   * country, never the company's: a French company invoicing a German government body has no
-   * field-overlay file of its OWN country to thank for a Leitweg-ID input
-   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY — see
-   * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
-   * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
-   * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
-   * never hardcoded to Germany or to "buyerReference" specifically.
-   */
-  /**
-   * The one composition point BOTH `describeTypeForCompany` (below) and
-   * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
-   * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
-   * screen would refuse" discipline this whole module already holds for country policy and status).
-   *
-   * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
-   * instead of the ordinary `country-policy/` DB table. The two coverage sets are DIFFERENT ON
-   * PURPOSE — `country-policy/` mirrors eight country FILES today (FR/US/HU/DE/IT/PL/ES/MX,
-   * data/all.ts); `correction-routes/`
-   * covers all SEVEN pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs —
-   * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
-   * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
-   * WRONG answer even for a country that now HAS a country-policy/ file: Poland and Mexico both
-   * declare CANCEL_AND_REPLACE `required` in their own correction-routes data yet have NO real local
-   * cancellation mechanism behind it (cancel-policy.ts's own header — the route exists, the SAT/KSeF
-   * authority operation it needs does not), and Italy's own local cancel is narrower than its country-
-   * policy file would suggest (`restrictedToStatuses: ['send_failed']`, not every post-issuance
-   * status). A generic `allowed`/`forbidden` row cannot carry either nuance — only cancel-policy.ts's
-   * own per-country whitelist, cross-checked against the loaded route's own status, can. See
-   * `cancel-policy.ts`'s own header for the full per-country reasoning.
-   */
-  /**
    * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
    * `save-draft` or `send`) only ever quotes the LAW (countries/data/pl.json (section "policy")'s own art. 106j
    * ust. 2 pkt 2 citation) - it never says what to do INSTEAD. This appends that pointer, generically,
@@ -878,6 +811,29 @@ export class DocumentsService implements OnModuleInit {
     };
   }
 
+  /**
+   * The one composition point BOTH `describeTypeForCompany` (below) and
+   * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
+   * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
+   * screen would refuse" discipline this whole module already holds for country policy and status).
+   *
+   * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
+   * instead of the ordinary `country-policy/` DB table. Both read the same country files today
+   * (countries/data/: DE, DZ, FR, IT, PL, PT - see countries/data/all.ts), but different sections of
+   * them ON PURPOSE: `country-policy/` reads each file's `policy` section, `correction-routes/` its
+   * `correctionRoutes` section, whose CANCEL_AND_REPLACE route carries the exact citation this one
+   * action needs -
+   * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
+   * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
+   * WRONG answer even for a country that HAS a `policy` section: Poland
+   * declares CANCEL_AND_REPLACE `required` in its own correction-routes data yet has NO real local
+   * cancellation mechanism behind it (cancel-policy.ts's own header - the route exists, the KSeF
+   * authority operation it needs does not), and Italy's own local cancel is narrower than its country-
+   * policy file would suggest (`restrictedToStatuses: ['send_failed']`, not every post-issuance
+   * status). A generic `allowed`/`forbidden` row cannot carry either nuance - only cancel-policy.ts's
+   * own per-country whitelist, cross-checked against the loaded route's own status, can. See
+   * `cancel-policy.ts`'s own header for the full per-country reasoning.
+   */
   private async resolveActionPolicy(
     companyId: string,
     typeId: string,
@@ -895,6 +851,51 @@ export class DocumentsService implements OnModuleInit {
     return decision;
   }
 
+  /**
+   * The descriptor a FRONTEND actually renders - `getType` above, but with:
+   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
+   *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
+   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
+   *    layered on the result of the one before it:
+   *     1. `descriptors/company-view.ts#applyCompanyFieldView` - the country field overlay
+   *        (add/modify/remove - country-fields/) and the VAT rate catalog (vat-rates/) filling in a
+   *        field like the invoice line's `vatRate`.
+   *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` - this company's own ACTIVE
+   *        expense categories (enriched expense categories, product decision 2026-09-15), patched onto
+   *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
+   *        - a no-op for every type but "expense" (see that function's own header).
+   *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` - this company's own
+   *        ACTIVE custom field definitions (custom fields), appended as plain `add`
+   *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
+   *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
+   *        that happens to be scoped by company instead of by country - see that function's own
+   *        header for why it composes AFTER the country view, never before or in place of it.
+   *     4. `applyB2gDocumentFieldHints` (below) - the CLIENT's own country's B2G rule, when one
+   *        resolves and `clientId` is given.
+   *
+   * All four are VIEWS layered on top of the plain descriptor, never a change to
+   * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
+   * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
+   * that build a service with no company at all) is unaffected. `runAction` (further down) composes
+   * the exact same steps 1-3 (never step 4 - see that method's own comment) before validating, so
+   * "what the form offers" and "what actually gets checked/blocked" can never drift apart - the same
+   * discipline this module already holds for country policy and status.
+   *
+   * `policyBlockedReason` is PLAIN TEXT, not an i18n key - same convention as `label`/`message`
+   * elsewhere in this module - so the frontend can show it verbatim without knowing any country.
+   * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
+   * from "explicitly not blocked" here, only "has a reason" from "doesn't".
+   *
+   * `clientId` (optional) adds a FOURTH, orthogonal source on top of the ones composed above - see
+   * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
+   * country, never the company's: a French company invoicing a German government body has no
+   * field-overlay file of its OWN country to thank for a Leitweg-ID input
+   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY - see
+   * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
+   * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
+   * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs -
+   * never hardcoded to Germany or to "buyerReference" specifically.
+   */
   async describeTypeForCompany(
     companyId: string,
     typeId: string,
@@ -1318,6 +1319,28 @@ export class DocumentsService implements OnModuleInit {
     });
   }
 
+  /** Ids of the other documents `data` points at through its top-level reference fields. */
+  private referencedDocumentIds(fields: DocumentFieldDescriptor[], data: Record<string, unknown>): string[] {
+    const ids: string[] = [];
+    for (const field of fields) {
+      if (field.kind !== 'reference') continue;
+      const value = data[field.key];
+      if (isMultiTargetReference(field)) {
+        const ref = value as { entity?: unknown; id?: unknown } | undefined;
+        if (
+          typeof ref?.entity === 'string' &&
+          typeof ref.id === 'string' &&
+          this.typeRegistry.has(ref.entity)
+        ) {
+          ids.push(ref.id);
+        }
+      } else if (typeof value === 'string' && targetEntitiesOf(field).some((e) => this.typeRegistry.has(e))) {
+        ids.push(value);
+      }
+    }
+    return ids;
+  }
+
   /**
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
@@ -1371,28 +1394,6 @@ export class DocumentsService implements OnModuleInit {
    * combination — a fresh call, a different action, a record not already "sending" — runs every gate
    * exactly as if this parameter were never passed at all.
    */
-  /** Ids of the other documents `data` points at through its top-level reference fields. */
-  private referencedDocumentIds(fields: DocumentFieldDescriptor[], data: Record<string, unknown>): string[] {
-    const ids: string[] = [];
-    for (const field of fields) {
-      if (field.kind !== 'reference') continue;
-      const value = data[field.key];
-      if (isMultiTargetReference(field)) {
-        const ref = value as { entity?: unknown; id?: unknown } | undefined;
-        if (
-          typeof ref?.entity === 'string' &&
-          typeof ref.id === 'string' &&
-          this.typeRegistry.has(ref.entity)
-        ) {
-          ids.push(ref.id);
-        }
-      } else if (typeof value === 'string' && targetEntitiesOf(field).some((e) => this.typeRegistry.has(e))) {
-        ids.push(value);
-      }
-    }
-    return ids;
-  }
-
   async runAction(
     companyId: string,
     typeId: string,
