@@ -68,7 +68,10 @@ describe('classifyObligation  -  the French B2C obligation', () => {
     expect(
       classifyObligation(
         b2cObligation,
-        operation({ companyProfile: { sizeCategory: 'LARGE', vatRegime: 'FRANCHISE' }, vatOnCollection: false }),
+        operation({
+          companyProfile: { sizeCategory: 'LARGE', vatRegime: 'FRANCHISE' },
+          vatOnCollection: false,
+        }),
       ).status,
     ).toBe('in');
   });
