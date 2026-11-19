@@ -20,6 +20,7 @@ import { Response } from 'express';
 
 import { Public } from '@thallesp/nestjs-better-auth';
 
+import { sendInlinePdf } from '../attachments/content-disposition';
 import { DocumentsService } from '../documents.service';
 import { ShareLinksService } from '../share-links/share-links.service';
 
@@ -87,8 +88,6 @@ export class PublicDocumentsController {
       resolved.typeId,
       resolved.documentId,
     );
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${resolved.typeId}-${resolved.documentId}.pdf"`);
     // The SAME header the signature route already sets (public-signatures.controller.ts), for the
     // same reason and now with the same words. `no-store` is the operative half: it forbids WRITING
     // the response to any cache at all, which is what keeps a real invoice out of the browser's own
@@ -96,7 +95,6 @@ export class PublicDocumentsController {
     // adds the narrower promise — no SHARED cache may hold it — and is kept for the intermediaries
     // that honour it while treating `no-store` loosely. Never `no-cache`: that one permits storing
     // and only demands revalidation, which is not the promise this response needs.
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.send(pdfBuffer);
+    sendInlinePdf(res, resolved.typeId, resolved.documentId, pdfBuffer, { noStore: true });
   }
 }
