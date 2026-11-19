@@ -332,7 +332,7 @@ describe('MailService#sendForCompany — the Reply-To cascade (resolveEffectiveR
   });
 });
 
-describe('MailService#sendMail — per-company SMTP override', () => {
+describe('MailService#sendViaTenantSmtp - per-company SMTP override', () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
@@ -359,7 +359,7 @@ describe('MailService#sendMail — per-company SMTP override', () => {
     (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
     const service = new MailService();
-    await service.sendMail(
+    await service.sendViaTenantSmtp(
       { to: 'client@example.com', subject: 'Hi', html: '<p>Hello</p><script>alert(1)</script>' },
       {
         host: 'smtp.example.com',
@@ -383,7 +383,7 @@ describe('MailService#sendMail — per-company SMTP override', () => {
     (nodemailer.createTransport as Mock).mockReturnValue({ sendMail: sendMailMock } as never);
 
     const service = new MailService();
-    await service.sendMail(
+    await service.sendViaTenantSmtp(
       { to: 'client@example.com', subject: 'Hi' },
       {
         host: 'smtp.example.com',

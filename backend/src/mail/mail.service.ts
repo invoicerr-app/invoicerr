@@ -199,7 +199,7 @@ export class MailService {
 
   /**
    * Builds and uses a one-shot nodemailer transport from decrypted SMTP credentials — shared by the
-   * per-call `smtpOverrides` path below and by `sendForCompany`'s own company-SMTP branch. Never logs
+   * `sendViaTenantSmtp` below and by `sendForCompany`'s own company-SMTP branch. Never logs
    * `overrides.password`.
    *
    * THE single point in this codebase where a TENANT-supplied host and port become a real socket
@@ -264,36 +264,12 @@ export class MailService {
     }
   }
 
-  async sendMail(options: MailOptions, smtpOverrides?: SmtpOverrides) {
+  async sendMail(options: MailOptions) {
     // Demo instance (issue #533): checked FIRST, before any network attempt. This is the one
     // chokepoint every mail send in this codebase eventually reaches, including `lib/auth.ts`'s own
     // `new MailService()` instance built outside Nest DI, see `modules/demo/demo-blocked.ts`'s own
     // header for the full list of callers this single check covers.
     assertDemoSendingAllowed('Email');
-
-    // Per-company SMTP: build a one-shot transport from the decrypted company config.
-    // The password is intentionally excluded from all log calls below.
-    if (smtpOverrides) {
-      try {
-        await this.deliverViaSmtp(options, smtpOverrides);
-      } catch (error) {
-        // `deliverViaSmtp` has already logged the real reason and replaced it with a message that is
-        // safe to show a tenant — pass THAT through rather than flattening it back into one string:
-        // "the credentials were rejected" and "the address is not allowed" are both actionable, and
-        // neither says anything the generic one was hiding. Anything else reaching here is not a
-        // delivery failure at all (a bug in this method's own argument handling), so it keeps the
-        // narrow message it always had.
-        if (error instanceof MailDeliveryError) throw error;
-        logger.error('Failed to send email via per-company SMTP.', {
-          category: 'mail',
-          details: { host: smtpOverrides.host, user: smtpOverrides.username, error },
-        });
-        throw new Error(
-          'Failed to send email via per-company SMTP. Check the channel credentials configuration.',
-        );
-      }
-      return { message: 'Email sent successfully' };
-    }
 
     // Global provider path (SMTP_* env vars / Resend) — no company in play here (this is `sendMail`,
     // not `sendForCompany`), so the Reply-To cascade has only two steps: an explicit value already on
@@ -312,6 +288,36 @@ export class MailService {
       throw new Error('Failed to send email. Please check your mail provider configuration.');
     }
 
+    return { message: 'Email sent successfully' };
+  }
+
+  /**
+   * Sends through a tenant-supplied SMTP server (today only the SdI PEC mailbox of
+   * `transports/sdi-pec-transport.ts`): a one-shot transport built from the decrypted credentials,
+   * with no Reply-To cascade. The password is intentionally excluded from all log calls below.
+   */
+  async sendViaTenantSmtp(options: MailOptions, overrides: SmtpOverrides) {
+    // Demo instance (issue #533): same check as `sendMail` above, first, before any network attempt.
+    assertDemoSendingAllowed('Email');
+
+    try {
+      await this.deliverViaSmtp(options, overrides);
+    } catch (error) {
+      // `deliverViaSmtp` has already logged the real reason and replaced it with a message that is
+      // safe to show a tenant - pass THAT through rather than flattening it back into one string:
+      // "the credentials were rejected" and "the address is not allowed" are both actionable, and
+      // neither says anything the generic one was hiding. Anything else reaching here is not a
+      // delivery failure at all (a bug in this method's own argument handling), so it keeps the
+      // narrow message it always had.
+      if (error instanceof MailDeliveryError) throw error;
+      logger.error('Failed to send email via per-company SMTP.', {
+        category: 'mail',
+        details: { host: overrides.host, user: overrides.username, error },
+      });
+      throw new Error(
+        'Failed to send email via per-company SMTP. Check the channel credentials configuration.',
+      );
+    }
     return { message: 'Email sent successfully' };
   }
 
@@ -343,7 +349,7 @@ export class MailService {
    * the commit that wired this in (this comment used to say "not yet consumed" and named
    * `email-transport.ts` as the one caller left to wire; that caller, and every sibling one
    * (reminders, signature requests, OTP codes, client-portal invites), all go through this method now.
-   * The one deliberate holdout is `transports/sdi-pec-transport.ts`: it calls `sendMail` directly with
+   * The one deliberate holdout is `transports/sdi-pec-transport.ts`: it calls `sendViaTenantSmtp` with
    * its own `SmtpOverrides` (the company's dedicated PEC mailbox, resolved through
    * `ChannelCredentialsService` under the `'sdi-pec'` provider id, never through `'mail'`/
    * `resolveCompanyMailSettings`) — a PEC mailbox is a certified, protocol-mandated inbox for SdI

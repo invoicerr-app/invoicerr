@@ -322,7 +322,7 @@ export function buildSdiPecTransport(deps: SdiPecTransportDeps): DocumentTranspo
           category: 'documents',
           details: { companyId: ctx.companyId, filename, recipient },
         });
-        await deps.mailService.sendMail(
+        await deps.mailService.sendViaTenantSmtp(
           {
             to: recipient,
             subject: `Fattura elettronica — ${filename}`,
