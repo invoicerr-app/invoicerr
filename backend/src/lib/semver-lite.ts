@@ -86,7 +86,3 @@ export function compareVersions(a: ParsedVersion, b: ParsedVersion): number {
   }
   return 0;
 }
-
-export function isNewer(candidate: ParsedVersion, than: ParsedVersion): boolean {
-  return compareVersions(candidate, than) > 0;
-}

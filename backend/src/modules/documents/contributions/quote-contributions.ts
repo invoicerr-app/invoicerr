@@ -2,13 +2,8 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import {
-  countDocuments,
-  dateValueInRange,
-  dayMs,
-  listAllDocuments,
-  listRecentDocuments,
-} from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { acceptedOptionTotals, deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';

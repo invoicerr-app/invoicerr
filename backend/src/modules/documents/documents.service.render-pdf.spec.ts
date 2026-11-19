@@ -8,10 +8,10 @@ import { ContributionRegistry } from './contributions/contribution-registry';
 import {
   asciiContentDispositionFallback,
   buildOriginalContentDisposition,
-  DocumentsService,
   rfc5987Encode,
   safeOriginalMime,
-} from './documents.service';
+} from './attachments/content-disposition';
+import { DocumentsService } from './documents.service';
 import { buildQuoteDescriptor } from './descriptors/quote.descriptor';
 import { FieldKindRegistry, registerCoreFieldKinds } from './descriptors/field-kinds';
 import { DocumentTypeRegistry } from './descriptors/type-registry';

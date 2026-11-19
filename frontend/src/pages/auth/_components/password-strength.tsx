@@ -1,27 +1,7 @@
 import { useTranslation } from "react-i18next"
 
+import { passwordScore } from "@/lib/password-rules"
 import { cn } from "@/lib/utils"
-
-/**
- * The four rules a password must satisfy — ONE list, read both by the sign-up form's zod schema
- * (each unmet rule becomes the error listed under the field) and by the meter below (each met rule
- * lights one segment), so the meter can never call "strong" a password the form then refuses.
- * The keys are the pre-existing `auth.signup.errors.password*` messages.
- */
-export const PASSWORD_RULES: ReadonlyArray<{
-  id: string
-  messageKey: string
-  test: (value: string) => boolean
-}> = [
-  { id: "length", messageKey: "auth.signup.errors.passwordMinLength", test: (v) => v.length >= 8 },
-  { id: "letter", messageKey: "auth.signup.errors.passwordLetter", test: (v) => /[A-Za-z]/.test(v) },
-  { id: "number", messageKey: "auth.signup.errors.passwordNumber", test: (v) => /\d/.test(v) },
-  { id: "special", messageKey: "auth.signup.errors.passwordSpecial", test: (v) => /[^A-Za-z0-9]/.test(v) },
-]
-
-export function passwordScore(value: string): number {
-  return PASSWORD_RULES.filter((rule) => rule.test(value)).length
-}
 
 const LEVELS = [
   { key: "weak", fill: "bg-destructive" },

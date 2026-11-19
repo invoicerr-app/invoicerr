@@ -71,7 +71,7 @@ const CONNECTED_CONFIG = {
   },
 };
 
-function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock; sendMail?: Mock }) {
+function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock; sendViaTenantSmtp?: Mock }) {
   const channelCredentials = {
     resolveActive: overrides?.resolveActive ?? vi.fn().mockResolvedValue(CONNECTED_CONFIG),
   } as unknown as ChannelCredentialsService;
@@ -87,7 +87,7 @@ function buildDeps(overrides?: { resolveActive?: Mock; build?: Mock; sendMail?: 
       }),
   };
   const mailService = {
-    sendMail: overrides?.sendMail ?? vi.fn().mockResolvedValue({ message: 'ok' }),
+    sendViaTenantSmtp: overrides?.sendViaTenantSmtp ?? vi.fn().mockResolvedValue({ message: 'ok' }),
   } as unknown as MailService;
   return { channelCredentials, fatturapaFormatProvider, mailService };
 }
@@ -163,8 +163,8 @@ describe('buildSdiPecTransport', () => {
       'builds the correct §2.2 filename, targets the published first-submission address (nothing ' +
         'learned yet), attaches the FatturaPA XML, and returns the filename as `reference`',
       async () => {
-        const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
-        const deps = buildDeps({ sendMail });
+        const sendViaTenantSmtp = vi.fn().mockResolvedValue({ message: 'ok' });
+        const deps = buildDeps({ sendViaTenantSmtp });
         const transport = buildSdiPecTransport(deps);
 
         const result = await transport.send(CTX);
@@ -176,8 +176,8 @@ describe('buildSdiPecTransport', () => {
           { role: 'fatturapa', mime: 'application/xml', bytes: Buffer.from('<FatturaElettronica/>') },
         ]);
 
-        expect(sendMail).toHaveBeenCalledTimes(1);
-        const [options, smtpOverrides] = sendMail.mock.calls[0];
+        expect(sendViaTenantSmtp).toHaveBeenCalledTimes(1);
+        const [options, smtpOverrides] = sendViaTenantSmtp.mock.calls[0];
         expect(options.to).toBe(SDI_PEC_FIRST_SUBMISSION_ADDRESS);
         expect(options.attachments).toEqual([
           expect.objectContaining({ filename: result.reference, contentType: 'application/xml' }),
@@ -216,90 +216,90 @@ describe('buildSdiPecTransport', () => {
       'targets the LEARNED reply address once one exists — never the fixed first-submission address ' +
         'again (the two-step addressing rule, pec-protocol.ts)',
       async () => {
-        const sendMail = vi.fn().mockResolvedValue({ message: 'ok' });
+        const sendViaTenantSmtp = vi.fn().mockResolvedValue({ message: 'ok' });
         const deps = buildDeps({
           resolveActive: vi.fn().mockResolvedValue({
             ...CONNECTED_CONFIG,
             config: { ...CONNECTED_CONFIG.config, sdiReplyAddress: 'sdi07@pec.fatturapa.it' },
           }),
-          sendMail,
+          sendViaTenantSmtp,
         });
         const transport = buildSdiPecTransport(deps);
 
         await transport.send(CTX);
 
-        expect(sendMail.mock.calls[0][0].to).toBe('sdi07@pec.fatturapa.it');
+        expect(sendViaTenantSmtp.mock.calls[0][0].to).toBe('sdi07@pec.fatturapa.it');
       },
     );
   });
 
   describe('send() — a MALFORMED attachment name is refused before anything is sent', () => {
     it('an idTrasmittente that cannot produce a valid §2.2 filename fails loudly, never silently sanitized', async () => {
-      const sendMail = vi.fn();
+      const sendViaTenantSmtp = vi.fn();
       const deps = buildDeps({
         resolveActive: vi.fn().mockResolvedValue({
           ...CONNECTED_CONFIG,
           config: { ...CONNECTED_CONFIG.config, idTrasmittente: 'IT 0123 4567 890' },
         }),
-        sendMail,
+        sendViaTenantSmtp,
       });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/does not match/);
-      expect(sendMail).not.toHaveBeenCalled();
+      expect(sendViaTenantSmtp).not.toHaveBeenCalled();
     });
   });
 
   describe('send() — every other failure mode is loud, never silent', () => {
     it('blocks (never calls mailService) when the channel is not connected — re-checked, not cached from preflight', async () => {
-      const sendMail = vi.fn();
-      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null), sendMail });
+      const sendViaTenantSmtp = vi.fn();
+      const deps = buildDeps({ resolveActive: vi.fn().mockResolvedValue(null), sendViaTenantSmtp });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(NotImplementedException);
-      expect(sendMail).not.toHaveBeenCalled();
+      expect(sendViaTenantSmtp).not.toHaveBeenCalled();
     });
 
     it('refuses when the invoice has no valid client on file', async () => {
       mockedPrisma.client.findFirst.mockResolvedValue(null);
-      const sendMail = vi.fn();
-      const deps = buildDeps({ sendMail });
+      const sendViaTenantSmtp = vi.fn();
+      const deps = buildDeps({ sendViaTenantSmtp });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
-      expect(sendMail).not.toHaveBeenCalled();
+      expect(sendViaTenantSmtp).not.toHaveBeenCalled();
     });
 
     it('never submits an artifact that failed XSD validation', async () => {
-      const sendMail = vi.fn();
+      const sendViaTenantSmtp = vi.fn();
       const build = vi.fn().mockResolvedValue({
         bytes: new TextEncoder().encode('<invalid/>'),
         validation: { valid: false, errors: ['Data element missing'] },
       });
-      const deps = buildDeps({ build, sendMail });
+      const deps = buildDeps({ build, sendViaTenantSmtp });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/failed XSD validation/);
-      expect(sendMail).not.toHaveBeenCalled();
+      expect(sendViaTenantSmtp).not.toHaveBeenCalled();
     });
 
     it("refuses a FatturaPA payload over this transport's own conservative size safety margin", async () => {
-      const sendMail = vi.fn();
+      const sendViaTenantSmtp = vi.fn();
       const oversized = new Uint8Array(30 * 1024 * 1024); // 30 MB raw — well past the safety margin
       const build = vi.fn().mockResolvedValue({ bytes: oversized, validation: { valid: true, errors: [] } });
-      const deps = buildDeps({ build, sendMail });
+      const deps = buildDeps({ build, sendViaTenantSmtp });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
       await expect(transport.send(CTX)).rejects.toThrow(/safety margin/);
-      expect(sendMail).not.toHaveBeenCalled();
+      expect(sendViaTenantSmtp).not.toHaveBeenCalled();
     });
 
     it('wraps a mail-transport rejection into a named BadRequestException — never swallowed', async () => {
-      const sendMail = vi.fn().mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
-      const deps = buildDeps({ sendMail });
+      const sendViaTenantSmtp = vi.fn().mockRejectedValue(new Error('SMTP 550 mailbox unavailable'));
+      const deps = buildDeps({ sendViaTenantSmtp });
       const transport = buildSdiPecTransport(deps);
 
       await expect(transport.send(CTX)).rejects.toThrow(/SdI PEC submission failed: SMTP 550/);

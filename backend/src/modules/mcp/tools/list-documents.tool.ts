@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
+import { hasAnyScope } from '@/utils/scope-check';
+
 import {
   canReadDocumentType,
   DOCUMENT_READ_SCOPES,
   DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
   scopeForDocumentType,
 } from './scope-mapping';
 import { ToolDescriptor } from './types';
@@ -34,7 +35,7 @@ export const listDocumentsTool: ToolDescriptor<typeof inputSchema> = {
     'List saved document instances of one type for the active company, most recently updated ' +
     'first — status, number, and stored field data for each. Call list_document_types first if you ' +
     'do not already know a valid typeId.',
-  isRegistered: (scopes) => hasAnyScope([...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES], scopes),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
   inputSchema,
   handler: async (ctx, input) => {
     if (!canReadDocumentType(ctx.scopes, input.typeId)) {

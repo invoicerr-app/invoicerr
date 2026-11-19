@@ -21,3 +21,24 @@ export function dayMs(dateStr: string): number {
   const [year, month, day] = dateStr.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
 }
+
+/** Whether `dateValue` (whatever a document's date field currently holds, normally an ISO string,
+ *  e.g. from a 'date' field's own `toISOString()`) falls within `[fromMs, toMs]`, each bound optional
+ *  and inclusive, compared at UTC day boundaries. Missing/unparseable -> excluded: a document with no
+ *  readable date cannot honestly be placed in ANY range - an honest default, never a guess. The ONE
+ *  predicate `GET /documents`'s own `dateFrom`/`dateTo` filter (`persistence.ts`), the dashboard's
+ *  period-scoped contributions (issue #418) and the accounting export's period all apply, so a period
+ *  tile, the list its `link` opens and the export never put a boundary day on different sides. */
+export function dateValueInRange(
+  dateValue: unknown,
+  fromMs: number | undefined,
+  toMs: number | undefined,
+): boolean {
+  if (typeof dateValue !== 'string') return false;
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const ms = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  if (fromMs !== undefined && ms < fromMs) return false;
+  if (toMs !== undefined && ms > toMs) return false;
+  return true;
+}

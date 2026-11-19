@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
+import { hasAnyScope } from '@/utils/scope-check';
+
 import {
   canReadDocumentType,
   DOCUMENT_READ_SCOPES,
   DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
   scopeForDocumentType,
 } from './scope-mapping';
 import { ToolDescriptor } from './types';
@@ -34,7 +35,7 @@ export const getDocumentTool: ToolDescriptor<typeof inputSchema> = {
     "its payment settlement. For a quote with options, totals.options holds each option's own " +
     'totals, and the top-level net/VAT/gross are null until an option is accepted (then they are ' +
     "that option's). 404s if it does not exist for the active company/type.",
-  isRegistered: (scopes) => hasAnyScope([...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES], scopes),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
   inputSchema,
   handler: async (ctx, input) => {
     if (!canReadDocumentType(ctx.scopes, input.typeId)) {

@@ -14,9 +14,8 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { useCompany, useCreateTimeEntry, useUpdateTimeEntry } from "@/hooks/queries"
+import { useCompanyCurrencySymbol, useCreateTimeEntry, useUpdateTimeEntry } from "@/hooks/queries"
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "@/lib/calendar-date"
-import { currencies } from "@/lib/constants/currencies"
 import { typeErrors } from "@/lib/zod-messages"
 import type { TimeEntry } from "@/types"
 
@@ -215,8 +214,7 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
   const { t } = useTranslation()
   const timeEntrySchema = useMemo(() => buildTimeEntrySchema(t), [t])
   const isEdit = !!entry
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const { mutateAsync: createEntry, isPending: creating } = useCreateTimeEntry()
   const { mutateAsync: updateEntry, isPending: updating } = useUpdateTimeEntry()

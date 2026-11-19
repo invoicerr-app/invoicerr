@@ -88,17 +88,9 @@
  * while claiming it is valid. The delta is therefore BLOCKING, like every other gate in this registry
  * (structural, base EN16931, Peppol).
  */
-import { DocumentInstanceResult } from '../actions/action-registry';
-import { DocumentTypeDescriptor } from '../descriptors/types';
-import {
-  DocumentFormatBuildOptions,
-  DocumentFormatBuildResult,
-  DocumentFormatParty,
-  DocumentFormatProvider,
-} from './format-provider';
-import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
-import { validateStructural } from './structural-check';
-import { EN16931_UBL_SCH, validateSchematron, XRECHNUNG_UBL_SCH } from './vendored/validate-schematron';
+import { DocumentFormatProvider } from './format-provider';
+import { buildValidatedUbl } from './shared-build';
+import { XRECHNUNG_UBL_SCH } from './vendored/validate-schematron';
 
 /**
  * Read VERBATIM from the vendored delta's own `<let name="XR-CIUS-ID">` (BR-DE-21, warning-level,
@@ -116,42 +108,13 @@ const XRECHNUNG_CUSTOMIZATION_ID = 'urn:cen.eu:en16931:2017#compliant#urn:xeinka
  *  derives NO business process code for, so only a mandated French seller's document changes. */
 const XRECHNUNG_BUSINESS_PROCESS_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
-async function build(
-  descriptor: DocumentTypeDescriptor,
-  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
-  company: DocumentFormatParty,
-  client: DocumentFormatParty,
-  _companyId?: string,
-  options?: DocumentFormatBuildOptions,
-): Promise<DocumentFormatBuildResult> {
-  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
-    customizationId: XRECHNUNG_CUSTOMIZATION_ID,
-    businessProcessCodeOverride: XRECHNUNG_BUSINESS_PROCESS_ID,
-    creditNote: options?.creditNote,
-  });
-
-  const service = newEuInvoiceService();
-  const xml = (await service.generate(euInvoice, { format: 'UBL', lang: 'en' })) as string;
-
-  const structural = validateStructural(xml, 'ubl', options?.creditNote ? 'credit-note' : 'invoice');
-  if (!structural.valid) {
-    return { bytes: new TextEncoder().encode(xml), validation: { valid: false, errors: structural.errors } };
-  }
-
-  // BOTH gates run, and BOTH must pass — see this file's own header, "DECISION: the delta is
-  // BLOCKING". An artifact that trips a single BR-DE-* is never served.
-  const base = validateSchematron(xml, EN16931_UBL_SCH);
-  const delta = validateSchematron(xml, XRECHNUNG_UBL_SCH);
-  const errors = [
-    ...base.errors.map((e) => `${e.id}: ${e.message}`),
-    ...delta.errors.map((e) => `${e.id}: ${e.message}`),
-  ];
-
-  return {
-    bytes: new TextEncoder().encode(xml),
-    validation: { valid: base.valid && delta.valid, errors },
-  };
-}
+// BOTH gates run (base EN 16931 + the KoSIT delta), and BOTH must pass: see this file's own
+// header, "DECISION: the delta is BLOCKING". An artifact that trips a single BR-DE-* is never served.
+const build = buildValidatedUbl({
+  customizationId: XRECHNUNG_CUSTOMIZATION_ID,
+  businessProcessCodeOverride: XRECHNUNG_BUSINESS_PROCESS_ID,
+  deltaSch: XRECHNUNG_UBL_SCH,
+});
 
 export const xrechnungFormatProvider: DocumentFormatProvider = {
   id: 'xrechnung',

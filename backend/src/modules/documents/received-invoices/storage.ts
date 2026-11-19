@@ -74,6 +74,20 @@ import { assertValidContentHash, extFor } from './storage-path';
 
 export { assertValidContentHash, extFor };
 
+/** Which backend `INBOUND_STORAGE` currently names (`'s3'`, or local disk otherwise). Read FRESH on
+ *  every call, never hoisted into a module-level constant (see `persistInboundFile`'s own header). */
+function inboundBackend(): 's3' | 'local' {
+  return process.env.INBOUND_STORAGE === 's3' ? 's3' : 'local';
+}
+
+/** Throws unless `target` sits strictly inside `root`. Called by each local read/write right before
+ *  the `fs` call, on the exact `target` that call uses (see `persistInboundFileLocal`'s own header). */
+function assertContained(root: string, target: string): void {
+  if (!target.startsWith(root + sep)) {
+    throw new Error(`Refusing to read/write outside this company's own storage directory.`);
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Local filesystem implementation — behavior UNCHANGED from before this file became a dispatching
 // facade; only renamed (`*Local` suffix, private to this module) — see `archive/storage.ts`'s own
@@ -95,9 +109,7 @@ function persistInboundFileLocal(companyId: string, sha256: string, mime: string
   assertValidContentHash(sha256);
   const root = resolve(inboundRoot(), companyId);
   const target = resolve(root, `${sha256}.${extFor(mime)}`);
-  if (!target.startsWith(root + sep)) {
-    throw new Error(`Refusing to read/write outside this company's own storage directory.`);
-  }
+  assertContained(root, target);
   mkdirSync(root, { recursive: true });
   writeFileSync(target, Buffer.from(bytes));
   return `file://${target}`;
@@ -106,16 +118,15 @@ function persistInboundFileLocal(companyId: string, sha256: string, mime: string
 /** Reads back exactly what `persistInboundFileLocal` wrote — `null` (never throws) for a missing file,
  *  the same "a missing artifact is a fact to report, not an exception to crash the request over"
  *  discipline `archive/storage.ts#readArchivedArtifact` already holds. Same `target`-built-then-
- *  checked-then-used shape as the write above, proven again here rather than trusted from a shared
- *  helper, right before the read that actually touches disk. */
+ *  checked-then-used shape as the write above, proven again here (on this function's own `target`)
+ *  rather than trusted from a path some shared helper handed back, right before the read that
+ *  actually touches disk. */
 function readInboundFileLocal(companyId: string, sha256: string, mime: string): Buffer | null {
   try {
     assertValidContentHash(sha256);
     const root = resolve(inboundRoot(), companyId);
     const target = resolve(root, `${sha256}.${extFor(mime)}`);
-    if (!target.startsWith(root + sep)) {
-      throw new Error(`Refusing to read/write outside this company's own storage directory.`);
-    }
+    assertContained(root, target);
     return readFileSync(target);
   } catch {
     return null;
@@ -159,7 +170,7 @@ export async function persistInboundFile(
   mime: string,
   bytes: Uint8Array,
 ): Promise<string> {
-  if (process.env.INBOUND_STORAGE === 's3') {
+  if (inboundBackend() === 's3') {
     return persistInboundFileS3(companyId, sha256, mime, bytes);
   }
   return persistInboundFileLocal(companyId, sha256, mime, bytes);
@@ -176,7 +187,7 @@ export async function readInboundFile(
   sha256: string,
   mime: string,
 ): Promise<Buffer | null> {
-  if (process.env.INBOUND_STORAGE === 's3') {
+  if (inboundBackend() === 's3') {
     return readInboundFileS3(companyId, sha256, mime);
   }
   return readInboundFileLocal(companyId, sha256, mime);
@@ -187,7 +198,7 @@ export async function readInboundFile(
  *  wipes everything it uploaded); nothing else in this codebase ever deletes a single company's own
  *  files short of the whole-instance wipe below. */
 export async function deleteInboundFilesForCompany(companyId: string): Promise<void> {
-  if (process.env.INBOUND_STORAGE === 's3') {
+  if (inboundBackend() === 's3') {
     return deleteInboundFilesForCompanyS3(companyId);
   }
   return deleteInboundFilesForCompanyLocal(companyId);
@@ -198,7 +209,7 @@ export async function deleteInboundFilesForCompany(companyId: string): Promise<v
  *  the (now empty) root directory immediately, matching the pre-existing behavior this function
  *  replaces; S3 mode has no directory to recreate — an empty bucket needs no equivalent step. */
 export async function wipeAllInboundFiles(): Promise<void> {
-  if (process.env.INBOUND_STORAGE === 's3') {
+  if (inboundBackend() === 's3') {
     return deleteAllInboundObjectsS3();
   }
   return wipeAllInboundFilesLocal();

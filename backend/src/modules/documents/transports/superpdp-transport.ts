@@ -31,6 +31,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -110,8 +111,12 @@ async function requireConnectedSuperPdp(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SuperPdpCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractSuperPdpCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractSuperPdpCredentials,
+  );
   if (!credentials) {
     logger.warn('SuperPDP transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

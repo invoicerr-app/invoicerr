@@ -5,8 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useArticles, useCompany } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import { useArticles, useCompanyCurrencySymbol } from "@/hooks/queries"
 import type { Article } from "@/types"
 
 import { FilterChip, FilterChipGroup, ListRow, ListSearch, ListSkeleton } from "../../_shared/data-list"
@@ -112,8 +111,7 @@ function ArticleRow({
 export function ArticlesList() {
   const { t } = useTranslation()
   const { data: articles = [], isLoading } = useArticles()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
+  const currencySymbol = useCompanyCurrencySymbol("")
 
   const [searchTerm, setSearchTerm] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)

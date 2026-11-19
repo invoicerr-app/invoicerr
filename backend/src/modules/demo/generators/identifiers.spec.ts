@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { calculateFrenchVAT } from '@/modules/sirene/sirene.utils';
+
 import {
   assertValidDeVat,
   assertValidFrIdentifiers,
@@ -7,10 +9,10 @@ import {
   assertValidPlNip,
   assertValidPtNif,
   generateDeVat,
-  generateFrIdentifiers,
   generateItPartitaIva,
   generatePlNip,
   generatePtNif,
+  generateSiret,
   validatePtNif,
 } from './identifiers';
 import { createRng } from './rng';
@@ -23,7 +25,9 @@ describe('demo seed identifier generators: checksum round-trip against the real 
   it.each(SEEDS)('FR SIRET + VAT are checksum-valid for seed %s', (seed) => {
     const rng = createRng(seed);
     for (let i = 0; i < 20; i++) {
-      const ids = generateFrIdentifiers(rng);
+      const siret = generateSiret(rng);
+      const siren = siret.slice(0, 9);
+      const ids = { siret, siren, vat: calculateFrenchVAT(siren) };
       expect(() => assertValidFrIdentifiers(ids)).not.toThrow();
       expect(ids.siret).toMatch(/^\d{14}$/);
       expect(ids.vat).toMatch(/^FR[0-9A-Z]{2}\d{9}$/);
@@ -75,14 +79,14 @@ describe('demo seed identifier generators: checksum round-trip against the real 
   });
 
   it('is deterministic: the same seed produces the same identifiers every time', () => {
-    const a = generateFrIdentifiers(createRng('reproducible'));
-    const b = generateFrIdentifiers(createRng('reproducible'));
+    const a = generateSiret(createRng('reproducible'));
+    const b = generateSiret(createRng('reproducible'));
     expect(a).toEqual(b);
   });
 
   it('a fresh seed produces different identifiers (real randomness between resets)', () => {
-    const a = generateFrIdentifiers(createRng('reset-run-1'));
-    const b = generateFrIdentifiers(createRng('reset-run-2'));
+    const a = generateSiret(createRng('reset-run-1'));
+    const b = generateSiret(createRng('reset-run-2'));
     expect(a).not.toEqual(b);
   });
 });

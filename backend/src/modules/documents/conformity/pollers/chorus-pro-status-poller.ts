@@ -37,17 +37,16 @@
  * offered.
  */
 import { logger } from '@/logger/logger.service';
-import {
-  ChannelCredentialsService,
-  ResolvedChannelConfig,
-} from '@/modules/company/channels/channels.service';
+import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { mapChorusProStatus } from '../../transports/chorus-pro/choruspro-client';
 import {
   buildChorusProClient,
   CHORUS_PRO_PROVIDER_ID,
+  ChorusProCredentials,
   extractChorusProCredentials,
 } from '../../transports/chorus-pro-transport';
+import { resolveChannelCredentials } from '../../transports/resolve-channel-credentials';
 import {
   AuthorityStatusPoller,
   ChannelNotConnectedError,
@@ -74,15 +73,20 @@ export interface ChorusProStatusPollerDeps {
   channelCredentials: ChannelCredentialsService;
 }
 
-async function resolveChorusProConfig(
+async function resolveChorusProCredentials(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
-): Promise<ResolvedChannelConfig> {
-  const resolved = await channelCredentials.resolveActive(companyId, CHORUS_PRO_PROVIDER_ID);
-  if (!resolved || !extractChorusProCredentials(resolved)) {
+): Promise<ChorusProCredentials> {
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    CHORUS_PRO_PROVIDER_ID,
+    extractChorusProCredentials,
+  );
+  if (!credentials) {
     throw new ChannelNotConnectedError(CHORUS_PRO_PROVIDER_ID);
   }
-  return resolved;
+  return credentials;
 }
 
 export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): AuthorityStatusPoller {
@@ -104,8 +108,7 @@ export function buildChorusProStatusPoller(deps: ChorusProStatusPollerDeps): Aut
     isRejection: (statusCode) => mapChorusProStatus(statusCode) === 'REJECTED',
 
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
-      const resolved = await resolveChorusProConfig(deps.channelCredentials, companyId);
-      const credentials = extractChorusProCredentials(resolved)!; // proved non-null above
+      const credentials = await resolveChorusProCredentials(deps.channelCredentials, companyId);
       const client = buildChorusProClient(credentials);
 
       const cr = await client.consulterCr(transportRef);

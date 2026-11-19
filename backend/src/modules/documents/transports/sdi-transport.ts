@@ -46,6 +46,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -148,8 +149,12 @@ async function requireConnectedSdi(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<SdiCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractSdiCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractSdiCredentials,
+  );
   if (!credentials) {
     logger.warn('SdI transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

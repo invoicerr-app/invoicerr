@@ -20,8 +20,7 @@ import {
 import type { CredentialFieldDescriptor } from "@/hooks/queries"
 import { usePut } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
-
-type ChannelEnvironment = "TEST" | "PROD"
+import type { ChannelEnvironment } from "@/types/channels"
 
 /**
  * Issue #527 - the connect form, in a side sheet, generated ENTIRELY from `credentialFields`

@@ -1,5 +1,5 @@
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { issuedStatusesOf } from './archived-pdf-policy';
+import { issuedStatusesOf } from '../descriptors/lifecycle';
 
 /**
  * Issue #494: when a rendered PDF prints the document's "Status: <status>" line.

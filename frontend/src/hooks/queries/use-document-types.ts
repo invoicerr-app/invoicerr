@@ -577,16 +577,19 @@ export function useSelectableRows(
   )
 }
 
-/** The same query as `useSelectableRows`, for a caller outside render (shares its cache entry). */
-export function useFetchSelectableRows() {
+/** The same query as `useSelectableRows`, for a caller outside render (shares its cache entry).
+ *  `staleTime`, when given, is passed to `fetchQuery` (e.g. `0` to always refetch). */
+export function useFetchSelectableRows(options: { staleTime?: number } = {}) {
   const queryClient = useQueryClient()
+  const { staleTime } = options
   return useCallback(
     (typeId: string, fieldKey: string, sourceId: string) =>
       queryClient.fetchQuery({
         queryKey: selectableRowsKey(typeId, fieldKey, sourceId),
+        ...(staleTime === undefined ? {} : { staleTime }),
         queryFn: () => apiFetch<SelectableRowsResult>(selectableRowsUrl(typeId, fieldKey, sourceId)),
       }),
-    [queryClient],
+    [queryClient, staleTime],
   )
 }
 

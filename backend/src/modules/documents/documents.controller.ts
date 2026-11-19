@@ -36,13 +36,13 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 
+import { AttachmentRef, AttachmentsService, MAX_ATTACHMENT_BYTES } from './attachments/attachments.service';
 import {
-  ALLOWED_ATTACHMENT_MIMES,
-  AttachmentRef,
-  AttachmentsService,
-  MAX_ATTACHMENT_BYTES,
-} from './attachments/attachments.service';
-import { buildOriginalContentDisposition, DocumentsService } from './documents.service';
+  buildOriginalContentDisposition,
+  safeOriginalMime,
+  sendInlinePdf,
+} from './attachments/content-disposition';
+import { DocumentsService } from './documents.service';
 import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import {
@@ -784,9 +784,7 @@ export class DocumentsController {
     // what the BROWSER is told they are changes. `Content-Disposition: attachment` and `nosniff` are
     // kept regardless, as defense in depth: even a mime this app trusts should not execute in a page
     // navigated to directly, and `nosniff` stops the browser from ever second-guessing either header.
-    const safeMime = ALLOWED_ATTACHMENT_MIMES.includes(resolvedMime)
-      ? resolvedMime
-      : 'application/octet-stream';
+    const safeMime = safeOriginalMime(resolvedMime);
     res.setHeader('Content-Type', safeMime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', 'attachment');
@@ -1079,9 +1077,7 @@ export class DocumentsController {
     @Res() res: Response,
   ): Promise<void> {
     const pdfBuffer = await this.documentsService.renderInstancePdf(companyId, typeId, id);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${typeId}-${id}.pdf"`);
-    res.send(pdfBuffer);
+    sendInlinePdf(res, typeId, id, pdfBuffer);
   }
 
   @Get(':id/original')

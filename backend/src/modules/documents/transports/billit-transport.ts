@@ -61,6 +61,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -137,8 +138,12 @@ async function requireConnectedBillit(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<BillitCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractBillitCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractBillitCredentials,
+  );
   if (!credentials) {
     logger.warn('Billit transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

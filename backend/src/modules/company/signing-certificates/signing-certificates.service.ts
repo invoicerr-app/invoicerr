@@ -24,6 +24,7 @@ import {
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { credentialAudit } from '@/utils/credential-access-audit';
 import { ChannelEnvironment, CompanySigningCertificate } from '../../../../prisma/generated/prisma/client';
+import { toChannelEnvironment } from '../channel-environment';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Public DTOs (no secret fields — see this file's own header)
@@ -130,11 +131,6 @@ function parsePfx(pfxBase64: string, password: string): ParsedPfx {
   );
 
   return { notBefore, notAfter, serial, subject, certPem, certDer, privateKeyPem };
-}
-
-function toChannelEnvironment(value: string | undefined): ChannelEnvironment {
-  if (value === ChannelEnvironment.PROD) return ChannelEnvironment.PROD;
-  return ChannelEnvironment.TEST;
 }
 
 /** Strip secret fields — never expose PFX or password through HTTP. */

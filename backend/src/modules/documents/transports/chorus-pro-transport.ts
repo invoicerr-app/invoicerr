@@ -105,6 +105,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import prisma from '@/prisma/prisma.service';
 
@@ -293,8 +294,12 @@ async function requireConnectedChorusPro(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<ChorusProCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, CHORUS_PRO_PROVIDER_ID);
-  const credentials = resolved && extractChorusProCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    CHORUS_PRO_PROVIDER_ID,
+    extractChorusProCredentials,
+  );
   if (!credentials) {
     logger.warn('Chorus Pro transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

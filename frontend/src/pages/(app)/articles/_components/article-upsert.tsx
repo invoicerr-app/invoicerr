@@ -20,9 +20,8 @@ import {
   stepForField,
 } from "@/components/ui/stepped-dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { useCompany } from "@/hooks/queries"
+import { useCompanyCurrencySymbol } from "@/hooks/queries"
 import { usePatch, usePost } from "@/hooks/use-fetch"
-import { currencies } from "@/lib/constants/currencies"
 import { queryKeys } from "@/lib/query-keys"
 import type { Article } from "@/types"
 
@@ -295,8 +294,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
   const articleSchema = useMemo(() => buildArticleSchema(t), [t])
   const isEdit = !!article
   const queryClient = useQueryClient()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const { trigger: createTrigger, loading: creating } = usePost("/api/articles")
   const { trigger: updateTrigger, loading: updating } = usePatch(`/api/articles/${article?.id || ""}`)

@@ -1,4 +1,5 @@
 import { formatOtp } from "@/lib/format"
+import { isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, Lock, RotateCcw, Trash2 } from "lucide-react"
 import type React from "react"
 import { useMemo, useState } from "react"
@@ -23,7 +24,7 @@ import { afterCompanyGone } from "@/lib/after-company-gone"
 import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "./settings-section"
-import InstanceResetSection, { isOtpLockedError } from "./instance-reset.section"
+import InstanceResetSection from "./instance-reset.section"
 import TransferCompanySection from "./transfer-company.section"
 
 /** A fixed keyword typed exactly, uppercase — the same "type to confirm" convention every host of a
@@ -166,7 +167,7 @@ export default function DangerZoneSettings() {
     setOtp(formatOtp(e.target.value))
   }
 
-  const canConfirm = otp.length === 9 && confirmText === confirmKeyword
+  const canConfirm = isOtpComplete(otp) && confirmText === confirmKeyword
   const resetBlocked = preflight?.blocked ?? false
   const retentionDate = preflight?.retentionUntil
     ? new Date(preflight.retentionUntil).toLocaleDateString()
@@ -313,7 +314,7 @@ export default function DangerZoneSettings() {
                 onChange={handleOtpChange}
                 placeholder={t("settings.dangerZone.modal.otpPlaceholder")}
                 className="text-center text-lg font-mono tracking-wider"
-                maxLength={9}
+                maxLength={OTP_DISPLAY_LENGTH}
                 data-cy="danger-otp-input"
               />
             </div>

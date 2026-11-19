@@ -14,13 +14,13 @@ import { join } from 'node:path';
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('./client-match', () => ({ matchBuyerClient: vi.fn() }));
+vi.mock('../client-book-match', () => ({ matchClientByVatThenName: vi.fn() }));
 
 import { extractImportFields } from '../received-invoices/extraction';
-import { matchBuyerClient } from './client-match';
+import { matchClientByVatThenName } from '../client-book-match';
 import { buildImportPrefill, buildPrefillDraft } from './einvoice-import-prefill';
 
-const matchBuyerClientMock = matchBuyerClient as unknown as ReturnType<typeof vi.fn>;
+const matchClientByVatThenNameMock = matchClientByVatThenName as unknown as ReturnType<typeof vi.fn>;
 
 const FIXTURES = join(__dirname, '__fixtures__');
 const readFixture = (name: string): Uint8Array => readFileSync(join(FIXTURES, name));
@@ -113,7 +113,7 @@ describe('import pre-fill from a structured e-invoice', () => {
   });
 
   it('a credit note is pre-filled without any client match, and warns about its reason', async () => {
-    matchBuyerClientMock.mockClear();
+    matchClientByVatThenNameMock.mockClear();
     const xml = readXml('sample.cii.xml').replace(
       '<ram:TypeCode>380</ram:TypeCode>',
       '<ram:TypeCode>381</ram:TypeCode>',
@@ -135,7 +135,7 @@ describe('import pre-fill from a structured e-invoice', () => {
     expect(result.clientProposal).toBeUndefined();
     expect(result.warnings.join(' ')).toMatch(/free \(not linked to an invoice\), so it needs a reason/);
     expect(result.warnings.join(' ')).not.toMatch(/client/i);
-    expect(matchBuyerClientMock).not.toHaveBeenCalled();
+    expect(matchClientByVatThenNameMock).not.toHaveBeenCalled();
   });
 
   it('an unrecognized file is refused with a plain explanation', async () => {

@@ -16,6 +16,7 @@ import { ProseHelp } from "@/components/ui/prose-help"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { Separator } from "@/components/ui/separator"
 import { useCompanies } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { useDelete, useGet, usePut } from "@/hooks/use-fetch"
 import { descriptorTypeLabel } from "@/lib/descriptor-i18n"
 import {
@@ -598,7 +599,7 @@ function DocumentTemplateCard({
 export default function EmailTemplatesSettings() {
   const { t } = useTranslation()
   const { activeRole } = useCompanies()
-  const canEdit = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canEdit = isCompanyAdmin(activeRole)
 
   const { data: systemData, mutate: refetchSystem } = useGet<SystemEmailTemplateView[]>(
     "/api/company/email-templates",

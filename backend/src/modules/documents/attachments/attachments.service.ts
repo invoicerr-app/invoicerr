@@ -19,26 +19,7 @@ import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeExce
 
 import { computeArtifactHash } from '../archive/hashing';
 import { persistInboundFile, readInboundFile } from '../received-invoices/storage';
-
-/**
- * What this app accepts as an attachment TODAY — a receipt is a photo or a PDF. The one consumer
- * that exists (expense.descriptor.ts's `attachment` field) is what fixes this list; a SECOND consumer
- * needing a different allow-list would need this parameterized per field, which nothing here does yet
- * (never invented ahead of an actual second need — same discipline `archive/storage.ts#extFor`'s own
- * small, honest map already holds).
- */
-export const ALLOWED_ATTACHMENT_MIMES: readonly string[] = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  // Issue #340 - importing a past document's original file: the legal archive of an imported
-  // invoice/credit-note is a PDF for most sellers, but can be the structured XML a previous tool
-  // issued (FatturaPA, KSeF FA(3), Factur-X/CII, XRechnung/UBL) - see archive/import-original.ts's
-  // own header on why the original format is kept verbatim, never re-derived from a PDF alone.
-  'application/xml',
-  'text/xml',
-];
+import { ALLOWED_ATTACHMENT_MIMES } from './content-disposition';
 
 /**
  * The product ceiling for one attachment (2026-09-17 decision: multipart/form-data replaces the old

@@ -1,6 +1,5 @@
 import { Scale } from "lucide-react"
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -16,8 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
-import { type SelectableRowsResult, useCorrectionRoutes, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError, apiFetch } from "@/hooks/use-api-query"
+import { useCorrectionRoutes, useFetchSelectableRows, useRunDocumentAction } from "@/hooks/queries"
+import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
@@ -197,7 +196,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   // `invalidateKeys: [["documents"]]` is what makes the list's own "Cancelled" badge appear the
   // instant this dialogue closes, with no bespoke refetch wired here.
   const cancelAction = useRunDocumentAction()
-  const queryClient = useQueryClient()
+  const fetchSelectableRows = useFetchSelectableRows({ staleTime: 0 })
 
   const handleChoose = async (route: CorrectionRouteView) => {
     if (route.routeId === INTERNAL_CREDIT_NOTE_ROUTE_ID && route.implemented) {
@@ -210,14 +209,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // and locks itself the instant it resolves — no currency value needs to be guessed here.
       let rows: { id: string }[] = []
       try {
-        const result = await queryClient.fetchQuery({
-          queryKey: ["document-row-selection", "credit-note", "correctedLines", instance.id],
-          staleTime: 0,
-          queryFn: () =>
-            apiFetch<SelectableRowsResult>(
-              `/api/documents/types/credit-note/fields/correctedLines/rows?sourceId=${encodeURIComponent(instance.id)}`,
-            ),
-        })
+        const result = await fetchSelectableRows("credit-note", "correctedLines", instance.id)
         rows = result.rows
       } catch {
         // The screen still opens linked; the lines can be ticked by hand.

@@ -1,4 +1,5 @@
 import { formatOtp } from "@/lib/format"
+import { isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ServerCrash } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -29,15 +30,6 @@ import { SettingsSection } from "./settings-section"
  *  instead (there is no single company — that is the whole point), so a longer fixed phrase is the
  *  only extra friction available. */
 const RESET_INSTANCE_KEYWORD = "RESET INSTANCE"
-
-/** Also used by `danger.settings.tsx`. The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
- *  expired, or already locked: the backend folds all three into the same message on purpose, so a
- *  caller here can never narrow down a guess). The ONE outcome the backend does surface distinctly is
- *  the permanent lockout on the REQUEST step itself (five failed confirmations, for good), matched on
- *  the response text since that refusal carries no separate error code, only this one stable phrase. */
-export function isOtpLockedError(error: unknown): boolean {
-  return error instanceof Error && /locked/i.test(error.message)
-}
 
 /**
  * Settings > Danger Zone's instance-wide reset card — mounted ONLY when `useInstancePreflight()`
@@ -102,7 +94,7 @@ export default function InstanceResetSection() {
 
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => setOtp(formatOtp(e.target.value))
 
-  const canConfirm = otp.length === 9 && confirmText === RESET_INSTANCE_KEYWORD
+  const canConfirm = isOtpComplete(otp) && confirmText === RESET_INSTANCE_KEYWORD
 
   return (
     <>
@@ -173,7 +165,7 @@ export default function InstanceResetSection() {
                 onChange={handleOtpChange}
                 placeholder={t("settings.instanceReset.modal.otpPlaceholder")}
                 className="text-center text-lg font-mono tracking-wider"
-                maxLength={9}
+                maxLength={OTP_DISPLAY_LENGTH}
                 data-cy="instance-reset-otp-input"
               />
             </div>

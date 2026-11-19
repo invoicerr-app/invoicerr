@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth"
+import { PASSWORD_RULES, type PasswordRuleId } from "@/lib/password-rules"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { useDemoMode } from "@/hooks/queries"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
@@ -19,20 +20,23 @@ export default function AccountSecurityPage() {
   const [saved, flashSaved] = useSavedFlash()
   const { demoMode } = useDemoMode()
 
+  // One message per shared rule (`lib/password-rules.ts`), in this page's own wording.
+  const passwordRuleErrors: Record<PasswordRuleId, string> = {
+    length: t("account.security.password.form.password.errors.minLength"),
+    letter: t("account.security.password.form.password.errors.letter"),
+    number: t("account.security.password.form.password.errors.number"),
+    special: t("account.security.password.form.password.errors.special"),
+  }
+
   const passwordSchema = z
     .object({
       currentPassword: hasCredentialAccount
         ? z.string().min(1, { error: t("account.security.password.form.currentPassword.errors.required") })
         : z.string().optional(),
-      password: z
-        .string()
-        .min(8, { error: t("account.security.password.form.password.errors.minLength") })
-        .regex(/[a-zA-Z]/, { error: t("account.security.password.form.password.errors.letter") })
-        .regex(/[0-9]/, { error: t("account.security.password.form.password.errors.number") })
-        .regex(/[^a-zA-Z0-9]/, {
-          error: t("account.security.password.form.password.errors.special"),
-        })
-        .trim(),
+      password: PASSWORD_RULES.reduce(
+        (schema, rule) => schema.refine(rule.test, { error: passwordRuleErrors[rule.id] }),
+        z.string(),
+      ).trim(),
       confirmPassword: z.string().trim(),
     })
     .refine((data) => data.password === data.confirmPassword, {

@@ -14,6 +14,7 @@
  */
 import { PDP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from '../../transports/resolve-channel-credentials';
 
 import {
   ChannelNotConnectedError,
@@ -49,8 +50,12 @@ async function requireCredentials(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<{ baseUrl: string; clientId: string; clientSecret: string }> {
-  const resolved = await channelCredentials.resolveActive(companyId, TRANSPORT_ID);
-  const credentials = resolved && extractSuperPdpCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    TRANSPORT_ID,
+    extractSuperPdpCredentials,
+  );
   if (!credentials) {
     // Let the runner classify this as `report:blocked`, never as a declaration.
     throw new ChannelNotConnectedError(

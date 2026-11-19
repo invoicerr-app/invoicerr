@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { useCompanies } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { downloadBlob } from "@/lib/download"
 
@@ -28,7 +29,7 @@ import { SettingsFormFooter, SettingsSection } from "./settings-section"
 export default function DataExportSettings() {
   const { t } = useTranslation()
   const { activeRole } = useCompanies()
-  const canExport = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canExport = isCompanyAdmin(activeRole)
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {

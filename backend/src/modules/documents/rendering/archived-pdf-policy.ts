@@ -1,4 +1,5 @@
 import { hashDocumentData } from '../archive/document-data-hash';
+import { issuedStatusesOf } from '../descriptors/lifecycle';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 
 /**
@@ -38,13 +39,9 @@ import { DocumentTypeDescriptor } from '../descriptors/types';
  *    but "draft", i.e. "sending", "sent", "send_failed";
  *  - quote (`descriptors/quote.descriptor.ts`, `lockedStatuses`): "signed" and "accepted";
  *  - every other type: none, so only the hash rule applies.
- * Derived rather than copied, so a status added to one of those lists is issued here too.
+ * Derived rather than copied (`descriptors/lifecycle.ts#issuedStatusesOf`), so a status added to one
+ * of those lists is issued here too.
  */
-
-/** The statuses whose archived PDF is the legal copy for this type - see this file's own header. */
-export function issuedStatusesOf(descriptor: DocumentTypeDescriptor): readonly string[] {
-  return descriptor.actions.find((action) => action.id === 'save-draft')?.lockedStatuses ?? [];
-}
 
 /**
  * Whether an archived PDF whose recorded data hash is `archivedDataHash` may be served for a document

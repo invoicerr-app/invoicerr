@@ -99,6 +99,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -179,8 +180,12 @@ async function requireConnectedAcube(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<AcubeCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractAcubeCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractAcubeCredentials,
+  );
   if (!credentials) {
     logger.warn('A-Cube transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',

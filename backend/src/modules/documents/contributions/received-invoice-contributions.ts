@@ -4,7 +4,8 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import { dateValueInRange, dayMs, listAllDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
+import { listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
   consolidateByCurrency,
@@ -26,7 +27,7 @@ function grossAmount(data: Record<string, unknown>): number {
  *  even though it is OPTIONAL on this type (a plain scanned PDF may carry no extracted date at all,
  *  same reasoning as `grossAmount` above): a record with no readable date is simply excluded once a
  *  period is set, the exact same "can't honestly be placed in ANY range" rule
- *  `persistence.ts#dateValueInRange` already applies for `GET /documents`'s own filter - never
+ *  `date-params.ts#dateValueInRange` already applies for `GET /documents`'s own filter - never
  *  guessed into either side of the boundary. */
 const RECEIVED_INVOICE_DATE_FIELD_KEY = resolveDateFieldKey(buildReceivedInvoiceDescriptor());
 

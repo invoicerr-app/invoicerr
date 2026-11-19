@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
 import {
-  type ChannelProvenance,
   ChannelBannerSource,
   countryName,
   formatMandateDate,
@@ -16,23 +15,7 @@ import { Button } from "@/components/ui/button"
 import { useGet } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
 import type { Company } from "@/types"
-
-interface ConfiguredChannel {
-  providerId: string
-  isActive: boolean
-}
-interface SuggestedChannel {
-  providerId: string
-  // See channels.settings.tsx's own comment on this exact shape.
-  requirement?: "suggested" | "mandated"
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  provenance: ChannelProvenance
-}
-interface ChannelsResponse {
-  configured: ConfiguredChannel[]
-  suggested: SuggestedChannel[]
-}
+import type { ChannelsResponse } from "@/types/channels"
 
 /** Friendly display names for the "suggested, not yet connected" case below, which names possibly
  *  several channels in one short sentence rather than one full legal-channel label each -

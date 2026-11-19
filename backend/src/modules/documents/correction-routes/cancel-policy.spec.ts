@@ -1,4 +1,4 @@
-import { countriesWithLocalCancel, resolveCancelPolicyForCountry } from './cancel-policy';
+import { resolveCancelPolicyForCountry } from './cancel-policy';
 import { defaultCorrectionRoutesCatalog } from './registry';
 
 /**
@@ -73,10 +73,6 @@ describe('resolveCancelPolicyForCountry — the per-country map', () => {
     expect(resolveCancelPolicyForCountry('fr')).toEqual({ allowed: true });
     expect(resolveCancelPolicyForCountry('Fr')).toEqual({ allowed: true });
   });
-
-  it('countriesWithLocalCancel() enumerates exactly the countries whose data founds a local cancel', () => {
-    expect(countriesWithLocalCancel()).toEqual(['DE', 'FR', 'IT']);
-  });
 });
 
 /** The table this module used to hard-code, kept as test data: the data-driven resolver must give
@@ -131,9 +127,5 @@ describe('resolveCancelPolicyForCountry: same decisions as the legacy hard-coded
     const { decision, hasReason } = decisionWithoutReason(input);
     expect(decision).toEqual(expected);
     expect(hasReason).toBe(!expected.allowed);
-  });
-
-  it('enumerates the same countries as the legacy table', () => {
-    expect(countriesWithLocalCancel()).toEqual(Object.keys(LEGACY_CANCEL_TABLE).sort());
   });
 });

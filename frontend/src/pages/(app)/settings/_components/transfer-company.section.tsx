@@ -1,4 +1,5 @@
 import { formatOtp, formatShortDate } from "@/lib/format"
+import { isOtpComplete, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ArrowRightLeft } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -205,7 +206,7 @@ export default function TransferCompanySection() {
               onChange={handleOtpChange}
               placeholder={t("settings.transferCompany.otpDialog.otpPlaceholder")}
               className="text-center text-lg font-mono tracking-wider"
-              maxLength={9}
+              maxLength={OTP_DISPLAY_LENGTH}
               data-cy="transfer-company-otp-input"
             />
           </div>
@@ -220,7 +221,7 @@ export default function TransferCompanySection() {
             <Button
               variant="destructive"
               onClick={handleConfirm}
-              disabled={otp.length !== 9}
+              disabled={!isOtpComplete(otp)}
               loading={initiate.isPending}
               dataCy="transfer-company-otp-confirm"
             >

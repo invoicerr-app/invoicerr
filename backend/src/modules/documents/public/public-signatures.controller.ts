@@ -27,6 +27,7 @@ import { Response } from 'express';
 
 import { Public } from '@thallesp/nestjs-better-auth';
 
+import { sendInlinePdf } from '../attachments/content-disposition';
 import { PublicSignatureView, SignaturesService } from '../signatures/signatures.service';
 
 @ApiTags('public-signatures')
@@ -72,13 +73,10 @@ export class PublicSignaturesController {
   @ApiResponse({ status: 400, description: 'Unknown, locked, signed, or expired token — indistinguishable' })
   async getDocument(@Param('token') token: string, @Res() res: Response): Promise<void> {
     const { bytes, typeId, documentId } = await this.signaturesService.getPublicDocument(token);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${typeId}-${documentId}.pdf"`);
     // Never `public`/`max-age`: an intermediary or a shared browser profile caching this response
     // would hand the document to whoever opens the same URL next — see this route's own Swagger
     // description.
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.send(bytes);
+    sendInlinePdf(res, typeId, documentId, bytes, { noStore: true });
   }
 
   @Public()
