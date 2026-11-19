@@ -78,7 +78,7 @@ export interface CashedRevenuePeriod {
 }
 
 /** UTC calendar-day arithmetic throughout - the same discipline `accounting-export.service.ts`'s own
- *  `dayMs`/`issueDateInRange` already holds, so a payment dated exactly on a period boundary is
+ *  `dayMs`/`dateValueInRange` already holds, so a payment dated exactly on a period boundary is
  *  bucketed the same way here as it would be filtered there. */
 function pad2(n: number): string {
   return String(n).padStart(2, '0');

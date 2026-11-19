@@ -143,7 +143,7 @@ export function toSettlementPaymentInputs(
  * — the period-wide read accounting-export/accounting-export.service.ts's ledger needs.
  * `paidAt` is a real DateTime column, so this filters in SQL, never in
  * memory — unlike a document's own `issueDate` (buried in the JSON `data` field, filtered by callers
- * instead — see persistence.ts's own `dateValueInRange`). Not scoped to one document, unlike
+ * instead - see date-params.ts's own `dateValueInRange`). Not scoped to one document, unlike
  * `listPayments` above: this is the "one query, many documents" shape `sumPaidMinorByDocument` already
  * holds for a SUM, extended here to the payment ROWS themselves. Ordered by `paidAt`, oldest first —
  * a ledger reads chronologically, the same convention `listPayments` already holds.

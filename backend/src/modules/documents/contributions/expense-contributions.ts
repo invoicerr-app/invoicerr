@@ -4,13 +4,8 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import {
-  countDocuments,
-  dateValueInRange,
-  dayMs,
-  listAllDocuments,
-  listRecentDocuments,
-} from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
 import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
