@@ -9,11 +9,12 @@ import { join } from 'node:path';
 
 import { logger } from '@/logger/logger.service';
 
-export type DocumentTemplateKey = 'classic' | 'atelier';
+export type DocumentTemplateKey = 'classic' | 'atelier' | 'original';
 
 export const DOCUMENT_TEMPLATES: readonly { key: DocumentTemplateKey; label: string }[] = [
   { key: 'classic', label: 'Classic' },
   { key: 'atelier', label: 'Atelier' },
+  { key: 'original', label: 'Original (v1)' },
 ];
 
 /** The product default. Migration 20261029070000 moved every pre-existing company to it; new companies start on it too. A null template only remains on an image older than 2026-10-29. */
@@ -79,6 +80,7 @@ export function templateStyleBlock(
   accentColor: string,
   companyFontStack: string | null,
 ): string {
+  if (template === 'original') return originalStyleBlock(accentColor, companyFontStack);
   if (template !== 'atelier') return '';
   const body = companyFontStack ?? UI_STACK;
   const tint = `color-mix(in srgb, ${accentColor} 9%, white)`;
@@ -115,5 +117,47 @@ export function templateStyleBlock(
     .legal-mention-item { color: #4f616c; }
     .option-group-heading { font-family: ${TITLE_STACK}; font-weight: 500; font-size: 16px; }
     .option-group-heading .accepted-badge { text-transform: none; letter-spacing: 0; }
+  </style>`;
+}
+
+/** The v1.x default font: Arial, with the usual metric-compatible fallbacks. */
+const ORIGINAL_STACK = 'Arial, "Liberation Sans", Helvetica, sans-serif';
+/** The v1.x default secondary colour, used behind the table header and the grand total. */
+const ORIGINAL_BAND = '#64748b';
+
+/**
+ * The look of the v1.x PDFs (issue #556): logo and document title side by side above the two
+ * parties, plain labels, a table with a slate header and roomy ruled rows, the grand total on a
+ * slate band and the payment details in a grey box with an accent rule on the left. It is still
+ * the v2 markup underneath, so every legal mention, identifier and the Factur-X data stay in.
+ */
+function originalStyleBlock(accentColor: string, companyFontStack: string | null): string {
+  const body = companyFontStack ?? ORIGINAL_STACK;
+  return `
+  <style data-template-style="original">
+    body { font-family: ${body}; color: #333; font-size: 13px; }
+    .header { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; border-bottom: none; padding-bottom: 0; margin-bottom: 30px; }
+    .logo { max-height: 140px; max-width: 100%; }
+    .document-title { font-size: 24px; }
+    .document-number, .document-meta, .company-address, .party-identifiers { color: #333; }
+    .parties { column-gap: 40px; margin-bottom: 30px; }
+    .company-name { font-size: 13px; margin-bottom: 4px; }
+    .field-label, .totals-label, .custom-fields-heading { color: #333; text-transform: none; letter-spacing: 0; font-size: 13px; margin-bottom: 4px; }
+    .meta-grid { background: none; border-radius: 0; padding: 0; gap: 10px 40px; margin-bottom: 20px; }
+    table { margin: 20px 0; }
+    thead tr { background: ${ORIGINAL_BAND}; border-bottom: none; }
+    th { color: #fff; font-size: 13px; padding: 12px; border-bottom: 1px solid #ddd; }
+    td { padding: 12px; }
+    tbody tr { border-bottom: 1px solid #ddd; }
+    .totals-section { width: 50%; }
+    .totals-row { padding: 12px; font-weight: bold; border-bottom: 1px solid #ddd; }
+    .totals-row.summary { background: ${ORIGINAL_BAND}; color: #fff; font-size: 13px; border-bottom: none; padding-top: 12px; }
+    .totals-row.totals-converted { font-weight: normal; }
+    .totals-row.totals-converted-rate { padding: 0 12px 12px; }
+    .payment-section { margin-top: 20px; }
+    .payment-qr-section, .payment-methods-section { background: #f9f9f9; border-radius: 0; padding: 15px; }
+    .payment-methods-section { border-left: 4px solid ${accentColor}; }
+    .payment-methods-heading, .payment-method-label, .payment-method-line { font-size: 13px; color: #333; }
+    .legal-mentions, .custom-fields-section { margin-top: 30px; }
   </style>`;
 }
