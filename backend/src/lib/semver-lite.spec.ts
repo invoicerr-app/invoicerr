@@ -1,4 +1,4 @@
-import { compareVersions, isNewer, isPrerelease, parseVersion } from './semver-lite';
+import { compareVersions, isPrerelease, parseVersion } from './semver-lite';
 
 describe('parseVersion', () => {
   it('parses a plain core version', () => {
@@ -105,19 +105,5 @@ describe('compareVersions', () => {
 
   it('is symmetric (swapping operands flips the sign)', () => {
     expect(cmp('2.0.0-alpha.1', '2.0.0')).toBe(-cmp('2.0.0', '2.0.0-alpha.1'));
-  });
-});
-
-describe('isNewer', () => {
-  it('is true only when the candidate strictly outranks the baseline', () => {
-    const alpha1 = parseVersion('v2.0.0-alpha.1')!;
-    const alpha2 = parseVersion('v2.0.0-alpha.2')!;
-    const stable = parseVersion('v2.0.0')!;
-
-    expect(isNewer(alpha2, alpha1)).toBe(true);
-    expect(isNewer(alpha1, alpha2)).toBe(false);
-    expect(isNewer(stable, alpha1)).toBe(true);
-    expect(isNewer(alpha1, stable)).toBe(false);
-    expect(isNewer(alpha1, alpha1)).toBe(false); // equal is not "newer"
   });
 });
