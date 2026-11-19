@@ -93,7 +93,7 @@ directories keep their `kubeconfig` and `secrets.yaml` too. All three are git-ig
 
 - mail goes to an in-cluster Mailpit;
 - no company has a transmission channel configured (Germany: e-mail);
-- billing is off (`WARNING__ENABLE_BILLING_FOR_USERS__WARNING` unset), so Polar is never called;
+- billing is off (`WARNING__ENABLE_BILLING_FOR_USERS__WARNING` unset), so Stripe is never called;
 - archives and uploads stay on the node's own disk.
 
 ## What a run directory holds

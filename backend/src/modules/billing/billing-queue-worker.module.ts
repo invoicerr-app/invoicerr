@@ -17,9 +17,25 @@ import {
  * Consuming half of the billing-lifecycle queue. Nest only instantiates `@Processor()` classes
  * reachable from an imported module, so gating this import gates consumption entirely.
  *
- * Registering the repeatable on every process is safe: BullMQ dedups it by key. `attempts: 1`
- * because the next tick is already the retry. A repeatable's key includes its interval, so changing
- * the interval adds a definition instead of replacing it; hence the retire step.
+ * Imports `BillingCoreModule` (never `BillingModule`, which also carries the HTTP controllers this worker
+ * process has no use for) so
+ * `BillingLifecycleProcessor` gets the SAME DI-wired `BillingLifecycleSweepRunner` (and therefore the
+ * same `BillingExportService`/`DocumentsService`) the API process would have used inline — never a
+ * second, parallel construction of them.
+ *
+ * `onApplicationBootstrap` registers the ONE repeatable sweep job here (moved from `billing.module.ts`
+ * — see that file's own header) — idempotent (BullMQ dedups a repeatable definition by its own key
+ * across the whole cluster), so calling this on EVERY process that imports this module (the API
+ * in-line, or every dedicated worker replica) is safe, never a double registration. `attempts: 1`,
+ * same reasoning every sibling sweep in this codebase documents: a pass that itself throws is a real
+ * bug worth surfacing loudly now, never silently retried moments later — the next tick,
+ * `readBillingLifecycleSweepIntervalMs()` away, is already the natural retry.
+ *
+ * It then retires whatever else this queue still holds: a repeatable's key folds in the interval
+ * itself, so changing `BILLING_LIFECYCLE_SWEEP_INTERVAL_MS` adds a definition rather than replacing
+ * one, and the superseded schedule survives in Redis — which outlives every pod — until something
+ * removes it. See `lib/queue-repeatables.ts`'s own header, including why this is safe when several
+ * replicas boot at once.
  */
 @Module({
   imports: [BillingCoreModule],

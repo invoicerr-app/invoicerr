@@ -13,8 +13,7 @@
  * `billing-core.module.ts` itself is deliberately never IMPORTED here: it transitively pulls in the
  * whole documents module graph (`DocumentsCoreModule` -> `ClientsModule` -> `WebhooksModule` ->
  * `WebhooksController`), which drags in `@thallesp/nestjs-better-auth`'s own ESM-only transitive
- * dependency that ts-jest cannot parse — the exact fact `polar-webhook.controller.ts`'s own header
- * already documents for that same package. Reading the module's SOURCE keeps this a fast, isolated
+ * dependency that the test loader cannot parse. Reading the module's SOURCE keeps this a fast, isolated
  * check of the two call sites that matter, without booting (or even loading) that whole graph.
  */
 import 'reflect-metadata';
@@ -27,8 +26,7 @@ import { BILLING_BULL_CONFIG_KEY, Q_BILLING_LIFECYCLE } from './queue/billing-qu
 
 /** `@nestjs/bullmq`'s own `@Processor()` decorator stores its options under this literal metadata key
  *  (`PROCESSOR_METADATA`, `bull.constants.ts` — not re-exported from that package's public
- *  entrypoint) — the same "read a third party's own key by its literal string, documented" discipline
- *  `polar-webhook.controller.ts`'s `isUniqueConstraintViolation`/`IS_PUBLIC_KEY` comments already hold. */
+ *  entrypoint), read by its literal string, documented. */
 const BULLMQ_PROCESSOR_METADATA_KEY = 'bullmq:processor_metadata';
 
 const billingCoreModuleSource = fs.readFileSync(path.join(__dirname, 'billing-core.module.ts'), 'utf-8');
@@ -83,7 +81,6 @@ describe('BillingLifecycleProcessor is reachable from the worker process', () =>
     // `@Module({ providers: [...] })` array's own text (comments inside it included, code identifiers
     // only) and checks THAT, plus the class declaration.
     const providersArray = billingModuleSource.match(/providers:\s*\[([\s\S]*?)\]/)?.[1] ?? '';
-    expect(providersArray).toMatch(/BillingCustomerProvisioningBootService/);
     expect(providersArray).not.toMatch(/Processor/);
     expect(billingModuleSource).not.toMatch(/implements OnApplicationBootstrap/);
   });

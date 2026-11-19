@@ -1,7 +1,6 @@
 import { vi, type Mock } from 'vitest';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 
 import {
   ACCOUNT_IS_SOLE_OWNER_CODE,
@@ -25,17 +24,16 @@ vi.mock('@/prisma/prisma.service', () => ({
     },
   },
 }));
-vi.mock('@/modules/billing/member-sync');
 vi.mock('@/logger/logger.service', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 import prisma from '@/prisma/prisma.service';
+import { logger } from '@/logger/logger.service';
 
 const mockPrisma = prisma as unknown as {
   userCompany: { findMany: Mock; count: Mock };
 };
-const syncMember = syncCompanyMemberOnMembershipChange as Mock;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -149,23 +147,15 @@ describe('assertNotSoleOwner', () => {
 });
 
 describe('cleanupAfterUserDelete', () => {
-  const deletedUser = { id: 'user-1', email: 'deleted@acme.test', name: 'Deleted User' };
+  it('logs every company the deleted user belonged to', async () => {
+    await cleanupAfterUserDelete([
+      { companyId: 'co-1', companyName: 'Acme', role: CompanyRole.OWNER },
+      { companyId: 'co-2', companyName: 'Beta', role: CompanyRole.MEMBER },
+    ]);
 
-  it('resyncs Polar members for every company the deleted user belonged to', async () => {
-    await cleanupAfterUserDelete(
-      [
-        { companyId: 'co-1', companyName: 'Acme', role: CompanyRole.OWNER },
-        { companyId: 'co-2', companyName: 'Beta', role: CompanyRole.MEMBER },
-      ],
-      deletedUser,
-    );
-
-    expect(syncMember).toHaveBeenCalledWith('co-1', 'user-1', undefined, deletedUser);
-    expect(syncMember).toHaveBeenCalledWith('co-2', 'user-1', undefined, deletedUser);
-  });
-
-  it('is a no-op for a user who belonged to no company', async () => {
-    await cleanupAfterUserDelete([], deletedUser);
-    expect(syncMember).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith('Account deleted, memberships cascaded', {
+      category: 'auth',
+      details: { companyIds: ['co-1', 'co-2'] },
+    });
   });
 });

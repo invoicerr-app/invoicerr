@@ -32,7 +32,6 @@ lives in the shared chokepoint, not in each caller.
 | Every outbound webhook | `WebhooksService.send` (`backend/src/modules/webhooks/webhooks.service.ts`) |
 | Every tax-authority declaration (Portugal's AT, and any provider registered later) | `DeclarationProviderRegistry.register` (`backend/src/modules/documents/reporting/declaration-provider.ts`) |
 | Every card/online payment checkout session (Stripe, Mollie, PayPal, and any provider registered later) | `PaymentProviderRegistry.register` (`backend/src/modules/documents/payments/payment-provider-registry.ts`) |
-| Every Polar billing call | `getPolarClient` (`backend/src/modules/billing/polar-client.ts`) |
 
 A refused action never looks like it worked: it returns a clear `403` naming what is disabled
 (`DEMO_MODE_BLOCKED`), never a silent success. A send that would reach nobody at all never gets as
@@ -40,7 +39,7 @@ far as a chokepoint: a credit note that corrects no invoice has no client, so it
 before it is numbered, on every install, demo or not.
 
 Billing is forced off outright, independently of `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`: no
-paywall, no seat gate, no Polar call, whatever that flag happens to be set to in the same environment.
+paywall, no seat gate, no Stripe plugin, whatever that flag happens to be set to in the same environment.
 See `backend/src/modules/billing/billing-flag.ts#isBillingEnabled`.
 
 Self-hosted, local OCR on an uploaded received invoice is **not** blocked by `DEMO_MODE`: nothing

@@ -41,8 +41,8 @@ export const queryKeys = {
   },
   billing: {
     status: () => ["billing", "status"] as const,
-    email: () => ["billing", "email"] as const,
     seats: () => ["billing", "seats"] as const,
+    stripeSubscription: (companyId: string | null) => ["billing", "stripe-subscription", companyId] as const,
   },
   declarations: {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,

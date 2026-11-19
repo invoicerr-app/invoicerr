@@ -1,8 +1,13 @@
-/** The only module that reads or writes `CompanySubscription` rows. */
+/**
+ * The one place `CompanySubscription` rows are read/written from Prisma — every other billing file
+ * (`send-gate.ts`, `seat-sync.ts`, `billing-lifecycle-sweep-runner.ts`, `billing.controller.ts`)
+ * goes through this module rather than calling `prisma.companySubscription` itself, the same "one narrow persistence seam" discipline `documents/persistence.ts` holds for the
+ * documents module.
+ */
 import prisma from '@/prisma/prisma.service';
 
 import { CompanySubscription, Prisma } from '../../../prisma/generated/prisma/client';
-import { computeRecoveredStatus, computeTrialWindow } from './lifecycle';
+import { computeTrialWindow } from './lifecycle';
 
 /**
  * Creates the row lazily on first use, so a company that predates the billing flag starts its trial
@@ -21,63 +26,6 @@ export async function getOrCreateCompanySubscription(
     create: { companyId, trialStartedAt, trialEndsAt },
     update: {},
   });
-}
-
-/**
- * Clears fields tied to the vanished subscription. Never clears `polarSubscriptionId` (the permanent
- * "ever paid" signal) or `seats` (last known quantity bought).
- */
-export async function recomputeStatusForVanishedSubscription(
-  companyId: string,
-  trialEndsAt: Date,
-  anchor: Date,
-  now: Date = new Date(),
-): Promise<CompanySubscription> {
-  const recovered = computeRecoveredStatus(trialEndsAt, anchor, now);
-  return prisma.companySubscription.update({
-    where: { companyId },
-    data: {
-      status: recovered.status,
-      blockedAt: recovered.blockedAt,
-      interval: null,
-      seatPaymentFailedAt: null,
-      lastPolarFactAt: anchor,
-    },
-  });
-}
-
-/**
- * A single conditional `updateMany`, not read-then-update, so concurrent requests cannot both open a
- * Polar checkout. Returns the stamped time, or `null` if the window is already held.
- */
-export async function reserveCheckoutWindow(
-  companyId: string,
-  windowMs: number,
-  now: Date = new Date(),
-): Promise<Date | null> {
-  const cutoff = new Date(now.getTime() - windowMs);
-  const { count } = await prisma.companySubscription.updateMany({
-    where: {
-      companyId,
-      OR: [{ lastCheckoutStartedAt: null }, { lastCheckoutStartedAt: { lt: cutoff } }],
-    },
-    data: { lastCheckoutStartedAt: now },
-  });
-  return count > 0 ? now : null;
-}
-
-/** Matched on the reserved timestamp so a stale caller cannot clobber a newer reservation. */
-export async function releaseCheckoutWindow(companyId: string, reservedAt: Date): Promise<void> {
-  await prisma.companySubscription.updateMany({
-    where: { companyId, lastCheckoutStartedAt: reservedAt },
-    data: { lastCheckoutStartedAt: null },
-  });
-}
-
-/** Ensures the row first: a company can get a Polar customer before it has a subscription row. */
-export async function recordPolarCustomerId(companyId: string, polarCustomerId: string): Promise<void> {
-  await getOrCreateCompanySubscription(companyId);
-  await prisma.companySubscription.update({ where: { companyId }, data: { polarCustomerId } });
 }
 
 /**

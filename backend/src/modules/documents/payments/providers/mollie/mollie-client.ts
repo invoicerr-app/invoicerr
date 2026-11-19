@@ -44,7 +44,7 @@ const MOLLIE_API_BASE = 'https://api.mollie.com/v2';
  * client, not a dependency — see that file's own header, and every national channel client in
  * `transports/` (`superpdp-client.ts`, `ksef-client.ts`): none of them pull in a vendor SDK either. Adding
  * `@mollie/api-client` would also mean a `package.json`/`package-lock.json` change on a branch two other
- * agents are actively working on in parallel (Polar billing, Cypress specs) — a real, avoidable
+ * agents are actively working on in parallel (hosted billing, Cypress specs) - a real, avoidable
  * merge-conflict surface for zero functional gain, since `fetch` already covers everything this
  * provider needs.
  *

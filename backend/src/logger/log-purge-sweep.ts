@@ -44,9 +44,8 @@
 /** How many rows ONE company's own batch deletes AT MOST, per sweep pass — never the whole backlog in
  *  one statement (locks and bloats the table, see this file's own header) and never so small that a
  *  company with a large one-time backlog (e.g. this feature's own first rollout onto a long-unpruned
- *  instance) takes an impractical number of passes to catch up. Same "a plain, exported, non-env
- *  constant" shape `billing/customer-provisioning.ts`'s own `CUSTOMER_PROVISIONING_BATCH_SIZE` already
- *  holds for an identical "bounded round-trip, not a tunable knob" reason. */
+ *  instance) takes an impractical number of passes to catch up. A plain, exported, non-env constant:
+ *  a bounded round-trip, not a tunable knob. */
 export const LOG_PURGE_BATCH_SIZE = 1000;
 
 export const LOG_PURGE_SWEEP_JOB_NAME = 'log-purge-sweep';

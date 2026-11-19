@@ -6,51 +6,26 @@ import prisma from '@/prisma/prisma.service';
 
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
-import { reconcileMissingCompanyCustomers } from './customer-provisioning';
-import { syncPolarCustomerOnCompanyChange } from './customer-sync';
 import { deleteCompanyPermanently } from './deletion';
 import { ExportZipTooLargeError } from './export-zip.service';
 import { addDays, BLOCKED_DAYS, MIN_RETRIEVAL_DAYS, PAID_ZIP_GRACE_DAYS } from './lifecycle';
-import { reconcileCompanySeats } from './seat-reconcile';
 
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
     companySubscription: { update: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
     userCompany: { findFirst: vi.fn() },
-    company: { findUnique: vi.fn() },
   },
 }));
 vi.mock('./company-subscription.store');
-vi.mock('./customer-provisioning');
 vi.mock('./deletion');
-vi.mock('./seat-reconcile');
-vi.mock('./customer-sync');
 
 const update = prisma.companySubscription.update as Mock;
 const updateMany = prisma.companySubscription.updateMany as Mock;
 const findSub = prisma.companySubscription.findUnique as Mock;
 const findFirstOwner = prisma.userCompany.findFirst as Mock;
-const findCompany = prisma.company.findUnique as Mock;
 const listSubs = listAdvanceableCompanySubscriptions as Mock;
 const deleteCompany = deleteCompanyPermanently as Mock;
-const reconcileSeats = reconcileCompanySeats as Mock;
-const syncCustomer = syncPolarCustomerOnCompanyChange as Mock;
-const provisionCustomers = reconcileMissingCompanyCustomers as Mock;
-
-/** Every test gets this NO-OP-shaped default — `runSweep` calls `reconcileMissingCompanyCustomers`
- *  unconditionally, company-WIDE, on every single tick (see that call's own comment in
- *  `billing-lifecycle-sweep-runner.ts`), so every pre-existing scenario in this file that never cared
- *  about it needs a resolved value to compare its own `result` against a `customersProvisioned: 0`
- *  baseline (`baseResult`'s own default) rather than an unrelated rejection polluting its assertions. */
-const NO_CUSTOMERS_PROVISIONED = {
-  total: 0,
-  alreadyExisted: 0,
-  created: 0,
-  emailTaken: 0,
-  skipped: 0,
-  failed: 0,
-};
 
 function fakeExportService(zip: Buffer = Buffer.from('zip-bytes')) {
   return {
@@ -77,10 +52,9 @@ function subRow(overrides: Record<string, unknown>) {
     blockedAt: null,
     zipSentAt: null,
     deletionDueAt: null,
-    polarSubscriptionId: null,
+    firstPaidAt: null,
     currentPeriodEnd: null,
-    customerSyncFailedAt: null,
-    lastPolarFactAt: null,
+    lastBillingFactAt: null,
     billingWarningMilestonesSent: [] as string[],
     ...overrides,
   };
@@ -90,8 +64,8 @@ function subRow(overrides: Record<string, unknown>) {
  *  mailing the zip export — defaults it to "nothing has moved on", matching whatever `subRow` a given
  *  test already put in `listSubs`, so every pre-existing zip-path scenario (written before that guard
  *  existed) keeps behaving exactly as before unless a test deliberately says otherwise. */
-function mockUnchangedSnapshot(sub: { status: string; lastPolarFactAt: unknown }) {
-  findSub.mockResolvedValue({ status: sub.status, lastPolarFactAt: sub.lastPolarFactAt });
+function mockUnchangedSnapshot(sub: { status: string; lastBillingFactAt: unknown }) {
+  findSub.mockResolvedValue({ status: sub.status, lastBillingFactAt: sub.lastBillingFactAt });
 }
 
 /** The base `runSweep` result shape every test compares against with `toEqual` — spread with only the
@@ -103,10 +77,6 @@ function baseResult(overrides: Partial<Record<string, number>> = {}) {
     zipped: 0,
     zipFailed: 0,
     deleted: 0,
-    seatsReconciled: 0,
-    customerSyncRetried: 0,
-    customersProvisioned: 0,
-    customersSkipped: 0,
     warningsSent: 0,
     ...overrides,
   };
@@ -116,7 +86,6 @@ const NOW = new Date('2026-09-15T00:00:00.000Z');
 
 describe('BillingLifecycleSweepRunner.runSweep', () => {
   beforeEach(() => {
-    provisionCustomers.mockResolvedValue(NO_CUSTOMERS_PROVISIONED);
     // The CAS write's default "yes, the row still matched" outcome — a test proving the OTHER branch
     // (a concurrent write already moved the row) overrides this with `{ count: 0 }` explicitly.
     updateMany.mockResolvedValue({ count: 1 });
@@ -141,18 +110,18 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
     expect(result.blocked).toBe(1);
     expect(updateMany).toHaveBeenCalledWith({
-      where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
+      where: { companyId: 'c1', status: 'TRIAL', lastBillingFactAt: null },
       data: { status: 'BLOCKED', blockedAt: NOW },
     });
   });
 
   describe('a PAST_DUE company that has already paid through 2026-10-31', () => {
-    // The everyday case: the card is refused at renewal, Polar keeps retrying for days, and the
+    // The everyday case: the card is refused at renewal, the billing provider keeps retrying for days, and the
     // company has October in hand either way.
     const pastDue = () =>
       subRow({
         status: 'PAST_DUE',
-        polarSubscriptionId: 'sub_1',
+        firstPaidAt: new Date('2026-08-01T00:00:00.000Z'),
         currentPeriodEnd: new Date('2026-10-31T06:00:00.000Z'),
       });
 
@@ -186,7 +155,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
       expect(result.blocked).toBe(1);
       expect(updateMany).toHaveBeenCalledWith({
-        where: { companyId: 'c1', status: 'PAST_DUE', lastPolarFactAt: null },
+        where: { companyId: 'c1', status: 'PAST_DUE', lastBillingFactAt: null },
         data: { status: 'BLOCKED', blockedAt: now },
       });
     });
@@ -200,7 +169,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
     expect(result.blocked).toBe(1);
     expect(updateMany).toHaveBeenCalledWith({
-      where: { companyId: 'c1', status: 'PAST_DUE', lastPolarFactAt: null },
+      where: { companyId: 'c1', status: 'PAST_DUE', lastBillingFactAt: null },
       data: { status: 'BLOCKED', blockedAt: NOW },
     });
   });
@@ -216,7 +185,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
 
     expect(result.blocked).toBe(0);
     expect(updateMany).toHaveBeenCalledWith({
-      where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
+      where: { companyId: 'c1', status: 'TRIAL', lastBillingFactAt: null },
       data: { status: 'BLOCKED', blockedAt: NOW },
     });
   });
@@ -243,7 +212,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
       }),
     );
     expect(updateMany).toHaveBeenCalledWith({
-      where: { companyId: 'c1', status: 'BLOCKED', lastPolarFactAt: null },
+      where: { companyId: 'c1', status: 'BLOCKED', lastBillingFactAt: null },
       data: { status: 'ZIPPED', zipSentAt: NOW, deletionDueAt: addDays(NOW, MIN_RETRIEVAL_DAYS) },
     });
   });
@@ -273,7 +242,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     listSubs.mockResolvedValue([subRow({ status: 'BLOCKED', blockedAt })]);
     // The fresh re-read disagrees with the snapshot this tick started from — a webhook already
     // reactivated the company.
-    findSub.mockResolvedValue({ status: 'ACTIVE', lastPolarFactAt: null });
+    findSub.mockResolvedValue({ status: 'ACTIVE', lastBillingFactAt: null });
     const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
     const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService({ sendForCompany }));
 
@@ -357,8 +326,8 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     listSubs.mockResolvedValue([failingSub, okSub]);
     findSub.mockImplementation(async ({ where }: { where: { companyId: string } }) =>
       where.companyId === 'c-fails'
-        ? { status: failingSub.status, lastPolarFactAt: failingSub.lastPolarFactAt }
-        : { status: okSub.status, lastPolarFactAt: okSub.lastPolarFactAt },
+        ? { status: failingSub.status, lastBillingFactAt: failingSub.lastBillingFactAt }
+        : { status: okSub.status, lastBillingFactAt: okSub.lastBillingFactAt },
     );
     findFirstOwner.mockResolvedValue({ user: { email: 'owner@example.com' } });
     const buildCompanyZip = vi
@@ -429,180 +398,6 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
     expect(result.processed).toBe(2);
     expect(result.blocked).toBe(1); // only "good" succeeded
     expect(updateMany).toHaveBeenCalledTimes(2);
-  });
-
-  it('reconciles seats for every ACTIVE, subscribed company and counts a correction', async () => {
-    listSubs.mockResolvedValue([subRow({ status: 'ACTIVE', polarSubscriptionId: 'sub_1' })]);
-    reconcileSeats.mockResolvedValue({ corrected: true, localSeats: 5, polarSeats: 2 });
-    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-    const result = await runner.runSweep(NOW);
-
-    expect(reconcileSeats).toHaveBeenCalledWith(
-      expect.objectContaining({ companyId: 'c1', polarSubscriptionId: 'sub_1' }),
-    );
-    expect(result.seatsReconciled).toBe(1);
-  });
-
-  it('never reconciles seats for a non-ACTIVE subscription', async () => {
-    listSubs.mockResolvedValue([
-      subRow({ status: 'TRIAL', trialEndsAt: addDays(NOW, 1), polarSubscriptionId: 'sub_1' }),
-    ]);
-    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-    await runner.runSweep(NOW);
-
-    expect(reconcileSeats).not.toHaveBeenCalled();
-  });
-
-  it('a seat reconciliation failure for one company never blocks the rest of the sweep', async () => {
-    listSubs.mockResolvedValue([
-      subRow({ companyId: 'bad', status: 'ACTIVE', polarSubscriptionId: 'sub_bad' }),
-      subRow({ companyId: 'good', status: 'ACTIVE', polarSubscriptionId: 'sub_good' }),
-    ]);
-    reconcileSeats
-      .mockRejectedValueOnce(new Error('polar unreachable'))
-      .mockResolvedValueOnce({ corrected: true, localSeats: 4, polarSeats: 1 });
-    const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-    const result = await runner.runSweep(NOW);
-
-    expect(result.processed).toBe(2);
-    expect(result.seatsReconciled).toBe(1); // only "good" succeeded
-    expect(reconcileSeats).toHaveBeenCalledTimes(2);
-  });
-
-  describe('Polar customer sync retry', () => {
-    it('retries a failed customer sync and counts it once the flag clears', async () => {
-      listSubs.mockResolvedValue([subRow({ status: 'ACTIVE', customerSyncFailedAt: addDays(NOW, -1) })]);
-      findCompany.mockResolvedValue({ name: 'Acme', email: 'a@acme.test', billingEmail: null });
-      findSub.mockResolvedValue({ customerSyncFailedAt: null }); // the retry just succeeded
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(syncCustomer).toHaveBeenCalledWith('c1', {
-        name: 'Acme',
-        email: 'a@acme.test',
-        billingEmail: null,
-      });
-      expect(result.customerSyncRetried).toBe(1);
-    });
-
-    it('never retries a company whose sync never failed', async () => {
-      listSubs.mockResolvedValue([subRow({ status: 'ACTIVE', customerSyncFailedAt: null })]);
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      await runner.runSweep(NOW);
-
-      expect(syncCustomer).not.toHaveBeenCalled();
-    });
-
-    it("doesn't count a retry that failed again (customerSyncFailedAt still set)", async () => {
-      listSubs.mockResolvedValue([subRow({ status: 'ACTIVE', customerSyncFailedAt: addDays(NOW, -1) })]);
-      findCompany.mockResolvedValue({ name: 'Acme', email: 'a@acme.test', billingEmail: null });
-      findSub.mockResolvedValue({ customerSyncFailedAt: NOW }); // synced again, but failed AGAIN
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(result.customerSyncRetried).toBe(0);
-    });
-
-    it('a customer-sync retry failure for one company never blocks the rest of the sweep', async () => {
-      listSubs.mockResolvedValue([
-        subRow({ companyId: 'bad', status: 'ACTIVE', customerSyncFailedAt: addDays(NOW, -1) }),
-        subRow({ companyId: 'good', status: 'TRIAL', trialEndsAt: addDays(NOW, 1) }),
-      ]);
-      findCompany.mockRejectedValue(new Error('db hiccup'));
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(result.processed).toBe(2);
-    });
-  });
-
-  describe('Polar customer provisioning', () => {
-    it('surfaces the created count from reconcileMissingCompanyCustomers, unconditionally, even with no subscriptions at all', async () => {
-      listSubs.mockResolvedValue([]);
-      provisionCustomers.mockResolvedValue({
-        total: 3,
-        alreadyExisted: 1,
-        created: 2,
-        emailTaken: 0,
-        skipped: 0,
-        failed: 0,
-      });
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(provisionCustomers).toHaveBeenCalledWith();
-      expect(result.customersProvisioned).toBe(2);
-    });
-
-    it('surfaces the skipped count (no billing email anywhere) separately from created/failed', async () => {
-      listSubs.mockResolvedValue([]);
-      provisionCustomers.mockResolvedValue({
-        total: 4,
-        alreadyExisted: 1,
-        created: 1,
-        emailTaken: 0,
-        skipped: 2,
-        failed: 0,
-      });
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(result.customersSkipped).toBe(2);
-      expect(result.customersProvisioned).toBe(1);
-    });
-
-    it('leaves customersSkipped undefined, same as customersProvisioned, when the provisioning pass throws', async () => {
-      listSubs.mockResolvedValue([]);
-      provisionCustomers.mockRejectedValue(new Error('polar is down'));
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(result.customersSkipped).toBeUndefined();
-    });
-
-    it('never blocks the rest of the sweep when the provisioning pass itself throws', async () => {
-      listSubs.mockResolvedValue([subRow({ status: 'TRIAL', trialEndsAt: NOW })]);
-      provisionCustomers.mockRejectedValue(new Error('polar is down'));
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      // The provisioning pass failed outright (no count to report), but the ordinary lifecycle
-      // transition below it still ran and is reflected in the result untouched.
-      expect(result.customersProvisioned).toBeUndefined();
-      expect(result.blocked).toBe(1);
-      expect(updateMany).toHaveBeenCalledWith({
-        where: { companyId: 'c1', status: 'TRIAL', lastPolarFactAt: null },
-        data: { status: 'BLOCKED', blockedAt: NOW },
-      });
-    });
-
-    it('counts an emailTaken/failed-only pass as zero created, without throwing', async () => {
-      listSubs.mockResolvedValue([]);
-      provisionCustomers.mockResolvedValue({
-        total: 2,
-        alreadyExisted: 0,
-        created: 0,
-        emailTaken: 1,
-        skipped: 0,
-        failed: 1,
-      });
-      const runner = new BillingLifecycleSweepRunner(fakeExportService(), fakeMailService());
-
-      const result = await runner.runSweep(NOW);
-
-      expect(result.customersProvisioned).toBe(0);
-    });
   });
 
   describe('OWNER warning emails (J-7/J-1)', () => {
@@ -694,7 +489,7 @@ describe('BillingLifecycleSweepRunner.runSweep', () => {
           zipSentAt,
           deletionDueAt,
           blockedAt: addDays(zipSentAt, -14),
-          polarSubscriptionId: 'sub_1',
+          firstPaidAt: new Date('2026-08-01T00:00:00.000Z'),
           billingWarningMilestonesSent: ['blocked_d7', 'blocked_d1', 'zipped_d7'],
         }),
       ]);

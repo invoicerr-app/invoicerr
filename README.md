@@ -303,7 +303,7 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 | Tests | Vitest (backend and frontend), Cypress 15 (end-to-end and per-country scenarios) |
 | Tooling | Biome 2.5 (lint and format), Docker, Helm 3, GitHub Actions |
 | Documentation | Docusaurus 3.10 |
-| Hosted billing | Polar (hidden unless the instance explicitly enables it; self-hosting stays free) |
+| Hosted billing | Stripe (hidden unless the instance explicitly enables it; self-hosting stays free) |
 
 ## Contributing
 

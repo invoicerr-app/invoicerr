@@ -14,7 +14,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `articles` | Catalogue of sellable items/services with stock counts, reused as invoice/quote line templates. |
 | `auth-extended` | Extends the better-auth library: local password management for OIDC-only accounts, user preferences, signup locale. |
 | `backup` | Encrypted, scheduled backups of the legal archive and uploaded files to a separate bucket. |
-| `billing` | Hosted billing only (Polar) — checkout, customer portal, seats, webhooks; inert unless the instance opts in, see [Hosted billing](./hosted-billing.md). |
+| `billing` | Hosted billing only (Stripe through Better Auth): subscription status, lifecycle, seats; inert unless the instance opts in, see [Hosted billing](./hosted-billing.md). |
 | `client-portal` | The client-facing portal: a client's own documents, balance, PDFs, payment and quote decisions. |
 | `clients` | Customer records, account statements, aged balance. |
 | `companies` | Company creation and membership (invitations, roles) — as opposed to `company`'s own settings. |

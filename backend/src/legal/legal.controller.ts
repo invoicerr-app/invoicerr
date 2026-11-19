@@ -3,6 +3,7 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '@thallesp/nestjs-better-auth';
 
 import { User } from '@/decorators/user.decorator';
+import { SeatGateExempt } from '@/modules/billing/seat-gate-exempt.decorator';
 import { RequestWithUser } from '@/types/request';
 import { CurrentUser } from '@/types/user';
 
@@ -11,6 +12,9 @@ import { LegalGateExempt } from './legal-gate-exempt.decorator';
 import { resolveLegalDocumentLanguages } from './legal-request-language';
 import { LegalService } from './legal.service';
 
+// About the user, never the active company: a member with no seat must still be able to clear a
+// pending re-acceptance (`billing/seat-gate-exempt.decorator.ts`).
+@SeatGateExempt()
 @ApiTags('legal')
 @Controller('legal')
 export class LegalController {

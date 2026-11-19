@@ -1,7 +1,7 @@
 /**
  * Pragmatic e-mail address validator — this codebase has no shared one (`grep -rn "IsEmail"` over
  * `backend/src` turns up nothing; `class-validator` is used in a handful of DTOs but never for an
- * e-mail format, and `Company.email`/`billingEmail` have never been format-checked at write time).
+ * e-mail format, and `Company.email` has never been format-checked at write time).
  * Deliberately NOT RFC 5322-exact: that grammar accepts addresses (quoted local parts, bang paths,
  * IP-literal domains) no real mail server or settings form should have to think about, and rejecting
  * everything it does not cover would refuse addresses that work fine in practice. Same "close enough,

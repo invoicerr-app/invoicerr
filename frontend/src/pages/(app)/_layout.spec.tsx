@@ -172,6 +172,70 @@ describe("(app)/_layout — no-free-seat gate", () => {
     expect(screen.getByTestId("dashboard-content")).toBeInTheDocument()
   })
 
+  // Product decision 2026-11-13: a member with no seat cannot even read. The backend refuses the
+  // seats view itself with `403 { code: SEAT_REQUIRED }`, and that answer is what triggers the takeover.
+  it("shows the full-screen 'not enough seats' takeover when the seats view answers SEAT_REQUIRED", () => {
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(
+      seatsResult({
+        isError: true,
+        error: new ApiError(403, "Your company does not have enough seats", { code: "SEAT_REQUIRED" }),
+      }),
+    )
+
+    renderLayout()
+
+    expect(screen.getByTestId("not-enough-seats-screen")).toHaveTextContent(
+      "Your company doesn't have enough seats",
+    )
+    expect(screen.getByTestId("not-enough-seats-sign-out")).toBeVisible()
+    expect(screen.queryByTestId("dashboard-content")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("seat-check-error-screen")).not.toBeInTheDocument()
+  })
+
+  it("keeps the retry screen for any other 403 on the seats view", () => {
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(
+      seatsResult({ isError: true, error: new ApiError(403, "Forbidden", { code: "SOMETHING_ELSE" }) }),
+    )
+
+    renderLayout()
+
+    expect(screen.getByTestId("seat-check-error-screen")).toBeVisible()
+    expect(screen.queryByTestId("not-enough-seats-screen")).not.toBeInTheDocument()
+  })
+
+  it("also takes over when an older backend still lists the current user as waiting", () => {
+    mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
+    mockedUseLegalStatus.mockReturnValue(legalStatusResult())
+    mockedUseSeats.mockReturnValue(
+      seatsResult({
+        data: {
+          seats: 1,
+          members: [],
+          waiting: [
+            {
+              userId: SESSION.user.id,
+              email: "late@acme.org",
+              firstname: "Late",
+              lastname: "Arrival",
+              role: "MEMBER",
+              seatIndex: null,
+              joinedAt: "2026-11-13T00:00:00.000Z",
+            },
+          ],
+        },
+      }),
+    )
+
+    renderLayout()
+
+    expect(screen.getByTestId("not-enough-seats-screen")).toBeVisible()
+    expect(screen.queryByTestId("dashboard-content")).not.toBeInTheDocument()
+  })
+
   it("once the seats query resolves with nobody waiting, the authenticated shell renders normally", () => {
     mockedUseSession.mockReturnValue({ data: SESSION, isPending: false } as never)
     mockedUseLegalStatus.mockReturnValue(legalStatusResult())

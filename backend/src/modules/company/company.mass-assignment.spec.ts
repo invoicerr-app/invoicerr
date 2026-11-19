@@ -4,7 +4,7 @@
  * Covers the mass-assignment close on `createCompany`: spreading the raw body into Prisma would accept
  * any key, including a nested write, and because the foreign key lives on the child row a `connect`
  * reassigns another tenant's row while a `create` fabricates one with no upstream fact (a subscription
- * with no Polar customer). `pickCompanyInput` is the single scalar allow-list both write paths use.
+ * with no billing provider behind it). `pickCompanyInput` is the single scalar allow-list both write paths use.
  */
 
 import { vi } from 'vitest';
@@ -86,8 +86,8 @@ describe('CompanyService — mass-assignment allow-list on createCompany', () =>
   });
 
   it(
-    'ignores a nested `subscription.create` in the body — the zero-prerequisite exploit: no Polar ' +
-      'customer behind it, `billing/status-reconcile.ts` would never reconcile it away',
+    'ignores a nested `subscription.create` in the body - the zero-prerequisite exploit: no billing ' +
+      'provider behind it, nothing would ever reconcile it away',
     async () => {
       const created = await service.createCompany(userId, {
         name: 'Free Subscription Co',

@@ -24,7 +24,6 @@ import {
 } from '@/mail/system-email-templates';
 import { isBillingEnabled } from '@/modules/billing/billing-flag';
 import { getOrCreateCompanySubscription } from '@/modules/billing/company-subscription.store';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
@@ -396,12 +395,7 @@ export class TransferService {
       throw error;
     }
 
-    // Outside the transaction, same placement `invitations.service.ts#useInvitation`/
-    // `companies.service.ts#changeMemberRole` already use: a Polar hiccup here must not roll back a
-    // role change that already committed. Never throws (see `member-sync.ts`'s own header).
     await sessionCache.invalidateUsers([transfer.toUserId, transfer.fromUserId]);
-    await syncCompanyMemberOnMembershipChange(transfer.companyId, transfer.toUserId);
-    await syncCompanyMemberOnMembershipChange(transfer.companyId, transfer.fromUserId);
 
     try {
       const company = await prisma.company.findUnique({

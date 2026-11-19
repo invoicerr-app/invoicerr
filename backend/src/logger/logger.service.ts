@@ -19,8 +19,7 @@ interface LogOptions {
    * (`CompanyContextInterceptor`), or the one a background job/webhook handler explicitly entered via
    * `runWithCompanyId` before calling this. Passed explicitly only where a single function's own
    * logger calls span MORE than one company fact in the same execution (a webhook resolving a
-   * DIFFERENT company than the one on its own payload, e.g. `billing/webhook-handlers.ts`'s legacy-
-   * customer recovery path) — there, the value already being threaded into `details` for readability
+   * DIFFERENT company than the one on its own payload) - there, the value already being threaded into `details` for readability
    * is reused here too, never a second, independently-computed value.
    *
    * `null` (as opposed to omitting the key) means "no company — genuinely instance-level", and is

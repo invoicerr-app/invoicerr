@@ -969,9 +969,9 @@ export default defineConfig({
          * `76-seats.cy.ts`'s ONE piece of Node-side help: sets a company's own BOUGHT seat quantity
          * directly — the same "write the row a real event would otherwise set" shape
          * `setStaleLegalAcceptance` already uses for `LegalAcceptance` rows, here standing in for a
-         * real Polar `subscription.updated` webhook or `seat-reconcile.ts`'s own SDK read (see
-         * `backend/src/modules/billing/seat-sync.ts`'s own header: this app never pushes a seat count
-         * to Polar, only reads one — this task is the offline suite's substitute for that read).
+         * real billing webhook (see `backend/src/modules/billing/seat-sync.ts`'s own header: this app
+         * never pushes a seat count to the provider, only reads one - this task is the offline suite's
+         * substitute for that read).
          * Resolves the company via its OWNER's email rather than needing a companyId threaded through
          * the whole spec, the same "resolve by email" convention `setStaleLegalAcceptance` holds.
          */

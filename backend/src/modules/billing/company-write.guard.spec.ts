@@ -3,11 +3,11 @@ import { vi, type Mock } from 'vitest';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { BillingGateExempt } from './billing-gate-exempt.decorator';
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
 import { CompanyWriteGuard } from './company-write.guard';
 import { assertUserHasSeatOrThrow } from './seat-gate';
+import { SeatGateExempt } from './seat-gate-exempt.decorator';
 
 vi.mock('./company-subscription.store');
 vi.mock('./seat-gate');
@@ -25,18 +25,26 @@ const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
 function createContext(
   method: string,
   companyId: string | null | undefined,
-  handler: (...args: unknown[]) => unknown = () => undefined,
   userId: string | null = 'user-1',
   scopes: string[] | null = null,
+  handler: () => void = ordinaryHandler,
 ): ExecutionContext {
   return {
     switchToHttp: () => ({
       getRequest: () => ({ method, companyId, user: userId ? { id: userId } : undefined, scopes }),
     }),
     getHandler: () => handler,
-    getClass: () => class {},
+    getClass: () => OrdinaryController,
   } as unknown as ExecutionContext;
 }
+
+class OrdinaryController {}
+function ordinaryHandler() {}
+class ExemptController {
+  @SeatGateExempt()
+  status() {}
+}
+const exemptHandler = ExemptController.prototype.status;
 
 describe('CompanyWriteGuard', () => {
   const guard = new CompanyWriteGuard(new Reflector());
@@ -48,14 +56,54 @@ describe('CompanyWriteGuard', () => {
   });
 
   it.each(['GET', 'HEAD', 'OPTIONS'])(
-    'always allows a %s request, even for a blocked company',
+    'allows a %s request from a seated member, even for a blocked company',
     async (method) => {
       process.env[BILLING_FLAG_NAME] = 'true';
       getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
+      assertSeat.mockResolvedValue(undefined);
       await expect(guard.canActivate(createContext(method, 'company-1'))).resolves.toBe(true);
       expect(getOrCreate).not.toHaveBeenCalled();
+      expect(assertSeat).toHaveBeenCalledWith('company-1', 'user-1');
     },
   );
+
+  // Product decision 2026-11-13: a member with no seat cannot even read.
+  it.each(['GET', 'HEAD'])(
+    'refuses a %s request from a member with no seat, named SEAT_REQUIRED',
+    async (method) => {
+      process.env[BILLING_FLAG_NAME] = 'true';
+      assertSeat.mockRejectedValue(new ForbiddenException({ message: 'no seat', code: 'SEAT_REQUIRED' }));
+      const err = await guard.canActivate(createContext(method, 'company-1')).catch((e) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
+    },
+  );
+
+  it('refuses a read through an API key whose holder has no seat', async () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
+    assertSeat.mockRejectedValue(new ForbiddenException({ message: 'no seat', code: 'SEAT_REQUIRED' }));
+    const err = await guard
+      .canActivate(createContext('GET', 'company-1', 'waiting-holder', ['clients:read']))
+      .catch((e) => e);
+    expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
+    expect(assertSeat).toHaveBeenCalledWith('company-1', 'waiting-holder');
+  });
+
+  it.each(['GET', 'POST'])('never checks the seat on a @SeatGateExempt() route (%s)', async (method) => {
+    process.env[BILLING_FLAG_NAME] = 'true';
+    getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
+    assertSeat.mockRejectedValue(new ForbiddenException({ message: 'no seat', code: 'SEAT_REQUIRED' }));
+    await expect(
+      guard.canActivate(createContext(method, 'company-1', 'user-1', null, exemptHandler)),
+    ).resolves.toBe(true);
+    expect(assertSeat).not.toHaveBeenCalled();
+  });
+
+  it('never checks the seat on a read with no active company', async () => {
+    process.env[BILLING_FLAG_NAME] = 'true';
+    await expect(guard.canActivate(createContext('GET', null))).resolves.toBe(true);
+    expect(assertSeat).not.toHaveBeenCalled();
+  });
 
   it('allows a write with no active company on the request', async () => {
     process.env[BILLING_FLAG_NAME] = 'true';
@@ -92,9 +140,7 @@ describe('CompanyWriteGuard', () => {
 
     it('never checks the seat when the request carries no user (should not normally happen this far)', async () => {
       getOrCreate.mockResolvedValue({ status: 'ACTIVE' });
-      await expect(
-        guard.canActivate(createContext('POST', 'company-1', () => undefined, null)),
-      ).resolves.toBe(true);
+      await expect(guard.canActivate(createContext('POST', 'company-1', null))).resolves.toBe(true);
       expect(assertSeat).not.toHaveBeenCalled();
     });
 
@@ -105,9 +151,7 @@ describe('CompanyWriteGuard', () => {
       // real human session). `AuthGuard` sets `request.user` to the KEY'S OWN HOLDER
       // (`apiKey.user` — never a company-wide identity independent of any member), so the seat check
       // below is asking exactly the right question: does the member who created this key hold a seat.
-      await expect(
-        guard.canActivate(createContext('POST', 'company-1', () => undefined, 'holder-1', [])),
-      ).resolves.toBe(true);
+      await expect(guard.canActivate(createContext('POST', 'company-1', 'holder-1', []))).resolves.toBe(true);
       expect(assertSeat).toHaveBeenCalledWith('company-1', 'holder-1');
     });
 
@@ -117,7 +161,7 @@ describe('CompanyWriteGuard', () => {
         new ForbiddenException({ message: 'no free seat', code: 'SEAT_REQUIRED' }),
       );
       const err = await guard
-        .canActivate(createContext('POST', 'company-1', () => undefined, 'waiting-holder', []))
+        .canActivate(createContext('POST', 'company-1', 'waiting-holder', []))
         .catch((e) => e);
       expect(err).toBeInstanceOf(ForbiddenException);
       expect(err.getResponse()).toMatchObject({ code: 'SEAT_REQUIRED' });
@@ -136,23 +180,6 @@ describe('CompanyWriteGuard', () => {
       const err = await guard.canActivate(createContext('PATCH', 'company-1')).catch((e) => e);
       expect(err).toBeInstanceOf(ForbiddenException);
       expect(err.getResponse()).toMatchObject({ code: 'COMPANY_BLOCKED' });
-    });
-
-    it('lets a @BillingGateExempt() route through even for a BLOCKED company — checkout/portal must stay reachable', async () => {
-      getOrCreate.mockResolvedValue({ status: 'BLOCKED' });
-
-      class FakeController {
-        @BillingGateExempt()
-        checkout() {
-          return undefined;
-        }
-      }
-      const controller = new FakeController();
-
-      await expect(guard.canActivate(createContext('POST', 'company-1', controller.checkout))).resolves.toBe(
-        true,
-      );
-      expect(getOrCreate).not.toHaveBeenCalled();
     });
   });
 });

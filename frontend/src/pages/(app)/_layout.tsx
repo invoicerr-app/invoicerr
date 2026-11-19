@@ -14,7 +14,7 @@ import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onb
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
-import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
+import { NotEnoughSeatsScreen } from "@/components/not-enough-seats-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useRoutePrefetch } from "@/hooks/use-route-prefetch"
@@ -325,21 +325,35 @@ const Layout = () => {
   // TanStack Query never settles) and block the shell forever instead of letting a company-less user
   // reach `AuthenticatedLayout` below, where the onboarding dialog can actually run.
   const seatsRouteMissing = seatsErrored && seatsError instanceof ApiError && seatsError.status === 404
+  // A member with no seat cannot read anything on the company (product decision 2026-11-13), the
+  // seats view included: `billing/seat-gate.ts` answers `403 { code: SEAT_REQUIRED }` to that very
+  // request, and that answer IS the signal for the full-screen "not enough seats" takeover. Never the
+  // retry screen: retrying cannot help until an owner or admin buys or frees a seat, and a focus
+  // refetch picks that up on its own.
+  const seatRequired =
+    seatsErrored &&
+    seatsError instanceof ApiError &&
+    seatsError.status === 403 &&
+    (seatsError.body as { code?: unknown } | undefined)?.code === "SEAT_REQUIRED"
   if (hasActiveCompany) {
     if (seatsPending) {
       return null
+    }
+    if (seatRequired) {
+      return <NotEnoughSeatsScreen />
     }
     if (seatsErrored && !seatsRouteMissing) {
       return <SeatCheckErrorScreen onRetry={() => refetchSeats()} />
     }
   }
 
+  // Defensive second signal: a backend that still answers the seats view to a member with no seat
+  // (an older build than the read gate above) lists that member under `waiting`.
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
   const isWaitingForSeat =
     !!currentUserId && !!seatsView?.waiting.some((member) => member.userId === currentUserId)
   if (isWaitingForSeat) {
-    const owner = seatsView?.members.find((member) => member.role === "OWNER")
-    return <WaitingForSeatScreen ownerName={owner ? `${owner.firstname} ${owner.lastname}` : null} />
+    return <NotEnoughSeatsScreen />
   }
 
   const accountLocale = (session as { user?: { locale?: string | null } } | null)?.user?.locale

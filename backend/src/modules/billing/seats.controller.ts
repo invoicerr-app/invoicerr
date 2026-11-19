@@ -18,7 +18,7 @@ export class SeatsController {
   @ApiOperation({
     summary: "The active company's seat plan",
     description:
-      'Bought seat quantity (read from Polar, never written to it — see billing/seat-sync.ts), who ' +
+      'Bought seat quantity (read from the billing provider, never written to it, see billing/seat-sync.ts), who ' +
       'is seated at a numbered desk, and who is waiting for one.',
   })
   @ApiResponse({ status: 200, description: 'Seats view' })

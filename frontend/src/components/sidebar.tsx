@@ -52,7 +52,7 @@ import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
 import { signOut } from "@/lib/sign-out"
 import { useEffect, useRef, useState } from "react"
-import { usePost } from "@/hooks/use-fetch"
+import { useSwitchCompany } from "@/hooks/use-switch-company"
 
 import { useAvailableDocumentTypes, useCompanies, useCompany, useVersionInfo } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -78,7 +78,7 @@ export function Sidebar() {
   const { setOpen: setOnboardingOpen } = useOnboardingDialog()
   const hasAutoOpenedOnboarding = useRef(false)
 
-  const { trigger: switchCompanyApi } = usePost<{ success: boolean }>("/api/companies/switch")
+  const { switchCompany: switchCompanyApi } = useSwitchCompany()
 
   useEffect(() => {
     if (
@@ -100,14 +100,7 @@ export function Sidebar() {
 
   const switchCompany = async (companyId: string) => {
     if (companyId === activeCompanyId) return
-    await switchCompanyApi({ companyId })
-    // Full reload: company-scoped data is fetched by two different
-    // mechanisms across the app (TanStack Query hooks and the older
-    // useGet/usePost hooks in use-fetch.ts, e.g. every settings page).
-    // invalidateQueries() only refreshes the former, leaving the latter
-    // showing the previous company's data — a reload guarantees every
-    // page re-fetches under the newly active company.
-    window.location.reload()
+    await switchCompanyApi(companyId)
   }
 
   // The static part of the nav — Dashboard, Statistics, Settings never depend on anything: they

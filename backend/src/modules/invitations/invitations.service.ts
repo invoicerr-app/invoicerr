@@ -6,7 +6,6 @@ import { CompanyRole, InvitationCode } from '../../../prisma/generated/prisma/cl
 import { PrismaService } from '@/prisma/prisma.service';
 import { decideRegistration, registrationDenialMessage } from '@/lib/registration-policy';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { logger } from '@/logger/logger.service';
 import { hashInvitationCode, invitationCodePrefix, invitationCodesMatch } from '@/lib/invitation-code';
 
@@ -198,9 +197,6 @@ export class InvitationsService {
 
     await sessionCache.invalidateUsers([userId]);
     logger.info('Invitation code used', { category: 'invitation', details: { id: invitation.id, userId } });
-
-    // An invitation can carry OWNER/ADMIN — see `billing/member-sync.ts`'s own header.
-    await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
 
     return updatedInvitation;
   }

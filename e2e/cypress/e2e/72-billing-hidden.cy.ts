@@ -5,7 +5,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * inert on ANY instance that has not set `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` — which this
  * e2e environment never does (it is a self-hosted-shaped test stack, not the operator's own hosted
  * offering). This is the ONLY billing spec that runs in CI: the full trial/blocked/zipped/deleted
- * lifecycle, the seat sync, and the Polar webhook wiring are all proven by backend jest instead
+ * lifecycle, and the seat sync are all proven by backend jest instead
  * (`billing/*.spec.ts`) — see this feature's own final report for why a real Cypress run against a
  * flag this environment never sets would prove nothing that a 404 doesn't already prove.
  *

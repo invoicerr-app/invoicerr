@@ -1,0 +1,197 @@
+import { type StripePlan, stripe } from '@better-auth/stripe';
+import { isBillingEnabled } from './billing-flag';
+import {
+  applyVatMentionToInvoiceEvent,
+  assertBillingVatConfiguredForBoot,
+  type CustomerVatClient,
+  type FindCompanyTaxProfile,
+  readBillingVatMode,
+  syncCustomerForCheckout,
+  vatCheckoutSessionParams,
+  vatCustomerCreateParams,
+} from './billing-vat';
+import { recordFounderPreorderEvent } from './founder-preorder';
+import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
+import { stripeClientFor } from './stripe-client';
+import { assertStripeEnvConfiguredForBoot } from './stripe-env';
+import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
+import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
+
+type StripePluginOptions = Parameters<typeof stripe>[0];
+type CheckoutSubscription = { referenceId: string; stripeCustomerId?: string | null };
+type CheckoutSessionParamsHook = NonNullable<
+  Extract<NonNullable<StripePluginOptions['subscription']>, { enabled: true }>['getCheckoutSessionParams']
+>;
+
+export type CompanyBillingRole = 'OWNER' | 'ADMIN' | 'MEMBER' | string;
+
+export type FindCompanyRole = (userId: string, companyId: string) => Promise<CompanyBillingRole | null>;
+
+/** What the company's Stripe customer is created with: its own name and billing email. */
+export interface CompanyCustomerDetails {
+  name: string;
+  email: string;
+}
+
+export type FindCompanyCustomerDetails = (companyId: string) => Promise<CompanyCustomerDetails | null>;
+
+export type CompanyHoldsFounderGrid = (companyId: string) => Promise<boolean>;
+
+/** What deciding whether a user may act on a company subscription reads. */
+export interface CompanyBillingAccess {
+  findCompanyRole: FindCompanyRole;
+  companyHoldsFounderGrid: CompanyHoldsFounderGrid;
+}
+
+export interface StripePluginDeps extends CompanyBillingAccess {
+  findCompanyCustomerDetails: FindCompanyCustomerDetails;
+  findCompanyTaxProfile: FindCompanyTaxProfile;
+}
+
+/** The Stripe calls `billing-vat.ts` makes on a customer, over the real client. */
+export function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
+  const client = () => stripeClientFor(env);
+  return {
+    updateCustomer: (customerId, params) => client().customers.update(customerId, params),
+    listTaxIds: async (customerId) => (await client().customers.listTaxIds(customerId, { limit: 100 })).data,
+    createTaxId: (customerId, params) => client().customers.createTaxId(customerId, params),
+    deleteTaxId: (customerId, taxId) => client().customers.deleteTaxId(customerId, taxId),
+  };
+}
+
+const READ_ONLY_ACTIONS = new Set(['list-subscription']);
+const BILLING_MANAGERS = new Set(['OWNER', 'ADMIN']);
+
+// One plan per price grid: the monthly price is the plan's price, the yearly one its annual price
+// (`annual: true` on upgrade). The seat count is the subscription quantity; the graduated tiers inside
+// each price turn it into the amount, so no plan carries a seat price of its own.
+export function buildStripePlans(catalog: StripePriceCatalog): StripePlan[] {
+  const grids: [PriceGrid, StripePriceCatalog[PriceGrid]][] = [
+    ['standard', catalog.standard],
+    ['founder', catalog.founder],
+  ];
+  return grids.flatMap(([grid, prices]) =>
+    prices ? [{ name: grid, priceId: prices.monthly, annualDiscountPriceId: prices.yearly }] : [],
+  );
+}
+
+// Only a company that holds the founder grid may check out on the founder plan (`founder-grid.ts`):
+// granted per company, kept while it renews without interruption.
+const isFounderCheckout = (action: string, body: unknown): boolean =>
+  action === 'upgrade-subscription' &&
+  typeof (body as { plan?: unknown } | undefined)?.plan === 'string' &&
+  (body as { plan: string }).plan.toLowerCase() === 'founder';
+
+// A company subscription is always billed to the company's own Stripe customer: the plugin's
+// `organization` customer type, whose model is the Company table here. The default `user` type would
+// bill, and open the portal on, the Stripe customer of whoever clicks, so it is refused outright.
+const COMPANY_CUSTOMER_TYPE = 'organization';
+const namesCompanyCustomer = (body: unknown, query: unknown): boolean =>
+  (body as { customerType?: unknown } | undefined)?.customerType === COMPANY_CUSTOMER_TYPE ||
+  (query as { customerType?: unknown } | undefined)?.customerType === COMPANY_CUSTOMER_TYPE;
+
+export async function canActOnCompanySubscription(
+  { findCompanyRole, companyHoldsFounderGrid }: CompanyBillingAccess,
+  userId: string,
+  companyId: string,
+  action: string,
+  body?: unknown,
+  query?: unknown,
+): Promise<boolean> {
+  if (!namesCompanyCustomer(body, query)) return false;
+  if (isFounderCheckout(action, body) && !(await companyHoldsFounderGrid(companyId))) return false;
+  const role = await findCompanyRole(userId, companyId);
+  if (role === null) return false;
+  return READ_ONLY_ACTIONS.has(action) || BILLING_MANAGERS.has(role);
+}
+
+// Every plugin hook that reports a subscription's state, mapped onto the company row
+// (`stripe-subscription-sync.ts`). `onSubscriptionCancel` is left out: a pending cancel is still paid,
+// and the `updated` event behind it already reaches `onSubscriptionUpdate`. A hook's error is caught
+// and logged by the plugin, never retried by Stripe; the next event for the subscription re-sends the
+// whole state, so a missed write is repaired by the following one.
+const sync = async (data: StripeSubscriptionHookData) => {
+  await syncStripeSubscription(data);
+};
+export const subscriptionSyncHooks = {
+  onSubscriptionComplete: sync,
+  onSubscriptionCreated: sync,
+  onSubscriptionUpdate: sync,
+  onSubscriptionDeleted: sync,
+};
+
+export function buildStripePlugin(
+  {
+    findCompanyRole,
+    companyHoldsFounderGrid,
+    findCompanyCustomerDetails,
+    findCompanyTaxProfile,
+  }: StripePluginDeps,
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  if (!isBillingEnabled(env)) return null;
+  assertStripeEnvConfiguredForBoot(env);
+  assertBillingVatConfiguredForBoot(env);
+  const vatMode = readBillingVatMode(env);
+  const plans = buildStripePlans(readStripePriceCatalog(env));
+
+  return stripe({
+    // The plugin types the ESM build of `stripe`; this CommonJS backend resolves the CJS one.
+    stripeClient: stripeClientFor(env) as unknown as StripePluginOptions['stripeClient'],
+    stripeWebhookSecret: (env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
+    createCustomerOnSignUp: false,
+    // Each company has its own Stripe customer, stored on `Company.stripeCustomerId`: the plugin's
+    // organization customer type with its `organization` model mapped onto the Company table. The
+    // better-auth organization plugin is not used (Invoicerr has its own companies and roles), so the
+    // plugin logs "Organization plugin not found" once at boot and skips only the member and name
+    // sync hooks that plugin would carry; seats stay the quantity the company buys.
+    organization: {
+      enabled: true,
+      getCustomerCreateParams: async (company) => {
+        const details = await findCompanyCustomerDetails(company.id);
+        const vat = vatCustomerCreateParams(vatMode);
+        return details ? { ...vat, name: details.name, email: details.email } : vat;
+      },
+    },
+    schema: { organization: { modelName: 'company' } },
+    // Every webhook event. The plugin only handles subscription checkouts; a founder pre-order is a
+    // one-off payment, recorded here (`founder-preorder.ts`), a paid invoice is kept for its Invoicerr
+    // invoice (`subscription-invoice.ts`), and a draft invoice gets its VAT mention (`billing-vat.ts`).
+    // A throw makes Stripe retry the event.
+    onEvent: async (event) => {
+      await recordFounderPreorderEvent(event);
+      await recordPaidSubscriptionInvoiceEvent(event);
+      await applyVatMentionToInvoiceEvent(event, vatMode, (invoiceId, footer) =>
+        stripeClientFor(env).invoices.update(invoiceId, { footer }),
+      );
+    },
+    subscription: {
+      enabled: true,
+      plans,
+      // The first invoice is finalized as soon as the checkout completes, so the company's customer
+      // gets its VAT mention, address and VAT number before the session is created (`billing-vat.ts`).
+      // The plugin types the ESM build of `stripe`, this backend the CJS one (same shape).
+      getCheckoutSessionParams: (async ({ subscription }: { subscription: CheckoutSubscription }) => {
+        if (subscription.stripeCustomerId) {
+          await syncCustomerForCheckout(
+            vatMode,
+            subscription.stripeCustomerId,
+            await findCompanyTaxProfile(subscription.referenceId),
+            customerVatClientFor(env),
+          );
+        }
+        return { params: vatCheckoutSessionParams(vatMode) };
+      }) as unknown as CheckoutSessionParamsHook,
+      authorizeReference: ({ user, referenceId, action }, ctx) =>
+        canActOnCompanySubscription(
+          { findCompanyRole, companyHoldsFounderGrid },
+          user.id,
+          referenceId,
+          action,
+          ctx?.body,
+          ctx?.query,
+        ),
+      ...subscriptionSyncHooks,
+    },
+  });
+}
