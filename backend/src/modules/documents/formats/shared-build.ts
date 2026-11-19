@@ -15,13 +15,15 @@ import { companyLawMentions } from '../company-law/company-law';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveRecipientLanguage } from '../rendering/language/resolve-recipient-language';
 import { computeDocumentTotals } from '../totals/compute-totals';
-import { CorrectedInvoiceReference, DocumentFormatParty } from './format-provider';
+import { CorrectedInvoiceReference, DocumentFormatParty, DocumentFormatProvider } from './format-provider';
 import {
   buildSemanticInvoice,
   resolvePartyCountryCode,
   SemanticBuildError,
   SemanticLineInput,
 } from './semantic/build-semantic-invoice';
+import { validateStructural } from './structural-check';
+import { EN16931_UBL_SCH, validateSchematron } from './vendored/validate-schematron';
 
 /**
  * Logger for `@e-invoice-eu/core`: quiet on narration, loud on the one thing worth knowing — REPRISED
@@ -266,4 +268,61 @@ export function buildEuInvoiceForDocument(
         }
       : undefined,
   });
+}
+
+/**
+ * The `build()` `xrechnung-provider.ts` and `peppol-bis-provider.ts` share: UBL generation, the
+ * structural check, then the base EN 16931 Schematron PLUS (when given) a delta Schematron, BOTH
+ * blocking, their errors merged as `${id}: ${message}`. The two providers only differ by their
+ * `customizationId`/`businessProcessCodeOverride` literals, their delta, and Peppol's note
+ * post-processing (`postProcess`, handed to `@e-invoice-eu/core` as its `postProcessor`).
+ */
+export function buildValidatedUbl(config: {
+  customizationId: string;
+  businessProcessCodeOverride?: string;
+  deltaSch?: string;
+  postProcess?: (data: Record<string, unknown>) => void;
+}): DocumentFormatProvider['build'] {
+  const { customizationId, businessProcessCodeOverride, deltaSch, postProcess } = config;
+  return async (descriptor, document, company, client, _companyId, options) => {
+    const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
+      customizationId,
+      businessProcessCodeOverride,
+      creditNote: options?.creditNote,
+    });
+
+    const service = newEuInvoiceService();
+    const xml = (await service.generate(
+      euInvoice,
+      postProcess
+        ? {
+            format: 'UBL',
+            lang: 'en',
+            postProcessor: async (data) => postProcess(data as Record<string, unknown>),
+          }
+        : { format: 'UBL', lang: 'en' },
+    )) as string;
+
+    const structural = validateStructural(xml, 'ubl', options?.creditNote ? 'credit-note' : 'invoice');
+    if (!structural.valid) {
+      return {
+        bytes: new TextEncoder().encode(xml),
+        validation: { valid: false, errors: structural.errors },
+      };
+    }
+
+    // BOTH gates run, and BOTH must pass: the delta is BLOCKING, exactly like every other ruleset
+    // the format registry judges an artifact by.
+    const base = validateSchematron(xml, EN16931_UBL_SCH);
+    const delta = deltaSch ? validateSchematron(xml, deltaSch) : undefined;
+    const errors = [
+      ...base.errors.map((e) => `${e.id}: ${e.message}`),
+      ...(delta ? delta.errors.map((e) => `${e.id}: ${e.message}`) : []),
+    ];
+
+    return {
+      bytes: new TextEncoder().encode(xml),
+      validation: { valid: base.valid && (delta ? delta.valid : true), errors },
+    };
+  };
 }

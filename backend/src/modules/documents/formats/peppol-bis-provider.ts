@@ -67,18 +67,10 @@
  * bridge threads through (`buyerReference`, `iban`, `addressLine2`, ...) is ALWAYS omitted rather than
  * emitted empty — already true of the base bridge before this provider existed.
  */
-import { DocumentInstanceResult } from '../actions/action-registry';
-import { DocumentTypeDescriptor } from '../descriptors/types';
-import {
-  DocumentFormatBuildOptions,
-  DocumentFormatBuildResult,
-  DocumentFormatParty,
-  DocumentFormatProvider,
-} from './format-provider';
+import { DocumentFormatProvider } from './format-provider';
 import { mergePeppolNotesInObject } from './semantic/peppol-post-process';
-import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
-import { validateStructural } from './structural-check';
-import { EN16931_UBL_SCH, PEPPOL_BIS_UBL_SCH, validateSchematron } from './vendored/validate-schematron';
+import { buildValidatedUbl } from './shared-build';
+import { PEPPOL_BIS_UBL_SCH } from './vendored/validate-schematron';
 
 /** Read VERBATIM from the vendored delta's own `<let name="profile">`/R004 test — see this file's
  *  own header. Not a made-up convention: it is the literal string the Schematron itself asserts. */
@@ -91,50 +83,16 @@ const PEPPOL_BIS_CUSTOMIZATION_ID =
  *  override whatever `business-process.ts` would otherwise derive for a mandated French seller. */
 const PEPPOL_BIS_BILLING_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
-async function build(
-  descriptor: DocumentTypeDescriptor,
-  document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
-  company: DocumentFormatParty,
-  client: DocumentFormatParty,
-  _companyId?: string,
-  options?: DocumentFormatBuildOptions,
-): Promise<DocumentFormatBuildResult> {
-  const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
-    customizationId: PEPPOL_BIS_CUSTOMIZATION_ID,
-    businessProcessCodeOverride: PEPPOL_BIS_BILLING_PROFILE_ID,
-    creditNote: options?.creditNote,
-  });
-
-  const service = newEuInvoiceService();
-  // PEPPOL-EN16931-R002 — see this file's own header and `semantic/peppol-post-process.ts`'s own
-  // header for the full reasoning. `postProcessor` is `@e-invoice-eu/core`'s own public extension
-  // point, called on the intermediate UBL object right before XML rendering — the SAME channel
-  // `facturx-provider.ts` already uses for its own, different note-shape fix.
-  const xml = (await service.generate(euInvoice, {
-    format: 'UBL',
-    lang: 'en',
-    postProcessor: async (data) => mergePeppolNotesInObject(data as Record<string, unknown>),
-  })) as string;
-
-  const structural = validateStructural(xml, 'ubl', options?.creditNote ? 'credit-note' : 'invoice');
-  if (!structural.valid) {
-    return { bytes: new TextEncoder().encode(xml), validation: { valid: false, errors: structural.errors } };
-  }
-
-  // BOTH gates run, and BOTH must pass — the delta is BLOCKING, exactly like every other ruleset this
-  // registry judges an artifact by (base EN 16931 for cii/ubl, the national XSDs for fa3/fatturapa).
-  const base = validateSchematron(xml, EN16931_UBL_SCH);
-  const delta = validateSchematron(xml, PEPPOL_BIS_UBL_SCH);
-  const errors = [
-    ...base.errors.map((e) => `${e.id}: ${e.message}`),
-    ...delta.errors.map((e) => `${e.id}: ${e.message}`),
-  ];
-
-  return {
-    bytes: new TextEncoder().encode(xml),
-    validation: { valid: base.valid && delta.valid, errors },
-  };
-}
+// PEPPOL-EN16931-R002: see this file's own header and `semantic/peppol-post-process.ts`'s own
+// header for the full reasoning. `postProcess` becomes `@e-invoice-eu/core`'s own public `postProcessor`
+// extension point, called on the intermediate UBL object right before XML rendering, the SAME channel
+// `facturx-provider.ts` already uses for its own, different note-shape fix.
+const build = buildValidatedUbl({
+  customizationId: PEPPOL_BIS_CUSTOMIZATION_ID,
+  businessProcessCodeOverride: PEPPOL_BIS_BILLING_PROFILE_ID,
+  deltaSch: PEPPOL_BIS_UBL_SCH,
+  postProcess: mergePeppolNotesInObject,
+});
 
 export const peppolBisFormatProvider: DocumentFormatProvider = {
   id: 'peppol-bis',
