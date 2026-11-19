@@ -2023,7 +2023,8 @@
         "hint": "Changes the layout of your PDFs, never their content. Your colour, font and logo still apply.",
         "options": {
           "classic": "Classic",
-          "atelier": "Atelier"
+          "atelier": "Atelier",
+          "original": "Original (v1)"
         }
       }
     },

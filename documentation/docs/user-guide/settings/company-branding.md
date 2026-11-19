@@ -195,13 +195,17 @@ notes and the other document types) with four things:
 - **Logo** (PNG, JPEG or WebP, 10 MB at most), printed at the top left of the first page.
 - **Accent color**, used for the rule under the header and for the small section labels.
 - **Font**: Inter, Source Serif 4, IBM Plex Sans, DM Sans or Lora, or the default system font.
-- **Document template**: **Classic** or **Atelier**. Atelier is the default: new companies start
+- **Document template**: **Classic**, **Atelier** or **Original (v1)**. Atelier is the default: new companies start
   on it and existing companies were moved to it when the template feature shipped. Atelier
   sets the document title
   large in a serif face, puts the dates and references in a band tinted with your accent color,
   shows the totals in a tinted box and frames the payment details. It changes the presentation
   only: every word, identifier, legal mention and the Factur-X data are the same as with Classic.
-  Your logo, accent color and font apply to both.
+  **Original (v1)** brings back the look of the 1.x PDFs: the logo and the document title side by
+  side, plain labels, a table with a slate header and roomy rows, the grand total on a slate band
+  and the payment details in a grey box ruled with your accent color. It uses Arial unless you
+  pick a font. Like Atelier, it changes the presentation only.
+  Your logo, accent color and font apply to every template.
 
 Four **Presets** (Classic, Modern, Minimal, Bold) set an accent color and a font in one click. The
 **Preview** renders a sample invoice with your current settings, through the same renderer as a real

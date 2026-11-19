@@ -71,4 +71,28 @@ describe('renderDocumentHtml, document template', () => {
     const override = atelier.slice(atelier.indexOf('data-template-style="atelier"'));
     expect(override).not.toMatch(/body\s*\{[^}]*InvoicerrTemplateFigtree/);
   });
+
+  it('prints the same words with the original (v1) template, only the presentation changes', () => {
+    const classic = renderDocumentHtml(base);
+    const original = renderDocumentHtml({ ...base, branding: { template: 'original' } });
+    expect(original).toContain('data-template-style="original"');
+    expect(withoutTemplateStyle(original).trim()).toBe(classic.trim());
+  });
+
+  it('uses Arial, the slate table header and the accent payment rule with the original template', () => {
+    const original = renderDocumentHtml({
+      ...base,
+      branding: { template: 'original', accentColor: '#aa3311' },
+    });
+    const override = original.slice(original.indexOf('data-template-style="original"'));
+    expect(override).toMatch(/body\s*\{[^}]*font-family:\s*Arial/);
+    expect(override).toMatch(/thead tr\s*\{[^}]*background:\s*#64748b/);
+    expect(override).toMatch(/\.payment-methods-section\s*\{[^}]*border-left:\s*4px solid #aa3311/);
+  });
+
+  it('lets a font the company picked win over Arial with the original template', () => {
+    const original = renderDocumentHtml({ ...base, branding: { template: 'original', font: 'lora' } });
+    const override = original.slice(original.indexOf('data-template-style="original"'));
+    expect(override).not.toMatch(/body\s*\{[^}]*Arial/);
+  });
 });
