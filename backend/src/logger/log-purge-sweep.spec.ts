@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import {
   computeLogPurgeCutoff,
   isLogPurgeEnabled,
@@ -41,6 +43,15 @@ describe('readLogPurgeSweepIntervalMs', () => {
   it('reads an override from the environment', () => {
     process.env.LOG_PURGE_SWEEP_INTERVAL_MS = '60000';
     expect(readLogPurgeSweepIntervalMs()).toBe(60000);
+  });
+
+  it('falls back to the default and warns when the value is not a positive integer', () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    process.env.LOG_PURGE_SWEEP_INTERVAL_MS = '1h';
+
+    expect(readLogPurgeSweepIntervalMs()).toBe(3_600_000);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 });
 
