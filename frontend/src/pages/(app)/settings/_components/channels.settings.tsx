@@ -48,7 +48,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** Owner review of #527 - "this legal channel belongs to a specific country" (theirs, shown to you)
  *  versus "this is a network with no home anywhere, just not usable for YOUR domestic invoices" -

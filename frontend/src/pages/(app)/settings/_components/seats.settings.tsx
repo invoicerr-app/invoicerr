@@ -31,7 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { authClient } from "@/lib/auth"
 
 import { memberName, OfficeRoom } from "./seats/office-svg"
-import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsListSkeleton, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback

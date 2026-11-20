@@ -19,7 +19,7 @@ import {
   SettingsListSkeleton,
   SettingsPage,
   SettingsRowMenu,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 export default function MembersSettings() {
   const { t } = useTranslation()

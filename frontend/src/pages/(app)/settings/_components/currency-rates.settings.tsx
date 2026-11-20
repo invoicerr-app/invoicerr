@@ -16,7 +16,7 @@ import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import type { CurrencyRate, CurrencyRatePairGap } from "@/types"
 
-import { SettingsList, SettingsListRow, SettingsSection } from "./settings-section"
+import { SettingsList, SettingsListRow, SettingsSection } from "@/components/settings-section"
 
 /** Must match the backend's `EXCHANGERATE_API_SOURCE` (currency-rate-sweep.ts) exactly — the two
  *  are never shared across a language boundary in this repo (backend/frontend are independent npm

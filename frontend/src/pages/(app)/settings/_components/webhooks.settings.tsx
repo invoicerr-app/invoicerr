@@ -26,7 +26,7 @@ import {
   SettingsRowMenu,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 interface Webhook {
   id: string

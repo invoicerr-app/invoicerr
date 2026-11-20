@@ -16,7 +16,7 @@ import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
 import { downloadBlob } from "@/lib/download"
 import type { CashedRevenueReport } from "@/types"
 
-import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 /** The company's own default ("" - resolved server-side from `Company.revenuePeriod`, see
  *  `resolve-revenue-basis.ts`), or an explicit override for THIS screen only - never written back to

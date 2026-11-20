@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { usePatch } from "@/hooks/use-fetch"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useTheme } from "@/components/theme-provider"
-import { SettingsSection } from "../settings/_components/settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 const THEME_OPTIONS = [
   { value: "light", icon: Sun, labelKey: "sidebar.theme.light" },

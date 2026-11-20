@@ -20,7 +20,7 @@ import { type ApiHookError, useDelete } from "@/hooks/use-fetch"
 import { afterCompanyGone } from "@/lib/after-company-gone"
 import { authClient } from "@/lib/auth"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
-import { SettingsSection } from "../settings/_components/settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 /** The exact shape depends on how the backend's `user.deleteUser.beforeDelete` hook reports the
  *  refusal — checked defensively on both a `code` field (this repo's own convention for a

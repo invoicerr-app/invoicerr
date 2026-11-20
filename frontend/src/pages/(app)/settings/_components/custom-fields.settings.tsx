@@ -37,7 +37,7 @@ import {
   SettingsRowMenu,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** The RESTRICTED subset of field kinds this feature offers — mirrors the backend's
  *  `company-custom-fields/types.ts#ALLOWED_CUSTOM_FIELD_KINDS`. Kept as a literal array here (rather

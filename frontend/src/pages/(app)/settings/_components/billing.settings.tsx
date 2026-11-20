@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { useBillingStatus, useCompanies } from "@/hooks/queries"
 import { STATUS_BADGE_VARIANT } from "@/hooks/queries/billing-status-appearance"
 import { isCompanyAdmin } from "@/hooks/queries/use-companies"
-import { SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsPage, SettingsSection } from "@/components/settings-section"
 import { SubscriptionActions } from "./subscription-actions"
 
 /**

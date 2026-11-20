@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 
-import { SettingsFormFooter, SettingsSection, useSavedFlash } from "./settings-section"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "@/components/settings-section"
 
 interface DeclareLastNumberInferResponse {
   pattern: string | null

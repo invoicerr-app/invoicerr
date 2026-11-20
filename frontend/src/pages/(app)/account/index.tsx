@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
-import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "@/components/settings-section"
 
 interface SessionUser {
   firstname?: string

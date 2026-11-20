@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useInstancePreflight, useRequestInstanceResetOtp, useConfirmInstanceReset } from "@/hooks/queries"
 import type { ApiError } from "@/hooks/use-api-query"
-import { SettingsSection } from "./settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 /** A fixed keyword typed exactly, untranslated on purpose — see `danger.settings.tsx`'s own
  *  `RESET_APP_KEYWORD` header for why (it is a literal string the user re-types, matched

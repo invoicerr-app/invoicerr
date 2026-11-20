@@ -18,7 +18,7 @@ import {
   SettingsListRow,
   SettingsListSkeleton,
   SettingsSection,
-} from "../settings/_components/settings-section"
+} from "@/components/settings-section"
 
 /** Mirrors `backend/src/lib/legal-signup-policy.ts#LEGAL_ACCEPTANCE_REQUIRED_CODE` by name — the four
  *  projects in this repo share no package (CLAUDE.md), so this is the one place the frontend has to

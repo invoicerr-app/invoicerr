@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { downloadBlob } from "@/lib/download"
 
-import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 /**
  * The GENERIC accounting CSV export's own download UI (the CSV slice only;

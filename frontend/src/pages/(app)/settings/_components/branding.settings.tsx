@@ -22,7 +22,12 @@ import {
   useUploadBrandingLogo,
 } from "@/hooks/queries"
 import { cn } from "@/lib/utils"
-import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
+import {
+  SettingsFormFooter,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "@/components/settings-section"
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
 const ALLOWED_LOGO_MIMES = ["image/jpeg", "image/png", "image/webp"]

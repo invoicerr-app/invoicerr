@@ -18,7 +18,7 @@ import { copyToClipboard } from "@/lib/clipboard"
 import type { Company } from "@/types"
 import type { ChannelEnvironment, ChannelsResponse } from "@/types/channels"
 
-import { SettingsFormFooter, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsFormFooter, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 interface PaymentProviderField {
   key: string

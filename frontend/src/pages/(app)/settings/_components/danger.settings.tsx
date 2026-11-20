@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { afterCompanyGone } from "@/lib/after-company-gone"
 import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
-import { SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsPage, SettingsSection } from "@/components/settings-section"
 import InstanceResetSection from "./instance-reset.section"
 import TransferCompanySection from "./transfer-company.section"
 

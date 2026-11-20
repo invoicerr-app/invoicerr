@@ -34,7 +34,7 @@ import {
   SettingsSection,
   SettingsStickyFooter,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 import {
   useDocumentTransports,
   useReconciliationSettings,
