@@ -1,5 +1,4 @@
-import { DocumentInstanceResult } from '../actions/action-registry';
-import { DocumentTypeDescriptor } from '../descriptors/types';
+import { DocumentInstanceResult, DocumentTypeDescriptor } from '../descriptors/types';
 import { SemanticPartyInput } from './semantic/build-semantic-invoice';
 
 /** What a caller building a normalized export snapshot hands a provider for one party — the same
@@ -89,4 +88,20 @@ export interface DocumentFormatBuildOptions {
     descriptor: DocumentTypeDescriptor;
     document: DocumentInstanceResult;
   };
+}
+
+/**
+ * Issue #499 - what a transport that BUILDS a structured format (Factur-X, FatturaPA, Peppol BIS...)
+ * builds from, when that is not the delivered document itself. The credit note's "send"
+ * (`actions/credit-note-actions.ts`) is the one caller that sets it: a credit note owns neither a
+ * client nor priced lines (`credit-note.descriptor.ts`, "Two shapes, one type"), so its electronic
+ * form is built from the invoice it corrects, priced with the invoice descriptor and marked as a
+ * credit note (`formats/credit-note-source.ts`), exactly as its own "download-xml" builds it
+ * (`documents.service.ts#downloadDocumentFormat`). `document` keeps the credit note's own id and
+ * number; only its `data` is the invoice-shaped, tax-resolved build input.
+ */
+export interface TransportFormatSource {
+  descriptor: DocumentTypeDescriptor;
+  document: DocumentInstanceResult;
+  options?: DocumentFormatBuildOptions;
 }

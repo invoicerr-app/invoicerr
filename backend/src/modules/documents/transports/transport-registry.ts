@@ -4,23 +4,10 @@ import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { ArchivedArtifactInput } from '../archive/hashing';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { DocumentFormatBuildOptions } from '../formats/format-provider';
+import { TransportFormatSource } from '../formats/format-provider';
 
-/**
- * Issue #499 - what a transport that BUILDS a structured format (Factur-X, FatturaPA, Peppol BIS...)
- * builds from, when that is not the delivered document itself. The credit note's "send"
- * (`actions/credit-note-actions.ts`) is the one caller that sets it: a credit note owns neither a
- * client nor priced lines (`credit-note.descriptor.ts`, "Two shapes, one type"), so its electronic
- * form is built from the invoice it corrects, priced with the invoice descriptor and marked as a
- * credit note (`formats/credit-note-source.ts`), exactly as its own "download-xml" builds it
- * (`documents.service.ts#downloadDocumentFormat`). `document` keeps the credit note's own id and
- * number; only its `data` is the invoice-shaped, tax-resolved build input.
- */
-export interface TransportFormatSource {
-  descriptor: DocumentTypeDescriptor;
-  document: DocumentInstanceResult;
-  options?: DocumentFormatBuildOptions;
-}
+// Moved to `formats/format-provider.ts`; re-exported for existing callers.
+export type { TransportFormatSource } from '../formats/format-provider';
 
 /**
  * The build input of a format-building transport: `ctx.formatSource` when the caller set one, the

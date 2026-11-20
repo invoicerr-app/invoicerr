@@ -756,3 +756,80 @@ export function findShareLinkAction(
 ): DocumentActionDescriptor | undefined {
   return descriptor.actions.find((action) => action.id === 'share-link');
 }
+
+export interface DocumentInstanceResult {
+  id: string;
+  typeId: string;
+  status: string;
+  data: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+  /** See `DocumentInstance`'s own schema comment and numbering/ - null until this type's own
+   *  declared `numbering.onEnterStatus` is first reached (or forever, for a type that never declares
+   *  `numbering` at all), never cleared or reassigned afterward. */
+  number?: number | null;
+  displayNumber?: string | null;
+  /** See `DocumentInstance.atcud`'s own schema comment - Portugal's ATCUD, frozen the same moment
+   *  `displayNumber` above is (`actions/atcud-issuance.ts`). Null/undefined for every document that is
+   *  not a numbered Portuguese invoice, exactly like `displayNumber` itself is absent before numbering. */
+  atcud?: string | null;
+  /** See `DocumentInstance.vatNationalCurrency*`'s own schema comment: issue #517's VAT-in-national-
+   *  currency conversion, frozen the same moment `atcud` above is. Read by
+   *  `formats/shared-build.ts#buildEuInvoiceForDocument` (BT-6/BT-111, `vatNationalCurrency`/
+   *  `vatNationalCurrencyVatMinor` only) and by `rendering/render-instance-pdf.ts` (all six, to print
+   *  the converted line and, for Italy, the converted taxable amount too). Each caller Picks only
+   *  the subset it actually needs, the same narrowing convention every other caller of this
+   *  interface already follows. */
+  vatNationalCurrency?: string | null;
+  vatNationalCurrencyTaxableMinor?: number | null;
+  vatNationalCurrencyVatMinor?: number | null;
+  /** Prisma's `Decimal` narrowed to its own `toString()`, same convention
+   *  `currency-rates.store.ts#toResult`'s own `rate` param already uses, so this interface never
+   *  needs to import the generated Prisma `Decimal` runtime class just to describe this one field. */
+  vatNationalCurrencyRate?: { toString(): string } | null;
+  vatNationalCurrencyRateAsOf?: Date | null;
+  vatNationalCurrencyRateSource?: string | null;
+  /** See `DocumentInstance.buyerIdentifiers`'s own schema comment: the buyer's identifiers frozen at
+   *  numbering. Read through `buyer-identifiers/frozen-buyer-identifiers.ts`, never directly. */
+  buyerIdentifiers?: unknown;
+  /** See `DocumentInstance.acceptedOption`'s own schema comment - issue #373 ("quotes with
+   *  options"): the option name the client chose when accepting a quote that offers 2+ of them, null
+   *  until an acceptance path writes it (or forever, for a quote that never had 2+ options). Read by
+   *  `options/quote-options.ts#resolveInvoiceableLines` at conversion time and shown read-only on the
+   *  quote's own detail page. */
+  acceptedOption?: string | null;
+  /** See `DocumentInstance.lastActionError`'s own schema comment - the error from the most recent
+   *  FAILED asynchronous action (queue/mark-send-failed.ts), or null/undefined once cleared by any
+   *  later write. Absent from a result that never re-reads this column (most action handlers don't
+   *  need to) - never assume its absence means "no error", only that this particular result didn't
+   *  carry it. */
+  lastActionError?: string | null;
+  /** See `DocumentInstance.lastArchiveError`'s own schema comment - set when this document was
+   *  DELIVERED and its legal archiving did not succeed (⚖ `archive/archive-on-send.ts`), cleared the
+   *  moment a later attempt does. Deliberately a SEPARATE fact from `lastActionError` above: the send
+   *  succeeded, it is the preservation that has a gap. Declared here because `findOwnedDocument`
+   *  returns the whole row and the document screen reads this straight off it - same "absent ≠ no
+   *  error, only that this result didn't carry it" convention as the field above. */
+  lastArchiveError?: string | null;
+  /** See `DocumentInstance.transportRef`'s own schema comment - the identifier a TRANSPORT handed
+   *  back on successful delivery (e.g. a PDP deposit id), or null/undefined for a document no
+   *  transport has ever reported one for. Same "absent ≠ no reference, only that this result didn't
+   *  carry it" convention `lastActionError` above already holds. */
+  transportRef?: string | null;
+  /** See `DocumentInstance.conformityRejectedAt`'s own schema comment. */
+  conformityRejectedAt?: Date | null;
+  conformityRejectedReason?: string | null;
+  /** See `DocumentInstance.channelProviderId`'s own schema comment - the transport ("ksef"/"pdp"/…)
+   *  that ACTUALLY delivered this document, or null/undefined for one email delivered (no concept of
+   *  a channel) or never sent at all. Read by `formats/national/fa3-kor.ts` to tell "sent through KSeF
+   *  but not yet CLEARED" (refuse - see that file's own header) apart from "genuinely never went
+   *  through KSeF at all" (the corrected invoice's own KOR falls back to the FA(3) schema's own
+   *  `NrKSeFN` marker, per art. 106j ust. 2 pkt 2a's own exception for exactly this case) - the same
+   *  "absent ≠ unset, only that this result didn't carry it" convention `transportRef` above holds. */
+  channelProviderId?: string | null;
+  /** See `DocumentInstance.deliveryConfirmedAt`'s own schema comment - non-null means `deliver()`
+   *  (`actions/async-send.ts`) already genuinely succeeded for this document's current "sending"
+   *  episode, durably, across processes. Same "absent ≠ unset, only that this result didn't carry it"
+   *  convention `transportRef`/`channelProviderId` above already hold. */
+  deliveryConfirmedAt?: Date | null;
+}

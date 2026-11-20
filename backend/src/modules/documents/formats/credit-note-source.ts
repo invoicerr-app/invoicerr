@@ -35,7 +35,7 @@ import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveLinkedCreditNote } from '../totals/linked-credit-note';
 import { resolveInvoiceCrossBorderTaxForCompany } from '../tax/load-and-resolve';
 import { isInvoiceTaxBlockError } from '../tax/resolve-invoice-tax';
-import { TransportFormatSource } from '../transports/transport-registry';
+import { TransportFormatSource } from './format-provider';
 import { CorrectedInvoiceReference } from './format-provider';
 import { toDateOnly } from './shared-build';
 
