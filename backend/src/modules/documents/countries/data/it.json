@@ -1427,6 +1427,21 @@
       },
       "notes": "Agenzia delle Entrate, \"Specifiche tecniche operative del formato della fattura del Sistema di Interscambio\", version 1.4: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf, CodiceDestinatario. The SdI rejects XXXXXXX with error 00313 unless the buyer's IdFiscaleIVA carries an IdPaese other than IT (Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1). With 0000000 and no PECDestinatario, the SdI makes the invoice available in the buyer's reserved area."
     },
+    "stampDuty": {
+      "bolloVirtuale": "SI",
+      "amount": 2,
+      "threshold": 77.47,
+      "appliesTo": {
+        "sellerTaxSchemes": ["STANDARD", "FRANCHISE_BASE", "EXEMPT"]
+      },
+      "legalReference": "Imposta di bollo - D.P.R. 642/1972, art. 13 della Tariffa (Parte I) e art. 6 della Tabella (Allegato B)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Tariffa, Parte I, art. 13, comma 1: «Fatture, note, conti e simili, anche se non soggetti a registrazione (...) per ogni foglio: euro 2,00»; nota 2 dello stesso articolo: l'imposta è esclusa «quando la somma non supera L. 150.000» (77,47 euro). Tabella, Allegato B, art. 6: sono esenti i documenti «riguardanti il pagamento di corrispettivi di operazioni assoggettate ad imposta sul valore aggiunto».",
+        "sourceCheckedAt": "2026-11-20"
+      },
+      "notes": "Quoted from D.P.R. 26 ottobre 1972 n. 642 as reproduced by SamBooks, \"Imposta di bollo sulle fatture senza IVA\" (updated 2026-09-06, checked on Normattiva): https://www.sambooks.ai/risorse/imposta-bollo-fatture-documenti-commerciali-art-13-dpr-642-1972, cross-checked against https://www.leggeinchiaro.it/imposta-bollo-fattura-quando-si-applica-2-euro/. The 2,00 euro amount is the one set by art. 7-bis, comma 3, D.L. 43/2013. The threshold is measured on the invoice's components that carry NO VAT, never on the document total (Agenzia delle Entrate, risposta a interpello n. 45/2024, which recalls risoluzione n. 98/E of 2001). Scoped by the seller's own tax scheme (`appliesTo.sellerTaxSchemes`), which every Italian seller has; what decides the duty is the invoice's non-VAT base, whatever Natura produced it (N2.1 to N4 are the codes the source lists for a stamp-duty invoice). Invoices to a public administration are not excluded here yet, pending a sourced answer on who bears the duty in that case; a non-euro invoice is left alone because the 2,00 euro amount would need a conversion."
+    },
     "notes": "FatturaPA codes for an Italian seller. Since 2021-01-01 the SdI refuses the generic Natura codes N2, N3 and N6 (error 00445, Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1), so only the detailed codes are declared. Every code accepted by the official schema 1.2.3 is listed; the ones without appliesTo cannot be selected from an invoice yet."
   },
   "companyLaw": {
