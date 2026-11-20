@@ -108,6 +108,27 @@ export async function downloadDocumentOriginal(typeId: string, documentId: strin
   }
 }
 
+/** Issue #364 - the proof file attached to a manual acceptance, served from the archive row. */
+export async function downloadManualAcceptanceAttachment(
+  typeId: string,
+  documentId: string,
+  fileName: string,
+  t: TFunction,
+) {
+  try {
+    const response = await authenticatedFetch(
+      `/api/documents/${documentId}/manual-acceptance/attachment?typeId=${typeId}`,
+    )
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw new Error(body?.message || `HTTP ${response.status}`)
+    }
+    saveBlob(await response.blob(), fileName)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t("documents.acceptance.manualAttachmentDownload"))
+  }
+}
+
 export async function downloadDocumentXml(
   typeId: string,
   documentId: string,
