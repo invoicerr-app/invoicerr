@@ -46,6 +46,7 @@ import {
 } from '../../../prisma/generated/prisma/client';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 import { endsFounderGrid, holdsFounderGrid } from './founder-grid';
+import { isSuspended } from './lifecycle';
 import { PAID_STRIPE_STATUSES } from './stripe-statuses';
 
 /** The plugin's own `subscription` row fields this module reads. */
@@ -168,7 +169,7 @@ export async function applyStripeSubscriptionFacts(
     const founderLoss = losesFounderGrid ? { founderLostAt: facts.factAt } : {};
 
     const stillInsideOwnTrial = sub.status === 'TRIAL' && now.getTime() < sub.trialEndsAt.getTime();
-    const alreadySuspended = sub.status === 'BLOCKED' || sub.status === 'ZIPPED';
+    const alreadySuspended = isSuspended(sub.status);
     if (facts.status === 'PAST_DUE' && (stillInsideOwnTrial || alreadySuspended)) {
       if (losesFounderGrid) await tx.companySubscription.update({ where: { companyId }, data: founderLoss });
       return 'held_back';
