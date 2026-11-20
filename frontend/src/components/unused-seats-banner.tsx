@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useCompanies, useSeats } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 
 /**
  * Red banner at the top of Settings when the company pays for more seats than it has members
@@ -18,7 +19,7 @@ import { useCompanies, useSeats } from "@/hooks/queries"
 export function UnusedSeatsBanner() {
   const { t } = useTranslation()
   const { activeRole } = useCompanies()
-  const isManager = activeRole === "OWNER" || activeRole === "ADMIN"
+  const isManager = isCompanyAdmin(activeRole)
   const { data: seatsView } = useSeats(isManager)
 
   if (!isManager || !seatsView) return null

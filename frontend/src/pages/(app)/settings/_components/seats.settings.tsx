@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCompanies, useMoveSeat, useSeats } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import type { SeatMemberView } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -189,7 +190,7 @@ export default function SeatsSettings() {
   const { t } = useTranslation()
   const { data: session } = authClient.useSession()
   const { activeRole, activeCompanyId } = useCompanies()
-  const canManage = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManage = isCompanyAdmin(activeRole)
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
 
   const { data, isLoading } = useSeats()

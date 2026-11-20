@@ -9,7 +9,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { useAcceptCompanyTransfer, useReceivedTransfers, type OwnershipTransferView } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import {
@@ -77,8 +77,7 @@ export default function AccountTransfersPage() {
         },
         onError: (error) => {
           setConfirmTransfer(null)
-          const code =
-            error instanceof ApiError ? (error.body as { code?: string } | undefined)?.code : undefined
+          const code = apiErrorCode(error)
           if (code === LEGAL_ACCEPTANCE_REQUIRED_CODE) {
             toast.info(t("account.transfers.messages.legalAcceptanceRequired"))
             void navigate("/legal/accept")

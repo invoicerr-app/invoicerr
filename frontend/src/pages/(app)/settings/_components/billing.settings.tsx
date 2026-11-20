@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { type CompanySubscriptionStatus, useBillingStatus, useCompanies } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { SettingsPage, SettingsSection } from "./settings-section"
 import { SubscriptionActions } from "./subscription-actions"
 
@@ -36,7 +37,7 @@ const STATUS_VARIANT: Record<
 export default function BillingSettings() {
   const { t } = useTranslation()
   const { activeRole, activeCompanyId } = useCompanies()
-  const canManageBilling = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManageBilling = isCompanyAdmin(activeRole)
   const { data: status, isSuccess } = useBillingStatus()
 
   if (!isSuccess || !status) return null
