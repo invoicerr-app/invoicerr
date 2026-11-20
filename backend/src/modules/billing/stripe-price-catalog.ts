@@ -74,14 +74,3 @@ export function readStripePriceCatalog(env: NodeJS.ProcessEnv = process.env): St
     founder: isFounderConfigured(env) ? readGrid(env, 'founder') : null,
   };
 }
-
-export function lookupStripePrice(catalog: StripePriceCatalog, priceId: string): PriceSlot | null {
-  for (const grid of GRIDS) {
-    const prices = catalog[grid];
-    if (!prices) continue;
-    for (const interval of BILLING_INTERVALS) {
-      if (prices[interval] === priceId) return { grid, interval };
-    }
-  }
-  return null;
-}

@@ -4,7 +4,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { BILLING_FLAG_NAME } from './billing-flag';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
-import { countCompanySeats, NoFreeSeatError, withSeatReservation } from './seat-sync';
+import { NoFreeSeatError, withSeatReservation } from './seat-sync';
 
 /** A fake interactive-transaction client — `prisma.$transaction(async (tx) => ...)` hands the callback
  *  this shape instead of the real `Prisma.TransactionClient`, the same "narrow, hand-rolled fake" every
@@ -34,13 +34,11 @@ function fakeTx(overrides: {
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: {
-    userCompany: { count: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
 vi.mock('./company-subscription.store');
 
-const count = prisma.userCompany.count as Mock;
 const transaction = prisma.$transaction as Mock;
 const getOrCreate = getOrCreateCompanySubscription as Mock;
 const lockRow = lockCompanySubscriptionRow as Mock;
@@ -145,15 +143,5 @@ describe('withSeatReservation', () => {
     await withSeatReservation('company-1', 'user-1', vi.fn().mockResolvedValue(undefined));
 
     expect(lockRow).toHaveBeenCalledWith(tx, 'company-1');
-  });
-});
-
-describe('countCompanySeats', () => {
-  afterEach(() => vi.resetAllMocks());
-
-  it('counts UserCompany rows for the company', async () => {
-    count.mockResolvedValue(5);
-    await expect(countCompanySeats('company-1')).resolves.toBe(5);
-    expect(count).toHaveBeenCalledWith({ where: { companyId: 'company-1' } });
   });
 });

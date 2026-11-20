@@ -26,7 +26,6 @@ export interface StripeSubscriptionsApi {
   retrieve(id: string): Promise<{ status: string }>;
 }
 
-
 export async function cancelCompanyStripeSubscriptions(
   companyId: string,
   injectedApi?: StripeSubscriptionsApi,

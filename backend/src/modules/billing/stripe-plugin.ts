@@ -50,7 +50,7 @@ export interface StripePluginDeps extends CompanyBillingAccess {
 }
 
 /** The Stripe calls `billing-vat.ts` makes on a customer, over the real client. */
-export function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
+function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
   const client = () => stripeClientFor(env);
   return {
     updateCustomer: (customerId, params) => client().customers.update(customerId, params),

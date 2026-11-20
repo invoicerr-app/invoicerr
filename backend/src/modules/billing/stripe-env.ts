@@ -2,8 +2,6 @@ import { isBillingEnabled } from './billing-flag';
 
 const REQUIRED_VARS = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] as const;
 
-export type RequiredStripeVar = (typeof REQUIRED_VARS)[number];
-
 const TEST_KEY = /^(sk|rk)_test_/;
 
 const value = (env: NodeJS.ProcessEnv, name: string): string => (env[name] ?? '').trim();

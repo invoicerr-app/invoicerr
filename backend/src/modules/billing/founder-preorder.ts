@@ -24,8 +24,8 @@ import { stripeClientFor } from './stripe-client';
 import { type BillingInterval, isBillingInterval, readStripePriceCatalog } from './stripe-price-catalog';
 import { LIVE_STRIPE_STATUSES } from './stripe-statuses';
 
-export const PREORDER_METADATA_KEY = 'invoicerr_preorder';
-export const FOUNDER_PREORDER = 'founder';
+const PREORDER_METADATA_KEY = 'invoicerr_preorder';
+const FOUNDER_PREORDER = 'founder';
 
 const PAID_SESSION_EVENTS = new Set([
   'checkout.session.completed',
@@ -169,7 +169,6 @@ const stripeApi = (env: NodeJS.ProcessEnv): PreorderStripeApi => ({
     stripeClientFor(env).subscriptions.create(params, { idempotencyKey }),
 });
 
-
 export type ClaimPreorderResult =
   | { outcome: 'claimed'; stripeSubscriptionId: string; prepaidUntil: Date | null }
   | {
@@ -213,7 +212,8 @@ export async function claimFounderPreorder(
   const founderPrices = readStripePriceCatalog(env).founder;
   if (!founderPrices) throw new Error('[billing] The founder prices (STRIPE_PRICE_FOUNDER_*) are not set');
   const interval = preorder.interval as BillingInterval;
-  if (!isBillingInterval(interval)) throw new Error(`[billing] Pre-order ${preorder.id} has an unknown interval`);
+  if (!isBillingInterval(interval))
+    throw new Error(`[billing] Pre-order ${preorder.id} has an unknown interval`);
 
   // A company keeps the Stripe customer it already has. One without gets the pre-order's own, unless
   // another company already bills to it.
