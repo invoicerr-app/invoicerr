@@ -47,6 +47,7 @@ import { servedOverHttps } from './app-url-scheme';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
 import { redactLogText } from '../logger/redaction';
+import { betterAuthLoggerOptions } from './better-auth-logger';
 import { CLIENT_IP_HEADER } from './client-ip-header';
 import { effectiveAuthSecret } from './auth-secret';
 import { allowedBrowserOrigins } from './dev-origins';
@@ -413,6 +414,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  logger: betterAuthLoggerOptions,
   // `sameSite: 'lax'` is the only CSRF defence of the Nest routes outside `/api/auth`: there is no
   // application-level CSRF token. `Secure` follows APP_URL's scheme (`app-url-scheme.ts`).
   advanced: {

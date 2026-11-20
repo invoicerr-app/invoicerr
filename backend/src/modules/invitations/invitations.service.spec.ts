@@ -373,6 +373,99 @@ describe('InvitationsService', () => {
     });
   });
 
+  // A database dump hands an attacker every `codeHash`. These prove that holding one is not holding a
+  // code: the presented value is always digested before the lookup, so a digest presented as a code
+  // becomes the digest of a digest and matches nothing, for a current row and a migrated legacy row.
+  describe('a stored digest presented as a code', () => {
+    const CODE = 'A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6';
+
+    /** One-row table: `findUnique` honours the `where` it is given instead of returning a fixed row. */
+    function backTableWith(row: Record<string, unknown>) {
+      prisma.invitationCode.findUnique.mockImplementation(
+        async ({ where }: { where: { codeHash?: string; code?: string } }) => {
+          if (where.codeHash !== undefined) return row.codeHash === where.codeHash ? row : null;
+          if (where.code !== undefined) return row.code === where.code ? row : null;
+          return null;
+        },
+      );
+      prisma.invitationCode.findUniqueOrThrow.mockResolvedValue({ id: row.id });
+      prisma.userCompany.upsert.mockResolvedValue({});
+    }
+
+    function issuedRow() {
+      return {
+        id: 'inv1',
+        ...storedRow(CODE),
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'company1',
+        role: CompanyRole.MEMBER,
+      };
+    }
+
+    it('accepts the code itself against the same table, so the refusals below are not an artefact', async () => {
+      backTableWith(issuedRow());
+
+      await expect(service.useInvitation(CODE, 'user2')).resolves.toBeDefined();
+      expect(prisma.userCompany.upsert).toHaveBeenCalled();
+    });
+
+    it('refuses the stored digest when it is presented to accept an invitation', async () => {
+      const row = issuedRow();
+      backTableWith(row);
+
+      await expect(service.useInvitation(row.codeHash, 'user2')).rejects.toThrow(NotFoundException);
+      expect(prisma.invitationCode.updateMany).not.toHaveBeenCalled();
+      expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses the stored digest when it is presented at sign-up on an invitation-only instance', async () => {
+      const originalEnv = process.env.DISABLE_AUTH;
+      process.env.DISABLE_AUTH = '1';
+      try {
+        prisma.user.count.mockResolvedValue(5);
+        const row = issuedRow();
+        backTableWith(row);
+
+        expect(await service.canRegister(row.codeHash)).toMatchObject({ allowed: false });
+        expect(await service.canRegister(CODE)).toMatchObject({ allowed: true });
+      } finally {
+        if (originalEnv === undefined) delete process.env.DISABLE_AUTH;
+        else process.env.DISABLE_AUTH = originalEnv;
+      }
+    });
+
+    it('refuses the digest of a legacy code once that code has been migrated', async () => {
+      const legacy: Record<string, unknown> = {
+        id: 'inv-legacy',
+        code: CODE,
+        codeHash: null,
+        codePrefix: null,
+        usedAt: null,
+        expiresAt: null,
+        companyId: 'company1',
+        role: CompanyRole.MEMBER,
+      };
+      backTableWith(legacy);
+      // The first presentation of the plaintext digests the row in place, as the migration does.
+      prisma.invitationCode.updateMany.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => {
+          Object.assign(legacy, data);
+          return { count: 1 };
+        },
+      );
+      await service.useInvitation(CODE, 'user2');
+      expect(legacy).toMatchObject({ code: null, codeHash: hashInvitationCode(CODE) });
+
+      prisma.invitationCode.updateMany.mockClear();
+      prisma.userCompany.upsert.mockClear();
+      await expect(service.useInvitation(legacy.codeHash as string, 'user3')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.userCompany.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   // These exercise the full service (Prisma calls included), on top of
   // registration-policy.spec.ts's exhaustive coverage of the pure decision itself —
   // this is what actually wires DISABLE_AUTH and the DB lookup together.
