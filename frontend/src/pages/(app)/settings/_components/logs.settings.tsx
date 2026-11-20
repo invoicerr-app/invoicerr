@@ -7,7 +7,7 @@ import { LogDetailsDialog } from "./__components/log-details-dialog"
 import { LogsFilters } from "./__components/logs-filters"
 import type { Log, LogLevel } from "./__components/log-level"
 import { LogsTable } from "./__components/logs-table"
-import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsListSkeleton, SettingsPage, SettingsSection } from "@/components/settings-section"
 import { useSse } from "@/hooks/use-fetch"
 
 export function LogsSettings() {

@@ -141,16 +141,9 @@ export function registerReceivedInvoiceActions(
     // `availableWhen: ['received']` read and both commit, each pushing its OWN "approved" status to
     // PDP for the same deposit. The compare-and-swap lets only the first through; the second gets a
     // named 409 before `superPdpStatusPusher` is ever reached.
-    const document = await updateDocumentStatus(
-      companyId,
-      'received-invoice',
-      documentId,
-      'approved',
-      null,
-      undefined,
-      undefined,
-      ['received'],
-    );
+    const document = await updateDocumentStatus(companyId, 'received-invoice', documentId, 'approved', {
+      fromStatuses: ['received'],
+    });
 
     const pdpInboundId = readPdpInboundId(document.data);
     if (pdpInboundId) {

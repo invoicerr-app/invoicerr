@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useGet } from "@/hooks/use-fetch"
 import type { CompanyNumberFormat, CompanyNumberFormats } from "@/types"
 
-import { SettingsSection } from "./settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 /**
  * Loading placeholder for the list below, shaped like a real row (pattern + badge + next-number line,

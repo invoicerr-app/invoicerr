@@ -18,17 +18,14 @@ import { logger } from '@/logger/logger.service';
 
 import { isBillingEnabled } from './billing-flag';
 import { stripeClientFor } from './stripe-client';
+import { stripeSecretKey } from './stripe-env';
+import { ENDED_STRIPE_STATUSES, LIVE_STRIPE_STATUSES } from './stripe-statuses';
 
 /** The two Stripe calls this module makes, typed narrowly so a spec can pass a fake. */
 export interface StripeSubscriptionsApi {
   cancel(id: string): Promise<unknown>;
   retrieve(id: string): Promise<{ status: string }>;
 }
-
-// Statuses Stripe can still charge, or move back to charging. `canceled` and `incomplete_expired`
-// are final.
-const CANCELLABLE_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'];
-const ENDED_STATUSES = new Set(['canceled', 'incomplete_expired']);
 
 export async function cancelCompanyStripeSubscriptions(
   companyId: string,
@@ -41,7 +38,7 @@ export async function cancelCompanyStripeSubscriptions(
     where: {
       referenceId: companyId,
       stripeSubscriptionId: { not: null },
-      status: { in: CANCELLABLE_STATUSES },
+      status: { in: LIVE_STRIPE_STATUSES },
     },
     select: { stripeSubscriptionId: true },
   });
@@ -51,7 +48,7 @@ export async function cancelCompanyStripeSubscriptions(
   // must still be able to delete a company.
   let api = injectedApi;
   if (!api) {
-    if ((env.STRIPE_SECRET_KEY ?? '').trim() === '') {
+    if (stripeSecretKey(env) === '') {
       logger.warn('Stripe is not configured, the company is deleted without cancelling its subscriptions', {
         category: 'billing',
         companyId,
@@ -72,7 +69,7 @@ export async function cancelCompanyStripeSubscriptions(
       // The local row can lag behind Stripe (its `deleted` event not delivered yet): cancelling a
       // subscription that already ended is an error on Stripe's side, but the goal is already met.
       const current = await api.retrieve(id).catch(() => null);
-      if (current && ENDED_STATUSES.has(current.status)) continue;
+      if (current && ENDED_STRIPE_STATUSES.has(current.status)) continue;
       logger.error('Could not cancel a Stripe subscription before deleting its company', {
         category: 'billing',
         companyId,

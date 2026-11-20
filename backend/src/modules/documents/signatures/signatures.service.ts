@@ -460,18 +460,11 @@ export class SignaturesService {
     // propagates straight out of this method BEFORE `markSignatureSigned`/the webhook/the archive
     // write below ever run - the loser of the race leaves no side effect at all, never a signature
     // marked signed for a choice that was not the one actually persisted.
-    const updated = await updateDocumentStatus(
-      row.companyId,
-      row.typeId,
-      row.documentId,
-      'signed',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      chosenOption,
-      current.updatedAt,
-    );
+    const updated = await updateDocumentStatus(row.companyId, row.typeId, row.documentId, 'signed', {
+      fromStatuses: ['sent'],
+      acceptedOption: chosenOption,
+      knownUpdatedAt: current.updatedAt,
+    });
     // The archive-side twin of the SAME fact - see `Signature.chosenOption`'s own schema comment.
     const signed = await markSignatureSigned(row.id, chosenOption);
     await this.archiveESignatureAcceptance(row, signed.signedAt ?? new Date(), boundData, chosenOption);

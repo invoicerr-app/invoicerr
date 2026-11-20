@@ -39,10 +39,8 @@
  * afterward, even once the subscription itself is later canceled. So "has this company ever actually
  * paid" is exactly `firstPaidAt !== null`.
  */
+import type { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/client';
 import { isPaidPeriodStillRunning } from './paid-period-grace';
-
-/** Same string values as the Prisma enum, so no translation is needed at the boundary. */
-export type CompanySubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'BLOCKED' | 'ZIPPED' | 'DELETED';
 
 export interface CompanySubscriptionLifecycleFacts {
   status: CompanySubscriptionStatus;
@@ -66,7 +64,12 @@ export const BLOCKED_DAYS = 14;
 export const MIN_RETRIEVAL_DAYS = 30;
 export const PAID_ZIP_GRACE_DAYS = 180;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `blocked` and `zipped` are the read-only suspension: every write is refused. */
+export function isSuspended(status: CompanySubscriptionStatus): boolean {
+  return status === 'BLOCKED' || status === 'ZIPPED';
+}
 
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);

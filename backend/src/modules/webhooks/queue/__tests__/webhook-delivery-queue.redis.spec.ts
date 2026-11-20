@@ -18,9 +18,7 @@ import { WebhookEvent, WebhookType } from '../../../../../prisma/generated/prism
 import { WebhookDispatcherService } from '../../webhook-dispatcher.service';
 import { WebhooksQueueWorkerModule } from '../webhooks-queue-worker.module';
 import { Q_WEBHOOK_DELIVERY } from '../webhook-queue.constants';
-
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
+import { describeWithRedis } from '../../../documents/queue/__tests__/redis-gate';
 
 function startStubReceiver(
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void,

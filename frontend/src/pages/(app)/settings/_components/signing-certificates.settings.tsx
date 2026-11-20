@@ -25,7 +25,7 @@ import {
   SettingsPage,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 type Applicability = "*" | "XAdES" | "CAdES" | "PAdES"
 type Environment = "TEST" | "PROD"

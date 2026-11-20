@@ -32,7 +32,7 @@ import {
   SettingsRowMenu,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 function buildLabelSchema(t: (key: string) => string) {
   return z.object({

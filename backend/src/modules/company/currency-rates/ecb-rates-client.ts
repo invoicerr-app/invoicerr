@@ -11,7 +11,7 @@
  */
 import { DOMParser, Document as XmlDocument, Element as XmlElement } from '@xmldom/xmldom';
 
-export const ECB_DAILY_RATES_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
+const ECB_DAILY_RATES_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
 
 /** Generous but bounded — a hung TLS handshake or a stalled response body must never leave the
  *  sweep (and therefore the whole BullMQ worker process, since nothing else runs on this thread

@@ -671,9 +671,7 @@ describe('DocumentsService — the quote type, wired exactly as documents.module
         'quote',
         'doc-1',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
       // Never re-enqueued — the worker's own replay is what got here in the first place.
       expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();

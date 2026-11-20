@@ -22,9 +22,7 @@ export interface DerivedPrimaryContactFields {
 }
 
 /** Primary contact, falling back to the first row if none is flagged (the write path promotes one). */
-export function findPrimaryContact<T extends ContactLike>(
-  contacts: readonly T[] | null | undefined,
-): T | null {
+function findPrimaryContact<T extends ContactLike>(contacts: readonly T[] | null | undefined): T | null {
   if (!contacts || contacts.length === 0) return null;
   return contacts.find((c) => c.isPrimary) ?? contacts[0];
 }

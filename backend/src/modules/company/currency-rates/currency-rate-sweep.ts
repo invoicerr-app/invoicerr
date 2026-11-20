@@ -7,6 +7,7 @@
  */
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
+import { readIntEnv } from '@/utils/read-int-env';
 
 export const CURRENCY_RATE_SWEEP_JOB_NAME = 'currency-rate-sweep';
 export const CURRENCY_RATE_SWEEP_JOB_ID = 'currency-rate-sweep-singleton';
@@ -30,7 +31,7 @@ export const AUTOMATIC_RATE_SOURCES: ReadonlySet<string> = new Set([ECB_SOURCE, 
 /** Default 24h: the ECB publishes once a business day, so sweeping more often only re-observes the same
  *  reference date at the cost of an HTTP call. Env-overridable. */
 export function readCurrencyRateSweepIntervalMs(): number {
-  return parseInt(process.env.CURRENCY_RATE_SWEEP_INTERVAL_MS ?? '86400000', 10);
+  return readIntEnv('CURRENCY_RATE_SWEEP_INTERVAL_MS', 86400000);
 }
 
 /**

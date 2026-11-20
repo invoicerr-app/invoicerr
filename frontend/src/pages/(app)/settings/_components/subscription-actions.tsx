@@ -9,14 +9,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type CompanySubscriptionStatus, useSeats } from "@/hooks/queries"
+import { type CompanySubscriptionStatus, type PriceGrid, seatHeadcount, useSeats } from "@/hooks/queries"
 import {
   useCancelSubscription,
   useCompanyStripeSubscription,
   useOpenBillingPortal,
   useStartCheckout,
 } from "@/hooks/queries/use-company-subscription"
-import { SettingsSection } from "./settings-section"
+import { queryKeys } from "@/lib/query-keys"
+
+import { SettingsSection } from "@/components/settings-section"
 
 /** Statuses in which the company already pays through Stripe, so the portal is the way in. */
 const PAYING_STATUSES = new Set<CompanySubscriptionStatus>(["ACTIVE", "PAST_DUE"])
@@ -24,7 +26,7 @@ const PAYING_STATUSES = new Set<CompanySubscriptionStatus>(["ACTIVE", "PAST_DUE"
 interface SubscriptionActionsProps {
   companyId: string
   status: CompanySubscriptionStatus
-  priceGrid: "standard" | "founder"
+  priceGrid: PriceGrid
 }
 
 /**
@@ -37,13 +39,13 @@ export function SubscriptionActions({ companyId, status, priceGrid }: Subscripti
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { data: subscription, isPending } = useCompanyStripeSubscription(companyId, true)
-  const { data: seatsView } = useSeats(true)
+  const { data: subscription, isPending } = useCompanyStripeSubscription(companyId)
+  const { data: seatsView } = useSeats()
   const checkout = useStartCheckout()
   const portal = useOpenBillingPortal()
   const cancel = useCancelSubscription()
 
-  const memberCount = seatsView ? seatsView.members.length + seatsView.waiting.length : 1
+  const memberCount = seatsView ? seatHeadcount(seatsView) : 1
   const [annual, setAnnual] = useState(false)
   const [seats, setSeats] = useState<number | null>(null)
   const seatQuantity = seats ?? Math.max(1, memberCount)
@@ -55,7 +57,7 @@ export function SubscriptionActions({ companyId, status, priceGrid }: Subscripti
     if (searchParams.get("checkout") === "success") {
       toast.success(t("settings.billing.actions.checkoutSuccess"))
     }
-    queryClient.invalidateQueries({ queryKey: ["billing"] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.billing.all() })
     const next = new URLSearchParams(searchParams)
     next.delete("checkout")
     next.delete("cancel")

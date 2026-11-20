@@ -36,16 +36,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import prisma from '@/prisma/prisma.service';
 
 import { detectAndReseedCountryPolicyDrift } from './boot-reseed';
+import { sleep } from '@/lib/sleep';
 
 /** How many times a failed boot-reseed attempt retries, and how long it waits between attempts —
  *  see `onModuleInit`'s own header for why this exists at all. Exported so the spec can drive it
  *  without a real delay. */
 export const BOOT_RESEED_MAX_ATTEMPTS = 3;
 export const BOOT_RESEED_RETRY_DELAY_MS = 250;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 @Injectable()
 export class CountryPolicyBootReseedService implements OnModuleInit {
@@ -88,7 +85,7 @@ export class CountryPolicyBootReseedService implements OnModuleInit {
               `${BOOT_RESEED_MAX_ATTEMPTS}) — retrying: ` +
               `${error instanceof Error ? error.message : String(error)}`,
           );
-          await delay(BOOT_RESEED_RETRY_DELAY_MS);
+          await sleep(BOOT_RESEED_RETRY_DELAY_MS);
         }
       }
     }

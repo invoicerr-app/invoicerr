@@ -350,9 +350,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
       'credit-note',
       'cn-1',
       'sent',
-      null,
-      undefined,
-      undefined,
+      {},
     );
     expect(queueDispatcher.enqueueAction).not.toHaveBeenCalled();
   });
@@ -442,9 +440,7 @@ describe('DocumentsService — the credit note type, the THIRD descriptor-only t
         'credit-note',
         'cn-2',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
     });
   });

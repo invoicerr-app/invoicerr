@@ -17,6 +17,7 @@ import { validateStructural } from '../../formats/structural-check';
 import { EN16931_CII_SCH, validateSchematron } from '../../formats/vendored/validate-schematron';
 import { computeDocumentTotals } from '../../totals/compute-totals';
 import { SuperPdpClient, SuperPdpInvoice, SuperPdpInvoiceEvent } from './superpdp-client';
+import { sleep } from '@/lib/sleep';
 
 /**
  * How BT-23 (business process) is applied:
@@ -166,7 +167,7 @@ export async function awaitLiveVerdict(
   let delay = FIRST_POLL_DELAY_MS;
   let refetched = await client.getInvoice(depositId);
   while (!isVerdict(refetched.events ?? []) && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, delay));
+    await sleep(delay);
     delay = Math.min(delay * 2, MAX_POLL_DELAY_MS);
     refetched = await client.getInvoice(depositId);
   }

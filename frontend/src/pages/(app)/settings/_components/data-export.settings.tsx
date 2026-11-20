@@ -10,7 +10,7 @@ import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { downloadBlob } from "@/lib/download"
 
-import { SettingsFormFooter, SettingsSection } from "./settings-section"
+import { SettingsFormFooter, SettingsSection } from "@/components/settings-section"
 
 /**
  * Self-service full data export (`POST /api/companies/export`) — the same archive the hosted-billing

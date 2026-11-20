@@ -289,7 +289,7 @@ function unsignedToken(cookieValue: string): string | undefined {
   }
 }
 
-export function readSessionCacheTtlMs(): number {
+function readSessionCacheTtlMs(): number {
   const DEFAULT_TTL_MS = 10_000;
   const raw = process.env.SESSION_CACHE_TTL_MS;
   if (raw === undefined || raw.trim() === '') return DEFAULT_TTL_MS;

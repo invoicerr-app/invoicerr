@@ -22,7 +22,7 @@ import {
   SettingsPage,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 interface CompanyInfo {
   documentValidationCode?: { scheme: string } | null

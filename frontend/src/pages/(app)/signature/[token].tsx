@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { formatTotal } from "@/components/documents/document-totals"
 import {
   type PublicSignatureOptionTotal,
@@ -30,11 +30,6 @@ const STEP_ORDER: SignatureStep[] = ["review", "verify", "signed"]
  *  document changed since this link was sent, on a code request or a sign attempt; every OTHER sign
  *  refusal (wrong/expired code, locked, already signed) keeps its plain, generic message and no code. */
 const DOCUMENT_CHANGED_CODE = "DOCUMENT_CHANGED_SINCE_REQUEST"
-
-function signErrorCode(error: unknown): string | undefined {
-  if (!(error instanceof ApiError)) return undefined
-  return (error.body as { code?: string } | undefined)?.code
-}
 
 /** The same "fait / en cours / à venir" dot-and-line stepper the company-onboarding wizard uses
  *  (`components/onboarding.tsx`) — three fixed steps here (no branching, unlike onboarding), so no
@@ -288,7 +283,7 @@ export default function PublicSignaturePage() {
       onError: (err) => {
         // Issue #477 - the document changed since this link was sent: refetch the view, whose
         // `changed` flag swaps the whole page to the explanation below.
-        if (signErrorCode(err) === DOCUMENT_CHANGED_CODE) {
+        if (apiErrorCode(err) === DOCUMENT_CHANGED_CODE) {
           void refetchView()
           return
         }
@@ -317,7 +312,7 @@ export default function PublicSignaturePage() {
           // can fix by choosing again. Refetch the view; its `changed` flag swaps the whole page to the
           // explanation below. This replaces #475's "choose again from the current options" retry,
           // which asked the client to sign options their PDF did not show.
-          if (signErrorCode(err) === DOCUMENT_CHANGED_CODE) {
+          if (apiErrorCode(err) === DOCUMENT_CHANGED_CODE) {
             void refetchView()
             return
           }

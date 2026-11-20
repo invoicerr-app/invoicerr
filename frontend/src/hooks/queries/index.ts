@@ -209,8 +209,10 @@ export {
   useBillingStatus,
   type BillingStatusView,
   type CompanySubscriptionStatus,
+  type PriceGrid,
 } from "./use-billing"
 export {
+  seatHeadcount,
   useSeats,
   useMoveSeat,
   type SeatsView,

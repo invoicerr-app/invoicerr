@@ -107,18 +107,11 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
     // accepting a `chosenOption` validated against options that no longer exist. `chosenOption`
     // travels on the SAME write as the status change - see `updateDocumentStatus`'s own header on why
     // this must never be a second, separate write.
-    const updated = await updateDocumentStatus(
-      ctx.companyId,
-      'quote',
-      ctx.documentId,
-      'accepted',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      chosenOption,
-      current.updatedAt,
-    );
+    const updated = await updateDocumentStatus(ctx.companyId, 'quote', ctx.documentId, 'accepted', {
+      fromStatuses: ['sent'],
+      acceptedOption: chosenOption,
+      knownUpdatedAt: current.updatedAt,
+    });
 
     const acceptedAt = new Date();
     // The frozen option snapshot (name, lines, total) - see `ManualAcceptanceManifest.option`'s own

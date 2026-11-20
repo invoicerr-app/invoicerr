@@ -1,6 +1,5 @@
 import {
   findStripePriceCatalogProblems,
-  lookupStripePrice,
   readStripePriceCatalog,
   stripePriceVarName,
 } from './stripe-price-catalog';
@@ -78,22 +77,5 @@ describe('readStripePriceCatalog', () => {
       standard: { monthly: 'price_x', yearly: 'price_standard_y' },
       founder: { monthly: 'price_founder_m', yearly: 'price_founder_y' },
     });
-  });
-});
-
-describe('lookupStripePrice', () => {
-  const catalog = readStripePriceCatalog(BOTH_GRIDS);
-
-  it('maps a configured price back to its grid and interval', () => {
-    expect(lookupStripePrice(catalog, 'price_founder_y')).toEqual({ grid: 'founder', interval: 'yearly' });
-    expect(lookupStripePrice(catalog, 'price_standard_m')).toEqual({ grid: 'standard', interval: 'monthly' });
-  });
-
-  it('returns null for a price this catalog does not know', () => {
-    expect(lookupStripePrice(catalog, 'price_unknown')).toBeNull();
-  });
-
-  it('ignores the founder grid when it is not configured', () => {
-    expect(lookupStripePrice(readStripePriceCatalog(STANDARD_ONLY), 'price_founder_m')).toBeNull();
   });
 });

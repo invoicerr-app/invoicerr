@@ -10,10 +10,11 @@ import {
   vatCheckoutSessionParams,
   vatCustomerCreateParams,
 } from './billing-vat';
+import { FOUNDER_PLAN } from './founder-grid';
 import { recordFounderPreorderEvent } from './founder-preorder';
 import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
 import { stripeClientFor } from './stripe-client';
-import { assertStripeEnvConfiguredForBoot } from './stripe-env';
+import { assertStripeEnvConfiguredForBoot, stripeWebhookSecret } from './stripe-env';
 import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
 import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
 
@@ -49,7 +50,7 @@ export interface StripePluginDeps extends CompanyBillingAccess {
 }
 
 /** The Stripe calls `billing-vat.ts` makes on a customer, over the real client. */
-export function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
+function customerVatClientFor(env: NodeJS.ProcessEnv): CustomerVatClient {
   const client = () => stripeClientFor(env);
   return {
     updateCustomer: (customerId, params) => client().customers.update(customerId, params),
@@ -80,7 +81,7 @@ export function buildStripePlans(catalog: StripePriceCatalog): StripePlan[] {
 const isFounderCheckout = (action: string, body: unknown): boolean =>
   action === 'upgrade-subscription' &&
   typeof (body as { plan?: unknown } | undefined)?.plan === 'string' &&
-  (body as { plan: string }).plan.toLowerCase() === 'founder';
+  (body as { plan: string }).plan.toLowerCase() === FOUNDER_PLAN;
 
 // A company subscription is always billed to the company's own Stripe customer: the plugin's
 // `organization` customer type, whose model is the Company table here. The default `user` type would
@@ -138,7 +139,7 @@ export function buildStripePlugin(
   return stripe({
     // The plugin types the ESM build of `stripe`; this CommonJS backend resolves the CJS one.
     stripeClient: stripeClientFor(env) as unknown as StripePluginOptions['stripeClient'],
-    stripeWebhookSecret: (env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
+    stripeWebhookSecret: stripeWebhookSecret(env),
     createCustomerOnSignUp: false,
     // Each company has its own Stripe customer, stored on `Company.stripeCustomerId`: the plugin's
     // organization customer type with its `organization` model mapped onto the Company table. The

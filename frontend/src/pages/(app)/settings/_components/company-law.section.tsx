@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type CompanyLawFormField, useCompanyLawSettings } from "@/hooks/use-company-law"
 import type { CompanyLawForm } from "@/lib/company-law"
-import { SettingsFieldGroup } from "./settings-section"
+import { SettingsFieldGroup } from "@/components/settings-section"
 
 interface CompanyLawValues {
   companyLaw: CompanyLawForm

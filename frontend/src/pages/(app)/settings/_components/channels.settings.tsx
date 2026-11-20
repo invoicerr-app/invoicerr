@@ -6,12 +6,8 @@ import { type ReactNode, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import {
-  ChannelBannerSource,
-  countryName,
-  formatMandateDate,
-  legalChannelLabel,
-} from "@/components/channel-banner"
+import { ChannelBannerSource, formatMandateDate, legalChannelLabel } from "@/components/channel-banner"
+import { countryName } from "@/lib/display-names"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -48,7 +44,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** Owner review of #527 - "this legal channel belongs to a specific country" (theirs, shown to you)
  *  versus "this is a network with no home anywhere, just not usable for YOUR domestic invoices" -

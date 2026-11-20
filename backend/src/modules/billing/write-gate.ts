@@ -30,6 +30,7 @@ import { ForbiddenException } from '@nestjs/common';
 
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
+import { isSuspended } from './lifecycle';
 
 /** Stable error code clients rely on to mean "every write is refused, not just sending". */
 export const COMPANY_BLOCKED = 'COMPANY_BLOCKED';
@@ -39,7 +40,7 @@ export async function assertCompanyWritable(companyId: string): Promise<void> {
   if (!isBillingEnabled()) return;
 
   const sub = await getOrCreateCompanySubscription(companyId);
-  if (sub.status !== 'BLOCKED' && sub.status !== 'ZIPPED') return;
+  if (!isSuspended(sub.status)) return;
 
   throw new ForbiddenException({
     message:

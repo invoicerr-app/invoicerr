@@ -1,25 +1,11 @@
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
-import { type CompanySubscriptionStatus, useBillingStatus, useCompanies } from "@/hooks/queries"
-import { SettingsPage, SettingsSection } from "./settings-section"
+import { useBillingStatus, useCompanies } from "@/hooks/queries"
+import { STATUS_BADGE_VARIANT } from "@/hooks/queries/billing-status-appearance"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
+import { SettingsPage, SettingsSection } from "@/components/settings-section"
 import { SubscriptionActions } from "./subscription-actions"
-
-/** Chip tone per subscription status - a lifecycle, not a binary "good/bad": `success` while paying,
- *  `info` for a trial (informational, not yet an ask), `warning` once payment itself needs attention,
- *  `destructive` once the company stopped functioning, `secondary` (muted) once it's gone and there's
- *  nothing left to act on. */
-const STATUS_VARIANT: Record<
-  CompanySubscriptionStatus,
-  "success" | "info" | "warning" | "destructive" | "secondary"
-> = {
-  ACTIVE: "success",
-  TRIAL: "info",
-  PAST_DUE: "warning",
-  BLOCKED: "destructive",
-  ZIPPED: "destructive",
-  DELETED: "secondary",
-}
 
 /**
  * Settings > Subscription - only ever reached when `-[tab].tsx` decided to show the "billing" tab at
@@ -36,7 +22,7 @@ const STATUS_VARIANT: Record<
 export default function BillingSettings() {
   const { t } = useTranslation()
   const { activeRole, activeCompanyId } = useCompanies()
-  const canManageBilling = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManageBilling = isCompanyAdmin(activeRole)
   const { data: status, isSuccess } = useBillingStatus()
 
   if (!isSuccess || !status) return null
@@ -51,7 +37,7 @@ export default function BillingSettings() {
         title={
           <>
             {t("settings.billing.currentPlan", "Current plan")}
-            <Badge variant={STATUS_VARIANT[status.status]} data-cy="billing-status-badge">
+            <Badge variant={STATUS_BADGE_VARIANT[status.status]} data-cy="billing-status-badge">
               {t(`settings.billing.status.${status.status}`, status.status)}
             </Badge>
           </>

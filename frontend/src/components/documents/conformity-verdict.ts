@@ -59,14 +59,3 @@ export function computeConformityVerdict(events: DocumentAuthorityEvent[]): Conf
   if (events.some((e) => isAccepted(e.statusCode))) return "accepted"
   return "pending"
 }
-
-/** The reason attached to the event that actually decided the verdict above — undefined unless that
- *  verdict is "rejected"/"declarationIssue" (an accepted/pending event carries no "reason" in the
- *  first place; see the backend's own `DocumentAuthorityEvent.reason` schema comment). Declaration
- *  issues checked FIRST, mirroring `computeConformityVerdict`'s own precedence just above. */
-export function latestConformityReason(events: DocumentAuthorityEvent[]): string | undefined {
-  const declarationIssue = events.find((e) => isDeclarationIssue(e.statusCode))
-  if (declarationIssue) return declarationIssue.reason ?? undefined
-  const rejection = events.find((e) => isRejected(e.statusCode))
-  return rejection?.reason ?? undefined
-}

@@ -34,6 +34,7 @@
  * boundary needs a cadence chosen for steady throughput, never for how fast a single row disappears),
  * one order of magnitude coarser because this boundary is one order of magnitude coarser.
  */
+import { readIntEnv } from '@/utils/read-int-env';
 
 export const STORAGE_ERASURE_SWEEP_JOB_NAME = 'storage-erasure-sweep';
 export const STORAGE_ERASURE_SWEEP_JOB_ID = 'storage-erasure-sweep-singleton';
@@ -43,5 +44,5 @@ export const STORAGE_ERASURE_SWEEP_JOB_ID = 'storage-erasure-sweep-singleton';
  *  (`readReminderSweepIntervalMs`, `readLogPurgeSweepIntervalMs`, …): one env var, read fresh on every
  *  call so a test can drive it, never cached at module level. */
 export function readStorageErasureSweepIntervalMs(): number {
-  return parseInt(process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS ?? `${24 * 60 * 60 * 1000}`, 10);
+  return readIntEnv('STORAGE_ERASURE_SWEEP_INTERVAL_MS', 24 * 60 * 60 * 1000);
 }

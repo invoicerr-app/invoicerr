@@ -27,7 +27,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /**
  * One SYSTEM email — the signature request and the verification code, the two emails that are not

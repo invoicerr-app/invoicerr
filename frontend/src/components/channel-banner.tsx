@@ -31,18 +31,6 @@ export function legalChannelLabel(t: TFunction, id: string): string {
   return t(`settings.channels.legal.${id}.label`, LEGAL_CHANNEL_LABEL_DEFAULTS[id] ?? id.toUpperCase())
 }
 
-/** A human-readable country name from an ISO 3166-1 alpha-2 code, in the reader's own language -
- *  same `Intl.DisplayNames` convention `lib/apply-address-suggestion.ts` already uses; never a legal
- *  fact, purely a display nicety over a code the backend already resolved. */
-export function countryName(language: string, code?: string): string {
-  if (!code) return ""
-  try {
-    return new Intl.DisplayNames([language, "en"], { type: "region" }).of(code) ?? code
-  } catch {
-    return code
-  }
-}
-
 /** A `YYYY-MM-DD` mandate date, spelled out in the reader's own language (e.g. "1 September 2026") -
  *  owner review of #527: the banner used to interpolate the raw ISO string into a sentence, which
  *  reads fine in a table cell but not in prose. Falls back to the raw string if it does not parse -

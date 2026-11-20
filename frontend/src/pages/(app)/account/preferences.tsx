@@ -3,13 +3,13 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from "@/lib/i18n"
+import { applyUiLanguage, isSupportedLanguage, SUPPORTED_LANGUAGES } from "@/lib/i18n"
 import { authClient } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { usePatch } from "@/hooks/use-fetch"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useTheme } from "@/components/theme-provider"
-import { SettingsSection } from "../settings/_components/settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 const THEME_OPTIONS = [
   { value: "light", icon: Sun, labelKey: "sidebar.theme.light" },
@@ -32,16 +32,13 @@ export default function AccountPreferencesPage() {
   const accountLocale = (session as { user?: { locale?: string | null } } | null)?.user?.locale
   useApplyAccountLocale(accountLocale)
 
-  const currentLanguage = SUPPORTED_LANGUAGES.some((l) => l.code === i18n.resolvedLanguage)
-    ? i18n.resolvedLanguage
-    : "en"
+  const currentLanguage = isSupportedLanguage(i18n.resolvedLanguage) ? i18n.resolvedLanguage : "en"
 
   const handleLanguageChange = async (code: string) => {
     // Applied locally FIRST and unconditionally: this is a real UI language this picker offers,
     // regardless of whether the backend's own (narrower — five countries + English) render-language
     // catalog happens to carry mail/PDF strings for it too.
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
-    i18n.changeLanguage(code)
+    applyUiLanguage(code)
 
     const result = await savePreferences({ locale: code })
     if (result === null && savePreferencesError.current?.status !== 400) {

@@ -25,6 +25,11 @@ export interface SeatsView {
   waiting: SeatMemberView[]
 }
 
+/** Every member of the company, seated or waiting for a seat. */
+export function seatHeadcount(view: SeatsView): number {
+  return view.members.length + view.waiting.length
+}
+
 /**
  * `GET /api/billing/seats`. Open to every company member who holds a seat; a member with no seat gets
  * `403 { code: SEAT_REQUIRED }`, which `(app)/_layout.tsx` turns into the "not enough seats" screen.

@@ -44,6 +44,7 @@
  */
 
 import { RawAuthorityEvent } from './authority-status-poller';
+import { readIntEnv } from '@/utils/read-int-env';
 
 /** Journaled by the runner when the max poll age is exceeded with no terminal verdict ever seen —
  *  "never an eternal poll, never a silent give-up": this row IS the loud, permanent record that
@@ -61,14 +62,14 @@ export const CONFORMITY_SWEEP_JOB_ID = 'document-conformity-sweep-singleton';
 export const CONFORMITY_POLL_JOB_NAME = 'document-conformity-poll';
 
 export function readConformitySweepIntervalMs(): number {
-  return parseInt(process.env.DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS ?? '60000', 10);
+  return readIntEnv('DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS', 60000);
 }
 
 /** Default 7 days — long enough that a genuinely slow platform is never given up on prematurely, short
  *  enough that a document nobody will ever hear back about (a platform-side incident, a channel this
  *  build's own poller mis-targets) does not poll FOREVER, silently, at the sweep's own cadence. */
 export function readMaxPollAgeMs(): number {
-  return parseInt(process.env.DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS ?? `${7 * 24 * 60 * 60 * 1000}`, 10);
+  return readIntEnv('DOCUMENT_CONFORMITY_MAX_POLL_AGE_MS', 7 * 24 * 60 * 60 * 1000);
 }
 
 /** The hard ceiling on how many rows ONE `findConformitySweepCandidates` call ever asks Postgres for —
@@ -79,7 +80,7 @@ export function readMaxPollAgeMs(): number {
  *  `conformityResolvedAt` until THIS sweep visits it once — see that column's own schema comment)
  *  costs one bounded query per 60s tick rather than one unbounded one. */
 export function readConformitySweepBatchSize(): number {
-  return parseInt(process.env.DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE ?? '500', 10);
+  return readIntEnv('DOCUMENT_CONFORMITY_SWEEP_BATCH_SIZE', 500);
 }
 
 /** See this file's own header — a wall-clock window, not a stored per-document due date. */

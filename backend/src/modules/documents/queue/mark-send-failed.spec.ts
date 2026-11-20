@@ -80,10 +80,7 @@ describe('markSendFailed', () => {
       'widget',
       'doc-1',
       'send_failed',
-      'SMTP connection refused',
-      undefined,
-      undefined,
-      ['sending'],
+      { lastActionError: 'SMTP connection refused', fromStatuses: ['sending'] },
     );
   });
 

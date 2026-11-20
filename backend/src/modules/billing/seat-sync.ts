@@ -43,10 +43,6 @@ import { Prisma } from '../../../prisma/generated/prisma/client';
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 
-export async function countCompanySeats(companyId: string): Promise<number> {
-  return prisma.userCompany.count({ where: { companyId } });
-}
-
 export const NO_FREE_SEAT_CODE = 'NO_FREE_SEAT';
 
 /** A plain `Error`, not an `HttpException`, because `lib/auth.ts` calls this outside Nest and maps it

@@ -1,6 +1,5 @@
 import { ArrowLeftRight, Armchair, LogOutIcon } from "lucide-react"
 import { useState } from "react"
-import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCompanies } from "@/hooks/queries"
 import { useSwitchCompany } from "@/hooks/use-switch-company"
-import { signOut } from "@/lib/sign-out"
+import { useSignOutAndRedirect } from "@/hooks/use-sign-out-and-redirect"
 
 /**
  * The full-app takeover for a member who has no seat: the company has fewer seats than members, and
@@ -24,7 +23,6 @@ import { signOut } from "@/lib/sign-out"
  */
 export function NotEnoughSeatsScreen() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { companies, activeCompanyId } = useCompanies()
   const { switchCompany, switching } = useSwitchCompany()
   const [switchFailed, setSwitchFailed] = useState(false)
@@ -35,10 +33,7 @@ export function NotEnoughSeatsScreen() {
     if (!(await switchCompany(companyId))) setSwitchFailed(true)
   }
 
-  const handleSignOut = async () => {
-    await signOut()
-    void navigate("/auth/sign-in")
-  }
+  const handleSignOut = useSignOutAndRedirect()
 
   return (
     <div

@@ -22,7 +22,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /**
  * One claimed domain and its verification state — the exact shape

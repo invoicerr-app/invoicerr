@@ -2,11 +2,17 @@ import { isBillingEnabled } from './billing-flag';
 
 const REQUIRED_VARS = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] as const;
 
-export type RequiredStripeVar = (typeof REQUIRED_VARS)[number];
-
 const TEST_KEY = /^(sk|rk)_test_/;
 
 const value = (env: NodeJS.ProcessEnv, name: string): string => (env[name] ?? '').trim();
+
+export function stripeSecretKey(env: NodeJS.ProcessEnv = process.env): string {
+  return value(env, 'STRIPE_SECRET_KEY');
+}
+
+export function stripeWebhookSecret(env: NodeJS.ProcessEnv = process.env): string {
+  return value(env, 'STRIPE_WEBHOOK_SECRET');
+}
 
 export function isStripeLiveModeAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
   return value(env, 'STRIPE_MODE') === 'live';
@@ -16,7 +22,7 @@ export function findStripeEnvProblems(env: NodeJS.ProcessEnv = process.env): str
   const problems = REQUIRED_VARS.filter((name) => value(env, name) === '').map(
     (name) => `${name} is not set`,
   );
-  const key = value(env, 'STRIPE_SECRET_KEY');
+  const key = stripeSecretKey(env);
   if (key !== '' && !TEST_KEY.test(key) && !isStripeLiveModeAllowed(env)) {
     problems.push('STRIPE_SECRET_KEY is not a test mode key and STRIPE_MODE is not "live"');
   }

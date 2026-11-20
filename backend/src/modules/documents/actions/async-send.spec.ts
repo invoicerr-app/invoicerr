@@ -601,9 +601,7 @@ describe('runAsyncSendAction', () => {
         'quote',
         'doc-1',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
       expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
@@ -644,15 +642,10 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
 
-      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
-        'company-1',
-        'invoice',
-        'doc-1',
-        'sent',
-        null,
-        '375037',
-        'pdp',
-      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1', 'sent', {
+        transportRef: '375037',
+        channelProviderId: 'pdp',
+      });
     });
 
     // Legal archiving — archiving now runs BEFORE "sent" is persisted, fed EXACTLY
@@ -807,9 +800,7 @@ describe('runAsyncSendAction', () => {
         'invoice',
         'doc-1',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
     });
 
@@ -1153,9 +1144,7 @@ describe('runAsyncSendAction', () => {
         'invoice',
         documentId,
         'sent',
-        null,
-        'ref-1',
-        'pdp',
+        { transportRef: 'ref-1', channelProviderId: 'pdp' },
       );
       expect(result.document).toMatchObject({ status: 'sent' });
     });
@@ -1255,15 +1244,10 @@ describe('runAsyncSendAction', () => {
 
       expect(deliver).not.toHaveBeenCalled();
       expect(persistence.confirmDelivery).not.toHaveBeenCalled();
-      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
-        'company-1',
-        'invoice',
-        'doc-1',
-        'sent',
-        null,
-        'ref-old',
-        'pdp',
-      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1', 'sent', {
+        transportRef: 'ref-old',
+        channelProviderId: 'pdp',
+      });
     });
   });
 

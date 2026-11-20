@@ -11,7 +11,7 @@ import {
   invoiceSeller,
   printedPartyIdentifiers,
 } from '../country-identifiers/printed-identifiers';
-import { findClientReferenceField } from '../actions/email-template';
+import { findClientReferenceField } from '../descriptors/recipient-reference';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
 import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';

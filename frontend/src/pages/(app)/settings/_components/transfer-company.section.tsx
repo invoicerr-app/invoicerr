@@ -27,7 +27,7 @@ import {
   useInitiateTransfer,
   useRequestTransferOtp,
 } from "@/hooks/queries"
-import { SettingsSection } from "./settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 /**
  * Mounted inside `danger.settings.tsx` (that file's own `{/* transfer-company section mounts here *\/}`

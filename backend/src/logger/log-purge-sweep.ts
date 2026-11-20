@@ -40,6 +40,7 @@
  * already touched correctly purged and every company it had not yet reached untouched — exactly as if
  * it had simply not run that tick.
  */
+import { readIntEnv } from '@/utils/read-int-env';
 
 /** How many rows ONE company's own batch deletes AT MOST, per sweep pass — never the whole backlog in
  *  one statement (locks and bloats the table, see this file's own header) and never so small that a
@@ -58,7 +59,7 @@ export const LOG_PURGE_SWEEP_JOB_ID = 'log-purge-sweep-singleton';
  *  worth of newly-expired rows, not for how quickly a single row disappears once it crosses the
  *  cutoff. */
 export function readLogPurgeSweepIntervalMs(): number {
-  return parseInt(process.env.LOG_PURGE_SWEEP_INTERVAL_MS ?? `${60 * 60 * 1000}`, 10);
+  return readIntEnv('LOG_PURGE_SWEEP_INTERVAL_MS', 60 * 60 * 1000);
 }
 
 /** `LOG_RETENTION_DAYS` — how many days of `Log` history a company keeps before this sweep purges the
@@ -69,7 +70,7 @@ export function readLogPurgeSweepIntervalMs(): number {
  *  wants no automatic deletion at all can reach for, checked by `isLogPurgeEnabled` below rather than
  *  by every call site re-deriving the same `<= 0` test. */
 export function readLogRetentionDays(): number {
-  return parseInt(process.env.LOG_RETENTION_DAYS ?? '90', 10);
+  return readIntEnv('LOG_RETENTION_DAYS', 90);
 }
 
 /** `false` for `0`, a negative value, or anything `readLogRetentionDays` failed to parse into a

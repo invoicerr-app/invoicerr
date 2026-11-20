@@ -24,13 +24,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCompanies, useMoveSeat, useSeats } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import type { SeatMemberView } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { authClient } from "@/lib/auth"
 
 import { memberName, OfficeRoom } from "./seats/office-svg"
-import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsListSkeleton, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
@@ -189,7 +190,7 @@ export default function SeatsSettings() {
   const { t } = useTranslation()
   const { data: session } = authClient.useSession()
   const { activeRole, activeCompanyId } = useCompanies()
-  const canManage = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManage = isCompanyAdmin(activeRole)
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
 
   const { data, isLoading } = useSeats()

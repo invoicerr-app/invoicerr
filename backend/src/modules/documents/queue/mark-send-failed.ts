@@ -124,16 +124,10 @@ export async function markSendFailed(
   // listener that throws kills the whole worker process — see this file's own header).
   let updated: DocumentInstanceResult;
   try {
-    updated = await updateDocumentStatus(
-      companyId,
-      typeId,
-      documentId,
-      'send_failed',
-      error.message,
-      undefined,
-      undefined,
-      ['sending'],
-    );
+    updated = await updateDocumentStatus(companyId, typeId, documentId, 'send_failed', {
+      lastActionError: error.message,
+      fromStatuses: ['sending'],
+    });
   } catch (conflictError) {
     if (conflictError instanceof ConflictException) {
       logger.info('markSendFailed: record moved on concurrently — nothing to mark', {

@@ -40,6 +40,7 @@ export const queryKeys = {
     paymentTerms: () => ["company", "paymentTerms"] as const,
   },
   billing: {
+    all: () => ["billing"] as const,
     status: () => ["billing", "status"] as const,
     seats: () => ["billing", "seats"] as const,
     stripeSubscription: (companyId: string | null) => ["billing", "stripe-subscription", companyId] as const,

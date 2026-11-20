@@ -90,6 +90,18 @@ export const LANGUAGE_STORAGE_KEY = "i18nextLng"
  *  rewritten to `en` — see `normalizeDetectedLanguage`. */
 const SUPPORTED_LANGUAGE_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code))
 
+/** Whether `code` is one of the UI languages the picker offers (exact code, no base-tag fallback). */
+export function isSupportedLanguage(code: string | null | undefined): boolean {
+  return !!code && SUPPORTED_LANGUAGE_CODES.has(code)
+}
+
+/** Shows the UI in `code` on this device and remembers it for the next visit (the detector reads
+ *  `LANGUAGE_STORAGE_KEY` first). */
+export function applyUiLanguage(code: string): void {
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
+  i18n.changeLanguage(code)
+}
+
 /**
  * Issue #559 - the right-to-left locales this app actually recognizes. Deliberately an explicit
  * list, never i18next's own `i18n.dir()`: that helper guesses from a broad, script-based table

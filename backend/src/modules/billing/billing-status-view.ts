@@ -1,11 +1,9 @@
 /** Pure shape of `GET /api/billing/status`, testable without booting Nest. */
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { priceGridOf } from './founder-grid';
-import { addDays, BLOCKED_DAYS } from './lifecycle';
+import { addDays, BLOCKED_DAYS, DAY_MS } from './lifecycle';
 import { paidThroughEndOfDay } from './paid-period-grace';
 import type { PriceGrid } from './stripe-price-catalog';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Floored at 0, rounded up so "23 hours left" reads as 1 day. */
 function daysUntil(target: Date, now: Date): number {

@@ -22,7 +22,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** The source document's own human-facing label — via the SAME generic 'reference' resolve endpoint
  *  a `DocumentFieldDescriptor` of kind 'reference' already uses (document reference providers are

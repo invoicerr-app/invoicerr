@@ -4,12 +4,8 @@ import { AlertTriangle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
-import {
-  ChannelBannerSource,
-  countryName,
-  formatMandateDate,
-  legalChannelLabel,
-} from "@/components/channel-banner"
+import { ChannelBannerSource, formatMandateDate, legalChannelLabel } from "@/components/channel-banner"
+import { countryName } from "@/lib/display-names"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useGet } from "@/hooks/use-fetch"

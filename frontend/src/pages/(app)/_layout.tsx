@@ -18,7 +18,7 @@ import { NotEnoughSeatsScreen } from "@/components/not-enough-seats-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useRoutePrefetch } from "@/hooks/use-route-prefetch"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { useCompanies, useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import { cn } from "@/lib/utils"
@@ -334,7 +334,7 @@ const Layout = () => {
     seatsErrored &&
     seatsError instanceof ApiError &&
     seatsError.status === 403 &&
-    (seatsError.body as { code?: unknown } | undefined)?.code === "SEAT_REQUIRED"
+    apiErrorCode(seatsError) === "SEAT_REQUIRED"
   if (hasActiveCompany) {
     if (seatsPending) {
       return null

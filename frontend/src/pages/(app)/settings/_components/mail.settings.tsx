@@ -31,7 +31,12 @@ import {
   useTestCompanyMailSettings,
 } from "@/hooks/queries"
 import type { SetCompanyMailSettingsInput } from "@/hooks/queries"
-import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
+import {
+  SettingsFormFooter,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "@/components/settings-section"
 
 /**
  * Same pragmatic check as the backend's own `mail/is-valid-email.ts` — deliberately NOT an exact

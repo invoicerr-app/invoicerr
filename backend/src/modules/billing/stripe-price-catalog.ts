@@ -14,7 +14,11 @@ export interface PriceSlot {
 }
 
 const GRIDS: readonly PriceGrid[] = ['standard', 'founder'];
-const INTERVALS: readonly BillingInterval[] = ['monthly', 'yearly'];
+export const BILLING_INTERVALS: readonly BillingInterval[] = ['monthly', 'yearly'];
+
+export function isBillingInterval(value: string): value is BillingInterval {
+  return (BILLING_INTERVALS as readonly string[]).includes(value);
+}
 
 const PRICE_ID = /^price_\w+$/;
 
@@ -23,7 +27,7 @@ export function stripePriceVarName(grid: PriceGrid, interval: BillingInterval): 
 }
 
 function slots(grid: PriceGrid): PriceSlot[] {
-  return INTERVALS.map((interval) => ({ grid, interval }));
+  return BILLING_INTERVALS.map((interval) => ({ grid, interval }));
 }
 
 const read = (env: NodeJS.ProcessEnv, slot: PriceSlot): string =>
@@ -69,15 +73,4 @@ export function readStripePriceCatalog(env: NodeJS.ProcessEnv = process.env): St
     standard: readGrid(env, 'standard'),
     founder: isFounderConfigured(env) ? readGrid(env, 'founder') : null,
   };
-}
-
-export function lookupStripePrice(catalog: StripePriceCatalog, priceId: string): PriceSlot | null {
-  for (const grid of GRIDS) {
-    const prices = catalog[grid];
-    if (!prices) continue;
-    for (const interval of INTERVALS) {
-      if (prices[interval] === priceId) return { grid, interval };
-    }
-  }
-  return null;
 }

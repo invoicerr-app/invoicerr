@@ -22,10 +22,10 @@ import { listAllDocuments } from '../documents/persistence';
 import { logger } from '@/logger/logger.service';
 
 /** Well below the 10-25 MB attachment limit of ordinary SMTP servers. */
-export const EXPORT_ZIP_MAX_BYTES = 20 * 1024 * 1024; // 20 MiB
+const EXPORT_ZIP_MAX_BYTES = 20 * 1024 * 1024; // 20 MiB
 
 /** A slow or unreachable Chromium must not hang a sweep tick indefinitely. */
-export const EXPORT_ZIP_MAX_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const EXPORT_ZIP_MAX_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 export class ExportZipTooLargeError extends Error {
   constructor(

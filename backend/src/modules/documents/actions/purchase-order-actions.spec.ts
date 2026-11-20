@@ -222,10 +222,7 @@ describe('registerPurchaseOrderActions', () => {
       'purchase-order',
       'po-1',
       'cancelled',
-      null,
-      undefined,
-      undefined,
-      ['sent', 'send_failed'],
+      { fromStatuses: ['sent', 'send_failed'] },
     );
     expect(result.document?.status).toBe('cancelled');
     expect(result.changed).toBe(true);

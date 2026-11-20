@@ -28,7 +28,7 @@ import {
   SettingsRowMenu,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 interface ApiKey {
   id: string

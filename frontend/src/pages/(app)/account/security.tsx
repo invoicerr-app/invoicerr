@@ -12,7 +12,7 @@ import { PASSWORD_RULES, type PasswordRuleId } from "@/lib/password-rules"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { useDemoMode } from "@/hooks/queries"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
-import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "@/components/settings-section"
 
 export default function AccountSecurityPage() {
   const { t } = useTranslation()
