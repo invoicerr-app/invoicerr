@@ -74,24 +74,10 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
+import { describeWithRedis, waitFor } from './redis-gate';
 
 // Same gating discipline as `document-schedule-queue.redis.spec.ts` — see that file's own header for
 // why `REDIS_URL` alone is not enough (parallel jest workers would race the same queue/database).
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
-
-/** Polls the REAL table — proof that the background sweep/poll genuinely wrote something, not just
- *  that a function call returned. Same helper shape `document-schedule-queue.redis.spec.ts` already
- *  uses for its own `waitFor`. */
-async function waitFor<T>(check: () => Promise<T | undefined>, timeoutMs = 20000): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const result = await check();
-    if (result !== undefined) return result;
-    if (Date.now() > deadline) throw new Error(`waitFor() timed out after ${timeoutMs}ms`);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-}
 
 /** The two events this file's stub server always answers with — the SAME `fr:200`/`fr:202` pair
  *  (id/timestamp/text lifted VERBATIM from `superpdp-status-poller.spec.ts`'s own real, session-captured

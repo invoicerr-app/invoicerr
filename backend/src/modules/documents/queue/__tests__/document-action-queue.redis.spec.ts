@@ -67,6 +67,7 @@ import { removeQueueJobsForCompany } from './queue-test-cleanup';
 import { warmUpPdfRenderer } from './queue-test-pdf-warmup';
 import { ISSUABLE_CLIENT_FIELDS } from '../../__tests__/issuable-client';
 import { ISSUABLE_FRENCH_SELLER_FIELDS } from '../../__tests__/issuable-client';
+import { describeWithRedis } from './redis-gate';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set: a bare local
 // `npx jest` loads `.env` (so REDIS_URL is always set on a dev machine) and runs spec files in
@@ -78,8 +79,6 @@ import { ISSUABLE_FRENCH_SELLER_FIELDS } from '../../__tests__/issuable-client';
 //   DOCUMENTS_QUEUE_REDIS_TESTS=1 npx jest --runInBand --forceExit --testPathPattern 'modules/documents/queue/__tests__'
 // Do not loosen this back to REDIS_URL alone "because it works on my machine" — it works until the
 // two files land in different workers.
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
 
 const MAILPIT_API = 'http://localhost:8025/api/v1';
 
