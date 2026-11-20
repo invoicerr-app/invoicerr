@@ -18,7 +18,7 @@ import {
 } from '../country-policy/country-policy';
 import { resolveInvoiceValidationTransmission } from '../country-policy/invoice-validation-transmission';
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
-import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { buildInvoiceDescriptor, INVOICE_CANCELLABLE_FROM } from '../descriptors/invoice.descriptor';
 import { lockedStatusConflict } from '../descriptors/lifecycle';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { takeDocumentNumberForTransitionWithStatus } from '../numbering/take-number';
@@ -997,7 +997,7 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       null,
       undefined,
       undefined,
-      ['sent', 'send_failed'],
+      INVOICE_CANCELLABLE_FROM,
     );
 
     if (deps.webhooks) {

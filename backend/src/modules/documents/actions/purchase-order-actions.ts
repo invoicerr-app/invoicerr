@@ -19,6 +19,7 @@ import {
   registerSaveDraftAction,
 } from './generic-actions';
 import { sendDocumentInstanceEmail } from './send-document-email';
+import { PURCHASE_ORDER_CANCELLABLE_FROM } from '../descriptors/purchase-order.descriptor';
 
 export interface PurchaseOrderActionDeps {
   clientsService: ClientsService;
@@ -114,7 +115,7 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
       null,
       undefined,
       undefined,
-      ['sent', 'send_failed'],
+      PURCHASE_ORDER_CANCELLABLE_FROM,
     );
 
     if (deps.webhooks) {

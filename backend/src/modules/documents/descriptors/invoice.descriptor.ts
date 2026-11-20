@@ -325,7 +325,10 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed', 'validated'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
-const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: ['sent', 'send_failed'], to: 'cancelled' }];
+/** Shared with the "cancel" handler's compare-and-swap (`actions/invoice-actions.ts`), so the two
+ *  cannot drift apart. */
+export const INVOICE_CANCELLABLE_FROM: string[] = ['sent', 'send_failed'];
+const CANCEL_TRANSITIONS: DocumentActionTransition[] = [{ from: INVOICE_CANCELLABLE_FROM, to: 'cancelled' }];
 /**
  * "validate" (issue #581) - numbers and locks a draft invoice WITHOUT sending it. `from: ['draft']`
  * only: there is nothing to validate on a record that already left "draft" (the type's own
