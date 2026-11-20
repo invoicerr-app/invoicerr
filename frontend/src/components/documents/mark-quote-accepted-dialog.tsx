@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
+import { FileText, Paperclip, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -12,12 +13,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FieldLabel, fieldHelpId } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { deriveQuoteOptions } from "@/components/documents/quote-options"
-import { useRunDocumentAction } from "@/hooks/queries"
+import { buildFileUploadForm, useRunDocumentAction, useUploadAttachment } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
+
+/** Issue #364 - what the backend accepts as a proof of acceptance (`ACCEPTANCE_ATTACHMENT_MIMES` in
+ *  `actions/quote-manual-acceptance.ts`), checked here only to refuse early; the backend re-checks. */
+const ACCEPTANCE_ATTACHMENT_MIMES = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+const ATTACHMENT_INPUT_ID = "mark-quote-accepted-attachment"
 
 interface MarkQuoteAcceptedDialogProps {
   documentId: string
@@ -66,7 +74,10 @@ export function MarkQuoteAcceptedDialog({
   const [touched, setTouched] = useState(false)
   const [option, setOption] = useState<string | undefined>(undefined)
   const [optionTouched, setOptionTouched] = useState(false)
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const runAction = useRunDocumentAction()
+  const upload = useUploadAttachment()
 
   // Issue #373 ("quotes with options") - the quote's own 2+ options, derived off the SAME `data` the
   // detail page already reads (see `deriveQuoteOptions`'s own header: distinct, non-empty, in
@@ -89,8 +100,41 @@ export function MarkQuoteAcceptedDialog({
       setTouched(false)
       setOption(undefined)
       setOptionTouched(false)
+      setAttachment(null)
     }
     onOpenChange(nextOpen)
+  }
+
+  const handlePickAttachment = (file: File | undefined) => {
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (!file) return
+    if (!ACCEPTANCE_ATTACHMENT_MIMES.includes(file.type)) {
+      toast.error(t("documents.acceptance.attachmentUnsupportedType"))
+      return
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      toast.error(t("documents.form.file.tooLarge"))
+      return
+    }
+    setAttachment(file)
+  }
+
+  // Issue #364 - the file is uploaded only on confirm, then its reference travels with the action, so
+  // a dialog closed without confirming leaves nothing behind but an unreferenced upload at most.
+  const uploadAttachment = async () => {
+    if (!attachment) return undefined
+    try {
+      return await upload.mutateAsync(buildFileUploadForm(attachment))
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 413) {
+        toast.error(t("documents.form.file.tooLarge"))
+      } else {
+        toast.error(
+          error instanceof ApiError ? error.message : t("documents.acceptance.attachmentUploadFailed"),
+        )
+      }
+      return null
+    }
   }
 
   const handleConfirm = async () => {
@@ -98,13 +142,20 @@ export function MarkQuoteAcceptedDialog({
     setOptionTouched(true)
     if (isEmpty || (needsOption && !option)) return
 
+    const attachmentRef = await uploadAttachment()
+    if (attachmentRef === null) return
+
     try {
       const result = await runAction.mutateAsync({
         typeId: "quote",
         actionId: "accept-manually",
         documentId,
         data,
-        params: { note: trimmed, ...(option ? { option } : {}) },
+        params: {
+          note: trimmed,
+          ...(option ? { option } : {}),
+          ...(attachmentRef ? { attachment: attachmentRef } : {}),
+        },
       })
       toast.success(result.message ?? t("documents.acceptance.confirmedToast"))
       handleClose(false)
@@ -177,6 +228,60 @@ export function MarkQuoteAcceptedDialog({
           )}
         </div>
 
+        <div className="space-y-2 py-2" data-cy="mark-quote-accepted-attachment">
+          <FieldLabel
+            htmlFor={ATTACHMENT_INPUT_ID}
+            description={t("documents.acceptance.attachmentHelpText")}
+          >
+            {t("documents.acceptance.attachmentLabel")}
+          </FieldLabel>
+          <input
+            ref={fileInputRef}
+            id={ATTACHMENT_INPUT_ID}
+            type="file"
+            accept={ACCEPTANCE_ATTACHMENT_MIMES.join(",")}
+            className="sr-only"
+            aria-describedby={fieldHelpId(ATTACHMENT_INPUT_ID)}
+            onChange={(event) => handlePickAttachment(event.target.files?.[0])}
+            data-cy="mark-quote-accepted-attachment-input"
+          />
+          {attachment ? (
+            <div
+              className="flex items-center gap-3 rounded-md border p-2"
+              data-cy="mark-quote-accepted-attachment-value"
+            >
+              <FileText className="h-6 w-6 shrink-0 text-muted-foreground" />
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <span className="truncate text-sm" data-cy="mark-quote-accepted-attachment-name">
+                  {attachment.name}
+                </span>
+                <span className="text-xs text-muted-foreground">{attachment.type}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setAttachment(null)}
+                tooltip={t("documents.acceptance.attachmentRemove")}
+                aria-label={t("documents.acceptance.attachmentRemove")}
+                dataCy="mark-quote-accepted-attachment-remove"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              dataCy="mark-quote-accepted-attachment-choose"
+            >
+              <Paperclip className="h-4 w-4" />
+              {t("documents.acceptance.attachmentChoose")}
+            </Button>
+          )}
+        </div>
+
         <DialogFooter>
           <Button
             type="button"
@@ -188,7 +293,7 @@ export function MarkQuoteAcceptedDialog({
           </Button>
           <Button
             type="button"
-            loading={runAction.isPending}
+            loading={runAction.isPending || upload.isPending}
             onClick={handleConfirm}
             dataCy="mark-quote-accepted-confirm"
           >

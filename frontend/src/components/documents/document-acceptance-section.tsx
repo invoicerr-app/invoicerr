@@ -1,7 +1,10 @@
-import { CheckCircle2, MessageSquareText } from "lucide-react"
+import { CheckCircle2, Download, MessageSquareText } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { Button } from "@/components/ui/button"
 import { useDocumentManualAcceptance } from "@/hooks/queries"
+
+import { downloadManualAcceptanceAttachment } from "./document-downloads"
 
 import { SectionCard } from "./section-card"
 
@@ -73,6 +76,31 @@ export function DocumentAcceptanceSection({
               {t("documents.acceptance.manualEntry", { actorName: manual.actorName, note: manual.note })}
             </p>
             <p className="text-xs text-muted-foreground">{new Date(manual.acceptedAt).toLocaleString()}</p>
+            {manual.attachment && (
+              <div className="flex items-center gap-2" data-cy="document-acceptance-manual-attachment">
+                <span className="truncate" data-cy="document-acceptance-manual-attachment-name">
+                  {t("documents.acceptance.manualAttachmentLabel", { fileName: manual.attachment.fileName })}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    void downloadManualAcceptanceAttachment(
+                      typeId,
+                      documentId,
+                      manual.attachment?.fileName ?? "attachment",
+                      t,
+                    )
+                  }
+                  tooltip={t("documents.acceptance.manualAttachmentDownload")}
+                  aria-label={t("documents.acceptance.manualAttachmentDownload")}
+                  dataCy="document-acceptance-manual-attachment-download"
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

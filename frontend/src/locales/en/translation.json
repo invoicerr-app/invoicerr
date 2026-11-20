@@ -4848,6 +4848,9 @@
               },
               "option": {
                 "label": "Which option did the client accept?"
+              },
+              "attachment": {
+                "label": "Attachment"
               }
             }
           },
@@ -5947,7 +5950,15 @@
       "manualEntry": "Marked accepted manually by {{actorName}}: \"{{note}}\"",
       "signedLabel": "Signed electronically",
       "signedEntry": "Signed electronically on {{date}}",
-      "acceptedOption": "Accepted option: {{option}}"
+      "acceptedOption": "Accepted option: {{option}}",
+      "attachmentLabel": "Attachment",
+      "attachmentHelpText": "Optional. A scan or photo of the signed paper, kept with this quote's legal record. PDF, JPEG, PNG or WEBP, up to 10 MB. It cannot be added later.",
+      "attachmentChoose": "Choose a file",
+      "attachmentRemove": "Remove the attachment",
+      "attachmentUploadFailed": "The attachment could not be uploaded.",
+      "attachmentUnsupportedType": "Only a PDF, JPEG, PNG or WEBP file can be attached.",
+      "manualAttachmentLabel": "Attached proof: {{fileName}}",
+      "manualAttachmentDownload": "Download the attachment"
     },
     "countryFields": {
       "buyerReference": {
