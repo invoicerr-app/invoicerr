@@ -107,16 +107,9 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
     // "cancel-order" calls (or a double-click) would otherwise both pass the earlier country-policy
     // read and both flip the status, the second one dispatching a spurious second
     // DOCUMENT_CANCELLED. The compare-and-swap turns that second write into a named 409 instead.
-    const document = await updateDocumentStatus(
-      companyId,
-      'purchase-order',
-      documentId,
-      'cancelled',
-      null,
-      undefined,
-      undefined,
-      PURCHASE_ORDER_CANCELLABLE_FROM,
-    );
+    const document = await updateDocumentStatus(companyId, 'purchase-order', documentId, 'cancelled', {
+      fromStatuses: PURCHASE_ORDER_CANCELLABLE_FROM,
+    });
 
     if (deps.webhooks) {
       try {

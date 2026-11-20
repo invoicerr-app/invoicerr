@@ -33,16 +33,9 @@ export function registerGoodsReceiptActions(
     // read and both flip the status; the compare-and-swap makes the second one a named 409 instead of a
     // silently-repeated recording.
     return {
-      document: await updateDocumentStatus(
-        companyId,
-        'goods-receipt',
-        documentId,
-        'recorded',
-        null,
-        undefined,
-        undefined,
-        ['draft'],
-      ),
+      document: await updateDocumentStatus(companyId, 'goods-receipt', documentId, 'recorded', {
+        fromStatuses: ['draft'],
+      }),
       changed: true,
       message: 'Recorded.',
     };

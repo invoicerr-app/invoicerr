@@ -568,7 +568,10 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     const { message, reference, providerId } = delivered;
     let sent: DocumentInstanceResult;
     try {
-      sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference, providerId);
+      sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', {
+        transportRef: reference,
+        channelProviderId: providerId,
+      });
     } finally {
       // Safe to release UNCONDITIONALLY here, success or failure: by this point `deliveryConfirmedAt`
       // is already durably set (either just now, above, or by an earlier attempt this very call

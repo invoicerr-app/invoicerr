@@ -212,18 +212,25 @@ async function writeDocument(
  * silent accept against stale option data. `undefined` (every pre-existing caller) keeps this an
  * ordinary status-only CAS, unchanged.
  */
+export interface DocumentStatusWriteOptions {
+  /** Written on every call: `null` (the default) clears the previous failure. */
+  lastActionError?: string | null;
+  transportRef?: string;
+  channelProviderId?: string;
+  fromStatuses?: string[];
+  acceptedOption?: string;
+  knownUpdatedAt?: Date;
+}
+
 export async function updateDocumentStatus(
   companyId: string,
   typeId: string,
   id: string,
   status: string,
-  lastActionError: string | null = null,
-  transportRef?: string,
-  channelProviderId?: string,
-  fromStatuses?: string[],
-  acceptedOption?: string,
-  knownUpdatedAt?: Date,
+  opts: DocumentStatusWriteOptions = {},
 ): Promise<DocumentInstanceResult> {
+  const { transportRef, channelProviderId, fromStatuses, acceptedOption, knownUpdatedAt } = opts;
+  const lastActionError = opts.lastActionError ?? null;
   await findOwnedDocument(companyId, typeId, id);
   const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
     status,

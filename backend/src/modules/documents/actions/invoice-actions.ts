@@ -989,16 +989,9 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
     // otherwise both read "sent", both pass the gate, and both write "cancelled" — a second, spurious
     // DOCUMENT_CANCELLED webhook for a cancellation that already happened. Compare-and-swap turns the
     // loser into a named 409 instead, before it ever reaches the webhook dispatch below.
-    const document = await updateDocumentStatus(
-      companyId,
-      'invoice',
-      documentId,
-      'cancelled',
-      null,
-      undefined,
-      undefined,
-      INVOICE_CANCELLABLE_FROM,
-    );
+    const document = await updateDocumentStatus(companyId, 'invoice', documentId, 'cancelled', {
+      fromStatuses: INVOICE_CANCELLABLE_FROM,
+    });
 
     if (deps.webhooks) {
       try {

@@ -295,10 +295,7 @@ describe('DocumentsService — "received-invoice", the FIFTH descriptor-only typ
       'received-invoice',
       'ri-1',
       'approved',
-      null,
-      undefined,
-      undefined,
-      ['received'],
+      { fromStatuses: ['received'] },
     );
   });
 

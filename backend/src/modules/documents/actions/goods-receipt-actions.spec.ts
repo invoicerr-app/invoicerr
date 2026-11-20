@@ -55,16 +55,9 @@ describe('registerGoodsReceiptActions', () => {
         params: {},
       });
 
-      expect(updateDocumentStatus).toHaveBeenCalledWith(
-        'c1',
-        'goods-receipt',
-        'gr1',
-        'recorded',
-        null,
-        undefined,
-        undefined,
-        ['draft'],
-      );
+      expect(updateDocumentStatus).toHaveBeenCalledWith('c1', 'goods-receipt', 'gr1', 'recorded', {
+        fromStatuses: ['draft'],
+      });
       expect(result.changed).toBe(true);
       expect(result.document).toEqual({ id: 'gr1', status: 'recorded' });
     });

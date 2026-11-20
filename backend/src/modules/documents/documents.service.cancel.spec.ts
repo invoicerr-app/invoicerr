@@ -114,10 +114,7 @@ describe('DocumentsService.runAction("invoice", "cancel")', () => {
         'invoice',
         'doc-1',
         'cancelled',
-        null,
-        undefined,
-        undefined,
-        ['sent', 'send_failed'],
+        { fromStatuses: ['sent', 'send_failed'] },
       );
     });
 

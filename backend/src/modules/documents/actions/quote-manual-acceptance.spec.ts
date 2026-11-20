@@ -78,12 +78,7 @@ describe('accept-manually (issue #421)', () => {
       'quote',
       'quote-1',
       'accepted',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      undefined,
-      expect.any(Date),
+      { fromStatuses: ['sent'], knownUpdatedAt: expect.any(Date) },
     );
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'accepted' });
@@ -163,12 +158,7 @@ describe('accept-manually (issue #421)', () => {
         'quote',
         'quote-1',
         'accepted',
-        null,
-        undefined,
-        undefined,
-        ['sent'],
-        'Premium',
-        expect.any(Date),
+        { fromStatuses: ['sent'], acceptedOption: 'Premium', knownUpdatedAt: expect.any(Date) },
       );
       expect(result.message).toContain('Premium');
 
