@@ -72,6 +72,7 @@ import { FetchKsefHttpClient } from './ksef/fetch-http-client';
 import { KsefClient, KsefEnvironment } from './ksef/ksef-client';
 import { generateSessionKey } from './ksef/ksef-crypto';
 import { loadVendorizedKeys } from './ksef/ksef-public-keys';
+import { sleep } from '@/lib/sleep';
 
 export interface KsefTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -184,7 +185,7 @@ export async function authenticate(client: KsefClient): Promise<KsefAccessToken>
         `KSeF authentication rejected (code ${status.status.code}: ${status.status.description})`,
       );
     }
-    await new Promise((resolve) => setTimeout(resolve, AUTH_POLL_INTERVAL_MS));
+    await sleep(AUTH_POLL_INTERVAL_MS);
   }
   throw new Error('KSeF authentication did not complete within the poll budget — still "processing".');
 }

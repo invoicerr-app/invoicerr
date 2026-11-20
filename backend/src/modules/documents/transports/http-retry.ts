@@ -12,6 +12,4 @@ export function backoffDelayMs(attempt: number): number {
   return Math.min(500 * 2 ** (attempt - 1), 5_000);
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+export { sleep } from '@/lib/sleep';

@@ -113,6 +113,7 @@ import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
+import { sleep } from '@/lib/sleep';
 
 /**
  * The IN-PROCESS fast path for the double-delivery guard below — a `Set` of
@@ -174,7 +175,7 @@ async function confirmDeliveryWithRetry(
           message: error instanceof Error ? error.message : String(error),
         },
       });
-      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      await sleep(200 * attempt);
     }
   }
 }
