@@ -27,12 +27,11 @@
  * at read time, since they are not secrets that belong sitting in a database column.
  *
  * --- Object Lock / WORM — documented, NOT implemented. Three honest points, none of them verified
- * against Scaleway's own documentation this session (two WebFetch attempts against scaleway.com
- * returned only page-navigation chrome, no article body — so nothing Scaleway-specific below is a
- * verified claim):
+ * against a specific provider's own documentation, so nothing provider-specific below is a verified
+ * claim:
  *  (a) Standard S3 Object Lock requires bucket VERSIONING and is normally configured as a
  *      BUCKET-LEVEL default retention (`PutObjectLockConfiguration`, done ONCE by the operator
- *      outside this code — e.g. the Scaleway console or `aws s3api put-object-lock-configuration`).
+ *      outside this code - e.g. the provider's console or `aws s3api put-object-lock-configuration`).
  *      Once that default exists, every plain `PutObjectCommand` this file already issues
  *      automatically inherits it — NO per-call code change is needed for the common case.
  *  (b) Per-object overrides (`ObjectLockMode` / `ObjectLockRetainUntilDate` on `PutObjectCommand`)
@@ -42,8 +41,8 @@
  *      date would mean reordering that WORM-critical persistence flow, which is out of scope for this
  *      change. Noted here as explicit FUTURE WORK if per-document (rather than one bucket-wide
  *      default) retention is ever required.
- *  (c) Whether Scaleway's specific Object Storage product actually implements the S3 Object Lock API
- *      end to end was NOT independently verified this session — stated plainly rather than asserted.
+ *  (c) Whether a given provider's Object Storage product actually implements the S3 Object Lock API
+ *      end to end is NOT verified here - check it against that provider before relying on it.
  */
 import {
   DeleteObjectsCommand,
@@ -70,9 +69,9 @@ function requireEnv(name: string): string {
  *  `ARCHIVE_S3_BUCKET` and for a READ/EXISTS/DELETE is parsed out of the archive's own `s3://` uri
  *  instead (see `parseS3Uri` below) — see this file's own header on why the bucket travels in the uri
  *  while everything else here is re-read from current env. `ARCHIVE_S3_ENDPOINT` is OPTIONAL: omit it
- *  for real AWS (the SDK resolves the regional endpoint on its own); it is REQUIRED for Scaleway
- *  (`https://s3.<region>.scw.cloud`) and most other S3-compatible providers.
- *  `ARCHIVE_S3_FORCE_PATH_STYLE` is needed by some S3-compatible endpoints (including some Scaleway
+ *  for real AWS (the SDK resolves the regional endpoint on its own); it is REQUIRED for most
+ *  S3-compatible providers (e.g. OVHcloud: `https://s3.<region>.io.cloud.ovh.net`).
+ *  `ARCHIVE_S3_FORCE_PATH_STYLE` is needed by some S3-compatible endpoints (including some MinIO
  *  setups) that do not support virtual-hosted-style addressing — AWS itself does not need this. */
 function buildClient(): S3Client {
   return buildS3ClientFromEnv('ARCHIVE_S3', missingEnvMessage);

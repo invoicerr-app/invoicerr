@@ -486,8 +486,8 @@ automatisch ausgestellten und erneuerten Zertifikat terminiert wird.
 **Maßnahmen zum Schutz der Daten während der Speicherung**
 
 Die Produktionsumgebung, einschließlich ihrer verwalteten PostgreSQL-Datenbank und des Objektspeichers
-für archivierte Dokumente, wird von Scaleway SAS in der Region Paris (Frankreich) gehostet; die
-Datenbank ist über das private Netzwerk von Scaleway erreichbar, nicht über das öffentliche Internet.
+für archivierte Dokumente, wird von OVH SAS in der Region Paris (Frankreich) gehostet; die
+Datenbank ist über das private Netzwerk von OVHcloud erreichbar, nicht über das öffentliche Internet.
 Die Abnahmeumgebung, die zur Validierung eines Release und während des Beta-Programms von dessen
 Teilnehmern genutzt wird, läuft auf einer Infrastruktur, die der Auftragsverarbeiter selbst in
 Frankreich betreibt. Keine der beiden Umgebungen wird außerhalb der Europäischen Union gehostet,
@@ -533,15 +533,15 @@ schriftliche Genehmigung). Der Kunde wird über jede beabsichtigte Hinzufügung 
 
 **1.**
 
-- **Name**: Scaleway SAS
-- **Anschrift**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Name, Funktion und Kontaktdaten der Kontaktperson**: privacy@scaleway.com
+- **Name**: OVH SAS
+- **Anschrift**: 2 rue Kellermann, 59100 Roubaix, France
+- **Name, Funktion und Kontaktdaten der Kontaktperson**: dpo@ovh.com
 - **Beschreibung der Verarbeitung (einschließlich einer klaren Abgrenzung der Verantwortlichkeiten,
   falls mehrere Unterauftragsverarbeiter genehmigt werden)**: Hosting der Produktionsumgebung des
   Dienstes: der Kubernetes-Cluster, auf dem er läuft, die verwaltete PostgreSQL-Datenbank, in der die
   vom Kunden erstellten Dokumente (und die darin enthaltenen personenbezogenen Daten) gespeichert
   werden, und der Objektspeicher für archivierte Dokumente. Region Paris (Frankreich); die Datenbank ist
-  über das private Netzwerk von Scaleway erreichbar, nicht über das öffentliche Internet.
+  über das private Netzwerk von OVHcloud erreichbar, nicht über das öffentliche Internet.
 
 **2.**
 
@@ -609,7 +609,7 @@ Dienst widerrufbar.
 **Internationale Datenübermittlungen (Klausel 7.8).** Resend, Cloudflare und Google LLC können Daten
 außerhalb des Europäischen Wirtschaftsraums verarbeiten, auch in den Vereinigten Staaten. Eine solche
 Übermittlung stützt sich auf die eigenen Garantien des jeweiligen Anbieters nach Kapitel V der
-Verordnung (EU) 2016/679 (Datenschutzerklärung, Abschnitt 5). Scaleway SAS verarbeitet die Daten in
+Verordnung (EU) 2016/679 (Datenschutzerklärung, Abschnitt 5). OVH SAS verarbeitet die Daten in
 Frankreich.
 
 ## Ergänzende Bestimmungen

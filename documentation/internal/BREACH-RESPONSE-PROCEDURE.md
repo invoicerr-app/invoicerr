@@ -48,7 +48,7 @@ Concrete triggers worth treating as "possibly yes" until ruled out:
 - A leaked or exposed credential: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `CREDENTIALS_ENCRYPTION_KEY`,
   `BACKUP_ENCRYPTION_KEY`, an `ARCHIVE_S3_*`/`BACKUP_S3_*` access key, a sub-processor API key.
 - A report from a researcher via `SECURITY.md`, from a hosted Customer, or from a sub-processor
-  (Scaleway, Cloudflare, Resend, Google) about an incident on their own side that touched the data
+  (OVHcloud, Cloudflare, Resend, Google) about an incident on their own side that touched the data
   described in Privacy Policy §4 / DPA §7.
 - A lost or stolen device that had standing access — in practice, the maintainer's own, since there is
   no separate ops team.
@@ -73,7 +73,7 @@ option the Regulation gives.
 - [ ] **Contain first if the incident is ongoing.** Evidence collection continues in parallel, but an
   active leak is not left running while paperwork happens.
 - [ ] Identify, as far as can be told right now, which of these were touched:
-  - the primary PostgreSQL database (Scaleway-managed) — where account data and Customer Personal
+  - the primary PostgreSQL database (OVHcloud-managed) - where account data and Customer Personal
     Data actually live, held in the clear from the application's own perspective;
   - `ARCHIVE_S3` or local disk — the primary legal-archive store, also unencrypted at the application
     layer;
@@ -82,7 +82,7 @@ option the Regulation gives.
   - one specific Company's data, or the instance as a whole.
 - [ ] Rotate what can be rotated immediately, scoped to what's actually compromised — not everything,
   reflexively, every time:
-  - the PostgreSQL credentials, via the Scaleway console, for a database-level compromise;
+  - the PostgreSQL credentials, via the OVHcloud console, for a database-level compromise;
   - the `ARCHIVE_S3_*` / `BACKUP_S3_*` access keys, for an object-storage-level compromise;
   - `BETTER_AUTH_SECRET`, which invalidates every active session instance-wide — a real cost, reserved
     for a confirmed session/auth compromise;
@@ -90,7 +90,7 @@ option the Regulation gives.
     unreadable until each one re-enters them — also a real cost, reserved for a confirmed compromise of
     that specific key, not a routine precaution.
 - [ ] Preserve what exists before it rolls off: application logs (kept 90 days, `LOG_RETENTION_DAYS`),
-  Scaleway's own access/audit logs, and the specific rows or objects affected, if they can be identified
+  OVHcloud's own access/audit logs, and the specific rows or objects affected, if they can be identified
   without further exposure.
 - [ ] Note for the record: there is no one-command tool in this codebase yet for session revocation or
   key rotation short of the manual steps above. That gap is a follow-up item once the incident is

@@ -483,8 +483,8 @@ emesso e rinnovato automaticamente.
 **Misure di protezione dei dati durante la conservazione**
 
 L'ambiente di produzione, compreso il suo database PostgreSQL gestito e l'object storage che contiene i
-documenti archiviati, è ospitato da Scaleway SAS nella sua regione di Parigi (Francia); il database è
-raggiungibile tramite la rete privata di Scaleway, non tramite l'internet pubblico. L'ambiente di
+documenti archiviati, è ospitato da OVH SAS nella sua regione di Parigi (Francia); il database è
+raggiungibile tramite la rete privata di OVHcloud, non tramite l'internet pubblico. L'ambiente di
 collaudo, usato per validare una versione e, durante il programma beta, dai suoi partecipanti, funziona
 su un'infrastruttura che il Responsabile del trattamento gestisce in proprio, in Francia. Nessuno dei
 due ambienti è ospitato, replicato o sottoposto a backup al di fuori dell'Unione europea.
@@ -528,15 +528,15 @@ sostituzione prevista con almeno 30 giorni di anticipo.
 
 **1.**
 
-- **Nome**: Scaleway SAS
-- **Indirizzo**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Nome, qualifica e dati di contatto del referente**: privacy@scaleway.com
+- **Nome**: OVH SAS
+- **Indirizzo**: 2 rue Kellermann, 59100 Roubaix, France
+- **Nome, qualifica e dati di contatto del referente**: dpo@ovh.com
 - **Descrizione del trattamento (compresa una chiara delimitazione delle responsabilità qualora siano
   autorizzati più sub-responsabili del trattamento)**: Hosting dell'ambiente di produzione del Servizio:
   il cluster Kubernetes su cui funziona, il database PostgreSQL gestito che conserva i documenti creati
   dal Cliente (e i dati personali in essi contenuti) e l'object storage che contiene i documenti
   archiviati. Regione di Parigi (Francia); il database è raggiungibile tramite la rete privata di
-  Scaleway, non tramite l'internet pubblico.
+  OVHcloud, non tramite l'internet pubblico.
 
 **2.**
 
@@ -604,7 +604,7 @@ Servizio.
 **Trasferimenti internazionali (clausola 7.8).** Resend, Cloudflare e Google LLC possono trattare dati
 al di fuori dello Spazio economico europeo, compresi gli Stati Uniti. Tale trasferimento si basa sulle
 garanzie proprie del fornitore ai sensi del capo V del regolamento (UE) 2016/679 (Informativa sulla
-Privacy, Sezione 5). Scaleway SAS tratta i dati in Francia.
+Privacy, Sezione 5). OVH SAS tratta i dati in Francia.
 
 ## Disposizioni aggiuntive
 

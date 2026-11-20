@@ -1,8 +1,8 @@
 ---
 title: Legal Notice
 sidebar_position: 5
-version: 2026-09-20
-effectiveDate: 2026-09-20
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -33,11 +33,11 @@ publication director within the meaning of LCEN art. 6-III.
 
 The Service runs on two distinct environments, each with its own host, as required by LCEN art. 6-I-2.
 
-**Production.** **Scaleway SAS** — a *société par actions simplifiée* registered under SIREN
-**433 115 904** (RCS Paris), with registered office at **8 rue de la Ville-l'Évêque, 75008 Paris,
-France**. Scaleway operates the Kubernetes cluster, the managed PostgreSQL database, and the object
+**Production.** **OVH SAS** (OVHcloud) - a *société par actions simplifiée* registered under SIREN
+**424 761 419** (RCS Lille Métropole), with registered office at **2 rue Kellermann, 59100 Roubaix,
+France**. OVHcloud operates the Kubernetes cluster, the managed PostgreSQL database, and the object
 storage the production Service (**my.invoicerr.app**) runs on, in its Paris region. Contact: same
-postal address; see Scaleway's own published legal notice (scaleway.com) for their support channels.
+postal address; see OVHcloud's own published legal notice (ovhcloud.com) for their support channels.
 
 **Acceptance environment.** A separate acceptance environment — used to validate a release before it
 reaches production and, during the beta programme, used by that programme's participants — is hosted
@@ -46,7 +46,7 @@ by the Provider himself, on infrastructure he operates, in France: **Roméo Chev
 (SIRET 982 187 676 00019)**, registered address **4 rue du Puits, 26120 Montélier, France** — the same
 identity given in Section 1. No third party hosts this environment. During the beta programme, the
 programme's participants' Customer Data — including real invoices and other real business records —
-resides on this environment, not on Scaleway's production infrastructure; see the
+resides on this environment, not on OVHcloud's production infrastructure; see the
 [Privacy Policy](./privacy-policy.md), Section 4, for detail.
 
 The **public website** at **invoicerr.app**, the **documentation site** at **docs.invoicerr.app** —
@@ -56,7 +56,7 @@ Actions workflows that build and publish the Service's container images to the G
 Registry) are hosted by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, a
 wholly-owned subsidiary of Microsoft Corporation, via its GitHub Pages, GitHub Actions, and GitHub
 Container Registry services. GitHub, Inc. does not host the hosted Service's production environment
-(**my.invoicerr.app**, Scaleway SAS, above) or its acceptance environment (above), and never receives
+(**my.invoicerr.app**, OVH SAS, above) or its acceptance environment (above), and never receives
 or stores the account, billing, or document data created through either — see Privacy Policy,
 Section 10.
 
@@ -145,3 +145,7 @@ this document; they create no separate or additional rights.
   not a restatement: during the beta programme, participants' Customer Data — real invoices and other
   real business records — resides on the acceptance environment, not on Scaleway's production
   infrastructure — see Privacy Policy, Section 4.
+- **2026-11-20**: Owner decision: the production host changes from Scaleway SAS to **OVH SAS**
+  (OVHcloud). Section 3 now gives OVH SAS's corporate name, SIREN/RCS and registered office (2 rue
+  Kellermann, 59100 Roubaix, France) for the Kubernetes cluster, the managed PostgreSQL database and the
+  object storage of the production Service. The acceptance environment's host is unchanged.

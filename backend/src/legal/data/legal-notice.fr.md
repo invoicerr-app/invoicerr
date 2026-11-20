@@ -32,11 +32,11 @@ directeur de la publication au sens de l'article 6-III de la LCEN.
 Le Service fonctionne sur deux environnements distincts, chacun avec son propre hébergeur, conformément
 à l'article 6-I-2 de la LCEN.
 
-**Production.** **Scaleway SAS** — *société par actions simplifiée* immatriculée sous le numéro SIREN
-**433 115 904** (RCS Paris), dont le siège social est situé **8 rue de la Ville-l'Évêque, 75008 Paris,
-France**. Scaleway exploite le cluster Kubernetes, la base de données PostgreSQL managée et le stockage
+**Production.** **OVH SAS** (OVHcloud) - *société par actions simplifiée* immatriculée sous le numéro
+SIREN **424 761 419** (RCS Lille Métropole), dont le siège social est situé **2 rue Kellermann, 59100
+Roubaix, France**. OVHcloud exploite le cluster Kubernetes, la base de données PostgreSQL managée et le stockage
 objet sur lesquels fonctionne le Service de production (**my.invoicerr.app**), dans sa région de Paris.
-Contact : même adresse postale ; voir les mentions légales propres de Scaleway (scaleway.com) pour leurs
+Contact : même adresse postale ; voir les mentions légales propres d'OVHcloud (ovhcloud.com) pour leurs
 canaux de support.
 
 **Environnement de recette.** Un environnement de recette distinct — utilisé pour valider une version
@@ -47,7 +47,7 @@ numéro **SIREN 982 187 676 (SIRET 982 187 676 00019)**, adresse enregistrée **
 26120 Montélier, France** — la même identité que celle indiquée à la Section 1. Aucun tiers n'héberge
 cet environnement. Pendant le programme bêta, les données des participants au programme — y compris de
 véritables factures et d'autres données commerciales réelles — résident sur cet environnement, et non
-sur l'infrastructure de production de Scaleway ; voir la
+sur l'infrastructure de production d'OVHcloud ; voir la
 [Politique de Confidentialité](./privacy-policy.md), Section 4, pour le détail.
 
 Le **site public** à l'adresse **invoicerr.app**, le **site de documentation** à l'adresse
@@ -57,7 +57,7 @@ activées, et les workflows GitHub Actions qui construisent et publient les imag
 Service sur le GitHub Container Registry) sont hébergés par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, États-Unis, filiale à 100 % de Microsoft Corporation, au moyen de ses
 services GitHub Pages, GitHub Actions et GitHub Container Registry. GitHub, Inc. n'héberge ni
-l'environnement de production du Service hébergé (**my.invoicerr.app**, Scaleway SAS, ci-dessus), ni son
+l'environnement de production du Service hébergé (**my.invoicerr.app**, OVH SAS, ci-dessus), ni son
 environnement de recette (ci-dessus), et ne reçoit ni ne stocke jamais les données de compte, de
 facturation ou de documents créées au moyen de l'un ou l'autre — voir Politique de Confidentialité,
 Section 10.

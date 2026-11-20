@@ -94,9 +94,9 @@ export function makeKube(kubeconfig, { ns = 'invoicerr', release = 'lt' } = {}) 
   };
 }
 
-// metrics-server is not installed on a fresh Kapsule cluster, and `kubectl top` is how this test
-// measures anything at all. --kubelet-insecure-tls: Kapsule's kubelet certificates are not signed
-// by the cluster CA.
+// metrics-server is not installed on every fresh managed cluster, and `kubectl top` is how this test
+// measures anything at all. --kubelet-insecure-tls: some managed clusters' kubelet certificates are
+// not signed by the cluster CA.
 const METRICS_SERVER =
   'https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml';
 
@@ -243,17 +243,6 @@ export function startSampler(kube, dir, stage, intervalMs = 15000) {
       await loop;
     },
   };
-}
-
-// How many nodes `kubectl get nodes` currently reports Ready — used by --kill-a-node-at to notice
-// when the cluster has recovered from a deleted node. Asked of kubectl rather than the Scaleway API:
-// what actually matters for this test is whether the scheduler has somewhere to put pods again, not
-// whether Kapsule's own pool object has settled.
-export async function readyNodeCount(kube) {
-  const out = await run('kubectl', ['get', 'nodes', '--no-headers'], { env: kube.env }).catch(() => ({ stdout: '' }));
-  return out.stdout
-    .split('\n')
-    .filter((l) => l.trim().split(/\s+/)[1] === 'Ready').length;
 }
 
 // --spread-across-nodes: a podAntiAffinity on api.affinity, preferring (never requiring — a

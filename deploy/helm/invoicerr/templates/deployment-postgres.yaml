@@ -42,8 +42,8 @@ spec:
             {{- if .Values.postgresql.persistence.enabled }}
             # The PVC is mounted at /var/lib/postgresql/data itself, NOT at PGDATA — `initdb` refuses
             # to initialize a directory that already has anything in it, and every real block-storage
-            # provisioner (Scaleway included) hands out a volume that already contains a `lost+found`
-            # directory at its root. HIT FOR REAL on a Scaleway Kapsule cluster, 2026-09-22:
+            # provisioner (managed clouds included) hands out a volume that already contains a `lost+found`
+            # directory at its root. HIT FOR REAL on a managed Kubernetes cluster, 2026-09-22:
             # `initdb: error: directory "/var/lib/postgresql/data" exists but is not empty ... It
             # contains a lost+found directory`. kind's local-path provisioner does not create
             # `lost+found`, which is why this never showed up there. Pointing PGDATA at a fresh
@@ -67,7 +67,7 @@ spec:
               command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
             initialDelaySeconds: 15
             periodSeconds: 15
-            # OBSERVED on a real Scaleway Kapsule cluster during a load test, 2026-09-22: at the
+            # OBSERVED on a real managed Kubernetes cluster during a load test, 2026-09-22: at the
             # Kubernetes default timeoutSeconds of 1s, `pg_isready` running against a genuinely
             # saturated (not dead) Postgres missed that window, Kubernetes counted it as a failed
             # probe, and — with no failureThreshold cushion either — restarted Postgres mid-load-test,

@@ -20,7 +20,7 @@ Copied, when enabled:
 Not covered:
 
 - **The database.** Postgres has its own backup story (automated backups and snapshots on a managed
-  provider like Scaleway, or your own `pg_dump`/WAL archiving on a self-managed instance) — this
+  provider like OVHcloud, or your own `pg_dump`/WAL archiving on a self-managed instance) - this
   feature never touches it. With the provided `docker-compose.yml`, a separate service already dumps
   it on a schedule: see [Database backups with Docker Compose](#database-backups-with-docker-compose). If you run your own `pg_dump`, see "Encrypting a manual database dump"
   below — the same encryption this feature applies to files is available as a standalone command for
@@ -60,10 +60,10 @@ values and `existingSecret` — see `deploy/helm/invoicerr/values.yaml`):
 | Variable | Required | Description |
 | --- | --- | --- |
 | `BACKUP_S3_BUCKET` | Yes | The destination bucket. Setting this is what turns the feature on. |
-| `BACKUP_S3_REGION` | Yes | e.g. `fr-par` (Scaleway), `us-east-1` (AWS/MinIO). |
+| `BACKUP_S3_REGION` | Yes | e.g. `gra` (OVHcloud), `us-east-1` (AWS/MinIO). |
 | `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` | Yes | Credentials scoped to this bucket — never reuse an admin-level key. |
 | `BACKUP_ENCRYPTION_KEY` | Strongly recommended | The encryption key described above. `openssl rand -hex 32`. Without it, **every sweep fails** (see below) — backups are never uploaded unencrypted. |
-| `BACKUP_S3_ENDPOINT` | No | Only for an S3-compatible provider other than AWS (e.g. `https://s3.fr-par.scw.cloud`). |
+| `BACKUP_S3_ENDPOINT` | No | Only for an S3-compatible provider other than AWS (e.g. `https://s3.gra.io.cloud.ovh.net` for OVHcloud). |
 | `BACKUP_S3_FORCE_PATH_STYLE` | No | `true` for providers/gateways that need path-style addressing (some MinIO setups). |
 | `BACKUP_S3_PREFIX` | No | Every object is written under `<prefix>/…` when set — useful to share one bucket across several instances. |
 | `BACKUP_S3_SCHEDULE` | No | Cron expression, evaluated in UTC. Default: `0 3 * * *` (daily at 03:00 UTC). |
@@ -119,22 +119,21 @@ checking once rather than assuming: a bucket or a volume created before encrypti
 stays readable at rest until its contents are rewritten, so "the console says encrypted" is not the
 same claim as "these bytes are encrypted".
 
-**Object storage.** With Scaleway on the S3 API, confirm the setting on the bucket itself, then on
-one real object:
+**Object storage.** With OVHcloud Object Storage on the S3 API, confirm the setting on the bucket
+itself, then on one real object:
 
 ```bash
-aws --endpoint-url https://s3.fr-par.scw.cloud s3api get-bucket-encryption \
+aws --endpoint-url https://s3.<region>.io.cloud.ovh.net s3api get-bucket-encryption \
   --bucket <bucket-name>
-aws --endpoint-url https://s3.fr-par.scw.cloud s3api head-object \
+aws --endpoint-url https://s3.<region>.io.cloud.ovh.net s3api head-object \
   --bucket <bucket-name> --key <any-existing-key>
 ```
 
 The second command must print a `ServerSideEncryption` entry. `get-bucket-encryption` describes the
-default for **new** objects only: on Scaleway, enabling SSE-ONE after objects exist does not encrypt
+default for **new** objects only: enabling bucket encryption after objects exist does not encrypt
 those objects, so copy them to a fresh bucket (or rewrite them in place) and check a rewritten key.
-OVHcloud Object Storage offers the same two modes under the names SSE-OMK (provider-held key) and
-SSE-C (your key); the same `head-object` check applies, against
-`https://s3.<region>.io.cloud.ovh.net`.
+OVHcloud offers two modes, SSE-OMK (provider-held key) and SSE-C (your key); the same `head-object`
+check applies to any other S3-compatible provider, against its own endpoint.
 
 **Block storage and the database volume.** On OVHcloud, only volume types whose name ends in `-luks`
 are encrypted, so check the type rather than the label:

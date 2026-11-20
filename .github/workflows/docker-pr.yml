@@ -4,7 +4,7 @@ name: Verify Docker Build (PR)
 # stays. `workflow_dispatch` builds a branch with no pull request open, tagged with its name.
 #
 # Multi-arch, the same shape as docker-publish.yml: one job per platform on its own NATIVE runner
-# (the Scaleway nodes a branch image gets tested on are ARM, the dev instance is x86; emulating an
+# (the cluster nodes a branch image gets tested on can be ARM, the dev instance is x86; emulating an
 # ARM Node build through QEMU on an x86 runner multiplies its time several times over), each pushing
 # its image by digest, then `merge` assembles one manifest list under the tag. One tag, one digest,
 # pulled by either architecture. arm/v7 is not built anywhere any more (Node 26 ships no build for it).

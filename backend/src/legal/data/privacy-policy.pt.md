@@ -103,19 +103,19 @@ vinculado pelos seus próprios termos de tratamento de dados:
   enviada para **contact@invoicerr.app** e onde chega a cópia de cada registo na lista de espera
   descrita na Secção 3 (apenas correspondência; a Google nunca vê os dados contidos nos documentos que
   cria através do Serviço).
-- **Scaleway SAS** — alojamento da infraestrutura do **ambiente de produção** do Serviço: o cluster
+- **OVH SAS** - alojamento da infraestrutura do **ambiente de produção** do Serviço: o cluster
   Kubernetes onde este é executado, a base de dados PostgreSQL gerida que armazena os dados da Empresa
   e da conta descritos na Secção 3, bem como os documentos que cria através do Serviço, e o
   armazenamento de objetos (object storage) que contém os documentos arquivados. **O Serviço e os Dados
   do Cliente, incluindo a base de dados, estão alojados na União Europeia**, na região de Paris (França)
-  da Scaleway, sendo a base de dados acedida através da rede privada própria da Scaleway e não através
+  da OVHcloud, sendo a base de dados acedida através da rede privada própria da OVHcloud e não através
   da internet pública.
 
 **O ambiente de aceitação utilizado para o programa beta.** Antes de uma versão chegar à
 infraestrutura de produção acima descrita, validamo-la num ambiente de aceitação separado, que o
 Prestador opera diretamente, na sua própria infraestrutura, em França — nenhum terceiro o aloja, razão
 pela qual não figura acima como subcontratante. Durante o programa beta, os participantes do programa
-utilizam o Serviço neste ambiente de aceitação em vez do ambiente de produção da Scaleway, e os seus
+utilizam o Serviço neste ambiente de aceitação em vez do ambiente de produção da OVHcloud, e os seus
 Dados do Cliente — incluindo faturas reais, clientes reais e outros registos comerciais reais — são aí
 armazenados. Quando o ambiente de aceitação utilizado para o programa beta for retirado, esses dados são
 transferidos para a infraestrutura de produção acima descrita.
@@ -140,7 +140,7 @@ garantias adequadas próprias desse prestador ao abrigo do Capítulo V do RGPD (
 Contratuais-Tipo da Comissão Europeia). Esta secção é uma declaração de caráter geral, e não uma
 afirmação sobre a certificação atual de qualquer prestador em concreto — escreva para
 contact@invoicerr.app para saber qual o mecanismo específico em que um determinado prestador se baseia
-atualmente. **A Scaleway SAS não consta desta lista**: é uma empresa francesa que aloja a base de dados
+atualmente. **A OVH SAS não consta desta lista**: é uma empresa francesa que aloja a base de dados
 PostgreSQL gerida da Empresa, além da infraestrutura Kubernetes e do armazenamento de objetos já
 descritos na Secção 4, inteiramente dentro da sua região de Paris (França) — nenhum elo da cadeia que
 armazena os documentos que cria, ou os dados de conta e de base de dados da sua Empresa, envolve uma
@@ -255,9 +255,9 @@ finalidade e a duração de cada elemento, e os motivos pelos quais não é apre
 
 ## 10. Sites Que Operamos
 
-O próprio Serviço é executado em **my.invoicerr.app**, alojado pela Scaleway conforme descrito na
+O próprio Serviço é executado em **my.invoicerr.app**, alojado pela OVHcloud conforme descrito na
 Secção 4. Até à abertura da versão alojada, esse endereço apresenta a página da lista de espera
-descrita na Secção 3, servida pela Cloudflare e não pela Scaleway.
+descrita na Secção 3, servida pela Cloudflare e não pela OVHcloud.
 Separadamente do Serviço, publicamos dois sites públicos e estáticos, ambos servidos pelo
 **GitHub Pages** — um serviço de alojamento operado pela **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, EUA, uma subsidiária integral da Microsoft Corporation:

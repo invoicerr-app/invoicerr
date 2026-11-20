@@ -1,8 +1,8 @@
 ---
 title: Privacy Policy
 sidebar_position: 2
-version: 2026-09-24
-effectiveDate: 2026-09-24
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -97,18 +97,18 @@ own data-processing terms:
   is received, and where the copy of each waiting-list entry described in Section 3 arrives
   (correspondence only; Google never sees the data contained in the documents you create through the
   Service).
-- **Scaleway SAS** — infrastructure hosting for the **production** environment of the Service: the
+- **OVH SAS** - infrastructure hosting for the **production** environment of the Service: the
   Kubernetes cluster it runs on, the managed PostgreSQL database that stores the Company and account
   data described in Section 3 and the documents you create through the Service, and the object storage
   that holds archived documents. **The Service and Customer Data, including the database, are hosted in
-  the European Union**, in Scaleway's Paris (France) region, with the database reached over Scaleway's
+  the European Union**, in OVHcloud's Paris (France) region, with the database reached over OVHcloud's
   own private network rather than the public internet.
 
 **The acceptance environment used for the beta programme.** Before a release reaches the production
 infrastructure described above, we validate it on a separate acceptance environment that the Provider
 operates himself, on his own infrastructure, in France — no third party hosts it, so it is not listed
 above as a sub-processor. During the beta programme, the programme's participants use the Service on
-this acceptance environment rather than on Scaleway's production infrastructure, and their Customer
+this acceptance environment rather than on OVHcloud's production infrastructure, and their Customer
 Data — including real invoices, real clients, and other real business records — is stored there. When
 the acceptance environment used for the beta programme is retired, that data moves to the production
 infrastructure described above.
@@ -131,7 +131,7 @@ European Economic Area, including in the United States. Where that is the case, 
 that provider's own appropriate safeguards under GDPR Chapter V (such as the European Commission's
 Standard Contractual Clauses). This section is a general statement, not a representation about any
 individual provider's current certification — write to contact@invoicerr.app for the specific mechanism
-a given provider relies on today. **Scaleway SAS is not in this list**: it is a French company that
+a given provider relies on today. **OVH SAS is not in this list**: it is a French company that
 hosts the Company's managed PostgreSQL database, in addition to the Kubernetes infrastructure and
 object storage already described in Section 4, entirely within its Paris (France) region — no part of
 the chain that stores the documents you create, or your Company's account and database records,
@@ -235,9 +235,9 @@ purpose and duration, and why no consent banner is shown.
 
 ## 10. Websites We Operate
 
-The Service itself runs at **my.invoicerr.app**, hosted by Scaleway as described in Section 4. Until
+The Service itself runs at **my.invoicerr.app**, hosted by OVHcloud as described in Section 4. Until
 the hosted version opens, that address serves the waiting-list page described in Section 3, which
-runs on Cloudflare rather than on Scaleway.
+runs on Cloudflare rather than on OVHcloud.
 Separately from the Service, we publish two public, static websites, both served by **GitHub
 Pages** — a hosting service operated by **GitHub, Inc.**, 88 Colin P. Kelly Jr. Street, San
 Francisco, CA 94107, USA, a wholly-owned subsidiary of Microsoft Corporation:
@@ -432,3 +432,6 @@ this document; they create no separate or additional rights.
   that page, on Cloudflare rather than on Scaleway, until the hosted version opens. This is a new
   fact, not a restatement: it is the first processing this Policy describes of personal data
   belonging to someone who has no account on the Service.
+- **2026-11-20**: Owner decision: the production host changes from Scaleway SAS to **OVH SAS**
+  (OVHcloud), a French company, in its Paris (France) region. Sections 4, 5 and 10 now name OVH SAS
+  where they named Scaleway. No other processor, purpose or retention period changed.

@@ -473,8 +473,8 @@ wystawianym i odnawianym automatycznie.
 **Środki zapewniające ochronę danych w czasie ich przechowywania**
 
 Środowisko produkcyjne, w tym jego zarządzana baza danych PostgreSQL i magazyn obiektowy przechowujący
-zarchiwizowane dokumenty, jest hostowane przez Scaleway SAS w regionie paryskim (Francja); baza danych
-jest dostępna przez sieć prywatną Scaleway, a nie przez publiczny internet. Środowisko akceptacyjne,
+zarchiwizowane dokumenty, jest hostowane przez OVH SAS w regionie paryskim (Francja); baza danych
+jest dostępna przez sieć prywatną OVHcloud, a nie przez publiczny internet. Środowisko akceptacyjne,
 używane do zatwierdzania wydania oraz, w trakcie programu beta, przez jego uczestników, działa na
 infrastrukturze, którą Podmiot przetwarzający obsługuje samodzielnie, we Francji. Żadne z tych środowisk
 nie jest hostowane, replikowane ani kopiowane poza Unią Europejską.
@@ -518,14 +518,14 @@ najmniej 30-dniowym wyprzedzeniem.
 
 **1.**
 
-- **Imię i nazwisko lub nazwa**: Scaleway SAS
-- **Adres**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Imię i nazwisko, stanowisko i dane kontaktowe osoby wyznaczonej do kontaktów**: privacy@scaleway.com
+- **Imię i nazwisko lub nazwa**: OVH SAS
+- **Adres**: 2 rue Kellermann, 59100 Roubaix, France
+- **Imię i nazwisko, stanowisko i dane kontaktowe osoby wyznaczonej do kontaktów**: dpo@ovh.com
 - **Opis przetwarzania (w tym jasne określenie zakresu odpowiedzialności w przypadku upoważnienia kilku
   podmiotów podprzetwarzających)**: Hosting środowiska produkcyjnego Usługi: klaster Kubernetes, na
   którym działa, zarządzana baza danych PostgreSQL przechowująca dokumenty tworzone przez Klienta (i
   zawarte w nich dane osobowe) oraz magazyn obiektowy przechowujący zarchiwizowane dokumenty. Region
-  paryski (Francja); baza danych jest dostępna przez sieć prywatną Scaleway, a nie przez publiczny
+  paryski (Francja); baza danych jest dostępna przez sieć prywatną OVHcloud, a nie przez publiczny
   internet.
 
 **2.**
@@ -594,7 +594,7 @@ uwierzytelniania do pliku PDF dokumentu, ważny 30 dni i odwoływalny z poziomu 
 **Przekazywanie danych do państw trzecich (klauzula 7.8).** Resend, Cloudflare i Google LLC mogą
 przetwarzać dane poza Europejskim Obszarem Gospodarczym, w tym w Stanach Zjednoczonych. Takie
 przekazanie opiera się na własnych zabezpieczeniach danego dostawcy na podstawie rozdziału V
-rozporządzenia (UE) 2016/679 (Polityka Prywatności, sekcja 5). Scaleway SAS przetwarza dane we Francji.
+rozporządzenia (UE) 2016/679 (Polityka Prywatności, sekcja 5). OVH SAS przetwarza dane we Francji.
 
 ## Postanowienia dodatkowe
 

@@ -25,11 +25,11 @@ dane biznesowe i konfigurację tworzone przez Ciebie za pośrednictwem Usługi) 
 
 | Środowisko | Komponent | Dostawca | Jurysdykcja |
 | --- | --- | --- | --- |
-| Produkcyjne | Infrastruktura aplikacyjna/Kubernetes, zarządzana baza danych PostgreSQL oraz obiektowa pamięć masowa dokumentów | Scaleway SAS | Francja (region Paryża) |
+| Produkcyjne | Infrastruktura aplikacyjna/Kubernetes, zarządzana baza danych PostgreSQL oraz obiektowa pamięć masowa dokumentów | OVH SAS | Francja (region Paryża) |
 | Akceptacyjne | Infrastruktura aplikacyjna, baza danych i pamięć masowa dokumentów — wykorzystywane do weryfikacji wersji przed jej wdrożeniem produkcyjnym oraz, podczas programu beta, przez uczestników tego programu | Sam Dostawca — brak dostawcy zewnętrznego | Francja |
 
 Wiersz „Produkcyjne” znajduje się u jednego dostawcy, w jednym regionie, dostępnym poprzez własną sieć
-prywatną Scaleway, a nie poprzez publiczny internet — baza danych nie jest już odrębnym ogniwem u innego
+prywatną OVHcloud, a nie poprzez publiczny internet - baza danych nie jest już odrębnym ogniwem u innego
 dostawcy ani w innym kraju. Wiersz „Akceptacyjne” w ścisłym sensie nie ma żadnego dostawcy: działa na
 infrastrukturze, którą Dostawca prowadzi samodzielnie, we Francji, dzięki czemu w tym łańcuchu nie ma
 żadnego podmiotu trzeciego, któremu zagraniczny organ mógłby doręczyć żądanie — jest to pozycja

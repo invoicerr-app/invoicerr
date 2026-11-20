@@ -61,7 +61,7 @@ function requireEnv(name: string): string {
 
 /** Everything needed to talk to S3 EXCEPT the bucket name — see `archive/s3-storage.ts#buildClient`'s
  *  own header for why `INBOUND_S3_ENDPOINT` is optional (real AWS resolves its own regional endpoint)
- *  while `INBOUND_S3_FORCE_PATH_STYLE` exists for providers (some Scaleway/MinIO setups included) that
+ *  while `INBOUND_S3_FORCE_PATH_STYLE` exists for providers (some MinIO setups included) that
  *  need path-style addressing. */
 function buildClient(): S3Client {
   return buildS3ClientFromEnv('INBOUND_S3', missingEnvMessage);
