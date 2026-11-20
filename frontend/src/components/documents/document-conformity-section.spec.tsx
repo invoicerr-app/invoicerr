@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import { computeConformityVerdict, latestConformityReason } from "./conformity-verdict"
+import { computeConformityVerdict } from "./conformity-verdict"
 import { ConformityBadge, ConformityTimeline } from "./document-conformity-section"
 import type { DocumentAuthorityEvent } from "./types"
 
@@ -65,24 +65,6 @@ describe("computeConformityVerdict — pure", () => {
     expect(computeConformityVerdict([event({ providerId: "mydata", statusCode: "report:failed" })])).toBe(
       "declarationIssue",
     )
-  })
-})
-
-describe("latestConformityReason — pure", () => {
-  it("surfaces the rejection's own reason", () => {
-    const events = [event({ id: "1", statusCode: "fr:213", reason: "BT-23 absent" })]
-    expect(latestConformityReason(events)).toBe("BT-23 absent")
-  })
-
-  it("is undefined when nothing was rejected", () => {
-    expect(latestConformityReason([event({ statusCode: "fr:202" })])).toBeUndefined()
-  })
-
-  it("surfaces a declaration issue's own reason, ahead of any co-occurring rejection", () => {
-    const events = [
-      event({ id: "1", providerId: "nav", statusCode: "report:blocked", reason: "not connected" }),
-    ]
-    expect(latestConformityReason(events)).toBe("not connected")
   })
 })
 

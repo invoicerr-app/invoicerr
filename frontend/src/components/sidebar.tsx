@@ -50,7 +50,7 @@ import { useOnboardingDialog } from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
-import { signOut } from "@/lib/sign-out"
+import { useSignOutAndRedirect } from "@/hooks/use-sign-out-and-redirect"
 import { useEffect, useRef, useState } from "react"
 import { useSwitchCompany } from "@/hooks/use-switch-company"
 
@@ -215,10 +215,7 @@ export function Sidebar() {
   // companies actually use, so starting collapsed would hide the normal case behind an extra click.
   const [dataOpen, setDataOpen] = useState(true)
 
-  const handleLogout = async () => {
-    await signOut()
-    void navigate("/auth/sign-in")
-  }
+  const handleLogout = useSignOutAndRedirect()
 
   // ui/sidebar.tsx's own `side` prop ("left" | "right") is a PHYSICAL dock-side choice, independent
   // of text direction by design (see that component's own header comment, and sheet.tsx's matching

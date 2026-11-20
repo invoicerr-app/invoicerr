@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { actionLocksDocument } from "@/components/documents/action-presentation"
 import type { DocumentActionDescriptor, DocumentInstance } from "@/components/documents/types"
-import { countryName } from "@/components/channel-banner"
+import { countryName } from "@/lib/display-names"
 import {
   INVOICE_IDENTIFIERS_MISSING_CODE,
   type InvoiceIdentifiersMissingParams,
