@@ -10,6 +10,7 @@ import {
   vatCheckoutSessionParams,
   vatCustomerCreateParams,
 } from './billing-vat';
+import { FOUNDER_PLAN } from './founder-grid';
 import { recordFounderPreorderEvent } from './founder-preorder';
 import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
 import { stripeClientFor } from './stripe-client';
@@ -80,7 +81,7 @@ export function buildStripePlans(catalog: StripePriceCatalog): StripePlan[] {
 const isFounderCheckout = (action: string, body: unknown): boolean =>
   action === 'upgrade-subscription' &&
   typeof (body as { plan?: unknown } | undefined)?.plan === 'string' &&
-  (body as { plan: string }).plan.toLowerCase() === 'founder';
+  (body as { plan: string }).plan.toLowerCase() === FOUNDER_PLAN;
 
 // A company subscription is always billed to the company's own Stripe customer: the plugin's
 // `organization` customer type, whose model is the Company table here. The default `user` type would

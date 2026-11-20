@@ -21,7 +21,7 @@ import { logger } from '@/logger/logger.service';
 
 import { grantFounderGrid } from './founder-grid';
 import { stripeClientFor } from './stripe-client';
-import { type BillingInterval, readStripePriceCatalog } from './stripe-price-catalog';
+import { type BillingInterval, isBillingInterval, readStripePriceCatalog } from './stripe-price-catalog';
 import { LIVE_STRIPE_STATUSES } from './stripe-statuses';
 
 export const PREORDER_METADATA_KEY = 'invoicerr_preorder';
@@ -31,7 +31,6 @@ const PAID_SESSION_EVENTS = new Set([
   'checkout.session.completed',
   'checkout.session.async_payment_succeeded',
 ]);
-const INTERVALS = new Set<string>(['monthly', 'yearly']);
 
 /** The fields of a Stripe Checkout session this module reads. */
 export interface PreorderCheckoutSession {
@@ -72,7 +71,7 @@ export function parseFounderPreorderSession(session: PreorderCheckoutSession): P
   if (!Number.isInteger(seats) || seats < 1)
     return { kind: 'invalid', problem: 'metadata seats is not a positive integer' };
   const interval = session.metadata?.interval ?? '';
-  if (!INTERVALS.has(interval))
+  if (!isBillingInterval(interval))
     return { kind: 'invalid', problem: 'metadata interval is not monthly or yearly' };
 
   return {
@@ -214,7 +213,7 @@ export async function claimFounderPreorder(
   const founderPrices = readStripePriceCatalog(env).founder;
   if (!founderPrices) throw new Error('[billing] The founder prices (STRIPE_PRICE_FOUNDER_*) are not set');
   const interval = preorder.interval as BillingInterval;
-  if (!INTERVALS.has(interval)) throw new Error(`[billing] Pre-order ${preorder.id} has an unknown interval`);
+  if (!isBillingInterval(interval)) throw new Error(`[billing] Pre-order ${preorder.id} has an unknown interval`);
 
   // A company keeps the Stripe customer it already has. One without gets the pre-order's own, unless
   // another company already bills to it.

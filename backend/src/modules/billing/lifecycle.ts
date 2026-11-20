@@ -64,7 +64,7 @@ export const BLOCKED_DAYS = 14;
 export const MIN_RETRIEVAL_DAYS = 30;
 export const PAID_ZIP_GRACE_DAYS = 180;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** `blocked` and `zipped` are the read-only suspension: every write is refused. */
 export function isSuspended(status: CompanySubscriptionStatus): boolean {
