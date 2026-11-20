@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -284,7 +284,7 @@ the underlying data, beyond the deletion described in Section 13.3.
 ## 14. Hosting and Subprocessors
 
 14.1. **The Service and Customer Data are hosted in the European Union, in France.** The production
-environment runs with **Scaleway SAS** (Kubernetes infrastructure, managed PostgreSQL database, and
+environment runs with **OVH SAS** (Kubernetes infrastructure, managed PostgreSQL database, and
 document object storage — Paris region, France). Before a release reaches production, and during the
 beta programme, for the programme's participants, the Service instead runs on a separate acceptance
 environment that we operate ourselves, on our own infrastructure, in France — see the
@@ -293,9 +293,9 @@ beta participant's Customer Data once it is retired.
 
 14.2. We use the following subprocessors in connection with the Service:
 
-   - **Scaleway SAS** — Kubernetes infrastructure, managed PostgreSQL database, and object storage for
+   - **OVH SAS** - Kubernetes infrastructure, managed PostgreSQL database, and object storage for
      the **production** environment of the Service and its archived documents (Paris region, France),
-     the database reached over Scaleway's own private network rather than the public internet.
+     the database reached over OVHcloud's own private network rather than the public internet.
    - **Polar Software, Inc.**: seller of your subscription as merchant of record, payment processing,
      and billing (Section 7).
    - **Resend** — delivery of transactional email sent by the Service.
@@ -602,3 +602,7 @@ this document; they create no separate or additional rights.
   the same cap and window, now described as the price paid to Polar as seller rather than an amount paid
   to Polar "on our behalf". Definition of "Fees", Sections 6.1, 6.4, 7.3, 14.2 and 21.2 reworded to
   match. No section renumbered.
+- **2026-11-20**: Owner decision: the production host changes from Scaleway SAS to **OVH SAS**
+  (OVHcloud), in its Paris (France) region, for the Kubernetes infrastructure, the managed PostgreSQL
+  database and the object storage. Section 14 now names OVH SAS where it named Scaleway. No other term
+  changed.

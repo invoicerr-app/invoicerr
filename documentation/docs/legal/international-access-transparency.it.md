@@ -25,11 +25,11 @@ esclusivamente in **Francia**, distribuita su due ambienti:
 
 | Ambiente | Componente | Fornitore | Giurisdizione |
 | --- | --- | --- | --- |
-| Produzione | Infrastruttura applicativa/Kubernetes, database PostgreSQL gestito e storage a oggetti dei documenti | Scaleway SAS | Francia (regione di Parigi) |
+| Produzione | Infrastruttura applicativa/Kubernetes, database PostgreSQL gestito e storage a oggetti dei documenti | OVH SAS | Francia (regione di Parigi) |
 | Collaudo | Infrastruttura applicativa, database e storage dei documenti — utilizzati per validare una versione prima che raggiunga la produzione e, durante il programma beta, dai partecipanti a tale programma | Il Fornitore stesso — nessun fornitore terzo | Francia |
 
 La riga "Produzione" si trova presso un unico fornitore, in un'unica regione, raggiungibile tramite la
-rete privata propria di Scaleway anziché tramite l'internet pubblico — il database non è più un
+rete privata propria di OVHcloud anziché tramite l'internet pubblico - il database non è più un
 passaggio distinto verso un altro fornitore o un altro paese. La riga "Collaudo" non ha, in senso
 proprio, alcun fornitore: funziona su un'infrastruttura che il Fornitore gestisce direttamente, in
 Francia, cosicché in questa catena non vi è alcun terzo a cui un'autorità straniera potrebbe notificare

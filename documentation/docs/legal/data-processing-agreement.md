@@ -1,8 +1,8 @@
 ---
 title: Data Processing Agreement
 sidebar_position: 3
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -449,8 +449,8 @@ issued and renewed automatically.
 **Measures for the protection of data during storage**
 
 The production environment, including its managed PostgreSQL database and the object storage that holds
-archived documents, is hosted by Scaleway SAS in its Paris (France) region; the database is reached over
-Scaleway's private network, not the public internet. The acceptance environment, used to validate a
+archived documents, is hosted by OVH SAS in its Paris (France) region; the database is reached over
+OVHcloud's private network, not the public internet. The acceptance environment, used to validate a
 release and, during the beta programme, by that programme's participants, runs on infrastructure the
 Processor operates himself, in France. Neither environment is hosted, mirrored or backed up outside the
 European Union.
@@ -492,14 +492,14 @@ Customer is informed of any intended addition or replacement by email, at least 
 
 **1.**
 
-- **Name**: Scaleway SAS
-- **Address**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Contact person’s name, position and contact details**: privacy@scaleway.com
+- **Name**: OVH SAS
+- **Address**: 2 rue Kellermann, 59100 Roubaix, France
+- **Contact person’s name, position and contact details**: dpo@ovh.com
 - **Description of the processing (including a clear delimitation of responsibilities in case several
   sub-processors are authorised)**: Hosting of the production environment of the Service: the Kubernetes
   cluster it runs on, the managed PostgreSQL database that stores the documents the Customer creates
   (and the personal data they contain), and the object storage that holds archived documents. Paris
-  (France) region; the database is reached over Scaleway's private network, not the public internet.
+  (France) region; the database is reached over OVHcloud's private network, not the public internet.
 
 **2.**
 
@@ -562,7 +562,7 @@ days and revocable from the Service.
 
 **International transfers (Clause 7.8).** Resend, Cloudflare and Google LLC may process data outside the
 European Economic Area, including in the United States. Such a transfer relies on that provider's own
-safeguards under Chapter V of Regulation (EU) 2016/679 (Privacy Policy, Section 5). Scaleway SAS
+safeguards under Chapter V of Regulation (EU) 2016/679 (Privacy Policy, Section 5). OVH SAS
 processes the data in France.
 
 ## Additional provisions
@@ -686,3 +686,7 @@ this document; they create no separate or additional rights.
   notice, and Annexes I to IV completed from the facts this document and the Privacy Policy already
   stated. The former audit frequency limit (once per twelve months) is gone: Clause 7.6 now governs
   audits. The governing-law cross-reference now points to Terms of Service, Section 20.3.
+- **2026-11-20**: Owner decision: the production sub-processor changes from Scaleway SAS to **OVH SAS**
+  (OVHcloud), 2 rue Kellermann, 59100 Roubaix, France, contact dpo@ovh.com. Annex IV and its notes, and
+  the description of the production environment, now name OVH SAS. Customers are informed of this
+  replacement under Clause 7.7(a).

@@ -25,11 +25,11 @@ est située exclusivement en **France**, répartie sur deux environnements :
 
 | Environnement | Composant | Hébergeur | Juridiction |
 | --- | --- | --- | --- |
-| Production | Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | Scaleway SAS | France (région de Paris) |
+| Production | Infrastructure applicative/Kubernetes, base de données PostgreSQL managée et stockage objet des documents | OVH SAS | France (région de Paris) |
 | Recette | Infrastructure applicative, base de données et stockage des documents — utilisés pour valider une version avant son passage en production et, pendant le programme bêta, par les participants à ce programme | Le Prestataire lui-même — aucun hébergeur tiers | France |
 
 La ligne « Production » relève d'un fournisseur unique, dans une région unique, accessible via le
-réseau privé propre de Scaleway plutôt que par l'internet public — la base de données n'est plus un
+réseau privé propre d'OVHcloud plutôt que par l'internet public - la base de données n'est plus un
 maillon distinct chez un autre fournisseur ou dans un autre pays. La ligne « Recette » ne comporte, au
 sens propre, aucun fournisseur : elle fonctionne sur une infrastructure que le Prestataire exploite
 lui-même, en France, de sorte qu'aucun tiers n'intervient dans cette chaîne auprès de qui une autorité

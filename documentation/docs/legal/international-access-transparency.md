@@ -1,8 +1,8 @@
 ---
 title: International Access Transparency
 sidebar_position: 7
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -26,10 +26,10 @@ exclusively in **France**, across two environments:
 
 | Environment | Component | Host | Jurisdiction |
 | --- | --- | --- | --- |
-| Production | Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | Scaleway SAS | France (Paris region) |
+| Production | Application/Kubernetes infrastructure, managed PostgreSQL database, and document object storage | OVH SAS | France (Paris region) |
 | Acceptance | Application infrastructure, database, and document storage — used to validate a release before it reaches production and, during the beta programme, used by that programme's participants | The Provider himself — no third-party host | France |
 
-The production row sits with a single provider, in a single region, reached over Scaleway's own private
+The production row sits with a single provider, in a single region, reached over OVHcloud's own private
 network rather than the public internet — the database is no longer a separate hop to a different
 provider or country. The acceptance row has no provider at all in the ordinary sense: it runs on
 infrastructure the Provider operates himself, in France, so there is no third party in that chain for a
@@ -146,3 +146,6 @@ Questions about this page can be sent to **contact@invoicerr.app**.
 - **2026-10-13**: Cross-references updated after the Data Processing Agreement became the European
   Commission's standard contractual clauses: its former Section 7 (sub-processors) is now Clause 7.7
   and Annex IV, its former Section 9 (security measures) is now Annex III. No measure changed.
+- **2026-11-20**: Owner decision: the production provider changes from Scaleway SAS to **OVH SAS**
+  (OVHcloud), a French company, in its Paris (France) region. Section 1's production row now names OVH
+  SAS. No measure changed.

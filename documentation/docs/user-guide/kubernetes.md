@@ -19,11 +19,11 @@ has neither the `worker` role nor the `catalogs:release` script the chart's hook
 :::
 
 :::info[Reference deployment]
-This guide follows the setup this project actually runs in production: **Scaleway Kubernetes
-Kapsule** (Paris), **Scaleway Object Storage** for the legal document archive, and **Scaleway
-Managed Database for PostgreSQL** (Paris) for the database — one provider, one region, for every
-piece of it. Any conformant Kubernetes cluster, S3-compatible store, and Postgres instance work the
-same way — swap the provider-specific values where noted.
+This guide uses **OVHcloud Public Cloud** as its worked example: **Managed Kubernetes Service**
+for the cluster, **Object Storage** for the legal document archive, and **Public Cloud Databases for
+PostgreSQL** for the database, all in one region (Gravelines, `GRA`, in the examples below). Any
+conformant Kubernetes cluster, S3-compatible store, and Postgres instance work the same way - swap
+the provider-specific values where noted.
 :::
 
 ## Prerequisites
@@ -69,15 +69,14 @@ describes for its two-container case. `s3` is the only mode that is safe at `rep
 of the box.
 :::
 
-## 1. Create the cluster — Scaleway Kapsule
+## 1. Create the cluster - OVHcloud Managed Kubernetes
 
-Scaleway's Kubernetes control plane is free; you only pay for the worker nodes. From the
-[Scaleway Console](https://console.scaleway.com/): **Kubernetes → Create a cluster**, region
-**Paris (`fr-par`)**, add a node pool sized for Invoicerr + Postgres/Redis (2 vCPU / 4 GB per node
-is a reasonable starting point for a small install). Download the kubeconfig from the cluster's
-"Overview" tab and point `kubectl`/`KUBECONFIG` at it. The [`scw` CLI](https://github.com/scaleway/scaleway-cli)
-can do the same non-interactively — see `scw k8s cluster create --help` for the exact flags for
-your Scaleway CLI version.
+From the [OVHcloud Control Panel](https://www.ovh.com/manager/): **Public Cloud → Managed Kubernetes
+Service → Create a cluster**, pick a region (`GRA` in this guide), and add a node pool sized for
+Invoicerr + Postgres/Redis (2 vCPU / 4 GB per node is a reasonable starting point for a small
+install). Download the kubeconfig from the cluster's page and point `kubectl`/`KUBECONFIG` at it.
+The cluster can also be created non-interactively with the OVHcloud API or its Terraform provider
+(`ovh_cloud_project_kube`) - check the current OVHcloud documentation for the exact parameters.
 
 Install `ingress-nginx` and `cert-manager` (skip if you set `ingress.enabled: false`):
 
@@ -162,42 +161,41 @@ valid DNS name as far as both Kubernetes and the browser are concerned, and can 
 `ingress.host` and in `app.appUrl` / `app.corsOrigins` as-is. You still have to solve the
 certificate for it by one of the two routes above.
 
-## 2. Create the archive bucket — Scaleway Object Storage
+## 2. Create the archive bucket - OVHcloud Object Storage
 
-**Object Storage → Create a bucket**, region `fr-par`. Then **IAM → API Keys → Generate an API
-key** scoped to that bucket (a project-level key with Object Storage read/write is enough — do not
-reuse an admin-level key). You need the bucket name, the access key, and the secret key — the chart
-reads these as `ARCHIVE_S3_BUCKET`, `ARCHIVE_S3_ACCESS_KEY_ID`, `ARCHIVE_S3_SECRET_ACCESS_KEY`. The
-endpoint and region are fixed for Scaleway: `https://s3.fr-par.scw.cloud` / `fr-par`.
+**Public Cloud → Object Storage → Create an object container** (S3 API), in the same region as the
+cluster. Then create an **Object Storage user** with read/write access to that bucket only (do not
+reuse an admin-level credential) and generate its S3 access key and secret key. You need the bucket
+name, the access key, and the secret key - the chart reads these as `ARCHIVE_S3_BUCKET`,
+`ARCHIVE_S3_ACCESS_KEY_ID`, `ARCHIVE_S3_SECRET_ACCESS_KEY`. The endpoint and region follow the
+bucket's region: `https://s3.<region>.io.cloud.ovh.net` / `<region>`, i.e.
+`https://s3.gra.io.cloud.ovh.net` / `gra` in this guide.
 
 WORM/immutability (Object Lock) is exposed as a standard S3 API feature — if your bucket has Object
 Lock + versioning enabled with a default retention configured (a one-time bucket-level setting, not
 something this chart's install touches), every object this app writes inherits that retention
-automatically, no per-request code change needed. This session did not independently verify
-Scaleway Object Storage's own Object Lock support against its docs — check
-[Scaleway's Object Storage documentation](https://www.scaleway.com/en/docs/object-storage/) before
-relying on it for a compliance requirement.
+automatically, no per-request code change needed. This guide did not independently verify
+OVHcloud Object Storage's own Object Lock support - check the OVHcloud Object Storage documentation
+before relying on it for a compliance requirement.
 
-## 3. Create the database — Scaleway Managed Database for PostgreSQL
+## 3. Create the database - OVHcloud Public Cloud Databases for PostgreSQL
 
-[Scaleway's Managed Database for PostgreSQL and MySQL](https://www.scaleway.com/en/database/) is a
-traditional, fixed-size managed Postgres — you pick a node size, not a request-based scaler. From
-the [Scaleway Console](https://console.scaleway.com/): **Managed Databases → PostgreSQL and MySQL →
-Create a Database Instance**, region **Paris (`fr-par`)** — the same region as the cluster and the
-archive bucket, so every piece of the Service sits in one place.
+OVHcloud's Public Cloud Databases for PostgreSQL is a traditional, fixed-size managed Postgres -
+you pick a plan and node size, not a request-based scaler. From the
+[OVHcloud Control Panel](https://www.ovh.com/manager/): **Public Cloud → Databases → Create a
+database service**, engine **PostgreSQL**, in the same region as the cluster and the archive bucket,
+so every piece of the Service sits in one place.
 
-This chart's reference deployment attaches the Database Instance to the same **Private Network** as
-the Kapsule cluster, so the `api`/`worker` pods reach it over Scaleway's own network rather than the
-public internet — see Scaleway's own "Connecting Managed Databases to Kubernetes clusters" guide for
-the exact steps, which vary slightly by Console version. If you skip this, use the Database
-Instance's **Manage allowed IPs** setting to restrict its public endpoint instead of leaving it open
-to the internet.
+Attach the database service to the same private network as the cluster where your plan allows it,
+so the `api`/`worker` pods reach it without crossing the public internet; otherwise restrict its
+**authorized IPs** to the cluster's egress addresses instead of leaving it open to the internet.
+Check the current OVHcloud documentation for the exact steps.
 
-The Console's **Connection Details** panel gives you a **single** endpoint — hostname, port,
-database name, user, password. Unlike this chart's previous reference provider (Neon, a serverless
-Postgres that fronted every connection with its own PgBouncer), Scaleway does not put a
-transaction-mode pooler in front of a Database Instance: the one connection string you get back
-already is a direct connection. Build it from those values and append `?sslmode=require`.
+The service's connection details give you a **single** endpoint - hostname, port, database name,
+user, password. Unlike a serverless Postgres that fronts every connection with its own PgBouncer
+(Neon, this chart's earlier reference provider), the managed service does not put a transaction-mode
+pooler in front of it by default: the connection string you get back is a direct connection. Build it
+from those values and append `?sslmode=require`.
 
 ### About `DATABASE_URL_UNPOOLED`
 
@@ -209,20 +207,18 @@ Migrate takes a session-level advisory lock that does not reliably survive a **t
 connection pooler** sitting in front of the database — Neon fronted every connection with exactly
 that, so migrations needed a separate, unpooled string to bypass it.
 
-Scaleway's Managed Database does not front your connection with a transaction-mode pooler at all —
+A managed Postgres without a transaction-mode pooler in front of it needs nothing more -
 the single endpoint above is already the direct connection Prisma Migrate needs. There is nothing
 left for `DATABASE_URL_UNPOOLED` to point to that would differ from `DATABASE_URL`: **leave it
 unset**. The chart's own fallback to `DATABASE_URL` when it is unset (`deployment-api.yaml` and the
 `catalogs-release` Job) already does the right thing without it — it is not a variable this
 deployment needs to satisfy.
 
-**Backups**: Scaleway takes automated backups of a Database Instance and also lets you trigger
-on-demand snapshots — see
-[Scaleway's own backup documentation](https://www.scaleway.com/en/docs/managed-databases-for-postgresql-and-mysql/how-to/manage-backups/)
-for the schedule, retention, and point-in-time-restore granularity your plan actually gets; this
-guide did not independently verify those specifics, so check that page before relying on a
-particular recovery point for a compliance requirement. No `pg_dump` CronJob is required for a
-Scaleway-backed install; this chart does not ship one (an optional
+**Backups**: OVHcloud takes automated backups of a managed database service - see its own backup
+documentation for the schedule, retention, and point-in-time-restore granularity your plan actually
+gets; this guide did not independently verify those specifics, so check them before relying on a
+particular recovery point for a compliance requirement. No `pg_dump` CronJob is required for an
+install on a managed database; this chart does not ship one (an optional
 scheduled-`pg_dump`-to-object-storage CronJob is reasonable to add later for an extra, provider-
 independent copy — it is not part of this chart today).
 
@@ -253,7 +249,7 @@ one replica each, that is two pods with nothing pinning them to the same node. O
 cluster with ordinary block storage, whichever of the two is scheduled onto the second node never
 starts at all: a ReadWriteOnce volume can only be attached to one node at a time, so the pod sits
 in `ContainerCreating` with a `FailedAttachVolume` multi-attach event against it. Note that this
-applies to the Scaleway path too, which leaves `documents.inbound.storage` at its default `local` —
+applies to the managed-provider path too, which leaves `documents.inbound.storage` at its default `local` -
 the PVC is rendered there as well.
 
 **MinIO in the cluster** is the shortest way out, and is what this section was written against:
@@ -279,7 +275,7 @@ archive:
     bucket: invoicerr-archive
     endpoint: http://minio.minio.svc.cluster.local:9000
     region: us-east-1
-    # REQUIRED here, unlike the Scaleway path. Virtual-hosted-style addressing would have the SDK
+    # REQUIRED here, unlike the OVHcloud path. Virtual-hosted-style addressing would have the SDK
     # resolve invoicerr-archive.minio.minio.svc.cluster.local, which no cluster DNS record answers.
     forcePathStyle: true
 ```
@@ -342,11 +338,11 @@ kubectl create secret generic invoicerr-secrets \
   --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
   --from-literal=CREDENTIALS_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --from-literal=DATABASE_URL="postgresql://<user>:<password>@<endpoint>:<port>/<db>?sslmode=require" \
-  --from-literal=ARCHIVE_S3_ACCESS_KEY_ID="<scaleway access key>" \
-  --from-literal=ARCHIVE_S3_SECRET_ACCESS_KEY="<scaleway secret key>"
+  --from-literal=ARCHIVE_S3_ACCESS_KEY_ID="<object storage access key>" \
+  --from-literal=ARCHIVE_S3_SECRET_ACCESS_KEY="<object storage secret key>"
 ```
 
-`<endpoint>`, `<port>`, and `<db>` come from the Database Instance's own **Connection Details** panel
+`<endpoint>`, `<port>`, and `<db>` come from the database service's own connection details
 (step 3). `DATABASE_URL_UNPOOLED` is deliberately omitted — see "About `DATABASE_URL_UNPOOLED`" in
 step 3 for why it has nothing to point to on this provider.
 
@@ -380,14 +376,14 @@ image:
 existingSecret: invoicerr-secrets
 
 postgresql:
-  enabled: false # Scaleway Managed Database is external — see step 3
+  enabled: false # the managed database is external - see step 3
 
 archive:
   storage: s3
   s3:
     bucket: invoicerr-archive
-    endpoint: https://s3.fr-par.scw.cloud
-    region: fr-par
+    endpoint: https://s3.gra.io.cloud.ovh.net
+    region: gra
     forcePathStyle: false
 
 app:

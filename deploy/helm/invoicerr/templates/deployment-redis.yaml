@@ -31,7 +31,7 @@ spec:
       automountServiceAccountToken: false
       # bitnami/redis's entrypoint runs as uid 1001 (never root, `id` inside the image gives
       # `uid=1001 gid=0(root)`) and does `mkdir -p /bitnami/redis` on every boot. HIT FOR REAL on a
-      # Scaleway Kapsule cluster, 2026-09-22: `mkdir: cannot create directory '/bitnami/redis':
+      # managed Kubernetes cluster, 2026-09-22: `mkdir: cannot create directory '/bitnami/redis':
       # Permission denied` — every real block-storage provisioner hands out a fresh PVC owned
       # root:root, so uid 1001 has no write access to it. `fsGroup` has kubelet chown the volume's
       # group to 1001 (and add it to every container's supplementary groups) before the container

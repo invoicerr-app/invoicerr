@@ -351,13 +351,13 @@ archive:
   storage: s3
   s3:
     bucket: "invoicerr-archive"
-    # Scaleway Object Storage example (fr-par region). Any S3-compatible endpoint works the same way
+    # OVHcloud Object Storage example (gra region). Any S3-compatible endpoint works the same way
     # (AWS S3 itself, MinIO, Backblaze B2, ...) — just change endpoint/region/forcePathStyle to match.
-    #   endpoint: https://s3.fr-par.scw.cloud
-    #   region:   fr-par
-    endpoint: "https://s3.fr-par.scw.cloud"
-    region: "fr-par"
-    # Most S3-compatible providers (Scaleway included) use virtual-hosted-style URLs
+    #   endpoint: https://s3.gra.io.cloud.ovh.net
+    #   region:   gra
+    endpoint: "https://s3.gra.io.cloud.ovh.net"
+    region: "gra"
+    # Most S3-compatible providers (OVHcloud included) use virtual-hosted-style URLs
     # (bucket.endpoint/key) — leave this false. Set true only for a provider/gateway that requires
     # path-style (endpoint/bucket/key), e.g. some MinIO setups behind a plain reverse proxy.
     forcePathStyle: false
@@ -419,14 +419,14 @@ documents:
     storage: local
     s3:
       bucket: "invoicerr-inbound"
-      # Same shape as `archive.s3` above — a Scaleway Object Storage example, any S3-compatible
+      # Same shape as `archive.s3` above - an OVHcloud Object Storage example, any S3-compatible
       # endpoint works identically (AWS S3, MinIO, Backblaze B2, ...). Use a DIFFERENT bucket from
       # `archive.s3.bucket`: this store's own `deleteAllInboundObjectsS3` (instance reset) and backup
       # source enumeration both treat `INBOUND_S3_BUCKET` as dedicated to inbound files alone.
-      #   endpoint: https://s3.fr-par.scw.cloud
-      #   region:   fr-par
-      endpoint: "https://s3.fr-par.scw.cloud"
-      region: "fr-par"
+      #   endpoint: https://s3.gra.io.cloud.ovh.net
+      #   region:   gra
+      endpoint: "https://s3.gra.io.cloud.ovh.net"
+      region: "gra"
       forcePathStyle: false
   # ===================================================================================================
   # Local, on-disk shared storage — mounted at /data on BOTH api and worker, ONLY when at least one of
@@ -540,7 +540,7 @@ ocr:
   # this ONE container from ever taking a WHOLE node for itself again, whatever else is scheduled on
   # it; raise the limit against your own node sizing, never remove it outright.
   #
-  # MEASURED on Kapsule, 2026-09-22/23 (e2e/load/results/): unbounded and synchronous, this pod
+  # MEASURED on a managed Kubernetes cluster, 2026-09-22/23 (e2e/load/results/): unbounded and synchronous, this pod
   # reached **19 GiB** at 50 hammering users, was evicted by the kubelet, made the bundled Postgres'
   # liveness probe fail and took the database down with it. With the queue cap below in place the
   # same load sits at **156 MiB** (results/run4-ocr-async), so 2Gi leaves roughly thirteen times the

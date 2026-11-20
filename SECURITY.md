@@ -50,7 +50,7 @@ all change how long a real fix takes; a promised date that then slips would be w
 - A vulnerability in a third-party dependency that has nothing to do with how Invoicerr uses it —
   report it upstream. Dependencies are kept up to date, but a CVE in a transitive package with no
   reachable path from this code isn't a finding about this project.
-- The infrastructure of a sub-processor (Scaleway, Cloudflare, Resend, Google, the national e-invoicing
+- The infrastructure of a sub-processor (OVHcloud, Cloudflare, Resend, Google, the national e-invoicing
   platforms) — each runs its own security program; see the Data Processing Agreement for who they are.
 - The marketing site at invoicerr.app: it lives in a separate repository
   ([invoicerr-app/landing](https://github.com/invoicerr-app/landing)) — report it there.

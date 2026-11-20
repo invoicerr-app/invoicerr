@@ -109,20 +109,20 @@ die jeweils im Rahmen ihrer eigenen Datenverarbeitungsbedingungen beauftragt wur
   Support-Korrespondenz empfangen wird und in dem die in Abschnitt 3 beschriebene Kopie jedes
   Wartelisteneintrags eingeht (ausschließlich Korrespondenz; Google sieht niemals die Daten, die in
   den über den Dienst erstellten Dokumenten enthalten sind).
-- **Scaleway SAS** — Infrastruktur-Hosting für die **Produktionsumgebung** des Dienstes: der
+- **OVH SAS** - Infrastruktur-Hosting für die **Produktionsumgebung** des Dienstes: der
   Kubernetes-Cluster, auf dem er läuft, die verwaltete PostgreSQL-Datenbank, in der die in Abschnitt 3
   beschriebenen Unternehmens- und Kontodaten sowie die von Ihnen über den Dienst erstellten Dokumente
   gespeichert werden, sowie der Objektspeicher, in dem archivierte Dokumente vorgehalten werden. **Der
   Dienst und die Kundendaten, einschließlich der Datenbank, werden in der Europäischen Union gehostet**,
-  in der Region Paris (Frankreich) von Scaleway, wobei die Datenbank über das eigene private Netzwerk
-  von Scaleway und nicht über das öffentliche Internet erreicht wird.
+  in der Region Paris (Frankreich) von OVHcloud, wobei die Datenbank über das eigene private Netzwerk
+  von OVHcloud und nicht über das öffentliche Internet erreicht wird.
 
 **Die für das Beta-Programm genutzte Abnahmeumgebung.** Bevor eine Version die oben beschriebene
 Produktionsinfrastruktur erreicht, validieren wir sie auf einer separaten Abnahmeumgebung, die der
 Anbieter selbst betreibt, auf seiner eigenen Infrastruktur, in Frankreich — kein Dritter hostet sie,
 weshalb sie oben nicht als Unterauftragsverarbeiter aufgeführt ist. Während des Beta-Programms nutzen
 die Teilnehmenden des Programms den Dienst auf dieser Abnahmeumgebung anstatt auf der
-Produktionsinfrastruktur von Scaleway, und ihre Kundendaten — einschließlich echter Rechnungen, echter
+Produktionsinfrastruktur von OVHcloud, und ihre Kundendaten - einschließlich echter Rechnungen, echter
 Kunden und anderer echter Geschäftsunterlagen — werden dort gespeichert. Sobald die für das
 Beta-Programm genutzte Abnahmeumgebung stillgelegt wird, werden diese Daten auf die oben beschriebene
 Produktionsinfrastruktur übertragen.
@@ -148,7 +148,7 @@ diesem Fall stützt sich die Übermittlung auf die vom jeweiligen Anbieter selbs
 Garantien nach Kapitel V der DSGVO (etwa die Standardvertragsklauseln der Europäischen Kommission).
 Dieser Abschnitt ist eine allgemeine Aussage und keine Zusicherung zur aktuellen Zertifizierung eines
 einzelnen Anbieters — wenden Sie sich an contact@invoicerr.app, um den konkreten Mechanismus zu
-erfahren, auf den sich ein bestimmter Anbieter derzeit stützt. **Scaleway SAS gehört nicht zu dieser
+erfahren, auf den sich ein bestimmter Anbieter derzeit stützt. **OVH SAS gehört nicht zu dieser
 Liste**: Es handelt sich um ein französisches Unternehmen, das zusätzlich zu der bereits in Abschnitt 4
 beschriebenen Kubernetes-Infrastruktur und dem Objektspeicher auch die verwaltete PostgreSQL-Datenbank
 des Unternehmens hostet, und zwar vollständig innerhalb seiner Region Paris (Frankreich) — kein Glied
@@ -266,9 +266,9 @@ Liste, Zweck und Dauer jedes Elements sowie dafür, warum kein Einwilligungsbann
 
 ## 10. Von uns betriebene Websites
 
-Der Dienst selbst läuft unter **my.invoicerr.app**, gehostet von Scaleway wie in Abschnitt 4
+Der Dienst selbst läuft unter **my.invoicerr.app**, gehostet von OVHcloud wie in Abschnitt 4
 beschrieben. Bis zum Start der gehosteten Version liefert diese Adresse die in Abschnitt 3
-beschriebene Wartelisten-Seite aus, die auf Cloudflare und nicht auf Scaleway läuft.
+beschriebene Wartelisten-Seite aus, die auf Cloudflare und nicht auf OVHcloud läuft.
 Getrennt vom Dienst veröffentlichen wir zwei öffentliche, statische Websites, die beide
 über **GitHub Pages** ausgeliefert werden — einen Hosting-Dienst, betrieben von **GitHub, Inc.**, 88
 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA, einer hundertprozentigen Tochtergesellschaft

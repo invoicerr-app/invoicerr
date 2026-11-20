@@ -106,20 +106,20 @@ chacun engagé selon ses propres conditions de traitement des données :
   **contact@invoicerr.app**, et où arrive la copie de chaque inscription à la liste d'attente décrite
   à la Section 3 (correspondance uniquement ; Google ne voit jamais les données contenues dans les
   documents que vous créez au moyen du Service).
-- **Scaleway SAS** — hébergement de l'infrastructure de l'**environnement de production** du Service :
+- **OVH SAS** - hébergement de l'infrastructure de l'**environnement de production** du Service :
   le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée qui stocke les
   données de la Société et de compte décrites à la Section 3 ainsi que les documents que vous créez au
   moyen du Service, et le stockage objet qui conserve les documents archivés. **Le Service et les
   Données Client, y compris la base de données, sont hébergés au sein de l'Union européenne**, dans la
-  région de Paris (France) de Scaleway, la base de données étant accessible via le réseau privé propre
-  de Scaleway plutôt que par l'internet public.
+  région de Paris (France) d'OVHcloud, la base de données étant accessible via le réseau privé propre
+  d'OVHcloud plutôt que par l'internet public.
 
 **L'environnement de recette utilisé pour le programme bêta.** Avant qu'une version n'atteigne
 l'infrastructure de production décrite ci-dessus, nous la validons sur un environnement de recette
 distinct, que le Prestataire exploite lui-même, sur sa propre infrastructure, en France — aucun tiers ne
 l'héberge, ce pourquoi il ne figure pas ci-dessus comme sous-traitant. Pendant le programme bêta, les
 participants au programme utilisent le Service sur cet environnement de recette plutôt que sur
-l'infrastructure de production de Scaleway, et leurs Données Client — y compris de véritables factures,
+l'infrastructure de production d'OVHcloud, et leurs Données Client - y compris de véritables factures,
 de véritables clients et d'autres données commerciales réelles — y sont stockées. Lorsque l'environnement
 de recette utilisé pour le programme bêta est retiré, ces données sont transférées vers l'infrastructure
 de production décrite ci-dessus.
@@ -145,7 +145,7 @@ transfert repose sur les garanties appropriées propres à ce prestataire au tit
 (telles que les clauses contractuelles types de la Commission européenne). La présente section
 constitue une déclaration générale, et non une affirmation sur la certification actuelle d'un prestataire
 donné — écrivez à contact@invoicerr.app pour connaître le mécanisme précis sur lequel repose un
-prestataire donné aujourd'hui. **Scaleway SAS ne figure pas dans cette liste** : il s'agit d'une société
+prestataire donné aujourd'hui. **OVH SAS ne figure pas dans cette liste** : il s'agit d'une société
 française qui héberge la base de données PostgreSQL managée de la Société, en plus de l'infrastructure
 Kubernetes et du stockage objet déjà décrits à la Section 4, entièrement au sein de sa région de Paris
 (France) — aucun maillon de la chaîne qui stocke les documents que vous créez, ou les données de compte
@@ -262,9 +262,9 @@ consentement n'est affiché.
 
 ## 10. Sites Web Que Nous Exploitons
 
-Le Service lui-même fonctionne à l'adresse **my.invoicerr.app**, hébergé par Scaleway comme décrit à la
+Le Service lui-même fonctionne à l'adresse **my.invoicerr.app**, hébergé par OVHcloud comme décrit à la
 Section 4. Jusqu'à l'ouverture de la version hébergée, cette adresse sert la page de liste d'attente
-décrite à la Section 3, servie par Cloudflare et non par Scaleway.
+décrite à la Section 3, servie par Cloudflare et non par OVHcloud.
 Séparément du Service, nous publions deux sites web publics et statiques, tous deux servis
 par **GitHub Pages** — un service d'hébergement exploité par **GitHub, Inc.**, 88 Colin P. Kelly Jr.
 Street, San Francisco, CA 94107, États-Unis, filiale à 100 % de Microsoft Corporation :

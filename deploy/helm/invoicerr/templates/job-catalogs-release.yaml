@@ -31,7 +31,7 @@ Postgres (`deployment-postgres.yaml`), `pre-install` is exactly the ordering tha
 runs pre-install hooks before any of this release's ordinary manifests are even applied, so on a
 fresh install the bundled Postgres Deployment/Service do not exist yet — there is nothing at
 `<postgres-service>:5432` for this Job to reach, not "not ready yet" but not there at all, no DNS
-name to even resolve. OBSERVED for real on a Scaleway Kapsule cluster, 2026-09-22, running a load
+name to even resolve. OBSERVED for real on a managed Kubernetes cluster, 2026-09-22, running a load
 test: `Error: P1001: Can't reach database server at "lt-invoicerr-postgres:5432"`, every time, on
 every fresh `postgresql.enabled=true` install. The only workaround at the time was `helm install
 --no-hooks` followed immediately by `helm upgrade` — the upgrade's `pre-upgrade` hook then found a

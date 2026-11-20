@@ -26,11 +26,11 @@ erstellen) — befindet sich ausschließlich in **Frankreich**, verteilt auf zwe
 
 | Umgebung | Komponente | Anbieter | Rechtsordnung |
 | --- | --- | --- | --- |
-| Produktion | Anwendungs-/Kubernetes-Infrastruktur, verwaltete PostgreSQL-Datenbank und Objektspeicher für Dokumente | Scaleway SAS | Frankreich (Region Paris) |
+| Produktion | Anwendungs-/Kubernetes-Infrastruktur, verwaltete PostgreSQL-Datenbank und Objektspeicher für Dokumente | OVH SAS | Frankreich (Region Paris) |
 | Abnahme | Anwendungsinfrastruktur, Datenbank und Dokumentenspeicher — genutzt, um eine Version vor Erreichen der Produktion zu validieren, und während des Beta-Programms von dessen Teilnehmenden genutzt | Der Anbieter selbst — kein Drittanbieter | Frankreich |
 
 Die Zeile „Produktion“ liegt bei einem einzigen Anbieter, in einer einzigen Region, die über das eigene
-private Netzwerk von Scaleway erreicht wird, statt über das öffentliche Internet — die Datenbank ist
+private Netzwerk von OVHcloud erreicht wird, statt über das öffentliche Internet - die Datenbank ist
 kein separater Sprung mehr zu einem anderen Anbieter oder in ein anderes Land. Die Zeile „Abnahme“ hat
 im eigentlichen Sinne gar keinen Anbieter: Sie läuft auf einer Infrastruktur, die der Anbieter selbst
 betreibt, in Frankreich, sodass in dieser Kette kein Dritter existiert, an den eine ausländische Behörde

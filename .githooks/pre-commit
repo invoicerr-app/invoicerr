@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Refuses a commit that carries a credential.
 #
-# Written after a real leak: on 2026-09-23 a Scaleway API key was interpolated into a values file
+# Written after a real leak: on 2026-09-23 a cloud provider API key was interpolated into a values file
 # by a load-test script, committed and pushed. The key had to be revoked. Nothing had stood between
 # writing it and pushing it.
 #
@@ -29,10 +29,10 @@ else
   echo "pre-commit: gitleaks not found, falling back to pattern matching (weaker)." >&2
 fi
 
-# Patterns worth refusing even when gitleaks has already passed: the Scaleway shapes this
-# organisation actually uses, which gitleaks' own rules do not all cover.
+# Patterns worth refusing even when gitleaks has already passed: the cloud key shapes this
+# organisation has used, which gitleaks' own rules do not all cover.
 patterns=(
-  'SCW[A-Z0-9]{16,}'                                   # Scaleway access key
+  'SCW[A-Z0-9]{16,}'                                   # cloud provider access key (SCW prefix)
   'whsec_[A-Za-z0-9]{16,}'                             # webhook signing secret
   '-----BEGIN [A-Z ]*PRIVATE KEY-----'                 # any private key
   '(ghp|gho|ghs|ghu)_[A-Za-z0-9]{30,}'                 # GitHub token

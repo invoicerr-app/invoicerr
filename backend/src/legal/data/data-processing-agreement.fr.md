@@ -498,8 +498,8 @@ certificat émis et renouvelé automatiquement.
 **Mesures de protection des données pendant le stockage**
 
 L'environnement de production, y compris sa base de données PostgreSQL managée et le stockage objet qui
-contient les documents archivés, est hébergé par Scaleway SAS dans sa région de Paris (France) ; la base
-de données est accessible par le réseau privé de Scaleway, et non par l'internet public. L'environnement
+contient les documents archivés, est hébergé par OVH SAS dans sa région de Paris (France) ; la base
+de données est accessible par le réseau privé d'OVHcloud, et non par l'internet public. L'environnement
 de recette, utilisé pour valider une version et, pendant le programme bêta, par les participants à ce
 programme, fonctionne sur une infrastructure que le Sous-traitant exploite lui-même, en France. Aucun
 des deux environnements n'est hébergé, répliqué ou sauvegardé hors de l'Union européenne.
@@ -544,15 +544,15 @@ au moins 30 jours à l'avance.
 
 **1.**
 
-- **Nom**: Scaleway SAS
-- **Adresse**: 8 rue de la Ville-l'Évêque, 75008 Paris, France
-- **Nom, fonction et coordonnées de la personne de contact**: privacy@scaleway.com
+- **Nom**: OVH SAS
+- **Adresse**: 2 rue Kellermann, 59100 Roubaix, France
+- **Nom, fonction et coordonnées de la personne de contact**: dpo@ovh.com
 - **Description du traitement (y compris une délimitation claire des responsabilités dans le cas où
   plusieurs sous-traitants ultérieurs sont autorisés)**: Hébergement de l'environnement de production du
   Service : le cluster Kubernetes sur lequel il fonctionne, la base de données PostgreSQL managée qui
   conserve les documents créés par le Client (et les données à caractère personnel qu'ils contiennent),
   et le stockage objet qui contient les documents archivés. Région de Paris (France) ; la base de
-  données est accessible par le réseau privé de Scaleway, et non par l'internet public.
+  données est accessible par le réseau privé d'OVHcloud, et non par l'internet public.
 
 **2.**
 
@@ -621,7 +621,7 @@ Service.
 **Transferts internationaux (clause 7.8).** Resend, Cloudflare et Google LLC peuvent traiter des données
 hors de l'Espace économique européen, notamment aux États-Unis. Un tel transfert repose sur les
 garanties propres à ce prestataire au titre du chapitre V du règlement (UE) 2016/679 (Politique de
-Confidentialité, Section 5). Scaleway SAS traite les données en France.
+Confidentialité, Section 5). OVH SAS traite les données en France.
 
 ## Dispositions complémentaires
 

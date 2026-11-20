@@ -10,7 +10,7 @@
  * to local disk or to a half-configured client. The wording of that error belongs to each caller
  * (each one names the setting that made S3 necessary), so it is a parameter here, never a shared
  * sentence. Region and both credentials are required; `_ENDPOINT` is OPTIONAL (real AWS resolves its
- * own regional endpoint; Scaleway and most S3-compatible providers need it); `_FORCE_PATH_STYLE` is a
+ * own regional endpoint; most S3-compatible providers need it); `_FORCE_PATH_STYLE` is a
  * flag for providers that do not support virtual-hosted-style addressing.
  *
  * Never a shared `S3Client` instance between families: different credentials, and very often a
