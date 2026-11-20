@@ -10,6 +10,7 @@ import { PasswordInput } from "@/pages/auth/_components/password-input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
@@ -102,6 +103,9 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false)
   const [signInError, setSignInError] = useState<SignInError | null>(null)
+  const [twoFactorPending, setTwoFactorPending] = useState(false)
+  const [useBackupCode, setUseBackupCode] = useState(false)
+  const [trustDevice, setTrustDevice] = useState(false)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
   const { demo } = useDemoMode()
@@ -151,6 +155,23 @@ export default function LoginPage() {
     }
   }
 
+  // A 200 does not mean the browser stored the session cookie (a Secure cookie over http is dropped).
+  const finishSignIn = useCallback(async () => {
+    const session = await authClient.getSession()
+    if (!session.data) {
+      setSignInError({
+        title: t("auth.login.messages.sessionNotStoredTitle"),
+        description: t("auth.login.messages.sessionNotStored"),
+      })
+      setLoading(false)
+      return
+    }
+
+    toast.success(t("auth.login.messages.loginSuccess"))
+    // Force a full page reload to refresh the session state
+    window.location.href = "/dashboard"
+  }, [t])
+
   const signInWithPassword = useCallback(
     async (email: string, password: string) => {
       setLoading(true)
@@ -174,23 +195,37 @@ export default function LoginPage() {
         return
       }
 
-      // A 200 does not mean the browser stored the session cookie (a Secure cookie over http is dropped).
-      const session = await authClient.getSession()
-      if (!session.data) {
-        setSignInError({
-          title: t("auth.login.messages.sessionNotStoredTitle"),
-          description: t("auth.login.messages.sessionNotStored"),
-        })
+      // A correct password on an account with a second factor gives no session yet: the code comes next.
+      if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+        setTwoFactorPending(true)
         setLoading(false)
         return
       }
 
-      toast.success(t("auth.login.messages.loginSuccess"))
-      // Force a full page reload to refresh the session state
-      window.location.href = "/dashboard"
+      await finishSignIn()
     },
-    [t],
+    [t, finishSignIn],
   )
+
+  const verifySecondFactor = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const fields = event.currentTarget.elements
+    const code = (fields.namedItem("code") as HTMLInputElement).value.trim()
+    setLoading(true)
+    setSignInError(null)
+    const result = useBackupCode
+      ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice })
+      : await authClient.twoFactor.verifyTotp({ code, trustDevice })
+    if (result.error) {
+      setSignInError({
+        title: t("auth.login.twoFactor.errorTitle"),
+        description: result.error.message || t("auth.login.twoFactor.error"),
+      })
+      setLoading(false)
+      return
+    }
+    await finishSignIn()
+  }
 
   // Once per visit: a failure leaves the page as it is, with the error and the form.
   const autoSignInStarted = useRef(false)
@@ -284,7 +319,53 @@ export default function LoginPage() {
         </>
       )}
 
-      {oidcOnly ? (
+      {twoFactorPending ? (
+        <form onSubmit={verifySecondFactor} className="space-y-4" data-cy="auth-two-factor-form">
+          <p className="text-sm text-muted-foreground">
+            {useBackupCode
+              ? t("auth.login.twoFactor.backupDescription")
+              : t("auth.login.twoFactor.description")}
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="code">
+              {useBackupCode ? t("auth.login.twoFactor.backupLabel") : t("auth.login.twoFactor.label")}
+            </Label>
+            <Input
+              key={useBackupCode ? "backup" : "totp"}
+              id="code"
+              name="code"
+              autoFocus
+              autoComplete="one-time-code"
+              inputMode={useBackupCode ? "text" : "numeric"}
+              disabled={loading}
+              data-cy="auth-two-factor-code-input"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="trustDevice"
+              checked={trustDevice}
+              onCheckedChange={(checked) => setTrustDevice(checked === true)}
+              data-cy="auth-two-factor-trust"
+            />
+            <Label htmlFor="trustDevice" className="font-normal">
+              {t("auth.login.twoFactor.trustDevice")}
+            </Label>
+          </div>
+          <Button type="submit" className="w-full" loading={loading} data-cy="auth-two-factor-submit">
+            {t("auth.login.twoFactor.submit")}
+          </Button>
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto w-full p-0"
+            onClick={() => setUseBackupCode((value) => !value)}
+            data-cy="auth-two-factor-toggle"
+          >
+            {useBackupCode ? t("auth.login.twoFactor.useApp") : t("auth.login.twoFactor.useBackup")}
+          </Button>
+        </form>
+      ) : oidcOnly ? (
         <p className="text-center text-sm text-muted-foreground" data-cy="auth-oidc-only-notice">
           {t("auth.login.sso.oidcOnly", "This instance uses single sign-on only.")}
         </p>

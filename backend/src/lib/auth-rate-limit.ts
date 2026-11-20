@@ -75,6 +75,7 @@ export const AUTH_RATE_LIMIT_RULES: readonly AuthRateLimitRule[] = [
       subPath.startsWith('/forget-password') ||
       subPath.startsWith('/reset-password') ||
       subPath.includes('otp') ||
+      subPath.startsWith('/two-factor/') ||
       subPath === '/send-verification-email',
     windowMs: 60_000,
     max: 15,

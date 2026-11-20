@@ -58,6 +58,7 @@
     "i18next-browser-languagedetector": "^8.2.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.523.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-day-picker": "^9.7.0",
     "react-dom": "^19.1.0",

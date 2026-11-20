@@ -1,4 +1,14 @@
 /**
+ * Two-factor setup routes of better-auth's two-factor plugin. On a demo instance every visitor shares
+ * one account, so whoever enabled a second factor there would lock every other visitor out.
+ */
+const TWO_FACTOR_SETUP_PATHS = [
+  '/two-factor/enable',
+  '/two-factor/disable',
+  '/two-factor/generate-backup-codes',
+];
+
+/**
  * Pure path-matching for `lib/auth.ts`'s own `hooks.before` demo-mode guard, pulled out into its own
  * file for the exact reason `sso-policy.ts`'s own functions are (see that file's own header, quoted
  * here since it applies verbatim): importing `lib/auth.ts` itself builds a live Prisma adapter, so no
@@ -8,12 +18,14 @@
  * Better-auth's own route path, with no `/api/auth` prefix, confirmed against the installed
  * better-auth 1.7.4 route source (`node_modules/better-auth/dist/api/routes/update-user.mjs`).
  */
-const DEMO_BLOCKED_AUTH_PATHS = new Set(['/change-email', '/change-password']);
+const DEMO_BLOCKED_AUTH_PATHS = new Set(['/change-email', '/change-password', ...TWO_FACTOR_SETUP_PATHS]);
 
 export function isDemoBlockedAuthPath(path: string): boolean {
   return DEMO_BLOCKED_AUTH_PATHS.has(path);
 }
 
 export function demoBlockedAuthActionLabel(path: string): string {
-  return path === '/change-email' ? 'Changing the account email' : 'Changing the password';
+  if (path === '/change-email') return 'Changing the account email';
+  if (path === '/change-password') return 'Changing the password';
+  return 'Changing two-factor authentication';
 }
