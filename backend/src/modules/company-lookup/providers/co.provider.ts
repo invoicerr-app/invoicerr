@@ -11,7 +11,7 @@ import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, Look
 const RUES_URL = 'https://www.datos.gov.co/resource/c82u-588k.json';
 
 /** NIT: 9-10 digits, mod-11 verification digit (the last one, often written after a dash). */
-export function isValidNit(value: string): boolean {
+function isValidNit(value: string): boolean {
   const clean = digits(value);
   return clean.length >= 8 && clean.length <= 10;
 }

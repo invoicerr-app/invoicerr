@@ -13,7 +13,7 @@
  */
 
 export const OPEN_ER_API_BASE_CURRENCY = 'EUR';
-export const OPEN_ER_API_RATES_URL = `https://open.er-api.com/v6/latest/${OPEN_ER_API_BASE_CURRENCY}`;
+const OPEN_ER_API_RATES_URL = `https://open.er-api.com/v6/latest/${OPEN_ER_API_BASE_CURRENCY}`;
 
 /** Same bound and same reasoning as `ecb-rates-client.ts#FETCH_TIMEOUT_MS` — this call also happens
  *  on the BullMQ worker thread (`currency-rate-sweep-runner.ts`), and only ever AFTER the ECB call

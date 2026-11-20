@@ -13,7 +13,7 @@ export interface WebhookDriver {
  * pointing at an internal address, so redirects are never followed, and a bounded timeout keeps one
  * unresponsive endpoint from holding the delivery.
  */
-export const WEBHOOK_FETCH_TIMEOUT_MS = 10_000;
+const WEBHOOK_FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * The only outbound request a driver makes. The pinned `dispatcher` connects to the address the guard

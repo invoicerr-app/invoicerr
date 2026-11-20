@@ -19,7 +19,7 @@ import {
 const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
 
 /** Optional DI token so a deployment (or a test) can shorten the cache. */
-export const COMPANY_LOOKUP_TTL_MS = 'COMPANY_LOOKUP_TTL_MS';
+const COMPANY_LOOKUP_TTL_MS = 'COMPANY_LOOKUP_TTL_MS';
 
 /**
  * "Complete enough to stop asking": the source gave a real registered name or an
