@@ -30,6 +30,7 @@ import { PublicDocumentsModule } from './modules/documents/public/public-documen
 import { SdiNotificheModule } from './modules/documents/transports/sdi/sdi-notifiche.module';
 import { DocumentsQueueWorkerModule } from './modules/documents/queue/document-queue-worker.module';
 import { HealthModule } from './modules/health/health.module';
+import { ObservabilityModule } from './observability/observability.module';
 import { InstanceModule } from './modules/instance/instance.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { LegalModule } from './legal/legal.module';
@@ -256,6 +257,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // `billingEnabled`).
     LegalModule,
     HealthModule,
+    ObservabilityModule,
     // `GET /api/version` — issue #371, installed version + update-availability check. Always
     // imported, no flag: see `version.module.ts`'s own header.
     VersionModule,

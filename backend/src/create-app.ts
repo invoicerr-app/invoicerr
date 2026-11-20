@@ -1,5 +1,5 @@
 import * as bodyParser from 'body-parser';
-import type { INestApplication, Type } from '@nestjs/common';
+import { type INestApplication, Logger, type Type } from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
@@ -12,6 +12,8 @@ import { createLibRedisClient } from './lib/redis-connection';
 import { resolveTrustProxyHops } from './lib/trust-proxy';
 import { auth } from './lib/auth';
 import { RedactingConsoleLogger } from './logger/redacting-console-logger';
+import { httpMetricsMiddleware, startDefaultMetrics } from './observability/metrics';
+import { resolveMetricsConfig } from './observability/observability-config';
 
 /**
  * Everything between `NestFactory.create()` and `app.listen()` — split out of `main.ts` (where
@@ -74,6 +76,14 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   });
   app.use(cookieParser());
   app.setGlobalPrefix('api');
+
+  const metricsConfig = resolveMetricsConfig();
+  if (metricsConfig.refusal) new Logger('Metrics').warn(metricsConfig.refusal);
+  if (metricsConfig.enabled) {
+    startDefaultMetrics('invoicerr-api');
+    // First middleware, so the timing covers better-auth's raw routes as well as Nest's.
+    app.use(httpMetricsMiddleware());
+  }
 
   // Per-client rate limiting fix (measured live 2026-09-22 — see `lib/client-ip-header.ts`'s own header
   // for the full defect and mechanism): overwrite a dedicated, always-single-value header with

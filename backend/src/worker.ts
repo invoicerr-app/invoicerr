@@ -1,3 +1,4 @@
+import './observability/register-tracing';
 import * as http from 'node:http';
 
 import { NestFactory } from '@nestjs/core';
@@ -6,6 +7,8 @@ import { logPersistenceHealth } from './logger/log-persistence-health';
 import { WorkerModule } from './worker.module';
 import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 import { redactLogValue } from './logger/redaction';
+import { renderMetrics, startDefaultMetrics } from './observability/metrics';
+import { resolveMetricsConfig } from './observability/observability-config';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -34,9 +37,20 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.init();
 
+  const metricsConfig = resolveMetricsConfig();
+  if (metricsConfig.refusal) console.warn(`[worker] ${metricsConfig.refusal}`);
+  if (metricsConfig.enabled) startDefaultMetrics('invoicerr-worker');
+
   const port = 3001;
   http
-    .createServer((_req, res) => {
+    .createServer((req, res) => {
+      if (req.url === '/metrics' || req.url?.startsWith('/metrics?')) {
+        void renderMetrics(req.headers.authorization, metricsConfig).then((result) => {
+          res.writeHead(result.status, { 'Content-Type': result.contentType });
+          res.end(result.body);
+        });
+        return;
+      }
       const logPersistence = logPersistenceHealth.snapshot();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: logPersistence.status, logPersistence }));
