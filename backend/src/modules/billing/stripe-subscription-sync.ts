@@ -46,6 +46,7 @@ import {
 } from '../../../prisma/generated/prisma/client';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
 import { endsFounderGrid, holdsFounderGrid } from './founder-grid';
+import { PAID_STRIPE_STATUSES } from './stripe-statuses';
 
 /** The plugin's own `subscription` row fields this module reads. */
 export interface PluginSubscriptionRow {
@@ -76,8 +77,6 @@ export interface StripeSubscriptionFacts {
   currentPeriodEnd: Date | undefined;
   factAt: Date;
 }
-
-const PAID_STRIPE_STATUSES = new Set(['active', 'trialing']);
 
 export function mapStripeSubscriptionStatus(status: string): 'ACTIVE' | 'PAST_DUE' {
   return PAID_STRIPE_STATUSES.has(status) ? 'ACTIVE' : 'PAST_DUE';

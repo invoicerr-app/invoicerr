@@ -22,6 +22,7 @@ import { logger } from '@/logger/logger.service';
 import { grantFounderGrid } from './founder-grid';
 import { stripeClientFor } from './stripe-client';
 import { type BillingInterval, readStripePriceCatalog } from './stripe-price-catalog';
+import { LIVE_STRIPE_STATUSES } from './stripe-statuses';
 
 export const PREORDER_METADATA_KEY = 'invoicerr_preorder';
 export const FOUNDER_PREORDER = 'founder';
@@ -169,8 +170,6 @@ const stripeApi = (env: NodeJS.ProcessEnv): PreorderStripeApi => ({
     stripeClientFor(env).subscriptions.create(params, { idempotencyKey }),
 });
 
-// A subscription Stripe still bills, or may bill again: claiming on top of it would charge twice.
-const LIVE_STATUSES = ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'];
 
 export type ClaimPreorderResult =
   | { outcome: 'claimed'; stripeSubscriptionId: string; prepaidUntil: Date | null }
@@ -203,8 +202,9 @@ export async function claimFounderPreorder(
   });
   if (!company) return { outcome: 'no_company' };
 
+  // A subscription Stripe still bills, or may bill again: claiming on top of it would charge twice.
   const live = await prisma.subscription.findFirst({
-    where: { referenceId: companyId, status: { in: LIVE_STATUSES } },
+    where: { referenceId: companyId, status: { in: LIVE_STRIPE_STATUSES } },
     select: { id: true },
   });
   if (live) return { outcome: 'already_subscribed' };
