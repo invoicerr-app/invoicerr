@@ -74,11 +74,13 @@ never an operator name:
 - **Operation data** (CGI art. 290): domestic B2C sales (`scope.transactions: "b2c"`,
   `buyerType: ["INDIVIDUAL"]`, `buyerEstablishment: "domestic"`). The international B2B flows the
   article also lists (10.1 and 10.2) are a follow-up slice and stay out of this fact, so they are
-  never pushed through the B2C transaction route. Operations exempt under CGI art. 261 to 261 E,
-  including a seller under the franchise en base, are outside the fact.
+  never pushed through the B2C transaction route. Operations exempt under CGI art. 261 to 261 E
+  are outside the fact. A seller under the franchise en base (art. 293 B) is not one of those
+  exemptions and declares its B2C sales, at its own frequency (CGI ann. II art. 242 nonies O).
 - **Payment data** (CGI art. 290 A): `transactions: "payments"`, `vatOnCollection: true`. Only a
   domestic B2C service invoice whose VAT is due on collection is declared. The option for VAT on
-  debits, or a goods-only invoice, is out of scope. The amount actually received is split by VAT rate
+  debits, a goods-only invoice, or a seller under the franchise en base (pending legal counsel on
+  art. 290 A, decided on issue #761) is out of scope. The amount actually received is split by VAT rate
   from the invoice's own lines, never recomputed from the invoice total.
 
 The start date is data too. `applicability` holds one window per company profile answer: a LARGE or

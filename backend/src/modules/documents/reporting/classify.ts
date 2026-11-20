@@ -72,27 +72,33 @@ function establishmentOf(operation: DeclarationOperation): 'domestic' | 'foreign
 }
 
 /**
- * Why a fact cannot fire: the seller's own exemption (CGI art. 261 to 261 E carve these operations
- * out of art. 290's B2C data set) and, for payments, the option for VAT on debits (art. 290 A only
- * targets VAT exigible on collection). Checked before the scope entries so an exempt operation never
- * needs a buyer type to be classified as out.
+ * Why a payment fact cannot fire because of the seller's VAT regime. Only payment data depends on it:
+ * art. 290 A targets VAT exigible on collection, so the option for VAT on debits is out, and a seller
+ * under the franchise en base sends none until legal counsel settles whether it owes payment data
+ * (decided on issue #761). Sales data does not: the franchise en base (art. 293 B) is not one of the
+ * art. 261 to 261 E exemptions art. 290 III carves out, and CGI ann. II art. 242 nonies O gives that
+ * regime its own transmission frequency. The CGI articles are recodified in the CIBS from 2027-01-01
+ * (ordonnance n° 2025-1247, renumbered by ordonnance n° 2026-671); the reasons cite both corpora, and
+ * the successor article numbers are not restated until a consolidated CIBS page is read. Checked
+ * before the scope entries so such a payment never needs a buyer type to be classified as out.
  */
 function outBecauseOfSellerRegime(
   scopeEntries: ReportingScopeEntry[] | undefined,
   operation: DeclarationOperation,
 ): string | undefined {
-  const regime = operation.companyProfile?.vatRegime;
-  if (regime === 'FRANCHISE') {
-    return (
-      'The company is under the VAT franchise (franchise en base): operations exempt under CGI ' +
-      'art. 261 to 261 E are outside the e-reporting set.'
-    );
-  }
   for (const entry of scopeEntries ?? []) {
-    if (entry.transactions === 'payments' && entry.vatOnCollection === true && !operation.vatOnCollection) {
+    if (entry.transactions !== 'payments' || entry.vatOnCollection !== true) continue;
+    if (operation.companyProfile?.vatRegime === 'FRANCHISE') {
+      return (
+        'The company is under the VAT franchise (franchise en base): its payment data is not ' +
+        'declared until the open question on CGI art. 290 A (recodified in the CIBS from 2027-01-01) ' +
+        'is answered.'
+      );
+    }
+    if (!operation.vatOnCollection) {
       return (
         'The company opted for VAT on debits: payment data only covers VAT due on collection ' +
-        '(CGI art. 290 A).'
+        '(CGI art. 290 A, recodified in the CIBS from 2027-01-01).'
       );
     }
   }

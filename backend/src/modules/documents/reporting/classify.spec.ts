@@ -64,10 +64,16 @@ describe('classifyObligation  -  the French B2C obligation', () => {
     );
   });
 
-  it('is out for an exempt seller (franchise en base)', () => {
+  it('is in for a seller under the franchise en base (art. 293 B is not an art. 261 exemption)', () => {
     expect(
-      classifyObligation(b2cObligation, operation({ companyProfile: { vatRegime: 'FRANCHISE' } })).status,
-    ).toBe('out');
+      classifyObligation(
+        b2cObligation,
+        operation({
+          companyProfile: { sizeCategory: 'LARGE', vatRegime: 'FRANCHISE' },
+          vatOnCollection: false,
+        }),
+      ).status,
+    ).toBe('in');
   });
 });
 
@@ -145,6 +151,15 @@ describe('classifyObligation  -  payment data (CGI art. 290 A)', () => {
     expect(
       classifyObligation(paymentObligation, payment({ buyerType: 'COMPANY', companyProfile: {} })).status,
     ).toBe('out');
+  });
+
+  it('is out for a seller under the franchise en base, pending counsel on art. 290 A', () => {
+    const verdict = classifyObligation(
+      paymentObligation,
+      payment({ companyProfile: { sizeCategory: 'LARGE', vatRegime: 'FRANCHISE' }, vatOnCollection: false }),
+    );
+    expect(verdict.status).toBe('out');
+    expect(verdict.reason).toContain('franchise');
   });
 
   it('does not fire the payment fact on the invoice trigger', () => {
