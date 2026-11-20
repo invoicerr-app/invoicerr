@@ -5,7 +5,7 @@
  * Accepts SIRET, SIREN and the intra-community VAT number. A non-head-office SIRET falls back to its
  * SIREN, because the invoicing forms need the legal unit's identity, not the branch's.
  */
-import { calculateFrenchVAT, isValidSiret, luhnSum } from '@/utils/fr-identifiers';
+import { calculateFrenchVAT, isLuhnValid, isValidSiret } from '@/utils/fr-identifiers';
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { credentialsPresent } from './shared';
@@ -16,8 +16,7 @@ const SEARCH_URL = 'https://recherche-entreprises.api.gouv.fr/search';
 /** SIREN validity = Luhn over 9 digits (INSEE). */
 export function isValidSiren(value: string): boolean {
   const clean = digits(value);
-  if (clean.length !== 9) return false;
-  return luhnSum(clean) % 10 === 0;
+  return isLuhnValid(clean, 9);
 }
 
 /** Extracts the searchable SIREN/SIRET from whatever the user typed. */

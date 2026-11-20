@@ -7,20 +7,25 @@
  */
 
 /**
- * Standard Luhn sum: every second digit from the right is doubled (minus 9 above 9). A string of
- * digits is valid when the result is a multiple of 10. INSEE uses it for both SIREN and SIRET.
+ * Standard Luhn check: every second digit from the right is doubled (minus 9 above 9), and the
+ * digits are valid when the sum is a multiple of 10. INSEE uses it for both SIREN and SIRET.
+ *
+ * The loop is bounded by the fixed identifier length (9 or 14), never by the input's own length,
+ * as the inline loops it replaces were: the input comes from user requests (CodeQL
+ * js/loop-bound-injection).
  */
-export function luhnSum(digits: string): number {
+export function isLuhnValid(digits: string, length: 9 | 14): boolean {
+  if (digits.length !== length) return false;
   let sum = 0;
-  for (let i = 0; i < digits.length; i++) {
-    let digit = parseInt(digits[digits.length - 1 - i], 10);
+  for (let i = 0; i < length; i++) {
+    let digit = parseInt(digits[length - 1 - i], 10);
     if (i % 2 === 1) {
       digit *= 2;
       if (digit > 9) digit -= 9;
     }
     sum += digit;
   }
-  return sum;
+  return sum % 10 === 0;
 }
 
 export function formatSiret(siret: string): string {
@@ -29,8 +34,7 @@ export function formatSiret(siret: string): string {
 
 export function isValidSiret(siret: string): boolean {
   const formatted = formatSiret(siret);
-  if (formatted.length !== 14) return false;
-  return luhnSum(formatted) % 10 === 0;
+  return isLuhnValid(formatted, 14);
 }
 
 export function calculateFrenchVAT(siren: string): string {
