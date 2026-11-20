@@ -686,17 +686,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   // every one of these three defaults exists to uphold when `input.branding` (or a given field on it)
   // is absent.
   const accentColor = input.branding?.accentColor || DEFAULT_ACCENT_COLOR;
-  const bodyFontStack = fontStackFor(input.branding?.font) ?? DEFAULT_BODY_FONT_STACK;
+  const companyFontStack = fontStackFor(input.branding?.font);
+  const bodyFontStack = companyFontStack ?? DEFAULT_BODY_FONT_STACK;
   const fontFaceCss = fontFaceCssFor(input.branding?.font);
   // A trailing `\n  ` (matching this file's own indentation) ONLY when non-empty, so splicing this
   // right after the main `</style>` below adds nothing at all — not even a blank line — for the
   // default, unbranded case.
   const fontFaceStyleBlock = fontFaceCss ? `\n  <style>${fontFaceCss}</style>` : '';
-  const templateStyle = templateStyleBlock(
-    input.branding?.template,
-    accentColor,
-    fontStackFor(input.branding?.font),
-  );
+  const templateStyle = templateStyleBlock(input.branding?.template, accentColor, companyFontStack);
   const logoDataUri = input.branding?.logoDataUri || null;
   // Same "adds nothing at all when absent" discipline as `fontFaceStyleBlock` above — see this
   // block's own splice point in the header markup below.

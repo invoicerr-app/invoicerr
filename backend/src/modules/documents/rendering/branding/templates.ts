@@ -80,8 +80,11 @@ export function templateStyleBlock(
   accentColor: string,
   companyFontStack: string | null,
 ): string {
-  if (template === 'original') return originalStyleBlock(accentColor, companyFontStack);
-  if (template !== 'atelier') return '';
+  if (!isDocumentTemplateKey(template)) return '';
+  return TEMPLATE_STYLES[template](accentColor, companyFontStack);
+}
+
+function atelierStyleBlock(accentColor: string, companyFontStack: string | null): string {
   const body = companyFontStack ?? UI_STACK;
   const tint = `color-mix(in srgb, ${accentColor} 9%, white)`;
   return `
@@ -161,3 +164,13 @@ function originalStyleBlock(accentColor: string, companyFontStack: string | null
     .legal-mentions, .custom-fields-section { margin-top: 30px; }
   </style>`;
 }
+
+type TemplateStyleBuilder = (accentColor: string, companyFontStack: string | null) => string;
+
+/** One stylesheet builder per template key: a key added to `DocumentTemplateKey` without an entry
+ *  here no longer compiles, instead of silently printing as classic. */
+const TEMPLATE_STYLES = {
+  classic: () => '',
+  atelier: atelierStyleBlock,
+  original: originalStyleBlock,
+} satisfies Record<DocumentTemplateKey, TemplateStyleBuilder>;
