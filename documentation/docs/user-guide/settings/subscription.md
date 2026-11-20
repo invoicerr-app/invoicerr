@@ -26,7 +26,15 @@ at any point before the deletion restores full access.
 ## Seats
 
 You pay per seat, and every member of the company needs one, owners included. The price per seat goes
-down as the company grows: the first seat, seats 2 to 4, and seat 5 onwards each have their own price.
+down as the company grows. On the yearly plan, excluding VAT:
+
+| Seats | Price per seat and year |
+| --- | --- |
+| First seat | €120 |
+| Seats 2 to 4 | €32 |
+| Seat 5 onwards | €24 |
+
+Five seats therefore cost €120 + 3 × €32 + €24 = €240 a year.
 
 - With fewer seats than members, the members who joined most recently cannot open the company at all
   until a seat frees up or more seats are bought. They get their access back on their own, with nothing
@@ -75,8 +83,8 @@ then becomes read-only for 14 days. The export is then emailed and the company i
 
 ## Founder pricing
 
-Some companies hold founder pricing, a lower price per seat. Settings > Subscription says so when your
-company holds it. It stays yours as long as the subscription renews without interruption: once a
+Some companies hold founder pricing. It is currently the same as the public price above. Settings >
+Subscription says so when your company holds it. It stays yours as long as the subscription renews without interruption: once a
 subscription on founder pricing is cancelled and ends, the company moves to the standard price for good.
 A failed payment that is retried, or a cancellation withdrawn before the end of the period, does not end it.
 

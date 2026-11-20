@@ -122,8 +122,8 @@ compris les éventuels paliers de volume, est publié sur notre page tarifaire e
 temps à autre ; le tarif en vigueur au début de chaque période de facturation régit cette période.
 
 6.4. Vous choisissez un cycle de facturation **mensuel** ou **annuel**. Polar facture un abonnement
-annuel en une fois, à l'avance, pour un montant égal à douze (12) fois le tarif mensuel par Siège alors en
-vigueur, multiplié par votre nombre de Sièges au moment de la facturation.
+annuel en une fois, à l'avance, au tarif annuel par Siège alors en vigueur publié sur notre page
+tarifaire, multiplié par votre nombre de Sièges au moment de la facturation.
 
 ## 7. Achat auprès de Polar, Paiement, Factures et Taxes
 
