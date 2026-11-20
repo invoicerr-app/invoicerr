@@ -134,6 +134,29 @@ filling in electronic invoices (version 1.10). No invoice built with them has be
 SdI yet, in test or production.
 :::
 
+## Stamp duty (`DatiBollo`)
+
+An invoice that carries **no VAT** above a threshold owes a fixed stamp duty, declared in the
+FatturaPA `DatiBollo` block. The builder reads every figure from the `stampDuty` entry of
+`einvoiceCodes` in `countries/data/it.json`: the amount (2,00 €), the threshold (77,47 €) and the
+seller schemes it binds (`STANDARD`, `FRANCHISE_BASE`, `EXEMPT`) - never from a country branch in the code:
+
+- **Who owes it**: the invoice carries no VAT on the part that matters, and that part exceeds 77,47 €.
+  A VAT-bearing invoice never owes it, at any amount (D.P.R. 642/1972, Tabella Allegato B, art. 6).
+- **What the threshold is measured on**: only the part of the invoice that carries no VAT, never
+  `ImportoTotaleDocumento`. On a mixed invoice, the taxed lines do not count towards the 77,47 €
+  (Agenzia delle Entrate, risposta a interpello n. 45/2024, recalling risoluzione n. 98/E of 2001).
+- **What is emitted**: `<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>`,
+  between `Numero` and `ImportoTotaleDocumento`, the position `DatiGeneraliDocumentoType` declares in
+  the vendored schema. The amount is **declared, not added** to the document totals: it is a tax the
+  seller pays through its quarterly F24, so no line and no total is invented for it.
+
+Two cases are deliberately left without the block, rather than guessed at: a document in a currency
+other than the euro (the 2,00 € would need the ECB rate frozen at issue) and an invoice to a public
+administration (who bears the duty there is not sourced in this repository yet). `fatturapa-provider.spec.ts`
+proves the block appears above the threshold, is absent at exactly 77,47 € and below, and that a
+threshold measured on a mixed invoice's exempt part alone does not fire.
+
 ## Fallback payment term
 
 The `paymentTerms.fallbackTerm` entry of `countries/data/it.json` is the 30 days an invoice's due
