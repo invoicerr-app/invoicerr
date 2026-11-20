@@ -58,6 +58,7 @@
  * id, which is exactly what `lastError` (left in place, `enabled` untouched) waits for.
  */
 import { ScheduleCadence } from './cadence';
+import { readIntEnv } from '@/utils/read-int-env';
 
 export interface ScheduleRow {
   id: string;
@@ -99,7 +100,7 @@ export const SCHEDULE_SWEEP_JOB_ID = 'document-schedule-sweep-singleton';
 export const SCHEDULE_OCCURRENCE_JOB_NAME = 'document-schedule-occurrence';
 
 export function readSweepIntervalMs(): number {
-  return parseInt(process.env.DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS ?? '60000', 10);
+  return readIntEnv('DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS', 60000);
 }
 
 /**

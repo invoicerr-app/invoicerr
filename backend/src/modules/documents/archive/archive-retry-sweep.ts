@@ -48,6 +48,7 @@
  * reported it broken); an archive that is genuinely missing half an hour after a delivery is not
  * harmless, and is the only case that gets loud.
  */
+import { readIntEnv } from '@/utils/read-int-env';
 
 export const ARCHIVE_RETRY_SWEEP_JOB_NAME = 'archive-retry-sweep';
 export const ARCHIVE_RETRY_SWEEP_JOB_ID = 'archive-retry-sweep-singleton';
@@ -57,7 +58,7 @@ export const ARCHIVE_RETRY_SWEEP_JOB_ID = 'archive-retry-sweep-singleton';
  *  way every sibling sweep's interval is, read fresh on every call so a test can drive it, never
  *  cached at module level. */
 export function readArchiveRetrySweepIntervalMs(): number {
-  return parseInt(process.env.ARCHIVE_RETRY_SWEEP_INTERVAL_MS ?? `${5 * 60 * 1000}`, 10);
+  return readIntEnv('ARCHIVE_RETRY_SWEEP_INTERVAL_MS', 5 * 60 * 1000);
 }
 
 /**
@@ -70,25 +71,25 @@ export function readArchiveRetrySweepIntervalMs(): number {
  * pass only falls further past due, which moves it to the head of the next one.
  */
 export function readArchiveRetryBatchSize(): number {
-  return parseInt(process.env.ARCHIVE_RETRY_SWEEP_BATCH ?? '50', 10);
+  return readIntEnv('ARCHIVE_RETRY_SWEEP_BATCH', 50);
 }
 
 /** First retry one minute after the failure, doubling each time. */
 export function readArchiveRetryBaseDelayMs(): number {
-  return parseInt(process.env.ARCHIVE_RETRY_BASE_DELAY_MS ?? `${60 * 1000}`, 10);
+  return readIntEnv('ARCHIVE_RETRY_BASE_DELAY_MS', 60 * 1000);
 }
 
 /** The ceiling the doubling stops at — an hour. Past escalation this is the steady cadence a row
  *  keeps for as long as the store stays broken. */
 export function readArchiveRetryMaxDelayMs(): number {
-  return parseInt(process.env.ARCHIVE_RETRY_MAX_DELAY_MS ?? `${60 * 60 * 1000}`, 10);
+  return readIntEnv('ARCHIVE_RETRY_MAX_DELAY_MS', 60 * 60 * 1000);
 }
 
 /** Attempts (INCLUDING the one at send time) after which a row stops being treated as a transient
  *  outage — see this file's own header. Five, with the default backoff, puts the escalation about
  *  half an hour after the delivery. */
 export function readArchiveRetryEscalateAfterAttempts(): number {
-  return parseInt(process.env.ARCHIVE_RETRY_ESCALATE_AFTER_ATTEMPTS ?? '5', 10);
+  return readIntEnv('ARCHIVE_RETRY_ESCALATE_AFTER_ATTEMPTS', 5);
 }
 
 /**

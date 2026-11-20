@@ -1,6 +1,7 @@
 import { mailT } from '@/mail/i18n';
 
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from '../rendering/language/supported-languages';
+import { readIntEnv } from '@/utils/read-int-env';
 
 /**
  * The dunning-reminder sweep's own PURE decisions — split from reminder-sweep-runner.ts (the
@@ -53,7 +54,7 @@ export const REMINDER_SWEEP_JOB_ID = 'document-reminder-sweep-singleton';
  *  `conformity-sweep.ts#readConformitySweepIntervalMs`'s exact shape (env var, base-10 `parseInt`,
  *  numeric fallback) — same convention, different cadence. */
 export function readReminderSweepIntervalMs(): number {
-  return parseInt(process.env.DOCUMENT_REMINDER_SWEEP_INTERVAL_MS ?? `${24 * 60 * 60 * 1000}`, 10);
+  return readIntEnv('DOCUMENT_REMINDER_SWEEP_INTERVAL_MS', 24 * 60 * 60 * 1000);
 }
 
 export interface ReminderTier {

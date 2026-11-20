@@ -4,6 +4,7 @@
  * global, so an unnamed call would silently share (and last-write-win) another queue's Redis options.
  */
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
+import { readIntEnv } from '@/utils/read-int-env';
 
 export const Q_WEBHOOK_DELIVERY = 'webhook-delivery';
 export const WEBHOOK_BULL_CONFIG_KEY = 'webhooks';
@@ -29,10 +30,10 @@ export interface WebhookDeliveryJobData {
  * below span roughly an hour, enough for an endpoint down for that long to recover.
  */
 export function readWebhookQueueAttempts(): number {
-  return parseInt(process.env.WEBHOOK_QUEUE_ATTEMPTS ?? '7', 10);
+  return readIntEnv('WEBHOOK_QUEUE_ATTEMPTS', 7);
 }
 
 /** Base delay of the exponential backoff, in ms; see `readWebhookQueueAttempts` for the total window. */
 export function readWebhookQueueBackoffMs(): number {
-  return parseInt(process.env.WEBHOOK_QUEUE_BACKOFF_MS ?? '60000', 10);
+  return readIntEnv('WEBHOOK_QUEUE_BACKOFF_MS', 60000);
 }
