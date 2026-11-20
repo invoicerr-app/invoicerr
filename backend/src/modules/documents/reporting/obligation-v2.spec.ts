@@ -156,6 +156,42 @@ describe('v2 reporting obligation validator', () => {
       },
       /"daysAfterTrigger" is not a non-negative integer/,
     ],
+    [
+      'a deadline day past the 28th',
+      (o) => {
+        o.timing = { deadline: { monthsAfterTrigger: 1, dayOfMonth: 31 } };
+        o.trigger = 'sent';
+        o.channels = [{ dischargedBy: 'provider', id: 'p', unit: 'document' }];
+      },
+      /"dayOfMonth" is not an integer from 1 to 28/,
+    ],
+    [
+      'a negative month offset',
+      (o) => {
+        o.timing = { deadline: { monthsAfterTrigger: -1, dayOfMonth: 5 } };
+        o.trigger = 'sent';
+        o.channels = [{ dischargedBy: 'provider', id: 'p', unit: 'document' }];
+      },
+      /"monthsAfterTrigger" is not a non-negative integer/,
+    ],
+    [
+      'a deadline mixing both forms',
+      (o) => {
+        o.timing = { deadline: { daysAfterTrigger: 3, dayOfMonth: 5 } };
+        o.trigger = 'sent';
+        o.channels = [{ dischargedBy: 'provider', id: 'p', unit: 'document' }];
+      },
+      /neither \{ "daysAfterTrigger" \} nor/,
+    ],
+    [
+      'a day of month with no month offset',
+      (o) => {
+        o.timing = { deadline: { dayOfMonth: 5 } };
+        o.trigger = 'sent';
+        o.channels = [{ dischargedBy: 'provider', id: 'p', unit: 'document' }];
+      },
+      /neither \{ "daysAfterTrigger" \} nor/,
+    ],
     ['an empty timing note', (o) => (o.timingNote = ''), /empty "timingNote"/],
     ['no channels', (o) => (o.channels = []), /no "channels"/],
     [
@@ -279,16 +315,22 @@ describe('upgradeLegacyFacts', () => {
 
   // Issue #768 rewrote the country files through this very upgrade. The only hand edit is Portugal's
   // trigger: the AT communication is due once the document is issued, not when it is sent, so both
-  // its obligations moved to "issued" with a timing note saying so. Anything else drifting fails here.
-  it('the shipped v2 files are the upgrade of the legacy facts, but for the Portuguese trigger', () => {
+  // its obligations moved to "issued" with a timing note saying so; the remainder of #768 then gave
+  // them the deadline that note states (the 5th of the following month, `periods.ts`). Anything else
+  // drifting fails here.
+  it('the shipped v2 files are the upgrade of the legacy facts, but for the Portuguese trigger and deadline', () => {
     const shipped = Object.fromEntries(ALL_REPORTING_OBLIGATION_FILES.map((f) => [f.countryCode, f]));
     expect(shipped.FR).toEqual(upgradeLegacyFacts(byCountry.FR));
     const upgradedPt = upgradeLegacyFacts(byCountry.PT);
-    expect(shipped.PT.obligations.map((o) => [o.trigger, o.timingNote])).toEqual(
-      upgradedPt.obligations.map(() => ['issued', expect.stringContaining('DL 198/2012, art. 3')]),
+    expect(shipped.PT.obligations.map((o) => [o.trigger, o.timingNote, o.timing])).toEqual(
+      upgradedPt.obligations.map(() => [
+        'issued',
+        expect.stringContaining('DL 198/2012, art. 3'),
+        { deadline: { monthsAfterTrigger: 1, dayOfMonth: 5 } },
+      ]),
     );
-    expect(shipped.PT.obligations.map(({ trigger, timingNote, ...rest }) => rest)).toEqual(
-      upgradedPt.obligations.map(({ trigger, timingNote, ...rest }) => rest),
+    expect(shipped.PT.obligations.map(({ trigger, timingNote, timing, ...rest }) => rest)).toEqual(
+      upgradedPt.obligations.map(({ trigger, timingNote, timing, ...rest }) => rest),
     );
   });
 

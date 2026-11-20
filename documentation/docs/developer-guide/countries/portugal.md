@@ -19,7 +19,16 @@ the channel, rather than silently falling back to email. The AT monthly declarat
 document's real ATCUD and declares credit notes too (as `NC`, referencing the invoice they correct).
 Both obligations are triggered by `issued` (DL 198/2012, art. 3: the communication covers documents
 issued, by the 5th of the following month), so an invoice validated and never sent is declared too,
-and one validated then sent is declared once. See [Declarations](../declarations.md).
+and one validated then sent is declared once. That deadline is data (`timing.deadline`,
+`{ "monthsAfterTrigger": 1, "dayOfMonth": 5 }`), read by `reporting/periods.ts`. See
+[Declarations](../declarations.md).
+
+The `TaxCode` of each declared VAT-rate group (e-Fatura field 1.6.14.7.3) is read from the
+`ptAtTaxCode` table in the `codeLists` section of `countries/data/pt.json`, through the shared
+`code-lists/lookup.ts`. A stored invoice line holds its rate and no VAT category, so the table is keyed
+on the rate class: `NOR` for a non-zero rate, `ISE` for 0%, `OUT` when no rate could be resolved. The
+table holds the codes the declaration has always sent; the reduced (`RED`) and intermediate (`INT`)
+codes are owed to issue #764, as the table's own provenance says.
 See [Compliance - Portugal](/compliance/pt) for the full, sourced picture.
 
 This page is a pointer by design. Everything Invoicerr knows about Portugal lives in its own data
