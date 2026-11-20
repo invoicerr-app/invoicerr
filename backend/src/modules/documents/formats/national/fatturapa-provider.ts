@@ -246,9 +246,13 @@ function datiBolloFor(
   sellerTaxScheme: TaxScheme | undefined,
   totals: ReturnType<typeof computeDocumentTotals>,
   currency: string,
+  sellerCountry: string,
+  formatCountry: string,
 ): { BolloVirtuale: 'SI'; ImportoBollo: string } | undefined {
   const fact = stampDutyFor(codes, sellerTaxScheme);
-  if (!fact || currency !== 'EUR') return undefined;
+  // The rule read above is the FORMAT's own country's (Italy's), so it only binds a seller that
+  // country actually taxes: a FatturaPA built for a seller established elsewhere declares no duty.
+  if (!fact || currency !== 'EUR' || sellerCountry !== formatCountry) return undefined;
 
   const nonVatBaseMinor = totals.vatBreakdown
     .filter((entry) => entry.ratePercent <= 0)
@@ -372,7 +376,16 @@ async function build(
   const totaleDocumento = fromMinor(totals.grossMinor, currency);
   // A credit note (TD04) never declares the duty: it corrects an invoice that already carried it,
   // and its own amounts are positive by construction (see this file's header, "TD04").
-  const datiBollo = isCreditNote ? undefined : datiBolloFor(codes, company.taxScheme, totals, currency);
+  const datiBollo = isCreditNote
+    ? undefined
+    : datiBolloFor(
+        codes,
+        company.taxScheme,
+        totals,
+        currency,
+        resolvePartyCountryCode(company) ?? '',
+        formatCountry,
+      );
 
   const fattura = {
     'p:FatturaElettronica': {

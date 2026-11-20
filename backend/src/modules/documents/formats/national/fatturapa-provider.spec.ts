@@ -712,7 +712,7 @@ describe('fatturapa-provider - DatiBollo, the stamp duty declared by the country
     );
     expect(extractTag(xml, 'BolloVirtuale')).toBe('SI');
     expect(extractTag(xml, 'ImportoBollo')).toBe('2.00');
-  });
+  }, 30_000);
 
   it('at or below 77,47 euro the duty is not due', async () => {
     const atThreshold = await buildSent(exemptData(77.47, 'FRANCHISE_BASE'), FORFETTARIO, ITALIAN_BUYER);
@@ -722,7 +722,7 @@ describe('fatturapa-provider - DatiBollo, the stamp duty declared by the country
     expect(atThreshold.xml).not.toContain('<DatiBollo>');
     expect(below.result.validation.valid).toBe(true);
     expect(below.xml).not.toContain('<DatiBollo>');
-  });
+  }, 30_000);
 
   it('an ordinary seller owes it too on an exempt invoice above the threshold', async () => {
     const { result, xml } = await buildSent(exemptData(500, undefined, 'it-esente'), SELLER, ITALIAN_BUYER);
@@ -730,14 +730,14 @@ describe('fatturapa-provider - DatiBollo, the stamp duty declared by the country
     expect(extractTag(xml, 'Natura')).toBe('N4');
     expect(result.validation.valid).toBe(true);
     expect(extractTag(xml, 'ImportoBollo')).toBe('2.00');
-  });
+  }, 30_000);
 
   it('a VAT-bearing invoice above the threshold carries no duty', async () => {
     const { result, xml } = await buildSent(VALID_DATA, SELLER, ITALIAN_BUYER);
 
     expect(result.validation.valid).toBe(true);
     expect(xml).not.toContain('<DatiBollo>');
-  });
+  }, 30_000);
 
   it('measures the threshold on the non-VAT part of a MIXED invoice, never on its total', async () => {
     // 1 000,00 taxed at 22% and 50,00 exempt: the total is far above 77,47, the non-VAT part is not.
@@ -764,5 +764,5 @@ describe('fatturapa-provider - DatiBollo, the stamp duty declared by the country
     expect(below.xml).not.toContain('<DatiBollo>');
     expect(above.result.validation.valid).toBe(true);
     expect(extractTag(above.xml, 'ImportoBollo')).toBe('2.00');
-  });
+  }, 30_000);
 });

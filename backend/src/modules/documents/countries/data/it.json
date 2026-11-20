@@ -1432,11 +1432,7 @@
       "amount": 2,
       "threshold": 77.47,
       "appliesTo": {
-        "sellerTaxSchemes": [
-          "STANDARD",
-          "FRANCHISE_BASE",
-          "EXEMPT"
-        ]
+        "sellerTaxSchemes": ["STANDARD", "FRANCHISE_BASE", "EXEMPT"]
       },
       "legalReference": "Imposta di bollo - D.P.R. 642/1972, art. 13 della Tariffa (Parte I) e art. 6 della Tabella (Allegato B)",
       "provenance": {
