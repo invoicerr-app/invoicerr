@@ -3,6 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { authClient } from "@/lib/auth"
 import { queryKeys } from "@/lib/query-keys"
 
+import type { PriceGrid } from "./use-billing"
+
 /** The fields of the Stripe plugin's subscription row this app reads. */
 export interface CompanyStripeSubscription {
   id: string
@@ -33,10 +35,10 @@ function unwrap<T>(result: { data: T | null; error: { message?: string } | null 
  * therefore read from `GET /api/billing/status` instead (`PAST_DUE`). Only enabled once the
  * caller knows hosted billing exists, so a self-hosted instance never calls it.
  */
-export function useCompanyStripeSubscription(companyId: string | null, enabled: boolean) {
+export function useCompanyStripeSubscription(companyId: string | null) {
   return useQuery({
     queryKey: queryKeys.billing.stripeSubscription(companyId),
-    enabled: enabled && !!companyId,
+    enabled: !!companyId,
     retry: false,
     staleTime: 30_000,
     queryFn: async (): Promise<CompanyStripeSubscription | null> => {
@@ -70,7 +72,7 @@ export function useStartCheckout() {
       seats,
     }: {
       companyId: string
-      plan: "standard" | "founder"
+      plan: PriceGrid
       annual: boolean
       seats: number
     }) =>

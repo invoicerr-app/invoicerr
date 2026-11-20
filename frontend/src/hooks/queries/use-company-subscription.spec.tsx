@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe("company subscription calls", () => {
   it("lists the subscription of the company customer", async () => {
-    const { result } = renderHook(() => useCompanyStripeSubscription("company-1", true), { wrapper })
+    const { result } = renderHook(() => useCompanyStripeSubscription("company-1"), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(subscription.list).toHaveBeenCalledWith({ query: company })

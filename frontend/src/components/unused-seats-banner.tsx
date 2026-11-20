@@ -3,7 +3,7 @@ import { Link } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useCompanies, useSeats } from "@/hooks/queries"
+import { seatHeadcount, useCompanies, useSeats } from "@/hooks/queries"
 import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 
 /**
@@ -23,7 +23,7 @@ export function UnusedSeatsBanner() {
   const { data: seatsView } = useSeats(isManager)
 
   if (!isManager || !seatsView) return null
-  const unused = seatsView.seats - seatsView.members.length - seatsView.waiting.length
+  const unused = seatsView.seats - seatHeadcount(seatsView)
   if (unused <= 0) return null
 
   return (

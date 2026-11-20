@@ -1,6 +1,9 @@
 import { useApiQuery } from "@/hooks/use-api-query"
 import { queryKeys } from "@/lib/query-keys"
 
+/** The price grid a checkout uses (mirrors the backend's `stripe-price-catalog.ts#PriceGrid`). */
+export type PriceGrid = "standard" | "founder"
+
 export type CompanySubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "BLOCKED" | "ZIPPED" | "DELETED"
 
 /** Mirrors the backend's own `billing-status-view.ts#BillingStatusView`. */
@@ -11,7 +14,7 @@ export interface BillingStatusView {
   trialEndsAt: string
   daysRemaining: number | null
   /** The price grid a checkout uses: `founder` while the company holds the founder grid. */
-  priceGrid: "standard" | "founder"
+  priceGrid: PriceGrid
 }
 
 /**
