@@ -59,10 +59,27 @@ export function httpMetricsMiddleware() {
   };
 }
 
+const BEARER_SCHEME = 'bearer';
+
+/**
+ * The token of an `Authorization: Bearer <token>` header, or undefined.
+ * Parsed without a regular expression: the header is caller-controlled, and a
+ * pattern like `\s+(.+)` backtracks quadratically on a long run of spaces.
+ */
+export function bearerToken(authorization: string | undefined): string | undefined {
+  if (!authorization) return undefined;
+  if (authorization.slice(0, BEARER_SCHEME.length).toLowerCase() !== BEARER_SCHEME) return undefined;
+  const rest = authorization.slice(BEARER_SCHEME.length);
+  // The scheme must be followed by whitespace, so "Bearerabc" is not a token.
+  if (rest.length === 0 || rest.trimStart().length === rest.length) return undefined;
+  const token = rest.trim();
+  return token.length > 0 ? token : undefined;
+}
+
 function tokenMatches(expected: string, authorization: string | undefined): boolean {
-  const match = /^Bearer\s+(.+)$/i.exec(authorization ?? '');
-  if (!match) return false;
-  const given = Buffer.from(match[1].trim());
+  const token = bearerToken(authorization);
+  if (token === undefined) return false;
+  const given = Buffer.from(token);
   const wanted = Buffer.from(expected);
   return given.length === wanted.length && timingSafeEqual(given, wanted);
 }

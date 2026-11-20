@@ -1,4 +1,4 @@
-import { recordHttpRequest, renderMetrics, routeLabel } from './metrics';
+import { bearerToken, recordHttpRequest, renderMetrics, routeLabel } from './metrics';
 
 describe('routeLabel', () => {
   it('uses the route template, never the raw path', () => {
@@ -40,5 +40,28 @@ describe('renderMetrics', () => {
     expect((await renderMetrics('Bearer wrong', config)).status).toBe(401);
     expect((await renderMetrics('Basic s3cret', config)).status).toBe(401);
     expect((await renderMetrics('Bearer s3cret', config)).status).toBe(200);
+  });
+});
+
+describe('bearerToken', () => {
+  it('reads the token after a case-insensitive Bearer scheme', () => {
+    expect(bearerToken('Bearer s3cret')).toBe('s3cret');
+    expect(bearerToken('bearer   s3cret  ')).toBe('s3cret');
+    expect(bearerToken('BEARER\ts3cret')).toBe('s3cret');
+  });
+
+  it('rejects other schemes, a missing token and a scheme glued to the token', () => {
+    expect(bearerToken(undefined)).toBeUndefined();
+    expect(bearerToken('Basic s3cret')).toBeUndefined();
+    expect(bearerToken('Bearer')).toBeUndefined();
+    expect(bearerToken('Bearer    ')).toBeUndefined();
+    expect(bearerToken('Bearers3cret')).toBeUndefined();
+  });
+
+  it('stays linear on a long run of spaces', () => {
+    const header = `bearer ${' '.repeat(200_000)}x\n`;
+    const start = performance.now();
+    expect(bearerToken(header)).toBe('x');
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 });
