@@ -3580,6 +3580,33 @@
       "messages": {
         "updateSuccess": "Password updated successfully",
         "updateError": "Failed to update your password"
+      },
+      "twoFactor": {
+        "title": "Two-factor authentication",
+        "description": "Ask for a code from an authenticator app after your password when you sign in",
+        "on": "On",
+        "off": "Off",
+        "needsPassword": "Two-factor authentication protects password sign-in. Set a password above to turn it on; single sign-on keeps your provider's own protection.",
+        "password": "Current password",
+        "enable": "Set up authenticator app",
+        "scan": "Scan this QR code with an authenticator app, then enter the 6-digit code it shows.",
+        "qrAlt": "QR code for your authenticator app",
+        "secret": "Or enter this key manually",
+        "code": "Authentication code",
+        "confirm": "Turn on",
+        "cancel": "Cancel",
+        "backupCodes": "Save these backup codes somewhere safe. Each one signs you in once if you lose your authenticator app. They are not shown again.",
+        "copy": "Copy codes",
+        "done": "Done",
+        "regenerate": "New backup codes",
+        "disable": "Turn off",
+        "messages": {
+          "enabled": "Two-factor authentication is on",
+          "disabled": "Two-factor authentication is off",
+          "invalidCode": "The code is invalid or has expired.",
+          "copied": "Backup codes copied",
+          "error": "Something went wrong, please try again"
+        }
       }
     },
     "preferences": {
@@ -3792,6 +3819,18 @@
         "button": "Sign in with {{label}}",
         "direct": "Continue with single sign-on",
         "oidcOnly": "This instance uses single sign-on only."
+      },
+      "twoFactor": {
+        "description": "Enter the 6-digit code from your authenticator app.",
+        "backupDescription": "Enter one of the backup codes you saved when you turned on two-factor authentication. Each code works once.",
+        "label": "Authentication code",
+        "backupLabel": "Backup code",
+        "trustDevice": "Trust this device for 30 days",
+        "submit": "Verify",
+        "useBackup": "Use a backup code instead",
+        "useApp": "Use your authenticator app instead",
+        "errorTitle": "Verification failed",
+        "error": "The code is invalid or has expired."
       }
     },
     "signup": {

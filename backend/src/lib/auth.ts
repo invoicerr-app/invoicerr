@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { GenericOAuthConfig, customSession, genericOAuth } from 'better-auth/plugins';
+import { GenericOAuthConfig, customSession, genericOAuth, twoFactor } from 'better-auth/plugins';
 
 import { PrismaClient } from '../../prisma/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -52,6 +52,7 @@ import { effectiveAuthSecret } from './auth-secret';
 import { allowedBrowserOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
+import { TWO_FACTOR_OPTIONS } from './two-factor-options';
 import { appOrigin } from '@/utils/app-origin';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
@@ -620,7 +621,8 @@ export const auth = betterAuth({
    * path with no `/api/auth` prefix (confirmed against the installed better-auth 1.7.4 route source,
    * `node_modules/better-auth/dist/api/routes/update-user.mjs` registers `changeEmail`/
    * `changePassword` at exactly these two paths). Every OTHER better-auth route this instance exposes
-   * (sign-in, get-session, social callbacks…) falls through this matcher untouched.
+   * (sign-in, get-session, social callbacks…) falls through this matcher untouched. The two-factor
+   * setup routes are refused the same way (`demo-auth-paths.ts`): the demo account is shared.
    */
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
@@ -638,6 +640,11 @@ export const auth = betterAuth({
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
     ...(stripePlugin ? [stripePlugin] : []),
+    // Authenticator-app (TOTP) second factor with backup codes, for password accounts. After a
+    // correct password, `/sign-in/email` answers `twoFactorRedirect` instead of a session, and the
+    // session only exists once `/two-factor/verify-totp` or `/two-factor/verify-backup-code` passes.
+    // Single sign-on accounts keep their identity provider's own second factor.
+    twoFactor(TWO_FACTOR_OPTIONS),
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

@@ -47,6 +47,7 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'session',
   'account',
   'verification',
+  'two_factor',
   'Log',
   'DocumentInstance',
   'DocumentSchedule',
