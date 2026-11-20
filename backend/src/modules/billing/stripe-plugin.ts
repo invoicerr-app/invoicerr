@@ -14,7 +14,7 @@ import { FOUNDER_PLAN } from './founder-grid';
 import { recordFounderPreorderEvent } from './founder-preorder';
 import { recordPaidSubscriptionInvoiceEvent } from './subscription-invoice';
 import { stripeClientFor } from './stripe-client';
-import { assertStripeEnvConfiguredForBoot } from './stripe-env';
+import { assertStripeEnvConfiguredForBoot, stripeWebhookSecret } from './stripe-env';
 import { type PriceGrid, readStripePriceCatalog, type StripePriceCatalog } from './stripe-price-catalog';
 import { type StripeSubscriptionHookData, syncStripeSubscription } from './stripe-subscription-sync';
 
@@ -139,7 +139,7 @@ export function buildStripePlugin(
   return stripe({
     // The plugin types the ESM build of `stripe`; this CommonJS backend resolves the CJS one.
     stripeClient: stripeClientFor(env) as unknown as StripePluginOptions['stripeClient'],
-    stripeWebhookSecret: (env.STRIPE_WEBHOOK_SECRET ?? '').trim(),
+    stripeWebhookSecret: stripeWebhookSecret(env),
     createCustomerOnSignUp: false,
     // Each company has its own Stripe customer, stored on `Company.stripeCustomerId`: the plugin's
     // organization customer type with its `organization` model mapped onto the Company table. The

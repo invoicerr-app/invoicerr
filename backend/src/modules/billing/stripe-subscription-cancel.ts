@@ -18,6 +18,7 @@ import { logger } from '@/logger/logger.service';
 
 import { isBillingEnabled } from './billing-flag';
 import { stripeClientFor } from './stripe-client';
+import { stripeSecretKey } from './stripe-env';
 import { ENDED_STRIPE_STATUSES, LIVE_STRIPE_STATUSES } from './stripe-statuses';
 
 /** The two Stripe calls this module makes, typed narrowly so a spec can pass a fake. */
@@ -47,7 +48,7 @@ export async function cancelCompanyStripeSubscriptions(
   // must still be able to delete a company.
   let api = injectedApi;
   if (!api) {
-    if ((env.STRIPE_SECRET_KEY ?? '').trim() === '') {
+    if (stripeSecretKey(env) === '') {
       logger.warn('Stripe is not configured, the company is deleted without cancelling its subscriptions', {
         category: 'billing',
         companyId,
