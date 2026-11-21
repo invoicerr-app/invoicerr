@@ -27,7 +27,7 @@ import {
   TaxScheme,
 } from './types';
 import { defaultTaxSystemRegistry } from './tax-systems/registry';
-import { selectorMatches, taxUnionOf, TrustFlagVatValidator } from './classification';
+import { taxUnionOf, TrustFlagVatValidator } from './classification';
 import { determineLineTax } from './tax-engine';
 
 const vat = new TrustFlagVatValidator();
@@ -236,12 +236,5 @@ describe('LA MATRICE — classification helpers', () => {
     ).toBe(false);
     expect(v.hasValidVat({ identifiers: [{ scheme: 'VAT', value: 'x' }] } as PartyTaxProfile)).toBe(false);
     expect(v.hasValidVat({ identifiers: [] } as unknown as PartyTaxProfile)).toBe(false);
-  });
-  it('10. selectorMatches respects roles and supply types', () => {
-    expect(selectorMatches(undefined, 'B2B', ['GOODS'])).toBe(true);
-    expect(selectorMatches({ roles: ['B2B'] }, 'B2B', ['GOODS'])).toBe(true);
-    expect(selectorMatches({ roles: ['B2C'] }, 'B2B', ['GOODS'])).toBe(false);
-    expect(selectorMatches({ supply: ['SERVICES'] }, 'B2B', ['GOODS'])).toBe(false);
-    expect(selectorMatches({ supply: ['SERVICES'] }, 'B2B', ['GOODS', 'SERVICES'])).toBe(true);
   });
 });

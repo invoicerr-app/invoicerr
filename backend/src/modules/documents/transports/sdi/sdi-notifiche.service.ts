@@ -77,7 +77,7 @@ import {
   findOwnedDocumentByTransportRef,
 } from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
-import { dispatchDocumentAuthorityEventWebhook } from '../../queue/document-authority-webhook';
+import { announceAuthorityEvent } from '../../queue/document-authority-webhook';
 import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
 import { NOTIFICA_TYPE_LABELS, ParsedSdiNotifica, parseSdiNotifica, SdiNotificaType } from './sdi-notifiche';
@@ -206,19 +206,13 @@ export class SdiNotificheService {
     // SAME Redis pub/sub bridge still applies unchanged — every SSE consumer subscribes by companyId
     // regardless of which code path inside this API process did the writing.
     if (count > 0) {
-      await this.eventsPublisher?.publish(document.companyId, {
-        documentId: document.id,
+      await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+        companyId: document.companyId,
         typeId: document.typeId,
-        kind: 'authority-event',
+        documentId: document.id,
+        providerId: SDI_PROVIDER_ID,
+        statusCode: event.statusCode,
       });
-      await dispatchDocumentAuthorityEventWebhook(
-        this.webhookDispatcher,
-        document.companyId,
-        document.typeId,
-        document.id,
-        SDI_PROVIDER_ID,
-        event.statusCode,
-      );
     }
     return {
       journaled: count > 0,

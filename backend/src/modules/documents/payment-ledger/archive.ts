@@ -6,9 +6,10 @@ import { toPaymentResult } from '../settlement/payments';
 import { closeElapsedPeriods } from './closures';
 import { cashRecordingSectionFor } from './country-section';
 import { sha256Hex } from './ledger-hash';
+import { nextPeriodStart } from './periods';
 import { verifyPaymentLedger } from './verify';
 
-export const PAYMENT_LEDGER_ARCHIVE_FORMAT = 'invoicerr-payment-ledger-archive';
+const PAYMENT_LEDGER_ARCHIVE_FORMAT = 'invoicerr-payment-ledger-archive';
 
 export interface PaymentLedgerArchiveFile {
   fileName: string;
@@ -31,7 +32,7 @@ export async function buildPaymentLedgerArchive(
     throw new BadRequestException('year must be a four-digit year');
   }
   const periodStart = new Date(Date.UTC(year, 0, 1));
-  const periodEnd = new Date(Date.UTC(year + 1, 0, 1));
+  const periodEnd = nextPeriodStart('YEARLY', periodStart);
 
   await closeElapsedPeriods(companyId);
   const [payments, closures, verification, section] = await Promise.all([

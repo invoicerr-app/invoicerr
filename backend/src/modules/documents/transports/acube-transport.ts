@@ -100,7 +100,7 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 import { resolveChannelCredentials } from './resolve-channel-credentials';
-import prisma from '@/prisma/prisma.service';
+import { loadSenderAndBuyer } from './load-sender-and-buyer';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
@@ -226,27 +226,7 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
       // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
       const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
       const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
-      const clientId = typeof data.client === 'string' ? data.client : undefined;
-      const [company, client] = await Promise.all([
-        prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
-        // Scoped by companyId - `clientId` comes straight off the document's own `data.client`, never
-        // checked for existence at write time (descriptors/field-kinds.ts's own comment on the
-        // 'reference' kind), so a bare `findUnique` would happily hand back another tenant's client.
-        clientId
-          ? prisma.client.findFirst({
-              where: { id: clientId, companyId: ctx.companyId },
-              include: { partyIdentifiers: true, contacts: true },
-            })
-          : Promise.resolve(null),
-      ]);
-      if (!company) {
-        throw new BadRequestException(`Company "${ctx.companyId}" not found.`);
-      }
-      if (!client) {
-        throw new BadRequestException(
-          `Cannot deposit to A-Cube: the ${ctx.label.toLowerCase()} has no valid client on file.`,
-        );
-      }
+      const { company, client } = await loadSenderAndBuyer(ctx, data, 'Cannot deposit to A-Cube');
 
       const buildResult = await deps.fatturapaFormatProvider.build(
         buildInput.descriptor,

@@ -1,6 +1,6 @@
 import prisma from '@/prisma/prisma.service';
 
-import { canonicalClosure, canonicalPayment, isValidLedgerSignature, sha256Hex } from './ledger-hash';
+import { hashClosureRow, hashPaymentRow, isValidLedgerSignature } from './ledger-hash';
 
 export type LedgerProblemKind =
   | 'unsealed'
@@ -69,27 +69,13 @@ export async function verifyPaymentLedger(companyId: string): Promise<PaymentLed
   const paymentProblems = walkChain<(typeof paymentRows)[number]>(
     'payments',
     paymentRows,
-    (row) =>
-      sha256Hex(
-        canonicalPayment({
-          ...row,
-          ledgerSequence: row.ledgerSequence as number,
-          conversionRate: row.conversionRate?.toString() ?? null,
-        }),
-      ),
+    (row) => hashPaymentRow(row, row.ledgerSequence as number, row.previousHash),
     (row) => row.signature,
   );
   const closureProblems = walkChain<(typeof closures)[number]>(
     'closures',
     closures,
-    (row) =>
-      sha256Hex(
-        canonicalClosure({
-          ...row,
-          totals: row.totals as Record<string, number>,
-          perpetualTotals: row.perpetualTotals as Record<string, number>,
-        }),
-      ),
+    hashClosureRow,
     (row) => row.signature,
   );
 

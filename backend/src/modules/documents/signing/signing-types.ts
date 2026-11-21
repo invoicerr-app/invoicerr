@@ -36,7 +36,7 @@ export interface SigningArtifact {
   label?: string;
 }
 
-export interface SignatureInfo {
+interface SignatureInfo {
   algo: SignAlgo;
   certRef: string;
 }

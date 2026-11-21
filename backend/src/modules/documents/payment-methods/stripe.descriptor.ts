@@ -1,4 +1,4 @@
-import { PaymentMethodDescriptor } from './types';
+import { PaymentMethodDescriptor, presentFromFields } from './types';
 
 /**
  * "Stripe" — no configured field at all, and DELIBERATELY no `link` built by `present()` either
@@ -20,7 +20,7 @@ export const stripePaymentMethod: PaymentMethodDescriptor = {
   id: 'stripe',
   label: 'Stripe',
   fields: [],
-  present() {
-    return { id: 'stripe', label: 'Stripe', lines: [] };
+  present(ctx) {
+    return presentFromFields(stripePaymentMethod, ctx.config);
   },
 };

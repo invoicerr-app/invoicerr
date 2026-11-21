@@ -9,7 +9,7 @@ import { effectiveAuthSecret } from '@/lib/auth-secret';
  * plain hash recomputed by whoever edited the database cannot.
  */
 
-export const PAYMENT_LEDGER_HASH_VERSION = 1;
+const PAYMENT_LEDGER_HASH_VERSION = 1;
 
 const SIGNING_LABEL = 'invoicerr/payment-ledger/v1';
 
@@ -103,6 +103,48 @@ export function canonicalClosure(input: ClosureHashInput): string {
 
 export function sha256Hex(text: string): string {
   return createHash('sha256').update(text).digest('hex');
+}
+
+/** A payment row as stored: the hashed fields, with the rate still the driver's decimal. Its chain
+ *  position is passed apart because sealing assigns it while verification reads it back. */
+export type StoredPaymentForHash = Omit<
+  PaymentHashInput,
+  'ledgerSequence' | 'conversionRate' | 'previousHash'
+> & {
+  conversionRate: { toString(): string } | null;
+};
+
+/** The one place a payment's hash is derived, so sealing and verification can never drift apart. */
+export function hashPaymentRow(
+  row: StoredPaymentForHash,
+  ledgerSequence: number,
+  previousHash: string | null,
+): string {
+  return sha256Hex(
+    canonicalPayment({
+      ...row,
+      ledgerSequence,
+      conversionRate: row.conversionRate?.toString() ?? null,
+      previousHash,
+    }),
+  );
+}
+
+/** A closure as written or as read back: Prisma returns both totals as untyped JSON. */
+export type StoredClosureForHash = Omit<ClosureHashInput, 'totals' | 'perpetualTotals'> & {
+  totals: unknown;
+  perpetualTotals: unknown;
+};
+
+/** The one place a closure's hash is derived, shared by `closures.ts` and verification. */
+export function hashClosureRow(row: StoredClosureForHash): string {
+  return sha256Hex(
+    canonicalClosure({
+      ...row,
+      totals: row.totals as Record<string, number>,
+      perpetualTotals: row.perpetualTotals as Record<string, number>,
+    }),
+  );
 }
 
 /** Same derivation as `lib/invitation-code.ts`: a purpose-specific key from the instance secret, so

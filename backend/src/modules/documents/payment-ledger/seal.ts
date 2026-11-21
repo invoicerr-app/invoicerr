@@ -1,5 +1,5 @@
 import { Prisma } from '../../../../prisma/generated/prisma/client';
-import { canonicalPayment, sha256Hex, signLedgerHash } from './ledger-hash';
+import { hashPaymentRow, signLedgerHash } from './ledger-hash';
 
 /**
  * Sealing gives each payment its place in the company's chain. Everything here runs inside a
@@ -37,14 +37,7 @@ export async function sealPendingPayments(tx: Prisma.TransactionClient, companyI
   let previousHash = last?.hash ?? null;
   for (const row of pending) {
     sequence += 1;
-    const hash = sha256Hex(
-      canonicalPayment({
-        ...row,
-        ledgerSequence: sequence,
-        conversionRate: row.conversionRate?.toString() ?? null,
-        previousHash,
-      }),
-    );
+    const hash = hashPaymentRow(row, sequence, previousHash);
     await tx.documentPayment.update({
       where: { id: row.id },
       data: { ledgerSequence: sequence, previousHash, hash, signature: signLedgerHash(hash) },

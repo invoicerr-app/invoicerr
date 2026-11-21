@@ -31,7 +31,7 @@ import { ActionRegistry } from '../actions/action-registry';
 import { registerAcceptManuallyAction } from '../actions/quote-manual-acceptance';
 import { generateOtpCode, hashOtpCode } from './otp';
 import { generateSignatureToken } from './signature-token';
-import { hashDocumentData } from './signed-version';
+import { hashDocumentData } from '../archive/document-data-hash';
 import { SignaturesService } from './signatures.service';
 
 const ACTOR = { id: 'user-1', name: 'Jane Doe', email: 'jane@example.com' };

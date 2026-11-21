@@ -28,7 +28,7 @@
  * signed but silently is not.
  */
 import { PadesSigningProvider } from './providers';
-import { resolveTimestampOptions } from './registry';
+import { resolveTimestampOptions } from './timestamp-options';
 import { SigningCredentialsPort } from './signing-credentials-port';
 import { SigningLogger, defaultSigningLogger } from './signing-logger';
 
@@ -56,7 +56,7 @@ export async function signRenderedPdfIfConfigured(
   pdf: Buffer,
   options: SignRenderedPdfOptions = {},
 ): Promise<Buffer> {
-  // Built directly (no `SigningProviderRegistry`): PAdES is the only algorithm this flow uses. The
+  // Built directly (no registry by algorithm): PAdES is the only algorithm this flow uses. The
   // env-derived timestamp options are still passed so the logged signature level stays the same;
   // the TSA itself is ignored by `PadesSigningProvider` (see its constructor).
   const provider = new PadesSigningProvider(credentials, resolveTimestampOptions());

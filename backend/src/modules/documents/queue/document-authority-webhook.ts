@@ -1,10 +1,10 @@
 /**
  * The shared dispatch for `DOCUMENT_AUTHORITY_EVENT`, the one `DOCUMENT_*`
  * webhook whose "faits propres" (`providerId`, `statusCode`) are genuinely the SAME shape at every
- * one of its three call sites (`conformity/conformity-sweep-runner.ts`, `reporting/reporting-runner.
- * ts`, `transports/sdi/sdi-notifiche.service.ts`) despite each journaling through a different
- * mechanism — the fetch-the-row / build-the-contract / try-catch dance is written ONCE here, not
- * three times over.
+ * one of its call sites (`conformity/conformity-sweep-runner.ts`, `reporting/reporting-runner.ts`,
+ * `transports/sdi/sdi-notifiche.service.ts`, `transports/sdi-pec/pec-notifiche.service.ts`) despite
+ * each journaling through a different mechanism - the fetch-the-row / build-the-contract / try-catch
+ * dance is written ONCE here, and so is the SSE-nudge-then-webhook pair (`announceAuthorityEvent`).
  *
  * Deliberately its own file, not `document-webhooks.ts` (kept Prisma-free by design — see that
  * file's own header) nor `../persistence.ts` (CRUD only, no webhook-dispatch concerns).
@@ -29,12 +29,14 @@ import { logger } from '@/logger/logger.service';
 import { runWithCompanyId } from '@/lib/request-context';
 
 import { findOwnedDocument } from '../persistence';
+import { DocumentEventPublisher } from './document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from './document-webhooks';
 
 /**
- * Wrapped in `runWithCompanyId` — this function is called from three quite different call sites
- * (`conformity-sweep-runner.ts`, `reporting-runner.ts`, `transports/sdi/sdi-notifiche.service.ts`), the
- * last of which is a `@Public()` push endpoint with no ambient company context of its own — rather than
+ * Wrapped in `runWithCompanyId` - this function is reached, through `announceAuthorityEvent` below, from
+ * quite different call sites (`conformity-sweep-runner.ts`, `reporting-runner.ts`,
+ * `transports/sdi/sdi-notifiche.service.ts`, `transports/sdi-pec/pec-notifiche.service.ts`), the
+ * notifiche ones being `@Public()` push endpoints with no ambient company context of their own - rather than
  * rely on every current AND future caller to have already established one, the one function that
  * actually has `companyId` in hand (its own second parameter) sets it itself.
  */
@@ -71,4 +73,34 @@ export async function dispatchDocumentAuthorityEventWebhook(
       );
     }
   });
+}
+
+/** One newly journaled authority verdict, as `announceAuthorityEvent` announces it. */
+export interface AuthorityEventAnnouncement {
+  companyId: string;
+  typeId: string;
+  documentId: string;
+  providerId: string;
+  statusCode: string;
+}
+
+/**
+ * Announces a newly journaled authority verdict to both subscribers: the SSE nudge first (the
+ * conformity panel refreshes without a reload), then the `DOCUMENT_AUTHORITY_EVENT` webhook. Callers
+ * gate it on a genuinely new row. A `publish` failure is not caught here; the webhook never throws.
+ */
+export async function announceAuthorityEvent(
+  eventsPublisher: DocumentEventPublisher | undefined,
+  webhooks: DocumentWebhookEmitter | undefined,
+  { companyId, typeId, documentId, providerId, statusCode }: AuthorityEventAnnouncement,
+): Promise<void> {
+  await eventsPublisher?.publish(companyId, { documentId, typeId, kind: 'authority-event' });
+  await dispatchDocumentAuthorityEventWebhook(
+    webhooks,
+    companyId,
+    typeId,
+    documentId,
+    providerId,
+    statusCode,
+  );
 }

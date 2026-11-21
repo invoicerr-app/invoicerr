@@ -149,7 +149,7 @@ export const SDI_REPLY_ADDRESS_HINT_TYPES = ['RC', 'NS', 'MC', 'AT'] as const;
 
 /** Read verbatim (§3.1.1, citing DM 2 novembre 2005 art. 12): the ENTIRE PEC message, headers plus
  *  every attachment, must not exceed this size — never just the FatturaPA attachment on its own. */
-export const PEC_MESSAGE_MAX_BYTES = 30 * 1024 * 1024;
+const PEC_MESSAGE_MAX_BYTES = 30 * 1024 * 1024;
 
 /**
  * A conservative ceiling on the RAW (pre-encoding) FatturaPA XML this transport will attempt to send.

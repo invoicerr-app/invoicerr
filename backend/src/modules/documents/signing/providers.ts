@@ -106,17 +106,14 @@ export function ensureXmlCryptoEngine(): void {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-// RSA PKCS#1 v1.5 with SHA-256 — covers the majority of PKI certs in use. Exported so any other
-// DOM-based XML signing this codebase adds later can reuse the SAME algorithm choice rather than a
-// fresh decision made twice (WS-Security SOAP-envelope signing did, briefly, for Spain's now-deleted
-// FACe channel — see `documentation/docs/developer-guide/live-testing.md`).
-export const RSA_ALGO: RsaHashedImportParams = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
+// RSA PKCS#1 v1.5 with SHA-256 - covers the majority of PKI certs in use. Any other DOM-based XML
+// signing this codebase adds later should reuse the SAME algorithm choice rather than a fresh decision
+// made twice (WS-Security SOAP-envelope signing did, briefly, for Spain's now-deleted FACe channel -
+// see `documentation/docs/developer-guide/live-testing.md`).
+const RSA_ALGO: RsaHashedImportParams = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
 
-/**
- * Import a PKCS#8 PEM private key as a WebCrypto CryptoKey (RSASSA-PKCS1-v1_5/SHA-256).
- * Exported so any other DOM-based XML signing added later can reuse it — see `RSA_ALGO`'s own header.
- */
-export async function importPrivateKeyPem(pem: string): Promise<CryptoKey> {
+/** Import a PKCS#8 PEM private key as a WebCrypto CryptoKey (RSASSA-PKCS1-v1_5/SHA-256). */
+async function importPrivateKeyPem(pem: string): Promise<CryptoKey> {
   const pemBody = pem.replace(/-----BEGIN[^-]*-----|-----END[^-]*-----|\r?\n/g, '');
   const der = Buffer.from(pemBody, 'base64');
   return crypto.subtle.importKey('pkcs8', der, RSA_ALGO, false, ['sign']);
@@ -124,11 +121,9 @@ export async function importPrivateKeyPem(pem: string): Promise<CryptoKey> {
 
 /**
  * Extract the SubjectPublicKeyInfo (SPKI) bytes from a DER-encoded X.509 certificate
- * using node-forge, then import as a WebCrypto CryptoKey. Exported for the same reason as
- * `importPrivateKeyPem` above — a future consumer needing to re-verify a signature against a
- * certificate embedded in its own payload, rather than one handed to it out of band.
+ * using node-forge, then import as a WebCrypto CryptoKey.
  */
-export async function importPublicKeyFromCertDer(certDer: Buffer): Promise<CryptoKey> {
+async function importPublicKeyFromCertDer(certDer: Buffer): Promise<CryptoKey> {
   const certAsn1 = forge.asn1.fromDer(forge.util.binary.raw.encode(new Uint8Array(certDer)));
   const forgeCert = forge.pki.certificateFromAsn1(certAsn1);
   const spkiAsn1 = forge.pki.publicKeyToAsn1(forgeCert.publicKey as forge.pki.rsa.PublicKey);
@@ -524,8 +519,9 @@ export class PadesSigningProvider implements SigningProvider {
 // None / pass-through provider
 // ---------------------------------------------------------------------------
 
-/** No-op signer for a company with no signing capability configured (still a first-class provider —
- *  `registry.ts#SigningProviderRegistry.get` falls back to this for any unknown algo). */
+/** No-op signer for a company with no signing capability configured: a first-class provider for
+ *  the `none` algorithm, kept beside XAdES and CAdES. No live flow builds it today (`sign-instance-pdf.ts`
+ *  builds PAdES directly). */
 export class NoSigningProvider implements SigningProvider {
   readonly algo: SignAlgo = 'none';
   async sign(artifact: SigningArtifact): Promise<SignedArtifact> {

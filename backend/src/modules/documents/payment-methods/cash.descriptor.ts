@@ -1,4 +1,4 @@
-import { PaymentMethodDescriptor } from './types';
+import { PaymentMethodDescriptor, presentFromFields } from './types';
 
 /**
  * "Cash" — the empty case: NO company-level field at all. "cash just says it's cash, nothing
@@ -16,7 +16,7 @@ export const cashPaymentMethod: PaymentMethodDescriptor = {
   id: 'cash',
   label: 'Cash',
   fields: [],
-  present() {
-    return { id: 'cash', label: 'Cash', lines: [] };
+  present(ctx) {
+    return presentFromFields(cashPaymentMethod, ctx.config);
   },
 };

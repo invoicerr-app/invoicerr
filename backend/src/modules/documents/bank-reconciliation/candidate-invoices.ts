@@ -1,9 +1,6 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listAllDocuments } from '../persistence';
-import { computeDocumentTotals } from '../totals/compute-totals';
-import { computeSettlement } from '../settlement/compute-settlement';
-import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
-import { sumPaidMinorByDocument } from '../settlement/payments';
+import { resolveInvoiceBalances } from '../settlement/unsettled-invoices';
 import { resolveClientLabels } from '../accounting-export/client-labels';
 import { MatchCandidateInvoice } from './matching';
 
@@ -38,31 +35,17 @@ export async function resolveOutstandingInvoices(companyId: string): Promise<Mat
     status: ['sent', 'imported'],
   });
 
-  const paidByDocument = await sumPaidMinorByDocument(
-    companyId,
-    sentInvoices.map((invoice) => invoice.id),
-  );
-  // Company-wide, ONE query — the same "one query, many callers" shape `sumPaidMinorByDocument` itself
-  // already gives payments, and `client-statement.ts`'s own dashboard-adjacent read already gives
-  // credit notes: cheaper than one `listCreditNotes` per candidate invoice.
-  const creditNotes = await listCreditNotes(companyId);
+  // Payments and credit notes read once for the whole pool, never once per candidate invoice.
+  const balances = await resolveInvoiceBalances(companyId, INVOICE_DESCRIPTOR, sentInvoices);
 
   interface DraftCandidate extends MatchCandidateInvoice {
     clientId: string | null;
   }
   const drafts: DraftCandidate[] = [];
 
-  for (const invoice of sentInvoices) {
-    const data = (invoice.data ?? {}) as Record<string, unknown>;
-    const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
-    const paidMinor = paidByDocument.get(invoice.id) ?? 0;
-    const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
-    const settlement = computeSettlement(
-      totals.grossMinor,
-      [{ amountMinor: paidMinor }],
-      toSettlementCreditInputs(credits),
-    );
+  for (const { invoice, settlement } of balances) {
     if (settlement.outstandingMinor <= 0) continue;
+    const data = (invoice.data ?? {}) as Record<string, unknown>;
 
     drafts.push({
       documentId: invoice.id,

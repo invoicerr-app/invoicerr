@@ -4,8 +4,8 @@ import {
   buildExpenseDashboardWidgets,
   buildExpenseStatisticsWidgets,
   expenseAmount,
-  monthKey,
 } from './expense-contributions';
+import { monthKey } from './period';
 import * as persistence from '../persistence';
 import { filterLikeListAllDocuments } from '../__tests__/fake-document-instance-table';
 import { DocumentInstanceResult } from '../actions/action-registry';
