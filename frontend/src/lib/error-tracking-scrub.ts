@@ -1,11 +1,7 @@
-import type { ErrorEvent } from "@sentry/react"
+import type { ErrorEvent, EventHint } from "@sentry/react"
 // The same rules as the server and the logs, read from the one file both builds share (the Dockerfile's
 // frontend stage copies it to the same relative path).
-import {
-  redactErrorReportText,
-  redactErrorReportValue,
-  redactUrl,
-} from "../../../backend/src/logger/redaction-rules"
+import { redactErrorReportValue, redactUrl } from "../../../backend/src/logger/redaction-rules"
 
 /**
  * Pages that never report, and on which the SDK is never started: they serve people outside the
@@ -27,11 +23,13 @@ export const KEPT_BROWSER_CONTEXTS: readonly string[] = ["browser", "os", "trace
  * switch off; this also drops the user object (an `ip_address`, or the `{{auto}}` marker that asks
  * the server to fill one in from the connection), request headers, breadcrumbs (they quote clicked
  * text and visited URLs), every context not listed above, and tags. Every URL left (stack frames)
- * loses its query string and fragment and any access token in its path. Free text (the message, the
- * exception text, `extra`) goes through the rules shared with the server, so an error message built
- * from a server reply (`use-fetch.ts`) cannot carry an email, an IBAN, a phone number or a token.
+ * loses its query string and fragment and any access token in its path. An error's own text never
+ * leaves, since a message built from a server reply (`use-fetch.ts`) can quote a client's name, an
+ * address or an amount: each exception keeps its type, its code (the reply's `code`, or its HTTP
+ * status) and its stack trace, and the event message becomes the same summary. `extra` goes through
+ * the rules shared with the server.
  */
-export function scrubBrowserEvent(event: ErrorEvent): ErrorEvent {
+export function scrubBrowserEvent(event: ErrorEvent, hint?: EventHint): ErrorEvent {
   delete event.user
   delete event.breadcrumbs
   delete event.tags
@@ -41,16 +39,22 @@ export function scrubBrowserEvent(event: ErrorEvent): ErrorEvent {
     event.request = url ? { url } : {}
   }
 
-  if (event.message) event.message = redactErrorReportText(event.message)
+  delete event.logentry
 
-  for (const exception of event.exception?.values ?? []) {
-    if (exception.value) exception.value = redactErrorReportText(exception.value)
+  const values = event.exception?.values ?? []
+  const chain = causeChain(hint?.originalException)
+  for (const [index, exception] of values.entries()) {
+    // The SDK lists the innermost cause first and the thrown error last.
+    const error = chain[values.length - 1 - index]
+    exception.value = summarizeError(exception.type, errorCode(error))
     for (const frame of exception.stacktrace?.frames ?? []) {
       delete frame.vars
       frame.abs_path = redactUrl(frame.abs_path)
       frame.filename = redactUrl(frame.filename)
     }
   }
+
+  if (event.message) event.message = values[values.length - 1]?.value ?? "[redacted]"
 
   if (event.extra) event.extra = redactErrorReportValue(event.extra) as Record<string, unknown>
 
@@ -64,4 +68,33 @@ export function scrubBrowserEvent(event: ErrorEvent): ErrorEvent {
   }
 
   return event
+}
+
+/** `Type code`, `Type` without a code, `[redacted]` when even the type is unknown. */
+export function summarizeError(type: string | undefined, code: string | undefined): string {
+  if (!type) return code ? `code ${code}` : "[redacted]"
+  return code ? `${type} ${code}` : type
+}
+
+const SAFE_CODE = /^[A-Za-z0-9_.-]{1,64}$/
+
+/** A `code` that reads as an identifier (`COMPANY_BLOCKED`), else the reply's HTTP `status`. */
+function errorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined
+  const { code, status } = error as { code?: unknown; status?: unknown }
+  if ((typeof code === "string" || typeof code === "number") && SAFE_CODE.test(String(code))) {
+    return String(code)
+  }
+  if (typeof status === "number") return String(status)
+  return undefined
+}
+
+function causeChain(error: unknown): unknown[] {
+  const chain: unknown[] = []
+  let current = error
+  while (current && chain.length < 10 && !chain.includes(current)) {
+    chain.push(current)
+    current = (current as { cause?: unknown }).cause
+  }
+  return chain
 }

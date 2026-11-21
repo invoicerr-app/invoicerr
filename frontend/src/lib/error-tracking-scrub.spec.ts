@@ -53,22 +53,53 @@ describe("scrubBrowserEvent", () => {
     expect(frame?.vars).toBeUndefined()
   })
 
-  it("cleans the error text built from a server reply, the message and extra with the shared rules", () => {
+  it("never sends the text of an error: only its type, and the stack trace stays", () => {
+    const error = new Error("Client ACME SARL, 12 rue X, 1 234,56 EUR")
+    const frames = [{ function: "submit", filename: "https://app.example.test/assets/index.js", lineno: 3 }]
     const scrubbed = scrubBrowserEvent(
       event({
-        message: "PUT /api/clients/c1 failed for someone@example.test",
-        exception: {
-          values: [
-            { type: "Error", value: "IBAN FR76 3000 6000 0112 3456 7890 189 is already used by 732829320" },
-          ],
-        },
+        message: error.message,
+        logentry: { message: error.message },
+        exception: { values: [{ type: "Error", value: error.message, stacktrace: { frames } }] },
+      }),
+      { originalException: error },
+    )
+    const serialized = JSON.stringify(scrubbed)
+    for (const leaked of ["ACME", "SARL", "12 rue", "rue X", "1 234,56", "EUR"]) {
+      expect(serialized).not.toContain(leaked)
+    }
+    expect(scrubbed.exception?.values?.[0].value).toBe("Error")
+    expect(scrubbed.message).toBe("Error")
+    expect(scrubbed.logentry).toBeUndefined()
+    expect(scrubbed.exception?.values?.[0].stacktrace?.frames).toEqual(frames)
+  })
+
+  it("keeps the code or HTTP status of an error built from a server reply, never its message", () => {
+    const coded = Object.assign(new Error("Company Boulangerie Martin is blocked"), {
+      code: "COMPANY_BLOCKED",
+      status: 403,
+    })
+    const codedEvent = event({ exception: { values: [{ type: "Error", value: coded.message }] } })
+    const scrubbedCoded = scrubBrowserEvent(codedEvent, { originalException: coded })
+    expect(scrubbedCoded.exception?.values?.[0].value).toBe("Error COMPANY_BLOCKED")
+
+    const uncoded = Object.assign(new Error("Invoice for ACME SARL failed"), { status: 500 })
+    const scrubbed = scrubBrowserEvent(
+      event({ message: uncoded.message, exception: { values: [{ type: "Error", value: uncoded.message }] } }),
+      { originalException: uncoded },
+    )
+    expect(scrubbed.exception?.values?.[0].value).toBe("Error 500")
+    expect(scrubbed.message).toBe("Error 500")
+  })
+
+  it("replaces a message with no exception by [redacted], and still redacts extra", () => {
+    const scrubbed = scrubBrowserEvent(
+      event({
+        message: "PUT /api/clients/c1 failed for ACME",
         extra: { email: "a@b.test", note: "call +33 6 12 34 56 78 from 203.0.113.7" },
       }),
     )
-    expect(scrubbed.message).toBe("PUT /api/clients/c1 failed for [redacted-email]")
-    expect(scrubbed.exception?.values?.[0].value).toBe(
-      "IBAN [redacted-iban] is already used by [redacted-company-id]",
-    )
+    expect(scrubbed.message).toBe("[redacted]")
     expect(scrubbed.extra).toEqual({ email: "[redacted]", note: "call [redacted-phone] from [redacted-ip]" })
   })
 

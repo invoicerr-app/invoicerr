@@ -53,7 +53,7 @@ describe('initErrorTracking (real SDK, local endpoint)', () => {
     expect(envelopes).toHaveLength(1);
     const body = envelopes[0];
     expect(body).toContain('"type":"event"');
-    expect(body).toContain('boom for');
+    expect(body).not.toContain('boom');
     for (const leaked of [
       '203.0.113.7',
       '{{auto}}',

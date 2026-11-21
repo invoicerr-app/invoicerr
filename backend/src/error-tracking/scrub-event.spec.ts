@@ -38,19 +38,77 @@ describe('scrubEvent', () => {
     expect(scrubbed.server_name).toBeUndefined();
   });
 
-  it('redacts emails, secrets and IP addresses from messages, exception values and extra', () => {
+  it('never sends the text of an error: only its type, and the stack trace stays', () => {
+    const error = new Error('Client ACME SARL, 12 rue X, 1 234,56 EUR');
+    const frames = [{ function: 'createInvoice', filename: 'app:///dist/invoices.js', lineno: 12 }];
     const scrubbed = scrubEvent(
       event({
-        message: 'failed for someone@example.test from 203.0.113.7',
-        exception: {
-          values: [{ type: 'Error', value: 'Bearer abcdefghijklmnop rejected from 2001:db8::1' }],
-        },
-        extra: { email: 'someone@example.test', note: 'call +33 6 12 34 56 78', count: 3 },
+        message: error.message,
+        logentry: { message: error.message },
+        exception: { values: [{ type: 'Error', value: error.message, stacktrace: { frames } }] },
       }),
+      { originalException: error },
     );
-    expect(scrubbed.message).toBe('failed for [redacted-email] from [redacted-ip]');
-    expect(scrubbed.exception?.values?.[0].value).toBe(
-      'Bearer [redacted-secret] rejected from [redacted-ip]',
+    const serialized = JSON.stringify(scrubbed);
+    for (const leaked of ['ACME', 'SARL', '12 rue', 'rue X', '1 234,56', 'EUR']) {
+      expect(serialized).not.toContain(leaked);
+    }
+    expect(scrubbed.exception?.values?.[0].value).toBe('Error');
+    expect(scrubbed.message).toBe('Error');
+    expect(scrubbed.logentry).toBeUndefined();
+    expect(scrubbed.exception?.values?.[0].stacktrace?.frames).toEqual(frames);
+  });
+
+  it('keeps the code of a business error and the status of an HTTP exception, never their text', () => {
+    const business = Object.assign(new Error('Company Boulangerie Martin is blocked'), {
+      code: 'COMPANY_BLOCKED',
+    });
+    const businessEvent = event({ exception: { values: [{ type: 'Error', value: business.message }] } });
+    const scrubbedBusiness = scrubEvent(businessEvent, { originalException: business });
+    expect(scrubbedBusiness.exception?.values?.[0].value).toBe('Error COMPANY_BLOCKED');
+
+    const http = Object.assign(new Error('Invoice for ACME SARL could not be rendered'), {
+      name: 'InternalServerErrorException',
+      getStatus: () => 500,
+    });
+    const scrubbed = scrubEvent(
+      event({
+        message: http.message,
+        exception: { values: [{ type: 'InternalServerErrorException', value: http.message }] },
+      }),
+      { originalException: http },
+    );
+    expect(scrubbed.exception?.values?.[0].value).toBe('InternalServerErrorException 500');
+    expect(scrubbed.message).toBe('InternalServerErrorException 500');
+  });
+
+  it('summarizes each error of a cause chain with its own code', () => {
+    const cause = Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:5432'), { code: 'ECONNREFUSED' });
+    const error = new Error('Saving the invoice of ACME failed', { cause });
+    const scrubbed = scrubEvent(
+      event({
+        exception: {
+          values: [
+            { type: 'Error', value: cause.message },
+            { type: 'Error', value: error.message },
+          ],
+        },
+      }),
+      { originalException: error },
+    );
+    const values = scrubbed.exception?.values?.map((value) => value.value);
+    expect(values).toEqual(['Error ECONNREFUSED', 'Error']);
+  });
+
+  it('replaces a message with no exception and no type by [redacted]', () => {
+    expect(scrubEvent(event({ message: 'Client ACME SARL' })).message).toBe('[redacted]');
+    const untyped = scrubEvent(event({ exception: { values: [{ value: 'Client ACME SARL' }] } }));
+    expect(untyped.exception?.values?.[0].value).toBe('[redacted]');
+  });
+
+  it('still redacts extra with the shared rules', () => {
+    const scrubbed = scrubEvent(
+      event({ extra: { email: 'someone@example.test', note: 'call +33 6 12 34 56 78', count: 3 } }),
     );
     expect(scrubbed.extra).toEqual({ email: '[redacted]', note: 'call [redacted-phone]', count: 3 });
   });
@@ -93,17 +151,17 @@ describe('scrubEvent', () => {
     );
     expect(scrubbed.exception?.values?.[0]).toEqual({
       type: 'PrismaClientKnownRequestError',
-      value: 'code P2002',
+      value: 'PrismaClientKnownRequestError P2002',
     });
   });
 
-  it('drops the whole message of a database error without a code', () => {
+  it('keeps only the type of a database error without a code', () => {
     const scrubbed = scrubEvent(
       event({
         exception: { values: [{ type: 'PrismaClientValidationError', value: 'Argument name: "Acme SAS"' }] },
       }),
     );
-    expect(scrubbed.exception?.values?.[0].value).toBe('[redacted]');
+    expect(scrubbed.exception?.values?.[0].value).toBe('PrismaClientValidationError');
   });
 });
 

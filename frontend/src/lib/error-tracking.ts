@@ -62,8 +62,8 @@ export async function startErrorTracking(config: BrowserErrorTrackingConfig): Pr
       beforeSendTransaction: () => null,
       // A page the user reached by a link while the SDK runs (a public signature or legal page)
       // never reports.
-      beforeSend: (event) =>
-        isUntrackedBrowserPath(window.location.pathname) ? null : scrubBrowserEvent(event),
+      beforeSend: (event, hint) =>
+        isUntrackedBrowserPath(window.location.pathname) ? null : scrubBrowserEvent(event, hint),
     })
     sentry = Sentry
     runningDsn = config.dsn

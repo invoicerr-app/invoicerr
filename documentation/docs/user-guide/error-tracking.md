@@ -49,10 +49,15 @@ promise rejections. Before an event leaves the API, the worker or the browser, I
 - request bodies, cookies, headers, and URL query strings and fragments; on the server the request
   URL goes entirely (only the method and the route template, such as `/api/clients/:id`, remain);
 - access tokens in the path of a URL (client portal and signature links);
+- the text of every error and the event message: it can quote a client's name, an address, an
+  invoice line or an amount, which no pattern can recognise. An error keeps only its type, its code
+  when it has one, and its stack trace: `InternalServerErrorException 500` for an HTTP exception,
+  `Error COMPANY_BLOCKED` for a business error or a server reply carrying a code, `Error 500` for a
+  server reply without one, `PrismaClientKnownRequestError P2002` for a database error, and the
+  bare type otherwise;
 - emails, IBANs, phone numbers, SIREN/SIRET numbers, IP addresses, tokens and other secrets from
-  error messages and extra data, with the same rules as the application logs
-  (`backend/src/logger/redaction-rules.ts`, shared by the server and the browser);
-- the message of a database error, of which only the error name and code are kept;
+  extra data, with the same rules as the application logs (`backend/src/logger/redaction-rules.ts`,
+  shared by the server and the browser);
 - every context except the runtime, OS, browser and trace ids.
 
 Tags sent with each event:
