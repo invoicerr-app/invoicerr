@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-10-13
-effectiveDate: 2026-10-13
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]
@@ -114,8 +114,8 @@ tiers, is published on our pricing page and may be revised from time to time; th
 the start of each billing period governs that period.
 
 6.4. You choose a **monthly** or an **annual** billing cycle. Polar charges an annual subscription
-once, in advance, for twelve (12) times the then-current monthly per-Seat rate, multiplied by your Seat
-count at the time of billing.
+once, in advance, at the then-current annual per-Seat rate published on our pricing page, multiplied by
+your Seat count at the time of billing.
 
 ## 7. Purchase from Polar, Payment, Invoices and Taxes
 
