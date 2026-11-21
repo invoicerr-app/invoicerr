@@ -1,6 +1,8 @@
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { queryKeys } from "@/lib/query-keys"
+
 import { useSse } from "./use-fetch"
 
 /**
@@ -59,7 +61,7 @@ export function useDocumentEventsSse(): void {
     // implementation and documents.controller.ts's own `streamEvents` header), so `data` is either
     // absent or a genuine DocumentEventMessage, never a heartbeat mistaken for one.
     if (!data) return
-    queryClient.invalidateQueries({ queryKey: ["documents", data.typeId] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.documents.byType(data.typeId) })
     // A declarative-reporting outcome (`report:blocked`/`report:failed`, or a real provider verdict —
     // reporting/reporting-runner.ts) journals onto the SAME `DocumentAuthorityEvent` table a
     // conformity poll does, and is published under this SAME "authority-event" kind — see that
@@ -67,7 +69,7 @@ export function useDocumentEventsSse(): void {
     // `["declarations", ...]`, never nested under `["documents", typeId]` (it spans every document
     // type at once), so it needs its OWN invalidation here rather than riding the one above for free.
     if (data.kind === "authority-event") {
-      queryClient.invalidateQueries({ queryKey: ["declarations"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.declarations.all() })
     }
   }, [data, queryClient])
 }

@@ -1,7 +1,11 @@
 import { Receipt } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
+import {
+  localIsoDate,
+  settlementBadgeInfo,
+  statementRowSettlement,
+} from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
 import { formatMinor } from "@/components/documents/totals-calculator"
@@ -48,18 +52,11 @@ export function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) 
       </StatusMark>
     )
   }
-  const { labelKey } = settlementBadgeInfo(
-    {
-      totalGrossMinor: row.amountMinor,
-      paidMinor: row.paidMinor,
-      creditedMinor: 0,
-      outstandingMinor: row.outstandingMinor,
-      excessMinor: 0,
-      settled: row.settled,
-    },
-    { dueDate: row.dueDate, today: localIsoDate() },
-  )
-  return <StatusMark {...statusPresentation(labelKey.split(".").pop() ?? "")}>{t(labelKey)}</StatusMark>
+  const { status, labelKey } = settlementBadgeInfo(statementRowSettlement(row), {
+    dueDate: row.dueDate,
+    today: localIsoDate(),
+  })
+  return <StatusMark {...statusPresentation(status)}>{t(labelKey)}</StatusMark>
 }
 
 function CurrencyStatementCard({

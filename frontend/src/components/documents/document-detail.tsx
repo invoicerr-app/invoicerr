@@ -134,7 +134,7 @@ interface DocumentDetailProps {
  * its own real column). Only ever meaningful for a "imported" document; the caller checks that
  * separately.
  */
-export function hasImportTransmissionEvidence(instance: DocumentInstance): boolean {
+function hasImportTransmissionEvidence(instance: DocumentInstance): boolean {
   const evidence = (instance.data?.importTransmissionEvidence ?? {}) as Record<string, unknown>
   return Boolean(
     (typeof evidence.sdiId === "string" && evidence.sdiId.trim()) ||

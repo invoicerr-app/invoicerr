@@ -120,6 +120,6 @@ export function useGenerateInvoiceFromTimeEntries() {
   return useApiMutation<GenerateInvoiceVariables, GenerateInvoiceFromTimeEntriesResult>(
     "POST",
     "/api/time-entries/generate-invoice",
-    { invalidateKeys: [queryKeys.timeEntries.listsAll(), ["documents"]] },
+    { invalidateKeys: [queryKeys.timeEntries.listsAll(), queryKeys.documents.all()] },
   )
 }

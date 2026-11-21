@@ -8,8 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useClientPaymentMethodRestriction, useClientStatement, usePaymentMethods } from "@/hooks/queries"
 import type { Client } from "@/types"
 
-import { DetailItem, DetailList, DetailSection } from "../../_shared/detail-list"
-import { FormDialog } from "../../_shared/form-dialog"
+import { DetailItem, DetailList, DetailSection } from "./detail-list"
+import { FormDialog } from "./form-dialog"
 import { ClientBadges } from "./client-badges"
 import { clientDisplayName } from "./client-display"
 import { formatMinor } from "@/components/documents/totals-calculator"
@@ -127,9 +127,8 @@ function PaymentMethodsSummary({ clientId }: { clientId?: string }) {
 }
 
 /**
- * A client's own record, read-only — the fiche a row's "view" action opens. Same shell as the
- * create/edit dialog (`FormDialog`, without a `<form>` since nothing here is submitted): a header
- * naming and badging the record exactly like a document's own detail page does, a `DetailList` for
+ * A client's own record, read-only - the fiche a row's "view" action opens, in a `FormDialog`: a
+ * header naming and badging the record exactly like a document's own detail page does, a `DetailList` for
  * every plain field (the read-only twin of the form's own field grid, same order), and the client's
  * own documents as a compact linked list. "Edit" is the one primary action in the footer — every
  * other path (the account statement) is one click away rather than duplicated here.
