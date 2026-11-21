@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { createRoot } from "react-dom/client"
 import { queryClient } from "./lib/query-client"
 import { loadRuntimeConfig } from "./lib/runtime-config"
+import { initErrorTracking } from "./lib/error-tracking"
 import { registerSW } from "virtual:pwa-register"
 import { WORKER_RELOADED_KEY, reloadOnWorkerTakeover } from "./lib/worker-takeover-reload"
 
@@ -60,6 +61,8 @@ if (!("Cypress" in window)) {
 
 async function bootstrap() {
   await loadRuntimeConfig()
+  // Not awaited: the tracker loads alongside the first render, never in front of it.
+  void initErrorTracking()
 
   createRoot(document.getElementById("root")!).render(
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">

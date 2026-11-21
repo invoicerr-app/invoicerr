@@ -103,9 +103,32 @@ cat > /usr/share/nginx/html/config.json <<EOF
 {
   "VITE_OIDC_PROVIDER_ID": "${OIDC_PROVIDER_ID}",
   "VITE_OIDC_ONLY": "${OIDC_ONLY:-}",
-  "VITE_ENABLE_BETA_BANNER": "${ENABLE_BETA_BANNER:-}"
+  "VITE_ENABLE_BETA_BANNER": "${ENABLE_BETA_BANNER:-}",
+  "VITE_SENTRY_DSN": "${SENTRY_FRONTEND_DSN:-}",
+  "VITE_SENTRY_ENVIRONMENT": "${SENTRY_ENVIRONMENT:-}",
+  "VITE_SENTRY_RELEASE": "${INVOICERR_REF_NAME:-}"
 }
 EOF
+
+# Browser error tracking: SENTRY_FRONTEND_DSN (a DSN is public by design, the browser has to read it)
+# turns it on, and the tracker's origin is the one extra host the page may send requests to. The
+# CSP rewrite is idempotent (it always starts back from `connect-src 'self'`), so a container restart
+# with a changed or removed DSN converges. An origin with anything but host characters is refused
+# rather than written into a response header.
+SENTRY_CONNECT_ORIGIN=""
+if [ -n "${SENTRY_FRONTEND_DSN:-}" ]; then
+  sentry_scheme="${SENTRY_FRONTEND_DSN%%://*}"
+  sentry_rest="${SENTRY_FRONTEND_DSN#*://}"
+  sentry_rest="${sentry_rest#*@}"
+  sentry_host="${sentry_rest%%/*}"
+  if { [ "$sentry_scheme" = "https" ] || [ "$sentry_scheme" = "http" ]; } \
+    && printf '%s' "$sentry_host" | grep -Eq '^[A-Za-z0-9.-]+(:[0-9]+)?$'; then
+    SENTRY_CONNECT_ORIGIN=" ${sentry_scheme}://${sentry_host}"
+  else
+    echo "[WARN] - SENTRY_FRONTEND_DSN is not a valid DSN, browser error reports will be blocked by the CSP"
+  fi
+fi
+sed -i "s|connect-src 'self'[^;]*;|connect-src 'self'${SENTRY_CONNECT_ORIGIN};|" /etc/nginx/conf.d/default.conf
 
 # HSTS opt-in (nginx.conf's own `__HSTS_HEADER__` marker, and the header's own comment there, explain
 # why this is never sent unconditionally): only an operator who has confirmed THIS instance is reached
