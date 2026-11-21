@@ -2,6 +2,8 @@
 // them — the before/after a change is meant to improve.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 
+import { targetFor, verdict } from '../targets.js';
+
 const ROLES = ['api', 'worker', 'postgres', 'redis', 'ocr', 'mailpit'];
 const roleOf = (pod) => ROLES.find((r) => pod.includes(`-${r}-`) || pod.startsWith(r)) || 'other';
 
@@ -121,10 +123,16 @@ export function toMarkdown(run, { title = 'Load test' } = {}) {
           .map((r) => `${r} ${s.mem[r].avg.toFixed(0)}/${s.mem[r].peak.toFixed(0)}`)
           .join(', '),
       '',
-      '| step | p50 | p95 | p99 | count |',
-      '|---|---|---|---|---|',
+      '| step | p50 | p95 | p99 | count | target p95 / p99 | result |',
+      '|---|---|---|---|---|---|---|',
     );
-    for (const st of s.steps) L.push(`| ${st.name} | ${ms(st.p50)} | ${ms(st.p95)} | ${ms(st.p99)} | ${st.count} |`);
+    for (const st of s.steps) {
+      const target = targetFor(st.name);
+      L.push(
+        `| ${st.name} | ${ms(st.p50)} | ${ms(st.p95)} | ${ms(st.p99)} | ${st.count} | ` +
+          `${ms(target.p95)} / ${ms(target.p99)} | ${verdict(st.name, st) ?? '-'} |`,
+      );
+    }
     L.push('');
   }
   return L.join('\n');
