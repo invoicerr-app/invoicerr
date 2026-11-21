@@ -9,6 +9,8 @@ import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
 import { insecureAppUrlWarning } from './lib/app-url-scheme';
 import { redactLogValue } from './logger/redaction';
+import { initFieldEncryption } from './lib/field-encryption/boot';
+import { countStoredCiphertext } from './lib/field-encryption/ciphertext-probe';
 
 async function bootstrap() {
   // Refuse to boot on a known-placeholder or empty auth secret: docker-compose.yml's example
@@ -34,6 +36,8 @@ async function bootstrap() {
       process.exit(1);
     }
   }
+
+  await initFieldEncryption({ countCiphertext: countStoredCiphertext, log: new Logger('FieldEncryption') });
 
   const app = await createApp();
 
