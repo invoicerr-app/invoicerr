@@ -1,11 +1,8 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
-import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
 import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
-import { dateValueInRange, dayMs } from '../date-params';
 import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
@@ -13,6 +10,7 @@ import {
   loadCurrencyContext,
   resolveConsolidationInstant,
 } from './currency-consolidation';
+import { monthKey, monthRange, restrictToPeriod } from './period';
 import { MetricWidget, MetricWidgetLink, TableWidget, Widget } from './widgets';
 
 /**
@@ -40,59 +38,10 @@ const STATISTICS_TABLE_ROW_LIMIT = 500;
  *  can never disagree (issue #418's THE CONSISTENCY RULE). */
 const EXPENSE_DATE_FIELD_KEY = resolveDateFieldKey(buildExpenseDescriptor());
 
-/** Every expense from `all` whose own `EXPENSE_DATE_FIELD_KEY` value falls within `period`'s
- *  inclusive range - see invoice-contributions.ts's own identical `restrictToPeriod` for the full
- *  reasoning, deliberately duplicated per file rather than shared (this file's own header on why each
- *  contribution stays self-contained). `period` undefined -> `all`, the SAME reference, unchanged. */
-function restrictToPeriod(
-  all: DocumentInstanceResult[],
-  period: DashboardPeriod | undefined,
-): DocumentInstanceResult[] {
-  if (!period || !EXPENSE_DATE_FIELD_KEY) return all;
-  const fromMs = dayMs(period.dateFrom);
-  const toMs = dayMs(period.dateTo);
-  return all.filter((expense) =>
-    dateValueInRange(
-      (expense.data as Record<string, unknown> | null)?.[EXPENSE_DATE_FIELD_KEY],
-      fromMs,
-      toMs,
-    ),
-  );
-}
-
 /** `data.amount` if it is actually a number, 0 otherwise: a still-being-filled draft is a normal
  *  state to aggregate over, not an error. */
 function expenseAmount(data: Record<string, unknown>): number {
   return typeof data.amount === 'number' ? data.amount : 0;
-}
-
-/** "2026-08" for any parseable date-ish value, or null. Deliberately NOT imported from
- *  invoice-contributions.ts's own identical helper: each contribution file stays self-contained —
- *  one small pure helper per type, the same way each type's own amount arithmetic
- *  (`expenseAmount` here) is not shared machinery either. */
-function monthKey(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  // UTC getters, deliberately — the same calendar-day convention documents/schedules/cadence.ts
-  // already documents for occurrence dates. Documents store date-only strings ("2026-09-01"),
-  // which `new Date(...)` parses as UTC midnight; reading them back with LOCAL getters while
-  // keying "now" off an ISO (UTC) string made the two disagree for the last two hours of every
-  // UTC day east of Greenwich — and on 2026-08-31 evening that window crossed a MONTH boundary,
-  // so an expense created "today" vanished from "this month" (caught live by the e2e battery).
-  // One clock for both sides of the comparison, and it is the one the stored data already uses.
-  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-/** `"2026-08"` -> `{ dateFrom: "2026-08-01", dateTo: "2026-08-31" }`: the exact UTC calendar-month
- *  boundaries `monthKey` itself buckets by, deliberately duplicated from
- *  invoice-contributions.ts's own identical helper rather than shared (this file's own header on why
- *  each contribution stays self-contained), used to point the "Expenses this month" tile's `link` at
- *  precisely the same month the figure sums. */
-function monthRange(key: string): { dateFrom: string; dateTo: string } {
-  const [year, month] = key.split('-').map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { dateFrom: `${key}-01`, dateTo: `${key}-${String(lastDay).padStart(2, '0')}` };
 }
 
 /**
@@ -155,7 +104,7 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
     }
 
     // The expense descriptor's own `date` field is exactly what `list-filters.ts#resolveDateFieldKey`
-    // picks for this type (no `issueDate` on it): the same field this file's own `monthKey` buckets
+    // picks for this type (no `issueDate` on it): the same field `monthKey` (period.ts) buckets
     // by, so the link filters the list to precisely the month the figure sums.
     const thisMonthLink: MetricWidgetLink = { typeId: 'expense', ...monthRange(thisMonth) };
 
@@ -191,7 +140,7 @@ export const buildExpenseDashboardWidgets: ContributionHandler = async ({ compan
   // invoice-contributions.ts's own `invoice:issued-in-period` decision: the two figures answer
   // different questions and can never both be present in the same response (this branch replaces the
   // other, never adds to it), so sharing an id would make a consumer unable to tell which one it saw.
-  const periodExpenses = restrictToPeriod(expenses, period);
+  const periodExpenses = restrictToPeriod(expenses, period, EXPENSE_DATE_FIELD_KEY);
   const periodLink: MetricWidgetLink = { typeId: 'expense', ...period };
   const totalsByCurrency = new Map<string, number>();
   for (const expense of periodExpenses) {
@@ -377,4 +326,4 @@ export function registerExpenseContributions(registry: ContributionRegistry): vo
 // Re-exported for tests that want to prove the arithmetic directly — same convention
 // invoice-contributions.ts's own bottom export follows.
 export type { Widget };
-export { expenseAmount, monthKey };
+export { expenseAmount };

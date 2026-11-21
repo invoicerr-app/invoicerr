@@ -1,14 +1,13 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
-import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
 import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
-import { dateValueInRange, dayMs } from '../date-params';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { acceptedOptionTotals, deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';
 import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
+import { restrictToPeriod } from './period';
 import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
 
 /**
@@ -34,23 +33,6 @@ const QUOTE_DESCRIPTOR = buildQuoteDescriptor();
  *  resolved once, the SAME field `GET /documents`'s own `dateFrom`/`dateTo` filter uses for this
  *  type (issue #418's THE CONSISTENCY RULE). */
 const QUOTE_DATE_FIELD_KEY = resolveDateFieldKey(QUOTE_DESCRIPTOR);
-
-/** Every quote from `all` whose own `QUOTE_DATE_FIELD_KEY` value falls within `period`'s inclusive
- *  range - the exact same `dateValueInRange`/`dayMs` pair `GET /documents`'s own filter applies (see
- *  invoice-contributions.ts's own identical `restrictToPeriod` for the full reasoning, deliberately
- *  duplicated rather than shared: each contribution file stays self-contained per this module's own
- *  convention). `period` undefined -> `all`, the SAME reference, unchanged. */
-function restrictToPeriod(
-  all: DocumentInstanceResult[],
-  period: DashboardPeriod | undefined,
-): DocumentInstanceResult[] {
-  if (!period || !QUOTE_DATE_FIELD_KEY) return all;
-  const fromMs = dayMs(period.dateFrom);
-  const toMs = dayMs(period.dateTo);
-  return all.filter((quote) =>
-    dateValueInRange((quote.data as Record<string, unknown> | null)?.[QUOTE_DATE_FIELD_KEY], fromMs, toMs),
-  );
-}
 
 /**
  * A quote's own gross (tax-included) total, for the statistics table's "Total" column — reuses
@@ -138,8 +120,8 @@ export const buildQuoteDashboardWidgets: ContributionHandler = async ({ companyI
     // same order `listRecentDocuments` returns above - restricting first, then slicing, keeps the
     // shortlist meaning "the 5 most recent drafts IN THE PERIOD", not "the 5 most recent drafts,
     // then filtered", which could silently show fewer than 5 even when more exist in the period.
-    draftQuotes = restrictToPeriod(allDrafts, period).slice(0, DRAFT_SHORT_LIST_LIMIT);
-    openCount = restrictToPeriod(allOpen, period).length;
+    draftQuotes = restrictToPeriod(allDrafts, period, QUOTE_DATE_FIELD_KEY).slice(0, DRAFT_SHORT_LIST_LIMIT);
+    openCount = restrictToPeriod(allOpen, period, QUOTE_DATE_FIELD_KEY).length;
   }
 
   const draftItems = draftQuotes.map((quote) => {

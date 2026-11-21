@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
-import { CreateCheckoutSessionInput, CreateCheckoutSessionResult } from '../../provider';
+import {
+  CreateCheckoutSessionInput,
+  CreateCheckoutSessionResult,
+  PAYMENT_PROVIDER_HTTP_TIMEOUT_MS,
+} from '../../provider';
 
 export type PayPalEnvironment = 'sandbox' | 'live';
 
@@ -87,7 +91,7 @@ export class RealPayPalClient implements PayPalClient {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: 'grant_type=client_credentials',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as {
@@ -141,7 +145,7 @@ export class RealPayPalClient implements PayPalClient {
           user_action: 'PAY_NOW',
         },
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as {
@@ -170,7 +174,7 @@ export class RealPayPalClient implements PayPalClient {
         'Content-Type': 'application/json',
         'PayPal-Request-Id': `capture:${orderId}`,
       },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as {
@@ -212,7 +216,7 @@ export class RealPayPalClient implements PayPalClient {
         webhook_id: credentials.webhookId,
         webhook_event: input.webhookEvent,
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as { verification_status?: string } | null;

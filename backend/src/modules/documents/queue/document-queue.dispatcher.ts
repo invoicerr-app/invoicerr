@@ -62,6 +62,7 @@ import {
   SCHEDULE_SWEEP_JOB_NAME,
   ScheduleOccurrenceJobData,
 } from '../schedules/schedule-sweep';
+import { clearTerminalJob } from './clear-terminal-job';
 import { buildDocumentActionJobId } from './document-action-job';
 import {
   DocumentActionJobData,
@@ -92,17 +93,7 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   async enqueueAction(input: DocumentActionJobData): Promise<void> {
     const jobId = buildDocumentActionJobId(input.typeId, input.documentId, input.actionId);
 
-    const existing = await this.queue.getJob(jobId);
-    if (existing) {
-      const state = await existing.getState();
-      if (state === 'completed' || state === 'failed') {
-        await existing.remove();
-        this.logger.log(`Cleared ${state} job ${jobId} so a fresh attempt can run.`);
-      } else {
-        this.logger.log(`Job ${jobId} is already ${state} — not enqueuing a duplicate.`);
-        return;
-      }
-    }
+    if (!(await clearTerminalJob(this.queue, jobId, this.logger, 'job'))) return;
 
     const attempts = readDocumentActionQueueAttempts();
     await this.queue.add('run', input, {

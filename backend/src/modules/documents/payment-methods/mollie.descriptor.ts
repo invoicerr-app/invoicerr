@@ -1,4 +1,4 @@
-import { PaymentMethodDescriptor } from './types';
+import { PaymentMethodDescriptor, presentFromFields } from './types';
 
 /**
  * "Mollie" — same trivial shape as `stripe.descriptor.ts`, and for the identical reason: no configured
@@ -18,7 +18,7 @@ export const molliePaymentMethod: PaymentMethodDescriptor = {
   id: 'mollie',
   label: 'Mollie',
   fields: [],
-  present() {
-    return { id: 'mollie', label: 'Mollie', lines: [] };
+  present(ctx) {
+    return presentFromFields(molliePaymentMethod, ctx.config);
   },
 };

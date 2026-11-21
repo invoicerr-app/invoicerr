@@ -108,7 +108,7 @@ openssl rand -hex 32   # → paste into CREDENTIALS_ENCRYPTION_KEY
 **`TSA_URL`** — ✅ *already set.* RFC 3161 timestamp authority for signature level -T. Set it to a
 public TSA to get level T, leave empty for level BES (offline-safe). FreeTSA's endpoint is
 `https://freetsa.org/tsr` (free, no account). Consumed by
-`backend/src/modules/documents/signing/registry.ts`. It does **not** apply to PDFs yet: the PAdES
+`backend/src/modules/documents/signing/timestamp-options.ts`. It does **not** apply to PDFs yet: the PAdES
 provider that signs rendered PDFs ignores the TSA, so signed PDFs stay at level B whatever this is
 set to (only the logged level reflects `TSA_URL` / `SIGNATURE_LEVEL`).
 

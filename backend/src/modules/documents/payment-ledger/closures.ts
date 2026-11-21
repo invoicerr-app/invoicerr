@@ -1,7 +1,7 @@
 import prisma from '@/prisma/prisma.service';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
-import { canonicalClosure, sha256Hex, signLedgerHash } from './ledger-hash';
+import { hashClosureRow, signLedgerHash } from './ledger-hash';
 import { addTotals, CLOSURE_KINDS, ClosureKind, nextPeriodStart, periodStart } from './periods';
 import { ledgerClock, lockPaymentLedger, sealPendingPayments } from './seal';
 
@@ -97,7 +97,7 @@ async function closeKind(
       perpetualTotals: perpetual,
       previousHash: previous?.hash ?? null,
     };
-    const hash = sha256Hex(canonicalClosure(fields));
+    const hash = hashClosureRow(fields);
     await tx.paymentLedgerClosure.create({
       data: { ...fields, hash, signature: signLedgerHash(hash), createdAt: now },
     });

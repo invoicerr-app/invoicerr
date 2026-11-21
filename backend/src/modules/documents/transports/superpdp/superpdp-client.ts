@@ -47,13 +47,9 @@
  * redirect would silently complete.
  */
 import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
-import {
-  allowPrivateOutboundForTesting,
-  OutboundUrlValidationError,
-  ResolvedOutboundUrl,
-  assertPublicOutboundUrl,
-  pinnedDispatcher,
-} from '@/utils/outbound-url';
+import { pinnedDispatcher, ResolvedOutboundUrl } from '@/utils/outbound-url';
+
+import { resolvePublicProviderBaseUrl } from '../public-provider-base-url';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -318,20 +314,10 @@ export class SuperPdpClient {
    * short-TTL record can still answer differently the few milliseconds later `fetch` asks again.
    */
   private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
-    try {
-      return await assertPublicOutboundUrl(this.baseUrl, {
-        // Both schemes, no port restriction — see this file's own header on why this differs from the
-        // https-only/port-443 policy `sso.service.ts` applies to a company's OIDC endpoints.
-        allowedProtocols: ['http:', 'https:'],
-        allowedPorts: null,
-        allowPrivateForTesting: allowPrivateOutboundForTesting(),
-      });
-    } catch (err) {
-      if (err instanceof OutboundUrlValidationError) {
-        throw new SuperPdpApiError('PDP baseUrl failed outbound-URL validation.', 0, null, this.baseUrl);
-      }
-      throw err;
-    }
+    return resolvePublicProviderBaseUrl(
+      this.baseUrl,
+      () => new SuperPdpApiError('PDP baseUrl failed outbound-URL validation.', 0, null, this.baseUrl),
+    );
   }
 
   // -----------------------------------------------------------------------

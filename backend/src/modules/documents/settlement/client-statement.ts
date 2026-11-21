@@ -1,9 +1,7 @@
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listAllDocuments } from '../persistence';
-import { computeDocumentTotals } from '../totals/compute-totals';
-import { computeSettlement } from './compute-settlement';
-import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from './credits';
-import { sumPaidMinorByDocument } from './payments';
+import { listCreditNotes } from './credits';
+import { resolveInvoiceBalances } from './unsettled-invoices';
 
 /**
  * "Client account statement" — a PER-CLIENT aggregation of facts that
@@ -194,29 +192,18 @@ export async function resolveClientStatement(
     dataEquals: { client: clientId },
   });
 
-  const paidByDocument = await sumPaidMinorByDocument(
-    companyId,
-    invoices.map((invoice) => invoice.id),
-  );
   // Company-wide, ONE query — the same "one query, many callers" shape sumPaidMinorByDocument itself
   // already gives payments, and invoice-contributions.ts's own dashboard widget already gives credit
-  // notes: cheaper than one `listCreditNotes` per invoice on this client's statement.
+  // notes: cheaper than one `listCreditNotes` per invoice on this client's statement. Read here because
+  // the credit-note rows below need each note's own status and issue date.
   const creditNotes = await listCreditNotes(companyId);
+  const balances = await resolveInvoiceBalances(companyId, INVOICE_DESCRIPTOR, invoices, creditNotes);
 
   const documents: ClientStatementDocumentRow[] = [];
   const totalsByCurrency = new Map<string, ClientStatementCurrencyTotals>();
 
-  for (const invoice of invoices) {
+  for (const { invoice, totals, credits, settlement } of balances) {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
-    const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
-    const paidMinor = paidByDocument.get(invoice.id) ?? 0;
-    const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
-    const settlement = computeSettlement(
-      totals.grossMinor,
-      [{ amountMinor: paidMinor }],
-      toSettlementCreditInputs(credits),
-    );
-
     const currency = typeof data.currency === 'string' ? data.currency : '';
     const dueDate = typeof data.dueDate === 'string' ? data.dueDate : null;
     const issueDate = typeof data.issueDate === 'string' ? data.issueDate : null;
