@@ -1,4 +1,4 @@
-import { useApiQuery } from "./use-api-query"
+import { useCountryScopedQuery } from "./use-country-scoped-query"
 
 // Mirrors backend/src/modules/country-readiness/country-readiness.service.ts's
 // `CountryReadiness` — a country is "complete" only when it has a `data/xx.json` file in every one
@@ -17,7 +17,9 @@ export interface CountryReadiness {
 // company-creation time, both in the onboarding wizard and in company settings) — see the backend
 // controller's own header for why it carries no `@ActiveCompany()`.
 export function useCountryReadiness(countryCode: string | undefined | null) {
-  const url = countryCode ? `/api/country-readiness/${encodeURIComponent(countryCode)}` : null
-
-  return useApiQuery<CountryReadiness>(["country-readiness", countryCode], url!, { enabled: !!url })
+  return useCountryScopedQuery<CountryReadiness>(
+    ["country-readiness", countryCode],
+    countryCode,
+    (country) => `/api/country-readiness/${country}`,
+  )
 }

@@ -38,7 +38,7 @@ import { toast } from "sonner"
 import type { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-import { FormSection } from "../../_shared/form-dialog"
+import { FormSection } from "./form-dialog"
 import {
   FormPageDialog,
   type FormPageDialogHandle,

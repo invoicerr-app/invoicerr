@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { settlementBadgeInfo } from "./document-settlement"
+import { settlementBadgeInfo, statementRowSettlement } from "./document-settlement"
 
 const unpaid = {
   totalGrossMinor: 1000,
@@ -15,7 +15,7 @@ const today = "2026-10-28"
 describe("settlementBadgeInfo", () => {
   it("reads late once the due date has passed and nothing has been paid", () => {
     expect(settlementBadgeInfo(unpaid, { dueDate: "2026-10-02T00:00:00.000Z", today })).toEqual({
-      tone: "destructive",
+      status: "late",
       labelKey: "documents.settlement.badge.late",
     })
   })
@@ -36,5 +36,40 @@ describe("settlementBadgeInfo", () => {
     expect(settlementBadgeInfo(settled, { dueDate: "2026-10-02", today }).labelKey).toBe(
       "documents.settlement.badge.settled",
     )
+  })
+})
+
+describe("settlementBadgeInfo status", () => {
+  it("is always the last segment of its label key", () => {
+    const partly = { ...unpaid, paidMinor: 400, outstandingMinor: 600 }
+    const settled = { ...unpaid, paidMinor: 1000, outstandingMinor: 0, settled: true }
+    for (const info of [
+      settlementBadgeInfo(unpaid, { dueDate: "2026-10-02", today }),
+      settlementBadgeInfo(unpaid, { today }),
+      settlementBadgeInfo(partly, { today }),
+      settlementBadgeInfo(settled, { today }),
+    ]) {
+      expect(info.status).toBe(info.labelKey.split(".").pop())
+    }
+  })
+})
+
+describe("statementRowSettlement", () => {
+  it("builds the settlement a statement row stands for, credits already netted in", () => {
+    const row = {
+      id: "d1",
+      amountMinor: 1000,
+      paidMinor: 400,
+      outstandingMinor: 600,
+      settled: false,
+    } as Parameters<typeof statementRowSettlement>[0]
+    expect(statementRowSettlement(row)).toEqual({
+      totalGrossMinor: 1000,
+      paidMinor: 400,
+      creditedMinor: 0,
+      outstandingMinor: 600,
+      excessMinor: 0,
+      settled: false,
+    })
   })
 })

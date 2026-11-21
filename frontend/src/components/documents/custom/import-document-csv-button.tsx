@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
+import { decodeCsvBytes, parseCsv } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
 import {
@@ -132,8 +132,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
     try {
       const buffer = await file.arrayBuffer()
       const text = decodeCsvBytes(buffer)
-      const delimiter = detectDelimiter(text.split(/\r\n|\r|\n/)[0] ?? "")
-      const { headers, rows: dataRows } = parseCsv(text, delimiter)
+      const { headers, rows: dataRows } = parseCsv(text)
 
       if (dataRows.length === 0) {
         toast.error(t("documents.custom.importCsv.empty"))

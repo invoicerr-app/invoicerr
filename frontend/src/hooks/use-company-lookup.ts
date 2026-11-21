@@ -80,7 +80,7 @@ export function lookupNote(capability: Pick<CountryLookupCapability, "noteKeys">
 }
 
 /** Which registry (if any) can autofill a form for this country. */
-export function useCompanyLookupCapability(countryCode: string | undefined | null) {
+function useCompanyLookupCapability(countryCode: string | undefined | null) {
   const cc = (countryCode || "").trim().toUpperCase()
   return useApiQuery<CountryLookupCapability>(
     ["company-lookup-capability", cc],

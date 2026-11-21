@@ -1,4 +1,4 @@
-import { useApiQuery } from "./use-api-query"
+import { useCountryScopedQuery } from "./use-country-scoped-query"
 
 export interface RequiredClientIdentifier {
   scheme: string
@@ -33,12 +33,10 @@ export interface B2gRoutingRule {
  * hook is disabled unless the caller explicitly says it's relevant.
  */
 export function useB2gRoutingRule(countryCode: string | undefined | null, enabled: boolean) {
-  const url =
-    enabled && countryCode
-      ? `/api/documents/b2g-routing?countryCode=${encodeURIComponent(countryCode)}`
-      : null
-
-  return useApiQuery<B2gRoutingRule | null>(["b2g-routing", countryCode], url!, {
-    enabled: !!url,
-  })
+  return useCountryScopedQuery<B2gRoutingRule | null>(
+    ["b2g-routing", countryCode],
+    countryCode,
+    (country) => `/api/documents/b2g-routing?countryCode=${country}`,
+    enabled,
+  )
 }

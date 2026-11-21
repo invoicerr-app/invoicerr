@@ -1,5 +1,6 @@
 "use client"
 
+import { fileToBase64 } from "@/lib/file-to-base64"
 import { formatShortDate } from "@/lib/format"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -181,11 +182,7 @@ export default function SigningCertificatesSettings() {
       return
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    let binary = ""
-    const bytes = new Uint8Array(arrayBuffer)
-    for (const byte of bytes) binary += String.fromCharCode(byte)
-    const pfxBase64 = btoa(binary)
+    const pfxBase64 = await fileToBase64(file)
 
     const result = await upload({ label, applicability, environment, pfxBase64, pfxPassword: password })
     if (!result) return // a named error (corrupt file, wrong password, expired cert) already toasted

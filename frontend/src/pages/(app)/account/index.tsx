@@ -11,13 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
+import { useSessionUser } from "@/hooks/use-session-user"
 import { SettingsFormFooter, SettingsSection, useSavedFlash } from "@/components/settings-section"
-
-interface SessionUser {
-  firstname?: string
-  lastname?: string
-  email?: string
-}
 
 interface ProfileFormValues {
   firstname: string
@@ -30,8 +25,7 @@ interface EmailFormValues {
 
 export default function AccountProfilePage() {
   const { t } = useTranslation()
-  const { data: session, refetch } = authClient.useSession()
-  const user = (session as unknown as { user?: SessionUser } | null)?.user
+  const { user, refetch } = useSessionUser()
   const [profileSaved, flashProfileSaved] = useSavedFlash()
 
   const [searchParams, setSearchParams] = useSearchParams()

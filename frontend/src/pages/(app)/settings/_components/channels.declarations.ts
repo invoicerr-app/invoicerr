@@ -1,24 +1,10 @@
-import type { ChannelProvenance } from "@/components/channel-banner"
-
-export type ReportableDocumentType = "invoice" | "credit-note"
-export type ObligationTrigger = "issued" | "sent" | "payment" | "period-end"
-export type ObligationPeriod = "month" | "quarter" | "year"
-
-/** One row of `GET /channels`'s `reportingObligations`: one document type of one obligation's channel. */
-export interface ReportingObligation {
-  providerId: string
-  /** The platform this row is shown under: a transport and a declaration provider that are the same
-   *  legal entity share it (France's "pdp" transport rows carry "fr-pa"). */
-  platformId: string
-  appliesTo: ReportableDocumentType
-  provenance: ChannelProvenance
-  /** The v2 obligation this row comes from (issue #767). */
-  obligationId: string
-  kind: "data" | "summary" | "return"
-  trigger: ObligationTrigger
-  dischargedBy: "transport" | "provider" | "export" | "manual"
-  period?: ObligationPeriod
-}
+import type {
+  ChannelProvenance,
+  ObligationPeriod,
+  ObligationTrigger,
+  ReportableDocumentType,
+  ReportingObligation,
+} from "@/types/channels"
 
 /** One "when" line of a declaration: the event, and every document type it covers. */
 export interface DeclarationMoment {

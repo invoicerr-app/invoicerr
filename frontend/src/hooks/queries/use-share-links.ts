@@ -1,8 +1,10 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
+import { queryKeys } from "@/lib/query-keys"
 
 import type { CreatedShareLink, ShareLinkSummary } from "@/components/documents/types"
 
-const shareLinksKey = (typeId: string, documentId: string) => ["documents", typeId, documentId, "share-links"]
+const shareLinksKey = (typeId: string, documentId: string) =>
+  queryKeys.documents.instanceSub(typeId, documentId, "share-links")
 
 /** Metadata only — see `ShareLinkSummary`'s own comment: this list never carries a token or its
  *  hash, on the SAME "not re-consultable" guarantee the backend's own response shape already holds. */
