@@ -1,11 +1,14 @@
 import * as http from 'node:http';
 
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { logPersistenceHealth } from './logger/log-persistence-health';
 import { WorkerModule } from './worker.module';
 import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 import { redactLogValue } from './logger/redaction';
+import { initFieldEncryption } from './lib/field-encryption/boot';
+import { countStoredCiphertext } from './lib/field-encryption/ciphertext-probe';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -28,6 +31,7 @@ import { redactLogValue } from './logger/redaction';
  * unhandled promise rejection.
  */
 async function bootstrap() {
+  await initFieldEncryption({ countCiphertext: countStoredCiphertext, log: new Logger('FieldEncryption') });
   const app = await NestFactory.createApplicationContext(WorkerModule);
   // Same redaction as the API process: the worker prints the same kind of provider/document payloads.
   app.useLogger(new RedactingConsoleLogger());
