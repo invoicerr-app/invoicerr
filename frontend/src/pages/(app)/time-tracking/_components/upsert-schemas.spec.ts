@@ -49,4 +49,16 @@ describe("time tracking validation messages", () => {
       "timeTracking.entries.errors.durationPositive",
     ])
   })
+
+  it("an emptied duration reports a translated message, not zod's built-in English", () => {
+    const result = buildTimeEntrySchema(keyAsText).safeParse({
+      date: "2026-10-13",
+      hours: undefined,
+      billable: true,
+      hourlyRate: null,
+    })
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "timeTracking.entries.errors.durationPositive",
+    ])
+  })
 })
