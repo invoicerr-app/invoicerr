@@ -19,7 +19,6 @@ import { logger } from '@/logger/logger.service';
 import { MailService } from '@/mail/mail.service';
 import {
   buildOwnershipTransferFinalizedEmail,
-  buildOwnershipTransferEndedEmail,
   buildOwnershipTransferRequestEmail,
 } from '@/mail/system-email-templates';
 import { isBillingEnabled } from '@/modules/billing/billing-flag';
@@ -33,6 +32,7 @@ import { CurrentUser } from '@/types/user';
 import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prisma/generated/prisma/client';
 import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
+import { notifyTransferEnded } from './notify-transfer-ended';
 import { appOrigin } from '@/utils/app-origin';
 
 // RFC 5321 caps a whole address at 254 octets — longer input is rejected before any parsing.
@@ -267,30 +267,7 @@ export class TransferService {
     }
 
     try {
-      const company = await prisma.company.findUnique({
-        where: { id: companyId },
-        select: { name: true, language: true },
-      });
-      const fromUser = await prisma.user.findUnique({
-        where: { id: transfer.fromUserId },
-        select: { email: true, locale: true },
-      });
-      if (company && fromUser) {
-        const email = buildOwnershipTransferEndedEmail({
-          appUrl: appOrigin(),
-          companyName: company.name,
-          toEmail: transfer.toEmail,
-          reason: 'canceled',
-          // The canceling OWNER's own receipt — their preference, falling back to their own company's.
-          language: resolveUserLanguage(fromUser.locale, company.language),
-        });
-        await this.mailService.sendForCompany(companyId, {
-          to: fromUser.email,
-          subject: email.subject,
-          text: email.text,
-          html: email.html,
-        });
-      }
+      await notifyTransferEnded(this.mailService, transfer, 'canceled', appOrigin());
     } catch (error) {
       logger.warn('Ownership transfer cancellation mail failed to send', {
         category: 'company-transfer',

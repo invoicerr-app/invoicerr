@@ -3,10 +3,9 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { fromMinor, toMinor } from '@/utils/financial';
 
 import { computeGeneratedInvoiceLines, TimeEntryForBilling } from './generate-invoice-lines';
-import { resolveCompanyCurrency } from './resolve-company-currency';
+import { minorToRate, patchRateMinor, rateToMinor, resolveCompanyCurrency } from './resolve-company-currency';
 
 export interface CreateTimeEntryDto {
   projectId: string;
@@ -70,8 +69,8 @@ function withRate(entry: RawTimeEntry, currency: string): TimeEntryWithRate {
   const effectiveMinor = hourlyRateMinor ?? projectHourlyRateMinor;
   return {
     ...rest,
-    hourlyRate: hourlyRateMinor !== null ? fromMinor(hourlyRateMinor, currency) : null,
-    effectiveHourlyRate: effectiveMinor !== null ? fromMinor(effectiveMinor, currency) : null,
+    hourlyRate: minorToRate(hourlyRateMinor, currency),
+    effectiveHourlyRate: minorToRate(effectiveMinor, currency),
     project: projectSummary,
   };
 }
@@ -129,7 +128,7 @@ export class TimeEntriesService {
         durationMinutes: dto.durationMinutes,
         description: dto.description ?? null,
         billable: dto.billable ?? true,
-        hourlyRateMinor: dto.hourlyRate != null ? toMinor(dto.hourlyRate, currency) : null,
+        hourlyRateMinor: rateToMinor(dto.hourlyRate, currency),
       },
       include: { project: { select: PROJECT_SELECT } },
     });
@@ -182,12 +181,7 @@ export class TimeEntriesService {
         durationMinutes: dto.durationMinutes ?? existing.durationMinutes,
         description: dto.description !== undefined ? dto.description : existing.description,
         billable: dto.billable ?? existing.billable,
-        hourlyRateMinor:
-          dto.hourlyRate !== undefined
-            ? dto.hourlyRate !== null
-              ? toMinor(dto.hourlyRate, currency)
-              : null
-            : existing.hourlyRateMinor,
+        hourlyRateMinor: patchRateMinor(dto.hourlyRate, existing.hourlyRateMinor, currency),
       },
     });
     if (claimed.count === 0) {
