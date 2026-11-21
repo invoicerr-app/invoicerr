@@ -14,6 +14,7 @@ import {
   BillingExportService,
   ExportZipTimedOutError,
   ExportZipTooLargeError,
+  exportZipAttachment,
 } from '@/modules/billing/export-zip.service';
 import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
@@ -228,7 +229,7 @@ export class CompaniesService {
         text:
           'Attached is a full export of everything your company holds on Invoicerr, as you just ' +
           'requested.',
-        attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
+        attachments: [exportZipAttachment(zip)],
       });
     } catch (error) {
       if (error instanceof HttpException) throw error; // e.g. the "no mail server configured" refusal

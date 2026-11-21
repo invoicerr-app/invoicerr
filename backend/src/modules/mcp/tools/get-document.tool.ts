@@ -2,12 +2,7 @@ import { z } from 'zod';
 
 import { hasAnyScope } from '@/utils/scope-check';
 
-import {
-  canReadDocumentType,
-  DOCUMENT_READ_SCOPES,
-  DOCUMENT_WRITE_SCOPES,
-  scopeForDocumentType,
-} from './scope-mapping';
+import { ANY_DOCUMENT_SCOPE, assertCanReadDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {
@@ -35,16 +30,10 @@ export const getDocumentTool: ToolDescriptor<typeof inputSchema> = {
     "its payment settlement. For a quote with options, totals.options holds each option's own " +
     'totals, and the top-level net/VAT/gross are null until an option is accepted (then they are ' +
     "that option's). 404s if it does not exist for the active company/type.",
-  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, ANY_DOCUMENT_SCOPE),
   inputSchema,
   handler: async (ctx, input) => {
-    if (!canReadDocumentType(ctx.scopes, input.typeId)) {
-      const required = scopeForDocumentType(input.typeId, 'read') ?? `${input.typeId}s:read`;
-      throw new Error(
-        `This API key's scopes do not cover document type "${input.typeId}" — grant "${required}" ` +
-          '(or its write equivalent) to read it.',
-      );
-    }
+    assertCanReadDocumentType(ctx.scopes, input.typeId, 'read it');
 
     const document = await ctx.services.documentsService.getDocument(
       ctx.companyId,
