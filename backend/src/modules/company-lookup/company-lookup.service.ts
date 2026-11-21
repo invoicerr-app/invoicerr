@@ -22,6 +22,32 @@ const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
 const COMPANY_LOOKUP_TTL_MS = 'COMPANY_LOOKUP_TTL_MS';
 
 /**
+ * Total time one lookup may spend across its whole provider chain (issue #786). Each provider keeps
+ * its own per-call timeout (`http.ts#DEFAULT_TIMEOUT_MS`, 8 s), but a country walks up to three of them
+ * in turn, so a register outage used to hold the onboarding "Next" button for 24 s. Past this budget
+ * the service stops asking and answers PROVIDER_ERROR (or what it already found), and the form lets
+ * the user type the details themselves.
+ */
+export const DEFAULT_LOOKUP_BUDGET_MS = 5000;
+
+/** Optional DI token for the budget (tests); otherwise the env var `COMPANY_LOOKUP_BUDGET_MS`, then the default. */
+export const COMPANY_LOOKUP_BUDGET_MS = 'COMPANY_LOOKUP_BUDGET_MS';
+
+/** A positive integer from the env, or `undefined` (logged) so the default applies. */
+export function budgetFromEnv(raw: string | undefined, logger?: Pick<Logger, 'warn'>): number | undefined {
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const value = Number(raw);
+  if (Number.isInteger(value) && value > 0) return value;
+  logger?.warn(
+    `COMPANY_LOOKUP_BUDGET_MS="${raw}" is not a positive integer; using ${DEFAULT_LOOKUP_BUDGET_MS}ms.`,
+  );
+  return undefined;
+}
+
+/** Thrown internally when the chain's budget runs out before a provider answers. */
+class LookupBudgetExhausted extends Error {}
+
+/**
  * "Complete enough to stop asking": the source gave a real registered name or an
  * address. A bare VAT confirmation is not — the next source may still fill it in.
  */
@@ -40,13 +66,19 @@ export class CompanyLookupService {
   private readonly cache = new Map<string, CacheEntry>();
 
   private readonly ttlMs: number;
+  private readonly budgetMs: number;
 
   constructor(
     private readonly registry: CompanyLookupRegistry,
     // Optional + tokenised: Nest cannot resolve a bare `number` constructor parameter.
     @Optional() @Inject(COMPANY_LOOKUP_TTL_MS) ttlMs?: number,
+    @Optional() @Inject(COMPANY_LOOKUP_BUDGET_MS) budgetMs?: number,
   ) {
     this.ttlMs = ttlMs ?? DEFAULT_TTL_MS;
+    this.budgetMs =
+      budgetMs ??
+      budgetFromEnv(process.env.COMPANY_LOOKUP_BUDGET_MS, this.logger) ??
+      DEFAULT_LOOKUP_BUDGET_MS;
   }
 
   capabilities(): CountryLookupCapability[] {
@@ -102,6 +134,7 @@ export class CompanyLookupService {
     let sawConfigured = false;
     let sawSupported = false;
     const hits: { provider: CompanyRegistryProvider; company: CompanyLookupCompany }[] = [];
+    const deadline = Date.now() + this.budgetMs;
 
     for (const scheme of schemes) {
       const query: CompanyLookupQuery = { countryCode, scheme, value };
@@ -113,13 +146,28 @@ export class CompanyLookupService {
         sawSupported = true;
 
         try {
-          const company = await provider.lookup(query);
+          const company = await this.withinBudget(provider.lookup(query), deadline);
           if (company) {
             hits.push({ provider, company });
             // A source that only confirms the number is worth completing from the next one.
             if (isComplete(company)) return this.merge(hits, countryCode);
           }
         } catch (err) {
+          if (err instanceof LookupBudgetExhausted) {
+            this.logger.warn(
+              `${provider.id} lookup for ${countryCode}/${value} cut at the ${this.budgetMs}ms total budget`,
+            );
+            // What an earlier source already found is still worth returning.
+            if (hits.length > 0) return this.merge(hits, countryCode);
+            return {
+              found: false,
+              company: null,
+              source: provider.id,
+              sourceLabel: provider.label,
+              error: 'PROVIDER_ERROR',
+              message: `Company registers did not answer within ${this.budgetMs}ms`,
+            };
+          }
           const code = err instanceof ProviderLookupError ? err.code : 'PROVIDER_ERROR';
           const message = err instanceof Error ? err.message : String(err);
           this.logger.warn(`${provider.id} lookup failed for ${countryCode}/${value}: ${message}`);
@@ -158,6 +206,29 @@ export class CompanyLookupService {
     }
     // A registry that answered "no such entity" is a real result, not a failure.
     return lastError ?? { found: false, company: null };
+  }
+
+  /**
+   * Races one provider call against what is left of the chain's budget. The losing call is left to
+   * settle on its own per-call timeout; its result is ignored and its rejection swallowed, so it
+   * never surfaces as an unhandled rejection.
+   */
+  private async withinBudget<T>(call: Promise<T>, deadline: number): Promise<T> {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      call.catch(() => undefined);
+      throw new LookupBudgetExhausted();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expiry = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new LookupBudgetExhausted()), remaining);
+    });
+    try {
+      return await Promise.race([call, expiry]);
+    } finally {
+      clearTimeout(timer);
+      call.catch(() => undefined);
+    }
   }
 
   /**

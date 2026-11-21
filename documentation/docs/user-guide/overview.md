@@ -18,6 +18,10 @@ The very first time you open the app, if your company name isn't set yet, Invoic
 Complete it before anything else: your company name, address, currency, and document numbering appear on every quote and invoice you issue.
 :::
 
+### When the company register is slow
+
+After you pick your country and type your registration number, **Next** asks your country's business register for your company's details and fills them in for you. If the register does not answer within about 5 seconds, Invoicerr stops waiting: you reach the company step with the fields empty and a short message saying the register could not be reached. Type your company's name and address yourself and carry on; nothing else changes. Your administrator can change that wait with `COMPANY_LOOKUP_BUDGET_MS` (see `.env.example`).
+
 A good order for getting started:
 
 1. **[Settings → Company](settings/company-branding.md)** — your business identity and numbering
