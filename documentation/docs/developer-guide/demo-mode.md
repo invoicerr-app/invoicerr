@@ -32,7 +32,6 @@ lives in the shared chokepoint, not in each caller.
 | Every outbound webhook | `WebhooksService.send` (`backend/src/modules/webhooks/webhooks.service.ts`) |
 | Every tax-authority declaration (Portugal's AT, and any provider registered later) | `DeclarationProviderRegistry.register` (`backend/src/modules/documents/reporting/declaration-provider.ts`) |
 | Every card/online payment checkout session (Stripe, Mollie, PayPal, and any provider registered later) | `PaymentProviderRegistry.register` (`backend/src/modules/documents/payments/payment-provider-registry.ts`) |
-| Every Polar billing call | `getPolarClient` (`backend/src/modules/billing/polar-client.ts`) |
 
 A refused action never looks like it worked: it returns a clear `403` naming what is disabled
 (`DEMO_MODE_BLOCKED`), never a silent success. A send that would reach nobody at all never gets as
@@ -40,7 +39,7 @@ far as a chokepoint: a credit note that corrects no invoice has no client, so it
 before it is numbered, on every install, demo or not.
 
 Billing is forced off outright, independently of `WARNING__ENABLE_BILLING_FOR_USERS__WARNING`: no
-paywall, no seat gate, no Polar call, whatever that flag happens to be set to in the same environment.
+paywall, no seat gate, no Stripe plugin, whatever that flag happens to be set to in the same environment.
 See `backend/src/modules/billing/billing-flag.ts#isBillingEnabled`.
 
 Self-hosted, local OCR on an uploaded received invoice is **not** blocked by `DEMO_MODE`: nothing
@@ -68,8 +67,50 @@ button as a convenience.
 ### The banner
 
 Every authenticated page shows a sticky top banner: *"Demo: data resets every 4 hours. Nothing you
-enter is kept or sent."* The sign-in page additionally shows the demo credentials directly, so a
-visitor never has to look for them elsewhere.
+enter is kept or sent."* The number of hours is `DEMO_RESET_INTERVAL_HOURS` (see
+[Configuration](#configuration)), never part of the translated text.
+
+### Automatic sign-in
+
+A visitor with no session is signed in with the demo account and lands on the dashboard, with no
+click. Any route that sends a signed-out visitor to the sign-in page leads there, so opening the
+demo on any page works. The sign-in page makes the attempt once per visit, through the same sign-in
+call and the same error handling as the form: if it fails, the visitor stays on the sign-in page with
+the error shown and the form usable, never a spinner.
+
+After an explicit sign-out (the account menu, `/auth/sign-out`, or the waiting-for-seat screen), the
+visitor lands on the sign-in page and is not signed straight back in. Every sign-out goes through
+`frontend/src/lib/sign-out.ts`, which records it in `sessionStorage` for the browser tab:
+
+- a reload of that tab stays on the sign-in page;
+- a new tab, or the same browser after the tab is closed, is a fresh visit and is signed in again;
+- a browser that refuses `sessionStorage` is never signed in automatically, since the page cannot
+  tell whether the visitor just signed out.
+
+### The sign-in page
+
+The sign-in page shows a "This is a public demo" box above the form, drawn as a dashed ticket: the
+reset interval, the demo account's e-mail and password each with a copy button, and a **Try it
+without an account** button that signs in with that account in one click, through the same call as
+the automatic sign-in. A visitor who signed out can also type the credentials into the form by hand.
+
+The e-mail, password and reset interval are served by the backend, never written into the frontend
+or into a translation: `GET /api/legal/documents`, the public endpoint that already carries
+`demoMode`, returns them as `demo`:
+
+```json
+{ "demoMode": true, "demo": { "email": "demo@invoicerr.app", "password": "demo", "resetIntervalHours": 4 } }
+```
+
+Translations only carry the surrounding sentences, so a translation can never alter or drop the
+credentials. The password is public by design: the box prints it for anyone who opens the page.
+
+:::info[Nothing of this exists outside demo mode]
+With `DEMO_MODE` off, `demo` is always `null`: no demo e-mail, password or interval is ever sent to
+a browser, nothing signs anyone in automatically, and neither the box nor the banner renders. There
+is no demo-only sign-in route to reach: the automatic sign-in uses the ordinary e-mail sign-in, with
+the credentials it was served.
+:::
 
 ## The seed
 
@@ -121,7 +162,9 @@ demo data, by construction.
 The product does not schedule its own reset; that is an infrastructure decision. Run
 `npm run demo:reset` (`tsx scripts/demo-reset.ts`, the same "raw script, compiled `src`" pattern
 `catalogs:release` already uses, see that script's own header) from a Kubernetes **CronJob** on a
-4-hour schedule (`0 */4 * * *`), against the demo namespace's own `DEMO_MODE=true` environment. It
+4-hour schedule (`0 */4 * * *`), against the demo namespace's own `DEMO_MODE=true` environment. A
+different schedule needs `DEMO_RESET_INTERVAL_HOURS` set to match, or the sign-in page and the
+banner will state the wrong interval. It
 is idempotent and self-contained: it creates the demo account if missing, reuses it otherwise, and
 needs no other process to be stopped first.
 
@@ -137,7 +180,14 @@ invoking `tsx` from inside `dist/`.
 
 ## Configuration
 
-See `backend/.env.example` for `DEMO_MODE` itself. There is nothing else to configure: the demo
-account's address and password are fixed (`demo@invoicerr.app` / `demo`,
-`backend/src/modules/demo/demo-flag.ts`), and every blocked sender needs no per-transport
+See `backend/.env.example` for both settings.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `DEMO_MODE` | off | Turns the instance into the public demo described on this page. |
+| `DEMO_RESET_INTERVAL_HOURS` | `4` | How often the reset job runs, in whole hours, as the sign-in page and the banner state it. Read only in demo mode; anything but a positive whole number falls back to `4`. |
+
+The demo account's address and password are fixed (`demo@invoicerr.app` / `demo`,
+`backend/src/modules/demo/demo-flag.ts`): the reset script creates the account with them, and the
+sign-in page shows them from the same constants. Every blocked sender needs no per-transport
 configuration to stay blocked.

@@ -16,9 +16,7 @@
 import { DocumentEventMessage } from '../document-events';
 import { DocumentEventsBridge } from '../document-events-bridge';
 import { DocumentEventsPublisher } from '../document-events-publisher';
-
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
+import { describeWithRedis } from './redis-gate';
 
 /** Polls `condition` until it's true or `timeoutMs` elapses — pub/sub delivery is asynchronous over
  *  a real network round trip, so a bare synchronous assertion right after `publish()` would be racy

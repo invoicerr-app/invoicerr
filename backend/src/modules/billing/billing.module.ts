@@ -15,29 +15,15 @@
  * `billing-core.module.ts`'s own header for the full account. This module now imports
  * `BillingCoreModule` for what its OWN controllers need (nothing, today — see below) and to keep the
  * providers graph connected for anything added later; the actual queue wiring lives there instead.
- *
- * `BillingCustomerProvisioningBootService` stays HERE, not in Core: its own header calls out that its
- * best-effort sync is meant to run "once … only in the api role" — Core is imported by BOTH the API
- * (via this module) and a dedicated worker, so a provider that should run ONLY on the API belongs on
- * the API-only side of the split, exactly the way `documents-core.module.ts`'s own boot-reseed
- * services are kept out of anything the worker alone would import.
  */
 import { Module } from '@nestjs/common';
 
 import { BillingCoreModule } from './billing-core.module';
 import { BillingController } from './billing.controller';
-import { BillingCustomerProvisioningBootService } from './customer-provisioning-boot.service';
-import { PolarWebhookController } from './polar-webhook.controller';
 import { SeatsController } from './seats.controller';
 
 @Module({
   imports: [BillingCoreModule],
-  controllers: [BillingController, PolarWebhookController, SeatsController],
-  providers: [
-    // `OnModuleInit` — runs the Polar customer-provisioning boot sync (`customer-provisioning.ts`'s own
-    // header) once, only in this (API-role) process — see this file's own header on why it stays here
-    // rather than moving to `BillingCoreModule`.
-    BillingCustomerProvisioningBootService,
-  ],
+  controllers: [BillingController, SeatsController],
 })
 export class BillingModule {}

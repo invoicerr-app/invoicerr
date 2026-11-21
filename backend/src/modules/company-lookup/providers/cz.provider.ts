@@ -1,14 +1,11 @@
 /**
  * Czechia — ARES (Administrativní registr ekonomických subjektů, Ministerstvo financí).
- *
- * Endpoint : GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{ico}
- * Docs     : https://ares.gov.cz/stranky/vyvojar-info
- * Credentials: none.
+ * Docs: https://ares.gov.cz/stranky/vyvojar-info (no credentials).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const ARES_URL = 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty';
 
@@ -30,10 +27,10 @@ export class CzechAresProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://ares.gov.cz/stranky/vyvojar-info';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

@@ -16,20 +16,42 @@
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+import { fromMinor } from '@/utils/financial';
 
-import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
+import {
+  createAuthorityEvents,
+  hasDeclarationResult,
+  journalSyntheticEvent,
+} from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
-import { DeclarationProviderRegistry, DeclarationResult, DeclaredInvoice } from './declaration-provider';
+import {
+  DECLARATION_REFERENCE_KINDS,
+  DeclarationProviderRegistry,
+  DeclarationProvider,
+  DeclarationReferenceKind,
+  DeclarationResult,
+  DeclaredInvoice,
+  DeclaredPayment,
+} from './declaration-provider';
 import { buildDeclaredInvoice, UndeclarableDocumentError } from './build-declared-invoice';
+import { classifyObligation } from './classify';
+import { defaultReportingObligationCatalogV2 } from './obligation-catalog';
+import { loadDeclarationOperation } from './operation-context';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { resolveCreditNoteFormatSource } from '../formats/credit-note-source';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
 import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
-import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
+import {
+  declarationSubjectKey,
+  REPORT_BLOCKED_STATUS_CODE,
+  REPORT_FAILED_STATUS_CODE,
+  ReportJobData,
+} from './report-job';
 
 export class InvalidDeclarationResultError extends Error {}
 
@@ -53,6 +75,56 @@ export function assertNonEmptyDeclarationResult(result: DeclarationResult, provi
         'refusing to journal it.',
     );
   }
+  if (result.referenceKind !== undefined && !DECLARATION_REFERENCE_KINDS.includes(result.referenceKind)) {
+    throw new InvalidDeclarationResultError(
+      `Declaration provider "${providerId}" returned an unknown reference kind "${String(result.referenceKind)}" ` +
+        `(expected one of ${DECLARATION_REFERENCE_KINDS.join(', ')}); refusing to journal it.`,
+    );
+  }
+}
+
+/** Who minted a declaration's `authorityId`; absent reads as the authority, its historical meaning. */
+export function declarationReferenceKindOf(result: DeclarationResult): DeclarationReferenceKind {
+  return result.referenceKind ?? 'authority';
+}
+
+/**
+ * Splits a received amount across the invoice's own VAT rates, proportionally to each rate's share of
+ * the invoice's gross total. The taxable and VAT parts follow from the received amount, never from
+ * the invoice's own totals: a partial payment declares only the money actually collected.
+ *
+ * Exported for the runner's own spec: the arithmetic is the part a provider must never re-derive.
+ */
+export function splitPaymentByVatRate(
+  invoice: DeclaredInvoice,
+  amount: number,
+): DeclaredPayment['subtotals'] {
+  const totalGross = invoice.lines.reduce((sum, line) => sum + line.grossAmount, 0);
+  if (!(totalGross > 0) || !(amount > 0)) {
+    throw new Error('Cannot split a payment against an invoice with no positive gross total.');
+  }
+
+  const grossByRate = new Map<number, number>();
+  for (const line of invoice.lines) {
+    if (line.vatRatePercent === null) {
+      throw new Error(
+        `Cannot declare a payment for invoice ${invoice.number}: a line has no resolvable VAT rate.`,
+      );
+    }
+    grossByRate.set(line.vatRatePercent, (grossByRate.get(line.vatRatePercent) ?? 0) + line.grossAmount);
+  }
+
+  const entries = [...grossByRate.entries()].sort(([left], [right]) => left - right);
+  const round = (value: number) => Math.round(value * 100) / 100;
+  let allocated = 0;
+
+  return entries.map(([rate, gross], index) => {
+    const share =
+      index === entries.length - 1 ? round(amount - allocated) : round((amount * gross) / totalGross);
+    allocated = round(allocated + share);
+    const taxableAmount = round(share / (1 + rate / 100));
+    return { vatRatePercent: rate, taxableAmount, vatAmount: round(share - taxableAmount) };
+  });
 }
 
 @Injectable()
@@ -98,10 +170,37 @@ export class ReportingRunner {
   async runReport(data: ReportJobData): Promise<{ journaled: number }> {
     const provider = this.providerRegistry.resolve(data.providerId);
     if (!provider) {
-      // Defensive only — `report-on-send.ts` only ever enqueues a provider id a
+      // Defensive only: `on-document-event.ts` only ever enqueues a provider id a
       // `reporting/data/*.json` fact named, and the registry is built from that same set in
       // production. Loud, never a silent no-op.
       this.logger.warn(`No declaration provider registered for "${data.providerId}" — nothing declared.`);
+      return { journaled: 0 };
+    }
+
+    // The obligations this job may discharge: the payment ones for a payment job, the document ones
+    // (issued or sent) otherwise, so a payment never re-declares the invoice and the reverse.
+    const ownObligations = defaultReportingObligationCatalogV2
+      .obligationsForProvider(data.providerId, data.typeId)
+      .filter((obligation) =>
+        data.paymentId ? obligation.trigger === 'payment' : obligation.trigger !== 'payment',
+      );
+
+    // Declared once (issue #768): validating fires the `issued` obligation and a later send fires it
+    // again. The job id already dedups a second enqueue while the first job is still in BullMQ's
+    // history, but that history is bounded, so the journal is the durable answer. Only for a provider
+    // with no payment obligation on this type: one that also declares payments under the same id
+    // (France's platform) journals both under the same codes, so its events cannot tell an invoice
+    // declaration from a payment one, and its documents are declared from the send alone.
+    if (
+      !data.paymentId &&
+      !defaultReportingObligationCatalogV2
+        .obligationsForProvider(data.providerId, data.typeId)
+        .some((obligation) => obligation.trigger === 'payment') &&
+      (await hasDeclarationResult(data.companyId, data.documentId, data.providerId))
+    ) {
+      this.logger.log(
+        `Document ${data.documentId} was already declared to "${data.providerId}": nothing declared again.`,
+      );
       return { journaled: 0 };
     }
 
@@ -137,7 +236,7 @@ export class ReportingRunner {
       document,
       companyToFormatParty(company),
       client
-        ? clientToFormatParty(client)
+        ? clientToFormatParty(withIssuedBuyerIdentifiers(client, document))
         : // No buyer on file at all (unreachable for a genuinely SENT invoice — every shipped type
           // requires a client to reach "sent" — but never trusted blind): an empty party rather than
           // a crash, so a genuine platform-side rejection ("buyer identity missing") is what surfaces,
@@ -154,40 +253,69 @@ export class ReportingRunner {
       { pricingData: source.pricingData, correctedInvoice: source.correctedInvoice },
     );
 
+    const payment = data.paymentId
+      ? await prisma.documentPayment.findFirst({
+          where: { id: data.paymentId, companyId: data.companyId, documentId: data.documentId },
+        })
+      : null;
+    if (data.paymentId && !payment) {
+      throw new Error(
+        `Payment "${data.paymentId}" was not found on document ${data.documentId}  -  refusing to ` +
+          'declare a payment that no longer exists.',
+      );
+    }
+
+    // Re-classified at run time, never trusted from enqueue time: the company profile, the client or
+    // the document may have changed while the job waited (or between two BullMQ attempts). A fact
+    // that no longer covers the operation sends nothing; an operation that became unclassifiable is
+    // journaled `report:blocked`, never declared on a guess.
+    // An id the catalog no longer names: the job was already enqueued under an obligation that existed
+    // when the document was issued, so it still runs (in-flight job data from before #768 included).
+    // Only an obligation the catalog still carries is re-classified.
+    const needsOperation =
+      Boolean(payment) ||
+      ownObligations.some(
+        (obligation) =>
+          obligation.scope.transactions || obligation.applicability || obligation.sellerConditions,
+      );
+    const operation = needsOperation
+      ? await loadDeclarationOperation({
+          companyId: data.companyId,
+          typeId: data.typeId,
+          documentId: data.documentId,
+          kind: payment ? 'payment' : 'invoice',
+          payment: payment
+            ? { amountMinor: payment.documentAmountMinor, paidAt: payment.paidAt.toISOString().slice(0, 10) }
+            : undefined,
+        })
+      : undefined;
+    if (operation?.lineNatures) declaredInvoice.lineNatures = operation.lineNatures;
+
+    const verdicts = ownObligations.map((obligation) => ({
+      obligation,
+      verdict: classifyObligation(obligation, operation),
+    }));
+    if (ownObligations.length > 0 && !verdicts.some(({ verdict }) => verdict.status === 'in')) {
+      const undetermined = verdicts.find(({ verdict }) => verdict.status === 'undetermined');
+      if (undetermined && undetermined.verdict.status === 'undetermined') {
+        const journaled = await this.journalBlocked(data, undetermined.verdict.reason);
+        return { journaled };
+      }
+      return { journaled: 0 };
+    }
+
     let result: DeclarationResult;
     try {
-      result = await provider.declare(data.companyId, declaredInvoice);
+      result = payment
+        ? await this.declarePayment(provider, data, declaredInvoice, payment)
+        : await provider.declare(data.companyId, declaredInvoice);
     } catch (error) {
       if (error instanceof ChannelNotConnectedError) {
         const message = error.message;
         this.logger.warn(
           `Declaration for document ${data.documentId} ("${data.providerId}") blocked: ${message}`,
         );
-        const journaled = await journalSyntheticEvent(
-          data.companyId,
-          data.documentId,
-          data.providerId,
-          REPORT_BLOCKED_STATUS_CODE,
-          message,
-        );
-        // Only on a genuinely new row (journaled > 0): a
-        // 'report:blocked' verdict is exactly as conformity-panel-worthy as a real declaration.
-        if (journaled > 0) {
-          await this.eventsPublisher?.publish(data.companyId, {
-            documentId: data.documentId,
-            typeId: data.typeId,
-            kind: 'authority-event',
-          });
-          await dispatchDocumentAuthorityEventWebhook(
-            this.webhookDispatcher,
-            data.companyId,
-            data.typeId,
-            data.documentId,
-            data.providerId,
-            REPORT_BLOCKED_STATUS_CODE,
-          );
-        }
-        return { journaled };
+        return { journaled: await this.journalBlocked(data, message) };
       }
       // Any other failure propagates — see this method's own header.
       throw error;
@@ -195,11 +323,27 @@ export class ReportingRunner {
 
     assertNonEmptyDeclarationResult(result, data.providerId);
 
-    const journaled = await createAuthorityEvents(data.companyId, data.documentId, data.providerId, [result]);
-    this.logger.log(
-      `Declaration for document ${data.documentId} ("${data.providerId}") journaled: ` +
-        `statusCode="${result.statusCode}", authorityId="${result.authorityId}".`,
+    const journaled = await createAuthorityEvents(
+      data.companyId,
+      data.documentId,
+      data.providerId,
+      [result],
+      declarationSubjectKey(data.paymentId),
     );
+    const subject = data.paymentId ? ` payment ${data.paymentId}` : '';
+    if (journaled > 0) {
+      this.logger.log(
+        `Declaration for document ${data.documentId}${subject} ("${data.providerId}") journaled: ` +
+          `statusCode="${result.statusCode}", authorityId="${result.authorityId}" ` +
+          `(${declarationReferenceKindOf(result)}).`,
+      );
+    } else {
+      this.logger.warn(
+        `Declaration for document ${data.documentId}${subject} ("${data.providerId}") was accepted by ` +
+          `the provider (statusCode="${result.statusCode}", authorityId="${result.authorityId}") but ` +
+          'NOT journaled: an identical row already exists.',
+      );
+    }
     // Same "only on a genuinely new row" rule as the "blocked" branch above.
     if (journaled > 0) {
       await this.eventsPublisher?.publish(data.companyId, {
@@ -217,6 +361,64 @@ export class ReportingRunner {
       );
     }
     return { journaled };
+  }
+
+  /**
+   * Journals a `report:blocked` verdict (missing credential, or the classifier could not establish
+   * the operation). Shared by the two in-run paths and the pre-declaration re-classification; only a
+   * genuinely new row publishes.
+   */
+  private async journalBlocked(data: ReportJobData, reason: string): Promise<number> {
+    const journaled = await journalSyntheticEvent(
+      data.companyId,
+      data.documentId,
+      data.providerId,
+      REPORT_BLOCKED_STATUS_CODE,
+      reason,
+      undefined,
+      declarationSubjectKey(data.paymentId),
+    );
+    if (journaled > 0) {
+      await this.eventsPublisher?.publish(data.companyId, {
+        documentId: data.documentId,
+        typeId: data.typeId,
+        kind: 'authority-event',
+      });
+      await dispatchDocumentAuthorityEventWebhook(
+        this.webhookDispatcher,
+        data.companyId,
+        data.typeId,
+        data.documentId,
+        data.providerId,
+        REPORT_BLOCKED_STATUS_CODE,
+      );
+    }
+    return journaled;
+  }
+
+  private async declarePayment(
+    provider: DeclarationProvider,
+    data: ReportJobData,
+    invoice: DeclaredInvoice,
+    payment: { id: string; documentAmountMinor: number; paidAt: Date; currency: string },
+  ): Promise<DeclarationResult> {
+    if (!provider.declarePayment) {
+      throw new ChannelNotConnectedError(
+        `The declaration provider "${data.providerId}" cannot declare payment data  -  nothing was ` +
+          'sent. Connect a channel that declares payments, or this obligation stays blocked.',
+      );
+    }
+    const paidAt = payment.paidAt.toISOString().slice(0, 10);
+    const declaredPayment: DeclaredPayment = {
+      documentId: data.documentId,
+      paymentId: payment.id,
+      paidAt,
+      currency: invoice.currency,
+      amount: fromMinor(payment.documentAmountMinor, invoice.currency),
+      invoice,
+      subtotals: splitPaymentByVatRate(invoice, fromMinor(payment.documentAmountMinor, invoice.currency)),
+    };
+    return provider.declarePayment(data.companyId, declaredPayment);
   }
 
   /**
@@ -264,6 +466,11 @@ export class ReportingRunner {
       }
       throw error;
     }
+    if (!source.correctedInvoice) {
+      throw new UndeclarableDocumentError(
+        `Refusing to declare credit note ${data.documentId}: it has no corrected invoice to identify.`,
+      );
+    }
     return {
       descriptor: source.pricingDescriptor,
       pricingData: source.pricingData,
@@ -292,6 +499,8 @@ export class ReportingRunner {
         data.providerId,
         REPORT_FAILED_STATUS_CODE,
         error.message,
+        undefined,
+        declarationSubjectKey(data.paymentId),
       );
       // Same "only on a genuinely new row" rule as `runReport`'s own
       // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.

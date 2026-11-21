@@ -310,15 +310,19 @@ describe("Dashboard Collections tile (#417) - cash actually received, by payment
 
 		cy.visit("/dashboard");
 		// The EUR tile first, so the checks below run against a rendered dashboard, never an empty
-		// grid that is still loading.
-		cy.get('[data-cy="widget-invoice:issued-this-month:EUR"]', { timeout: 20000 }).should("be.visible");
+		// grid that is still loading. Round 2's invoice-overview panel sits above the figures, so
+		// the tile holds below the app's own scroll area at the default viewport: scroll first.
+		cy.get('[data-cy="widget-invoice:issued-this-month:EUR"]', { timeout: 20000 })
+			.scrollIntoView()
+			.should("be.visible");
 		cy.get('[data-cy="widget-invoice:issued-this-month:GBP"]').should("not.exist");
 		cy.get('[data-cy="widget-invoice:collected-this-month:GBP"]').should("not.exist");
 	});
 
 	it("a custom range (month M-2): invoiced and collected disagree in BOTH directions", () => {
 		cy.visit("/dashboard");
-		cy.get('[data-cy="dashboard-period-select"]').should("be.visible");
+		// Same below-the-overview-panel rule the two dashboard period specs above apply.
+		cy.get('[data-cy="dashboard-period-select"]').scrollIntoView().should("be.visible");
 		cy.openSelect(
 			'[data-cy="dashboard-period-select"]',
 			'[data-cy="dashboard-period-option-custom"]',

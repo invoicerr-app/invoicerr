@@ -1,23 +1,13 @@
 /**
- * A REAL fetch against open.er-api.com — the whole reason this file exists alongside
- * open-er-api-rates-client.spec.ts's mocked version.
+ * A real fetch against open.er-api.com, alongside the mocked spec.
  *
- * ## What a green run of THIS suite proves, and what it does NOT
- * A passing mocked suite (open-er-api-rates-client.spec.ts) proves the PARSER is correct against a
- * fixture shaped like the response captured on 2026-09-14 — it proves nothing about whether the URL
- * still resolves, still answers JSON, still uses the same field names, or still treats its OWN
- * errors as HTTP 200 the way it did when that fixture was captured (see the repo's own memory note
- * on KSeF mock tests for the identical false-confidence trap: a green mocked suite is not evidence
- * an external integration still works). ONLY this live suite exercises the real endpoint; a mocked
- * pass alone must never be cited as proof this fallback currently functions.
- * Conversely, even THIS suite passing does not prove `currency-rate-sweep-runner.ts` actually reaches
- * for this fallback correctly in the full pipeline — that composition is covered by
- * `currency-rate-sweep-runner.spec.ts`'s own (mocked) fallback tests, not here.
+ * The mocked suite proves the parser against a fixture only, not that the URL still resolves, answers
+ * JSON with the same field names, or still reports its own errors as HTTP 200. Only this suite
+ * exercises the endpoint, so a mocked pass alone must never be cited as proof the fallback works. It
+ * still does not prove the runner reaches the fallback correctly, which the runner's mock tests cover.
  *
- * Gated the same way every other `*.live.spec.ts` in this codebase is (`transports/live-gate.ts`):
- * silent no-op by default (CI, offline runs), only running when explicitly opted in — no credential
- * env vars are required (this hits a public, keyless feed), so the second `liveDescribe` argument is
- * omitted entirely, same as `ecb-rates-client.live.spec.ts`.
+ * Silent no-op unless `OPEN_ER_API_LIVE=1`, like every other live spec: no credentials, since the feed
+ * is public. Run with:
  *
  *   OPEN_ER_API_LIVE=1 npx vitest run src/modules/company/currency-rates/open-er-api-rates-client.live.spec.ts
  */

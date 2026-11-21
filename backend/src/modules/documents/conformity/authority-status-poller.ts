@@ -3,7 +3,7 @@
  * national transports: a deposit today succeeds
  * the moment the platform ACCEPTS the upload (`DocumentInstance.transportRef`), and nothing ever
  * follows up on the platform's own LATER verdict (PDP: fr:200 deposited → fr:201 issued → fr:202
- * received, or fr:213 rejected — proven live in ~1s, five times, see `pollers/pdp-status-poller.ts`'s
+ * received, or fr:213 rejected - proven live in ~1s, five times, see `pollers/superpdp-status-poller.ts`'s
  * own header). Same "one small interface, a registry, a provider registers itself" shape
  * `transports/transport-registry.ts` already holds for delivery — this is its read-side twin.
  *
@@ -64,6 +64,9 @@ export interface AuthorityStatusPoller {
    *  poller itself, never guessed at by the sweep, since only the provider's own implementation
    *  actually knows its own lifecycle's vocabulary. */
   isTerminal(statusCode: string): boolean;
+  /** Whether a terminal `statusCode` is the platform refusing the document rather than accepting it.
+   *  Absent means this provider never reports a rejection. */
+  isRejection?(statusCode: string): boolean;
   /**
    * Fetches EVERY event the platform currently reports for this deposit — never just the latest one:
    * dedup (`authority-events.persistence.ts`'s own `@@unique`) is what turns a full re-fetch, every

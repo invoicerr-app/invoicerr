@@ -1,8 +1,8 @@
 ---
 title: Terms of Service
 sidebar_position: 1
-version: 2026-10-25
-effectiveDate: 2026-10-25
+version: 2026-11-20
+effectiveDate: 2026-11-20
 ---
 
 :::warning[Draft]

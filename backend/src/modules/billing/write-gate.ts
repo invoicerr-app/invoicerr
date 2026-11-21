@@ -1,12 +1,7 @@
 /**
- * The read-only gate (product decision, 2026-09-15): once a company's subscription has fallen into
- * `BLOCKED` or `ZIPPED` (trial expired unpaid, or a paid subscription lapsed — either way `blocked`
- * 14 days, see `lifecycle.ts`'s own header), EVERY write is refused, not just `send`.
- * `send-gate.ts#assertCanSend` already gates the ONE emitting action even during `TRIAL` (a narrower,
- * earlier restriction) — this file is the broader companion for the fully-blocked case, and does not
- * call (or get called from) `assertCanSend`: the two gates check different things off the same row,
- * and a caller past `assertCompanyWritable` may still hit `assertCanSend`'s own narrower refusal on a
- * `send` action specifically (an active-but-still-mid-trial company, e.g.).
+ * Refuses every write once a company is `BLOCKED` or `ZIPPED`. Broader companion to
+ * `send-gate.ts#assertCanSend`; the two are independent and a caller may still hit the send gate.
+ * Applied globally via `CompanyWriteGuard`, so new write endpoints are covered automatically.
  *
  * Applied through ONE generic hook (`CompanyWriteGuard` in `company-write.guard.ts`), a global
  * `APP_GUARD` registered ONLY under the billing flag (`app.module.ts`, same
@@ -24,14 +19,9 @@
  *    company-scoped (session/user-level endpoints, `@Public()` routes — which never even reach
  *    `request.companyId` being set, see `guards/auth.guard.ts`) has nothing to gate.
  *  - `/api/auth/*` (session login) never reaches this guard at all: better-auth is mounted as EXPRESS
- *    MIDDLEWARE ahead of Nest's routing layer, responding before any `APP_GUARD` runs. Polar's own
- *    `checkout`/`portal` used to live there too (pre-2026-09-16 — see `polar-plugin.ts`'s own git
- *    history) and got the same free pass; now that they are real Nest routes
- *    (`billing.controller.ts`'s `POST /billing/checkout`/`/billing/portal`) they DO reach this guard,
- *    and are exempted explicitly instead — `@BillingGateExempt()`
- *    (`billing-gate-exempt.decorator.ts`), checked in `company-write.guard.ts`. A blocked company MUST
- *    still be able to reach checkout/portal — that is the only way out of `blocked` — so this is a
- *    real requirement, not a decoration.
+ *    MIDDLEWARE ahead of Nest's routing layer, responding before any `APP_GUARD` runs. The Stripe
+ *    plugin's checkout and portal live there, so a blocked company can always pay its way back out of
+ *    `blocked`.
  *  - `GET /api/billing/status` and downloading the lifecycle zip (mailed only today, no download
  *    route exists yet — see `export-zip.service.ts`'s own header) are both GETs, already covered by
  *    the GET exemption above; no special case needed for either.
@@ -40,24 +30,17 @@ import { ForbiddenException } from '@nestjs/common';
 
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription } from './company-subscription.store';
+import { isSuspended } from './lifecycle';
 
-/** Named per the product brief (2026-09-15) — the ONLY code a caller (frontend, API-key integration)
- *  can rely on to mean "this company is blocked; every write is refused, not just sending". */
+/** Stable error code clients rely on to mean "every write is refused, not just sending". */
 export const COMPANY_BLOCKED = 'COMPANY_BLOCKED';
 
-/**
- * Throws (403, `{ message, code: COMPANY_BLOCKED }`) when this company's subscription is `BLOCKED` or
- * `ZIPPED`; resolves silently for every other status (including `TRIAL`/`PAST_DUE`/`ACTIVE` — a
- * mid-trial or past-due company can still write everything except `send`, gated separately by
- * `send-gate.ts`). 403, not 402: `send-gate.ts` already answers every subscription refusal in this
- * codebase with `ForbiddenException` (`TRIAL_SEND_BLOCKED`/`SUBSCRIPTION_SEND_BLOCKED`) — one HTTP
- * status for "your subscription forbids this", not a mix a frontend would have to branch on twice.
- */
+/** 403 rather than 402 to match every other subscription refusal from `send-gate.ts`. */
 export async function assertCompanyWritable(companyId: string): Promise<void> {
   if (!isBillingEnabled()) return;
 
   const sub = await getOrCreateCompanySubscription(companyId);
-  if (sub.status !== 'BLOCKED' && sub.status !== 'ZIPPED') return;
+  if (!isSuspended(sub.status)) return;
 
   throw new ForbiddenException({
     message:

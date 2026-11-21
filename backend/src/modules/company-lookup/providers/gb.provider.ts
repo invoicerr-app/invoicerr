@@ -1,18 +1,12 @@
 /**
  * United Kingdom — Companies House public data API.
- *
- * Endpoint : GET https://api.company-information.service.gov.uk/company/{number}
- *            HTTP Basic, the API key as the username and an empty password.
- * Docs     : https://developer.company-information.service.gov.uk/
- * Credentials: COMPANIES_HOUSE_API_KEY (free registration).
- *
- * Companies House holds no VAT data — HMRC's VAT checker is a separate service —
- * so this provider only answers on the company number.
+ * Docs: https://developer.company-information.service.gov.uk/ (COMPANIES_HOUSE_API_KEY, HTTP Basic
+ * with an empty password). Holds no VAT data, so it only answers on the company number.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const COMPANIES_HOUSE_URL = 'https://api.company-information.service.gov.uk/company';
 
@@ -24,10 +18,10 @@ export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://developer.company-information.service.gov.uk/';
   readonly credentialEnvVars = ['COMPANIES_HOUSE_API_KEY'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.COMPANIES_HOUSE_API_KEY;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

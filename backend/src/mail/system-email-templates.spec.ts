@@ -318,52 +318,55 @@ describe('ownership transfer emails — HTML-escape attacker-reachable values, i
   const PAYLOAD = '<img src=x onerror=alert(1)>Acme "Corp" & Sons';
   const ESCAPED = '&lt;img src=x onerror=alert(1)&gt;Acme &quot;Corp&quot; &amp; Sons';
 
-  it.each(
-    SUPPORTED_RENDER_LANGUAGES,
-  )('buildOwnershipTransferRequestEmail escapes companyName and fromName in the HTML part only (%s)', (language) => {
-    const email = buildOwnershipTransferRequestEmail({
-      appUrl: APP_URL,
-      companyName: PAYLOAD,
-      fromName: PAYLOAD,
-      language,
-    });
+  it.each(SUPPORTED_RENDER_LANGUAGES)(
+    'buildOwnershipTransferRequestEmail escapes companyName and fromName in the HTML part only (%s)',
+    (language) => {
+      const email = buildOwnershipTransferRequestEmail({
+        appUrl: APP_URL,
+        companyName: PAYLOAD,
+        fromName: PAYLOAD,
+        language,
+      });
 
-    expect(email.html).not.toContain(PAYLOAD);
-    expect(email.html).toContain(ESCAPED);
-    // The plain-text part never renders HTML — raw is correct there, never escaped into entities.
-    expect(email.text).toContain(PAYLOAD);
-  });
+      expect(email.html).not.toContain(PAYLOAD);
+      expect(email.html).toContain(ESCAPED);
+      // The plain-text part never renders HTML — raw is correct there, never escaped into entities.
+      expect(email.text).toContain(PAYLOAD);
+    },
+  );
 
-  it.each(
-    SUPPORTED_RENDER_LANGUAGES,
-  )('buildOwnershipTransferFinalizedEmail escapes companyName in the HTML part only (%s)', (language) => {
-    const email = buildOwnershipTransferFinalizedEmail({
-      appUrl: APP_URL,
-      companyName: PAYLOAD,
-      forNewOwner: true,
-      language,
-    });
+  it.each(SUPPORTED_RENDER_LANGUAGES)(
+    'buildOwnershipTransferFinalizedEmail escapes companyName in the HTML part only (%s)',
+    (language) => {
+      const email = buildOwnershipTransferFinalizedEmail({
+        appUrl: APP_URL,
+        companyName: PAYLOAD,
+        forNewOwner: true,
+        language,
+      });
 
-    expect(email.html).not.toContain(PAYLOAD);
-    expect(email.html).toContain(ESCAPED);
-    expect(email.text).toContain(PAYLOAD);
-  });
+      expect(email.html).not.toContain(PAYLOAD);
+      expect(email.html).toContain(ESCAPED);
+      expect(email.text).toContain(PAYLOAD);
+    },
+  );
 
-  it.each(
-    SUPPORTED_RENDER_LANGUAGES,
-  )('buildOwnershipTransferEndedEmail escapes companyName and toEmail in the HTML part only (%s)', (language) => {
-    const email = buildOwnershipTransferEndedEmail({
-      appUrl: APP_URL,
-      companyName: PAYLOAD,
-      toEmail: PAYLOAD,
-      reason: 'expired',
-      language,
-    });
+  it.each(SUPPORTED_RENDER_LANGUAGES)(
+    'buildOwnershipTransferEndedEmail escapes companyName and toEmail in the HTML part only (%s)',
+    (language) => {
+      const email = buildOwnershipTransferEndedEmail({
+        appUrl: APP_URL,
+        companyName: PAYLOAD,
+        toEmail: PAYLOAD,
+        reason: 'expired',
+        language,
+      });
 
-    expect(email.html).not.toContain(PAYLOAD);
-    expect(email.html).toContain(ESCAPED);
-    expect(email.text).toContain(PAYLOAD);
-  });
+      expect(email.html).not.toContain(PAYLOAD);
+      expect(email.html).toContain(ESCAPED);
+      expect(email.text).toContain(PAYLOAD);
+    },
+  );
 
   it("buildOwnershipTransferFinalizedEmail also escapes the template's own quote marks around the name (EN)", () => {
     // The regression this test pins: `bodyLine` is composed FIRST, THEN escaped as a whole — the

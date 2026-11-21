@@ -10,11 +10,12 @@ repository instead of `docker-compose.yml`. It deploys the same image in two rol
 queue consumer) — as independently-scaled Deployments, plus Redis, an optional OCR service, and an
 Ingress.
 
-:::info[The chart runs Invoicerr 2.x and needs an image tag]
+:::info[The chart needs a CalVer image tag]
 The chart has no default image: `helm install` and `helm template` fail until `image.tag` (or
-`image.digest`) is set. It only works with 2.x images, published as pre-releases for now
-(`v2.0.0-alpha.N`). A 1.x image has neither the `worker` role nor the `catalogs:release` script the
-chart's hook Job runs. See "Which tag?" below to choose one.
+`image.digest`) is set. It only works with images from the v2 line onwards, published in CalVer
+(`26.11.0`). A 1.x image
+has neither the `worker` role nor the `catalogs:release` script the chart's hook Job runs. See
+"Which tag?" below to choose one.
 :::
 
 :::info[Reference deployment]
@@ -40,24 +41,16 @@ same way — swap the provider-specific values where noted.
 - A Postgres database, unless you only need `postgresql.enabled: true`'s bundled, single-replica,
   **dev/kind-only** Postgres (no HA, no backups — never use it for anything real).
 
-:::warning[HTTPS is a prerequisite, and it fails looking like a login bug]
-`backend/src/lib/auth.ts` configures better-auth with
-`advanced.useSecureCookies: process.env.NODE_ENV === 'production'`, and the published image sets
-`ENV NODE_ENV=production` (repository `Dockerfile`, runtime stage). Every session cookie this
-deployment mints is therefore named with the `__Secure-` prefix and carries the `Secure` attribute —
-and a browser refuses to store a `__Secure-` cookie received over plain HTTP.
+:::warning[`app.appUrl` must be the https:// address users open]
+Session cookies follow the scheme of `APP_URL` (`app.appUrl`): an `https://` value mints
+`__Secure-`-prefixed cookies with the `Secure` attribute, an `http://` value plain ones. Behind this
+chart's Ingress, users open an `https://` address, so `app.appUrl` must name it. An internal
+`http://` value would hand out cookies without `Secure` on an HTTPS site, and opening the site over
+`http://` while `app.appUrl` says `https://` makes the browser drop the cookie: the sign-in page then
+reports "Signed in, but no session was kept".
 
-Served over `http://`, the instance then looks healthy and is not. `GET /api/health` is `@Public()`
-(`backend/src/modules/health/health.controller.ts`) and answers `200` with no session at all, so
-every probe, `curl` and dashboard stays green. Every other route goes through the global `AuthGuard`
-(`backend/src/guards/auth.guard.ts`), finds no session cookie, and throws `UnauthorizedException` —
-**401**. The SPA turns that 401 into a redirect to `/auth/sign-in`
-(`frontend/src/hooks/use-fetch.ts`), so the visible symptom is "I sign in and land back on the
-sign-in page": it reads as broken authentication, and the thing actually missing is TLS. Terminate
-HTTPS before debugging anything else.
-
-Same family, same disguise: `app.appUrl` and `app.corsOrigins` must be spelled `https://` as well.
-Both feed better-auth's `trustedOrigins` (`backend/src/lib/auth.ts`) and Nest's own
+The scheme matters for origins too: `app.appUrl` and every `app.corsOrigins` entry must be spelled
+`https://`. Both feed better-auth's `trustedOrigins` (`backend/src/lib/auth.ts`) and Nest's own
 `app.enableCors({ credentials: true, origin: [...] })` (`backend/src/create-app.ts`), and
 better-auth compares the browser's `Origin` header against that list as an **exact origin string,
 scheme included** — `matchesOriginPattern` reduces to `pattern === getOrigin(url)` for `http:`/
@@ -382,7 +375,7 @@ kubectl rollout restart deployment/invoicerr-api deployment/invoicerr-worker
 ```yaml title="values.prod.yaml"
 image:
   repository: ghcr.io/invoicerr-app/invoicerr
-  tag: "v2.0.0-alpha.5" # required, an EXISTING 2.x tag, see "Which tag?" below
+  tag: "26.11.0" # required, an EXISTING CalVer tag, see "Which tag?" below
 
 existingSecret: invoicerr-secrets
 
@@ -417,36 +410,23 @@ later change (including a new `image.tag`).
 
 ### Which tag?
 
-`.github/workflows/docker-publish.yml` is triggered by `release: created`, and the image tag it
-pushes is the git tag the release was cut from, verbatim. There is no separate image versioning
-scheme: every version-numbered tag on GHCR is a published release of this repository, and the
-workflow's other outputs are branch-named tags built for internal testing, which you should never
-deploy. List the releases before you pin:
+`.github/workflows/docker-publish.yml` is triggered by a tag push, and the image tag it pushes is the
+git tag, verbatim. Tags are CalVer: `AA.M.N`, for example `26.11.0`, with `26.11.0-beta.1` and
+`26.11.0-rc.1` for pre-releases. There is no separate image versioning scheme. List the releases
+before you pin:
 
 ```bash
 gh release list --repo invoicerr-app/invoicerr
 ```
 
-**`:latest` is not the newest tag.** The same workflow only adds `:latest` when the tag it is
-building matches what `gh release view` reports as the repository's latest release, and GitHub
-excludes pre-releases from that. `v1.4.6a` (2026-07-06) and `v1.4.6b` (2026-07-07) were both
-published as **pre-releases**, so neither moved the moving tag: `:latest` still resolves to the
-`v1.4.5c` image published on 2026-06-29. Comparing manifest digests on GHCR is how you check this
-for yourself, and it needs no credentials for a public package:
+Three moving tags sit next to the versioned ones: `latest` follows the newest stable release, `beta`
+the newest tagged beta/rc, and `nightly` every commit merged into `dev` (no GitHub release). A
+stable tag is only accepted on `main`; a beta or rc tag is cut on `dev`, merged to `main`, then
+tagged stable. This is why `latest` never points at a pre-release.
 
-```bash
-docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:latest
-docker buildx imagetools inspect ghcr.io/invoicerr-app/invoicerr:v1.4.5c
-```
-
-As of 2026-09-20 both print the same `Digest: sha256:615f4cec…`, while `:v1.4.6b` prints a different
-one. This is the concrete reason the guide says to pin: on this repository `latest` means "newest
-full release", not "newest thing published", and the two have differed since July 2026.
-
-For this chart, choose a 2.x release from that list: `gh release list` marks them `Pre-release`.
-The chart's `appVersion` (`Chart.yaml`) names the release it was last written against, a safe
-choice when in doubt. `image.tag` has no default, so `:latest`, which still resolves to a 1.x
-image, is never pulled by accident.
+For this chart, choose a stable CalVer tag from that list. The chart's `appVersion` (`Chart.yaml`)
+names the release it was last written against, a safe choice when in doubt. `image.tag` has no
+default, so `:latest` is never pulled by accident, and a 1.x image can never be selected silently.
 
 Pinning a digest is stronger still: set `image.digest: "sha256:…"` next to the tag, and the
 templates render `repository:tag@sha256:…`, which the container runtime pulls by digest. A
@@ -467,7 +447,8 @@ directly:
 kubectl port-forward svc/invoicerr-api 8080:80
 curl http://localhost:8080/api/health
 # {"status":"ok","database":"up","databaseLatencyMs":1,"redis":"up","redisLatencyMs":1,
-#  "version":"v2.0.0-alpha.4","time":"2026-10-11T08:24:06.172Z","uptimeSeconds":36}
+#  "version":"26.11.0","time":"2026-10-11T08:24:06.172Z","uptimeSeconds":36,
+#  "logPersistence":{"status":"ok","failures":0,"consecutiveFailures":0,"lastFailureAt":null}}
 ```
 
 :::info[What /api/health reports]
@@ -478,6 +459,16 @@ curl http://localhost:8080/api/health
   branch name for a branch image, and the `backend/package.json` version outside a published image.
   It is the same value `GET /api/version` reports as `currentVersion`.
 - `time`: the server clock in ISO 8601 UTC, to measure clock skew. `uptimeSeconds`: process uptime.
+- `logPersistence`: `{"status":"ok","failures":0,"consecutiveFailures":0,"lastFailureAt":null}`.
+  Every `Log` row write that fails is counted, without ever failing the request that produced the
+  line. After 5 consecutive failed writes `status` becomes `degraded` (still HTTP 200, because
+  Postgres and Redis are answering): the API keeps serving, but the log screen is not being written
+  to. `lastFailureAt` is `null` until the first failure. Each process reports its own counters, so a
+  multi-replica install shows one signal per replica. A worker replica carries the same
+  `logPersistence` object on its own health server at `:3001`: with `WORKER_INLINE=false` the
+  background writes (document actions, pollers, webhooks) happen there, so its counters are the
+  ones to watch for those. Its `status` mirrors the nested `status` and the response stays 200, so a
+  monitor that tests `status != "ok"` covers a worker the same way it covers an API replica.
 - `503 {"status":"error","database":"down"}` when Postgres does not answer, whatever Redis says.
 - `503 {"status":"error","database":"up","redis":"down"}` when only Redis does not answer. Every other
   route fails without Redis, so the instance is reported down. A monitor that matches the body
@@ -509,16 +500,34 @@ cert-manager has issued the certificate (`kubectl get certificate`), the app is 
    goes wrong — it does **not** revert a database migration or catalog purge that already ran; check
    the release notes for the version you are rolling back from before relying on it for either.
 
+### Non-root pods
+
+The api, worker and `catalogs-release` pods run as uid/gid `10001` with every capability dropped and
+`allowPrivilegeEscalation: false` (`podSecurityContext` and `containerSecurityContext` in
+`values.yaml`). Two things come with it:
+
+- `fsGroup: 10001` has the kubelet hand the documents PVC to that group when it is mounted, so a PVC
+  written by an older image (which ran as root) keeps working after the upgrade.
+- The api pod sets the sysctl `net.ipv4.ip_unprivileged_port_start=0` so nginx can listen on port 80
+  without root. It is a namespaced "safe" sysctl, allowed by default since Kubernetes 1.22; a cluster
+  whose policy rejects pod sysctls refuses the pod with a clear event.
+
+`seccompProfile: RuntimeDefault` blocks the user namespaces Chromium's sandbox needs, so PDFs render
+without it (the default `CHROMIUM_SANDBOX=auto` logs a warning once). To render inside the sandbox,
+give the api and worker pods a seccomp profile that allows `clone`/`unshare` with `CLONE_NEWUSER`
+(`type: Unconfined`, or a `Localhost` profile) and set `CHROMIUM_SANDBOX=on`. No added capability is
+needed.
+
 ### Upgrading from a chart that pulled `latest`
 
 The chart's defaults now follow the Kubernetes rules SonarCloud checks. On `helm upgrade`, with
 your own values file unchanged:
 
 - **`image.tag` no longer defaults to `latest`; it has no default at all.** A values file that
-  sets no tag now fails at `helm upgrade` with `Set image.tag (for example v2.0.0-alpha.5)`, before
+  sets no tag now fails at `helm upgrade` with `Set image.tag (for example 26.11.0)`, before
   anything changes in the cluster. Such an install was pulling `:latest`, a 1.x image this chart
-  cannot run (no `worker` role, no `catalogs:release` script). Set `image.tag` to a 2.x release and
-  upgrade again. If you also set `image.digest`, change both together: the digest decides what is
+  cannot run (no `worker` role, no `catalogs:release` script). Set `image.tag` to a current release
+  and upgrade again. If you also set `image.digest`, change both together: the digest decides what is
   pulled.
 - **The service account token is no longer mounted** in any pod
   (`automountServiceAccountToken: false`). Invoicerr never calls the Kubernetes API. Set
@@ -555,6 +564,10 @@ against a real cluster:
   the symptom if you install an older chart: `kubectl get job` shows `0/1`, `kubectl get pods`
   shows nothing at all for it, and `kubectl describe job/invoicerr-catalogs-release` names the
   missing ServiceAccount.
+- **Compression happens in the pod.** The api pod's own nginx already compresses the frontend and
+  the API's JSON (see [Response compression](./docker-installation.md#response-compression)).
+  There is nothing to turn on in the Ingress; ingress-nginx forwards the compressed responses as they
+  are.
 - **First-boot ordering.** A Kubernetes Deployment has no equivalent of `docker-compose.yml`'s
   `depends_on: condition: service_healthy`: `api` and `worker` start at the same time as Redis and
   each other. The chart's `api` and `worker` Deployments carry `initContainers` that wait for Redis

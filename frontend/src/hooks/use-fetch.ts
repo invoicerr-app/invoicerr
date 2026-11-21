@@ -41,50 +41,6 @@ export async function authenticatedFetch(input: RequestInfo, init: RequestInit =
   return res
 }
 
-export function useGetRaw<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [refetchIndex, setRefetchIndex] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-    if (!url) {
-      setData(null)
-      setLoading(false)
-      setError(null)
-      return
-    }
-    setLoading(true)
-
-    const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
-
-    authenticatedFetch(fullUrl, {
-      ...options,
-      method: "GET",
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`GET ${url} failed: ${res.statusText}`)
-        if (!cancelled) {
-          setData(res as unknown as T)
-          setError(null)
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [url, refetchIndex])
-
-  return { data, loading, error, mutate: () => setRefetchIndex((i) => i + 1) }
-}
-
 export function useGet<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)

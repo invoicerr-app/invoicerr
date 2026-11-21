@@ -2,7 +2,8 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred while rendering this page. You can try reloading the page.",
-    "reload": "Reload page"
+    "reload": "Reload page",
+    "details": "Details"
   },
   "clients": {
     "search": {
@@ -234,6 +235,10 @@
           "label": "Supplier",
           "description": "This company buys from this client too — set automatically when a received invoice is linked to it, but can also be set by hand."
         },
+        "vatRegistered": {
+          "label": "VAT registered",
+          "description": "A business client registered for VAT carries a VAT number on invoices that ask the buyer for one. Uncheck it for a business that is not registered, such as a micro-entrepreneur under the franchise en base."
+        },
         "b2gHint": {
           "knownTitle": "This country requires a specific channel/format for public-sector invoices",
           "channel": "Channel: \"{{transportId}}\" · Format: \"{{formatSyntax}}\"",
@@ -287,9 +292,9 @@
           "role": "Role",
           "primaryBadge": "Primary",
           "setPrimary": "Set as primary",
-          "primaryFromIdentity": "Comes from the identity step",
-          "primaryLockedHint": "Only the person on the identity step can be the primary contact of an individual client.",
-          "removeLockedTitle": "The primary contact of an individual client is the person on the identity step and cannot be removed here"
+          "primaryFromIdentity": "Comes from the Identity section",
+          "primaryLockedHint": "Only the person in the Identity section can be the primary contact of an individual client.",
+          "removeLockedTitle": "The primary contact of an individual client is the person in the Identity section and cannot be removed here"
         }
       },
       "stepped": {
@@ -474,7 +479,6 @@
         "totalTTC": "Total (incl. VAT)"
       },
       "tooltips": {
-        "viewPdf": "View PDF",
         "downloadPdf": "Download PDF",
         "edit": "Edit quote",
         "sendSignature": "Send for signature",
@@ -1511,6 +1515,34 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "greeting": "Hello {{name}}. Here is where your invoices stand.",
+    "greetingNoName": "Here is where your invoices stand.",
+    "hello": "Hello {{name}}",
+    "subtitle": "Here is where your invoicing and your collections stand.",
+    "allFigures": "All figures",
+    "overview": {
+      "invoicedIn": "Invoiced in {{month}}",
+      "exclVat": "excl. VAT",
+      "comparisonMore": "{{amount}} more than in {{month}}.",
+      "comparisonLess": "{{amount}} less than in {{month}}.",
+      "comparisonSame": "The same as in {{month}}.",
+      "legendCollected": "Collected",
+      "legendExpected": "Still owed, by due date",
+      "toChase": "To chase",
+      "daysLate": "{{count}} day late",
+      "daysLate_other": "{{count}} days late",
+      "invoiceCount": "{{count}} invoice",
+      "invoiceCount_other": "{{count}} invoices",
+      "seeLate": "See the late invoices",
+      "nothingToChase": "Nobody is late. Nothing to chase.",
+      "thisWeek": "This week",
+      "dueLine": "{{number}}, due",
+      "nothingThisWeek": "Nothing falls due this week.",
+      "noClient": "No client",
+      "rejectedTitle": "{{count}} invoice rejected by the platform",
+      "rejectedTitle_other": "{{count}} invoices rejected by the platform",
+      "rejectedHelp": "Still owed, but not chased until corrected. Open one to correct and resend it."
+    },
     "period": {
       "label": "Period",
       "options": {
@@ -1855,6 +1887,7 @@
       "error": "Could not import this statement"
     },
     "statements": {
+      "title": "Statements",
       "empty": "No statement imported yet",
       "unmatched": "{{count}} unmatched",
       "reconciled": "{{count}} reconciled"
@@ -1984,6 +2017,15 @@
         "logoRemoveError": "Failed to remove logo",
         "invalidFileType": "Please choose a PNG, JPEG or WebP image",
         "fileTooLarge": "This file is over the 10 MB limit"
+      },
+      "template": {
+        "label": "Document template",
+        "hint": "Changes the layout of your PDFs, never their content. Your colour, font and logo still apply.",
+        "options": {
+          "classic": "Classic",
+          "atelier": "Atelier",
+          "original": "Original (v1)"
+        }
       }
     },
     "accountingExport": {
@@ -2079,11 +2121,13 @@
         "expiresPlaceholder": "Leave empty for no expiration",
         "button": "Generate Code",
         "creating": "Generating...",
-        "role": "Role"
+        "role": "Role",
+        "createdCode": "Your new invitation code",
+        "createdCodeHint": "Shown only once. Copy it now: the list below keeps only its first eight characters. If it is lost, delete this invitation and generate another."
       },
       "list": {
         "title": "Your Invitation Codes",
-        "description": "Manage the invitation codes you have created",
+        "description": "Manage the invitation codes you have created. Only their first eight characters are kept.",
         "code": "Code",
         "status": "Status",
         "createdAt": "Created",
@@ -2158,6 +2202,22 @@
       "other": {
         "title": "Other Settings",
         "description": "Additional settings for your company"
+      },
+      "profile": {
+        "title": "Company profile",
+        "description": "What your country's rules depend on. Only the questions your country asks appear here.",
+        "notDeclared": "Not declared",
+        "derivedReason": "Set by the VAT exemption switch above",
+        "attributes": {
+          "vatGroupMember": {
+            "label": "VAT group membership",
+            "help": "Whether this company is a member of an assujetti unique, the French VAT group of CGI art. 256 C. A member is bound by the accredited-platform mandate from 2026-09-01 whatever its size; only SMEs and micro-enterprises that are not members are deferred to 2027-09-01. A company that has not answered is treated as a member, so it is not deferred.",
+            "options": {
+              "MEMBER": "Member of an assujetti unique",
+              "NOT_MEMBER": "Not a member"
+            }
+          }
+        }
       },
       "approval": {
         "title": "Approval workflow",
@@ -2442,6 +2502,12 @@
             "min": "Tolerance must be zero or greater",
             "saveFailed": "Failed to save the reconciliation tolerance"
           }
+        },
+        "companyLaw": {
+          "label": "Company-law details",
+          "description": "What your country's company law requires on your documents, such as your legal form, share capital and trade register. Printed under your company name. The fields depend on the legal form you choose.",
+          "legalFormPlaceholder": "Choose your legal form",
+          "amountPlaceholder": "Amount"
         }
       },
       "onboarding": {
@@ -2519,7 +2585,9 @@
         "countsSummary": "Will delete: {{documents}} document(s), {{clients}} client(s), {{articles}} article(s), {{projects}} project(s), {{timeEntries}} time entries, {{bankStatements}} bank statement(s), {{archives}} archived file(s).",
         "button": "Reset Company Data",
         "retentionBlockedTitle": "Blocked by legal retention",
-        "retentionBlockedDescription": "{{count}} document(s) issued by this company must still be kept until {{date}} under the archiving law of their own country. Resetting is refused until then."
+        "retentionBlockedDescription": "{{count}} document(s) issued by this company must still be kept until {{date}} under the archiving law of their own country. Resetting is refused until then.",
+        "paymentLedgerBlockedTitle": "Blocked by recorded payments",
+        "paymentLedgerBlockedDescription": "This company has recorded {{count}} payment(s). Payment records can never be deleted, so the documents they settle cannot be either. Deleting the whole company remains possible."
       },
       "deleteCompany": {
         "title": "Delete Company",
@@ -2793,7 +2861,9 @@
       },
       "messages": {
         "copied": "Copied to clipboard",
-        "copyFailed": "Couldn't copy — select the key above and copy it manually."
+        "copyFailed": "Couldn't copy — select the key above and copy it manually.",
+        "createError": "Failed to create API key",
+        "revokeError": "Failed to revoke API key"
       }
     },
     "channels": {
@@ -2819,11 +2889,36 @@
         "title": "{{operator}} no longer sends anything"
       },
       "declarations": {
-        "description": "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "description": "Not a delivery channel: a separate duty to declare invoice data to a tax authority.",
+      "help": "Your invoice still leaves by whatever transport you chose. The declaration is filed separately, at the point each country requires.",
         "pt-at": {
+          "explanation": "Every invoice and credit note you issue must be communicated to the Portuguese Tax Authority (AT) by electronic transmission, separately from sending it to your client. (Decreto-Lei n.º 198/2012, art. 3)",
           "label": "Portuguese Tax Authority (AT)"
         },
-        "title": "Declarations"
+        "fr-pa": {
+          "explanation": "Your sales to private individuals, and the payments you receive when VAT is due on payment, must be reported to the tax administration through your accredited platform (e-reporting). When this applies to you depends on your company size, set in your company settings. (CGI art. 290 and 290 A)",
+          "label": "French accredited platform (PA)"
+        },
+        "pdp": {
+          "explanation": "For an invoice to another business established in France, the accredited platform that delivers it also passes its data to the tax administration: you have nothing more to declare. (CGI art. 289 E)",
+          "label": "Accredited platform (PDP)"
+        },
+        "title": "Declarations",
+        "dischargedByTransport": "Declared by the delivery itself: nothing more to do.",
+        "partlyByTransport": "Invoices it delivers are declared with the delivery itself.",
+        "document": {
+          "creditNote": "credit notes",
+          "invoice": "invoices"
+        },
+        "when": {
+          "issued": "When issued: {{documents}}",
+          "payment": "When paid: {{documents}}",
+          "periodEnd": "At the end of each period: {{documents}}",
+          "periodEndMonth": "At the end of each month: {{documents}}",
+          "periodEndQuarter": "At the end of each quarter: {{documents}}",
+          "periodEndYear": "At the end of each year: {{documents}}",
+          "sent": "When sent: {{documents}}"
+        }
       },
       "description": "Connect a national transmission channel — once connected, choose it below as this company's invoice transport.",
       "emptyState": "No national channel available yet",
@@ -2882,7 +2977,7 @@
         },
         "navLabel": "Legal channels",
         "pdp": {
-          "label": "Accredited platform (PDP)"
+          "label": "Accredited platform (PA)"
         },
         "peppol": {
           "label": "Peppol"
@@ -3088,7 +3183,6 @@
       "viewOffice": "Office",
       "viewList": "List",
       "desksTaken": "{{taken}} of {{total}} desks taken",
-      "addDesks": "Add desks in the Polar portal",
       "free": "Free desk",
       "officePlanLabel": "Office desks",
       "waitingBench": "Waiting for a seat",
@@ -3113,8 +3207,14 @@
         "moveError": "Failed to move that member"
       },
       "noFreeSeatNotice": {
-        "title": "No free seat — add one in the Polar portal",
+        "title": "No free seat: free one or buy more",
         "link": "Open Settings > Seats"
+      },
+      "unusedBanner": {
+        "title": "{{count}} seats are paid for but unused",
+        "title_one": "1 seat is paid for but unused",
+        "description": "Your company pays for {{seats}} seats and has {{members}} members. Lower the seat quantity in Billing, or invite someone to use them.",
+        "manage": "Manage billing"
       }
     },
     "sso": {
@@ -3327,24 +3427,12 @@
     },
     "billing": {
       "title": "Subscription",
-      "description": "Manage this company's hosted subscription — seats, plan, and payment method.",
-      "currencyNotice": "Prices are shown in USD. If your card is billed in another currency, your bank converts the charge at its own exchange rate.",
-      "vatNotice": "Prices exclude VAT; Polar, the merchant of record, adds the VAT applicable to your company at checkout.",
-      "refundNotice": {
-        "prefix": "Polar sells this subscription as our reseller. It renews automatically until you cancel it, and cancelling takes effect at the end of the period already paid. Refunds are handled by Polar. See our",
-        "linkLabel": "Refund and Cancellation Policy"
-      },
+      "description": "This company's hosted subscription: plan, seats, and what is counting down.",
       "currentPlan": "Current plan",
-      "noSubscription": "No subscription",
       "seats": "{{count}} seat",
       "seats_other": "{{count}} seats",
       "daysRemaining": "{{count}} day remaining",
       "daysRemaining_other": "{{count}} days remaining",
-      "seatPaymentFailedNotice": "We couldn't charge your card for the seat you just added — update your payment method below.",
-      "subscribeMonthly": "Subscribe monthly",
-      "subscribeYearly": "Subscribe yearly",
-      "managePortal": "Manage subscription",
-      "manageLegacyPortal": "Manage the previous subscription (cancel it here)",
       "memberNotice": "Only the company's owner or an admin can manage the subscription.",
       "interval": {
         "MONTH": "Monthly",
@@ -3358,29 +3446,21 @@
         "ZIPPED": "Pending deletion",
         "DELETED": "Deleted"
       },
-      "legacyNotice": {
-        "title": "Re-subscribe under this company",
-        "description": "This subscription was created before this company had its own billing customer. Polar has no way to transfer it automatically — subscribe again below to move it onto this company.",
-        "cancelWithButton": "Once you've subscribed, cancel the previous subscription using \"Manage the previous subscription\" below.",
-        "cancelNoButton": "Once you've subscribed, cancel the previous subscription from its own customer portal.",
-        "previousCustomerSuffix": "previous customer"
-      },
-      "billingEmail": {
-        "title": "Billing email",
-        "description": "Used for this company's own Polar customer. Defaults to the company's contact email — set a distinct one if another company already uses it.",
-        "label": "Billing email",
-        "save": "Save",
-        "noneOnFileNotice": "No billing email is on file yet. The field above has been filled in with your own account email as a starting point — review it, or enter a different one, then save before subscribing."
-      },
-      "messages": {
-        "checkoutError": "Failed to start checkout",
-        "portalError": "Failed to open the subscription portal",
-        "noCompanyCustomer": "This company has no billing customer yet — subscribe first.",
-        "noLegacyCustomer": "No previous subscription was found to manage.",
-        "billingEmailTaken": "Choose a distinct billing email for this company",
-        "billingEmailSaved": "Billing email saved",
-        "billingEmailSaveError": "Failed to save the billing email",
-        "taxIdNotAccepted": "Your VAT number was not accepted by Polar (VIES); the checkout continues without it — Polar will ask for it if needed."
+      "actions": {
+        "subscribeTitle": "Subscribe",
+        "subscribeDescription": "Your company has {{count}} members. Choose how many seats to buy: each member needs one, and you pay per seat. Payment happens on Stripe.",
+        "founderNote": "Your company has founder pricing. It stays yours as long as the subscription renews without interruption.",
+        "subscribeDescription_one": "Your company has 1 member. Choose how many seats to buy: each member needs one, and you pay per seat. Payment happens on Stripe.",
+        "interval": "Billing period",
+        "seatQuantity": "Seats",
+        "subscribe": "Continue to payment",
+        "manageTitle": "Manage your subscription",
+        "manageDescription": "Change the payment method (card or SEPA Direct Debit), the number of seats, or download past invoices on Stripe.",
+        "openPortal": "Open billing portal",
+        "cancel": "Cancel subscription",
+        "cancelScheduled": "Your subscription ends on {{date}}. Open the billing portal to keep it.",
+        "checkoutSuccess": "Thanks, your subscription is being set up. It can take a minute to show here.",
+        "error": "Stripe could not be reached. Try again in a moment."
       }
     },
     "declareLastNumber": {
@@ -3613,7 +3693,8 @@
       "documents": "Documents"
     },
     "groups": {
-      "data": "Data"
+      "data": "Data",
+      "account": "Account"
     },
     "documents": {
       "empty": "No document type is available for this company's country."
@@ -3644,9 +3725,26 @@
       "label": "{{version}}",
       "updateAvailable": "Update available",
       "updateTooltip": "{{version}} is available. Click to see the release notes"
+    },
+    "mobile": {
+      "more": "More",
+      "navLabel": "Main sections",
+      "home": "Home"
     }
   },
   "auth": {
+    "shell": {
+      "tagline": "Invoicing that keeps your pace.",
+      "sample": {
+        "title": "Invoice",
+        "reference": "INV-2026-0143",
+        "line1": "Brand identity redesign",
+        "line2": "Print materials",
+        "line3": "Brand book, five copies",
+        "approved": "Approved by the client",
+        "currency": "EUR"
+      }
+    },
     "serverUnavailable": {
       "title": "Service temporarily unavailable",
       "description": "The server can't be reached. Check the logs."
@@ -3677,7 +3775,12 @@
       "signUpLink": "Sign up",
       "messages": {
         "loginSuccess": "Successfully signed in",
-        "loginError": "Invalid credentials"
+        "loginError": "Invalid credentials",
+        "loginErrorTitle": "Sign-in failed",
+        "invalidOriginTitle": "This address cannot sign in",
+        "invalidOrigin": "{{origin}} is not the address this instance is configured for. Open Invoicerr at the address set in APP_URL, or ask your administrator to add this one to CORS_ORIGINS.",
+        "sessionNotStoredTitle": "Signed in, but no session was kept",
+        "sessionNotStored": "Your browser did not keep the session. This happens when the instance is configured for https:// but opened over http://, or when cookies are blocked for this site."
       },
       "oidc": "Sign in with OIDC.",
       "oidcLink": "OIDC Login",
@@ -3769,12 +3872,19 @@
   },
   "demo": {
     "banner": {
-      "title": "Demo: data resets every 4 hours",
-      "description": "Nothing you enter is kept or sent."
+      "title": "Demo: data resets every {{count}} hours",
+      "title_one": "Demo: data resets every hour",
+      "description": "Nothing you enter is kept or sent. Sending documents, e-invoicing declarations and card and online payments are disabled in this demo."
     },
     "signIn": {
       "title": "This is a public demo",
-      "description": "Sign in with demo@invoicerr.app / demo. Data resets every 4 hours."
+      "description": "Sign in with the account below.",
+      "resets": "Data resets every {{count}} hours.",
+      "resets_one": "Data resets every hour.",
+      "copyEmail": "Copy the email",
+      "copyPassword": "Copy the password",
+      "copied": "Copied",
+      "tryButton": "Try it without an account"
     },
     "disabledTooltip": "Disabled in this demo."
   },
@@ -3855,6 +3965,10 @@
       }
     }
   },
+  "offline": {
+    "title": "You are offline.",
+    "description": "What you see may be out of date, and nothing can be saved until the connection is back."
+  },
   "common": {
     "fieldHelp": {
       "trigger": "Show help",
@@ -3868,6 +3982,7 @@
     "finish": "Finish",
     "valueWithCurrency": "{{amount}} {{currency}}",
     "cancel": "Cancel",
+    "close": "Close",
     "previous": "Previous",
     "next": "Continue",
     "back": "Back",
@@ -3901,7 +4016,12 @@
       "loadErrorTitle": "This list could not be loaded.",
       "loadErrorHint": "Check your connection, then try again.",
       "retry": "Retry"
-    }
+    },
+    "formPage": {
+      "edit": "Edit",
+      "preview": "Preview"
+    },
+    "save": "Save"
   },
   "payments": {
     "breakdown": {
@@ -3933,7 +4053,6 @@
         "totalTTC": "Total (incl. VAT)"
       },
       "tooltips": {
-        "viewPdf": "View PDF",
         "downloadPdf": "Download PDF",
         "edit": "Edit payment",
         "sendToClient": "Send to client",
@@ -4127,7 +4246,7 @@
     "description": "Supplier invoices received via e-invoicing channels.",
     "emptyState": {
       "title": "No received invoices",
-      "description": "Supplier invoices received via PDP, SdI, Peppol or KSeF will appear here."
+      "description": "Supplier invoices received via PA, SdI, Peppol or KSeF will appear here."
     },
     "columns": {
       "date": "Date",
@@ -4729,6 +4848,9 @@
               },
               "option": {
                 "label": "Which option did the client accept?"
+              },
+              "attachment": {
+                "label": "Attachment"
               }
             }
           },
@@ -4771,7 +4893,11 @@
         "fields": {
           "invoice": {
             "label": "Invoice",
-            "helpText": "The invoice this credit note corrects. A credit note without an invoice can be saved but not sent yet: it has no client to send it to. Without an invoice, a reason is required below, and some countries do not recognise a credit note with nothing to reference (this screen refuses those with the country's own rule once you try to save)."
+            "helpText": "The invoice this credit note corrects. A credit note without an invoice is a free credit note: it needs its own client and reason, and some countries do not recognise one at all (this screen refuses those with the country's own rule once you try to save)."
+          },
+          "client": {
+            "label": "Client",
+            "helpText": "The client this credit note is for. Required to send a free credit note; filled from the invoice when one is chosen."
           },
           "issueDate": {
             "label": "Date"
@@ -5249,6 +5375,7 @@
       "array": {
         "addRow": "Add row",
         "removeRow": "Remove row",
+        "foldRow": "Done",
         "readOnlyFromSource": "These lines come from the supplier's e-invoice and cannot be edited."
       },
       "select": {
@@ -5356,7 +5483,12 @@
           "notesTitle": "Notes"
         }
       },
-      "lineTotalWarningsTitle": "The lines do not add up to the stated totals"
+      "lineTotalWarningsTitle": "The lines do not add up to the stated totals",
+      "editor": {
+        "description": "Fill in the form; the document builds itself as you type.",
+        "previewLabel": "Preview, as your client will read it",
+        "recapTitle": "Summary"
+      }
     },
     "list": {
       "title": "Saved",
@@ -5390,6 +5522,7 @@
       "item": {
         "fallbackTitle": "{{label}} #{{id}}"
       },
+      "previewPdf": "Preview PDF",
       "downloadPdf": "Download PDF",
       "downloadPdfError": "The PDF could not be generated.",
       "downloadPdfNotPdfOriginal": "This document was imported from another tool and its original file is not a PDF. Use \"Download original\" to get the file as issued.",
@@ -5424,7 +5557,8 @@
         "dateTo": "To",
         "clear": "Clear",
         "settlementUnsettled": "Unpaid only",
-        "settlementOverdue": "Overdue only"
+        "settlementOverdue": "Overdue only",
+        "toggle": "Sort and filters"
       }
     },
     "custom": {
@@ -5450,7 +5584,7 @@
       "importDocument": {
         "button": "Import",
         "uploadTitle": "Import a past document",
-        "uploadDescription": "Upload the original file (PDF or XML) exactly as the previous tool produced it.",
+        "uploadDescription": "Upload the original file (PDF or XML) as the previous tool produced it. A Factur-X, CII or UBL e-invoice pre-fills the form; any other file is attached and typed by hand.",
         "dropHint": "Drag and drop a PDF, or an XML invoice, here",
         "maxSize": "Maximum 10 MB",
         "browse": "Browse files",
@@ -5468,7 +5602,15 @@
         "confirm": "Import",
         "imported": "Document imported.",
         "importedUntransmitted": "Document imported, no transmission evidence was declared. It must be regularised.",
-        "importError": "Import failed"
+        "importError": "Import failed",
+        "prefillError": "Could not read this file to pre-fill the form.",
+        "prefillRefused": "The form was not pre-filled:",
+        "prefillWarnings": "Check before importing:",
+        "clientProposal": "No client matches this file's buyer \"{{name}}\". Create it now, or pick an existing client.",
+        "createClient": "Create this client",
+        "clientCreated": "Client \"{{name}}\" created and selected.",
+        "clientCreateError": "Could not create this client.",
+        "clientProposalIncomplete": "This file does not state enough about the buyer to create a client. Pick or create one by hand."
       },
       "importCsv": {
         "button": "Import CSV",
@@ -5538,8 +5680,17 @@
       "badge": {
         "unpaid": "Unpaid",
         "partiallyPaid": "Partially paid",
-        "settled": "Settled"
+        "settled": "Settled",
+        "late": "Late"
       }
+    },
+    "rejection": {
+      "title": "Rejected by the e-invoicing platform",
+      "badge": "Rejected by platform",
+      "listLine": "Rejected by the platform: {{reason}}",
+      "detail": "The platform refused this invoice, so your client has not legally received it. It is still owed and will not be chased until it is corrected.",
+      "reason": "Reason given: {{reason}}",
+      "correctAndResend": "Correct and resend"
     },
     "archive": {
       "title": "Legal archive",
@@ -5610,7 +5761,7 @@
       }
     },
     "conformity": {
-      "title": "Compliance tracking",
+      "title": "Transmission",
       "badge": {
         "accepted": "Validated by the platform",
         "rejected": "Rejected",
@@ -5619,7 +5770,9 @@
         "declarationIssue": "Declaration issue"
       },
       "timeline": {
-        "reason": "Reason: {{reason}}"
+        "reason": "Reason: {{reason}}",
+        "created": "Created",
+        "statusUpdate": "Status update from the platform"
       }
     },
     "correction": {
@@ -5775,7 +5928,8 @@
       "totalsTitle": "Totals",
       "notFound": "This document could not be found.",
       "importNotTransmitted": "This document was imported with no transmission evidence declared (no SdI id, KSeF number, accredited platform reference, or ATCUD). It must be regularised with the relevant authority.",
-      "importNotTransmittedTitle": "Not yet transmitted to the tax authority"
+      "importNotTransmittedTitle": "Not yet transmitted to the tax authority",
+      "allFields": "All fields"
     },
     "acceptance": {
       "menuLabel": "Mark as accepted",
@@ -5796,17 +5950,33 @@
       "manualEntry": "Marked accepted manually by {{actorName}}: \"{{note}}\"",
       "signedLabel": "Signed electronically",
       "signedEntry": "Signed electronically on {{date}}",
-      "acceptedOption": "Accepted option: {{option}}"
+      "acceptedOption": "Accepted option: {{option}}",
+      "attachmentLabel": "Attachment",
+      "attachmentHelpText": "Optional. A scan or photo of the signed paper, kept with this quote's legal record. PDF, JPEG, PNG or WEBP, up to 10 MB. It cannot be added later.",
+      "attachmentChoose": "Choose a file",
+      "attachmentRemove": "Remove the attachment",
+      "attachmentUploadFailed": "The attachment could not be uploaded.",
+      "attachmentUnsupportedType": "Only a PDF, JPEG, PNG or WEBP file can be attached.",
+      "manualAttachmentLabel": "Attached proof: {{fileName}}",
+      "manualAttachmentDownload": "Download the attachment"
     },
     "countryFields": {
       "buyerReference": {
         "leitwegId": {
           "label": "Buyer reference (Leitweg-ID)",
           "helpText": "The buyer's own reference. For a German public-sector buyer this is usually a Leitweg-ID. Used as BT-10 (\"Buyer reference\") on an EN 16931 export; XRechnung refuses the document when it is missing (rule BR-DE-15)."
+        },
+        "codeService": {
+          "label": "Code service (recipient)",
+          "helpText": "The recipient's own service code inside Chorus Pro. Some public entities require one, others do not; leave it empty when you have none."
         }
       },
       "supplyType": {
         "label": "Supply type",
+        "options": {
+          "goods": "Goods",
+          "services": "Services"
+        },
         "crossBorderTax": {
           "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services."
         },
@@ -5823,10 +5993,62 @@
     },
     "fieldHelp": {
       "noVatRateCatalog": "No known VAT rate list for this company's country. Enter the applicable rate manually."
+    },
+    "paper": {
+      "ariaLabel": "{{label}} as your client reads it",
+      "for": "For",
+      "amount": "Amount",
+      "vatAt": "VAT {{rate}} %"
+    },
+    "messages": {
+      "tax": {
+        "buyerVatInvalid": "Buyer VAT number \"{{vatNumber}}\" is not syntactically valid for {{country}}, so this buyer is treated as B2C, never a silent B2B.",
+        "buyerVatUnverified": "Buyer VAT number \"{{vatNumber}}\" has not been confirmed valid by the tax authority, so this buyer is treated as B2C until it is verified, never a silent B2B.",
+        "buyerVatNotChecked": "Buyer VAT number \"{{vatNumber}}\" has no stored verification verdict yet, so this buyer is treated as B2C until it is verified, never a silent B2B.",
+        "supplyTypeMissing": "Line {{line}} has no declared supply type (goods/services), so it is treated as SERVICES for cross-border VAT purposes; declare it explicitly if this line is actually a delivery of goods.",
+        "rateNotInCatalog": "Line {{line}}'s chosen VAT rate (\"{{rate}}\") is not one of {{country}}'s known VAT rates, so this cross-border B2C line is taxed in {{country}}, at {{country}}'s own standard rate instead, since there is no known rate on this invoice to honour.",
+        "ossStandardRate": "This invoice is an intra-Community distance sale taxed in {{country}} (EU One-Stop-Shop, Directive 2006/112/EC art. 33(a)), so {{country}}'s STANDARD VAT rate ({{rate}}%) was applied. {{country}}'s own reduced rates are not modelled here and an invoice line carries nothing that says which products they cover. Check the destination rate yourself if what you are selling is reduced-rated there, or this invoice over-charges the customer.",
+        "exemptCountryUnsupported": "This company is covered by the small-business VAT exemption, but no VAT/GST tax system is known for its own country ({{country}}) in this catalog, so this invoice was left at the rate the user chose, since a small-business VAT exemption is not something this catalog can safely apply for a country with an unknown or non-VAT tax system, guessed either way."
+      },
+      "totals": {
+        "currencyMissing": "Document currency not found, using the default (2 decimals).",
+        "nonNumericQuantity": "line {{line}} has a non-numeric quantity (received {{value}}), counted as 1",
+        "nonNumericUnitPrice": "line {{line}} has a non-numeric unit price (received {{value}}), counted as 0",
+        "vatRateMissing": "line {{line}} has no usable VAT rate, counted in net only"
+      },
+      "lineTotals": {
+        "mismatchNet": "Line total mismatch (net / HT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+        "mismatchVat": "Line total mismatch (VAT): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed.",
+        "mismatchGross": "Line total mismatch (gross / TTC): the {{lines}} line(s) sum to {{computed}} but the document states {{stated}}, a difference of {{difference}}, beyond the {{tolerance}} rounding tolerance for this many line(s). Kept as entered: this is the supplier's own document, not recomputed."
+      },
+      "credits": {
+        "currencyUnrecorded": "Credit note \"{{label}}\" has no recorded currency to compare with its invoice's own, so the credited amount is taken from the invoice's own priced lines as they stand, never converted.",
+        "currencyMismatch": "Credit note \"{{label}}\" declares its own currency as {{noteCurrency}}, different from invoice's own {{invoiceCurrency}}. The credited amount is always computed from, and expressed in, the invoice's own currency; counted as {{invoiceCurrency}}, never converted (there is nothing to convert)."
+      },
+      "currency": {
+        "rateUsed": "{{from}}→{{to}} @ {{rate}} ({{source}}, {{date}})",
+        "rateMissing": "No {{from}}→{{to}} rate is set, so the consolidated total is omitted."
+      },
+      "widgets": {
+        "invoicesCapped": "Showing the {{shown}} most recently updated invoices of {{total}}. Use the accounting export for a complete period.",
+        "quotesCapped": "Showing the {{shown}} most recently updated quotes of {{total}}.",
+        "expensesCapped": "Showing the {{shown}} most recently updated expenses of {{total}}.",
+        "creditNotesCapped": "Showing the {{shown}} most recently updated credit notes of {{total}}.",
+        "schedulesPeriodIgnored": "The selected period does not apply to this list: it always shows the next scheduled runs, regardless of the active period."
+      },
+      "retention": {
+        "single": "{{rule}}.",
+        "longerOf": "{{rule}}: the longer of {{count}} obligations that apply simultaneously to the same company: {{rules}}.",
+        "longerOfSkipped": "{{rule}}: the longer of {{count}} obligations that apply simultaneously to the same company: {{rules}}. ({{skipped}} other declared rule(s) could not be resolved: missing issue date.)",
+        "unresolved": "{{country}} declares {{count}} retention rule(s) ({{rules}}) but none could be resolved: the document's own issue date is missing or unparseable, and no declared rule here runs from the archiving instant alone.",
+        "none": "No retention rule declared for this country, so no duration is invented.",
+        "noneForCountry": "No retention rule declared for {{country}}, so no duration is invented."
+      }
     }
   },
   "declarations": {
-    "description": "Tax-authority declarations Invoicerr filed automatically after sending a document — one row per attempt, most recent first.",
+    "description": "Tax-authority declarations Invoicerr filed for you. One row per attempt, most recent first.",
+    "help": "Invoicerr files each declaration automatically, at the point the country requires: for example when a document is issued, or when it is sent.",
     "filters": {
       "allStatuses": "All statuses"
     },
@@ -5845,6 +6067,7 @@
     },
     "status": {
       "accepted": "Accepted",
+      "submitted": "Submitted to the platform",
       "rejected": "Rejected",
       "blocked": "Blocked",
       "failed": "Failed"
@@ -5857,15 +6080,11 @@
         "title_one": "{{count}} day left in your trial",
         "title_other": "{{count}} days left in your trial",
         "title": "{{count}} days left in your trial",
-        "description": "Everything works except sending documents (email, PDP/Chorus Pro/KSeF deposits). Subscribe to unlock sending."
+        "description": "Everything works except sending documents (email, PA/Chorus Pro/KSeF deposits). Subscribe to unlock sending."
       },
       "pastDue": {
         "title": "Your last payment failed",
-        "description": "Update your payment method to keep sending documents.",
-        "seatPaymentFailed": {
-          "title": "Payment for an added seat failed",
-          "description": "We couldn't charge your card for the seat you just added. Update your payment method to keep sending documents."
-        }
+        "description": "Update your payment method to keep sending documents."
       },
       "blocked": {
         "title": "This company is blocked",
@@ -5878,9 +6097,12 @@
     }
   },
   "seatGate": {
-    "title": "Waiting for a seat",
-    "descriptionWithOwner": "There's no free seat for you right now. Ask {{ownerName}} to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
-    "description": "There's no free seat for you right now. Ask your company's owner to free one, or buy more seats in the Polar portal — you'll get one back automatically.",
+    "notEnoughSeats": {
+      "title": "Your company doesn't have enough seats",
+      "description": "Every member needs a seat, and your company has more members than seats right now. Ask an owner or admin to buy more seats or to free one. You'll get access back automatically.",
+      "switchLabel": "Switch to another company",
+      "switchError": "Couldn't switch company. Try again in a moment."
+    },
     "signOut": "Sign out",
     "errorTitle": "Couldn't check your seat",
     "errorDescription": "We couldn't confirm your access to this company right now. This is usually temporary — try again in a moment."

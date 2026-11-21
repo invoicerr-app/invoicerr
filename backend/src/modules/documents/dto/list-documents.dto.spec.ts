@@ -58,14 +58,12 @@ describe('parseListDocumentsQuery', () => {
     expect(parsed.dateTo).toBe('2026-01-31');
   });
 
-  it.each([
-    '2026/01/01',
-    '01-01-2026',
-    'not-a-date',
-    '2026-13-01',
-  ])('refuses a dateFrom that is not YYYY-MM-DD at all: %j', (value) => {
-    expect(() => parseListDocumentsQuery({ dateFrom: value })).toThrow(BadRequestException);
-  });
+  it.each(['2026/01/01', '01-01-2026', 'not-a-date', '2026-13-01'])(
+    'refuses a dateFrom that is not YYYY-MM-DD at all: %j',
+    (value) => {
+      expect(() => parseListDocumentsQuery({ dateFrom: value })).toThrow(BadRequestException);
+    },
+  );
 
   it('refuses dateFrom after dateTo', () => {
     expect(() => parseListDocumentsQuery({ dateFrom: '2026-02-01', dateTo: '2026-01-01' })).toThrow(

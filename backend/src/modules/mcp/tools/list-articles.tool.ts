@@ -12,7 +12,7 @@ const outputSchema = {
       id: z.string(),
       name: z.string(),
       description: z.string().nullable(),
-      type: z.nativeEnum(ItemType),
+      type: z.enum(ItemType),
       unitPrice: z.number(),
       vatRate: z.number(),
     }),

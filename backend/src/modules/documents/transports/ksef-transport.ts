@@ -1,6 +1,6 @@
 /**
  * The "ksef" transport — Poland's Krajowy System e-Faktur. Same `DocumentTransport` interface
- * `pdp-transport.ts` implements, registered the same
+ * `superpdp-transport.ts` implements, registered the same
  * way (`TransportRegistry.register` — see that file's own header on why nothing here treats KSeF
  * specially).
  *
@@ -9,14 +9,14 @@
  * end-to-end against `ksef-test.mf.gov.pl` there (2026-06-28). What is NEW in this file is the
  * ORCHESTRATION: the old engine's `ksef-transmission.ts` was a `TransmissionProvider` for a
  * lifecycle runtime that no longer exists (event-sourced signals, a `poll()` a scheduler called on a
- * timer) — this transport instead follows `pdp-transport.ts`'s OWN, narrower contract: a
+ * timer) - this transport instead follows `superpdp-transport.ts`'s OWN, narrower contract: a
  * `send()` SUCCEEDS the moment KSeF ACCEPTS the online-session submission (a non-empty session +
  * invoice reference back from `POST /sessions/online/{ref}/invoices`), never waiting for the
  * asynchronous CLEARED verdict. Chasing that verdict needs a POLLER (the old engine's own, or a new
  * one) — a known remainder, the same way PDP's own conformity-poll gap already is, NOT guessed at
  * here.
  *
- * Two distinct failure shapes, both loud, neither silent — same split `pdp-transport.ts`'s own
+ * Two distinct failure shapes, both loud, neither silent - same split `superpdp-transport.ts`'s own
  * header documents:
  *  - `preflight()` — no KSeF channel connected for this company (missing token/NIP) — thrown BEFORE
  *    anything is persisted or queued.
@@ -25,8 +25,9 @@
  *    BullMQ's own retries run before `send_failed` is ever recorded.
  * An accepted submission with an EMPTY session or invoice reference is the SECOND kind of failure,
  * never a success: a reference nobody can look up is not a reference at all (the exact same
- * hard-success contract `pdp-transport.ts` already enforces for its own deposit id).
+ * hard-success contract `superpdp-transport.ts` already enforces for its own deposit id).
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -34,9 +35,11 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { companyToFormatParty, clientToFormatParty } from '../formats/party-snapshot';
 import prisma from '@/prisma/prisma.service';
 import {
@@ -69,6 +72,7 @@ import { FetchKsefHttpClient } from './ksef/fetch-http-client';
 import { KsefClient, KsefEnvironment } from './ksef/ksef-client';
 import { generateSessionKey } from './ksef/ksef-crypto';
 import { loadVendorizedKeys } from './ksef/ksef-public-keys';
+import { sleep } from '@/lib/sleep';
 
 export interface KsefTransportDeps {
   channelCredentials: ChannelCredentialsService;
@@ -78,9 +82,9 @@ export interface KsefTransportDeps {
   fa3FormatProvider: DocumentFormatProvider;
 }
 
-const PROVIDER_ID = 'ksef';
+const PROVIDER_ID = KSEF_PROVIDER_ID;
 
-/** Same "module-level constant, reached only through invoiceTransportId" choice `pdp-transport.ts`
+/** Same "module-level constant, reached only through invoiceTransportId" choice `superpdp-transport.ts`
  *  makes for the identical reason — see that file's own header. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
@@ -98,7 +102,7 @@ export interface KsefCredentials {
 }
 
 /** Extracts and validates the fields this transport needs — shared by `preflight()` and `send()`,
- *  same discipline `pdp-transport.ts#extractCredentials` holds. `environment` comes from the ROW
+ *  same discipline `superpdp-transport.ts#extractCredentials` holds. `environment` comes from the ROW
  *  itself (`ResolvedChannelConfig.environment`, TEST/PROD — already a first-class concept the whole
  *  channels module carries for every provider), never a second, redundant `config.environment`
  *  field: the settings screen's existing Environment selector already IS this. */
@@ -112,8 +116,12 @@ async function requireConnectedKsef(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<KsefCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractKsefCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractKsefCredentials,
+  );
   if (!credentials) {
     logger.warn('KSeF transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -139,7 +147,7 @@ export interface KsefAccessToken {
 }
 
 /** KSeF's own `validUntil` is authority-supplied text, never independently validated before it reaches
- *  here — the same "trust but verify" posture `pollers/pdp-status-poller.ts#parseEventDate` already
+ *  here - the same "trust but verify" posture `pollers/superpdp-status-poller.ts#parseEventDate` already
  *  holds for its own authority-supplied timestamp. An unparseable value falls back to a short,
  *  conservative TTL rather than either crashing or (worse) caching a token forever: re-authenticating
  *  a little too often is merely wasteful, trusting a garbage expiry for a much longer window is not. */
@@ -177,7 +185,7 @@ export async function authenticate(client: KsefClient): Promise<KsefAccessToken>
         `KSeF authentication rejected (code ${status.status.code}: ${status.status.description})`,
       );
     }
-    await new Promise((resolve) => setTimeout(resolve, AUTH_POLL_INTERVAL_MS));
+    await sleep(AUTH_POLL_INTERVAL_MS);
   }
   throw new Error('KSeF authentication did not complete within the poll budget — still "processing".');
 }
@@ -194,7 +202,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
 
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result — same reasoning
-      // `pdp-transport.ts#send` already documents for its own re-resolution.
+      // `superpdp-transport.ts#send` already documents for its own re-resolution.
       const credentials = await requireConnectedKsef(deps.channelCredentials, ctx.companyId);
 
       const data = (ctx.document.data ?? {}) as Record<string, unknown>;
@@ -226,14 +234,14 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         INVOICE_DESCRIPTOR,
         ctx.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         // Needed to resolve a KOR's own corrected-invoice lookup (`formats/national/fa3-kor.ts`) when
         // `ctx.document.data.correctsInvoiceId` is set — every OTHER (non-correcting) invoice ignores
         // this parameter entirely, same as before this was added.
         ctx.companyId,
       );
       if (!buildResult.validation.valid) {
-        // Same gate `pdp-transport.ts` enforces for its own Factur-X build — an invalid FA(3)
+        // Same gate `superpdp-transport.ts` enforces for its own Factur-X build - an invalid FA(3)
         // (judged by the REAL vendored schemat_FA3.xsd, `fa3-provider.ts`'s own header) is never
         // submitted to KSeF either.
         throw new BadRequestException({
@@ -339,7 +347,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
         providerId: PROVIDER_ID,
         // Legal archiving — the ONLY artifact this transport ever delivers is
         // the FA(3) actually submitted (`buildResult.bytes`, already gated valid above), same
-        // reasoning as `pdp-transport.ts`'s own `artifacts`.
+        // reasoning as `superpdp-transport.ts`'s own `artifacts`.
         artifacts: [
           { role: deps.fa3FormatProvider.id, mime: deps.fa3FormatProvider.mime, bytes: buildResult.bytes },
         ],

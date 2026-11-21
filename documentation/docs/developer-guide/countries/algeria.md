@@ -94,6 +94,23 @@ legally is a franchise-en-base. A faithful model of IFU (its own 5%/12%/0.5% rat
 forfaitaire, its replacement of two further taxes) has no slot in the current schema: a decision for
 whoever owns the tax-systems format next, not something this data-only change invents a slot for.
 
+## Company-law mentions
+
+Décret exécutif n° 05-468, art. 3, 1° lists among the seller's invoice mentions « forme juridique de
+l'agent économique et nature de l'activité » and « capital social, le cas échéant ». The
+`companyLaw` section of `countries/data/dz.json` prints them under the seller's name, on invoices
+only:
+
+| Legal forms | Printed |
+| --- | --- |
+| every form, a natural person included | "Forme juridique : SARL, activité : Commerce de gros" |
+| EURL, SARL, SPA, SCA | "Capital social : 100000.00 DZD" |
+| SNC, SCS | the same capital line, only when filled in |
+
+Whether a partnership has a share capital to state was not settled, hence the optional line. The
+registre du commerce number is the `RC` identifier. Text read in Journal officiel n° 80 of 11 December
+2005 on 2026-10-25; later amendments of the decree were not searched for.
+
 ## Known gaps, left out of this change on purpose
 
 - **Invoice language**: no catalogue in this product encodes the language a law requires an invoice to

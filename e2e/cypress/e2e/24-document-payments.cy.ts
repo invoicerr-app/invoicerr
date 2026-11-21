@@ -18,8 +18,9 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     exact balance verified by the API (computed by hand here, not copied from the code);
  *  3. the payment completed (60 € more) → "Settled" badge (renamed from "Paid" as part of
  *     reconciliation: see 25-document-settlement.cy.ts), `outstandingMinor: 0`;
- *  4. a payment in another currency (USD) is refused — visible on screen (error message), with
- *     no effect at all on the already-recorded balance;
+ *  4. on a second, unpaid invoice, a payment in another currency (USD) is refused, visible on screen
+ *     (error message), with no effect at all on its balance (a settled invoice no longer offers the
+ *     action, so the first invoice cannot carry this step);
  *  5. on a draft, the action is not offered on screen, and the API refuses it too (409).
  */
 const api = Cypress.env("apiUrl");
@@ -104,7 +105,8 @@ describe("An invoice's payments — a record, not a document type", () => {
 			cy.get('[data-cy="document-settlement-section"]', { timeout: 15000 })
 				.scrollIntoView()
 				.should("be.visible");
-			cy.get('[data-cy="document-settlement-badge"]').should("contain.text", "Unpaid");
+			// Its due date is already past, so the unpaid balance reads as late.
+			cy.get('[data-cy="document-settlement-badge"]').should("contain.text", "Late");
 			cy.get('[data-cy="document-settlement-empty"]').should("exist");
 
 			cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
@@ -213,46 +215,55 @@ describe("An invoice's payments — a record, not a document type", () => {
 	});
 
 	it("a payment in a different currency than the invoice's own is refused, and the error is VISIBLE on screen", () => {
-		expect(invoiceId, "la facture des tests précédents existe toujours").to.be.a("string");
+		createDraftInvoice().then((id) => {
+			cy.visit("/documents/invoice");
+			cy.openDocument(id);
+			cy.runDocumentAction("send");
+			cy.get('[data-cy="document-action-record-payment"]', { timeout: 15000 }).should("exist");
 
-		cy.visit("/documents/invoice");
-		cy.openDocument(invoiceId);
+			cy.runDocumentAction("record-payment");
+			cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
 
-		cy.runDocumentAction("record-payment");
-		cy.get('[data-cy="document-action-params-dialog"]', { timeout: 10000 }).should("be.visible");
+			// Scoped to the dialog — see the partial-payment test's own comment: the invoice ALSO has its
+			// own "currency" field, which coexists in the DOM with the action's own while the dialog
+			// is open.
+			const dialog = () => cy.get('[data-cy="document-action-params-dialog"]');
 
-		// Scoped to the dialog — see the previous test's own comment: the invoice ALSO has its own
-		// "currency" field, which coexists in the DOM with the action's own while the dialog
-		// is open.
-		const dialog = () => cy.get('[data-cy="document-action-params-dialog"]');
+			dialog().find('[data-cy="document-field-amount-input"]').clear({ force: true }).type("10", { force: true });
 
-		dialog().find('[data-cy="document-field-amount-input"]').clear({ force: true }).type("10", { force: true });
+			// A currency DIFFERENT from the invoice's own (EUR) is chosen — a real click on a real
+			// option, exactly what a user could do by mistake.
+			dialog().find('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+			cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
+			cy.get('[data-cy^="document-field-currency-input-option-usd"]').first().click();
 
-		// A currency DIFFERENT from the invoice's own (EUR) is chosen — a real click on a real
-		// option, exactly what a user could do by mistake.
-		dialog().find('[data-cy="document-field-currency-input"] button').first().click({ force: true });
-		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
-		cy.get('[data-cy^="document-field-currency-input-option-usd"]').first().click();
+			cy.get('[data-cy="document-action-params-confirm"]').click();
 
-		cy.get('[data-cy="document-action-params-confirm"]').click();
+			// Visible on screen: the backend's own error message, as-is (toast, sonner). `contain.text`
+			// rather than `cy.contains(selector, regex)` — the latter fails here for no apparent reason
+			// (the text is genuinely there, confirmed by a manual screenshot); `get` + `contain.text`
+			// is the pattern already proven elsewhere in this suite for text inside a given container.
+			cy.get('[data-sonner-toast]', { timeout: 10000 }).should(
+				"contain.text",
+				"does not match this invoice's own currency",
+			);
 
-		// Visible on screen: the backend's own error message, as-is (toast, sonner). `contain.text`
-		// rather than `cy.contains(selector, regex)` — the latter fails here for no apparent reason
-		// (the text is genuinely there, confirmed by a manual screenshot); `get` + `contain.text`
-		// is the pattern already proven elsewhere in this suite for text inside a given container.
-		cy.get('[data-sonner-toast]', { timeout: 10000 }).should(
-			"contain.text",
-			"does not match this invoice's own currency",
-		);
-
-		// Refused before writing anything at all: the balance hasn't moved — still settled at 120 €,
-		// never a phantom payment in USD.
-		cy.request({ url: `${api}/api/documents/${invoiceId}/settlement?typeId=invoice` })
-			.its("body")
-			.then((body) => {
-				expect(body.settlement.paidMinor, "aucun effet du paiement refusé").to.eq(GROSS_MINOR);
-				expect(body.payments, "toujours exactement les deux paiements EUR d'avant").to.have.length(2);
-			});
+			// Refused before writing anything at all: the balance hasn't moved — still nothing paid,
+			// never a phantom payment in USD.
+			cy.request({ url: `${api}/api/documents/${id}/settlement?typeId=invoice` })
+				.its("body")
+				.then((body) => {
+					expect(body.settlement, "aucun effet du paiement refusé").to.deep.equal({
+						totalGrossMinor: GROSS_MINOR,
+						paidMinor: 0,
+						creditedMinor: 0,
+						outstandingMinor: GROSS_MINOR,
+						excessMinor: 0,
+						settled: false,
+					});
+					expect(body.payments, "aucun paiement enregistré").to.have.length(0);
+				});
+		});
 	});
 
 	it("the \"record-payment\" action is not offered on a draft, and the API refuses it too (409)", () => {

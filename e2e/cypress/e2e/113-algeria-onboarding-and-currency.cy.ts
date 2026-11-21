@@ -1,4 +1,5 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { companyLawFor } from "../fixtures/company-law";
 
 /**
  * Issue #558 - Algeria (DZ) added as a country, data only.
@@ -101,7 +102,11 @@ function onboardAlgerianCompany() {
 
 	// "send" needs a configured transport (invoice-actions.ts) - not itself this issue's subject, set
 	// through the API the same way 20-document-totals.cy.ts's own VAT-exempt describe block does.
-	cy.request({ method: "POST", url: `${api}/api/company/info`, body: { invoiceTransportId: "email" } })
+	cy.request({
+		method: "POST",
+		url: `${api}/api/company/info`,
+		body: { invoiceTransportId: "email", companyLaw: companyLawFor("DZ") },
+	})
 		.its("status")
 		.should("be.oneOf", [200, 201]);
 }

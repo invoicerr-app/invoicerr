@@ -257,7 +257,6 @@
                 "totalTTC": "Totale (IVA inclusa)"
             },
             "tooltips": {
-                "viewPdf": "Vedi PDF",
                 "downloadPdf": "Scarica PDF",
                 "edit": "Modifica preventivo",
                 "sendSignature": "Invia per la firma",
@@ -2277,7 +2276,6 @@
                 "totalTTC": "Totale (IVA inclusa)"
             },
             "tooltips": {
-                "viewPdf": "Vedi PDF",
                 "downloadPdf": "Scarica PDF",
                 "edit": "Modifica pagamento",
                 "sendToClient": "Invia al cliente",

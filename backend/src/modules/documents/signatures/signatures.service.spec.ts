@@ -531,12 +531,7 @@ describe('SignaturesService', () => {
         'quote',
         'quote-1',
         'signed',
-        null,
-        undefined,
-        undefined,
-        ['sent'],
-        undefined,
-        SENT_QUOTE.updatedAt,
+        { fromStatuses: ['sent'], knownUpdatedAt: SENT_QUOTE.updatedAt },
       );
       expect(rows()[0].signedAt).not.toBeNull();
       expect(rows()[0].isActive).toBe(false); // a signed row can never be replayed
@@ -645,12 +640,7 @@ describe('SignaturesService', () => {
           'quote',
           'quote-1',
           'signed',
-          null,
-          undefined,
-          undefined,
-          ['sent'],
-          'Premium',
-          MULTI_OPTION_QUOTE.updatedAt,
+          { fromStatuses: ['sent'], acceptedOption: 'Premium', knownUpdatedAt: MULTI_OPTION_QUOTE.updatedAt },
         );
         expect(rows()[0].chosenOption).toBe('Premium');
         // Issue #477 - the WORM record names the bound version, with the chosen option frozen.

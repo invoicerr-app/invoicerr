@@ -9,7 +9,7 @@ import {
   rejection,
   stubIssuanceCollaborators,
 } from '../__tests__/invoice-action-harness';
-import { createTestCompany } from '../__tests__/issuable-client';
+import { createTestCompany, FRENCH_SAS_COMPANY_LAW } from '../__tests__/issuable-client';
 import { seedCountryIdentifierRequirements } from '../country-identifiers/seed';
 import * as takeNumber from '../numbering/take-number';
 import * as persistence from '../persistence';
@@ -35,13 +35,30 @@ const FRANCE: CountryFixture = { country: 'France', countryCode: 'FR', city: 'Pa
 const GERMANY: CountryFixture = { country: 'Germany', countryCode: 'DE', city: 'Berlin' };
 const POLAND: CountryFixture = { country: 'Poland', countryCode: 'PL', city: 'Warszawa' };
 
+const COMPLETE_COMPANY_LAW: Record<string, unknown> = {
+  FR: FRENCH_SAS_COMPANY_LAW,
+  PL: {
+    legalForm: 'PL_SP_ZOO',
+    values: {
+      registerCourt: 'Sąd Rejonowy dla m.st. Warszawy',
+      krsNumber: '0000123456',
+      shareCapital: { amount: '5000', currency: 'PLN' },
+    },
+  },
+};
+
 const createdCompanyIds: string[] = [];
 
 function identifierRows(identifiers: Identifiers) {
   return Object.entries(identifiers).map(([scheme, value]) => ({ scheme, value }));
 }
 
-async function seller(where: CountryFixture, identifiers: Identifiers, exemptVat = false) {
+async function seller(
+  where: CountryFixture,
+  identifiers: Identifiers,
+  exemptVat = false,
+  companyLaw: unknown = COMPLETE_COMPANY_LAW[where.countryCode],
+) {
   const company = await createTestCompany(
     `Seller ${where.countryCode} ${Object.keys(identifiers).join(' ')}`,
   );
@@ -51,6 +68,7 @@ async function seller(where: CountryFixture, identifiers: Identifiers, exemptVat
     data: {
       ...where,
       exemptVat,
+      companyLaw: companyLaw ?? undefined,
       partyIdentifiers: { create: identifierRows(identifiers) },
     },
   });
@@ -179,5 +197,59 @@ describe("Validate refuses an invoice missing an identifier its seller's country
       params: { missing: [{ party: 'BUYER', scheme: 'LEGAL_ID', label: 'NIP' }] },
     });
     expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe('Validate refuses an invoice whose seller lacks a company-law value its country requires', () => {
+  const FRENCH_IDENTIFIERS = { LEGAL_ID: '732829320', VAT: 'FR44732829320' };
+
+  beforeAll(async () => {
+    await seedCountryIdentifierRequirements(prisma);
+  });
+
+  afterAll(async () => {
+    await prisma.company.deleteMany({ where: { id: { in: createdCompanyIds } } });
+  });
+
+  afterEach(() => vi.resetAllMocks());
+
+  beforeEach(() => stubIssuanceCollaborators());
+
+  it('a French SAS without its share capital is refused, naming it', async () => {
+    const company = await seller(FRANCE, FRENCH_IDENTIFIERS, false, {
+      legalForm: 'FR_SAS',
+      values: { registerCity: 'Paris' },
+    });
+    const client = await buyer(company.id, FRANCE, 'COMPANY', { LEGAL_ID: '552100554' });
+
+    const error = await rejection(run('validate', company.id, client.id));
+
+    expect(error.message).toMatch(/Capital social \(seller\)/);
+    expect(error.response).toMatchObject({
+      code: INVOICE_IDENTIFIERS_MISSING_CODE,
+      params: { missing: [{ party: 'SELLER', scheme: 'shareCapital', label: 'Capital social' }] },
+    });
+    expect(takeNumber.takeDocumentNumberForTransitionWithStatus).not.toHaveBeenCalled();
+  });
+
+  it('a seller that has not said its legal form is refused, naming it', async () => {
+    const company = await seller(FRANCE, FRENCH_IDENTIFIERS, false, null);
+    const client = await buyer(company.id, FRANCE, 'COMPANY', { LEGAL_ID: '552100554' });
+
+    const error = await rejection(run('validate', company.id, client.id));
+
+    expect(error.response).toMatchObject({
+      code: INVOICE_IDENTIFIERS_MISSING_CODE,
+      params: { missing: [{ party: 'SELLER', scheme: 'legalForm', label: 'Forme juridique' }] },
+    });
+  });
+
+  it('a French individual entrepreneur validates with no share capital and no RCS city', async () => {
+    const company = await seller(FRANCE, FRENCH_IDENTIFIERS, false, { legalForm: 'FR_EI' });
+    const client = await buyer(company.id, FRANCE, 'COMPANY', { LEGAL_ID: '552100554' });
+
+    const result = await run('validate', company.id, client.id);
+
+    expect(result.changed).toBe(true);
   });
 });

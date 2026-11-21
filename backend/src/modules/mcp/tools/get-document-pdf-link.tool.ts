@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
+import { hasAnyScope } from '@/utils/scope-check';
+
 import {
   canReadDocumentType,
   DOCUMENT_READ_SCOPES,
   DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
   scopeForDocumentType,
 } from './scope-mapping';
 import { ToolDescriptor } from './types';
@@ -41,7 +42,7 @@ export const getDocumentPdfLinkTool: ToolDescriptor<typeof inputSchema> = {
     'client that does not render MCP resource blocks can still offer the user a clickable URL. ' +
     'Refuses a draft the same way the app\'s own "share link" button would — a draft has no number ' +
     'and no legal existence yet to hand a stranger a link to.',
-  isRegistered: (scopes) => hasAnyScope([...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES], scopes),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
   inputSchema,
   outputSchema,
   handler: async (ctx, input) => {

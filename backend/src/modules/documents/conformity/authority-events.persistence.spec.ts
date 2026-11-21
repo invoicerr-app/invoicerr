@@ -12,12 +12,14 @@ import prisma from '@/prisma/prisma.service';
 
 import { RawAuthorityEvent } from './authority-status-poller';
 import {
+  clearConformityRejection,
   createAuthorityEvents,
   findConformitySweepCandidates,
   findDocumentByTransportRef,
   findOwnedDocumentByTransportRef,
   journalSyntheticEvent,
   listAuthorityEvents,
+  markConformityRejected,
   markConformityResolved,
 } from './authority-events.persistence';
 
@@ -258,6 +260,38 @@ describe('markConformityResolved', () => {
     const call = mockedPrisma.documentInstance.update.mock.calls[0][0];
     expect(call.where).toEqual({ id: 'doc-1' });
     expect(call.data.conformityResolvedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('markConformityRejected / clearConformityRejection', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('flags the document rejected, scoped to its company', async () => {
+    const rejectedAt = new Date('2026-11-10T09:00:00Z');
+    await markConformityRejected('company-1', 'doc-1', rejectedAt, 'Invalid SIREN');
+    expect(mockedPrisma.documentInstance.updateMany).toHaveBeenCalledWith({
+      where: { id: 'doc-1', companyId: 'company-1' },
+      data: { conformityRejectedAt: rejectedAt, conformityRejectedReason: 'Invalid SIREN' },
+    });
+  });
+
+  it('clears the flag on the accepted document itself', async () => {
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue({ data: {} });
+    mockedPrisma.documentInstance.updateMany.mockResolvedValue({ count: 1 });
+    await expect(clearConformityRejection('company-1', 'doc-1')).resolves.toBe(1);
+    expect(mockedPrisma.documentInstance.updateMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-1', id: { in: ['doc-1'] }, conformityRejectedAt: { not: null } },
+      data: { conformityRejectedAt: null, conformityRejectedReason: null },
+    });
+  });
+
+  it('also clears the invoice an accepted credit note corrects', async () => {
+    mockedPrisma.documentInstance.findFirst.mockResolvedValue({ data: { invoice: 'inv-1' } });
+    mockedPrisma.documentInstance.updateMany.mockResolvedValue({ count: 1 });
+    await clearConformityRejection('company-1', 'cn-1');
+    expect(mockedPrisma.documentInstance.updateMany.mock.calls[0][0].where.id).toEqual({
+      in: ['cn-1', 'inv-1'],
+    });
   });
 });
 

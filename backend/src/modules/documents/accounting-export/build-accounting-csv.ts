@@ -69,8 +69,7 @@ const COLUMNS: ReadonlyArray<keyof AccountingLedgerRow> = [
 /**
  * Builds the full CSV text, header row first — a period with no ledger rows at all still produces a
  * valid, header-only CSV (an accountant importing an empty period should see "nothing happened", not
- * a missing or corrupt file). Lines are joined with `\n`, matching this codebase's own client-side CSV
- * convention (`hooks/use-table-export.ts`) rather than RFC 4180's own CRLF — every spreadsheet tool
+ * a missing or corrupt file). Lines are joined with `\n` rather than RFC 4180's own CRLF: every spreadsheet tool
  * that matters (Excel, Numbers, Google Sheets) parses either, and one convention across the codebase
  * beats strict adherence to a detail the format itself treats as optional.
  *

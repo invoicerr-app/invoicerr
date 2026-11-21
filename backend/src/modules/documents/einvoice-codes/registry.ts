@@ -1,6 +1,6 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
 import { TaxScheme } from '../tax/types';
-import { CountryEinvoiceCodesFile, ExemptionCodeFact } from './schema';
+import { CountryEinvoiceCodesFile, ExemptionCodeFact, StampDutyFact } from './schema';
 
 export function einvoiceCodesFor(countryCode: string): CountryEinvoiceCodesFile {
   const file = defaultComposedCountryCatalog.get(countryCode)?.einvoiceCodes;
@@ -35,6 +35,21 @@ export function exemptionCodeFor(
     file.exemptionCodes.find(byScheme) ??
     file.exemptionCodes.find(byRate)
   );
+}
+
+/**
+ * The stamp duty this country's format declares for a seller under `sellerTaxScheme`, or
+ * `undefined` when it declares none for it. The threshold itself is measured by the caller, on the
+ * invoice's own figures, see `fatturapa-provider.ts`.
+ */
+export function stampDutyFor(
+  file: CountryEinvoiceCodesFile,
+  sellerTaxScheme: TaxScheme | undefined,
+): StampDutyFact | undefined {
+  const fact = file.stampDuty;
+  if (!fact) return undefined;
+  // Same convention as `taxRegimeCodeFor` below: a seller with no exemption declared is `STANDARD`.
+  return fact.appliesTo.sellerTaxSchemes?.includes(sellerTaxScheme ?? 'STANDARD') ? fact : undefined;
 }
 
 export function taxRegimeCodeFor(file: CountryEinvoiceCodesFile, taxScheme: TaxScheme | undefined): string {

@@ -11,6 +11,7 @@
  * `invoice-contributions.spec.ts` next door mocks `../persistence` wholesale and so can never see
  * either problem; this file runs the real reads against the in-memory table, with 600 invoices.
  */
+import { formatServerMessages } from '../messages/server-message';
 import { vi } from 'vitest';
 
 import { documentInstanceRow, seedDocumentInstances } from '../__tests__/fake-document-instance-table';
@@ -100,7 +101,7 @@ describe('the statistics screen is a capped list beside an uncapped count', () =
 
     const table = widgets.find((widget): widget is TableWidget => widget.id === 'invoice:all');
     expect(table?.rows.length).toBeLessThan(INVOICE_COUNT);
-    expect(table?.warnings?.join(' ')).toContain(`of ${INVOICE_COUNT}`);
+    expect(formatServerMessages(table?.warnings ?? []).join(' ')).toContain(`of ${INVOICE_COUNT}`);
   });
 
   it('carries no such caveat when the whole history fits', async () => {

@@ -18,6 +18,10 @@
 import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
+import { companyProfileValues } from '../company-profile/profile';
+import { defaultCompanyProfileCatalog } from '../company-profile/registry';
+import { CompanyProfileValues } from '../company-profile/schema';
+import { PartyType } from '../country-identifiers/schema';
 import { defaultCountryPolicyCatalog } from './registry';
 
 export interface CountryPolicyDecision {
@@ -106,6 +110,35 @@ export async function resolveClientCountryCode(
     .toUpperCase();
 
   return resolvedCode || undefined;
+}
+
+export async function resolveClientType(
+  companyId: string,
+  clientId: string | undefined | null,
+): Promise<PartyType | undefined> {
+  if (!clientId) return undefined;
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId },
+    select: { type: true },
+  });
+  return client?.type;
+}
+
+/** The issuing company's declared profile values, as the profile itself reads them: the derived
+ *  ones included, an answer whose question no longer applies left out. */
+export async function resolveCompanyProfile(companyId: string): Promise<CompanyProfileValues> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { country: true, countryCode: true, exemptVat: true, reportingProfile: true },
+  });
+  const resolvedCode = (company?.countryCode || guessCountryCode(company?.country ?? undefined) || '')
+    .trim()
+    .toUpperCase();
+  return companyProfileValues(
+    company?.reportingProfile,
+    defaultCompanyProfileCatalog.attributesFor(resolvedCode),
+    { exemptVat: company?.exemptVat ?? false },
+  );
 }
 
 type DocumentCountryActionRuleRow = Awaited<

@@ -72,7 +72,7 @@ describe('seatHolders', () => {
   });
 
   it('bills every role alike: a company that bought 2 seats seats exactly 2 of its 5 mixed-role members', () => {
-    const seats = 2; // the quantity Polar bills this company for
+    const seats = 2; // the quantity this company is billed for
     const members = [
       member('owner-1', CompanyRole.OWNER, '2026-01-01'),
       member('admin', CompanyRole.ADMIN, '2026-01-02'),

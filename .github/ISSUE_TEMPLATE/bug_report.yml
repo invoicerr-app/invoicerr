@@ -25,7 +25,7 @@ body:
     attributes:
       label: Version
       description: Shown in the app's settings, or the Docker image tag.
-      placeholder: v2.0.0-alpha.9
+      placeholder: 26.11.0
     validations:
       required: true
   - type: input

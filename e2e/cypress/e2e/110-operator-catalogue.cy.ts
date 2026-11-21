@@ -160,7 +160,7 @@ describe("Operator catalogue API (issue #526)", () => {
 	});
 
 	describe("GET /api/documents/transports - credentialFields (scope addition)", () => {
-		it('"pdp" declares exactly the three fields its own extractPdpCredentials reads', () => {
+		it('"pdp" declares exactly the three fields its own extractSuperPdpCredentials reads', () => {
 			cy.request({ url: `${api}/api/documents/transports` })
 				.its("body")
 				.then((transports: { id: string; credentialFields: { key: string; required: boolean }[] }[]) => {

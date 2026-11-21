@@ -24,6 +24,14 @@ import { Agent } from 'undici';
  * else added since — see `.env.example`), so this file stays a pure decision function with no
  * knowledge of which feature is calling it.
  */
+/** The `ALLOW_PRIVATE_OUTBOUND_URLS=1` test hatch (see `.env.example`), read in one place for every
+ *  caller that passes it as its own `allowPrivateForTesting` (company SSO, mail endpoints, the
+ *  transport clients). Webhooks keep their own `ALLOW_PRIVATE_WEBHOOK_URLS`. Read on every call,
+ *  never cached, so a test that sets the variable sees it on the next call. */
+export function allowPrivateOutboundForTesting(): boolean {
+  return process.env.ALLOW_PRIVATE_OUTBOUND_URLS === '1';
+}
+
 export class OutboundUrlValidationError extends Error {
   constructor(public readonly reason: string) {
     super(`outbound URL rejected: ${reason}`);

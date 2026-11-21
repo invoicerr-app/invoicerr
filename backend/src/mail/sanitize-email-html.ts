@@ -1,5 +1,5 @@
 // `import x = require(...)`: this project's tsconfig has no esModuleInterop and sanitize-html is
-// `export =` — the same CJS-compat form `utils/format-text.ts` already uses for markdown-it.
+// `export =`.
 //
 // The dependency is PINNED (exactly, in package.json) rather than floating on ^2: sanitize-html 2.17.6+
 // (reached again via 2.17.7, the version that closes every GHSA advisory open against 2.17.1 — see

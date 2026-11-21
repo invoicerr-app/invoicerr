@@ -70,5 +70,5 @@ export interface ToolDescriptor<Input extends z.ZodRawShape = z.ZodRawShape> {
   isRegistered: (scopes: string[] | null) => boolean;
   inputSchema: Input;
   outputSchema?: z.ZodRawShape;
-  handler: (ctx: ToolContext, input: z.objectOutputType<Input, z.ZodTypeAny>) => Promise<ToolResult>;
+  handler: (ctx: ToolContext, input: z.infer<z.ZodObject<Input>>) => Promise<ToolResult>;
 }

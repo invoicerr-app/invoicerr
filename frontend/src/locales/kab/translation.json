@@ -185,7 +185,6 @@
                 "issued": "Yeffeɣ-d"
             },
             "tooltips": {
-                "viewPdf": "Wali a PDF",
                 "downloadPdf": "Sader PDF"
             }
         },
@@ -1571,7 +1570,6 @@
                 "issued": "Yeffeɣ-d"
             },
             "tooltips": {
-                "viewPdf": "Wali a PDF",
                 "downloadPdf": "Sader PDF"
             },
             "status": {

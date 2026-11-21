@@ -48,6 +48,8 @@ export interface MatchCandidateInvoice {
   outstandingMinor: number;
   issueDate: string | null;
   dueDate: string | null;
+  /** The issuing e-invoicing platform rejected this invoice. */
+  conformityRejected: boolean;
 }
 
 export interface MatchSuggestion {
@@ -55,6 +57,7 @@ export interface MatchSuggestion {
   displayNumber: string | null;
   clientLabel: string | null;
   outstandingMinor: number;
+  conformityRejected: boolean;
   reasons: MatchReason[];
 }
 
@@ -135,6 +138,7 @@ export function suggestMatches(
       displayNumber: candidate.displayNumber,
       clientLabel: candidate.clientLabel,
       outstandingMinor: candidate.outstandingMinor,
+      conformityRejected: candidate.conformityRejected,
       reasons,
     });
   }

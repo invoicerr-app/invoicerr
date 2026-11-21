@@ -1,6 +1,7 @@
 import { vi, type Mock } from 'vitest';
 
 import { BILLING_FLAG_NAME } from '../modules/billing/billing-flag';
+import { DEMO_MODE_FLAG_NAME } from '../modules/demo/demo-flag';
 import { getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
 import { LegalService } from './legal.service';
 
@@ -9,11 +10,15 @@ vi.mock('./legal-acceptance');
 const getPending = getPendingAcceptanceSlugs as Mock;
 const record = recordLegalAcceptance as Mock;
 
-const ORIGINAL_ENV = process.env[BILLING_FLAG_NAME];
+const DEMO_RESET_INTERVAL = 'DEMO_RESET_INTERVAL_HOURS';
+const FLAGS = [BILLING_FLAG_NAME, DEMO_MODE_FLAG_NAME, DEMO_RESET_INTERVAL];
+const ORIGINAL_ENV = Object.fromEntries(FLAGS.map((name) => [name, process.env[name]]));
 
 afterEach(() => {
-  if (ORIGINAL_ENV === undefined) delete process.env[BILLING_FLAG_NAME];
-  else process.env[BILLING_FLAG_NAME] = ORIGINAL_ENV;
+  for (const name of FLAGS) {
+    if (ORIGINAL_ENV[name] === undefined) delete process.env[name];
+    else process.env[name] = ORIGINAL_ENV[name];
+  }
   vi.clearAllMocks();
 });
 
@@ -85,6 +90,35 @@ describe('LegalService.listDocuments', () => {
         expect(doc.language).toBe('en');
       }
     }
+  });
+});
+
+describe('LegalService.listDocuments: the demo instance', () => {
+  it('serves no demo account at all when DEMO_MODE is off', () => {
+    delete process.env[DEMO_MODE_FLAG_NAME];
+    const view = new LegalService().listDocuments();
+    expect(view.demoMode).toBe(false);
+    expect(view.demo).toBeNull();
+  });
+
+  it('serves the seeded demo account and the reset interval when DEMO_MODE is on', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    delete process.env[DEMO_RESET_INTERVAL];
+    const view = new LegalService().listDocuments();
+    expect(view.demoMode).toBe(true);
+    expect(view.demo).toEqual({ email: 'demo@invoicerr.app', password: 'demo', resetIntervalHours: 4 });
+  });
+
+  it('reports the reset interval the deployment declares', () => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    process.env[DEMO_RESET_INTERVAL] = '6';
+    expect(new LegalService().listDocuments().demo?.resetIntervalHours).toBe(6);
+  });
+
+  it.each(['0', '-2', '1.5', 'often', ''])('falls back to 4 hours for an unusable interval %j', (raw) => {
+    process.env[DEMO_MODE_FLAG_NAME] = 'true';
+    process.env[DEMO_RESET_INTERVAL] = raw;
+    expect(new LegalService().listDocuments().demo?.resetIntervalHours).toBe(4);
   });
 });
 

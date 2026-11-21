@@ -40,6 +40,9 @@ export type DocumentCustomComponent = ComponentType<DocumentCustomSlotProps>
  *    custom/received-invoice-upload-button.tsx: uploading a file is a genuinely different entry
  *    point into creating a record than the generic blank form, so it gets its own button rather than
  *    trying to fold "pick a file" into the generic create dialog for every type.
+ *  - "rejection-actions": rendered inside the detail page's banner for a document the e-invoicing
+ *    platform rejected (document-detail.tsx). Registered for "invoice"
+ *    (custom/invoice-correction-routes-button.tsx), opening the same correction dialog.
  *
  * A future slot (e.g. inside the create dialog) is added the same way: pick a new slot name,
  * consult it from wherever it renders, and it stays unused everywhere nothing is registered for it.

@@ -38,6 +38,7 @@
  * because DL 198/2012 draws no category distinction — see `data/pt.json`'s own facts.
  */
 import { PolicyProvenance } from '../country-policy/schema';
+import { PartyType } from '../country-identifiers/schema';
 
 /**
  * The document TYPE this obligation applies to — a `descriptors/types.ts` id. A UNION, not a bare
@@ -86,6 +87,47 @@ const VALID_TRANSACTION_SCOPES: ReportableTransactionScope[] = [
   'payments',
 ];
 
+const VALID_PARTY_TYPES: PartyType[] = ['COMPANY', 'INDIVIDUAL'];
+
+/**
+ * Which invoices one `scope` entry covers, beyond the transaction category itself. Reuses the
+ * `PartyType` vocabulary `transports/channel-policy/schema.ts` introduced for the seller-side channel
+ * mandate, so a country file says "private buyer" the same way in both catalogs.
+ *
+ * Every field is optional and absent means "no restriction on this axis". This is deliberately not a
+ * second, richer classifier: the seller's own signalling status (an exempt operation, an option for
+ * VAT on debits, a company size category) lives in `ReportingApplicabilityWindow` and in the
+ * classifier's own inputs, never duplicated per scope entry.
+ */
+export interface ReportingScopeEntry {
+  transactions: ReportableTransactionScope;
+  /** Which buyer types the entry covers, e.g. `["INDIVIDUAL"]` for a B2C declaration. */
+  buyerType?: PartyType[];
+  /** Whether the buyer must be established in the seller's own country or elsewhere. */
+  buyerEstablishment?: 'domestic' | 'foreign';
+  /**
+   * Payment scope only: `true` means the declaration covers operations whose VAT is due on
+   * collection, so it must not fire when the company opted for VAT on debits. Absent means the
+   * legal text draws no condition on this axis.
+   */
+  vatOnCollection?: boolean;
+}
+
+/**
+ * One dated applicability window, optionally conditioned on the seller's own declared company
+ * profile (the same `companyProfile` section `countries/data/*.json` defines). France's e-reporting
+ * obligation starts on different dates for different company size categories, so a single
+ * `applicableFrom` could not express it without a country literal in code.
+ *
+ * A window whose `when` names an attribute the company has not declared does not match by default:
+ * the classifier answers "undetermined" and the declaration is journaled `report:blocked`, never
+ * fired on a guess.
+ */
+export interface ReportingApplicabilityWindow {
+  when?: { companyProfile?: Record<string, string[]> };
+  from: { date: string; provenance: PolicyProvenance };
+}
+
 export interface ReportingObligationFact {
   /**
    * The id of whatever mechanism actually discharges this obligation — resolved against a
@@ -109,6 +151,14 @@ export interface ReportingObligationFact {
    * maintained sources" risk `channel-policy/schema.ts`'s own `providerId` already accepts.
    */
   providerId: string;
+  /**
+   * The platform the settings card shows this fact under, when it is not `providerId` itself.
+   * Only useful on a `'transport'`-discharged fact whose transport and declaration provider are the
+   * same legal entity under two registry ids: France's "pdp" transport and "fr-pa" declaration
+   * provider are both the one accredited platform (CGI art. 289 E and 290), so the card must show
+   * one platform, not two. A display key only: no runtime path resolves it.
+   */
+  platformId?: string;
   appliesTo: ReportableDocumentType;
   dischargedBy: ReportingDischargeMethod;
   /**
@@ -118,14 +168,21 @@ export interface ReportingObligationFact {
    * (Portugal today). PRESENT means this is one of SEVERAL rows for the same country/type, each
    * covering a distinct slice of the law (France: one row per CGI article family).
    *
-   * A scoped fact is deliberately excluded from `registry.ts#obligationFor`'s auto-trigger: this
-   * codebase has no per-invoice classifier for "is this buyer domestic/foreign, B2B or B2C" at send
-   * time, so firing on every invoice would over-report (a B2B-domestic French invoice is already
-   * covered by the transport row) — a scoped fact is DATA for the settings screen and future wiring,
-   * never silently fired regardless of who the buyer actually is. Same "read by nothing yet,
-   * deliberately" posture `domestic-reverse-charge/DESIGN.md` documents for its own catalog.
+   * A scoped fact is resolved by `classify.ts` against the operation's own facts (buyer type, buyer
+   * establishment, seller profile, VAT-on-collection option), never fired unconditionally: reading
+   * only the country+document type would over-report a B2B-domestic French invoice that the PDP
+   * transport row already covers.
    */
-  scope?: { transactions: ReportableTransactionScope }[];
+  scope?: ReportingScopeEntry[];
+  /**
+   * Dated windows for a fact whose start depends on the seller's own company profile (France's
+   * size-tiered e-reporting calendar, CGI art. 290/290 A applied by loi n° 2022-1157 art. 26 III B).
+   * ABSENT means the fact has no computable start date here  -  the behaviour every other shipped fact
+   * holds, and `applicableFrom` remains the single-date form for a fact that needs no condition.
+   * PRESENT means the classifier must find a matching window before the fact may fire.
+   */
+  applicability?: ReportingApplicabilityWindow[];
+
   /**
    * Free-form, human-read only — e.g. "periodic aggregate declaration, never triggered per invoice".
    * Never parsed by any scheduler: `reporting-runner.ts` is a ONE-SHOT, per-document job (see that
@@ -162,7 +219,7 @@ export class InvalidReportingObligationProvenanceError extends Error {}
  * `provenance` and its optional `applicableFrom.provenance` identically, rather than duplicating the
  * same three checks twice inline.
  */
-function assertValidProvenance(
+export function assertValidProvenance(
   provenance: PolicyProvenance | null | undefined,
   context: string,
   label: string,
@@ -194,6 +251,54 @@ function assertValidProvenance(
 }
 
 /**
+ * One `scope` entry's own rules, shared by the legacy fact validator below and the v2 obligation
+ * validator (`obligation-v2.ts`) so both formats refuse the same entry with the same message.
+ * `label` names the carrier in the message, e.g. `fact "pt-at"` or `obligation "pt-at:invoice"`.
+ */
+export function assertValidReportingScopeEntry(
+  entry: ReportingScopeEntry,
+  context: string,
+  label: string,
+): void {
+  if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown scope transaction category ` +
+        `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
+    );
+  }
+  if (entry.buyerType !== undefined) {
+    if (!Array.isArray(entry.buyerType) || entry.buyerType.length === 0) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an empty "scope.buyerType" - omit it to ` +
+          'leave the buyer type unrestricted.',
+      );
+    }
+    const unknownType = entry.buyerType.find((type) => !VALID_PARTY_TYPES.includes(type));
+    if (unknownType) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: ${label} declares an unknown "scope.buyerType" party type ` +
+          `"${unknownType}" (must be one of ${VALID_PARTY_TYPES.join(', ')}).`,
+      );
+    }
+  }
+  if (
+    entry.buyerEstablishment !== undefined &&
+    entry.buyerEstablishment !== 'domestic' &&
+    entry.buyerEstablishment !== 'foreign'
+  ) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} has an unknown "scope.buyerEstablishment" ` +
+        `"${String(entry.buyerEstablishment)}" (must be "domestic" or "foreign").`,
+    );
+  }
+  if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} declares a non-boolean "scope.vatOnCollection".`,
+    );
+  }
+}
+
+/**
  * The one gate a fact cannot get past without a real provenance — called from two independent
  * places (`data/all.ts` when a file loads; this module's own specs), the same "never trust a single
  * call site" discipline `channel-policy/schema.ts`'s own `assertValidChannelPolicyFact` documents.
@@ -202,6 +307,11 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
   if (!fact.providerId?.trim()) {
     throw new InvalidReportingObligationProvenanceError(
       `${context}: a reporting-obligation fact is missing its "providerId".`,
+    );
+  }
+  if (fact.platformId !== undefined && (typeof fact.platformId !== 'string' || !fact.platformId.trim())) {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: fact "${fact.providerId}" declares an empty "platformId".`,
     );
   }
   if (fact.appliesTo !== 'invoice' && fact.appliesTo !== 'credit-note') {
@@ -224,11 +334,42 @@ export function assertValidReportingObligationFact(fact: ReportingObligationFact
       );
     }
     for (const entry of fact.scope) {
-      if (!entry || !VALID_TRANSACTION_SCOPES.includes(entry.transactions)) {
+      assertValidReportingScopeEntry(entry, context, `fact "${fact.providerId}"`);
+    }
+  }
+
+  if (fact.applicability !== undefined) {
+    if (!Array.isArray(fact.applicability) || fact.applicability.length === 0) {
+      throw new InvalidReportingObligationProvenanceError(
+        `${context}: fact "${fact.providerId}" declares an "applicability" that is not a non-empty array.`,
+      );
+    }
+    for (const window of fact.applicability) {
+      if (!window?.from?.date?.trim()) {
         throw new InvalidReportingObligationProvenanceError(
-          `${context}: fact "${fact.providerId}" has an unknown scope transaction category ` +
-            `"${entry?.transactions}" (must be one of ${VALID_TRANSACTION_SCOPES.join(', ')}).`,
+          `${context}: fact "${fact.providerId}" declares an applicability window with no "from.date".`,
         );
+      }
+      assertValidProvenance(
+        window.from.provenance,
+        context,
+        `fact "${fact.providerId}"'s applicability window (${window.from.date})`,
+      );
+      const conditions = window.when?.companyProfile;
+      if (conditions !== undefined) {
+        if (typeof conditions !== 'object' || Array.isArray(conditions)) {
+          throw new InvalidReportingObligationProvenanceError(
+            `${context}: fact "${fact.providerId}" declares "when.companyProfile" that is not an object.`,
+          );
+        }
+        for (const [key, values] of Object.entries(conditions)) {
+          if (!key.trim() || !Array.isArray(values) || values.length === 0) {
+            throw new InvalidReportingObligationProvenanceError(
+              `${context}: fact "${fact.providerId}" declares an applicability condition ` +
+                `"${key || '(empty)'}" with no non-empty value list.`,
+            );
+          }
+        }
       }
     }
   }

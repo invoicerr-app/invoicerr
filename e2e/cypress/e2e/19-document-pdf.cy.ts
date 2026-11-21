@@ -3,11 +3,75 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
 /**
  * Tests for the PDF rendering engine. Verifies that:
  * 1. The endpoint generates valid PDFs
- * 2. The PDF button works on the list screen
+ * 2. Preview opens the PDF in a new tab and Download saves it, on the list and the detail page
  * 3. Authentication is properly enforced
  * 4. Error cases are handled
  */
 const api = Cypress.env("apiUrl");
+
+const QUOTE_LINES = [{ description: "Consulting", quantity: 1, unit: "unit", unitPrice: 500, vatRate: "20" }];
+
+function firstClientId(): Cypress.Chainable<string> {
+	return cy
+		.request({ url: `${api}/api/documents/references/client/search` })
+		.its("body")
+		.then((clients: { id: string }[]) => clients[0].id);
+}
+
+function createDraftQuote(): Cypress.Chainable<string> {
+	return firstClientId().then((client) =>
+		cy
+			.request({
+				method: "POST",
+				url: `${api}/api/documents/types/quote/actions/save-draft`,
+				body: {
+					data: { client, issueDate: "2026-08-30", dueDate: "2026-09-30", currency: "EUR", lines: QUOTE_LINES },
+				},
+			})
+			.its("body.document.id"),
+	);
+}
+
+function createValidatedInvoice(): Cypress.Chainable<{ id: string; displayNumber: string }> {
+	return firstClientId().then((client) => {
+		// Issued before the e-invoicing mandate applies, so "validate" numbers it without any transmission.
+		const data = { client, issueDate: "2026-08-28", dueDate: "2026-09-30", currency: "EUR", lines: QUOTE_LINES };
+		return cy
+			.request({ method: "POST", url: `${api}/api/documents/types/invoice/actions/save-draft`, body: { data } })
+			.its("body.document.id")
+			.then((id: string) =>
+				cy
+					.request({
+						method: "POST",
+						url: `${api}/api/documents/types/invoice/actions/validate`,
+						body: { documentId: id, data },
+					})
+					.then(() => cy.request({ url: `${api}/api/documents/${id}?typeId=invoice` }))
+					.its("body.displayNumber")
+					.then((displayNumber: string) => {
+						expect(displayNumber, "the validated invoice has a number").to.be.a("string").and.not.be.empty;
+						return { id, displayNumber };
+					}),
+			);
+	});
+}
+
+function expectPdfServed() {
+	cy.wait("@pdf", { timeout: 20000 }).then((x) => {
+		// 304 when an issued document's PDF is fetched twice: the browser revalidates its cached copy.
+		expect(x.response?.statusCode, "the click produced a PDF").to.be.oneOf([200, 304]);
+		if (x.response?.statusCode === 200) {
+			expect(String(x.response?.headers["content-type"])).to.contain("application/pdf");
+		}
+	});
+}
+
+/** A real save lands in Cypress's downloads folder; a new tab never does. */
+function expectSavedPdf(fileName: string) {
+	cy.readFile(`${Cypress.config("downloadsFolder")}/${fileName}`, "binary", { timeout: 20000 }).should((bytes) => {
+		expect(bytes.slice(0, 4), "the saved file is a PDF").to.eq("%PDF");
+	});
+}
 
 describe("Document PDF rendering", () => {
 	before(() => {
@@ -126,70 +190,52 @@ describe("Document PDF rendering", () => {
 		});
 	});
 
-	it("shows a PDF download button on the list screen", () => {
-		// Create a quote
-		cy.request({ url: `${api}/api/documents/references/client/search` })
-			.its("body")
-			.then((clients: { id: string }[]) => {
-				cy.request({
-					method: "POST",
-					url: `${api}/api/documents/types/quote/actions/save-draft`,
-					body: {
-						data: {
-							client: clients[0].id,
-							issueDate: "2026-08-30",
-							dueDate: "2026-09-30",
-							currency: "EUR",
-							lines: [
-								{
-									description: "Consulting",
-									quantity: 1,
-									unit: "unit",
-									unitPrice: 500,
-									vatRate: "20",
-								},
-							],
-						},
-					},
-				}).then((saved) => {
-					const id = saved.body?.document?.id;
+	it("list row: Preview opens the PDF in a new tab, Download saves it under the draft's own name", () => {
+		createDraftQuote().then((id) => {
+			cy.visit("/documents/quote", { timeout: 20000 });
 
-					// Navigate to the quote list
-					cy.visit("/documents/quote", { timeout: 20000 });
-
-					// The PDF button should be present with the correct data-cy attribute
-					cy.openDocumentRowMenu(id);
-					cy.get(`[data-cy="document-pdf-button-${id}"]`, {
-						timeout: 10000,
-					}).should("exist");
-
-					// The button must be CLICKED, not just seen. The first version only checked
-					// its existence — and it was DEAD: a relative `fetch` went to the Vite server,
-					// with no cookie, and nobody noticed. Third dead button of this family here.
-					// We intercept the real request the click triggers and require a PDF back.
-					cy.intercept({
-						method: "GET",
-						pathname: `/api/documents/${id}/pdf`,
-					}).as("pdf");
-					cy.window().then((win) => {
-						// window.open would open a tab Cypress doesn't control — we neutralize it,
-						// the assertion targets the real network request, not the tab.
-						cy.stub(win, "open").as("windowOpen");
-					});
-					cy.openDocumentRowMenu(id);
-					cy.get(`[data-cy="document-pdf-button-${id}"]`).click();
-					cy.wait("@pdf", { timeout: 20000 }).then((x) => {
-						expect(
-							x.response?.statusCode,
-							"le clic a réellement produit un PDF",
-						).to.eq(200);
-						expect(
-							String(x.response?.headers["content-type"]),
-							"et il est servi comme tel",
-						).to.contain("application/pdf");
-					});
-					cy.get("@windowOpen").should("have.been.called");
-				});
+			// Clicked, not just seen: a relative `fetch` once went to the Vite server with no cookie,
+			// and an existence-only check let that dead button through.
+			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/pdf` }).as("pdf");
+			cy.window().then((win) => {
+				// window.open would open a tab Cypress doesn't control; the assertion targets the
+				// real network request and the call itself, not the tab.
+				cy.stub(win, "open").as("windowOpen");
 			});
+			cy.openDocumentRowMenu(id);
+			cy.get(`[data-cy="document-pdf-download-button-${id}"]`).should("be.visible");
+			cy.get(`[data-cy="document-pdf-button-${id}"]`).click();
+			expectPdfServed();
+			cy.get("@windowOpen").should("have.been.calledOnce");
+
+			cy.openDocumentRowMenu(id);
+			cy.get(`[data-cy="document-pdf-download-button-${id}"]`).click();
+			expectPdfServed();
+			expectSavedPdf(`Quote Draft ${id.slice(0, 8)}.pdf`);
+			cy.get("@windowOpen").should("have.been.calledOnce");
+		});
+	});
+
+	it("detail page: Preview opens the PDF in a new tab, Download saves it under the invoice's number", () => {
+		createValidatedInvoice().then(({ id, displayNumber }) => {
+			cy.visit("/documents/invoice", { timeout: 20000 });
+			cy.openDocument(id);
+
+			cy.intercept({ method: "GET", pathname: `/api/documents/${id}/pdf` }).as("pdf");
+			cy.window().then((win) => {
+				cy.stub(win, "open").as("windowOpen");
+			});
+			cy.openDocumentActionsMenu();
+			cy.get('[data-cy="document-pdf-download-button"]').should("be.visible");
+			cy.get('[data-cy="document-pdf-button"]').click();
+			expectPdfServed();
+			cy.get("@windowOpen").should("have.been.calledOnce");
+
+			cy.openDocumentActionsMenu();
+			cy.get('[data-cy="document-pdf-download-button"]').click();
+			expectPdfServed();
+			expectSavedPdf(`${displayNumber}.pdf`);
+			cy.get("@windowOpen").should("have.been.calledOnce");
+		});
 	});
 });

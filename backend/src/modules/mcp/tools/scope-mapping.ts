@@ -41,17 +41,9 @@
  * per-typeId computation this MCP layer pioneered, and a REST controller has no business importing
  * from the `mcp/` module to get it (the dependency belongs the other way around).
  */
-import { ApiKeyScope } from '@/modules/api-keys/scopes';
 import { hasScope, scopeForDocumentType } from '@/utils/scope-check';
 
 export { DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from '@/utils/scope-check';
-
-/** Registration-time predicate: at least one of `candidates` is granted. `scopes === null` (session
- *  auth) is never scope-restricted — see hasScope's own header; unreachable in practice since only
- *  API keys ever call the MCP endpoint, kept here only for consistency with hasScope itself. */
-export function hasAnyScope(candidates: readonly ApiKeyScope[], scopes: string[] | null): boolean {
-  return candidates.some((scope) => hasScope({ scopes }, scope));
-}
 
 /** Call-time predicate for a READ operation on `typeId` — granted by EITHER the read OR the write
  *  scope for that type (a key allowed to WRITE a document type can certainly read it back). Used by

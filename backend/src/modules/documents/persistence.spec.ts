@@ -197,9 +197,11 @@ describe('persistence — upsertDocument/updateDocumentStatus, conditional on th
       .mockResolvedValueOnce({ id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: 'sent' });
     updateMany.mockResolvedValue({ count: 1 });
 
-    await updateDocumentStatus('company-1', 'invoice', 'doc-1', 'sent', null, 'ref-123', 'provider-x', [
-      'sending',
-    ]);
+    await updateDocumentStatus('company-1', 'invoice', 'doc-1', 'sent', {
+      transportRef: 'ref-123',
+      channelProviderId: 'provider-x',
+      fromStatuses: ['sending'],
+    });
 
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 'doc-1', companyId: 'company-1', typeId: 'invoice', status: { in: ['sending'] } },
@@ -230,16 +232,9 @@ describe('persistence — upsertDocument/updateDocumentStatus, conditional on th
       typeId: 'invoice',
       status: 'sent',
     });
-    const first = await updateDocumentStatus(
-      'company-1',
-      'invoice',
-      'doc-1',
-      'sent',
-      undefined,
-      undefined,
-      undefined,
-      ['sending'],
-    );
+    const first = await updateDocumentStatus('company-1', 'invoice', 'doc-1', 'sent', {
+      fromStatuses: ['sending'],
+    });
     expect(first.status).toBe('sent');
 
     // Call #2 (the "loser"): findOwnedDocument's own initial read still sees "sending" (its own stale
@@ -252,9 +247,10 @@ describe('persistence — upsertDocument/updateDocumentStatus, conditional on th
       status: 'sending',
     });
     await expect(
-      updateDocumentStatus('company-1', 'invoice', 'doc-1', 'send_failed', 'boom', undefined, undefined, [
-        'sending',
-      ]),
+      updateDocumentStatus('company-1', 'invoice', 'doc-1', 'send_failed', {
+        lastActionError: 'boom',
+        fromStatuses: ['sending'],
+      }),
     ).rejects.toThrow(ConflictException);
   });
 });

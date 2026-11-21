@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { Loader2, Search } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+import { useEffect, useRef, useState } from "react"
+import { type DefaultValues, type FieldValues, type UseFormReturn, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -18,6 +19,8 @@ import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
+import { isValidPostalCode } from "@/lib/postal-code"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -31,14 +34,16 @@ import {
   SettingsSection,
   SettingsStickyFooter,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 import {
   useDocumentTransports,
   useReconciliationSettings,
   useSetReconciliationSettings,
 } from "@/hooks/queries"
 import { currencyForCountry } from "@/lib/reference/countries"
+import { typeErrors } from "@/lib/zod-messages"
 import { useGet, usePost } from "@/hooks/use-fetch"
+import { useApiQuery } from "@/hooks/use-api-query"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { type LookupScheme, useCompanyLookup } from "@/hooks/use-company-lookup"
 import {
@@ -47,8 +52,17 @@ import {
   withVatIdentifier,
 } from "@/hooks/use-required-identifiers"
 import type { Company, ResolvedRevenueSettings } from "@/types"
+import { FieldLabel, fieldHelpId, fieldLockId } from "@/components/ui/field-help"
+import { isProfileAttributeAsked, profileValuesForDisplay } from "./company-profile-values"
+import {
+  profileAttributeHelp,
+  profileAttributeLabel,
+  profileAttributeValueLabel,
+} from "./company-profile-labels"
 
 import { NumberFormatsSection } from "./number-formats.section"
+import { CompanyLawSection } from "./company-law.section"
+import { toCompanyLawForm, toCompanyLawPayload } from "@/lib/company-law"
 import { DeclareLastNumberSection } from "./declare-last-number.section"
 
 /** Mirrors the backend's `reconciliation-settings.ts#DEFAULT_TOLERANCE_PERCENT` — shown the first
@@ -65,6 +79,17 @@ const UNDECLARED_DISTANCE_SALES_REGIME = "__undeclared__"
  *  legitimately empty ("use the computed per-country default"), not merely a loading placeholder. */
 const USE_DEFAULT_REVENUE_BASIS = "__default_basis__"
 const USE_DEFAULT_REVENUE_PERIOD = "__default_period__"
+const UNDECLARED_PROFILE_VALUE = "__undeclared__"
+
+function rebaseDefaults<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  defaults: DefaultValues<T>,
+  current: DefaultValues<T>,
+) {
+  // Set the saved baseline first, then restore live values and recalculate which fields remain dirty.
+  form.reset(defaults, { keepValues: true })
+  form.reset(current, { keepDefaultValues: true })
+}
 
 export default function CompanySettings() {
   const { t, i18n } = useTranslation()
@@ -82,7 +107,7 @@ export default function CompanySettings() {
   const companySchema = z.object({
     name: z
       .string({
-        required_error: t("settings.company.form.company.errors.required"),
+        error: typeErrors({ required: t("settings.company.form.company.errors.required") }),
       })
       .min(1, t("settings.company.form.company.errors.empty"))
       .max(100, t("settings.company.form.company.errors.maxLength")),
@@ -92,14 +117,14 @@ export default function CompanySettings() {
       .refine((date) => date <= new Date(), t("settings.company.form.foundedAt.errors.future")),
     currency: z
       .string({
-        required_error: t("settings.company.form.currency.errors.required"),
+        error: typeErrors({ required: t("settings.company.form.currency.errors.required") }),
       })
       .min(1, t("settings.company.form.currency.errors.select")),
     address: z.string().min(1, t("settings.company.form.address.errors.empty")),
     addressLine2: z.string().optional(),
-    postalCode: z.string().refine((val) => {
-      return /^[0-9A-Z\s-]{3,10}$/.test(val)
-    }, t("settings.company.form.postalCode.errors.format")),
+    postalCode: z
+      .string()
+      .refine((val) => isValidPostalCode(val), t("settings.company.form.postalCode.errors.format")),
     city: z.string().min(1, t("settings.company.form.city.errors.empty")),
     state: z.string().optional(),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
@@ -114,11 +139,10 @@ export default function CompanySettings() {
         return /^[+]?[0-9\s\-()]{8,20}$/.test(val)
       }, t("settings.company.form.phone.errors.format")),
     email: z
-      .string()
       .email()
       .min(1, t("settings.company.form.email.errors.required"))
       .refine((val) => {
-        return z.string().email().safeParse(val).success
+        return z.email().safeParse(val).success
       }, t("settings.company.form.email.errors.format")),
     // BT-84 (Payment account identifier) — optional; the backend never fabricates one (see
     // Company.iban's own schema.prisma comment). Format checked loosely here (ISO 13616 shape); the
@@ -149,7 +173,15 @@ export default function CompanySettings() {
     // backend's Company.distanceSalesRegime comment). Same "empty stays empty, the backend decides
     // what that blocks" shape as invoiceTransportId below.
     distanceSalesRegime: z.string().optional(),
+    reportingProfile: z.record(z.string(), z.string().optional()).optional(),
     identifiers: z.array(z.object({ scheme: z.string(), value: z.string() })).optional(),
+    companyLaw: z.object({
+      legalForm: z.string(),
+      values: z.record(
+        z.string(),
+        z.union([z.string(), z.object({ amount: z.string(), currency: z.string() })]).optional(),
+      ),
+    }),
     // Peppol / electronic routing (stored as PEPPOL_ENDPOINT party identifier)
     peppolSchemeId: z.string().optional(),
     peppolEndpointId: z.string().optional(),
@@ -189,7 +221,22 @@ export default function CompanySettings() {
       .min(0, t("settings.company.form.reconciliationTolerancePercent.errors.min")),
   })
 
-  const { data } = useGet<Company>("/api/company/info")
+  const queryClient = useQueryClient()
+  const { data, refetch: refetchCompany } = useApiQuery<Company>(
+    queryKeys.company.settings(),
+    "/api/company/info",
+    {
+      // Preserve useGet's immediate requests and fresh response objects, without cached or focus updates.
+      gcTime: 0,
+      staleTime: 0,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      structuralSharing: false,
+      networkMode: "always",
+    },
+  )
+  const profileAttributes = data?.companyProfileAttributes ?? []
   // Issue #516 - the RESOLVED basis/period (this company's own explicit choice, or the computed
   // per-country default) plus whether each is explicit, so the select below can show "using the
   // default (<reason>)" without duplicating the backend's own per-country table client-side.
@@ -217,6 +264,7 @@ export default function CompanySettings() {
       description: "",
       exemptVat: false,
       distanceSalesRegime: "",
+      reportingProfile: {},
       foundedAt: new Date(),
       currency: "",
       address: "",
@@ -232,6 +280,7 @@ export default function CompanySettings() {
       iban: "",
       invoicePDFFormat: "",
       identifiers: [],
+      companyLaw: { legalForm: "", values: {} },
       peppolSchemeId: "0088",
       peppolEndpointId: "",
       invoiceTransportId: "",
@@ -243,14 +292,29 @@ export default function CompanySettings() {
       reconciliationTolerancePercent: SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT,
     },
   })
+  const reconciliationToleranceDefault = useRef(SHIPPED_DEFAULT_RECONCILIATION_TOLERANCE_PERCENT)
 
-  // A SEPARATE data source from `/api/company/info` above (see this field's own zod comment) — its
-  // own small sync effect, the same "don't clobber a value the user already touched" guard the main
-  // effect below holds, scaled down to one field.
+  // The attributes the country asks for right now: a condition follows the value on screen, so a
+  // question that stops being relevant disappears without a save. The derived value is rebuilt from
+  // the live switch, never from the stored one the server computed its values with.
+  const profileValues = profileValuesForDisplay(
+    profileAttributes,
+    data?.companyProfileValues,
+    form.watch("reportingProfile"),
+    form.watch("exemptVat") === true,
+  )
+  const askedProfileAttributes = profileAttributes.filter((attribute) =>
+    isProfileAttributeAsked(attribute, profileValues),
+  )
+
+  // This field has its own endpoint; keep its saved baseline outside company resets.
   useEffect(() => {
     if (reconciliationSettings === undefined) return
     if (form.formState.dirtyFields.reconciliationTolerancePercent) return
-    form.setValue("reconciliationTolerancePercent", reconciliationSettings.tolerancePercent)
+    reconciliationToleranceDefault.current = reconciliationSettings.tolerancePercent
+    form.resetField("reconciliationTolerancePercent", {
+      defaultValue: reconciliationSettings.tolerancePercent,
+    })
   }, [reconciliationSettings, form])
 
   useEffect(() => {
@@ -277,6 +341,7 @@ export default function CompanySettings() {
         foundedAt: fromCalendarDate(data.foundedAt) ?? new Date(data.foundedAt),
         exemptVat: !!data.exemptVat,
         distanceSalesRegime: data.distanceSalesRegime ?? "",
+        reportingProfile: data.reportingProfile ?? {},
         remindersEnabled: !!data.remindersEnabled,
         iban: data.iban ?? "",
         invoiceTransportId: data.invoiceTransportId ?? "",
@@ -297,6 +362,9 @@ export default function CompanySettings() {
           })),
         peppolSchemeId: parsedPeppolSchemeId,
         peppolEndpointId: parsedPeppolEndpointId,
+        companyLaw: toCompanyLawForm(data.companyLaw),
+        // This field belongs to its own endpoint, not the company snapshot.
+        reconciliationTolerancePercent: reconciliationToleranceDefault.current,
       }
 
       // This snapshot can resolve AFTER the user has already touched the form — `/api/company/info`
@@ -317,7 +385,25 @@ export default function CompanySettings() {
         }
       }
 
-      form.reset(merged as typeof nextValues)
+      // The dirty guard above copies the whole reportingProfile object when one sub-field changed,
+      // which would put back an answer the refetched row no longer carries (the exemption switch just
+      // made its question irrelevant). Keep only the sub-keys the country still asks, so the value
+      // cannot reappear or leave again in a later payload.
+      const profileAttributesForMerge = data.companyProfileAttributes ?? []
+      if (profileAttributesForMerge.length > 0) {
+        const profile = (merged.reportingProfile ?? {}) as Record<string, string | undefined>
+        const carried = profileValuesForDisplay(
+          profileAttributesForMerge,
+          data.companyProfileValues,
+          profile,
+          !!merged.exemptVat,
+        )
+        merged.reportingProfile = Object.fromEntries(
+          Object.entries(profile).filter(([key]) => carried[key] !== undefined),
+        )
+      }
+
+      rebaseDefaults(form, nextValues, merged as typeof nextValues)
     }
   }, [data, form])
 
@@ -477,10 +563,29 @@ export default function CompanySettings() {
       peppolEndpointId: _pe,
       approvalThreshold,
       reconciliationTolerancePercent,
+      reportingProfile,
       ...valuesWithoutPeppol
     } = values
+    // The attributes on screen belong to the saved country; after a country change the backend
+    // drops what the new country does not ask for, so nothing is sent until the next visit.
+    const sameCountry =
+      (values.countryCode || "") === (data?.countryCode || "") && values.country === data?.country
     const payload = {
       ...valuesWithoutPeppol,
+      reportingProfile:
+        sameCountry && profileAttributes.length > 0
+          ? Object.fromEntries(
+              profileAttributes
+                // Only the questions this country still asks are sent: the API refuses an answer for
+                // a question the company's own values no longer make relevant (its `askedWhen`).
+                .filter(
+                  (attribute) =>
+                    isProfileAttributeAsked(attribute, profileValues) &&
+                    (!attribute.derived || profileValues[attribute.key] === undefined),
+                )
+                .map((attribute) => [attribute.key, reportingProfile?.[attribute.key] || null]),
+            )
+          : undefined,
       identifiers: [
         ...(values.identifiers || []).filter((i) => i.value.trim() !== ""),
         ...(peppolEntry ? [peppolEntry] : []),
@@ -492,6 +597,7 @@ export default function CompanySettings() {
       // `DateTime` column (`company.service.ts#editCompanyInfo` passes it through untouched), and
       // Prisma refuses a bare calendar date there.
       foundedAt: toCalendarDateInstant(values.foundedAt),
+      companyLaw: toCompanyLawPayload(values.companyLaw),
       // "" means "no reference currency chosen" in the form; stored as null, not an empty string.
       referenceCurrency: values.referenceCurrency?.trim() ? values.referenceCurrency : null,
       // Same "empty means use the computed default, stored as null" convention as referenceCurrency
@@ -529,9 +635,19 @@ export default function CompanySettings() {
         return
       }
 
+      // Edits made during either write stay live, compared against what was just saved.
+      reconciliationToleranceDefault.current = reconciliationTolerancePercent
+      const currentValues = form.getValues()
+      rebaseDefaults(form, { ...currentValues, ...values }, currentValues)
+
       toast.success(t("settings.company.messages.updateSuccess"))
       flashSaved()
       refetchResolvedRevenueSettings()
+      // The saved row is the source of the locked rows (the derived VAT regime) and of the values a
+      // condition is read against; without this the screen keeps showing what it loaded.
+      // Even an initial GET still in flight must not be reused after the write.
+      await queryClient.cancelQueries({ queryKey: queryKeys.company.settings(), exact: true })
+      await refetchCompany()
     } finally {
       setIsLoading(false)
     }
@@ -748,6 +864,8 @@ export default function CompanySettings() {
                 )}
               </SettingsFieldGroup>
             ) : null}
+
+            <CompanyLawSection countryCode={countryCodeValue || undefined} />
 
             {orphanedIdentifiers.length > 0 && (
               // Identifiers this company already has ON FILE whose scheme the currently-selected
@@ -1294,6 +1412,96 @@ export default function CompanySettings() {
               )}
             />
           </SettingsSection>
+
+          {profileAttributes.length > 0 && (
+            <SettingsSection
+              title={t("settings.company.profile.title")}
+              description={t("settings.company.profile.description")}
+              contentClassName="grid gap-5 sm:grid-cols-2"
+            >
+              {askedProfileAttributes.map((attribute) => {
+                // Read-only only while the source derives it; otherwise the country is asking a
+                // question the company answers (France's three non-exempt VAT regimes).
+                if (attribute.derived && profileValues[attribute.key] !== undefined) {
+                  const fieldId = `company-profile-${attribute.key}-derived`
+                  return (
+                    <div key={attribute.key} className="space-y-1.5">
+                      <FieldLabel
+                        htmlFor={fieldId}
+                        description={profileAttributeHelp(t, attribute)}
+                        lockReason={t("settings.company.profile.derivedReason")}
+                      >
+                        {profileAttributeLabel(t, attribute)}
+                      </FieldLabel>
+                      <Select value={profileValues[attribute.key] ?? ""} disabled>
+                        <SelectTrigger
+                          id={fieldId}
+                          className="w-full disabled:opacity-100"
+                          aria-describedby={`${fieldHelpId(fieldId)} ${fieldLockId(fieldId)}`}
+                          data-cy={fieldId}
+                        >
+                          <SelectValue placeholder={t("settings.company.profile.notDeclared")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {attribute.values.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {profileAttributeValueLabel(t, option)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )
+                }
+                return (
+                  <FormField
+                    key={attribute.key}
+                    control={form.control}
+                    name={`reportingProfile.${attribute.key}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel description={profileAttributeHelp(t, attribute)}>
+                          {profileAttributeLabel(t, attribute)}
+                        </FormLabel>
+                        <Select
+                          value={field.value ? field.value : UNDECLARED_PROFILE_VALUE}
+                          // Radix fires a spurious "" when the stored value arrives after mount; a
+                          // real pick is never "", so it is dropped (same as invoiceTransportId).
+                          onValueChange={(value) => {
+                            if (value) field.onChange(value === UNDECLARED_PROFILE_VALUE ? "" : value)
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger
+                              className="w-full"
+                              data-cy={`company-profile-${attribute.key}-select`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={UNDECLARED_PROFILE_VALUE}>
+                              {t("settings.company.profile.notDeclared")}
+                            </SelectItem>
+                            {attribute.values.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                data-cy={`company-profile-${attribute.key}-option-${option.value}`}
+                              >
+                                {profileAttributeValueLabel(t, option)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )
+              })}
+            </SettingsSection>
+          )}
 
           <SettingsSection
             title={t("settings.company.approval.title")}

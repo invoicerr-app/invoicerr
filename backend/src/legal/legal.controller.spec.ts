@@ -20,6 +20,10 @@ vi.mock('./legal-request-language', () => ({
 
 import { BadRequestException } from '@nestjs/common';
 
+import { Reflector } from '@nestjs/core';
+
+import { SEAT_GATE_EXEMPT_KEY } from '@/modules/billing/seat-gate-exempt.decorator';
+
 import { LegalController } from './legal.controller';
 import { LegalService } from './legal.service';
 
@@ -85,11 +89,11 @@ describe('LegalController.status', () => {
 });
 
 describe('LegalController.accept', () => {
-  it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', () => {
+  it('forwards the body slugs plus the request ip/user-agent as acceptance metadata', async () => {
     const { controller, service } = buildController();
     (service.accept as Mock).mockResolvedValue({ accepted: ['terms-of-service'] });
 
-    controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
+    await controller.accept(CLICKING_USER, { slugs: ['terms-of-service'] }, fakeRequest());
 
     expect(service.accept).toHaveBeenCalledWith('user-1', ['terms-of-service'], {
       ipAddress: '203.0.113.9',
@@ -97,11 +101,11 @@ describe('LegalController.accept', () => {
     });
   });
 
-  it('tolerates a missing body and a missing user-agent header', () => {
+  it('tolerates a missing body and a missing user-agent header', async () => {
     const { controller, service } = buildController();
     (service.accept as Mock).mockResolvedValue({ accepted: [] });
 
-    controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
+    await controller.accept(CLICKING_USER, undefined, fakeRequest({ headers: {} }));
 
     expect(service.accept).toHaveBeenCalledWith('user-1', undefined, {
       ipAddress: '203.0.113.9',
@@ -116,5 +120,14 @@ describe('LegalController.accept', () => {
       controller.accept(CLICKING_USER, { slugs: 'terms-of-service' } as never, fakeRequest()),
     ).toThrow(BadRequestException);
     expect(service.accept).not.toHaveBeenCalled();
+  });
+});
+
+describe('LegalController and the seat gate', () => {
+  // A member with no seat is refused every company route, reads included
+  // (`billing/company-write.guard.ts`). The legal routes are about the user, never the company, and
+  // must stay reachable so that member can still clear a pending re-acceptance.
+  it('is marked @SeatGateExempt() at the class level', () => {
+    expect(new Reflector().get(SEAT_GATE_EXEMPT_KEY, LegalController)).toBe(true);
   });
 });

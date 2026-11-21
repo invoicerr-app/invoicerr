@@ -30,13 +30,14 @@ import {
 import {
   SettingsFormFooter,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** The RESTRICTED subset of field kinds this feature offers — mirrors the backend's
  *  `company-custom-fields/types.ts#ALLOWED_CUSTOM_FIELD_KINDS`. Kept as a literal array here (rather
@@ -62,7 +63,7 @@ function buildCreateSchema(t: (key: string) => string) {
     .superRefine((val, ctx) => {
       if (val.kind === "select" && val.options.length === 0) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["options"],
           message: t("settings.customFields.form.validation.optionsRequired"),
         })
@@ -550,7 +551,7 @@ function DefinitionRow({ definition, documentTypeLabel }: DefinitionRowProps) {
  */
 export default function CustomFieldsSettings() {
   const { t } = useTranslation()
-  const { data: definitions, isLoading } = useCompanyCustomFieldDefinitions()
+  const { data: definitions, isLoading, isError, refetch } = useCompanyCustomFieldDefinitions()
   const { data: documentTypes } = useDocumentTypesList()
 
   const documentTypeLabel = (documentTypeId: string | null) =>
@@ -571,6 +572,8 @@ export default function CustomFieldsSettings() {
       >
         {isLoading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !definitions && isError ? (
+          <SettingsListError onRetry={() => refetch()} dataCy="custom-fields-load-error" />
         ) : documentDefinitions.length === 0 ? (
           <EmptyState
             icon={SlidersHorizontal}
@@ -594,6 +597,8 @@ export default function CustomFieldsSettings() {
       <SettingsSection title={t("settings.customFields.list.clientTitle")} dataCy="custom-fields-list-client">
         {isLoading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !definitions && isError ? (
+          <SettingsListError onRetry={() => refetch()} dataCy="custom-fields-client-load-error" />
         ) : clientDefinitions.length === 0 ? (
           <EmptyState
             icon={Users}

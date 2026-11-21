@@ -500,21 +500,28 @@ describe('describeDocumentEmailVocabulary — derived per type, never a fixed li
     expect(keysFor(buildQuoteDescriptor())).toEqual([
       'companyName',
       'displayNumber',
+      'dueDate',
+      'issueDate',
       'recipientName',
       'totalGross',
       'typeLabel',
+      'viewUrl',
     ]);
     expect(keysFor(buildInvoiceDescriptor())).toContain('totalGross');
-    // A credit note points at an invoice, not a client — no `recipientName` — but DOES now have a
-    // real money source of its own ('lines', the FREE-credit-note shape, credit-note.descriptor.ts's
-    // own header): `totalGross` is offered, even though a LINKED note's own `lines` stays empty by
-    // construction and still totals zero for that instance (descriptorHasLineTotals only asks
-    // whether the TYPE has a source of money reachable at all, not whether this one instance does).
+    // A credit note now carries its own optional `client` field (issue #710), so `recipientName` is
+    // offered alongside the money source it already had ('lines', the FREE-credit-note shape,
+    // credit-note.descriptor.ts's own header): `totalGross` is offered, even though a LINKED note's
+    // own `lines` stays empty by construction and still totals zero for that instance
+    // (descriptorHasLineTotals only asks whether the TYPE has a source of money reachable at all, not
+    // whether this one instance does).
     expect(keysFor(buildCreditNoteDescriptor())).toEqual([
       'companyName',
       'displayNumber',
+      'issueDate',
+      'recipientName',
       'totalGross',
       'typeLabel',
+      'viewUrl',
     ]);
     // An expense has no client reference AND no line array at all — neither placeholder.
     expect(keysFor(buildExpenseDescriptor())).toEqual(['companyName', 'displayNumber', 'typeLabel']);
@@ -534,6 +541,32 @@ describe('describeSendablePlaceholders — what VALIDATION checks against', () =
     // The send substitutes it regardless, so validating against this set is what keeps the warning
     // honest: "the send would leave this as written", never "the editor does not offer this".
     expect(describeSendablePlaceholders({ descriptor, companyName: 'Acme' })).toHaveProperty('totalGross');
+  });
+
+  it.each([undefined, 'invalid'])('fills a quote due date of %s with a blank', (dueDate) => {
+    const parts = buildEmailTemplateParts({
+      descriptor: buildQuoteDescriptor(),
+      displayNumber: 'Q-1',
+      companyName: 'Acme',
+      totals: {
+        currency: 'EUR',
+        lines: [],
+        netMinor: 0,
+        vatMinor: 0,
+        grossMinor: 0,
+        vatBreakdown: [],
+        warnings: [],
+      },
+      referenceLabels: {},
+      data: { issueDate: '2026-11-09', dueDate },
+    });
+    const result = renderEmailTemplate(
+      { subject: '{issueDate}', body: 'Due: {dueDate}. Paid: {amountPaid}.' },
+      parts,
+    );
+    expect(result.subject).toBe('Nov 9, 2026');
+    expect(result.body).toBe('Due: . Paid: {amountPaid}.');
+    expect(result.warnings).toEqual(['Unknown email template placeholder "{amountPaid}" left as-is.']);
   });
 
   it('agrees with buildEmailTemplateParts on which KEYS exist, for every shipped type', () => {
@@ -601,14 +634,17 @@ describe('credit-note and expense own emailTranslations — gap 3 of the multili
   it.each([
     ['credit-note', buildCreditNoteDescriptor()],
     ['expense', buildExpenseDescriptor()],
-  ] as const)('%s declares its own translated default for every non-English supported language', (_name, descriptor) => {
-    for (const language of NON_ENGLISH_LANGUAGES) {
-      const translated = descriptor.emailTranslations?.[language];
-      expect(translated).toBeDefined();
-      // Genuinely translated — never the English default surviving under a language key by accident.
-      expect(translated).not.toEqual(descriptor.email);
-    }
-  });
+  ] as const)(
+    '%s declares its own translated default for every non-English supported language',
+    (_name, descriptor) => {
+      for (const language of NON_ENGLISH_LANGUAGES) {
+        const translated = descriptor.emailTranslations?.[language];
+        expect(translated).toBeDefined();
+        // Genuinely translated — never the English default surviving under a language key by accident.
+        expect(translated).not.toEqual(descriptor.email);
+      }
+    },
+  );
 
   it.each([
     ['credit-note', buildCreditNoteDescriptor()],

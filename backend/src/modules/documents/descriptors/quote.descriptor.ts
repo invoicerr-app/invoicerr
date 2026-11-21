@@ -82,6 +82,7 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'quote',
     label: 'Quote',
+    icon: 'quote',
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },
@@ -412,6 +413,15 @@ export function buildQuoteDescriptor(): DocumentTypeDescriptor {
             key: 'option',
             kind: 'text',
             label: 'Which option did the client accept?',
+            required: false,
+          },
+          // Issue #364 - an optional proof file (a scan of the signed paper), uploaded first through
+          // the generic attachments endpoint; the handler re-reads and re-checks it, then archives it in
+          // the same ACCEPTANCE row as the manifest.
+          {
+            key: 'attachment',
+            kind: 'file',
+            label: 'Attachment',
             required: false,
           },
         ],

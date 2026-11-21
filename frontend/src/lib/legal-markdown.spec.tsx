@@ -3,28 +3,95 @@ import { describe, expect, it } from "vitest"
 
 import { LegalMarkdown } from "./legal-markdown"
 
-/**
- * `documentation/docs/legal/*.md` ships its "Draft — not yet reviewed by counsel" banner as a
- * Docusaurus admonition (`:::warning Draft` … `:::`), which used to reach the app verbatim as raw
- * `:::` punctuation (`/legal/privacy-policy` showed literally "Draft — not yet reviewed by
- * counsel." wrapped in stray colons). These specs pin the three cases that matter: the block renders
- * as a callout, markdown nested inside it still renders, and ordinary content with no admonition at
- * all is completely unaffected.
- */
 describe("LegalMarkdown", () => {
-  it("renders an admonition block as a callout, not raw `:::` punctuation", () => {
-    render(
+  it("renders a bracketed-title admonition as a callout with its title", () => {
+    const { container } = render(
       <LegalMarkdown
-        content={[":::warning Draft", "Draft — not yet reviewed by counsel.", ":::", "", "Body text."].join(
-          "\n",
-        )}
+        content={[
+          "",
+          ":::warning[Draft]",
+          "Draft — not yet reviewed by counsel.",
+          ":::",
+          "",
+          "Body text.",
+        ].join("\n")}
       />,
     )
 
-    expect(screen.queryByText(/:::/)).not.toBeInTheDocument()
-    expect(screen.getByText("Draft")).toBeInTheDocument()
-    expect(screen.getByText("Draft — not yet reviewed by counsel.")).toBeInTheDocument()
+    expect(container).not.toHaveTextContent(":::")
+    expect(container).not.toHaveTextContent("[Draft]")
+    const title = screen.getByText("Draft")
+    expect(title.parentElement).toHaveClass("border-s-warning")
+    expect(title.parentElement).toHaveTextContent("Draft — not yet reviewed by counsel.")
     expect(screen.getByText("Body text.")).toBeInTheDocument()
+  })
+
+  it("renders a bracketed title containing spaces", () => {
+    render(<LegalMarkdown content={[":::warning[Wersja robocza]", "Body.", ":::"].join("\n")} />)
+
+    expect(screen.getByText("Wersja robocza").parentElement).toHaveClass("border-s-warning")
+  })
+
+  it("renders the space-separated title form as a callout", () => {
+    const { container } = render(
+      <LegalMarkdown
+        content={[":::warning Draft", "Draft — not yet reviewed by counsel.", ":::"].join("\n")}
+      />,
+    )
+
+    expect(container).not.toHaveTextContent(":::")
+    expect(screen.getByText("Draft").parentElement).toHaveClass("border-s-warning")
+  })
+
+  it("renders a bracketed-title admonition with CRLF line endings", () => {
+    const { container } = render(
+      <LegalMarkdown content={[":::warning[Draft]", "Body.", ":::"].join("\r\n")} />,
+    )
+
+    expect(container).not.toHaveTextContent(":::")
+    expect(screen.getByText("Draft").parentElement).toHaveClass("border-s-warning")
+  })
+
+  it("leaves a fence whose tone runs into other text as plain text", () => {
+    const { container } = render(<LegalMarkdown content={[":::warningDraft", "Body.", ":::"].join("\n")} />)
+
+    expect(container).toHaveTextContent(":::warningDraft")
+    expect(container.querySelector(".border-s-warning")).toBeNull()
+  })
+
+  it("falls back to the tone's default title when none is given", () => {
+    render(<LegalMarkdown content={[":::info", "Body.", ":::"].join("\n")} />)
+
+    expect(screen.getByText("Info").parentElement).toHaveClass("border-s-info")
+  })
+
+  it("renders every admonition of a document with several, keeping the text between them", () => {
+    const { container } = render(
+      <LegalMarkdown
+        content={[
+          ":::warning[Draft]",
+          "First body.",
+          ":::",
+          "",
+          "Between.",
+          "",
+          ":::danger Careful",
+          "Second body.",
+          ":::",
+          "",
+          ":::tip[Hint]",
+          "Third body.",
+          ":::",
+        ].join("\n")}
+      />,
+    )
+
+    expect(container).not.toHaveTextContent(":::")
+    expect(screen.getByText("Draft").parentElement).toHaveClass("border-s-warning")
+    expect(screen.getByText("Careful").parentElement).toHaveClass("border-s-destructive")
+    expect(screen.getByText("Hint").parentElement).toHaveClass("border-s-info")
+    expect(screen.getByText("Between.")).toBeInTheDocument()
+    expect(screen.getByText("Third body.")).toBeInTheDocument()
   })
 
   it("renders markdown nested inside an admonition body", () => {

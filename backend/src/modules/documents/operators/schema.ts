@@ -4,8 +4,8 @@
  * channel" - that second question has no country-file home today, and grows without limit
  * independently of the (small, closed) set of legal channels themselves: ten French "plateformes
  * agreees" are not ten channels, they are ten OPERATORS all implementing the SAME legal channel
- * (`pdp`), told apart only by `baseUrl` and credentials (see `PdpTransportDeps`/`extractPdpCredentials`
- * in `transports/pdp-transport.ts`). This catalogue is the missing layer: which operator implements
+ * (`pdp`), told apart only by `baseUrl` and credentials (see `SuperPdpTransportDeps`/`extractSuperPdpCredentials`
+ * in `transports/superpdp-transport.ts`). This catalogue is the missing layer: which operator implements
  * which legal channel, in which country, through which `transports/transport-registry.ts` id (when
  * this codebase has actually wired one), and what it can do.
  *
@@ -118,7 +118,7 @@ export interface OperatorOffering {
    *  registry are two independently maintained sources. */
   transportId?: string;
   /** Present only when THIS offering is reached through a GENERIC, multi-operator transport (today:
-   *  only "pdp" - see `transports/pdp-transport.ts`'s own header on the SuperPDP/AFNOR API split) and
+   *  only "pdp" - see `transports/superpdp-transport.ts`'s own header on the SuperPDP/AFNOR API split) and
    *  is what lets a company's OWN connected `baseUrl` be resolved back to this specific offering (see
    *  `registry.ts#resolveForTransportConfig`). An offering with its OWN dedicated transport id (acube,
    *  billit, iopole, invopop, chorus-pro, ksef, sdi) needs no such disambiguation - `transportId`

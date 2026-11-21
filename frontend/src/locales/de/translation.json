@@ -221,7 +221,6 @@
                 "totalTTC": "Gesamt (inkl. MwSt.)"
             },
             "tooltips": {
-                "viewPdf": "PDF anzeigen",
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Angebot bearbeiten",
                 "sendSignature": "Zur Unterschrift senden",
@@ -1873,7 +1872,6 @@
                 "totalHT": "Gesamt (ohne MwSt.)"
             },
             "tooltips": {
-                "viewPdf": "PDF anzeigen",
                 "downloadPdf": "PDF herunterladen",
                 "edit": "Beleg bearbeiten",
                 "sendToClient": "An den Kunden senden",

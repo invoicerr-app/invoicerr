@@ -12,16 +12,13 @@ import {
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import { SigningCertificatesService } from '@/modules/company/signing-certificates/signing-certificates.service';
-import { ALLOWED_ATTACHMENT_MIMES } from './attachments/attachments.service';
+import { extensionForOriginalMime, safeOriginalMime } from './attachments/content-disposition';
 import { signRenderedPdfIfConfigured } from './signing/sign-instance-pdf';
 import { isArchivedPdfServable } from './rendering/archived-pdf-policy';
 import { renderDocumentInstance } from './rendering/render-instance-pdf';
 import { computeDocumentTotals, DocumentTotals } from './totals/compute-totals';
-import {
-  DocumentTotalsView,
-  resolveDocumentTotalsView,
-  resolveSettlementTotals,
-} from './totals/document-totals-view';
+import { ServerMessage } from './messages/server-message';
+import { DocumentTotalsView, resolveDocumentTotalsView } from './totals/document-totals-view';
 import { computeQuoteOptionTotals, isQuoteWithOptions, rejectStrayOptionTag } from './options/quote-options';
 import {
   APPROVAL_REQUIRED_MESSAGE,
@@ -36,6 +33,7 @@ import {
   findArchivedPdfArtifact,
   findImportOriginalArtifact,
   findManualAcceptanceArchive,
+  findManualAcceptanceAttachment,
   listDocumentArchives,
   ManualAcceptanceManifest,
   verifyDocumentArchive,
@@ -53,6 +51,7 @@ import {
   renderEmailTemplate,
   resolveEmailTemplate,
   resolveEmailTemplateSource,
+  templateUsesPlaceholder,
 } from './actions/email-template';
 import { ActionExtensionRegistry } from './actions/action-extensions';
 import { DocumentAuthorityEventResult, listAuthorityEvents } from './conformity/authority-events.persistence';
@@ -78,6 +77,7 @@ import {
   resolveRequiredIdentifiers,
   RequiredIdentifiersDecision,
 } from './country-identifiers/country-identifiers';
+import { CompanyLawSettings, companyLawSettings } from './company-law/company-law';
 import { PartyType } from './country-identifiers/schema';
 import { resolveB2gRoutingRule, resolveClientB2gRouting } from './b2g-routing/b2g-routing';
 import { defaultCountryPolicyCatalog } from './country-policy/registry';
@@ -98,6 +98,8 @@ import {
   allowedFromStatuses as computeAllowedFromStatuses,
   checkTransitionResult,
   findUndeclaredStatusInstances,
+  issuedStatusesOf,
+  lockedStatusConflict,
   validateLifecycle,
 } from './descriptors/lifecycle';
 import { DocumentTypeRegistry, UnknownDocumentTypeError } from './descriptors/type-registry';
@@ -105,6 +107,7 @@ import {
   DocumentActionDescriptor,
   DocumentFieldDescriptor,
   DocumentTypeDescriptor,
+  findShareLinkAction,
   isActionAvailable,
   isMultiTargetReference,
   onEnterStatuses,
@@ -116,6 +119,7 @@ import { DashboardPeriod } from './dto/dashboard-query.dto';
 import { RunActionDto } from './dto/documents.dto';
 import { FormatProviderRegistry, UnknownFormatError } from './formats/format-registry';
 import { DocumentFormatBuildResult, DocumentFormatProvider } from './formats/format-provider';
+import { withIssuedBuyerIdentifiers } from './buyer-identifiers/frozen-buyer-identifiers';
 import { companyToFormatParty, clientToFormatParty } from './formats/party-snapshot';
 import { SemanticBuildError } from './formats/semantic/build-semantic-invoice';
 import { resolveCreditNoteFormatSource } from './formats/credit-note-source';
@@ -137,14 +141,18 @@ import {
 import { applyStockOnIssuance, decrementsStockOnIssuance } from './stock/apply-stock-on-issuance';
 import { buildUpcomingSchedulesWidget } from './schedules/schedule-widgets';
 import { listSchedules } from './schedules/schedule.persistence';
-import { computeSettlement, DocumentSettlement } from './settlement/compute-settlement';
+import { DocumentSettlement } from './settlement/compute-settlement';
+import { DocumentCreditResult } from './settlement/credits';
+import { shareLinkStatusConflict } from './share-links/create-share-link';
+import { loadDocumentSettlement } from './settlement/load-settlement';
+import { DocumentPaymentResult, listPaymentsInRange } from './settlement/payments';
 import {
-  DocumentCreditResult,
-  resolveCreditsForDocument,
-  toSettlementCreditInputs,
-} from './settlement/credits';
-import { DocumentPaymentResult, listPayments, toSettlementPaymentInputs } from './settlement/payments';
-import { filterUnsettledInvoices, isOverdueInvoice } from './settlement/unsettled-invoices';
+  filterUnsettledInvoices,
+  isOverdueInvoice,
+  resolveUnsettledInvoiceBalances,
+} from './settlement/unsettled-invoices';
+import { buildInvoiceOverview, InvoiceOverview } from './contributions/invoice-overview';
+import { resolveClientLabels } from './accounting-export/client-labels';
 import {
   EntityReferenceOption,
   EntityReferenceRegistry,
@@ -157,13 +165,8 @@ import {
   validateRowSelections,
 } from './row-selection/resolve-row-selection';
 import { referencedArrayFieldKeys, stampRowIds } from './row-selection/row-selection';
-import { resolveInvoiceCrossBorderTaxForCompany } from './tax/load-and-resolve';
-import {
-  isInvoiceTaxBlockError,
-  companyTaxScheme,
-  parseDistanceSalesRegime,
-  resolveInvoiceCrossBorderTax,
-} from './tax/resolve-invoice-tax';
+import { buildCrossBorderTaxInput, resolveInvoiceCrossBorderTaxForCompany } from './tax/load-and-resolve';
+import { isInvoiceTaxBlockError, resolveInvoiceCrossBorderTax } from './tax/resolve-invoice-tax';
 import { CredentialFieldDescriptor, TransportRegistry } from './transports/transport-registry';
 import { defaultOperatorCatalog } from './operators/registry';
 import { OperatorFact } from './operators/schema';
@@ -209,10 +212,6 @@ export interface DocumentTypeDescriptorView extends Omit<DocumentTypeDescriptor,
   actions: DocumentActionDescriptorView[];
 }
 
-/** What `GET /documents/:id/settlement` hands back — see `DocumentsService.getSettlement`. Same
- *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
- *  `warnings` are new (item 8, credit matching — settlement/credits.ts): empty arrays for any type that
- *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 /**
  * One document type's email template as a settings screen reads it — the template that CURRENTLY
  * applies (never the raw override alone), where it came from, and the vocabulary this type offers.
@@ -239,6 +238,7 @@ function buildEmailTemplateView(
   descriptor: DocumentTypeDescriptor,
   overrides: Record<string, DocumentEmailTemplate>,
   companyName: string,
+  offerViewUrl: boolean,
 ): DocumentEmailTemplateView {
   const template = resolveEmailTemplate(descriptor, overrides);
 
@@ -249,15 +249,19 @@ function buildEmailTemplateView(
     body: template.body,
     ...(template.html ? { html: template.html } : {}),
     source: resolveEmailTemplateSource(descriptor, overrides),
-    variables: describeDocumentEmailVocabulary({ descriptor, companyName }),
+    variables: describeDocumentEmailVocabulary({ descriptor, companyName, offerViewUrl }),
   };
 }
 
+/** What `GET /documents/:id/settlement` hands back - see `DocumentsService.getSettlement`. Same
+ *  "read side of a write" pairing `DocumentTotals` already has with `computeTotals`. `credits` and
+ *  `warnings` are new (item 8, credit matching - settlement/credits.ts): empty arrays for any type that
+ *  isn't an invoice, never a missing/undefined field the frontend would have to guard against. */
 export interface DocumentSettlementView {
   totals: DocumentTotals;
   payments: DocumentPaymentResult[];
   credits: DocumentCreditResult[];
-  warnings: string[];
+  warnings: ServerMessage[];
   settlement: DocumentSettlement;
 }
 
@@ -266,95 +270,29 @@ export interface DocumentSettlementView {
  *  anchor) without every caller having to re-shape what it already parses. Always present, always an
  *  array: a document with nothing to caveat answers `[]`, never 204 and never a missing key. */
 export interface DocumentTaxWarningsView {
-  warnings: string[];
+  warnings: ServerMessage[];
 }
 
-/**
- * The extension `DocumentsService#downloadImportOriginal` (issue #549) puts on the filename it
- * hands back - presentation only, deliberately separate from `archive/storage.ts#extFor`, which
- * names the file this same artifact is written to ON DISK. Changing THAT map would silently break
- * reading back every archive already written under it; this one only ever affects a fresh
- * `Content-Disposition` header, so it is free to cover every mime `attachments.service.ts#
- * ALLOWED_ATTACHMENT_MIMES` accepts as an import original, images included, where `extFor` itself
- * still falls back to `.bin`.
- */
-function extensionForOriginalMime(mime: string): string {
-  if (mime === 'application/pdf') return 'pdf';
-  if (mime === 'application/xml' || mime === 'text/xml') return 'xml';
-  if (mime === 'image/jpeg') return 'jpg';
-  if (mime === 'image/png') return 'png';
-  if (mime === 'image/webp') return 'webp';
-  return 'bin';
+/** "invoice"/"cancel": the one action gated by `correction-routes/cancel-policy.ts` instead of the
+ *  ordinary country-policy table (see `resolveActionPolicy`'s own header). */
+function isInvoiceCancel(typeId: string, actionId: string): boolean {
+  return typeId === 'invoice' && actionId === 'cancel';
 }
 
-/**
- * The mime `DocumentsService#downloadImportOriginal` actually serves - never the archive row's
- * stored value verbatim. That value came from whatever `mime` the ORIGINAL upload declared
- * (`attachments.service.ts#AttachmentUploadInput`, client-supplied, before #340's own import wrote
- * it into the `IMPORT_ORIGINAL` archive), so a row written by a build that once accepted a wider
- * mime, or one that predates a later tightening of the allow-list, must never be trusted as-is:
- * this is the one function deciding what this route is willing to tell a browser to do with the
- * bytes it is about to stream. `ALLOWED_ATTACHMENT_MIMES` is the exact set the import path itself
- * accepts today (`attachments.service.ts`) - anything outside it falls back to the inert
- * `application/octet-stream`, which every browser downloads rather than renders.
- */
-export function safeOriginalMime(mime: string): string {
-  return ALLOWED_ATTACHMENT_MIMES.includes(mime) ? mime : 'application/octet-stream';
-}
-
-/**
- * The ASCII-only `Content-Disposition` fallback filename (RFC 6266 section 4.3): every byte outside
- * printable ASCII (0x20-0x7E) - control characters INCLUDING CR/LF, and anything non-ASCII - becomes
- * `_`, and a literal quote or backslash is replaced the same way so the value can never break out of
- * the `filename="..."` quoted string it is embedded in. `displayNumber` (this function's only real
- * caller's own input) is the number the IMPORTED document's previous tool printed - never validated
- * against a charset, since #340 keeps it "exactly as entered" - so this is the one place issue #549's
- * code review asked for: header-injection and control-character safety belongs here, not upstream of
- * it, because upstream is exactly where the legal requirement is to keep the value verbatim.
- */
-export function asciiContentDispositionFallback(value: string): string {
-  const sanitized = Array.from(value)
-    .map((ch) => {
-      const code = ch.codePointAt(0) ?? 0;
-      if (code < 0x20 || code > 0x7e) return '_';
-      if (ch === '"' || ch === '\\') return '_';
-      return ch;
-    })
-    .join('');
-  return sanitized || 'original';
-}
-
-/**
- * The UTF-8, percent-encoded `filename*` extension (RFC 5987/8187) that lets a compliant client
- * recover the real, accented/quoted/whatever-it-was file name the ASCII fallback above had to
- * mangle. Encodes every byte outside RFC 5987's own `attr-char` set (`ALPHA / DIGIT / "!" / "#" /
- * "$" / "&" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"`) - stricter than `encodeURIComponent`
- * alone, which leaves `'`, `(`, `)` and `*` unescaped even though RFC 5987 does not allow them
- * unescaped in this position.
- */
-export function rfc5987Encode(value: string): string {
-  const ATTR_CHAR = /^[A-Za-z0-9!#$&+\-.^_`|~]$/;
-  let out = '';
-  for (const byte of Buffer.from(value, 'utf8')) {
-    const ch = String.fromCharCode(byte);
-    out += ATTR_CHAR.test(ch) ? ch : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+/** The country policy's OWN per-status narrowing (schema.ts's `DocumentActionRuleFact.statuses`): a
+ *  409 when the decision restricts the action to statuses that do not include `status`. */
+function assertPolicyAllowsStatus(
+  decision: CountryPolicyDecision | undefined,
+  typeId: string,
+  actionId: string,
+  status: string,
+): void {
+  if (decision?.restrictedToStatuses && !decision.restrictedToStatuses.includes(status)) {
+    throw new ConflictException(
+      `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
+        `policy to status(es) ${decision.restrictedToStatuses.join(', ')}, not "${status}".`,
+    );
   }
-  return out;
-}
-
-/**
- * The full `Content-Disposition` header value for issue #549's "Download original" - the one place
- * this repo builds this header from a value it did not itself generate (every OTHER
- * `Content-Disposition` in this module is built from `typeId`/`id`/a provider's own fixed `syntax`,
- * never a user-supplied string). Carries BOTH forms RFC 6266 documents for exactly this situation:
- * an ASCII-sanitized `filename=` every client understands, and a UTF-8 `filename*` a compliant one
- * prefers - see `asciiContentDispositionFallback`/`rfc5987Encode` above for what each strips or
- * encodes and why.
- */
-export function buildOriginalContentDisposition(filename: string): string {
-  const ascii = asciiContentDispositionFallback(filename);
-  const encoded = rfc5987Encode(filename);
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 @Injectable()
@@ -502,20 +440,34 @@ export class DocumentsService implements OnModuleInit {
     const overrides = await getCompanyDocumentEmailTemplates(companyId);
     const companyName = await this.resolveCompanyName(companyId);
 
-    return this.typeRegistry
-      .list()
-      .map((descriptor) => buildEmailTemplateView(descriptor, overrides, companyName));
+    return Promise.all(
+      this.typeRegistry
+        .list()
+        .map(async (descriptor) =>
+          buildEmailTemplateView(
+            descriptor,
+            overrides,
+            companyName,
+            !(await this.emailViewUrlBlockedReason(companyId, descriptor)),
+          ),
+        ),
+    );
   }
 
   /** One type's currently applying template — the same resolution and the same derived vocabulary
    *  `listEmailTemplates` reports, for the single type a screen is editing. 404 for a type nobody
    *  registered, exactly like every other per-type read on this service. */
   async getEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
-    const descriptor = this.mergedDescriptor(typeId);
+    const descriptor = this.resolveType(typeId);
     const overrides = await getCompanyDocumentEmailTemplates(companyId);
     const companyName = await this.resolveCompanyName(companyId);
 
-    return buildEmailTemplateView(descriptor, overrides, companyName);
+    return buildEmailTemplateView(
+      descriptor,
+      overrides,
+      companyName,
+      !(await this.emailViewUrlBlockedReason(companyId, descriptor)),
+    );
   }
 
   /**
@@ -542,7 +494,7 @@ export class DocumentsService implements OnModuleInit {
     typeId: string,
     input: { subject: string; body?: string; html?: string },
   ): Promise<{ template: DocumentEmailTemplateView; warnings: string[] }> {
-    const descriptor = this.mergedDescriptor(typeId);
+    const descriptor = this.resolveType(typeId);
 
     const subject = input.subject ?? '';
     const body = input.body ?? '';
@@ -555,6 +507,7 @@ export class DocumentsService implements OnModuleInit {
     }
 
     const companyName = await this.resolveCompanyName(companyId);
+    const blockedReason = await this.emailViewUrlBlockedReason(companyId, descriptor);
     const stored = await setCompanyDocumentEmailTemplate(companyId, typeId, {
       subject,
       body,
@@ -570,8 +523,11 @@ export class DocumentsService implements OnModuleInit {
       describeSendablePlaceholders({ descriptor, companyName }),
     );
 
+    if (blockedReason && templateUsesPlaceholder(stored, 'viewUrl')) {
+      warnings.push(`Cannot fill "{viewUrl}" when sending this document. ${blockedReason}`);
+    }
     return {
-      template: buildEmailTemplateView(descriptor, { [descriptor.id]: stored }, companyName),
+      template: buildEmailTemplateView(descriptor, { [descriptor.id]: stored }, companyName, !blockedReason),
       warnings,
     };
   }
@@ -580,11 +536,19 @@ export class DocumentsService implements OnModuleInit {
    *  and returns what now applies, rather than leaving a screen to guess. Clearing a template a company
    *  never set is a no-op, never an error (see `clearCompanyDocumentEmailTemplate`). */
   async resetEmailTemplate(companyId: string, typeId: string): Promise<DocumentEmailTemplateView> {
-    const descriptor = this.mergedDescriptor(typeId);
-    await clearCompanyDocumentEmailTemplate(companyId, typeId);
+    const descriptor = this.resolveType(typeId);
     const companyName = await this.resolveCompanyName(companyId);
+    const blockedReason = await this.emailViewUrlBlockedReason(companyId, descriptor);
+    await clearCompanyDocumentEmailTemplate(companyId, typeId);
+    return buildEmailTemplateView(descriptor, {}, companyName, !blockedReason);
+  }
 
-    return buildEmailTemplateView(descriptor, {}, companyName);
+  private async emailViewUrlBlockedReason(companyId: string, descriptor: DocumentTypeDescriptor) {
+    const action = findShareLinkAction(descriptor);
+    if (!action) return undefined;
+    const policy = await evaluateCountryPolicy(companyId, descriptor.id, action.id);
+    if (!policy.allowed) return policy.reason ?? 'Public sharing is blocked by company policy.';
+    return shareLinkStatusConflict(action, policy, 'sending', descriptor.id);
   }
 
   /** The company's own name — the one vocabulary sample value that is REAL data rather than a stand-in,
@@ -595,11 +559,55 @@ export class DocumentsService implements OnModuleInit {
     return company?.name ?? '';
   }
 
+  /** The dashboard's invoicing overview (contributions/invoice-overview.ts), in the company's own
+   *  currency. Empty lists and zeros for a company with no invoice type or no invoices. */
+  async invoiceOverview(companyId: string): Promise<InvoiceOverview> {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true } });
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.typeRegistry.has('invoice')) {
+      return buildInvoiceOverview({
+        currency: company?.currency ?? 'EUR',
+        today,
+        invoices: [],
+        unsettled: [],
+        payments: [],
+        clientLabels: new Map(),
+      });
+    }
+    const invoices = await listAllDocuments(companyId, { typeId: 'invoice' });
+    const balances = await resolveUnsettledInvoiceBalances(
+      companyId,
+      this.typeRegistry.resolve('invoice'),
+      invoices,
+    );
+    const invoiceIds = new Set(invoices.map((invoice) => invoice.id));
+    const payments = (
+      await listPaymentsInRange(companyId, new Date(`${today.slice(0, 4)}-01-01T00:00:00.000Z`), new Date())
+    ).filter((payment) => invoiceIds.has(payment.documentId));
+    const clientIds = [
+      ...balances.map(({ invoice }) => invoice),
+      ...invoices.filter((invoice) => invoice.conformityRejectedAt),
+    ]
+      .map((invoice) => (invoice.data as Record<string, unknown> | null)?.client)
+      .filter((id): id is string => typeof id === 'string');
+    return buildInvoiceOverview({
+      currency: company?.currency ?? 'EUR',
+      today,
+      invoices,
+      unsettled: balances.map(({ invoice, settlement }) => ({
+        invoice,
+        outstandingMinor: settlement.outstandingMinor,
+      })),
+      payments,
+      clientLabels: await resolveClientLabels(companyId, clientIds),
+    });
+  }
+
   /**
    * Every widget declared for `location` (dashboard/statistics) by a document type the active
-   * company's TYPE registry knows about — see contributions/collect-widgets.ts for the actual
+   * company's TYPE registry knows about - see contributions/collect-widgets.ts for the actual
    * assembly (declared-but-unimplemented handling included). Deliberately NOT filtered by the
-   * country-action policy: a widget is an aggregate view, not an operation a country can forbid —
+   * country-action policy: a widget is an aggregate view, not an operation a country can forbid -
    * see country-policy/country-policy.ts's own header for the (separate) mechanism that DOES gate
    * actions.
    *
@@ -646,7 +654,7 @@ export class DocumentsService implements OnModuleInit {
    */
   async listAvailableTypes(
     companyId: string,
-  ): Promise<{ types: { id: string; label: string }[]; reason?: string }> {
+  ): Promise<{ types: { id: string; label: string; icon?: string }[]; reason?: string }> {
     const decision = await resolveAvailableDocumentTypes(companyId);
     if (decision.typeIds.length === 0) {
       return { types: [], reason: decision.reason };
@@ -664,7 +672,7 @@ export class DocumentsService implements OnModuleInit {
         }
       })
       .filter((descriptor): descriptor is DocumentTypeDescriptor => !!descriptor)
-      .map(({ id, label }) => ({ id, label }));
+      .map(({ id, label, icon }) => ({ id, label, icon }));
 
     return { types };
   }
@@ -692,77 +700,14 @@ export class DocumentsService implements OnModuleInit {
     return resolveRequiredIdentifiers(countryCode, resolvedPartyType);
   }
 
+  listCompanyLawSettings(countryCode: string): CompanyLawSettings {
+    return companyLawSettings(countryCode);
+  }
+
   getType(typeId: string): DocumentTypeDescriptor {
     return this.mergedDescriptor(typeId);
   }
 
-  /**
-   * The descriptor a FRONTEND actually renders — `getType` above, but with:
-   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
-   *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
-   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
-   *    layered on the result of the one before it:
-   *     1. `descriptors/company-view.ts#applyCompanyFieldView` — the country field overlay
-   *        (add/modify/remove — country-fields/) and the VAT rate catalog (vat-rates/) filling in a
-   *        field like the invoice line's `vatRate`.
-   *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` — this company's own ACTIVE
-   *        expense categories (enriched expense categories, product decision 2026-09-15), patched onto
-   *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
-   *        — a no-op for every type but "expense" (see that function's own header).
-   *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` — this company's own
-   *        ACTIVE custom field definitions (custom fields), appended as plain `add`
-   *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
-   *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
-   *        that happens to be scoped by company instead of by country — see that function's own
-   *        header for why it composes AFTER the country view, never before or in place of it.
-   *     4. `applyB2gDocumentFieldHints` (below) — the CLIENT's own country's B2G rule, when one
-   *        resolves and `clientId` is given.
-   *
-   * All four are VIEWS layered on top of the plain descriptor, never a change to
-   * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
-   * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
-   * that build a service with no company at all) is unaffected. `runAction` (further down) composes
-   * the exact same steps 1-3 (never step 4 — see that method's own comment) before validating, so
-   * "what the form offers" and "what actually gets checked/blocked" can never drift apart — the same
-   * discipline this module already holds for country policy and status.
-   *
-   * `policyBlockedReason` is PLAIN TEXT, not an i18n key — same convention as `label`/`message`
-   * elsewhere in this module — so the frontend can show it verbatim without knowing any country.
-   * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
-   * from "explicitly not blocked" here, only "has a reason" from "doesn't".
-   *
-   * `clientId` (optional) adds a FOURTH, orthogonal source on top of the ones composed above — see
-   * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
-   * country, never the company's: a French company invoicing a German government body has no
-   * field-overlay file of its OWN country to thank for a Leitweg-ID input
-   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY — see
-   * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
-   * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
-   * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs —
-   * never hardcoded to Germany or to "buyerReference" specifically.
-   */
-  /**
-   * The one composition point BOTH `describeTypeForCompany` (below) and
-   * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
-   * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
-   * screen would refuse" discipline this whole module already holds for country policy and status).
-   *
-   * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
-   * instead of the ordinary `country-policy/` DB table. The two coverage sets are DIFFERENT ON
-   * PURPOSE — `country-policy/` mirrors eight country FILES today (FR/US/HU/DE/IT/PL/ES/MX,
-   * data/all.ts); `correction-routes/`
-   * covers all SEVEN pivots, each with the exact CANCEL_AND_REPLACE citation this one action needs —
-   * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
-   * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
-   * WRONG answer even for a country that now HAS a country-policy/ file: Poland and Mexico both
-   * declare CANCEL_AND_REPLACE `required` in their own correction-routes data yet have NO real local
-   * cancellation mechanism behind it (cancel-policy.ts's own header — the route exists, the SAT/KSeF
-   * authority operation it needs does not), and Italy's own local cancel is narrower than its country-
-   * policy file would suggest (`restrictedToStatuses: ['send_failed']`, not every post-issuance
-   * status). A generic `allowed`/`forbidden` row cannot carry either nuance — only cancel-policy.ts's
-   * own per-country whitelist, cross-checked against the loaded route's own status, can. See
-   * `cancel-policy.ts`'s own header for the full per-country reasoning.
-   */
   /**
    * PR #473 review point 2 (orchestrator follow-up): a REFUSED credit-note decision (either
    * `save-draft` or `send`) only ever quotes the LAW (countries/data/pl.json (section "policy")'s own art. 106j
@@ -798,12 +743,35 @@ export class DocumentsService implements OnModuleInit {
     };
   }
 
+  /**
+   * The one composition point BOTH `describeTypeForCompany` (below) and
+   * `runAction` (further down) call instead of `evaluateCountryPolicy` directly, so the FRONTEND view
+   * and the ACTUAL execution gate can never drift apart (the same "the API refuses exactly what the
+   * screen would refuse" discipline this whole module already holds for country policy and status).
+   *
+   * `invoice.cancel` is the one, deliberate exception: gated by `correction-routes/cancel-policy.ts`
+   * instead of the ordinary `country-policy/` DB table. Both read the same country files today
+   * (countries/data/: DE, DZ, FR, IT, PL, PT - see countries/data/all.ts), but different sections of
+   * them ON PURPOSE: `country-policy/` reads each file's `policy` section, `correction-routes/` its
+   * `correctionRoutes` section, whose CANCEL_AND_REPLACE route carries the exact citation this one
+   * action needs -
+   * a NARROWER, action-specific fact that `evaluateCountryPolicy`'s generic allowed/forbidden shape
+   * cannot express. Routing "cancel" through the ordinary `evaluateCountryPolicy` would give the
+   * WRONG answer even for a country that HAS a `policy` section: Poland
+   * declares CANCEL_AND_REPLACE `required` in its own correction-routes data yet has NO real local
+   * cancellation mechanism behind it (cancel-policy.ts's own header - the route exists, the KSeF
+   * authority operation it needs does not), and Italy's own local cancel is narrower than its country-
+   * policy file would suggest (`restrictedToStatuses: ['send_failed']`, not every post-issuance
+   * status). A generic `allowed`/`forbidden` row cannot carry either nuance - only cancel-policy.ts's
+   * own per-country whitelist, cross-checked against the loaded route's own status, can. See
+   * `cancel-policy.ts`'s own header for the full per-country reasoning.
+   */
   private async resolveActionPolicy(
     companyId: string,
     typeId: string,
     actionId: string,
   ): Promise<CountryPolicyDecision> {
-    if (typeId === 'invoice' && actionId === 'cancel') {
+    if (isInvoiceCancel(typeId, actionId)) {
       const countryCode = await resolveCompanyCountryCode(companyId);
       return resolveCancelPolicyForCountry(countryCode);
     }
@@ -815,6 +783,80 @@ export class DocumentsService implements OnModuleInit {
     return decision;
   }
 
+  /**
+   * Steps 1-3 of the field view `describeTypeForCompany` documents below: the country field overlay
+   * and VAT rate catalog, then this company's own expense categories, then its own custom fields.
+   * `runAction` validates against exactly this, so "what the form offers" and "what gets checked"
+   * never drift apart. Deliberately stops BEFORE step 4 (`applyB2gDocumentFieldHints`), which only
+   * `describeTypeForCompany` layers on (see `runAction`'s own comment on that gap).
+   */
+  private async companyFields(
+    companyId: string,
+    typeId: string,
+    descriptor: DocumentTypeDescriptor,
+    countryCode: string | undefined,
+  ): Promise<DocumentFieldDescriptor[]> {
+    const companyViewFields = applyCompanyFieldView({
+      typeId,
+      fields: descriptor.fields,
+      countryCode,
+      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
+      vatRateCatalog: this.vatRateCatalog,
+    });
+    // Enriched expense categories - this company's own expense categories, patched onto the "category"
+    // field's `options` (a no-op for every type other than "expense" - see that module's own header).
+    // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
+    // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
+    // `custom:`-prefixed one - see company-custom-fields/persistence.ts#toFieldDescriptor).
+    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, companyViewFields);
+    return applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+  }
+
+  /**
+   * The descriptor a FRONTEND actually renders - `getType` above, but with:
+   * - each ACTION annotated with `policyBlockedReason` when the ACTIVE COMPANY's country policy
+   *    refuses it (see country-policy/country-policy.ts's evaluateCountryPolicy);
+   * - each FIELD passed through the company's own field VIEW, composed in FOUR steps, each one
+   *    layered on the result of the one before it:
+   *     1. `descriptors/company-view.ts#applyCompanyFieldView` - the country field overlay
+   *        (add/modify/remove - country-fields/) and the VAT rate catalog (vat-rates/) filling in a
+   *        field like the invoice line's `vatRate`.
+   *     2. `expense-categories/persistence.ts#applyExpenseCategoriesView` - this company's own ACTIVE
+   *        expense categories (enriched expense categories, product decision 2026-09-15), patched onto
+   *        the "category" field's `options` via a `country-fields/apply-overlay.ts` 'modify' operation
+   *        - a no-op for every type but "expense" (see that function's own header).
+   *     3. `company-custom-fields/persistence.ts#applyCompanyCustomFieldsView` - this company's own
+   *        ACTIVE custom field definitions (custom fields), appended as plain `add`
+   *        operations through the exact same `country-fields/apply-overlay.ts` mechanism step 1 just
+   *        used: a company custom field is, structurally, nothing more than a country overlay's `add`
+   *        that happens to be scoped by company instead of by country - see that function's own
+   *        header for why it composes AFTER the country view, never before or in place of it.
+   *     4. `applyB2gDocumentFieldHints` (below) - the CLIENT's own country's B2G rule, when one
+   *        resolves and `clientId` is given.
+   *
+   * All four are VIEWS layered on top of the plain descriptor, never a change to
+   * `DocumentTypeDescriptor` itself: the descriptor stays pure declarative data (no company, no
+   * country), and every other reader of `mergedDescriptor`/`getType` (row selection, the jest specs
+   * that build a service with no company at all) is unaffected. `runAction` (further down) composes
+   * the exact same steps 1-3 (never step 4 - see that method's own comment) before validating, so
+   * "what the form offers" and "what actually gets checked/blocked" can never drift apart - the same
+   * discipline this module already holds for country policy and status.
+   *
+   * `policyBlockedReason` is PLAIN TEXT, not an i18n key - same convention as `label`/`message`
+   * elsewhere in this module - so the frontend can show it verbatim without knowing any country.
+   * Absent entirely for an action the policy allows: the frontend never has to distinguish "allowed"
+   * from "explicitly not blocked" here, only "has a reason" from "doesn't".
+   *
+   * `clientId` (optional) adds a FOURTH, orthogonal source on top of the ones composed above - see
+   * `applyB2gDocumentFieldHints`'s own header just below for why this is keyed on the CLIENT's own
+   * country, never the company's: a French company invoicing a German government body has no
+   * field-overlay file of its OWN country to thank for a Leitweg-ID input
+   * (`countries/data/de.json (section "countryFields")`'s own overlay only ever applies for a DE-country COMPANY - see
+   * that file's own header, "a known, documented UX gap"), so without this, the ONLY way to fill
+   * `data.buyerReference` for that invoice would be a client no screen offers. This closes exactly
+   * that gap, generically, from whatever a country's B2G rule (`b2g-routing/`) declares it needs -
+   * never hardcoded to Germany or to "buyerReference" specifically.
+   */
   async describeTypeForCompany(
     companyId: string,
     typeId: string,
@@ -833,7 +875,7 @@ export class DocumentsService implements OnModuleInit {
     // costs nothing extra to keep out of the Promise.all below and evaluate separately, reusing the
     // SAME `countryCode` this method already resolves rather than `resolveActionPolicy`'s own
     // redundant extra company lookup for that one action.
-    const isCancel = (actionId: string) => typeId === 'invoice' && actionId === 'cancel';
+    const isCancel = (actionId: string) => isInvoiceCancel(typeId, actionId);
     const batchedActionIds = descriptor.actions.map((a) => a.id).filter((id) => !isCancel(id));
 
     const [batchedDecisions, countryCode] = await Promise.all([
@@ -848,20 +890,7 @@ export class DocumentsService implements OnModuleInit {
       isCancel(action.id) ? cancelDecision! : decisionByActionId.get(action.id)!,
     );
 
-    const companyViewFields = applyCompanyFieldView({
-      typeId,
-      fields: descriptor.fields,
-      countryCode,
-      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
-      vatRateCatalog: this.vatRateCatalog,
-    });
-    // Enriched expense categories — this company's own expense categories, patched onto the "category"
-    // field's `options` (a no-op for every type other than "expense" — see that module's own header).
-    // Composed BEFORE custom fields: both are company-level overlays on the SAME company-view fields,
-    // and neither can collide (this one 'modify's a NATIVE key, custom fields only ever 'add's a
-    // `custom:`-prefixed one — see company-custom-fields/persistence.ts#toFieldDescriptor).
-    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, companyViewFields);
-    const fieldsWithCustom = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+    const fieldsWithCustom = await this.companyFields(companyId, typeId, descriptor, countryCode);
     const fields = await this.applyB2gDocumentFieldHints(fieldsWithCustom, companyId, clientId);
 
     return {
@@ -920,8 +949,10 @@ export class DocumentsService implements OnModuleInit {
           key: requirement.field,
           kind: 'text',
           label: requirement.label,
+          labelKey: requirement.labelKey,
           required: requirement.required,
           helpText: requirement.why,
+          helpTextKey: requirement.helpTextKey,
         },
       }));
 
@@ -1236,6 +1267,28 @@ export class DocumentsService implements OnModuleInit {
     });
   }
 
+  /** Ids of the other documents `data` points at through its top-level reference fields. */
+  private referencedDocumentIds(fields: DocumentFieldDescriptor[], data: Record<string, unknown>): string[] {
+    const ids: string[] = [];
+    for (const field of fields) {
+      if (field.kind !== 'reference') continue;
+      const value = data[field.key];
+      if (isMultiTargetReference(field)) {
+        const ref = value as { entity?: unknown; id?: unknown } | undefined;
+        if (
+          typeof ref?.entity === 'string' &&
+          typeof ref.id === 'string' &&
+          this.typeRegistry.has(ref.entity)
+        ) {
+          ids.push(ref.id);
+        }
+      } else if (typeof value === 'string' && targetEntitiesOf(field).some((e) => this.typeRegistry.has(e))) {
+        ids.push(value);
+      }
+    }
+    return ids;
+  }
+
   /**
    * Runs one declared action of one document type. Every way this can fail is deliberate and
    * distinct, so the caller (and the frontend) never has to guess which one happened:
@@ -1289,28 +1342,6 @@ export class DocumentsService implements OnModuleInit {
    * combination — a fresh call, a different action, a record not already "sending" — runs every gate
    * exactly as if this parameter were never passed at all.
    */
-  /** Ids of the other documents `data` points at through its top-level reference fields. */
-  private referencedDocumentIds(fields: DocumentFieldDescriptor[], data: Record<string, unknown>): string[] {
-    const ids: string[] = [];
-    for (const field of fields) {
-      if (field.kind !== 'reference') continue;
-      const value = data[field.key];
-      if (isMultiTargetReference(field)) {
-        const ref = value as { entity?: unknown; id?: unknown } | undefined;
-        if (
-          typeof ref?.entity === 'string' &&
-          typeof ref.id === 'string' &&
-          this.typeRegistry.has(ref.entity)
-        ) {
-          ids.push(ref.id);
-        }
-      } else if (typeof value === 'string' && targetEntitiesOf(field).some((e) => this.typeRegistry.has(e))) {
-        ids.push(value);
-      }
-    }
-    return ids;
-  }
-
   async runAction(
     companyId: string,
     typeId: string,
@@ -1380,10 +1411,7 @@ export class DocumentsService implements OnModuleInit {
       // `restrictedToStatuses` 409 further down - a scripted client (and e2e) can then tell WHICH
       // gate refused it, which is exactly what proves the CODE guard fired, not merely country data.
       if (currentStatus !== undefined && action.lockedStatuses?.includes(currentStatus)) {
-        throw new ConflictException(
-          `Action "${actionId}" of document type "${typeId}" is refused once the document has left ` +
-            `draft (status "${currentStatus}"): an issued document is never rewritten.`,
-        );
+        throw lockedStatusConflict(actionId, typeId, currentStatus);
       }
       throw new ConflictException(
         currentStatus === undefined
@@ -1404,16 +1432,8 @@ export class DocumentsService implements OnModuleInit {
     // the record's eventual status is entirely up to the type's own lifecycle (`transitions`), which
     // this restriction narrows only once a status actually exists to narrow. The descriptor's own
     // `availableWhen: 'always'` already treats a never-saved record as satisfied the exact same way.
-    if (
-      !isAdmittedReplay &&
-      currentStatus !== undefined &&
-      policyDecision?.restrictedToStatuses &&
-      !policyDecision.restrictedToStatuses.includes(currentStatus)
-    ) {
-      throw new ConflictException(
-        `Action "${actionId}" of document type "${typeId}" is restricted by this company's country ` +
-          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${currentStatus}".`,
-      );
+    if (!isAdmittedReplay && currentStatus !== undefined) {
+      assertPolicyAllowsStatus(policyDecision, typeId, actionId, currentStatus);
     }
 
     // Reviewer finding #2 on the #468 lock: a "send" retry of a LOCKED record (today, an invoice or
@@ -1458,7 +1478,7 @@ export class DocumentsService implements OnModuleInit {
       currentStatus !== undefined &&
       currentStatus !== 'sending' &&
       existingData !== undefined &&
-      descriptor.actions.find((a) => a.id === 'save-draft')?.lockedStatuses?.includes(currentStatus)
+      issuedStatusesOf(descriptor).includes(currentStatus)
     ) {
       payload.data = existingData;
     }
@@ -1497,17 +1517,7 @@ export class DocumentsService implements OnModuleInit {
     // (describeTypeForCompany) but never independently enforced here, same as before this feature
     // existed.
     const countryCode = await resolveCompanyCountryCode(companyId);
-    const countryViewFields = applyCompanyFieldView({
-      typeId,
-      fields: descriptor.fields,
-      countryCode,
-      fieldOverlayCatalog: this.countryFieldOverlayCatalog,
-      vatRateCatalog: this.vatRateCatalog,
-    });
-    // Same composition as describeTypeForCompany's own — see that method's own comment right above its
-    // identical call: a no-op for every type other than "expense".
-    const withExpenseCategories = await applyExpenseCategoriesView(companyId, typeId, countryViewFields);
-    const fields = await applyCompanyCustomFieldsView(companyId, typeId, withExpenseCategories);
+    const fields = await this.companyFields(companyId, typeId, descriptor, countryCode);
 
     // Strips every caller-controlled `__`-prefixed sidecar key (descriptors/validate.ts's own header)
     // from the RAW body BEFORE it is validated or handed to ANY handler — "save-draft" included, not
@@ -1530,7 +1540,8 @@ export class DocumentsService implements OnModuleInit {
     // Reassigned onto `payload.data` itself (never a second, parallel variable) so every later read of
     // it in this same method — row-selection/reference validation, `stampRowIds`, the handler call
     // itself — sees the SAME cleaned object, with no raw copy left for anything to read by mistake.
-    if (!(currentStatus === 'sending' && actionId === 'send')) {
+    const isInFlightSendReplay = currentStatus === 'sending' && actionId === 'send';
+    if (!isInFlightSendReplay) {
       payload.data = stripSidecarKeys(fields, payload.data ?? {});
     }
 
@@ -1542,7 +1553,7 @@ export class DocumentsService implements OnModuleInit {
     // `descriptors/validate.ts#dropEmptyRows`'s own header for what "empty" means, field by field, and
     // why a half-filled row is deliberately left for `validateAgainstDescriptor` below to judge on its
     // own merits rather than silently discarded here too.
-    if (!(currentStatus === 'sending' && actionId === 'send')) {
+    if (!isInFlightSendReplay) {
       payload.data = dropEmptyRows(fields, payload.data ?? {});
     }
 
@@ -1843,31 +1854,7 @@ export class DocumentsService implements OnModuleInit {
    */
   async getSettlement(companyId: string, typeId: string, id: string): Promise<DocumentSettlementView> {
     const instance = await findOwnedDocument(companyId, typeId, id);
-    const descriptor = this.mergedDescriptor(typeId);
-    const data = instance.data as Record<string, unknown>;
-    // Issue #487: a quote with options settles against its accepted option (common lines included),
-    // never the sum of every option; with none accepted there is no balance to compute and this
-    // refuses with 409 (`resolveSettlementTotals`'s own header says who can reach that).
-    const totals = resolveSettlementTotals(
-      typeId,
-      descriptor,
-      data,
-      instance.acceptedOption,
-      instance.displayNumber ?? instance.id,
-    );
-    const payments = await listPayments(companyId, id);
-    const { credits, warnings } = await resolveCreditsForDocument(companyId, typeId, id, descriptor, data);
-    // `toSettlementPaymentInputs`, never the raw `payments` array directly:
-    // since a payment can now be recorded in a currency other than the document's own (converted at
-    // record time — settlement/convert-payment.ts), `computeSettlement` must read each payment's
-    // `documentAmountMinor` (already in the document's own currency), not its own `amountMinor`
-    // (the amount actually received, possibly in a different currency's minor units).
-    const settlement = computeSettlement(
-      totals.grossMinor,
-      toSettlementPaymentInputs(payments),
-      toSettlementCreditInputs(credits),
-    );
-    return { totals, payments, credits, warnings, settlement };
+    return loadDocumentSettlement(companyId, this.mergedDescriptor(typeId), instance);
   }
 
   /**
@@ -2179,15 +2166,7 @@ export class DocumentsService implements OnModuleInit {
           'actually starts.',
       );
     }
-    if (
-      policyDecision.restrictedToStatuses &&
-      !policyDecision.restrictedToStatuses.includes(instance.status)
-    ) {
-      throw new ConflictException(
-        `Action "download-xml" of document type "${typeId}" is restricted by this company's country ` +
-          `policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
-      );
-    }
+    assertPolicyAllowsStatus(policyDecision, typeId, 'download-xml', instance.status);
     // Issue #472 - a status the action is available from does not guarantee a number: a credit note
     // issued before issue #471 gave the type a numbering sits in "sent" with none, and must never be
     // numbered after the fact (`credit-note.descriptor.ts`, "Numbering"). No number, no file - never a
@@ -2231,15 +2210,14 @@ export class DocumentsService implements OnModuleInit {
       throw error;
     }
 
-    // Issue #472 - a credit note is built from the invoice it corrects (its buyer, its selected lines,
-    // priced with the invoice's own descriptor) - see `formats/credit-note-source.ts`'s own header.
-    // Every other type builds from its own data, exactly as before.
+    // A linked credit note is built from the invoice it corrects (its buyer, selected lines, invoice
+    // descriptor); a free one from its own client and lines. Every other type builds from its data.
     const creditNoteSource =
       typeId === 'credit-note' ? await resolveCreditNoteFormatSource(companyId, instance) : undefined;
     const buildDescriptor = creditNoteSource?.pricingDescriptor ?? descriptor;
     const data = creditNoteSource?.pricingData ?? ((instance.data ?? {}) as Record<string, unknown>);
     const clientId = typeof data.client === 'string' ? data.client : undefined;
-    const [company, client] = await Promise.all([
+    const [company, liveClient] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, include: { partyIdentifiers: true } }),
       // Scoped by companyId — `clientId` is read straight off `data.client`, never checked for
       // existence at write time (descriptors/field-kinds.ts's own comment on the 'reference' kind), so
@@ -2256,11 +2234,12 @@ export class DocumentsService implements OnModuleInit {
     if (!company) {
       throw new NotFoundException(`Company "${companyId}" not found.`);
     }
-    if (!client) {
+    if (!liveClient) {
       throw new BadRequestException(
         'Cannot build a normalized XML export: this invoice has no valid client on file.',
       );
     }
+    const client = withIssuedBuyerIdentifiers(liveClient, instance);
 
     // Cross-border tax — invoice-only: the download is otherwise a generic
     // export shared by any future document type's own `download-xml`-style action. Reuses the
@@ -2279,23 +2258,12 @@ export class DocumentsService implements OnModuleInit {
         : data;
       const buyerVatRow = client.partyIdentifiers.find((pi) => pi.scheme === 'VAT');
       try {
-        dataForBuild = resolveInvoiceCrossBorderTax({
-          seller: {
-            country: company.country,
-            countryCode: company.countryCode,
-            taxScheme: companyTaxScheme(company),
-            // This call site reads its own company row. `parseDistanceSalesRegime` is the SHARED
-            // narrowing parser (`tax/resolve-invoice-tax.ts`), not a second hand-written mapping, so the
-            // two sites can never disagree about what a stored value means; only the row-reading is
-            // duplicated.
-            distanceSalesRegime: parseDistanceSalesRegime(company.distanceSalesRegime),
-          },
-          buyer: { country: client.country, countryCode: client.countryCode },
-          buyerVat: buyerVatRow
-            ? { value: buyerVatRow.value, validationStatus: buyerVatRow.validationStatus }
-            : undefined,
-          data: taxData,
-        }).data;
+        // This call site reads its own company/client rows; `buildCrossBorderTaxInput` is the SHARED
+        // mapping (`tax/load-and-resolve.ts`), so the two sites can never disagree about what a stored
+        // value means; only the row-reading is duplicated.
+        dataForBuild = resolveInvoiceCrossBorderTax(
+          buildCrossBorderTaxInput(company, client, buyerVatRow, taxData),
+        ).data;
         if (creditNoteSource) {
           dataForBuild = { ...dataForBuild, issueDate: data.issueDate };
         }
@@ -2318,7 +2286,9 @@ export class DocumentsService implements OnModuleInit {
         companyId,
         creditNoteSource
           ? {
-              creditNote: { correctedInvoice: creditNoteSource.correctedInvoice },
+              creditNote: creditNoteSource.correctedInvoice
+                ? { correctedInvoice: creditNoteSource.correctedInvoice }
+                : {},
               humanReadable: { descriptor, document: instance },
             }
           : undefined,
@@ -2418,6 +2388,28 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<ManualAcceptanceManifest | null> {
     await findOwnedDocument(companyId, typeId, id);
     return findManualAcceptanceArchive(companyId, id);
+  }
+
+  /**
+   * "GET .../manual-acceptance/attachment" - issue #364. The file attached to the manual acceptance,
+   * served from the ACCEPTANCE archive row (never the upload store), so the bytes are the ones the
+   * archive's `contentHash` covers. 404 when there is none.
+   */
+  async downloadManualAcceptanceAttachment(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<{ bytes: Buffer; mime: string; filename: string }> {
+    await findOwnedDocument(companyId, typeId, id);
+    const attachment = await findManualAcceptanceAttachment(companyId, id);
+    if (!attachment) {
+      throw new NotFoundException('This document has no file attached to a manual acceptance.');
+    }
+    return {
+      bytes: attachment.bytes,
+      mime: safeOriginalMime(attachment.mime),
+      filename: attachment.fileName,
+    };
   }
 
   /**

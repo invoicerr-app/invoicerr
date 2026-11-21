@@ -6,6 +6,7 @@
  * own header on what was NOT read).
  */
 import { NOTIFICA_ELEMENT_TO_TYPE, parseSdiNotifica } from './sdi-notifiche';
+import { SDI_XML_MAX_BYTES } from './xml-helpers';
 
 function notificaXml(rootElement: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -21,16 +22,25 @@ function notificaXml(rootElement: string): string {
 }
 
 describe('parseSdiNotifica', () => {
-  it.each(
-    Object.entries(NOTIFICA_ELEMENT_TO_TYPE),
-  )('recognizes <%s> as notifica type %s and extracts IdentificativoSdI/NomeFile/File', (rootElement, expectedType) => {
-    const parsed = parseSdiNotifica(notificaXml(rootElement));
-    expect(parsed).toEqual({
-      notificaType: expectedType,
-      identificativoSdI: '123456789012',
-      nomeFile: 'IT01234567890_0000000001.xml',
-      fileBase64: 'PGZvbz48L2Zvbz4=',
-    });
+  it.each(Object.entries(NOTIFICA_ELEMENT_TO_TYPE))(
+    'recognizes <%s> as notifica type %s and extracts IdentificativoSdI/NomeFile/File',
+    (rootElement, expectedType) => {
+      const parsed = parseSdiNotifica(notificaXml(rootElement));
+      expect(parsed).toEqual({
+        notificaType: expectedType,
+        identificativoSdI: '123456789012',
+        nomeFile: 'IT01234567890_0000000001.xml',
+        fileBase64: 'PGZvbz48L2Zvbz4=',
+      });
+    },
+  );
+
+  it('returns null for an otherwise valid notifica larger than SDI_XML_MAX_BYTES, without parsing it', () => {
+    const [rootElement] = Object.keys(NOTIFICA_ELEMENT_TO_TYPE);
+    const valid = notificaXml(rootElement);
+    expect(parseSdiNotifica(valid)).not.toBeNull();
+    const padded = valid.replace('<soap:Body>', `<soap:Body><!--${' '.repeat(SDI_XML_MAX_BYTES)}-->`);
+    expect(parseSdiNotifica(padded)).toBeNull();
   });
 
   it('returns null for malformed XML — never throws (the controller always answers 200 regardless)', () => {

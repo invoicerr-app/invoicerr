@@ -53,6 +53,7 @@ export interface MatchCandidateInvoice {
   outstandingMinor: number
   issueDate: string | null
   dueDate: string | null
+  conformityRejected: boolean
 }
 
 export interface MatchSuggestion {
@@ -61,6 +62,7 @@ export interface MatchSuggestion {
   clientLabel: string | null
   outstandingMinor: number
   reasons: MatchReason[]
+  conformityRejected: boolean
 }
 
 export interface StatementLineWithSuggestions {

@@ -188,6 +188,9 @@ export interface SemanticPartyInput {
   postalCode: string | null;
   /** Free text, as stored on Company/Client — resolved via `guessCountryCode`. */
   country: string | null;
+  /** `Company.countryCode`/`Client.countryCode`: the stored ISO 3166-1 alpha-2 override, preferred
+   *  over `country` when set. */
+  countryCode?: string | null;
   email?: string | null;
   phone?: string | null;
   /** BT-84 (Payment account identifier), SELLER side only — see `Company.iban`'s own schema comment
@@ -197,6 +200,12 @@ export interface SemanticPartyInput {
   partyIdentifiers: { scheme: string; value: string }[];
   /** SELLER side only: the company's own VAT scheme. Absent means the ordinary scheme. */
   taxScheme?: TaxScheme;
+  /** SELLER side only: `Company.companyLaw`, the raw details `company-law/` resolves. Read by
+   *  `shared-build.ts` for BT-33 and by FatturaPA for its own `IscrizioneREA`. */
+  companyLaw?: unknown;
+  /** Per-recipient document language, `Client.language` then `Company.language`; free text as
+   *  stored, narrowed by `resolveRecipientLanguage`. Used for free-text legal content (BT-33). */
+  language?: string | null;
 }
 
 /** One line's DESCRIPTIVE facts — the ARITHMETIC facts (net/VAT/gross) come from `totals.lines`,
@@ -242,6 +251,13 @@ export interface SemanticInvoiceInput {
   notes?: string | null;
   seller: SemanticPartyInput;
   buyer: SemanticPartyInput;
+  /**
+   * BT-33 (Seller additional legal information): the seller's company-law mention lines, already
+   * resolved and joined by `shared-build.ts` from the seller's own country file. A single string:
+   * UBL-SR-14 allows `cac:PartyLegalEntity/cbc:CompanyLegalForm` once. `undefined` when the seller's
+   * country declares no company law or no line is complete.
+   */
+  sellerAdditionalLegalInformation?: string;
   /** Same length and order as `totals.lines` — see this file's own header. */
   lines: SemanticLineInput[];
   totals: DocumentTotals;
@@ -365,11 +381,12 @@ export interface SemanticInvoiceInput {
    */
   customizationId?: string;
   /**
-   * Issue #472 - set ONLY when this document is a credit note: switches BT-3 to '381' and emits BG-3
-   * (see this file's own header, "BT-3" and "BG-3"). `undefined` for every invoice, whose output is
-   * therefore byte-for-byte what it was before.
+   * Issue #472 - set ONLY when this document is a credit note: switches BT-3 to '381' and, when it
+   * carries one, emits BG-3 (see this file's own header, "BT-3" and "BG-3"). A FREE credit note sets
+   * `creditNote` with no `correctedInvoice`, so it is still type 381 but references no invoice.
+   * `undefined` for every invoice, whose output is therefore byte-for-byte what it was before.
    */
-  creditNote?: { correctedInvoice: CorrectedInvoiceReference };
+  creditNote?: { correctedInvoice?: CorrectedInvoiceReference };
   /**
    * Issue #517: BT-6 (VAT accounting currency code, `cbc:TaxCurrencyCode`) and BT-111 (Invoice
    * total VAT amount in accounting currency, the SECOND `cac:TaxTotal`: `@e-invoice-eu/core`'s own
@@ -419,12 +436,17 @@ function einvoiceLegalId(
 }
 
 /** `cac:PartyLegalEntity` with the party's ISO 6523 schemeID when its country declares one. */
-function partyLegalEntity(name: string, legalId: string | undefined, iso6523Scheme: string | undefined) {
-  if (!legalId) return { 'cbc:RegistrationName': name };
+function partyLegalEntity(
+  name: string,
+  legalId: string | undefined,
+  iso6523Scheme: string | undefined,
+  companyLegalForm?: string,
+) {
   return {
     'cbc:RegistrationName': name,
-    'cbc:CompanyID': legalId,
-    ...(iso6523Scheme ? { 'cbc:CompanyID@schemeID': iso6523Scheme } : {}),
+    ...(legalId ? { 'cbc:CompanyID': legalId } : {}),
+    ...(legalId && iso6523Scheme ? { 'cbc:CompanyID@schemeID': iso6523Scheme } : {}),
+    ...(companyLegalForm ? { 'cbc:CompanyLegalForm': companyLegalForm } : {}),
   };
 }
 
@@ -533,6 +555,18 @@ function sellerPaymentMeans(seller: SemanticPartyInput): Record<string, unknown>
   ];
 }
 
+/** The stored ISO override wins over the free-text country, the priority the settings and the PDF
+ *  already give it (`country-policy.ts#resolveCompanyCountryCode`). */
+export function resolvePartyCountryCode(
+  party: Pick<SemanticPartyInput, 'country' | 'countryCode'>,
+): string | undefined {
+  return (
+    (party.countryCode ?? '').trim().toUpperCase() ||
+    guessCountryCode(party.country ?? undefined) ||
+    undefined
+  );
+}
+
 function postalAddress(party: SemanticPartyInput, fallbackCountry: string) {
   return {
     'cbc:StreetName': party.address || 'N/A',
@@ -540,7 +574,7 @@ function postalAddress(party: SemanticPartyInput, fallbackCountry: string) {
     'cbc:CityName': party.city || '',
     'cbc:PostalZone': party.postalCode || '',
     'cac:Country': {
-      'cbc:IdentificationCode': guessCountryCode(party.country ?? undefined) ?? fallbackCountry,
+      'cbc:IdentificationCode': resolvePartyCountryCode(party) ?? fallbackCountry,
     },
   };
 }
@@ -584,7 +618,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
   // wrong on its own terms — every seller-country-derived fact below (postal address country, country-
   // mandated mentions via `sellerCountryCode`, BT-23's business-process code, the SIREN-vs-bare-id
   // branching) would silently assert a French identity for a company that was never confirmed French.
-  const sellerCountryCode = guessCountryCode(input.seller.country ?? undefined);
+  const sellerCountryCode = resolvePartyCountryCode(input.seller);
   if (!sellerCountryCode) {
     throw new SemanticBuildError(
       "Cannot build an EN 16931 export: the seller's own country could not be determined — refusing " +
@@ -595,7 +629,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
         'Complete the country field on this company in Settings before exporting.',
     );
   }
-  const buyerCountryCode = guessCountryCode(input.buyer.country ?? undefined);
+  const buyerCountryCode = resolvePartyCountryCode(input.buyer);
   if (!buyerCountryCode) {
     // Same principle as the seller block just above, now enshrined on BOTH parties: the send path
     // already hard-blocks an unresolvable buyer at tax resolution (resolve-invoice-tax.ts), so the
@@ -711,6 +745,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       input.seller.name,
       sellerLegalId,
       sellerLegalIdFacts.iso6523Scheme,
+      input.sellerAdditionalLegalInformation,
     ),
   };
   if (addressScheme && sellerLegalId) {
@@ -846,8 +881,8 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // BT-10 — see `SemanticInvoiceInput.buyerReference`'s own header. Absent entirely when not
       // supplied, exactly the pre-existing behaviour for every syntax that never sets it.
       ...(input.buyerReference ? { 'cbc:BuyerReference': input.buyerReference } : {}),
-      // BG-3 - see this file's own header. Absent for every invoice.
-      ...(input.creditNote
+      // BG-3 - see this file's own header. Absent for every invoice, and for a FREE credit note.
+      ...(input.creditNote?.correctedInvoice
         ? {
             'cac:BillingReference': [
               {
@@ -871,7 +906,7 @@ export function buildSemanticInvoice(input: SemanticInvoiceInput): EuInvoice {
       // content correctness, never element ORDERING — could not catch, but a real platform's own
       // structural validation does (superpdp: "ApplicableHeaderTradeSettlement... not expected.
       // Expected is ApplicableHeaderTradeDelivery", found running the REAL round-trip against the
-      // sandbox — `pdp/superpdp.live.spec.ts` — never from a hand-built fixture). Defaulting the date to
+      // sandbox - `superpdp/superpdp.live.spec.ts` - never from a hand-built fixture). Defaulting the date to
       // the invoice's own issue date (a conventional stand-in for "delivered on issuance" when no
       // separate delivery date is tracked, same category of technical default `vatCategoryFor`
       // above already makes — never a legal/fiscal claim, BT-72 has no tax consequence) is what

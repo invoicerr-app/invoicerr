@@ -38,6 +38,8 @@ import { ConflictException } from '@nestjs/common';
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import prisma from '@/prisma/prisma.service';
 
+import { freezeBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
+
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { formatDocumentNumber } from './format-number';
 
@@ -158,10 +160,15 @@ export async function takeDocumentNumber(
     return await prisma.$transaction(async (tx) => {
       const number = await bumpSequence(tx, companyId, typeId, year);
       const displayNumber = renderChecked(pattern, number, issuedAt);
+      const document = await tx.documentInstance.findFirst({
+        where: { id: documentId, companyId, typeId },
+        select: { data: true },
+      });
+      const buyerIdentifiers = await freezeBuyerIdentifiers(tx, companyId, document?.data);
 
       const written = await tx.documentInstance.updateMany({
         where: { id: documentId, companyId, typeId, number: null },
-        data: { number, displayNumber },
+        data: { number, displayNumber, buyerIdentifiers },
       });
       if (written.count === 0) {
         throw new AlreadyNumberedError(documentId);
@@ -280,9 +287,11 @@ export async function takeDocumentNumberWithStatusTransition(
     const number = await bumpSequence(tx, companyId, typeId, year);
     const displayNumber = renderChecked(pattern, number, issuedAt);
 
+    const buyerIdentifiers = await freezeBuyerIdentifiers(tx, companyId, data);
+
     const document = await tx.documentInstance.update({
       where: { id: documentId },
-      data: { number, displayNumber },
+      data: { number, displayNumber, buyerIdentifiers },
     });
 
     return { document, numbered: { number, displayNumber } };

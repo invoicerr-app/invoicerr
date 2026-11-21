@@ -1,5 +1,33 @@
 {
   "countryCode": "DZ",
+  "companyProfile": {
+    "countryCode": "DZ",
+    "attributes": [
+      {
+        "key": "taxRegime",
+        "label": "Tax regime",
+        "help": "The regime under which the company is taxed on its turnover.",
+        "values": [
+          {
+            "value": "REAL",
+            "label": "Real regime"
+          },
+          {
+            "value": "SIMPLIFIED",
+            "label": "Simplified regime"
+          },
+          {
+            "value": "FORFAITAIRE",
+            "label": "Forfait regime"
+          }
+        ],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Code des impôts directs et taxes assimilées art. 282 (régimes d'imposition): read the consolidated article and quote the regimes before this attribute gates anything. No accessible primary source was found on 2026-10-31."
+        }
+      }
+    ]
+  },
   "policy": {
     "countryCode": "DZ",
     "documentTypes": [
@@ -773,5 +801,134 @@
       }
     ],
     "notes": "Algeria (DZ), issue #558, transcribed 2026-09-30 from RECHERCHE_558_ALGERIE.md (section 6). A single, well-sourced obligation: ten years from the document's own issue date. One of the most solidly settled points of this research pass: the schema's closed `origin` vocabulary expresses the Algerian text's own wording exactly, with no interpretive gap."
+  },
+  "companyLaw": {
+    "countryCode": "DZ",
+    "legalFormLabel": "Forme juridique",
+    "legalForms": [
+      {
+        "code": "DZ_PERSONNE_PHYSIQUE",
+        "name": "Personne physique (commerçant)",
+        "designation": "Personne physique"
+      },
+      {
+        "code": "DZ_EURL",
+        "name": "Entreprise unipersonnelle à responsabilité limitée",
+        "designation": "EURL"
+      },
+      {
+        "code": "DZ_SARL",
+        "name": "Société à responsabilité limitée",
+        "designation": "SARL"
+      },
+      {
+        "code": "DZ_SPA",
+        "name": "Société par actions",
+        "designation": "SPA"
+      },
+      {
+        "code": "DZ_SCA",
+        "name": "Société en commandite par actions",
+        "designation": "SCA"
+      },
+      {
+        "code": "DZ_SNC",
+        "name": "Société en nom collectif",
+        "designation": "SNC"
+      },
+      {
+        "code": "DZ_SCS",
+        "name": "Société en commandite simple",
+        "designation": "SCS"
+      }
+    ],
+    "fields": [
+      {
+        "key": "activity",
+        "kind": "text",
+        "label": "Nature de l'activité"
+      },
+      {
+        "key": "shareCapital",
+        "kind": "money",
+        "label": "Capital social"
+      }
+    ],
+    "mentions": [
+      {
+        "id": "dz-legal-form-and-activity",
+        "documentTypes": ["invoice"],
+        "legalForms": ["DZ_PERSONNE_PHYSIQUE", "DZ_EURL", "DZ_SARL", "DZ_SPA", "DZ_SCA", "DZ_SNC", "DZ_SCS"],
+        "required": true,
+        "template": {
+          "en": "Legal form: {legalForm}, activity: {activity}",
+          "fr": "Forme juridique : {legalForm}, activité : {activity}",
+          "it": "Forma giuridica: {legalForm}, attività: {activity}",
+          "pl": "Forma prawna: {legalForm}, działalność: {activity}",
+          "de": "Rechtsform: {legalForm}, Tätigkeit: {activity}",
+          "pt": "Forma jurídica: {legalForm}, atividade: {activity}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Décret exécutif n° 05-468 du 10 décembre 2005, art. 3 : « La facture doit comporter les mentions, ci-après , se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] forme juridique de l'agent économique et nature de l'activité ; [...] capital social, le cas échéant ; [...] numéro du registre du commerce ; [...] »",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 3, 1°: every seller, a natural person included. The decree governs the invoice; no other document type is declared. The registre du commerce number is the RC identifier. Journal officiel n° 80 du 11 décembre 2005, read at https://www.joradp.dz/FTP/jo-francais/2005/F2005080.pdf. Later amendments of the decree were not searched for."
+      },
+      {
+        "id": "dz-share-capital",
+        "documentTypes": ["invoice"],
+        "legalForms": ["DZ_EURL", "DZ_SARL", "DZ_SPA", "DZ_SCA"],
+        "required": true,
+        "template": {
+          "en": "Share capital: {shareCapital}",
+          "fr": "Capital social : {shareCapital}",
+          "it": "Capitale sociale: {shareCapital}",
+          "pl": "Kapitał zakładowy: {shareCapital}",
+          "de": "Kapital: {shareCapital}",
+          "pt": "Capital social: {shareCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Décret exécutif n° 05-468 du 10 décembre 2005, art. 3 : « La facture doit comporter les mentions, ci-après , se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] forme juridique de l'agent économique et nature de l'activité ; [...] capital social, le cas échéant ; [...] numéro du registre du commerce ; [...] »",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 3, 1°, \"capital social, le cas échéant\": required of the capital companies listed here; a natural person has none. Journal officiel n° 80 du 11 décembre 2005, read at https://www.joradp.dz/FTP/jo-francais/2005/F2005080.pdf. Later amendments of the decree were not searched for."
+      },
+      {
+        "id": "dz-share-capital-partnership",
+        "documentTypes": ["invoice"],
+        "legalForms": ["DZ_SNC", "DZ_SCS"],
+        "required": false,
+        "template": {
+          "en": "Share capital: {shareCapital}",
+          "fr": "Capital social : {shareCapital}",
+          "it": "Capitale sociale: {shareCapital}",
+          "pl": "Kapitał zakładowy: {shareCapital}",
+          "de": "Kapital: {shareCapital}",
+          "pt": "Capital social: {shareCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Décret exécutif n° 05-468 du 10 décembre 2005, art. 3 : « La facture doit comporter les mentions, ci-après , se rapportant à l'agent économique : 1°) Mentions relatives au vendeur : [...] forme juridique de l'agent économique et nature de l'activité ; [...] capital social, le cas échéant ; [...] numéro du registre du commerce ; [...] »",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 3, 1°, \"le cas échéant\": whether a partnership has a share capital to state was not settled by this research, so the line prints when filled in and is never asked for. Journal officiel n° 80 du 11 décembre 2005, read at https://www.joradp.dz/FTP/jo-francais/2005/F2005080.pdf. Later amendments of the decree were not searched for."
+      }
+    ],
+    "demo": {
+      "legalFormByNameSuffix": {
+        "EURL": "DZ_EURL",
+        "SARL": "DZ_SARL"
+      },
+      "values": {
+        "activity": "Prestations de services",
+        "shareCapital": {
+          "amount": "1000000",
+          "currency": "DZD"
+        }
+      }
+    },
+    "notes": "The decree lists the legal form and share capital among the invoice mentions themselves, unlike the European countries whose company law sets them."
   }
 }

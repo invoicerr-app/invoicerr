@@ -8,9 +8,15 @@
  */
 import { vi, type Mock } from 'vitest';
 
+import { Logger } from '@nestjs/common';
+
 import prisma from '@/prisma/prisma.service';
 
-import { createAuthorityEvents, journalSyntheticEvent } from '../conformity/authority-events.persistence';
+import {
+  createAuthorityEvents,
+  hasDeclarationResult,
+  journalSyntheticEvent,
+} from '../conformity/authority-events.persistence';
 import { ChannelNotConnectedError } from '../conformity/authority-status-poller';
 import * as persistence from '../persistence';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -19,8 +25,13 @@ import { DeclarationProvider, DeclarationResult } from './declaration-provider';
 import { DeclarationProviderRegistry } from './declaration-provider';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE, ReportJobData } from './report-job';
-import { InvalidDeclarationResultError, ReportingRunner } from './reporting-runner';
+import {
+  declarationReferenceKindOf,
+  InvalidDeclarationResultError,
+  ReportingRunner,
+} from './reporting-runner';
 import { UndeclarableDocumentError } from './build-declared-invoice';
+import { loadDeclarationOperation } from './operation-context';
 
 vi.mock('../persistence');
 vi.mock('../conformity/authority-events.persistence');
@@ -29,16 +40,24 @@ vi.mock('@/prisma/prisma.service', () => ({
   default: {
     company: { findUniqueOrThrow: vi.fn() },
     client: { findFirstOrThrow: vi.fn() },
+    documentPayment: { findFirst: vi.fn() },
   },
 }));
+vi.mock('./operation-context', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./operation-context')>();
+  return { ...original, loadDeclarationOperation: vi.fn(original.loadDeclarationOperation) };
+});
 
 const mockedFindOwnedDocument = persistence.findOwnedDocument as Mock;
 const mockedCreateAuthorityEvents = createAuthorityEvents as Mock;
 const mockedJournalSynthetic = journalSyntheticEvent as Mock;
+const mockedHasDeclarationResult = hasDeclarationResult as Mock;
 const mockedPrisma = prisma as unknown as {
   company: { findUniqueOrThrow: Mock };
   client: { findFirstOrThrow: Mock };
+  documentPayment: { findFirst: Mock };
 };
+const mockedLoadOperation = loadDeclarationOperation as Mock;
 
 const JOB_DATA: ReportJobData = {
   companyId: 'company-1',
@@ -126,6 +145,8 @@ describe('ReportingRunner.runReport', () => {
     mockedCreateAuthorityEvents.mockResolvedValue(1);
     mockedJournalSynthetic.mockResolvedValue(1);
   });
+  // `clearAllMocks` keeps implementations: a "declared" answer must not leak into later describes.
+  afterEach(() => mockedHasDeclarationResult.mockReset());
 
   it('no provider registered for this providerId: nothing journaled, document never even read', async () => {
     const runner = buildRunner(undefined);
@@ -148,11 +169,61 @@ describe('ReportingRunner.runReport', () => {
     expect(declaredInvoice.number).toBe('INV-2026-0001');
     expect(declaredInvoice.seller.vatNumber).toBe('HU12345678');
     expect(declaredInvoice.buyer.vatNumber).toBe('HU87654321');
-    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith('company-1', 'doc-1', 'nav', [SUCCESS_RESULT]);
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'nav',
+      [SUCCESS_RESULT],
+      '',
+    );
     expect(mockedJournalSynthetic).not.toHaveBeenCalled();
   });
 
+  // Issue #768: validate then send fires the same "issued" obligation twice. The second job finds the
+  // first declaration's result in the journal and declares nothing, long after BullMQ forgot the first.
+  it('a document already declared to this provider is never declared again', async () => {
+    mockedHasDeclarationResult.mockResolvedValue(true);
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    expect(await runner.runReport(JOB_DATA)).toEqual({ journaled: 0 });
+    expect(mockedHasDeclarationResult).toHaveBeenCalledWith('company-1', 'doc-1', 'nav');
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedFindOwnedDocument).not.toHaveBeenCalled();
+  });
+
+  it('a payment job is never skipped by the invoice declaration already journaled', async () => {
+    mockedHasDeclarationResult.mockResolvedValue(true);
+    const declarePayment = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn(), declarePayment });
+
+    await runner.runReport({ ...JOB_DATA, paymentId: 'pay-1' }).catch(() => undefined);
+
+    expect(mockedHasDeclarationResult).not.toHaveBeenCalled();
+  });
+
   // Credentials absent → `report:blocked`, journaled, NEVER a crash.
+  it("declares the buyer's VAT number frozen at numbering, not the client's current one", async () => {
+    mockedFindOwnedDocument.mockResolvedValue({
+      ...FIXTURE_DOCUMENT,
+      buyerIdentifiers: [
+        {
+          scheme: 'VAT',
+          value: 'HU11111111',
+          validationStatus: 'VALID',
+          validatedAt: null,
+          validationSource: null,
+        },
+      ],
+    });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await runner.runReport(JOB_DATA);
+
+    expect(declare.mock.calls[0][1].buyer.vatNumber).toBe('HU11111111');
+  });
+
   it('missing credentials (ChannelNotConnectedError): journals report:blocked, never calls createAuthorityEvents', async () => {
     const declare = vi.fn().mockRejectedValue(new ChannelNotConnectedError('nav'));
     const runner = buildRunner({ providerId: 'nav', declare });
@@ -166,6 +237,8 @@ describe('ReportingRunner.runReport', () => {
       'nav',
       REPORT_BLOCKED_STATUS_CODE,
       expect.any(String),
+      undefined,
+      '',
     );
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
   });
@@ -190,19 +263,22 @@ describe('ReportingRunner.runReport', () => {
     ['null', null],
     ['empty', ''],
     ['blank', '   '],
-  ])('a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called', async (_label, displayNumber) => {
-    mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
-    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
-    const runner = buildRunner({ providerId: 'nav', declare });
+  ])(
+    'a document with a %s displayNumber is never declared: UndeclarableDocumentError, provider never called',
+    async (_label, displayNumber) => {
+      mockedFindOwnedDocument.mockResolvedValue({ ...FIXTURE_DOCUMENT, displayNumber });
+      const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+      const runner = buildRunner({ providerId: 'nav', declare });
 
-    const attempt = runner.runReport(JOB_DATA);
-    await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
-    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
-      /Refusing to declare invoice doc-1: it has no number/,
-    );
-    expect(declare).not.toHaveBeenCalled();
-    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
-  });
+      const attempt = runner.runReport(JOB_DATA);
+      await expect(attempt).rejects.toThrow(UndeclarableDocumentError);
+      await expect(runner.runReport(JOB_DATA)).rejects.toThrow(
+        /Refusing to declare invoice doc-1: it has no number/,
+      );
+      expect(declare).not.toHaveBeenCalled();
+      expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+    },
+  );
 
   // ⚖ "MARK/transactionId not empty" — the hard contract this whole mechanism refuses to relax.
   it('a provider returning an empty authorityId is REFUSED — never journaled as a success', async () => {
@@ -211,6 +287,24 @@ describe('ReportingRunner.runReport', () => {
 
     await expect(runner.runReport(JOB_DATA)).rejects.toThrow(InvalidDeclarationResultError);
     expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+  });
+
+  it('a provider naming a reference kind no code knows is REFUSED, never journaled with a guessed origin', async () => {
+    const declare = vi.fn().mockResolvedValue({ ...SUCCESS_RESULT, referenceKind: 'minted-somewhere' });
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await expect(runner.runReport(JOB_DATA)).rejects.toThrow(/reference kind "minted-somewhere"/);
+    expect(mockedCreateAuthorityEvents).not.toHaveBeenCalled();
+  });
+
+  it('a provider naming no reference kind still declares: its reference is the authority own (the historical contract)', async () => {
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare });
+
+    await runner.runReport(JOB_DATA);
+
+    expect(declarationReferenceKindOf(SUCCESS_RESULT)).toBe('authority');
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledTimes(1);
   });
 
   it('a provider returning an empty statusCode is REFUSED the same way', async () => {
@@ -257,6 +351,23 @@ describe('ReportingRunner.recordTerminalFailure', () => {
       'nav',
       REPORT_FAILED_STATUS_CODE,
       'every retry exhausted',
+      undefined,
+      '',
+    );
+  });
+
+  it('journals report:failed under the payment id for a payment declaration', async () => {
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() });
+    await runner.recordTerminalFailure({ ...JOB_DATA, paymentId: 'payment-2' }, new Error('exhausted'));
+
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'nav',
+      REPORT_FAILED_STATUS_CODE,
+      'exhausted',
+      undefined,
+      'payment-2',
     );
   });
 
@@ -538,7 +649,39 @@ describe('ReportingRunner.runReport: credit notes and the ATCUD (issue #501)', (
       expect.objectContaining({ where: { id: 'client-1', companyId: 'company-1' } }),
     );
     expect(declared.buyer.vatNumber).toBe('HU87654321');
-    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith('company-1', 'cn-1', 'pt-at', [SUCCESS_RESULT]);
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith(
+      'company-1',
+      'cn-1',
+      'pt-at',
+      [SUCCESS_RESULT],
+      '',
+    );
+  });
+
+  it("a credit note declares the buyer's VAT number it froze at numbering, not the client's current one", async () => {
+    const frozenCreditNote = {
+      ...CREDIT_NOTE,
+      buyerIdentifiers: [
+        {
+          scheme: 'VAT',
+          value: 'HU11111111',
+          validationStatus: null,
+          validatedAt: null,
+          validationSource: null,
+        },
+      ],
+    };
+    mockedFindOwnedDocument.mockImplementation(async (_companyId: string, typeId: string, id: string) => {
+      if (typeId === 'credit-note' && id === 'cn-1') return frozenCreditNote;
+      if (typeId === 'invoice' && id === 'inv-1') return INVOICE;
+      throw new Error(`unexpected document ${typeId}/${id}`);
+    });
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'pt-at', declare });
+
+    await runner.runReport(CN_JOB);
+
+    expect(declare.mock.calls[0][1].buyer.vatNumber).toBe('HU11111111');
   });
 
   it('a credit note that corrects no invoice is never declared: UndeclarableDocumentError, provider never called', async () => {
@@ -564,5 +707,72 @@ describe('ReportingRunner.runReport: credit notes and the ATCUD (issue #501)', (
 
     await expect(runner.runReport(CN_JOB)).rejects.toThrow(UndeclarableDocumentError);
     expect(declare).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReportingRunner.runReport: payment declarations', () => {
+  const PAYMENT_JOB: ReportJobData = { ...JOB_DATA, paymentId: 'payment-1' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedFindOwnedDocument.mockResolvedValue(FIXTURE_DOCUMENT);
+    mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedPrisma.documentPayment.findFirst.mockResolvedValue({
+      id: 'payment-1',
+      documentAmountMinor: 10000,
+      paidAt: new Date('2026-09-10T00:00:00Z'),
+      currency: 'HUF',
+    });
+    mockedLoadOperation.mockResolvedValue(undefined);
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    mockedJournalSynthetic.mockResolvedValue(1);
+  });
+
+  it('journals the payment declaration under its own payment id, not the invoice key', async () => {
+    const declarePayment = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn(), declarePayment });
+
+    expect(await runner.runReport(PAYMENT_JOB)).toEqual({ journaled: 1 });
+    expect(declarePayment).toHaveBeenCalledTimes(1);
+    expect(mockedCreateAuthorityEvents).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'nav',
+      [SUCCESS_RESULT],
+      'payment-1',
+    );
+  });
+
+  it('a provider that cannot declare payments is journaled report:blocked under the payment id', async () => {
+    const runner = buildRunner({ providerId: 'nav', declare: vi.fn() });
+
+    expect(await runner.runReport(PAYMENT_JOB)).toEqual({ journaled: 1 });
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'nav',
+      REPORT_BLOCKED_STATUS_CODE,
+      expect.any(String),
+      undefined,
+      'payment-1',
+    );
+  });
+
+  it('says so in a warning, not a success log, when the journal writes nothing', async () => {
+    mockedCreateAuthorityEvents.mockResolvedValue(0);
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const log = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const runner = buildRunner({
+      providerId: 'nav',
+      declare: vi.fn(),
+      declarePayment: vi.fn().mockResolvedValue(SUCCESS_RESULT),
+    });
+
+    expect(await runner.runReport(PAYMENT_JOB)).toEqual({ journaled: 0 });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('NOT journaled'));
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining('journaled:'));
+    warn.mockRestore();
+    log.mockRestore();
   });
 });

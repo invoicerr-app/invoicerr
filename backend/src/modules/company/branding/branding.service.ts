@@ -1,13 +1,8 @@
 /**
- * Chantier B (2026-09-15 product decision) — "the PDF stays a FIXED
- * document, only THREE brand fields personalize it: logo, accent color, font". This is the
- * `Controller → Service → Prisma` surface for `Company.brandingLogoId`/`brandingAccentColor`/
- * `brandingFont`/`brandingPreset` — `branding.controller.ts` never touches Prisma or the logo store
- * directly. The catalogs this reads from (`FONT_CATALOG`, `BRANDING_PRESETS`) live under
- * `documents/rendering/branding/` — plain, DI-free modules reused here by IMPORT, never by Nest
- * injection, so `CompanyModule` gains no dependency on `DocumentsModule`/`DocumentsCoreModule` (the
- * same avoid-a-cross-module-cycle reasoning `mail-settings/company-mail-settings.resolver.ts`'s own
- * header documents for why IT never imports `MailService` either).
+ * The branding surface: the PDF stays a fixed document and only the logo, accent colour, font and
+ * preset personalise it. `branding.controller.ts` never touches Prisma or the logo store, and the
+ * catalogues come from `documents/rendering/branding/` by import, so `CompanyModule` gains no
+ * dependency on the documents modules.
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -28,6 +23,7 @@ import {
   BrandingPreset,
   brandingPresetById,
 } from '@/modules/documents/rendering/branding/presets';
+import { DOCUMENT_TEMPLATES, isDocumentTemplateKey } from '@/modules/documents/rendering/branding/templates';
 import { renderDocumentHtml } from '@/modules/documents/rendering/render-html';
 import prisma from '@/prisma/prisma.service';
 
@@ -50,6 +46,7 @@ interface BrandingColumns {
   brandingFont: string | null;
   brandingPreset: string | null;
   brandingLogoId: string | null;
+  brandingTemplate: string | null;
 }
 
 export interface BrandingStatus {
@@ -61,6 +58,8 @@ export interface BrandingStatus {
    *  module's own header on why both catalogs live under `documents/rendering/branding/`. */
   presets: readonly BrandingPreset[];
   fonts: { key: string; label: string }[];
+  template: string | null;
+  templates: readonly { key: string; label: string }[];
 }
 
 @Injectable()
@@ -99,6 +98,11 @@ export class BrandingService {
     if (accentColor !== undefined && accentColor !== null && !HEX_COLOR_PATTERN.test(accentColor)) {
       throw new BadRequestException('accentColor must be a hex color like "#1a2b3c".');
     }
+    if (dto.template !== undefined && dto.template !== null && !isDocumentTemplateKey(dto.template)) {
+      throw new BadRequestException(
+        `Unknown template "${dto.template}" — expected one of: ${DOCUMENT_TEMPLATES.map((entry) => entry.key).join(', ')}.`,
+      );
+    }
     if (font !== undefined && font !== null && !isBrandingFontKey(font)) {
       throw new BadRequestException(
         `Unknown font "${font}" — expected one of: ${FONT_CATALOG.map((f) => f.key).join(', ')}.`,
@@ -114,10 +118,12 @@ export class BrandingService {
       brandingAccentColor?: string | null;
       brandingFont?: string | null;
       brandingPreset?: string | null;
+      brandingTemplate?: string | null;
     } = {};
     if (accentColor !== undefined) data.brandingAccentColor = accentColor;
     if (font !== undefined) data.brandingFont = font;
     if (dto.preset !== undefined) data.brandingPreset = dto.preset;
+    if (dto.template !== undefined) data.brandingTemplate = dto.template;
 
     const updated = await prisma.company.update({
       where: { id: companyId },
@@ -190,6 +196,7 @@ export class BrandingService {
         accentColor: company.brandingAccentColor,
         font: company.brandingFont,
         logoDataUri: await logoDataUriFor(companyId, company.brandingLogoId),
+        template: company.brandingTemplate,
       },
     });
   }
@@ -211,6 +218,7 @@ export class BrandingService {
         brandingFont: true,
         brandingPreset: true,
         brandingLogoId: true,
+        brandingTemplate: true,
       },
     });
     if (!company) throw new NotFoundException('Company not found');
@@ -225,6 +233,8 @@ export class BrandingService {
       hasLogo: !!company.brandingLogoId,
       presets: BRANDING_PRESETS,
       fonts: FONT_CATALOG.map((entry: BrandingFontCatalogEntry) => ({ key: entry.key, label: entry.label })),
+      template: company.brandingTemplate,
+      templates: DOCUMENT_TEMPLATES,
     };
   }
 }

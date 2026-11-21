@@ -129,7 +129,8 @@ separate directory or file to open any more; the "Section" column names the exac
 | B2G routing | `b2gRouting` | When this country is the **government client's** country: which transport + format, which client identifiers/document fields it needs. | Yes - `boot-upsert.ts`, unconditionally re-upserted on **every** backend boot (`OnModuleInit`). |
 | Correction routes | `correctionRoutes` | For each of the 11 canonical correction routes (credit note, corrective invoice, cancel-and-replace, …), is it `required`/`allowed`/`forbidden`/`unverified` for this country. | No - read live from the file. |
 | Local cancel | `correctionRoutes` (`locallyImplementable` / `restrictedToStatuses` on the `CANCEL_AND_REPLACE` route) | Whether *this app* can actually realize `CANCEL_AND_REPLACE` locally for this country, and from which invoice statuses. Read by `correction-routes/cancel-policy.ts`. | No - read live from the file. |
-| Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope: { "parties": "domestic" }`, meaning it binds only an invoice whose buyer is established in the same country - which is what both national mandates shipped today actually say. | No - read live from the file. |
+| Channel policy | `channelPolicy` | For a company **established** in this country: is a given transmission channel merely usual (`suggested`) or legally required from a date (`mandated`)? A `mandated` fact may narrow itself with `scope`: `"parties": "domestic"` binds only an invoice whose buyer is established in the same country, which is what both national mandates shipped today actually say; `"buyerType": ["COMPANY"]` binds only an invoice to a business client, so an invoice to a private client (client type Individual) is outside it; `"seller": { "sizeCategory": ["SME"] }` binds only a seller whose company profile carries one of the listed values. An absent key binds every invoice; an unknown key or value is refused at load. A buyer whose type cannot be read, and a seller that has not declared the attribute, are treated as bound; the seller profile a fact is matched against is the one the settings screen shows, derived values included, so an answer whose `askedWhen` no longer holds is never part of it. | No - read live from the file. |
+| Company profile | `companyProfile` | The facts about a seller this country's rules depend on and only the company can declare (France: its size category, whether it is a member of a VAT group, whether it opted for VAT on debits). Each attribute has a `key`, an English `label`, an optional `help`, the `values` it may take and a `provenance`. An attribute is asked only when the company's own values satisfy its `askedWhen`; one whose value follows from a setting the company already made declares `derived` instead of being asked. The company settings show one row per attribute the country declares; the API refuses an attribute or a value the country does not declare, and refuses a value for a derived attribute. | No - read live from the file; the company's values are stored in `Company.reportingProfile`. |
 | Tax system | `taxSystem` | What the cross-border tax engine assumes about this country's rate structure (VAT/GST/SALES_TAX/NONE, standard rate). Does **not** cover EU/GCC union membership or a Peppol EAS code - see the maintainer note below, "EU/GCC membership and Peppol EAS live in a reference table, not a country file". | No - read live from the file. |
 | Country identifiers | `identifiers` | Which national identifier schemes (SIRET, EIN, VAT number, …) a party of this country must supply, and how a legal identifier is written into an e-invoice (see the maintainer note below, "how a legal identifier is written into an e-invoice"). A scheme with `required: true` must be filled in to save a party of this country, for the party types `requiredFor` names (every type in `appliesTo` when absent). What an issued invoice must carry is `invoiceRequirements`, read from the seller's country. | Yes - auto-corrected on **every boot**, same mechanism as document-action policy (see below), plus `prisma/seed.ts`. |
 | Country field overlay | `countryFields` | Adds/modifies/removes a **field** on an existing document type's shape for this country. | No - read live from the file. |
@@ -138,12 +139,13 @@ separate directory or file to open any more; the "Section" column names the exac
 | Content requirements | `contentRequirements` | Whether a specific EN 16931 field (e.g. BT-23) must carry a country-derived value from a date. | No - read live from the file. |
 | VAT rate catalog | `vatRates` | The rate **ladder** a user picks from on one invoice line (presentation data, not a tax computation). | No - read live from the file. |
 | Archive retention | `retention` | How long a document archived for this country must be kept, and - just as important - **what that duration is counted from** (`origin`: the archiving instant, the issue date, the end of its calendar year, or a safe reading of a financial-year close). A country may declare SEVERAL rules: they are simultaneous obligations, and the effective floor is their maximum, never a choice between them. | No - read live from the file; written onto `DocumentArchive.retentionUntil`/`retentionBasis` when an archive is created. |
-| Reporting obligation | `reporting` | Whether this country requires an invoice's data to reach its tax authority after issuance, independently of how the invoice was delivered - distinct from channel policy, which is about delivery. Each fact says WHO discharges it (`dischargedBy: "provider"`, the seller itself; or `"transport"`, when the delivery channel already carries the data as a legal side effect - France's PDP for a B2B-domestic invoice) and, optionally, WHICH transactions it covers (`scope`, e.g. `"b2c"`/`"international"`/`"payments"` - absent means "every transaction", the shape Portugal's own file still uses). Only an unscoped `"provider"` fact is auto-triggered at send time; a `"transport"` fact or a scoped one is catalog data only - see `reporting/schema.ts`'s own header. | No - read live from the file. |
+| Reporting obligation | `reporting` | The country's declaration duties, upgraded at load to the v2 obligation format described in [Declarations](./declarations.md) (id, authority, kind, trigger, scope, timing, channels). Whether this country requires an invoice's data to reach its tax authority after issuance, independently of how the invoice was delivered - distinct from channel policy, which is about delivery. Each fact says WHO discharges it (`dischargedBy: "provider"`, the seller itself; or `"transport"`, when the delivery channel already carries the data as a legal side effect - France's accredited platform (PA) for a B2B-domestic invoice) and, optionally, WHICH transactions it covers (`scope`, e.g. `"b2c"`/`"international"`/`"payments"` - absent means "every transaction", the shape Portugal's own file still uses). Only an unscoped `"provider"` fact is auto-triggered at send time; a `"transport"` fact or a scoped one is catalog data only - see `reporting/schema.ts`'s own header. | No - read live from the file. |
 | VAT national currency | `vatCurrency` | Whether this country's VAT must additionally appear converted into its own national currency when the invoice is issued in another one, and whether the taxable amount must too. | No - read live from the file. |
 | Domestic reverse charge | `domesticReverseCharge` | The statutory categories in which the buyer, not the seller, owes the VAT on a purely domestic supply. | No - read live from the file; not wired into the tax engine yet. |
 | Company lookup | `companyLookup` | Which company registry providers autofill a company or client form for this country, in the order they are tried before the worldwide directories, and the i18n key of the note shown with it. See "Company lookup" below. | No - read live from the file by `company-lookup/coverage/registry.ts`. |
 | Payment term cap | `paymentTerms` | The longest payment term two businesses may agree on in this country, in days after the issue date: `maxNetDays`, and `maxEndOfMonthDays` for a term counted to the end of the month. Provenance is mandatory. Read by the payment-terms setting (`GET /api/company/payment-terms`) to show a non-blocking warning; a country without the section gets no warning. | No - read live from the file. |
 | National e-invoice codes | `einvoiceCodes` | The codes a national format needs where EN 16931 has none: the exemption code of an untaxed line and the rule that selects it (`exemptionCodes`), the code of the seller's tax scheme (`taxRegimeCodes`), and the recipient codes used when the buyer has no delivery code (`recipientCodes`). Provenance is mandatory on every code. Read by the FatturaPA builder; Italy is the only country with the section. | No - read live from the file. |
+| Company-law mentions | `companyLaw` | The seller's company-law identity this country requires on its documents: the legal forms a company picks from, the values each form must give (share capital, register court or city, managing directors, …), and the template printed for each mention, in every language a document renders in. See the maintainer note below, "company-law mentions". | No - read live from the file. |
 
 You will rarely need all of these for a new country. A country whose only need is "let the OSS tax
 engine compute a destination rate for it" needs *only* the `taxSystem` section - see
@@ -515,7 +517,8 @@ resolved list is stored in the `requiredFor` column of `CountryIdentifierRequire
 The flag cannot say what the invoice itself must show, because that depends on the transaction: a
 French seller states its VAT
 number unless it is under the franchise en base, and its client's VAT number only for an
-intra-Community B2B sale. Those rules live in the same `identifiers` section, under
+intra-Community B2B sale to a VAT-registered buyer. Those rules live in the same `identifiers`
+section, under
 `invoiceRequirements`, and are always read from the SELLER's country:
 
 ```json
@@ -523,7 +526,7 @@ intra-Community B2B sale. Those rules live in the same `identifiers` section, un
   {
     "party": "BUYER",
     "scheme": "VAT",
-    "when": { "buyerType": ["COMPANY"], "buyerEstablishment": ["OTHER_UNION_MEMBER"] },
+    "when": { "buyerVatRegistered": [true], "buyerEstablishment": ["OTHER_UNION_MEMBER"] },
     "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "2026-10-23" },
     "notes": "CGI ann. II art. 242 nonies A, I, 3° and 4°. ..."
   }
@@ -534,13 +537,37 @@ intra-Community B2B sale. Those rules live in the same `identifiers` section, un
 | --- | --- |
 | `party` | `SELLER` or `BUYER`. |
 | `scheme` | The cross-country scheme key (`LEGAL_ID`, `VAT`, or a national one such as `RC`). The value printed is the party's own, under the label its own country gives that scheme. |
-| `when` | Optional. Every axis listed must match; an absent axis matches anything; no `when` means always. `sellerVatRegime`: `STANDARD` or `FRANCHISE_BASE` (the company's small-business exemption setting). `buyerType`: `COMPANY` or `INDIVIDUAL` (the client's type). `buyerEstablishment`: `DOMESTIC` (same country as the seller) or `OTHER_UNION_MEMBER` (another member of the seller's tax union, from `tax/tax-unions/data/tax-unions.json`). |
+| `when` | Optional. Every axis listed must match; an absent axis matches anything; no `when` means always. `sellerVatRegime`: `STANDARD` or `FRANCHISE_BASE` (the company's small-business exemption setting). `buyerType`: `COMPANY` or `INDIVIDUAL` (the client's type). `buyerEstablishment`: `DOMESTIC` (same country as the seller), `OTHER_UNION_MEMBER` (another member of the seller's tax union, from `tax/tax-unions/data/tax-unions.json`) or `NON_UNION` (a known foreign buyer outside that union; every foreign buyer of a seller in no union). A buyer whose country is missing matches none of the three. `buyerVatRegistered`: `true` or `false` (whether the client is a VAT-registered business, from the client's own flag; a private client is always `false`, so a buyer VAT rule keyed on `true` needs no `buyerType`). |
 | `provenance`, `notes` | Same discipline as every other fact. Start `notes` with the short citation: the country pages show it. |
 
 Several rules for the same party and scheme are alternatives: France has two seller `VAT` rules, one
 for a VAT-registered seller and one for an intra-Community B2B sale, which applies even under the
 franchise. `countries/data/all.ts` refuses an unknown party, axis or value at load time
 (`assertValidInvoiceRequirement`), since a condition no code evaluates would silently never match.
+
+The two must not drift apart: a party saved without a number every invoice asks of it would only be
+refused at Validate. `countries/data/all.ts` therefore refuses, at load time, a file in which a rule
+always binds a party type that the scheme's `required` / `requiredFor` leaves free
+(`assertFormRequiresInvoiceIdentifiers`, `country-identifiers/schema.ts`). A rule always binds:
+
+| Rule | Party type it binds | Form that must require the scheme |
+| --- | --- | --- |
+| `SELLER`, no `buyerType`, `buyerEstablishment` or `buyerVatRegistered` condition | `COMPANY` | Company settings and onboarding |
+| `BUYER`, `buyerEstablishment` absent or listing `DOMESTIC`, and no `buyerVatRegistered` condition | each `buyerType` listed, both when absent | Client wizard and client CSV import |
+
+A `sellerVatRegime` or `buyerType` condition listing every value counts as absent, and so does a
+`buyerVatRegistered` condition listing both `true` and `false`; any other `sellerVatRegime`
+condition makes the rule conditional, and so does a `BUYER` rule for another member
+state only, or one keyed on `buyerVatRegistered` alone. A conditional rule is left to Validate. The refusal names every drift of the file at once,
+for example:
+
+```text
+documents/countries/data/pl.json#identifiers: scheme "LEGAL_ID" is required of every BUYER of type
+COMPANY by invoiceRequirements but is not required for COMPANY in schemes.
+```
+
+Fix the scheme, not the rule: set `required` (and `requiredFor` when only some party types are bound)
+with the same legal source the rule quotes.
 
 What the PDF does with them (`country-identifiers/printed-identifiers.ts`): each party block prints
 every identifier the party has filled in, required or not. On a working copy of an invoice (a draft,
@@ -558,6 +585,70 @@ completes the client. A scheme's `required` flag is never read at issuance.
 The frontend renders it from those params in the reader's language. Client type
 stands in for "acts as a business": the app does not record whether a client is VAT-registered, and
 each rule's `notes` says where that approximation matters.
+
+### Maintainer note: company-law mentions
+
+The `companyLaw` section carries what a country's company law asks a seller to print about itself:
+legal form, share capital, trade register. It is distinct from `identifiers` (a template may quote an
+identifier, it never redeclares one) and from `mentions` (notes about the transaction):
+
+```json
+"companyLaw": {
+  "countryCode": "FR",
+  "legalFormLabel": "Forme juridique",
+  "legalForms": [
+    { "code": "FR_SAS", "name": "Société par actions simplifiée (SAS, SASU)", "designation": "SAS" },
+    { "code": "FR_EI", "name": "Entrepreneur individuel (EI, micro-entrepreneur)", "designation": "EI" }
+  ],
+  "fields": [
+    { "key": "shareCapital", "kind": "money", "label": "Capital social" },
+    { "key": "registerCity", "kind": "text", "label": "Ville du greffe (RCS)" }
+  ],
+  "mentions": [
+    {
+      "id": "fr-legal-form-and-capital",
+      "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+      "legalForms": ["FR_SAS"],
+      "required": true,
+      "template": { "en": "{legalForm} with a share capital of {shareCapital}", "fr": "{legalForm} au capital de {shareCapital}", "...": "..." },
+      "provenance": { "kind": "legal", "sourceText": "...", "sourceCheckedAt": "2026-10-25" },
+      "notes": "R. 123-238, 3° and 4°. ..."
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `legalFormLabel` | The country's own name for the legal form, shown above the select and in a missing marker. |
+| `legalForms` | The forms a company of this country picks from. `code` is stored on the company and starts with the country code (`FR_SAS`), so a form kept across a change of country never reads as another country's form; `designation` is what `{legalForm}` prints, in the words the law accepts; `singleMember` records the sole-member question when it applies (Italy's `SU`/`SM`); `hasRegisterEntry` records that the form holds a trade-register entry even when no printed mention quotes one (every Italian form, art. 2188 c.c.); `notes` says why a form carries no mention, when it carries none. |
+| `fields` | The values a company may be asked for. `kind` is `text` or `money` (an amount and its currency). `label` is the country's own name for it. The key `legalForm` is reserved. `asked: true` shows the field even when no printed mention quotes it, for a fact an electronic format needs (Italy's register-office province and liquidation status); it is asked for a legal form the section covers with at least one mention, and for one that declares `hasRegisterEntry`. |
+| `mentions[].documentTypes` | The document type ids the mention is printed on. |
+| `mentions[].legalForms` | The forms it binds. A form with no mention prints nothing, which is how a sole trader or a partnership gets no capital line. |
+| `mentions[].required` | `true`: every value it quotes is required, the working copy flags a gap and Validate and Send refuse it. `false`: printed once every value is filled in, never asked for (an RCS city an individual entrepreneur may or may not have). |
+| `mentions[].template` | One string per language a document renders in (`en`, `fr`, `it`, `pl`, `de`, `pt`), all quoting the same placeholders: `{legalForm}`, a field key such as `{shareCapital}`, or `{identifier:LEGAL_ID}` for a value of the company's identifiers. |
+| `provenance`, `notes` | Same discipline as every other fact. |
+| `demo` | Optional. What a demo company of this country is seeded with: `legalFormByNameSuffix` maps the suffix ending a demo company name to a legal form, and `values` fills its fields (`{city}` stands for the company's city, `{province}` the province `cityProvinces` gives for that city). The demo seed (`demo/seed-runtime/seed-company.ts`) reads it, so a demo invoice can be validated. |
+
+`countries/data/all.ts` refuses, at load time, a template missing for one language, a placeholder
+naming an undeclared field, templates of one mention quoting different placeholders, a mention naming
+an undeclared legal form, a legal form code without the country prefix, a mention without provenance, and a `demo` naming an undeclared legal form or field (`assertValidCompanyLawSection`).
+
+The settings screen reads `GET /api/documents/company-law?countryCode=XX`
+(`company-law/company-law.ts#companyLawSettings`): each legal form and the fields its mentions quote,
+each marked required when a required mention quotes it. The screen shows the legal form select and
+the fields of the selected form, and never reads a country code. The values are stored in
+`Company.companyLaw`, `{ "legalForm": "FR_SAS", "values": { ... } }`, and kept when the country changes;
+a legal form of the previous country is not one of the new country's, so it is asked for again.
+
+The PDF (`rendering/render-instance-pdf.ts`) prints the mentions of the document's type right under
+the company name, in the document's language, an amount as `1000.00 EUR` like every other amount of
+the page. On a working copy of an invoice a required mention with a gap is printed with a "missing"
+marker in place of the value; the copy a client keeps leaves that mention out. Validate and Send add
+the same gaps, party `SELLER` and the field key as `scheme`, to the `INVOICE_IDENTIFIERS_MISSING`
+refusal described in the note above, so the same message and the same **Edit company** button cover
+them. A company that has not picked a legal form is asked for it, under `legalFormLabel`, as soon as
+a required mention covers the document type.
 
 ### Maintainer note: frontend country reference data
 
@@ -677,15 +768,24 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   you're not yet confident the channel is genuinely *required* rather than merely usual, stay
  `suggested` - see Italy's and Poland's own `suggested` entries, both still `unverified` today but
   honestly so.
-  The mandate mechanism understands exactly ONE narrowing, and no other: `scope: { "parties":
-  "domestic" }`, which makes the fact bind only when the buyer is established in the same country.
+  The mandate mechanism understands three narrowings, and no other. `scope: { "parties":
+  "domestic" }` makes the fact bind only when the buyer is established in the same country.
   Declare it whenever the statute you quote restricts itself to operations between parties
   established there, as France's CGI art. 289 bis and Italy's D.Lgs. 127/2015 art. 1 comma 3 both do
-  - without it the mandate would refuse a lawful cross-border invoice. `scope` is a **closed** shape:
+  - without it the mandate would refuse a lawful cross-border invoice. `"buyerType"` lists the client
+  types it binds. `"seller"` is a condition on the seller's company profile, `{ "<attribute>":
+  ["<value>", ...] }`: every attribute it names must be declared by the same file's `companyProfile`
+  section, with the listed values, or the file is refused at load. A mandate whose start date depends
+  on the seller is written as one fact per start date, each with its own `seller` condition, as
+  France does for its size categories; a seller that has not declared the attribute matches every
+  such fact, so the earliest date binds it, which is also the fail-closed side of an unanswered
+  question: France's `vatGroupMember` is declared in one fact from 2026-09-01 and in the deferred
+  fact only as `NOT_MEMBER`, so an SME that never answered is bound from 2026-09-01. `scope` is a
+  **closed** shape:
   any other key, or any other value, throws at load rather than being ignored, because a silently
   ignored narrowing is a legal block left armed (or disarmed) by accident. Every other kind of
-  conditional or partial exception - a turnover threshold, a taxpayer status, a transaction type -
-  still has no way to be encoded, and a fact that would need one stays `suggested`: see Poland's
+  conditional or partial exception - a turnover threshold, a transaction type, a seller fact no
+  `companyProfile` attribute declares - still has no way to be encoded, and a fact that would need one stays `suggested`: see Poland's
   own notes for a worked example of that choice.
   Narrowing the invoicing mandate does not discharge whatever DECLARATION the same law may still
   require for the cross-border operation (France's e-reporting, Italy's art. 1 comma 3-bis). That
@@ -735,7 +835,19 @@ comments explaining exactly why each field exists. A few shapes worth knowing up
   distinction, never to "narrow" a fact for convenience. A scoped fact, or one with
   `dischargedBy: "transport"`, is deliberately never auto-triggered at send time (this codebase has
   no per-invoice B2B/B2C classifier yet) — it stays catalog data, read by the settings screen, until
-  that wiring exists.
+  that wiring exists. When a `"transport"` fact and a `"provider"` fact are the same legal entity
+  (France's `pdp` transport and `fr-pa` provider are one accredited platform), give both the same
+  `platformId` so the settings card shows one platform. `upgradeLegacyFacts` turns every fact into a
+  v2 obligation, and the load-time validator refuses a malformed one with a named error: see
+  [Declarations](./declarations.md) for the format and the full list of rules.
+  A fact's `provenance` and `notes` are research provenance for maintainers and are never shown to
+  users. The Declarations card of the Channels settings shows, behind each platform's `?`, the text
+  written for users in `frontend/src/locales/en/translation.json` under
+  `settings.channels.declarations.<platformId>` (`label` and `explanation`), translated through
+  Weblate. A new `platformId` needs both keys; without an `explanation` the row has no `?`.
+
+- `companyProfile` attributes answer only when they are relevant. `askedWhen` names another attribute of the same file and the values that make this one apply, `{ "vatRegime": ["NORMAL"] }`, and a condition naming an attribute or a value the file does not declare is refused at load. An attribute the company does not answer declares `derived` instead, `{ "source": "exemptVat", "whenTrue": "FRANCHISE", "whenFalse": "NORMAL" }`: the settings screen shows it read-only and the API refuses a declared value for it.
+- `codeLists` is one array of lists, each with a camelCase `id`, an English `label`, a `provenance` and a non-empty `entries` array. An entry carries a `code`, a `label` and, when it answers only part of the input, a `when` object of input keys and the values they must take. A duplicate list id, a duplicate code inside one list and an empty list are refused at load. Read a list only through `code-lists/lookup.ts`: it answers the first entry whose conditions all hold and throws `UnmappedCodeError` when none does, so a code a declaration must send is never defaulted. Italy ships the two FatturaPA tables, `fatturaPaNatura` and `fatturaPaRegimeFiscale`, and Germany the Zusammenfassende Meldung `zmUmsatzart` and Poland the VAT-UE summary return parts `vatUePart`, selected by an `operation` input. Portugal ships `ptAtTaxCode`, selected by a `rate` input, and it is the first list a declaration reads: the `pt-at` provider takes each declared `TaxCode` from it.
 
 - `companyLookup` lists provider ids (`"providers": ["fr-recherche-entreprises", "eu-vies"]`, each the
   `id` of a provider registered in `company-lookup/registry.ts#buildDefaultProviders`) and an
@@ -888,7 +1000,11 @@ Some countries genuinely need code, not just data:
   `documents.countryFields.<fieldKey>`. A field that is the same everywhere shares one label key
   (`supplyType.label`); a help text that differs by country gets a variant named after what it says
   (`supplyType.crossBorderTax.helpText`, `supplyType.billingFramework.helpText`), so two countries
-  that explain a field the same way share one key. `descriptors/descriptor-i18n-keys.spec.ts` fails on a missing key.
+  that explain a field the same way share one key. An overlay select's options each name their own
+  `labelKey` next to `label`, under `documents.countryFields.<fieldKey>.options.<value>`
+  (`supplyType.options.goods`, `supplyType.options.services`).
+  `descriptors/descriptor-i18n-keys.spec.ts` fails on a missing key, or when the English text
+  differs from the overlay's own `label`.
 
 One part of a country stays in TypeScript on purpose: its demo seed pool. The sample content used
 to populate the demo (country name and language, cities and postal codes, company, client and

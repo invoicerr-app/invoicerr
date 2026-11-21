@@ -17,6 +17,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     the counter goes on without a gap.
  */
 const api = Cypress.env("apiUrl");
+import { companyLawFor } from "../fixtures/company-law";
 
 interface NumberFormatRow {
 	typeId: string;
@@ -38,6 +39,7 @@ function switchCompanyToItaly() {
 			name: "Acme Corp",
 			country: "Italy",
 			countryCode: "IT",
+			companyLaw: companyLawFor("IT"),
 			currency: "EUR",
 			invoiceTransportId: "email",
 			identifiers: [

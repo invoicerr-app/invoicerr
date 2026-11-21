@@ -1,17 +1,12 @@
 /**
  * Netherlands — KVK Handelsregister.
- *
- * Endpoint : GET https://api.kvk.nl/api/v2/zoeken?kvkNummer={n}   (header `apikey`)
- * Docs     : https://developers.kvk.nl/
- * Credentials: KVK_API_KEY (free test key, paid production key).
- *
- * The KVK number is not the VAT number: Dutch VAT (BTW-id) is issued separately by
- * the Belastingdienst, so it is left to VIES.
+ * Docs: https://developers.kvk.nl/ (KVK_API_KEY). The KVK number is not the VAT number, which VIES
+ * covers.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const KVK_URL = 'https://api.kvk.nl/api/v2/zoeken';
 
@@ -23,10 +18,10 @@ export class NetherlandsKvkProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://developers.kvk.nl/';
   readonly credentialEnvVars = ['KVK_API_KEY'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.KVK_API_KEY;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

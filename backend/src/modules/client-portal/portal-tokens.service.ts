@@ -1,3 +1,4 @@
+import { appOrigin } from '@/utils/app-origin';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
@@ -171,10 +172,10 @@ export class PortalTokensService {
     return { revoked: true };
   }
 
-  /** `appUrl` — same `process.env.APP_URL` source `signatures.service.ts#sendSignatureRequestEmail`
-   *  already reads, the frontend's own origin (never the backend's — see that file's header). */
+  /** The frontend's own origin, the same `appOrigin()` every emailed link uses (never the backend's
+   *  own port; see `utils/app-origin.ts`). */
   private buildPortalUrl(path: string): string {
-    const appUrl = process.env.APP_URL || '';
+    const appUrl = appOrigin();
     return `${appUrl}${path}`;
   }
 

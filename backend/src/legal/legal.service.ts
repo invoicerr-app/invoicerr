@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { isBillingEnabled } from '../modules/billing/billing-flag';
 import { isDemoModeEnabled } from '../modules/demo/demo-flag';
+import { DemoInstanceView, describeDemoInstance } from '../modules/demo/demo-instance';
 import { AcceptanceMeta, getPendingAcceptanceSlugs, recordLegalAcceptance } from './legal-acceptance';
 import { LegalDocumentView, resolveLegalDocumentView } from './legal-document-view';
 import { REQUIRED_ACCEPTANCE_SLUGS, listLegalDocuments } from './legal-documents';
@@ -24,6 +25,8 @@ export interface LegalDocumentsView {
    * backend actually allows.
    */
   demoMode: boolean;
+  /** The demo account and reset interval the sign-in page shows; null whenever `demoMode` is false. */
+  demo: DemoInstanceView | null;
   documents: LegalDocumentView[];
 }
 
@@ -65,6 +68,7 @@ export class LegalService {
     return {
       saasMode,
       demoMode: isDemoModeEnabled(),
+      demo: describeDemoInstance(),
       documents: saasMode
         ? listLegalDocuments().map((doc) => resolveLegalDocumentView(doc, preferredLanguages))
         : [],

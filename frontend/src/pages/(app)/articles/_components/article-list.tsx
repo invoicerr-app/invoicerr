@@ -4,10 +4,8 @@ import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useArticles, useCompany } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import { useArticles, useCompanyCurrencySymbol } from "@/hooks/queries"
 import type { Article } from "@/types"
 
 import { FilterChip, FilterChipGroup, ListRow, ListSearch, ListSkeleton } from "../../_shared/data-list"
@@ -37,7 +35,9 @@ function ArticleRow({
       identity={
         <>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="min-w-0 break-words font-medium text-foreground">{article.name}</h2>
+            <h2 className="min-w-0 break-words font-sans text-[15px] font-semibold text-foreground">
+              {article.name}
+            </h2>
             <Badge variant="outline" className="text-xs">
               {t(`articles.fields.type.${article.type?.toLowerCase()}`) || article.type}
             </Badge>
@@ -56,10 +56,13 @@ function ArticleRow({
         </>
       }
       figures={
-        <div className="font-mono text-sm tabular-nums">
-          <div>
+        <div className="text-end text-sm">
+          <div className="amount text-[15px]">
             {article.unitPrice}
-            {currencySymbol} · {article.vatRate}%
+            {currencySymbol}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {t("articles.fields.vatRate.label")}: {article.vatRate}
           </div>
           {article.quantity != null && (
             <div className="text-xs text-muted-foreground">
@@ -108,8 +111,7 @@ function ArticleRow({
 export function ArticlesList() {
   const { t } = useTranslation()
   const { data: articles = [], isLoading } = useArticles()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
+  const currencySymbol = useCompanyCurrencySymbol("")
 
   const [searchTerm, setSearchTerm] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)
@@ -139,8 +141,8 @@ export function ArticlesList() {
 
   return (
     <>
-      <Card className="gap-0">
-        <CardHeader className="gap-3 border-b">
+      <div className="space-y-5">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <ListSearch
               value={searchTerm}
@@ -179,9 +181,9 @@ export function ArticlesList() {
               />
             </FilterChipGroup>
           )}
-        </CardHeader>
+        </div>
 
-        <CardContent className="p-0">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sheet">
           {isLoading ? (
             <ListSkeleton dataCy="articles-skeleton" />
           ) : filtered.length === 0 ? (
@@ -224,8 +226,8 @@ export function ArticlesList() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <ArticleUpsert open={createDialog} onOpenChange={setCreateDialog} />
 

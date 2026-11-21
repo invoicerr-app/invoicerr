@@ -222,7 +222,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     expect(result.changed).toBe(true);
-    expect((result.document?.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
+    expect((result.document!.data as typeof dataWithReference).clientReference).toBe('PO-2026-00042');
     expect(persistence.upsertDocument).toHaveBeenCalledWith(
       'company-1',
       'invoice',
@@ -262,7 +262,7 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
     });
 
     expect(result.changed).toBe(true);
-    const persistedLines = (result.document?.data as typeof dataWithLineDate).lines;
+    const persistedLines = (result.document!.data as typeof dataWithLineDate).lines;
     expect(persistedLines[0].date).toBe('2026-01-15');
     // The second line never set one — omitting it on a per-line basis is exactly as valid as omitting
     // it on every line (the ordinary `validInvoiceData` fixture, exercised by the very first test in
@@ -708,6 +708,33 @@ describe('DocumentsService — the invoice type, the SECOND descriptor-only type
 
       expect(result.message).toMatch(/fully paid/i);
       expect(result.message).not.toMatch(/outstanding/i);
+    });
+
+    // Money that did arrive (a client paying twice, a checkout completing after a manual entry) must
+    // be recorded so the excess stays visible: the screens stop offering the action, the API does not.
+    it('a payment on an ALREADY-settled invoice is still recorded, and the result names the excess', async () => {
+      (settlementPayments.listPayments as Mock).mockResolvedValue([
+        {
+          id: 'payment-0',
+          documentId: 'doc-1',
+          amountMinor: GROSS_MINOR,
+          currency: 'EUR',
+          documentAmountMinor: GROSS_MINOR,
+        },
+        { id: 'payment-1', documentId: 'doc-1', amountMinor: 500, currency: 'EUR', documentAmountMinor: 500 },
+      ]);
+
+      const { service } = buildService();
+      const result = await service.runAction('company-1', 'invoice', 'record-payment', {
+        documentId: 'doc-1',
+        data: validInvoiceData,
+        params: { amount: 5, currency: 'EUR', paidAt: '2026-09-01' },
+      });
+
+      expect(settlementPayments.recordPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: 'doc-1', amountMinor: 500 }),
+      );
+      expect(result.message).toMatch(/fully paid.*5\.00 EUR overpaid/);
     });
 
     it('a PRE-EXISTING credit is folded into the balance THIS message states — never contradicting a follow-up read of the settlement screen', async () => {

@@ -61,19 +61,7 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
-
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
-
-async function waitFor<T>(check: () => Promise<T | undefined>, timeoutMs = 20000): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const result = await check();
-    if (result !== undefined) return result;
-    if (Date.now() > deadline) throw new Error(`waitFor() timed out after ${timeoutMs}ms`);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-}
+import { describeWithRedis, waitFor } from './redis-gate';
 
 // A real RSA keypair, generated ONCE for this whole spec — stands in for the AT Sistema de
 // Autenticação's own key pair (`pt-at-client.spec.ts` uses the identical fixture shape). The stub

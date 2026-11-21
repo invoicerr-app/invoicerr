@@ -1,10 +1,13 @@
+import { formatServerMessage } from '../messages/server-message';
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { numberingDisplayState } from '../numbering/display-state';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
+import type { CompanyLawLine } from '../company-law/company-law';
 import { fontFaceCssFor, fontStackFor } from './branding/font-catalog';
-import { pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
+import { templateStyleBlock } from './branding/templates';
+import { lineColumnHeader, pdfChromeStrings, PdfChromeStrings } from './language/pdf-chrome-strings';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from './language/supported-languages';
 
 /** The EXACT pre-branding values (chantier B, 2026-09-15) — what every render used unconditionally
@@ -162,7 +165,7 @@ function renderFieldValue(
       // Header
       html += '<thead><tr style="border-bottom: 1px solid #ccc;">';
       for (const subField of subFields) {
-        html += `<th style="text-align: left; font-weight: bold;">${escapeHtmlSafe(subField.label)}</th>`;
+        html += `<th style="text-align: left; font-weight: bold;">${escapeHtmlSafe(lineColumnHeader(subField, strings))}</th>`;
       }
       html += '</tr></thead>';
       // Body
@@ -261,7 +264,7 @@ function renderTotalsRows(
       <div class="warnings-section">
 `;
     for (const warning of totals.warnings) {
-      html += `        <div class="warning-item">${escapeHtmlSafe(warning)}</div>\n`;
+      html += `        <div class="warning-item">${escapeHtmlSafe(formatServerMessage(warning))}</div>\n`;
     }
     html += `      </div>\n`;
   }
@@ -430,6 +433,23 @@ function renderPartyIdentifiers(
   return `\n        <div class="party-identifiers">${lines}</div>`;
 }
 
+function renderCompanyLaw(lines: readonly CompanyLawLine[] | undefined, strings: PdfChromeStrings): string {
+  if (!lines?.length) return '';
+  const rendered = lines
+    .map((line) => {
+      const parts = line.parts
+        .map((part) => {
+          if ('text' in part) return escapeHtmlSafe(part.text);
+          const marker = escapeHtmlSafe(`${part.missing}: ${strings.identifierMissing}`);
+          return `<span class="identifier-missing">${marker}</span>`;
+        })
+        .join('');
+      return `<div>${parts}</div>`;
+    })
+    .join('');
+  return `\n        <div class="party-identifiers company-law">${rendered}</div>`;
+}
+
 function renderPartyAddress(party: PartyAddress): string {
   const locality = [party.postalCode, party.city].filter(Boolean).join(' ');
   return [party.address, party.addressLine2, locality, party.country]
@@ -469,7 +489,12 @@ export interface RenderDocumentHtmlInput {
    * so every caller that never asked (the branding preview, dozens of specs) keeps its exact bytes.
    */
   printStatus?: boolean;
-  company: PartyAddress & { name: string; identifiers?: readonly PartyIdentifierLine[] };
+  company: PartyAddress & {
+    name: string;
+    identifiers?: readonly PartyIdentifierLine[];
+    /** The seller's company-law mentions, printed right under its name. */
+    companyLaw?: readonly CompanyLawLine[];
+  };
   /**
    * The party the document is addressed to, printed next to the seller instead of as an ordinary
    * field. `fieldKey` names the descriptor field it stands for, which the field loop then skips. Absent
@@ -618,8 +643,8 @@ export interface RenderDocumentHtmlInput {
   /**
    * Chantier B (2026-09-15 product decision) — the company's OWN document
    * branding, resolved by the caller (`render-instance-pdf.ts`) from `Company.brandingAccentColor`/
-   * `brandingFont`/`brandingLogoId`. The PDF itself stays a FIXED document — no user-editable HTML or
-   * template, ever; this is three presentation values applied over the one hardcoded layout below,
+   * `brandingFont`/`brandingLogoId`/`brandingTemplate`. The PDF itself stays a FIXED document — no
+   * user-editable HTML, ever; these are presentation values applied over the one hardcoded layout below,
    * the same "a country is data" discipline this codebase already holds elsewhere, turned toward
    * typography/color instead of law.
    *
@@ -641,6 +666,9 @@ export interface RenderDocumentHtmlInput {
      *  pure function itself (the same discipline `paymentQr`'s own header documents for its own
      *  pre-rendered image). */
     logoDataUri?: string | null;
+    /** A `branding/templates.ts` key: one stylesheet over the same markup. Absent or `classic` adds
+     *  nothing at all. */
+    template?: string | null;
   };
 }
 
@@ -658,12 +686,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   // every one of these three defaults exists to uphold when `input.branding` (or a given field on it)
   // is absent.
   const accentColor = input.branding?.accentColor || DEFAULT_ACCENT_COLOR;
-  const bodyFontStack = fontStackFor(input.branding?.font) ?? DEFAULT_BODY_FONT_STACK;
+  const companyFontStack = fontStackFor(input.branding?.font);
+  const bodyFontStack = companyFontStack ?? DEFAULT_BODY_FONT_STACK;
   const fontFaceCss = fontFaceCssFor(input.branding?.font);
   // A trailing `\n  ` (matching this file's own indentation) ONLY when non-empty, so splicing this
   // right after the main `</style>` below adds nothing at all — not even a blank line — for the
   // default, unbranded case.
   const fontFaceStyleBlock = fontFaceCss ? `\n  <style>${fontFaceCss}</style>` : '';
+  const templateStyle = templateStyleBlock(input.branding?.template, accentColor, companyFontStack);
   const logoDataUri = input.branding?.logoDataUri || null;
   // Same "adds nothing at all when absent" discipline as `fontFaceStyleBlock` above — see this
   // block's own splice point in the header markup below.
@@ -1004,7 +1034,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
       color: #1a5fb4;
       word-break: break-all;
     }
-  </style>${fontFaceStyleBlock}
+  </style>${fontFaceStyleBlock}${templateStyle}
 </head>
 <body>
   <div class="container">
@@ -1045,7 +1075,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     <div class="parties">
       <div class="company-info">
         ${recipient ? '<div class="field-label party-label-spacer">&nbsp;</div>' : ''}
-        <div class="company-name">${escapeHtmlSafe(company.name)}</div>
+        <div class="company-name">${escapeHtmlSafe(company.name)}</div>${renderCompanyLaw(company.companyLaw, strings)}
         <div class="company-address">${renderPartyAddress(company)}</div>${renderPartyIdentifiers(company.identifiers, strings)}
       </div>${
         recipient

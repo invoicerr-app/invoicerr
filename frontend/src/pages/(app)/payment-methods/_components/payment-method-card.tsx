@@ -4,7 +4,6 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { useUpdatePaymentMethod } from "@/hooks/queries"
 import type { PaymentMethodConfig } from "@/types/payment-method"
@@ -73,32 +72,29 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
   }
 
   return (
-    <Card data-cy={`payment-method-card-${method.id}`}>
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="flex items-center gap-2">
-          {method.label}
+    <div
+      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 sm:px-5"
+      data-cy={`payment-method-card-${method.id}`}
+    >
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="font-semibold text-foreground">{method.label}</span>
           <Badge
             variant={method.enabled ? "success" : "secondary"}
             data-cy={`payment-method-status-${method.id}`}
           >
             {method.enabled ? t("paymentMethods.enabled") : t("paymentMethods.disabled")}
           </Badge>
-        </CardTitle>
-        <Switch
-          checked={method.enabled}
-          onCheckedChange={handleToggle}
-          disabled={updateMethod.isPending}
-          data-cy={`payment-method-toggle-${method.id}`}
-        />
-      </CardHeader>
-      <CardContent className="space-y-3">
+        </div>
         {previewLines.length > 0 ? (
           <div
-            className="space-y-1 text-sm text-muted-foreground"
+            className="space-y-0.5 text-sm text-muted-foreground"
             data-cy={`payment-method-preview-${method.id}`}
           >
             {previewLines.map((line) => (
-              <div key={line}>{line}</div>
+              <div key={line} className="break-words">
+                {line}
+              </div>
             ))}
           </div>
         ) : (
@@ -106,6 +102,8 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
             {t("paymentMethods.noFields")}
           </p>
         )}
+      </div>
+      <div className="flex shrink-0 items-center gap-4">
         <Button
           type="button"
           variant="outline"
@@ -115,7 +113,14 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
         >
           {t("paymentMethods.configure")}
         </Button>
-      </CardContent>
+        <Switch
+          checked={method.enabled}
+          onCheckedChange={handleToggle}
+          disabled={updateMethod.isPending}
+          aria-label={method.label}
+          data-cy={`payment-method-toggle-${method.id}`}
+        />
+      </div>
 
       {configOpen && (
         <PaymentMethodConfigDialog
@@ -125,6 +130,6 @@ export function PaymentMethodCard({ method }: PaymentMethodCardProps) {
           activateOnSave={activateOnSave}
         />
       )}
-    </Card>
+    </div>
   )
 }

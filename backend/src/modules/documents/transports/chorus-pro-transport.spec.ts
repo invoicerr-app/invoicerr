@@ -257,18 +257,21 @@ describe('buildChorusProTransport', () => {
         ['Cash', 'cash'],
         ['Cheque', 'cheque'],
         ['Stripe', 'stripe'],
-      ])('refuses, naming "%s", when that is the only payment method enabled — never reaches the network', async (label, id) => {
-        mockedListCompanyPaymentMethods.mockResolvedValue([
-          { id, label, fields: [], enabled: true, config: {} },
-        ]);
-        const deps = buildDeps();
-        const transport = buildChorusProTransport(deps);
+      ])(
+        'refuses, naming "%s", when that is the only payment method enabled — never reaches the network',
+        async (label, id) => {
+          mockedListCompanyPaymentMethods.mockResolvedValue([
+            { id, label, fields: [], enabled: true, config: {} },
+          ]);
+          const deps = buildDeps();
+          const transport = buildChorusProTransport(deps);
 
-        await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
-        await expect(transport.send(CTX)).rejects.toThrow(new RegExp(label));
-        await expect(transport.send(CTX)).rejects.toThrow(/bank transfer/i);
-        expect(mockDeposerFlux).not.toHaveBeenCalled();
-      });
+          await expect(transport.send(CTX)).rejects.toThrow(BadRequestException);
+          await expect(transport.send(CTX)).rejects.toThrow(new RegExp(label));
+          await expect(transport.send(CTX)).rejects.toThrow(/bank transfer/i);
+          expect(mockDeposerFlux).not.toHaveBeenCalled();
+        },
+      );
 
       it('refuses with a generic message when NO payment method is configured at all', async () => {
         mockedListCompanyPaymentMethods.mockResolvedValue([]);

@@ -30,13 +30,6 @@ export interface FrIdentifiers {
   vat: string;
 }
 
-export function generateFrIdentifiers(rng: Rng): FrIdentifiers {
-  const siret = generateSiret(rng);
-  const siren = siret.slice(0, 9);
-  const vat = calculateFrenchVAT(siren);
-  return { siret, siren, vat };
-}
-
 export function generateSiret(rng: Rng): string {
   // Build the first 13 digits at random, then solve the 14th (an odd 0-based position, never
   // doubled, see `isValidSiret`'s own loop) so the FULL 14-digit Luhn sum is a multiple of 10.

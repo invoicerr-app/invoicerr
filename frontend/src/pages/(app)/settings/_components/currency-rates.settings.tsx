@@ -16,7 +16,7 @@ import { useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import type { CurrencyRate, CurrencyRatePairGap } from "@/types"
 
-import { SettingsList, SettingsListRow, SettingsSection } from "./settings-section"
+import { SettingsList, SettingsListRow, SettingsSection } from "@/components/settings-section"
 
 /** Must match the backend's `EXCHANGERATE_API_SOURCE` (currency-rate-sweep.ts) exactly — the two
  *  are never shared across a language boundary in this repo (backend/frontend are independent npm
@@ -138,13 +138,10 @@ export default function CurrencyRatesSettings() {
               }
               meta={
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className="font-mono tabular-nums text-foreground"
-                    data-cy={`currency-rate-row-${r.id}-rate`}
-                  >
+                  <span className="tabular-nums text-foreground" data-cy={`currency-rate-row-${r.id}-rate`}>
                     {r.rate}
                   </span>
-                  <span className="font-mono tabular-nums">{new Date(r.asOf).toLocaleDateString()}</span>
+                  <span className="tabular-nums">{new Date(r.asOf).toLocaleDateString()}</span>
                   <Badge variant="outline">{r.source}</Badge>
                 </span>
               }

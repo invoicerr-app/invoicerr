@@ -17,6 +17,8 @@ export interface CompanyRowForFormat {
   city: string;
   postalCode: string;
   country: string;
+  /** `Company.countryCode`: the stored ISO override; sent to the format party ahead of `country`. */
+  countryCode?: string | null;
   email?: string | null;
   phone?: string | null;
   /** BT-84 — see Company.iban's own schema comment. Absent for a Client on purpose: a BUYER's own
@@ -25,6 +27,11 @@ export interface CompanyRowForFormat {
   iban?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
   exemptVat: boolean;
+  /** `Company.companyLaw`: the seller's company-law details, read by e-invoice formats (BT-33,
+   *  FatturaPA IscrizioneREA). Absent when the caller's own query did not select it. */
+  companyLaw?: unknown;
+  /** `Company.language`: the fallback layer of the per-recipient document language. */
+  language?: string | null;
 }
 
 export interface ClientRowForFormat {
@@ -38,7 +45,11 @@ export interface ClientRowForFormat {
   city: string | null;
   postalCode: string | null;
   country: string;
+  /** `Client.countryCode`: the stored ISO override; sent to the format party ahead of `country`. */
+  countryCode?: string | null;
   partyIdentifiers: { scheme: string; value: string }[];
+  /** `Client.language`: the recipient's own document language, first of the fallback chain. */
+  language?: string | null;
 }
 
 export function companyToFormatParty(company: CompanyRowForFormat): DocumentFormatParty {
@@ -49,11 +60,14 @@ export function companyToFormatParty(company: CompanyRowForFormat): DocumentForm
     city: company.city,
     postalCode: company.postalCode,
     country: company.country,
+    countryCode: company.countryCode,
     email: company.email,
     phone: company.phone,
     iban: company.iban,
     partyIdentifiers: company.partyIdentifiers,
     taxScheme: companyTaxScheme(company),
+    companyLaw: company.companyLaw,
+    language: company.language,
   };
 }
 
@@ -70,8 +84,10 @@ export function clientToFormatParty(client: ClientRowForFormat): DocumentFormatP
     city: client.city,
     postalCode: client.postalCode,
     country: client.country,
+    countryCode: client.countryCode,
     email: primary.contactEmail,
     phone: primary.contactPhone,
     partyIdentifiers: client.partyIdentifiers,
+    language: client.language,
   };
 }

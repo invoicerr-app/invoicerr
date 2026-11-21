@@ -1,22 +1,10 @@
 /**
- * The ONE place a raw `contacts` array (as it arrives on the wire, before any DB write) gets
- * normalized: blank rows dropped, then a primary resolved from what remains - whichever surviving
- * row says `isPrimary: true` (the FIRST one to, if a caller sent several), or the first survivor
- * when none does. Both `client-validation.ts` (the pre-create/CSV-import identity check) and
- * `client-contacts.ts#writeClientContacts` (the actual write) call this instead of each doing its
- * own drop-then-find - which is what let them disagree (#415 follow-up review, point 2):
- * validation used to look for the primary in the RAW array (finding a blank row flagged primary and
- * rejecting the whole payload for a missing name), while the write already dropped that same blank
- * row and promoted the next non-blank one - a payload the write would have happily accepted 400'd
- * anyway, before ever reaching it.
+ * Drops blank contact rows and resolves the primary. Validation and the write share it, so they
+ * cannot disagree about which row is primary.
  */
 import { ClientContactDto } from '../dto/clients.dto';
 
-/** A row with nothing typed into it at all - the same rule the migration's own backfill and the CSV
- *  import already apply (see `writeClientContacts`'s own header). Checked with `.trim()`: pure
- *  whitespace is exactly as "nothing here" as an empty string. Exported because the legacy flat-field
- *  path in `writeClientContacts` applies the SAME rule to the primary row it has just merged into
- *  (#478): one definition of "empty contact", whichever payload shape produced it. */
+/** A row with nothing typed into it; whitespace counts as empty. */
 export function isBlankContact(c: ClientContactDto): boolean {
   return [c.firstName, c.lastName, c.role, c.email, c.phone].every((v) => !v || v.trim() === '');
 }

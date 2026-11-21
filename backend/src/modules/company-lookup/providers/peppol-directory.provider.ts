@@ -1,16 +1,12 @@
 /**
  * Peppol Directory — the public index of Peppol participants (OpenPeppol).
+ * Docs: https://directory.peppol.eu/public/menuitem-docs-rest-api (no credentials).
  *
- * Endpoint : GET https://directory.peppol.eu/search/1.0/json?q={identifier}
- * Docs     : https://directory.peppol.eu/public/menuitem-docs-rest-api
- * Credentials: none.
- *
- * Worldwide and keyless. It answers a question no register does: *is this company
- * reachable over Peppol, and under which participant id* — exactly what the invoice
- * pipeline needs before it picks a transmission channel. The trade-off is coverage:
- * only businesses that registered a Peppol endpoint are listed, so it runs last.
+ * Answers whether a company is reachable over Peppol and under which participant id, which the
+ * invoice pipeline needs to pick a channel. Only registered participants are listed, so it runs last.
  */
-import { alnum, digits, fetchJson, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, alnum, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -31,10 +27,10 @@ export class PeppolDirectoryProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://directory.peppol.eu/public/menuitem-docs-rest-api';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

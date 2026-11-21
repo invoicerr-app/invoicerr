@@ -21,7 +21,8 @@ Not covered:
 
 - **The database.** Postgres has its own backup story (automated backups and snapshots on a managed
   provider like Scaleway, or your own `pg_dump`/WAL archiving on a self-managed instance) — this
-  feature never touches it. If you run your own `pg_dump`, see "Encrypting a manual database dump"
+  feature never touches it. With the provided `docker-compose.yml`, a separate service already dumps
+  it on a schedule: see [Database backups with Docker Compose](#database-backups-with-docker-compose). If you run your own `pg_dump`, see "Encrypting a manual database dump"
   below — the same encryption this feature applies to files is available as a standalone command for
   exactly that dump.
 - **Restoring, as a button in this application.** This feature only ever writes to the backup
@@ -110,6 +111,51 @@ and error message would otherwise expose another tenant's identifiers, and those
 for whoever has direct access to it. There is no manual "run now" trigger; the schedule above is the
 only way a sweep starts.
 
+## Verifying encryption at rest
+
+The per-artifact encryption above is proven by the fact that you cannot read a backup without
+`BACKUP_ENCRYPTION_KEY`. The storage underneath it has its own, weaker guarantee, and it is worth
+checking once rather than assuming: a bucket or a volume created before encryption was turned on
+stays readable at rest until its contents are rewritten, so "the console says encrypted" is not the
+same claim as "these bytes are encrypted".
+
+**Object storage.** With Scaleway on the S3 API, confirm the setting on the bucket itself, then on
+one real object:
+
+```bash
+aws --endpoint-url https://s3.fr-par.scw.cloud s3api get-bucket-encryption \
+  --bucket <bucket-name>
+aws --endpoint-url https://s3.fr-par.scw.cloud s3api head-object \
+  --bucket <bucket-name> --key <any-existing-key>
+```
+
+The second command must print a `ServerSideEncryption` entry. `get-bucket-encryption` describes the
+default for **new** objects only: on Scaleway, enabling SSE-ONE after objects exist does not encrypt
+those objects, so copy them to a fresh bucket (or rewrite them in place) and check a rewritten key.
+OVHcloud Object Storage offers the same two modes under the names SSE-OMK (provider-held key) and
+SSE-C (your key); the same `head-object` check applies, against
+`https://s3.<region>.io.cloud.ovh.net`.
+
+**Block storage and the database volume.** On OVHcloud, only volume types whose name ends in `-luks`
+are encrypted, so check the type rather than the label:
+
+```bash
+openstack volume type list
+openstack volume show <volume-id> -c name -c type -c encrypted
+```
+
+On a Proxmox host, ask the storage layer directly rather than the summary screen; a dataset without
+`encryption=on` is not encrypted even when it sits on an encrypted pool:
+
+```bash
+zfs get -r encryption,encryptionroot <pool>/<dataset>
+dmsetup ls --target crypt
+lsblk -o NAME,TYPE,FSTYPE,MOUNTPOINT
+```
+
+Keep the output with the deployment's own records. It is the only thing that turns "the provider says
+it is encrypted" into a dated fact about this instance.
+
 ## Restoring
 
 There is no "restore" button in this application — recovering a backup is an operator action against
@@ -156,6 +202,75 @@ without it, by design (that is also exactly what makes it worth doing). If you l
 - There is nothing to report to this application — it has no record of the key and cannot help
   recover it. Whatever process you use to store secrets (a password manager, a vault, a printed copy
   in a safe) is the only backstop; store the key there BEFORE you need it, not after.
+
+## Database backups with Docker Compose
+
+The repository's `docker-compose.yml` ships an `invoicerr_db_backup` service. It uses the same
+`postgres:15` image as the database, so it adds no third-party image, and it starts with the rest of
+the stack on `docker compose up -d`.
+
+What it does:
+
+- waits until the database accepts connections, then runs `pg_dump --format=custom` right away and
+  again every `DB_BACKUP_INTERVAL_SECONDS`;
+- writes each dump to the `db_backups` volume as `invoicerr_db-<UTC timestamp>.dump`. A dump is
+  written under a temporary name first, so a failed run never leaves a truncated file that looks
+  complete;
+- deletes dumps older than `DB_BACKUP_KEEP_DAYS`.
+
+Both settings are optional. Put them in the same `.env` file as `POSTGRES_PASSWORD`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DB_BACKUP_INTERVAL_SECONDS` | `86400` | Time between two dumps (one day by default). |
+| `DB_BACKUP_KEEP_DAYS` | `14` | Dumps older than this many days are deleted. |
+
+:::info[Copy the dumps off the host]
+The `db_backups` volume lives on the same disk as the database. It protects against a bad upgrade, a
+mistaken deletion or a corrupted database, not against losing the machine. Copy the dumps somewhere
+else on a schedule of your own (another server, an S3 bucket, an external drive), and encrypt them
+first if they leave a machine you control (see [Encrypting a manual database dump](#encrypting-a-manual-database-dump)).
+:::
+
+Check that dumps are being written, and see the service's log of each run:
+
+```bash
+docker compose exec invoicerr_db_backup ls -l /backups
+docker compose logs invoicerr_db_backup
+```
+
+Copy every dump to the current directory on the host:
+
+```bash
+docker compose cp invoicerr_db_backup:/backups ./db-backups
+```
+
+Take a dump right now, for example before an upgrade:
+
+```bash
+docker compose exec invoicerr_db_backup \
+  sh -c 'pg_dump --format=custom --file=/backups/invoicerr_db-manual-$(date -u +%Y%m%dT%H%M%SZ).dump'
+```
+
+### Restoring a dump
+
+Stop the application first so nothing writes to the database during the restore, then restore the
+dump over the existing database and start the application again:
+
+```bash
+docker compose stop invoicerr
+docker compose exec invoicerr_db_backup \
+  pg_restore --clean --if-exists --no-owner --dbname=invoicerr_db /backups/invoicerr_db-<timestamp>.dump
+docker compose start invoicerr
+```
+
+A dump copied off the host goes back in the same way: `docker compose cp ./invoicerr_db-<timestamp>.dump
+invoicerr_db_backup:/backups/` first. Restore a dump once on a test machine before you actually need
+it. Remember that the database alone is not the whole instance: the archived documents live in the
+`documents_data` volume and need their own copy (see the file backup described above).
+
+If you do not want this service, remove it and its `db_backups` volume from `docker-compose.yml`,
+but set up another database backup before storing real invoices.
 
 ## Encrypting a manual database dump
 

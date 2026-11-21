@@ -1,4 +1,5 @@
 import { POLISH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+import { companyLawFor } from "../fixtures/company-law";
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
 
 /**
@@ -117,7 +118,13 @@ describe("Country policy — Poland can now issue, and its own sourced restricti
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
-			body: { name: "Acme Corp", country: "Poland", countryCode: "PL", invoiceTransportId: "email" },
+			body: {
+				name: "Acme Corp",
+				country: "Poland",
+				countryCode: "PL",
+				companyLaw: companyLawFor("PL"),
+				invoiceTransportId: "email",
+			},
 		}).then((res) => {
 			expect(res.status, "pays vendeur réglé sur la Pologne dès la création").to.be.oneOf([200, 201]);
 		});

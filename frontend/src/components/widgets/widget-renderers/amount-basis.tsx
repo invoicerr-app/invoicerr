@@ -16,7 +16,13 @@ export function AmountBasisCaption({
   const { t } = useTranslation()
   if (!basis) return null
   return (
-    <span className={cn("block text-xs font-normal normal-case tracking-normal", className)} data-cy={dataCy}>
+    <span
+      className={cn(
+        "block font-sans text-xs font-normal normal-case tracking-normal text-muted-foreground",
+        className,
+      )}
+      data-cy={dataCy}
+    >
       {basis === "inclVat" ? t("widgets.basis.inclVat") : t("widgets.basis.exclVat")}
     </span>
   )

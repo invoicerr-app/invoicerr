@@ -6,7 +6,7 @@
  *   cd backend && set -a; . .env.billit.local; set +a
  *   BILLIT_LIVE=1 npx vitest run billit.live --no-file-parallelism
  *
- * DB-FREE ON PURPOSE, the same choice `pdp/superpdp.live.spec.ts` already makes and for the same reason:
+ * DB-FREE ON PURPOSE, the same choice `superpdp/superpdp.live.spec.ts` already makes and for the same reason:
  * the command above never sets `DATABASE_URL`. This spec therefore does not call
  * `billit-transport.ts`'s `send()` (which reads `Company`/`Client` rows), it composes the exact same
  * DB-free building blocks that function composes, by hand:

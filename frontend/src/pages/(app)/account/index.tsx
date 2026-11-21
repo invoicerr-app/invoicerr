@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
-import { SettingsFormFooter, SettingsSection, useSavedFlash } from "../settings/_components/settings-section"
+import { SettingsFormFooter, SettingsSection, useSavedFlash } from "@/components/settings-section"
 
 interface SessionUser {
   firstname?: string
@@ -49,11 +49,11 @@ export default function AccountProfilePage() {
     firstname: z
       .string()
       .trim()
-      .min(1, { message: t("account.profile.form.firstname.errors.required") }),
+      .min(1, { error: t("account.profile.form.firstname.errors.required") }),
     lastname: z
       .string()
       .trim()
-      .min(1, { message: t("account.profile.form.lastname.errors.required") }),
+      .min(1, { error: t("account.profile.form.lastname.errors.required") }),
   })
 
   const profileForm = useForm<ProfileFormValues>({
@@ -101,7 +101,7 @@ export default function AccountProfilePage() {
     newEmail: z
       .string()
       .trim()
-      .email({ message: t("account.profile.email.errors.invalid") }),
+      .email({ error: t("account.profile.email.errors.invalid") }),
   })
 
   const emailForm = useForm<EmailFormValues>({

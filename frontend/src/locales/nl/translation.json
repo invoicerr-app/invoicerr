@@ -220,7 +220,6 @@
                 "totalTTC": "Totaal (incl. BTW)"
             },
             "tooltips": {
-                "viewPdf": "Bekijk PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Offerte bewerken",
                 "sendSignature": "Verzenden ter ondertekening",
@@ -416,7 +415,6 @@
                 "totalHT": "Totaal (excl. BTW)"
             },
             "tooltips": {
-                "viewPdf": "Bekijk PDF",
                 "downloadPdf": "Download PDF",
                 "edit": "Pas bon aan",
                 "sendToClient": "Verstuur naar klant",

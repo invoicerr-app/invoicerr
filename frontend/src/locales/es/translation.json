@@ -221,7 +221,6 @@
                 "totalTTC": "Total (con IVA)"
             },
             "tooltips": {
-                "viewPdf": "Ver PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar cotización",
                 "sendSignature": "Enviar para firma",
@@ -1872,7 +1871,6 @@
                 "totalHT": "Total (sin IVA)"
             },
             "tooltips": {
-                "viewPdf": "Ver PDF",
                 "downloadPdf": "Descargar PDF",
                 "edit": "Editar recibo",
                 "sendToClient": "Enviar al cliente",

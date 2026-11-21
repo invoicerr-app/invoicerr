@@ -35,15 +35,15 @@ describe('assertCompanyWritable', () => {
       await expect(assertCompanyWritable('company-1')).resolves.toBeUndefined();
     });
 
-    it.each([
-      'BLOCKED',
-      'ZIPPED',
-    ])('refuses a %s subscription with the named COMPANY_BLOCKED code, 403', async (status) => {
-      getOrCreate.mockResolvedValue({ status });
-      const err = await assertCompanyWritable('company-1').catch((e) => e);
-      expect(err).toBeInstanceOf(ForbiddenException);
-      expect(err.getStatus()).toBe(403);
-      expect(err.getResponse()).toMatchObject({ code: COMPANY_BLOCKED });
-    });
+    it.each(['BLOCKED', 'ZIPPED'])(
+      'refuses a %s subscription with the named COMPANY_BLOCKED code, 403',
+      async (status) => {
+        getOrCreate.mockResolvedValue({ status });
+        const err = await assertCompanyWritable('company-1').catch((e) => e);
+        expect(err).toBeInstanceOf(ForbiddenException);
+        expect(err.getStatus()).toBe(403);
+        expect(err.getResponse()).toMatchObject({ code: COMPANY_BLOCKED });
+      },
+    );
   });
 });

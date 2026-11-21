@@ -834,28 +834,101 @@
   },
   "reporting": {
     "countryCode": "PT",
-    "facts": [
+    "obligations": [
       {
-        "providerId": "pt-at",
-        "appliesTo": "invoice",
-        "dischargedBy": "provider",
-        "provenance": {
-          "kind": "legal",
-          "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 1: \"As pessoas, singulares ou coletivas, que se encontrem sujeitas às regras de emissão de faturação em território português nos termos do artigo 35.º-A do Código do IVA e aqui pratiquem operações sujeitas a IVA, são obrigadas a comunicar à Autoridade Tributária a Aduaneira (AT), por transmissão eletrónica de dados, os elementos das faturas emitidas nos termos do Código do IVA, bem como os elementos dos documentos que possibilitem a conferência de mercadorias ou de prestação de serviços e recibos, por uma das seguintes vias: a) Por transmissão eletrónica de dados em tempo real; b) Por transmissão eletrónica de dados, mediante remessa de ficheiro normalizado estruturado com base no ficheiro SAF-T (PT)...; c) Por inserção direta no Portal das Finanças; d) (Revogada.)\" — texto consolidado (em vigor), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012).",
-          "sourceCheckedAt": "2026-09-11"
+        "id": "pt-at:invoice",
+        "authority": {
+          "countryCode": "PT"
         },
-        "notes": "PRIMARY SOURCE re-read directly (never a summary): pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (this document's own table of contents does list « Artigo 3.º Comunicação dos elementos das faturas », confirming this is the right DL 198/2012 and not a same-named text — diariodarepublica.pt itself renders only an empty JavaScript shell to a plain request, like other government portals this repository has already run into). The consolidated text read today already carries the deadline's recent amendment (« até ao dia 5 do mês seguinte », n.º 2 — an older \"day 25\" deadline existed before a later shortening, not retraced here: only the version IN FORCE today was verified, which is enough to cover the current obligation). \n\nSECOND RESERVATION, honest and intended by this format (cf. schema.ts): n.º 1 itself lists THREE equivalent legal channels — (a) real-time electronic transmission (the webservice this provider implements), (b) delivery of a standardized SAF-T (PT) file (Portaria n.º 302/2016, of 2 December, which fixed the \"1.04_01\" version of the SAF-T (PT) structure currently in force — Invoicerr does NOT generate this file), (c) direct entry on the Portal das Finanças. A company that discharges its obligation via channel (b) or (c) is therefore COMPLIANT without ever calling this webservice — in tension with reporting/schema.ts's own stance that \"every row in this file is a binding obligation, never optional\", since it models only ONE providerId per obligation. This provider ('pt-at') is only ONE of the three legal channels, not THE mandatory one; declaring it here nonetheless follows the shipped pattern (NAV/myDATA, themselves also real-time channels among other obligations theoretically satisfiable another way) rather than leaving Portugal with no automated declaration at all.\n\nTHIRD RESERVATION (technical status): the AT webservice itself is implemented to the documented contract BUT has never been proven live — no 'subutilizador' identifier nor AT public key was available for this task (see pt-at-client.ts / pt-declaration-provider.ts's own headers). authorityId is NOT an identifier minted by the AT: the AT's response carries only a numeric CodigoResposta + a message + a DataOperacao, with no per-invoice reference at all (unlike NAV's own transactionId or myDATA's own invoiceMark) — this bridge therefore SYNTHESIZES a stable identifier from the invoice number and the DataOperacao returned by the AT, never one the AT itself would recognize if presented with it."
+        "kind": "data",
+        "trigger": "issued",
+        "scope": {
+          "documentTypes": ["invoice"]
+        },
+        "legalBasis": {
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 1: \"As pessoas, singulares ou coletivas, que se encontrem sujeitas às regras de emissão de faturação em território português nos termos do artigo 35.º-A do Código do IVA e aqui pratiquem operações sujeitas a IVA, são obrigadas a comunicar à Autoridade Tributária a Aduaneira (AT), por transmissão eletrónica de dados, os elementos das faturas emitidas nos termos do Código do IVA, bem como os elementos dos documentos que possibilitem a conferência de mercadorias ou de prestação de serviços e recibos, por uma das seguintes vias: a) Por transmissão eletrónica de dados em tempo real; b) Por transmissão eletrónica de dados, mediante remessa de ficheiro normalizado estruturado com base no ficheiro SAF-T (PT)...; c) Por inserção direta no Portal das Finanças; d) (Revogada.)\" - texto consolidado (em vigor), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012).",
+            "sourceCheckedAt": "2026-09-11"
+          }
+        },
+        "channels": [
+          {
+            "dischargedBy": "provider",
+            "id": "pt-at",
+            "unit": "document"
+          }
+        ],
+        "notes": "PRIMARY SOURCE re-read directly (never a summary): pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (this document's own table of contents does list « Artigo 3.º Comunicação dos elementos das faturas », confirming this is the right DL 198/2012 and not a same-named text - diariodarepublica.pt itself renders only an empty JavaScript shell to a plain request, like other government portals this repository has already run into). The consolidated text read today already carries the deadline's recent amendment (« até ao dia 5 do mês seguinte », n.º 2 - an older \"day 25\" deadline existed before a later shortening, not retraced here: only the version IN FORCE today was verified, which is enough to cover the current obligation). \n\nSECOND RESERVATION, honest and intended by this format (cf. schema.ts): n.º 1 itself lists THREE equivalent legal channels - (a) real-time electronic transmission (the webservice this provider implements), (b) delivery of a standardized SAF-T (PT) file (Portaria n.º 302/2016, of 2 December, which fixed the \"1.04_01\" version of the SAF-T (PT) structure currently in force - Invoicerr does NOT generate this file), (c) direct entry on the Portal das Finanças. A company that discharges its obligation via channel (b) or (c) is therefore COMPLIANT without ever calling this webservice - in tension with reporting/schema.ts's own stance that \"every row in this file is a binding obligation, never optional\", since it models only ONE providerId per obligation. This provider ('pt-at') is only ONE of the three legal channels, not THE mandatory one; declaring it here nonetheless follows the shipped pattern (NAV/myDATA, themselves also real-time channels among other obligations theoretically satisfiable another way) rather than leaving Portugal with no automated declaration at all.\n\nTHIRD RESERVATION (technical status): the AT webservice itself is implemented to the documented contract BUT has never been proven live - no 'subutilizador' identifier nor AT public key was available for this task (see pt-at-client.ts / pt-declaration-provider.ts's own headers). authorityId is NOT an identifier minted by the AT: the AT's response carries only a numeric CodigoResposta + a message + a DataOperacao, with no per-invoice reference at all (unlike NAV's own transactionId or myDATA's own invoiceMark) - this bridge therefore SYNTHESIZES a stable identifier from the invoice number and the DataOperacao returned by the AT, never one the AT itself would recognize if presented with it.",
+        "timing": { "deadline": { "monthsAfterTrigger": 1, "dayOfMonth": 5 } },
+        "timingNote": "Communicated to the AT by the 5th day of the month after the document is issued (DL 198/2012, art. 3, n.º 2, consolidated text in force, as these notes describe). The real-time webservice declares each document as soon as it is issued, which meets that deadline."
       },
       {
-        "providerId": "pt-at",
-        "appliesTo": "credit-note",
-        "dischargedBy": "provider",
-        "provenance": {
-          "kind": "legal",
-          "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 1.º (\"Objeto\"), n.º 2: \"O presente diploma aplica-se ainda, com as devidas adaptações, às faturas e documentos retificativos de fatura, a outros documentos emitidos, independentemente da sua designação, que sejam suscetíveis, nomeadamente, de apresentação ao cliente e que possibilitem a conferência de mercadorias ou de prestação de serviços [...]\". Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 4: \"A AT disponibiliza no Portal das Finanças o modelo de dados para os efeitos previstos nos n.os 1 e 2, devendo dele constar os seguintes elementos relativamente a cada fatura, documento que possibilite a conferência de mercadorias ou de prestação de serviços ou recibo: [...] d) Tipo de documento, nos termos referidos na estrutura de dados a que se refere a Portaria n.º 321-A/2007 [...]; [...] n) Identificação do documento retificado; [...] p) Código único de documento.\" Texto consolidado (em vigor, com as alterações até ao DL n.º 85/2022), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012). The AT's own data model for the real-time channel lists the credit note as a communicable type: \"Manual de Integração de Software – e-Fatura: Comunicação por Webservice - Aspetos Específicos\" (v3.0, Outubro 2025), field 1.6.4 (InvoiceType): \"NC – Nota de Crédito\"; field 1.6.14.3 (Reference): \"Referência à fatura ou fatura simplificada, através de identificação única da mesma, nos sistemas em que exista. Deve ser utilizada a estrutura de numeração do campo de origem.\"; field 1.6.14.4 (DebitCreditIndicator): \"D – Débito (caso o valor da linha, sem imposto, dos documentos a lançar a débito na respetiva conta)\".",
-          "sourceCheckedAt": "2026-09-28"
+        "id": "pt-at:credit-note",
+        "authority": {
+          "countryCode": "PT"
         },
-        "notes": "Issue #501. PRIMARY SOURCES re-read directly for this fact: the consolidated DL 198/2012 at pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (the AT portal's own diplomas_legislativos folder has no copy of this decree-law under any file name tried), and the AT's own e-Fatura webservice manual, info.portaldasfinancas.gov.pt/pt/apoio_ao_contribuinte/Outras_entidades/Suporte_tecnologico/Webservice/e_Fatura/Documents/Comunicacao_dos_elementos_dos_documentos_de_faturacao.pdf, both fetched with curl and read with pdftotext -layout / as HTML on 2026-09-28. Art. 1.º n.º 2 extends the whole decree-law, art. 3.º included, to \"documentos retificativos de fatura\", and art. 3.º n.º 4 n) requires the identification of the corrected document in what is communicated: a credit note is a rectifying document, so it is communicated by the same channel as the invoice. It is declared as InvoiceType \"NC\", with DebitCreditIndicator \"D\" and a Reference to the corrected invoice's own number on each LineSummary line (reporting/providers/pt-declaration-provider.ts). A credit note that corrects no invoice has no buyer and no document to reference: it is refused with a named error (report:failed), never declared with an invented reference. The same three reservations as the invoice fact above hold here (three equivalent legal channels, pt-at among them; never proven against the real AT endpoint; a synthesized authorityId)."
+        "kind": "data",
+        "trigger": "issued",
+        "scope": {
+          "documentTypes": ["credit-note"]
+        },
+        "legalBasis": {
+          "provenance": {
+            "kind": "legal",
+            "sourceText": "Decreto-Lei n.º 198/2012, de 24 de agosto, Artigo 1.º (\"Objeto\"), n.º 2: \"O presente diploma aplica-se ainda, com as devidas adaptações, às faturas e documentos retificativos de fatura, a outros documentos emitidos, independentemente da sua designação, que sejam suscetíveis, nomeadamente, de apresentação ao cliente e que possibilitem a conferência de mercadorias ou de prestação de serviços [...]\". Artigo 3.º (\"Comunicação dos elementos das faturas\"), n.º 4: \"A AT disponibiliza no Portal das Finanças o modelo de dados para os efeitos previstos nos n.os 1 e 2, devendo dele constar os seguintes elementos relativamente a cada fatura, documento que possibilite a conferência de mercadorias ou de prestação de serviços ou recibo: [...] d) Tipo de documento, nos termos referidos na estrutura de dados a que se refere a Portaria n.º 321-A/2007 [...]; [...] n) Identificação do documento retificado; [...] p) Código único de documento.\" Texto consolidado (em vigor, com as alterações até ao DL n.º 85/2022), lido diretamente na fonte primária (pgdlisboa.pt, tabela \"leis\", diploma Decreto-Lei n.º 198/2012). The AT's own data model for the real-time channel lists the credit note as a communicable type: \"Manual de Integração de Software – e-Fatura: Comunicação por Webservice - Aspetos Específicos\" (v3.0, Outubro 2025), field 1.6.4 (InvoiceType): \"NC – Nota de Crédito\"; field 1.6.14.3 (Reference): \"Referência à fatura ou fatura simplificada, através de identificação única da mesma, nos sistemas em que exista. Deve ser utilizada a estrutura de numeração do campo de origem.\"; field 1.6.14.4 (DebitCreditIndicator): \"D – Débito (caso o valor da linha, sem imposto, dos documentos a lançar a débito na respetiva conta)\".",
+            "sourceCheckedAt": "2026-09-28"
+          }
+        },
+        "channels": [
+          {
+            "dischargedBy": "provider",
+            "id": "pt-at",
+            "unit": "document"
+          }
+        ],
+        "notes": "Issue #501. PRIMARY SOURCES re-read directly for this fact: the consolidated DL 198/2012 at pgdlisboa.pt/leis/lei_mostra_articulado.php?nid=1782&tabela=leis (the AT portal's own diplomas_legislativos folder has no copy of this decree-law under any file name tried), and the AT's own e-Fatura webservice manual, info.portaldasfinancas.gov.pt/pt/apoio_ao_contribuinte/Outras_entidades/Suporte_tecnologico/Webservice/e_Fatura/Documents/Comunicacao_dos_elementos_dos_documentos_de_faturacao.pdf, both fetched with curl and read with pdftotext -layout / as HTML on 2026-09-28. Art. 1.º n.º 2 extends the whole decree-law, art. 3.º included, to \"documentos retificativos de fatura\", and art. 3.º n.º 4 n) requires the identification of the corrected document in what is communicated: a credit note is a rectifying document, so it is communicated by the same channel as the invoice. It is declared as InvoiceType \"NC\", with DebitCreditIndicator \"D\" and a Reference to the corrected invoice's own number on each LineSummary line (reporting/providers/pt-declaration-provider.ts). A credit note that corrects no invoice has no buyer and no document to reference: it is refused with a named error (report:failed), never declared with an invented reference. The same three reservations as the invoice fact above hold here (three equivalent legal channels, pt-at among them; never proven against the real AT endpoint; a synthesized authorityId).",
+        "timing": { "deadline": { "monthsAfterTrigger": 1, "dayOfMonth": 5 } },
+        "timingNote": "Communicated to the AT by the 5th day of the month after the document is issued (DL 198/2012, art. 3, n.º 2, consolidated text in force, as these notes describe). The real-time webservice declares each document as soon as it is issued, which meets that deadline."
+      }
+    ]
+  },
+  "codeLists": {
+    "countryCode": "PT",
+    "lists": [
+      {
+        "id": "ptAtTaxCode",
+        "label": "e-Fatura TaxCode (field 1.6.14.7.3 of RegisterInvoiceRequest), the rate class one VAT-rate group of a declared document is communicated under",
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "These are the codes the pt-at declaration has always sent, moved here unchanged from pt-declaration-provider.ts (issue #768). The values themselves are owed to issue #764: re-read the field table for TaxCode (RED, INT, NOR, ISE, OUT) in the AT's \"Manual de Integração de Software - e-Fatura: Comunicação por Webservice - Aspetos Específicos\", add RED and INT for the 6% and 13% rates of CIVA art. 18.º (every non-zero rate is declared NOR today), and quote the field description here as legal provenance."
+        },
+        "entries": [
+          {
+            "code": "NOR",
+            "label": "Taxa normal",
+            "when": {
+              "rate": ["positive"]
+            },
+            "notes": "Every resolved non-zero rate, reduced and intermediate included, until issue #764 adds RED and INT."
+          },
+          {
+            "code": "ISE",
+            "label": "Isenta",
+            "when": {
+              "rate": ["zero"]
+            },
+            "notes": "A resolved 0% rate. A stored document line carries its rate and no VAT category (checked for issue #768: the category is derived from the rate when an export is built), so the lookup is keyed on the rate, never on a stored category."
+          },
+          {
+            "code": "OUT",
+            "label": "Outros",
+            "when": {
+              "rate": ["unresolved"]
+            },
+            "notes": "No rate could be resolved for the line. Never claimed as exempt (ISE): this only says no rate is known."
+          }
+        ]
       }
     ]
   },
@@ -938,11 +1011,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -966,11 +1041,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -994,11 +1071,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1022,11 +1101,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1066,5 +1147,146 @@
       },
       "notes": "Read at pgdlisboa.pt (consolidated text). The statute says when late-payment interest is due if the contract sets no date or term: 30 days after the debtor receives the invoice; it sets no payment term. The application uses those 30 days as its fallback and counts them from the invoice date, not from receipt."
     }
+  },
+  "companyLaw": {
+    "countryCode": "PT",
+    "legalFormLabel": "Tipo de sociedade",
+    "legalForms": [
+      {
+        "code": "PT_LDA",
+        "name": "Sociedade por quotas",
+        "designation": "Sociedade por quotas"
+      },
+      {
+        "code": "PT_UNIPESSOAL_LDA",
+        "name": "Sociedade unipessoal por quotas",
+        "designation": "Sociedade unipessoal por quotas"
+      },
+      {
+        "code": "PT_SA",
+        "name": "Sociedade anónima",
+        "designation": "Sociedade anónima"
+      },
+      {
+        "code": "PT_SCA",
+        "name": "Sociedade em comandita por ações",
+        "designation": "Sociedade em comandita por ações"
+      },
+      {
+        "code": "PT_SCS",
+        "name": "Sociedade em comandita simples",
+        "designation": "Sociedade em comandita simples"
+      },
+      {
+        "code": "PT_SNC",
+        "name": "Sociedade em nome coletivo",
+        "designation": "Sociedade em nome coletivo"
+      },
+      {
+        "code": "PT_ENI",
+        "name": "Empresário em nome individual",
+        "designation": "Empresário em nome individual",
+        "notes": "No mention: artigo 171.º binds sociedades, not a sole trader."
+      },
+      {
+        "code": "PT_OTHER",
+        "name": "Outra forma",
+        "designation": "Outra forma",
+        "notes": "No mention is declared for a form this catalog does not list."
+      }
+    ],
+    "fields": [
+      {
+        "key": "registryOffice",
+        "kind": "text",
+        "label": "Conservatória do registo comercial"
+      },
+      {
+        "key": "shareCapital",
+        "kind": "money",
+        "label": "Capital social"
+      },
+      {
+        "key": "paidUpCapital",
+        "kind": "money",
+        "label": "Capital realizado (se diferente do capital social)"
+      }
+    ],
+    "mentions": [
+      {
+        "id": "pt-type-and-registration",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PT_LDA", "PT_UNIPESSOAL_LDA", "PT_SA", "PT_SCA", "PT_SCS", "PT_SNC"],
+        "required": true,
+        "template": {
+          "en": "{legalForm}, registered at the {registryOffice} under registration and legal person number {identifier:LEGAL_ID}",
+          "fr": "{legalForm}, immatriculée à la {registryOffice} sous le numéro d'immatriculation et d'identification de personne morale {identifier:LEGAL_ID}",
+          "it": "{legalForm}, iscritta presso la {registryOffice} con numero di iscrizione e di identificazione di persona giuridica {identifier:LEGAL_ID}",
+          "pl": "{legalForm}, wpisana w {registryOffice} pod numerem rejestrowym i identyfikacyjnym osoby prawnej {identifier:LEGAL_ID}",
+          "de": "{legalForm}, eingetragen bei der {registryOffice} unter der Register- und Identifikationsnummer {identifier:LEGAL_ID}",
+          "pt": "{legalForm}, matriculada na {registryOffice} sob o número de matrícula e de identificação de pessoa coletiva {identifier:LEGAL_ID}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Código das Sociedades Comerciais, artigo 171.º: \"1 - Sem prejuízo de outras menções exigidas por leis especiais, em todos os contratos, correspondência, publicações, anúncios, sítios na Internet e de um modo geral em toda a actividade externa, as sociedades devem indicar claramente, além da firma, o tipo, a sede, a conservatória do registo onde se encontrem matriculadas, o seu número de matrícula e de identificação de pessoa colectiva e, sendo caso disso, a menção de que a sociedade se encontra em liquidação. 2 - As sociedades por quotas, anónimas e em comandita por acções devem ainda indicar o capital social, o montante do capital realizado, se for diverso, e o montante do capital próprio segundo o último balanço aprovado, sempre que este for igual ou inferior a metade do capital social.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Artigo 171.º, n.º 1: one number, \"número de matrícula e de identificação de pessoa colectiva\", which is the LEGAL_ID identifier (NIPC). The sede is the company address printed above. Read at pgdlisboa.pt (DL n.º 262/86, 56.ª versão, DL n.º 171/2026), https://www.pgdlisboa.pt/leis/lei_mostra_articulado.php?artigo_id=524A0171&nid=524&tabela=leis."
+      },
+      {
+        "id": "pt-share-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PT_LDA", "PT_UNIPESSOAL_LDA", "PT_SA", "PT_SCA"],
+        "required": true,
+        "template": {
+          "en": "Share capital {shareCapital}",
+          "fr": "Capital social {shareCapital}",
+          "it": "Capitale sociale {shareCapital}",
+          "pl": "Kapitał zakładowy {shareCapital}",
+          "de": "Kapital {shareCapital}",
+          "pt": "Capital social {shareCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Código das Sociedades Comerciais, artigo 171.º: \"1 - Sem prejuízo de outras menções exigidas por leis especiais, em todos os contratos, correspondência, publicações, anúncios, sítios na Internet e de um modo geral em toda a actividade externa, as sociedades devem indicar claramente, além da firma, o tipo, a sede, a conservatória do registo onde se encontrem matriculadas, o seu número de matrícula e de identificação de pessoa colectiva e, sendo caso disso, a menção de que a sociedade se encontra em liquidação. 2 - As sociedades por quotas, anónimas e em comandita por acções devem ainda indicar o capital social, o montante do capital realizado, se for diverso, e o montante do capital próprio segundo o último balanço aprovado, sempre que este for igual ou inferior a metade do capital social.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Artigo 171.º, n.º 2. Read at pgdlisboa.pt (DL n.º 262/86, 56.ª versão, DL n.º 171/2026), https://www.pgdlisboa.pt/leis/lei_mostra_articulado.php?artigo_id=524A0171&nid=524&tabela=leis."
+      },
+      {
+        "id": "pt-paid-up-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PT_LDA", "PT_UNIPESSOAL_LDA", "PT_SA", "PT_SCA"],
+        "required": false,
+        "template": {
+          "en": "Paid-up capital {paidUpCapital}",
+          "fr": "Capital libéré {paidUpCapital}",
+          "it": "Capitale versato {paidUpCapital}",
+          "pl": "Kapitał wpłacony {paidUpCapital}",
+          "de": "Eingezahltes Kapital {paidUpCapital}",
+          "pt": "Capital realizado {paidUpCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Código das Sociedades Comerciais, artigo 171.º: \"1 - Sem prejuízo de outras menções exigidas por leis especiais, em todos os contratos, correspondência, publicações, anúncios, sítios na Internet e de um modo geral em toda a actividade externa, as sociedades devem indicar claramente, além da firma, o tipo, a sede, a conservatória do registo onde se encontrem matriculadas, o seu número de matrícula e de identificação de pessoa colectiva e, sendo caso disso, a menção de que a sociedade se encontra em liquidação. 2 - As sociedades por quotas, anónimas e em comandita por acções devem ainda indicar o capital social, o montante do capital realizado, se for diverso, e o montante do capital próprio segundo o último balanço aprovado, sempre que este for igual ou inferior a metade do capital social.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Artigo 171.º, n.º 2: only \"se for diverso\", which the settings cannot tell: printed when filled in, never asked for. Read at pgdlisboa.pt (DL n.º 262/86, 56.ª versão, DL n.º 171/2026), https://www.pgdlisboa.pt/leis/lei_mostra_articulado.php?artigo_id=524A0171&nid=524&tabela=leis."
+      }
+    ],
+    "demo": {
+      "legalFormByNameSuffix": {
+        "Lda": "PT_LDA",
+        "Unipessoal Lda": "PT_UNIPESSOAL_LDA"
+      },
+      "values": {
+        "registryOffice": "Conservatória do Registo Comercial de {city}",
+        "shareCapital": {
+          "amount": "5000",
+          "currency": "EUR"
+        }
+      }
+    },
+    "notes": "Not modelled: the capital próprio of artigo 171.º, n.º 2, owed only when it is at most half the share capital (a balance-sheet fact the settings do not carry), and companies in liquidation."
   }
 }

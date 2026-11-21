@@ -18,7 +18,7 @@ const outputSchema = {
     z.object({
       id: z.string(),
       name: z.string(),
-      type: z.nativeEnum(ClientType),
+      type: z.enum(ClientType),
       legalId: z.string().nullable(),
       contactFirstname: z.string().nullable(),
       contactLastname: z.string().nullable(),

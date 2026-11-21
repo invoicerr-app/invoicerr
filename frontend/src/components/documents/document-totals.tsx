@@ -9,6 +9,7 @@ import {
   type VatRateFieldOptions,
   computeTotals,
   decimalsFor,
+  formatMinor,
   fromMinor,
   looksNumeric,
 } from "@/components/documents/totals-calculator"
@@ -16,6 +17,7 @@ import { extractCurrency, findLineArrayFields } from "@/components/documents/tot
 import { LtrValue } from "@/components/ui/ltr-value"
 import { commonLinesOf, deriveQuoteOptions, linesForOption } from "@/components/documents/quote-options"
 import { useCompany } from "@/hooks/queries"
+import { formatServerMessages } from "@/lib/server-message"
 
 /**
  * The LIVE totals (net, VAT breakdown, gross) of the document form currently mounted around this
@@ -50,18 +52,6 @@ export function useDocumentOptionTotals(descriptor: DocumentTypeDescriptor) {
   const { data: company } = useCompany()
   return useMemo(
     () => computeDocumentOptionTotals(descriptor, formValues, t, company?.exemptVat),
-    [formValues, descriptor, t, company?.exemptVat],
-  )
-}
-
-/** The LIVE mirror of `useDocumentOptionTotals`, for the common (untagged) lines' own informational
- *  total - see `computeCommonLineTotals`'s own header. */
-export function useCommonLineTotals(descriptor: DocumentTypeDescriptor) {
-  const { t } = useTranslation()
-  const formValues = useWatch()
-  const { data: company } = useCompany()
-  return useMemo(
-    () => computeCommonLineTotals(descriptor, formValues, t, company?.exemptVat),
     [formValues, descriptor, t, company?.exemptVat],
   )
 }
@@ -310,14 +300,16 @@ export function useCommonLineDescriptions(descriptor: DocumentTypeDescriptor): s
 
 /** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the
  *  totals block never round differently. */
+const EMPTY_CURRENCY_PLACEHOLDER = "\u2014"
+
 export function formatTotal(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency || "—"}`
+  return formatMinor(minor, currency || EMPTY_CURRENCY_PLACEHOLDER)
 }
 
 /** Issue #507 - `DocumentInstance.derivedTotals` in the shape every totals row here renders. The
  *  backend sends no per-line breakdown for it (nothing here reads one), and its `showVat` is the same
  *  rule `ClientDocumentTotals.showVat` mirrors, absent meaning "show". */
-export function fromDerivedTotals(derived: DerivedDocumentTotals): ClientDocumentTotals {
+export function fromDerivedTotals(derived: DerivedDocumentTotals, t: TFunction): ClientDocumentTotals {
   return {
     currency: derived.currency,
     lines: [],
@@ -325,7 +317,7 @@ export function fromDerivedTotals(derived: DerivedDocumentTotals): ClientDocumen
     vatMinor: derived.vatMinor,
     grossMinor: derived.grossMinor,
     vatBreakdown: derived.vatBreakdown,
-    warnings: derived.warnings,
+    warnings: formatServerMessages(t, derived.warnings),
     showVat: derived.showVat !== false,
   }
 }
@@ -388,7 +380,7 @@ function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; 
           </div>
         ))}
 
-      <div className="flex justify-between gap-4 border-t pt-2 font-semibold">
+      <div className="flex justify-between gap-4 border-t border-b-[3px] border-double border-b-foreground/70 pt-2 pb-2 font-semibold">
         <dt>{t(includesCommon ? "documents.totals.grossIncludingCommon" : "documents.totals.gross")}</dt>
         <dd className="amount text-base" data-cy="document-totals-gross">
           <LtrValue>{formatTotal(totals.grossMinor, currency)}</LtrValue>
@@ -423,7 +415,7 @@ export function DocumentTotals({ descriptor, acceptedOption, derivedTotals }: Do
   const optionTotals = useDocumentOptionTotals(descriptor)
   const commonDescriptions = useCommonLineDescriptions(descriptor)
   const liveTotals = useDocumentTotals(descriptor)
-  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals, t) : liveTotals
 
   if (optionTotals) {
     return (
@@ -457,7 +449,7 @@ export function DocumentTotals({ descriptor, acceptedOption, derivedTotals }: Do
               <span data-cy="document-option-total-name">{option}</span>
               {acceptedOption === option && (
                 <span
-                  className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-normal uppercase tracking-wide text-primary"
+                  className="rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-link"
                   data-cy="document-option-accepted-badge"
                 >
                   {t("documents.totals.optionAccepted")}

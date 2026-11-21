@@ -1,20 +1,9 @@
 /**
- * ISO 3166-1 alpha-2 country codes and English short names.
- *
- * This is the standard itself, not a legal or tax judgment — no provenance marker applies
- * here the way it does for the compliance profiles. Source: the ISO 3166-1 country code
- * list maintained by the ISO 3166 Maintenance Agency (https://www.iso.org/iso-3166-country-codes.html),
- * cross-checked against the region subtags Unicode CLDR/ICU exposes through
- * `Intl.DisplayNames`. 249 entries: every currently assigned alpha-2 code, sovereign states
- * and dependent territories alike (Guadeloupe, Hong Kong, the Åland Islands...).
- *
- * This is deliberately fuller than `frontend/src/lib/constants/countries.ts` (~194 codes,
- * the client's own country picker, scoped to the states that picker's users actually
- * incorporate in). The two lists serve different purposes and are allowed to disagree —
- * this one exists so `registry.ts` `capabilities()` can enumerate every country the
- * lookup mechanism can say something about, not just the ones a company picker offers.
- * Nothing else in the backend keeps a second copy of the full list — extend this file, not
- * a new one, if another module ever needs "every ISO country".
+ * ISO 3166-1 alpha-2 codes and English short names, every assigned code including dependent
+ * territories. Source: the ISO 3166 Maintenance Agency list
+ * (https://www.iso.org/iso-3166-country-codes.html), cross-checked against the CLDR region subtags
+ * behind `Intl.DisplayNames`. Fuller than the frontend picker on purpose: `capabilities()` must
+ * cover every country the lookup can say something about, so extend this file rather than copy it.
  */
 export interface IsoCountry {
   readonly code: string;

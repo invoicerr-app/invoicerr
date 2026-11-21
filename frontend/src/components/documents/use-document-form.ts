@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { dropEmptyRows } from "@/components/documents/empty-rows"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
+import type { ServerMessage } from "@/lib/server-message"
 import { isOfferedOnRecord } from "@/components/documents/action-presentation"
 import { isActionAvailable } from "@/components/documents/types"
 import { useDueDateDefault } from "@/components/documents/use-due-date-default"
@@ -20,10 +21,23 @@ import { useDocumentType, useReferenceFields } from "@/hooks/queries"
  * line-totals-check.ts` is the only writer today; any future type could reuse the same key
  * and get this same rendering for free, exactly the "a country/type is data" discipline the rest of
  * this module already holds).
+ *
+ * BOTH stored shapes are accepted: records written before the message-key switch carry plain
+ * `string[]` (the only writer, `actions/received-invoice-actions.ts`, never rewrites the
+ * JSONB on read), so an old received invoice keeps showing its warning instead of silently losing it.
+ * Same "old column, new column" split `document-archive-section.tsx` already makes for
+ * `retentionBasisMessage`/`retentionBasis`.
  */
-export function extractLineTotalWarnings(data: Record<string, unknown> | undefined): string[] {
+export type LineTotalWarning = ServerMessage | string
+
+export function extractLineTotalWarnings(data: Record<string, unknown> | undefined): LineTotalWarning[] {
   const warnings = data?.lineTotalWarnings
-  return Array.isArray(warnings) ? warnings.filter((w): w is string => typeof w === "string") : []
+  if (!Array.isArray(warnings)) return []
+  return warnings.filter(
+    (w): w is LineTotalWarning =>
+      typeof w === "string" ||
+      (typeof w === "object" && w !== null && typeof (w as ServerMessage).key === "string"),
+  )
 }
 
 export interface UseDocumentFormOptions {

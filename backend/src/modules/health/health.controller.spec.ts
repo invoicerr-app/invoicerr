@@ -20,6 +20,12 @@ describe('HealthController', () => {
       version: 'v2.0.0-alpha.4',
       time: '2026-10-11T08:00:00.000Z',
       uptimeSeconds: 42,
+      logPersistence: {
+        status: 'ok',
+        failures: 0,
+        consecutiveFailures: 0,
+        lastFailureAt: null,
+      },
     };
     check.mockResolvedValue({ healthy: true, report });
 

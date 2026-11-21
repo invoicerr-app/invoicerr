@@ -3,7 +3,8 @@ import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { buildPurchaseOrderDescriptor } from '../descriptors/purchase-order.descriptor';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
-import { isArchivedPdfServable, issuedStatusesOf } from './archived-pdf-policy';
+import { issuedStatusesOf } from '../descriptors/lifecycle';
+import { isArchivedPdfServable } from './archived-pdf-policy';
 
 /**
  * Issue #490 - the rule `renderInstancePdf` applies before serving an archived PDF. The statuses

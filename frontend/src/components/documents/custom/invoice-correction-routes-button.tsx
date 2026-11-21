@@ -1,6 +1,5 @@
 import { Scale } from "lucide-react"
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -16,8 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
-import { type SelectableRowsResult, useCorrectionRoutes, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError, apiFetch } from "@/hooks/use-api-query"
+import { useCorrectionRoutes, useFetchSelectableRows, useRunDocumentAction } from "@/hooks/queries"
+import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
@@ -197,7 +196,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   // `invalidateKeys: [["documents"]]` is what makes the list's own "Cancelled" badge appear the
   // instant this dialogue closes, with no bespoke refetch wired here.
   const cancelAction = useRunDocumentAction()
-  const queryClient = useQueryClient()
+  const fetchSelectableRows = useFetchSelectableRows({ staleTime: 0 })
 
   const handleChoose = async (route: CorrectionRouteView) => {
     if (route.routeId === INTERNAL_CREDIT_NOTE_ROUTE_ID && route.implemented) {
@@ -210,14 +209,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // and locks itself the instant it resolves — no currency value needs to be guessed here.
       let rows: { id: string }[] = []
       try {
-        const result = await queryClient.fetchQuery({
-          queryKey: ["document-row-selection", "credit-note", "correctedLines", instance.id],
-          staleTime: 0,
-          queryFn: () =>
-            apiFetch<SelectableRowsResult>(
-              `/api/documents/types/credit-note/fields/correctedLines/rows?sourceId=${encodeURIComponent(instance.id)}`,
-            ),
-        })
+        const result = await fetchSelectableRows("credit-note", "correctedLines", instance.id)
         rows = result.rows
       } catch {
         // The screen still opens linked; the lines can be ticked by hand.
@@ -398,6 +390,52 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
   )
 }
 
+function CorrectionRoutesDialog({
+  instance,
+  open,
+  onOpenChange,
+}: {
+  instance: DocumentInstance
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* `sm:max-w-2xl` (same width `import-document-button.tsx`'s own content-heavy dialog picked)
+          instead of the base `sm:max-w-lg`: at 512px, an ordinary legal citation wrapped onto enough
+          lines to push the eleven-route list past `max-h-[85vh]` AND, for a long unbroken token (a
+          German compound word, a statute reference), past the box's own width too: a dialog that
+          scrolled BOTH ways, the exact bug #552 reports. The `sm:` prefix matters here, not a stylistic
+          choice: `DialogContent`'s own base class already carries an UNPREFIXED
+          `max-w-[calc(100%-2rem)]`, and `cn()` (twMerge) only dedupes within the SAME modifier: an
+          unprefixed `max-w-2xl` here would REPLACE that always-on, viewport-aware cap outright, at
+          every width including a phone's, which is exactly what widened this dialog past a 375px
+          screen the first time this was tried (caught by the e2e phone-viewport assertion below,
+          never by the desktop-sized default Cypress runs). `overflow-x-hidden` plus `break-words` on
+          every label/reason paragraph above is the second half of the fix: whatever the content, this
+          box itself never grows wider than its own max-width. `overflow-y-auto` is the only scroll
+          left, and only once the (now usually shorter, forbidden routes filtered out) list actually
+          needs it. */}
+      <DialogContent
+        className="sm:max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden"
+        data-cy="document-correction-dialog"
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {t("documents.correction.dialogTitle", {
+              number: instance.displayNumber ?? instance.id,
+            })}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Mounted only while open: a closed dialog fetches nothing. */}
+        {open && <CorrectionRoutesDialogBody instance={instance} onClose={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function InvoiceCorrectionRoutesButton({ instance }: DocumentCustomSlotProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -422,42 +460,28 @@ function InvoiceCorrectionRoutesButton({ instance }: DocumentCustomSlotProps) {
         <Scale className="h-4 w-4" />
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        {/* `sm:max-w-2xl` (same width `import-document-button.tsx`'s own content-heavy dialog picked)
-            instead of the base `sm:max-w-lg`: at 512px, an ordinary legal citation wrapped onto enough
-            lines to push the eleven-route list past `max-h-[85vh]` AND, for a long unbroken token (a
-            German compound word, a statute reference), past the box's own width too: a dialog that
-            scrolled BOTH ways, the exact bug #552 reports. The `sm:` prefix matters here, not a stylistic
-            choice: `DialogContent`'s own base class already carries an UNPREFIXED
-            `max-w-[calc(100%-2rem)]`, and `cn()` (twMerge) only dedupes within the SAME modifier: an
-            unprefixed `max-w-2xl` here would REPLACE that always-on, viewport-aware cap outright, at
-            every width including a phone's, which is exactly what widened this dialog past a 375px
-            screen the first time this was tried (caught by the e2e phone-viewport assertion below,
-            never by the desktop-sized default Cypress runs). `overflow-x-hidden` plus `break-words` on
-            every label/reason paragraph above is the second half of the fix: whatever the content, this
-            box itself never grows wider than its own max-width. `overflow-y-auto` is the only scroll
-            left, and only once the (now usually shorter, forbidden routes filtered out) list actually
-            needs it. */}
-        <DialogContent
-          className="sm:max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden"
-          data-cy="document-correction-dialog"
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {t("documents.correction.dialogTitle", {
-                number: instance.displayNumber ?? instance.id,
-              })}
-            </DialogTitle>
-          </DialogHeader>
+      <CorrectionRoutesDialog instance={instance} open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
 
-          {/* Mounted only while open — a closed dialog fetches nothing. */}
-          {open && <CorrectionRoutesDialogBody instance={instance} onClose={() => setOpen(false)} />}
-        </DialogContent>
-      </Dialog>
+/** "Correct and resend", in the detail page's banner for an invoice the e-invoicing platform rejected:
+ *  the same correction routes, as a labelled button. */
+function InvoiceRejectionCorrectButton({ instance }: DocumentCustomSlotProps) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  if (!instance || !isIssued(instance.status)) return null
+  return (
+    <>
+      <Button type="button" size="sm" onClick={() => setOpen(true)} dataCy="document-rejection-correct">
+        {t("documents.rejection.correctAndResend")}
+      </Button>
+      <CorrectionRoutesDialog instance={instance} open={open} onOpenChange={setOpen} />
     </>
   )
 }
 
 registerDocumentCustomComponent("invoice", "list-row-extra", InvoiceCorrectionRoutesButton)
+registerDocumentCustomComponent("invoice", "rejection-actions", InvoiceRejectionCorrectButton)
 
-export { InvoiceCorrectionRoutesButton }
+export { InvoiceCorrectionRoutesButton, InvoiceRejectionCorrectButton }

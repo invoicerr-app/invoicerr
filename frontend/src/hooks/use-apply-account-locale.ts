@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import i18n from "i18next"
 
-import { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from "@/lib/i18n"
+import { applyUiLanguage, isSupportedLanguage } from "@/lib/i18n"
 
 /**
  * Language just became an ACCOUNT preference (`User.locale`), not only a browser one — the whole
@@ -25,12 +25,11 @@ export function useApplyAccountLocale(accountLocale: string | null | undefined):
     // Not one of the languages this UI actually offers (a stale/garbage stored value, or a language
     // dropped from the picker since) — never pass it to `changeLanguage`, which would otherwise fall
     // back to English anyway but leave `localStorage` holding a value the picker can't represent.
-    if (!SUPPORTED_LANGUAGES.some((language) => language.code === accountLocale)) return
+    if (!isSupportedLanguage(accountLocale)) return
 
     lastApplied.current = accountLocale
     if (accountLocale === i18n.resolvedLanguage) return
 
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, accountLocale)
-    i18n.changeLanguage(accountLocale)
+    applyUiLanguage(accountLocale)
   }, [accountLocale])
 }

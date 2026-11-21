@@ -67,7 +67,15 @@ export async function seed({ base, count, out, pauseMs = 3500, onProgress = () =
         email: `billing-${i}@load.test`,
         // Without a transport, "send" answers 501 "No transport is configured".
         invoiceTransportId: 'email',
-        identifiers: [{ scheme: 'VAT', value: 'DE136695976' }],
+        identifiers: [
+          { scheme: 'VAT', value: 'DE136695976' },
+          { scheme: 'LEGAL_ID', value: 'HRB 12345' },
+        ],
+        // What a GmbH must print on its invoices before Validate and Send accept them.
+        companyLaw: {
+          legalForm: 'DE_GMBH',
+          values: { registerCourt: 'Amtsgericht Berlin-Charlottenburg', managingDirectors: 'Erika Mustermann' },
+        },
       },
       cookie,
     );

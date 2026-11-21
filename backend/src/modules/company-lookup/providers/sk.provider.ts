@@ -1,17 +1,14 @@
 /**
  * Slovakia — RPO (Register právnických osôb, Štatistický úrad SR).
+ * Docs: https://susrrpo.docs.apiary.io/ (no credentials).
  *
- * Endpoint : GET https://api.statistics.sk/rpo/v1/search?identifier={ico}
- * Docs     : https://susrrpo.docs.apiary.io/
- * Credentials: none.
- *
- * The RPO answers with the entity's full history (every name, every seat, each with
- * a validity range), so every field has to be narrowed to the entry in force today.
+ * The register returns the entity's full history, every name and seat with its validity range, so
+ * each field has to be narrowed to the entry in force today.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const RPO_URL = 'https://api.statistics.sk/rpo/v1/search';
 
@@ -31,10 +28,10 @@ export class SlovakRpoProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://susrrpo.docs.apiary.io/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

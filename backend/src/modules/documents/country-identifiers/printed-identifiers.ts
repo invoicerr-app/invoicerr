@@ -31,7 +31,7 @@ interface Party {
 
 export interface PrintedPartyIdentifiersInput {
   seller: Party & { vatRegime: SellerVatRegime };
-  buyer?: Party & { type: PartyType };
+  buyer?: Party & { type: PartyType; vatRegistered?: boolean };
   /** Whether identifiers the seller's country requires on this invoice are listed even when empty. */
   includeMissingRequired: boolean;
 }
@@ -45,18 +45,20 @@ interface InvoiceContext {
   sellerVatRegime: SellerVatRegime;
   buyerType?: PartyType;
   buyerEstablishment?: BuyerEstablishment;
+  buyerVatRegistered?: boolean;
 }
 
 const normalize = (countryCode: string | undefined) => countryCode?.trim().toUpperCase() || undefined;
 
-function establishmentOf(
+/** Unknown only when a country is missing: a known foreign buyer outside the seller's union is `NON_UNION`. */
+export function buyerEstablishmentOf(
   seller: string | undefined,
   buyer: string | undefined,
 ): BuyerEstablishment | undefined {
   if (!seller || !buyer) return undefined;
   if (seller === buyer) return 'DOMESTIC';
   const union = defaultTaxUnionRegistry.taxUnionOf(seller);
-  return union && union === defaultTaxUnionRegistry.taxUnionOf(buyer) ? 'OTHER_UNION_MEMBER' : undefined;
+  return union && union === defaultTaxUnionRegistry.taxUnionOf(buyer) ? 'OTHER_UNION_MEMBER' : 'NON_UNION';
 }
 
 function axisMatches<T>(allowed: readonly T[] | undefined, actual: T | undefined): boolean {
@@ -67,7 +69,8 @@ function conditionHolds(condition: InvoiceIdentifierCondition | undefined, conte
   return (
     axisMatches(condition?.sellerVatRegime, context.sellerVatRegime) &&
     axisMatches(condition?.buyerType, context.buyerType) &&
-    axisMatches(condition?.buyerEstablishment, context.buyerEstablishment)
+    axisMatches(condition?.buyerEstablishment, context.buyerEstablishment) &&
+    axisMatches(condition?.buyerVatRegistered, context.buyerVatRegistered)
   );
 }
 
@@ -119,7 +122,8 @@ export function printedPartyIdentifiers(input: PrintedPartyIdentifiersInput): Pr
   const context: InvoiceContext = {
     sellerVatRegime: input.seller.vatRegime,
     buyerType: input.buyer?.type,
-    buyerEstablishment: establishmentOf(sellerCountry, buyerCountry),
+    buyerEstablishment: buyerEstablishmentOf(sellerCountry, buyerCountry),
+    buyerVatRegistered: input.buyer?.vatRegistered,
   };
   const requiredFor = (party: InvoiceParty) =>
     input.includeMissingRequired ? requiredSchemes(sellerCountry, party, context) : new Set<string>();
@@ -151,11 +155,13 @@ export function invoiceSeller(
 
 /** A client as an invoice's buyer. */
 export function invoiceBuyer(
-  client: PartyRow & { type: PartyType },
+  client: PartyRow & { type: PartyType; vatRegistered?: boolean },
 ): NonNullable<PrintedPartyIdentifiersInput['buyer']> {
   return {
     countryCode: countryOf(client),
     type: client.type,
+    // A private client is never a VAT-registered business buyer, whatever value its row carries.
+    vatRegistered: client.type === 'COMPANY' ? client.vatRegistered : false,
     identifiers: client.partyIdentifiers ?? [],
   };
 }

@@ -183,38 +183,40 @@ describe('PDF pagination', () => {
     expect(pages).toHaveLength(1);
   });
 
-  it.each([
-    25, 30, 34, 38, 42, 48,
-  ])('never separates the totals from the last of %i lines, nor cuts a line in half', async (lineCount) => {
-    const input = await documentInput(buildInvoiceDescriptor(), invoiceData(lineCount));
-    const pages = await renderPages(input);
+  it.each([25, 30, 34, 38, 42, 48])(
+    'never separates the totals from the last of %i lines, nor cuts a line in half',
+    async (lineCount) => {
+      const input = await documentInput(buildInvoiceDescriptor(), invoiceData(lineCount));
+      const pages = await renderPages(input);
 
-    expectTotalsWithLastLine(pages, input, lineCount);
-  });
+      expectTotalsWithLastLine(pages, input, lineCount);
+    },
+  );
 
-  it.each(
-    Array.from({ length: 13 }, (_, i) => 24 + i),
-  )('keeps the totals of a linked credit note with the last of %i corrected lines', async (lineCount) => {
-    const invoiceDescriptor = buildInvoiceDescriptor();
-    const linesField = invoiceDescriptor.fields.find((field) => field.key === 'lines')!;
-    const rows = lines(lineCount);
-    const base = await documentInput(buildCreditNoteDescriptor(), {
-      invoice: 'invoice-1',
-      issueDate: '2026-10-01',
-      currency: 'EUR',
-      correctedLines: rows.map((_, i) => `row-${i}`),
-      lines: [],
-    });
-    const input: RenderDocumentHtmlInput = {
-      ...base,
-      totals: computeDocumentTotals(invoiceDescriptor, { currency: 'EUR', lines: rows }),
-      correctedInvoice: { displayNumber: 'INV-2026-0042', issueDate: '2026-09-01' },
-      resolvedRowSelections: { correctedLines: { field: linesField, rows } },
-    };
-    const pages = await renderPages(input);
+  it.each(Array.from({ length: 13 }, (_, i) => 24 + i))(
+    'keeps the totals of a linked credit note with the last of %i corrected lines',
+    async (lineCount) => {
+      const invoiceDescriptor = buildInvoiceDescriptor();
+      const linesField = invoiceDescriptor.fields.find((field) => field.key === 'lines')!;
+      const rows = lines(lineCount);
+      const base = await documentInput(buildCreditNoteDescriptor(), {
+        invoice: 'invoice-1',
+        issueDate: '2026-10-01',
+        currency: 'EUR',
+        correctedLines: rows.map((_, i) => `row-${i}`),
+        lines: [],
+      });
+      const input: RenderDocumentHtmlInput = {
+        ...base,
+        totals: computeDocumentTotals(invoiceDescriptor, { currency: 'EUR', lines: rows }),
+        correctedInvoice: { displayNumber: 'INV-2026-0042', issueDate: '2026-09-01' },
+        resolvedRowSelections: { correctedLines: { field: linesField, rows } },
+      };
+      const pages = await renderPages(input);
 
-    expectTotalsWithLastLine(pages, input, lineCount);
-  });
+      expectTotalsWithLastLine(pages, input, lineCount);
+    },
+  );
 
   it('repeats the line table header on every page the table spans', async () => {
     const pages = await renderPages(await documentInput(buildInvoiceDescriptor(), invoiceData(40)));

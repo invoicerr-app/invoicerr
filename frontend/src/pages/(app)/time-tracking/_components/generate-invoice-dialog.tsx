@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ApiError } from "@/hooks/use-api-query"
-import { useCompany, useGenerateInvoiceFromTimeEntries } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import { useCompanyCurrencySymbol, useGenerateInvoiceFromTimeEntries } from "@/hooks/queries"
 import type { GenerateInvoiceFromTimeEntriesResult, TimeEntry } from "@/types"
+
+import { entryAmount } from "./entry-amount"
 
 interface GenerateInvoiceDialogProps {
   clientId: string
@@ -15,10 +16,6 @@ interface GenerateInvoiceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onGenerated: (result: GenerateInvoiceFromTimeEntriesResult) => void
-}
-
-function lineTotal(entry: TimeEntry): number {
-  return (entry.durationMinutes / 60) * (entry.effectiveHourlyRate ?? 0)
 }
 
 export function GenerateInvoiceDialog({
@@ -29,11 +26,10 @@ export function GenerateInvoiceDialog({
   onGenerated,
 }: GenerateInvoiceDialogProps) {
   const { t } = useTranslation()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : ""
+  const currencySymbol = useCompanyCurrencySymbol("")
   const { mutateAsync: generateInvoice, isPending } = useGenerateInvoiceFromTimeEntries()
 
-  const total = entries.reduce((sum, entry) => sum + lineTotal(entry), 0)
+  const total = entries.reduce((sum, entry) => sum + entryAmount(entry), 0)
 
   const handleConfirm = async () => {
     try {
@@ -79,11 +75,11 @@ export function GenerateInvoiceDialog({
               {entries.map((entry) => (
                 <TableRow key={entry.id} data-cy={`generate-invoice-row-${entry.id}`}>
                   <TableCell>{entry.description || entry.project.name}</TableCell>
-                  <TableCell dir="ltr" className="text-right font-mono tabular-nums">
+                  <TableCell dir="ltr" className="text-right tabular-nums">
                     {(entry.durationMinutes / 60).toFixed(2)}
                   </TableCell>
-                  <TableCell dir="ltr" className="text-right font-mono tabular-nums">
-                    {lineTotal(entry).toFixed(2)}
+                  <TableCell dir="ltr" className="amount text-right">
+                    {entryAmount(entry).toFixed(2)}
                     {currencySymbol}
                   </TableCell>
                 </TableRow>
@@ -92,10 +88,7 @@ export function GenerateInvoiceDialog({
           </Table>
         </div>
 
-        <div
-          className="flex justify-end gap-1 font-mono font-medium tabular-nums"
-          data-cy="generate-invoice-total"
-        >
+        <div className="amount flex justify-end gap-1 text-base" data-cy="generate-invoice-total">
           {t("timeTracking.generateInvoice.total")}: {total.toFixed(2)}
           {currencySymbol}
         </div>

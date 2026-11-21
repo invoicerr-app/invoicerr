@@ -2,17 +2,17 @@
  * The single composed loader (issue #603 step 6: "one JSON file per country"). Every country now has
  * exactly ONE file here, `countries/data/<cc>.json`, with one optional top-level key per section -
  * the same keys `ComposedCountryView` (`../compose.ts`) already declares, in the same order
- * `COMPOSED_COUNTRY_SECTION_KEYS` does. This is the only place any of the 14 sections is read off
+ * `COMPOSED_COUNTRY_SECTION_KEYS` does. This is the only place any of the sections is read off
  * disk any more: discovery is a single `readdirSync` over this directory (the same
- * `/^[a-z]{2}\.json$/` discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ * `/^[a-z]{2}\.json$/` discipline every catalog's own (now-removed) per-country loader
  * already held), and each section PRESENT in a country's file is validated HERE, once, with that
  * section's own, unchanged validator (`assertValidProvenance`, `assertValidVatRateProvenance`, …) -
  * the exact function each catalog's own `data/<cc>.json`-reading loader used to call on its own file,
  * before this step physically moved the data. A section absent from a country's file is `undefined`,
- * never guessed or defaulted - the same "no permissive fallback" discipline every one of the 14
+ * never guessed or defaulted - the same "no permissive fallback" discipline every one of these
  * catalogs already held on its own.
  *
- * Every one of the 14 catalogs' own `data/all.ts` still exists and still exports its own
+ * Every pre-existing catalog's own `data/all.ts` still exists and still exports its own
  * `ALL_XXX_FILES` array, for the handful of callers (tests, `country-readiness.service.ts`,
  * `reporting/list-declarations.ts`, …) that import it directly instead of going through that
  * catalog's `registry.ts` - but it no longer reads any file itself: it derives its array from
@@ -34,6 +34,7 @@ import {
   assertValidRevenueBasisDefaultFact,
 } from '../../country-policy/schema';
 import {
+  assertFormRequiresInvoiceIdentifiers,
   assertPatternIsExplainable,
   assertValidEinvoiceFacts,
   assertValidRequiredFor,
@@ -49,6 +50,7 @@ import { assertValidRetentionRule } from '../../archive/retention/schema';
 import { assertValidMentionRule } from '../../mentions/schema';
 import { assertValidLocalizedMentions } from '../../tax/localized-mentions';
 import { assertValidReportingObligationFact } from '../../reporting/schema';
+import { assertValidReportingObligationFileV2, isV2ReportingSource } from '../../reporting/obligation-v2';
 import { assertValidDomesticReverseChargeCategory } from '../../domestic-reverse-charge/schema';
 import { assertValidCountryFields } from '../../country-fields/schema';
 import { assertValidContentRequirementFact } from '../../content-requirements/schema';
@@ -57,11 +59,15 @@ import { assertValidCompanyLookupFacts } from '../../../company-lookup/coverage/
 import { byCodeUnit } from '@/lib/compare';
 import { assertValidPaymentTerms } from '../../payment-terms/schema';
 import { assertValidEinvoiceCodes } from '../../einvoice-codes/schema';
+import { assertValidCompanyLawSection } from '../../company-law/schema';
+import { assertValidCashRecordingSection } from '../../payment-ledger/cash-recording-schema';
+import { assertProfileConditionIsDeclared, assertValidCompanyProfile } from '../../company-profile/schema';
+import { assertValidCodeLists } from '../../code-lists/schema';
 
 const COUNTRY_FILE_PATTERN = /^[a-z]{2}\.json$/;
 
 /** Every country code with a `data/xx.json` file in `dir`, sorted for a deterministic load order -
- *  the same discovery discipline every one of the 14 catalogs' own (now-removed) per-country loader
+ *  the same discovery discipline every catalog's own (now-removed) per-country loader
  *  already held for its own directory, one level up. Takes `dir` explicitly so tests can use an
  *  isolated directory. */
 function discoverCountryCodes(dir: string): string[] {
@@ -76,8 +82,8 @@ interface LoadContext {
   countryCode: string;
 }
 
-/** One section of a mismatched `countryCode`: the same load-time sanity check every one of the 14
- *  catalogs' own (now-removed) per-country loader already ran on its own file, generalized to a
+/** One section of a mismatched `countryCode`: the same load-time sanity check every catalog's own
+ *  (now-removed) per-country loader already ran on its own file, generalized to a
  *  named section of the single merged file. */
 function assertSectionCountryCode(
   section: { countryCode: string },
@@ -152,6 +158,7 @@ function validateIdentifiersSection(
   for (const rule of identifiers.invoiceRequirements ?? []) {
     assertValidInvoiceRequirement(rule, `${filePath}#identifiers`);
   }
+  assertFormRequiresInvoiceIdentifiers(identifiers, `${filePath}#identifiers`);
 }
 
 function validateCorrectionRoutesSection(
@@ -200,6 +207,7 @@ function validateVatCurrencySection(
 
 function validateChannelPolicySection(
   channelPolicy: ComposedCountryView['channelPolicy'],
+  companyProfile: ComposedCountryView['companyProfile'],
   ctx: LoadContext,
   filePath: string,
 ): void {
@@ -207,7 +215,34 @@ function validateChannelPolicySection(
   assertSectionCountryCode(channelPolicy, 'channelPolicy', ctx);
   for (const fact of channelPolicy.facts) {
     assertValidChannelPolicyFact(fact, `${filePath}#channelPolicy`);
+    if (fact.scope?.seller) {
+      assertProfileConditionIsDeclared(
+        fact.scope.seller,
+        companyProfile,
+        `${filePath}#channelPolicy: fact "${fact.providerId}"`,
+      );
+    }
   }
+}
+
+function validateCompanyProfileSection(
+  companyProfile: ComposedCountryView['companyProfile'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!companyProfile) return;
+  assertSectionCountryCode(companyProfile, 'companyProfile', ctx);
+  assertValidCompanyProfile(companyProfile, `${filePath}#companyProfile`);
+}
+
+function validateCodeListsSection(
+  codeLists: ComposedCountryView['codeLists'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!codeLists) return;
+  assertSectionCountryCode(codeLists, 'codeLists', ctx);
+  assertValidCodeLists(codeLists, `${filePath}#codeLists`);
 }
 
 function validateRetentionSection(
@@ -251,6 +286,11 @@ function validateReportingSection(
 ): void {
   if (!reporting) return;
   assertSectionCountryCode(reporting, 'reporting', ctx);
+  if (isV2ReportingSource(reporting)) {
+    assertValidReportingObligationFileV2(reporting, `${filePath}#reporting`);
+    return;
+  }
+  // Legacy `facts`, still accepted until #769 removes the shape.
   for (const fact of reporting.facts) {
     assertValidReportingObligationFact(fact, `${filePath}#reporting`);
   }
@@ -330,6 +370,26 @@ function validateEinvoiceCodesSection(
   assertValidEinvoiceCodes(einvoiceCodes, `${filePath}#einvoiceCodes`);
 }
 
+function validateCompanyLawSection(
+  companyLaw: ComposedCountryView['companyLaw'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!companyLaw) return;
+  assertSectionCountryCode(companyLaw, 'companyLaw', ctx);
+  assertValidCompanyLawSection(companyLaw, `${filePath}#companyLaw`);
+}
+
+function validateCashRecordingSection(
+  cashRecording: ComposedCountryView['cashRecording'],
+  ctx: LoadContext,
+  filePath: string,
+): void {
+  if (!cashRecording) return;
+  assertSectionCountryCode(cashRecording, 'cashRecording', ctx);
+  assertValidCashRecordingSection(cashRecording, `${filePath}#cashRecording`);
+}
+
 function loadCountryFile(dir: string, code: string): ComposedCountryView {
   const path = join(dir, `${code}.json`);
   const raw = readFileSync(path, 'utf-8');
@@ -348,7 +408,9 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateVatRatesSection(parsed.vatRates, ctx, filePath);
   validateTaxSystemSection(parsed.taxSystem, ctx, filePath);
   validateVatCurrencySection(parsed.vatCurrency, ctx, filePath);
-  validateChannelPolicySection(parsed.channelPolicy, ctx, filePath);
+  validateCompanyProfileSection(parsed.companyProfile, ctx, filePath);
+  validateCodeListsSection(parsed.codeLists, ctx, filePath);
+  validateChannelPolicySection(parsed.channelPolicy, parsed.companyProfile, ctx, filePath);
   validateRetentionSection(parsed.retention, ctx, filePath);
   validateMentionsSection(parsed.mentions, ctx, filePath);
   validateLocalizedMentionsSection(parsed.localizedMentions, ctx, filePath);
@@ -360,6 +422,8 @@ function loadCountryFile(dir: string, code: string): ComposedCountryView {
   validateCompanyLookupSection(parsed.companyLookup, ctx, filePath);
   validatePaymentTermsSection(parsed.paymentTerms, ctx, filePath);
   validateEinvoiceCodesSection(parsed.einvoiceCodes, ctx, filePath);
+  validateCompanyLawSection(parsed.companyLaw, ctx, filePath);
+  validateCashRecordingSection(parsed.cashRecording, ctx, filePath);
 
   return parsed;
 }
@@ -377,6 +441,6 @@ export function loadComposedCountryFilesFrom(dir: string): ComposedCountryView[]
 
 /** One validated composed view per country with a `countries/data/<cc>.json` file - see this
  *  module's own header. This is the single source `compose.ts#ALL_COMPOSED_COUNTRIES` re-exports,
- *  and the single source every one of the 14 catalogs' own (now-derived) `ALL_XXX_FILES` ultimately
+ *  and the single source every catalog's own (now-derived) `ALL_XXX_FILES` ultimately
  *  comes from, through `defaultComposedCountryCatalog`. */
 export const ALL_COMPOSED_COUNTRY_FILES: ComposedCountryView[] = loadComposedCountryFilesFrom(__dirname);

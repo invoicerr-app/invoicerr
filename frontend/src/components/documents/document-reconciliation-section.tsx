@@ -2,8 +2,8 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { TONE_CLASSES, type SettlementTone } from "@/components/documents/document-settlement"
-import { Badge } from "@/components/ui/badge"
+import type { StatusPresentation } from "@/components/documents/status-presentation"
+import { StatusMark } from "@/components/ui/status-mark"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,6 +14,7 @@ import {
   useCompanies,
   useReceivedInvoiceReconciliation,
 } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { ApiError } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
@@ -40,23 +41,28 @@ interface DocumentReconciliationSectionProps {
   documentId: string
 }
 
-const VERDICT_BADGE: Record<LineMatchVerdict, { tone: SettlementTone; labelKey: string }> = {
-  "within-tolerance": { tone: "success", labelKey: "documents.reconciliation.verdict.withinTolerance" },
-  "to-review": { tone: "warning", labelKey: "documents.reconciliation.verdict.toReview" },
-  accepted: { tone: "neutral", labelKey: "documents.reconciliation.verdict.accepted" },
+const VERDICT_BADGE: Record<LineMatchVerdict, { mark: StatusPresentation; labelKey: string }> = {
+  "within-tolerance": {
+    mark: { tone: "success", glyph: "check", struck: false },
+    labelKey: "documents.reconciliation.verdict.withinTolerance",
+  },
+  "to-review": {
+    mark: { tone: "warning", glyph: "half", struck: false },
+    labelKey: "documents.reconciliation.verdict.toReview",
+  },
+  accepted: {
+    mark: { tone: "neutral", glyph: "disc", struck: false },
+    labelKey: "documents.reconciliation.verdict.accepted",
+  },
 }
 
 function VerdictBadge({ verdict, dataCy }: { verdict: LineMatchVerdict; dataCy: string }) {
   const { t } = useTranslation()
-  const { tone, labelKey } = VERDICT_BADGE[verdict]
+  const { mark, labelKey } = VERDICT_BADGE[verdict]
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-transparent font-semibold", TONE_CLASSES[tone])}
-      data-cy={dataCy}
-    >
+    <StatusMark {...mark} data-cy={dataCy}>
       {t(labelKey)}
-    </Badge>
+    </StatusMark>
   )
 }
 
@@ -76,7 +82,7 @@ export function DocumentReconciliationSection({ documentId }: DocumentReconcilia
   const acceptVariance = useAcceptVariance()
   const [reason, setReason] = useState("")
 
-  const canAccept = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canAccept = isCompanyAdmin(activeRole)
 
   const handleAccept = async () => {
     try {

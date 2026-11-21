@@ -1,12 +1,8 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import {
-  ConformityBadge,
-  ConformityTimeline,
-  computeConformityVerdict,
-  latestConformityReason,
-} from "./document-conformity-section"
+import { computeConformityVerdict } from "./conformity-verdict"
+import { ConformityBadge, ConformityTimeline } from "./document-conformity-section"
 import type { DocumentAuthorityEvent } from "./types"
 
 /**
@@ -72,36 +68,27 @@ describe("computeConformityVerdict — pure", () => {
   })
 })
 
-describe("latestConformityReason — pure", () => {
-  it("surfaces the rejection's own reason", () => {
-    const events = [event({ id: "1", statusCode: "fr:213", reason: "BT-23 absent" })]
-    expect(latestConformityReason(events)).toBe("BT-23 absent")
-  })
-
-  it("is undefined when nothing was rejected", () => {
-    expect(latestConformityReason([event({ statusCode: "fr:202" })])).toBeUndefined()
-  })
-
-  it("surfaces a declaration issue's own reason, ahead of any co-occurring rejection", () => {
-    const events = [
-      event({ id: "1", providerId: "nav", statusCode: "report:blocked", reason: "not connected" }),
-    ]
-    expect(latestConformityReason(events)).toBe("not connected")
-  })
-})
-
 describe("<ConformityTimeline> — hardcoded events, REAL render", () => {
-  it("renders every event's code, text, and date", () => {
+  it("shows every event's label and date, never the platform's raw code", () => {
     const events = [
       event({ id: "e1", statusCode: "fr:200", statusText: "Déposée (validée)" }),
       event({ id: "e2", statusCode: "fr:202", statusText: "Reçue par la plateforme" }),
     ]
     render(<ConformityTimeline events={events} />)
 
-    expect(screen.getByTestId("document-conformity-event-e1")).toHaveTextContent("fr:200")
     expect(screen.getByTestId("document-conformity-event-e1")).toHaveTextContent("Déposée (validée)")
-    expect(screen.getByTestId("document-conformity-event-e2")).toHaveTextContent("fr:202")
     expect(screen.getByTestId("document-conformity-event-e2")).toHaveTextContent("Reçue par la plateforme")
+    for (const code of screen.getAllByTestId("document-conformity-event-code")) {
+      expect(code).not.toBeVisible()
+    }
+  })
+
+  it("names an event the platform sent without a label in words, not by its code", () => {
+    render(<ConformityTimeline events={[event({ id: "e1", statusCode: "fr:205", statusText: null })]} />)
+    expect(screen.getByTestId("document-conformity-event-text")).toHaveTextContent(
+      "Status update from the platform",
+    )
+    expect(screen.getByTestId("document-conformity-event-code")).not.toBeVisible()
   })
 
   it("renders the REAL fr:213 reason captured live (2026-09-01)", () => {
@@ -112,8 +99,7 @@ describe("<ConformityTimeline> — hardcoded events, REAL render", () => {
     const events = [event({ id: "e1", statusCode: "fr:213", statusText: "Rejetée", reason })]
     render(<ConformityTimeline events={events} />)
 
-    const row = screen.getByTestId("document-conformity-event-e1")
-    expect(row).toHaveTextContent("fr:213")
+    expect(screen.getByTestId("document-conformity-event-text")).toHaveTextContent("Rejetée")
     expect(screen.getByTestId("document-conformity-event-reason")).toHaveTextContent("BG-1")
   })
 

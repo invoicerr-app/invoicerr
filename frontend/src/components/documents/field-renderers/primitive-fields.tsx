@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useReferenceFields } from "@/hooks/queries"
 import { fromCalendarDate, toCalendarDate } from "@/lib/calendar-date"
 
+import { isPresentValue } from "../schema"
 import type { FieldRendererProps } from "./registry"
 
 function FieldChrome({
@@ -41,10 +42,6 @@ function FieldChrome({
       <FormMessage />
     </FormItem>
   )
-}
-
-function isPresentValue(value: unknown): boolean {
-  return typeof value === "string" ? value.trim() !== "" : value != null
 }
 
 /**

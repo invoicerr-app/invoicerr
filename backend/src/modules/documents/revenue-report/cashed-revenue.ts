@@ -1,4 +1,5 @@
 import { CurrencyRateLike, convertMinor, resolveLatestRate } from '../../company/currency-rates/convert';
+import { dayMs } from '../date-params';
 
 /**
  * Issue #516's "cashed-revenue view per period" - money ACTUALLY received (`DocumentPayment.paidAt`,
@@ -77,7 +78,7 @@ export interface CashedRevenuePeriod {
 }
 
 /** UTC calendar-day arithmetic throughout - the same discipline `accounting-export.service.ts`'s own
- *  `dayMs`/`issueDateInRange` already holds, so a payment dated exactly on a period boundary is
+ *  `dayMs`/`dateValueInRange` already holds, so a payment dated exactly on a period boundary is
  *  bucketed the same way here as it would be filtered there. */
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -162,13 +163,6 @@ export function enumeratePeriodKeys(from: string, to: string, granularity: Reven
     cursor = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + step, 1);
   }
   return keys;
-}
-
-/** `"2026-08-15"` -> the UTC midnight of that day, in milliseconds - matches
- *  `accounting-export.service.ts`'s own `dayMs`. */
-function dayMs(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
 }
 
 /** One payment's own `paidAt` -> which period key it belongs to, compared at UTC day boundaries  -

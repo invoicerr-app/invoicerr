@@ -4,7 +4,6 @@ import { DangerService } from '@/modules/danger/danger.service';
 import { DocumentsCoreModule } from '@/modules/documents/documents-core.module';
 import { BillingExportService } from '@/modules/billing/export-zip.service';
 import { Module } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 
 @Module({
   // `DocumentsCoreModule` (never the full `DocumentsModule`, which also carries the documents HTTP
@@ -15,6 +14,6 @@ import { JwtService } from '@nestjs/jwt';
   // hold, each for the same reason (see their own module headers).
   imports: [DocumentsCoreModule],
   controllers: [DangerController],
-  providers: [DangerService, MailService, JwtService, BillingExportService],
+  providers: [DangerService, MailService, BillingExportService],
 })
 export class DangerModule {}

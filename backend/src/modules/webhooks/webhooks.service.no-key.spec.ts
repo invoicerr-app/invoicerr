@@ -1,23 +1,13 @@
 /**
- * The DEFECTIVE configuration, and the only one this file exercises: no `CREDENTIALS_ENCRYPTION_KEY`
- * at all.
- *
- * `webhooks.service.secret-encryption.spec.ts` next door proves the encrypted-at-rest round-trip, but
- * it sets a key at the top of the file — so it can only ever assert the configuration where the key
- * IS present. That is not the configuration a self-hosted instance actually runs: `.env.example` ships
- * the variable commented out and `docker-compose.yml` passes it with an empty default, so an instance
- * built by following the documentation has no key, and every assertion below describes exactly that
- * instance.
- *
- * Vitest's `pool: 'forks'` (vitest.config.ts) gives this file its own process, so deleting the
- * variable here cannot leak into the sibling spec that sets it — and nothing in this project's vitest
- * config loads `.env.test`, which does define a key.
+ * The keyless configuration: no `CREDENTIALS_ENCRYPTION_KEY` at all, which is what a self-hosted
+ * instance following the documentation runs. The sibling spec covers the key-present round trip; this
+ * one proves the refusals and the legacy rows that must keep working.
  */
 
 import { vi, type Mock } from 'vitest';
 
-// Before importing anything that reads it. An inherited key from the ambient shell would turn every
-// assertion below into a test of the WORKING configuration — i.e. green for the wrong reason.
+// Before importing anything that reads it: an inherited key would turn these into tests of the
+// working configuration.
 delete process.env.CREDENTIALS_ENCRYPTION_KEY;
 
 import { HttpStatus } from '@nestjs/common';
@@ -42,8 +32,8 @@ const mockedPrisma = prisma as unknown as {
 const COMPANY_ID = 'company-1';
 const COMPANY_ROW = { id: COMPANY_ID, name: 'Acme' };
 
-/** A value that is not a real secret and is never asserted against a stored column — it exists only
- *  so the assertions below can say "this exact string must not have reached Prisma". */
+/** Not a real secret, and never asserted against a stored column: it exists only so the assertions can
+ *  say this exact string must not reach Prisma. */
 const SUPPLIED_SECRET = 'supplied-by-the-caller';
 
 function makeWebhook(overrides: Partial<Webhook> = {}): Webhook {
@@ -114,10 +104,8 @@ describe('WebhooksService — no CREDENTIALS_ENCRYPTION_KEY configured', () => {
     });
 
     it('still allows updating everything else on a webhook, secret left as it is', async () => {
-      // A legacy plaintext row — exactly what an instance that ran without a key has in its table. An
-      // unrelated edit (the URL) must keep working and must pass the stored value straight through:
-      // refusing here would make already-stored rows uneditable, which is the regression the "refuse
-      // to boot" posture would have caused for the whole instance.
+      // A legacy plaintext row must stay editable: refusing an unrelated edit would strand rows the
+      // operator cannot even see.
       mockedPrisma.webhook.findFirst.mockResolvedValue(makeWebhook({ secret: 'legacy-stored-value' }));
 
       await service.update(COMPANY_ID, 'wh-1', { url: 'https://8.8.8.8/other' });
@@ -141,10 +129,8 @@ describe('WebhooksService — no CREDENTIALS_ENCRYPTION_KEY configured', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('signs with a legacy plaintext secret, because refusing to sign would silently break deliveries', async () => {
-      // This is the row an instance that ran without a key already has. The fix above stops NEW ones
-      // from being written; it deliberately does not strand the ones already there, which keep signing
-      // exactly as before until the boot catch-up (`webhook-secret-migration.ts`) encrypts them the
-      // first time the instance boots with a key.
+      // Rows written without a key already exist: they keep signing until the boot catch-up encrypts
+      // them.
       let capturedSignature: string | null = null;
       vi.spyOn(global, 'fetch').mockImplementation(async (_url, init: any) => {
         capturedSignature = init.headers['X-Webhook-Signature'] ?? null;

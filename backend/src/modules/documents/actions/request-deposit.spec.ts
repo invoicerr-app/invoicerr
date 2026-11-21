@@ -3,6 +3,12 @@ import { BadRequestException } from '@nestjs/common';
 
 import { ActionRegistry } from './action-registry';
 import { registerRequestDepositAction } from './request-deposit';
+import {
+  mockInvoicesRaisedFromQuote,
+  mockNoInvoiceRaisedYet,
+  mockQuote,
+  raisedInvoiceRow,
+} from '../__tests__/quote-action-fixtures';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import * as persistence from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
@@ -35,30 +41,12 @@ function buildRegistry() {
   return registry;
 }
 
-function mockQuote(overrides: {
-  id?: string;
-  displayNumber?: string | null;
-  currency?: string;
-  lines: Array<Record<string, unknown>>;
-  notes?: string;
-}) {
-  (persistence.findOwnedDocument as Mock).mockResolvedValue({
-    id: overrides.id ?? 'quote-1',
-    typeId: 'quote',
-    status: 'sent',
-    number: 1,
-    displayNumber: overrides.displayNumber ?? 'QUOTE-2026-0001',
-    data: {
-      client: 'client-1',
-      issueDate: '2026-01-01',
-      currency: overrides.currency ?? 'EUR',
-      notes: overrides.notes,
-      lines: overrides.lines,
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-}
+// Nothing has been invoiced from any quote these tests use yet - the #953 double-invoicing guard
+// (actions/quote-invoicing-guard.ts) reads that fact first. The tests that want a quote already
+// invoiced override this with their own rows.
+beforeEach(() => {
+  mockNoInvoiceRaisedYet();
+});
 
 describe('request-deposit', () => {
   afterEach(() => vi.resetAllMocks());
@@ -223,6 +211,29 @@ describe('request-deposit', () => {
     await expect(action).rejects.not.toThrow(/once an option has been chosen/);
     expect(persistence.upsertDocument).not.toHaveBeenCalled();
   });
+
+  it('refuses (409) a second invoice for a quote that already carries one: deposit after conversion, deposit after deposit (issue #953)', async () => {
+    mockQuote({ lines: [{ description: 'A', quantity: 1, unitPrice: 100, vatRate: '20' }] });
+    // Whatever raised it - a conversion, an earlier deposit - nothing else may be invoiced on it.
+    mockInvoicesRaisedFromQuote([
+      raisedInvoiceRow({
+        data: { lines: [{ description: 'A', quantity: 1, unitPrice: 100, vatRate: '20' }] },
+      }),
+    ]);
+
+    const handler = buildRegistry().resolve('quote', 'request-deposit')!;
+    const action = handler({
+      companyId: 'company-1',
+      typeId: 'quote',
+      documentId: 'quote-1',
+      data: {},
+      params: { percent: 30 },
+    });
+
+    await expect(action).rejects.toMatchObject({ status: 409 });
+    await expect(action).rejects.toThrow(/Refusing to invoice the same quote twice/);
+    expect(persistence.upsertDocument).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -245,6 +256,8 @@ describe('request-deposit — the amount the client is actually asked to pay', (
     quote: { currency?: string; lines: Array<Record<string, unknown>> },
   ) {
     mockQuote(quote);
+    // Re-stated per call: this test's own loop calls `vi.resetAllMocks()` between cases (below).
+    mockNoInvoiceRaisedYet();
     (persistence.upsertDocument as Mock).mockResolvedValue({
       id: 'invoice-1',
       typeId: 'invoice',

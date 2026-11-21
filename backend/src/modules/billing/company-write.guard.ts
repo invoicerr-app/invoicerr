@@ -4,23 +4,20 @@
  * `...(billingEnabled ? [...] : [])` conditional `BillingModule` itself is registered with), so its
  * existence is structural, not merely a runtime no-op — see `write-gate.ts`'s own header for the full
  * exemption list this guard implements (GET/HEAD/OPTIONS, no active company on the request, and why
- * `/api/auth/*` — including Polar's checkout/portal — never reaches this at all).
+ * `/api/auth/*` - including the Stripe plugin's checkout/portal - never reaches this at all).
  *
  * Runs alongside, not instead of, `AuthGuard`/`RolesGuard`: Nest ANDs every registered `APP_GUARD`
  * (the same "adds a check rather than replacing" relationship `app.module.ts`'s own comment on
  * `ThrottlerGuard` describes), and by the time this guard runs `request.companyId` is already
  * populated by `AuthGuard` (or left `null`/`undefined` for a route with no active company).
  *
- * One route-level exemption on top of the method/companyId ones above: `@BillingGateExempt()`
- * (`billing-gate-exempt.decorator.ts`) — see that file's own header for why `POST /billing/checkout`/
- * `/billing/portal` must stay reachable for a blocked company; the same exemption also covers the
- * seat check below (an OWNER/ADMIN buying more seats must stay reachable even while, in the
- * degenerate case, THEY are somehow the one waiting).
- *
  * Also applies `seat-gate.ts#assertUserHasSeatOrThrow` — a member who has lost their seat (an
- * over-capacity company) is refused every write the same way a BLOCKED company is, named
- * `SEAT_REQUIRED` rather than `COMPANY_BLOCKED`. Checked AFTER `assertCompanyWritable`: a company that
- * is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
+ * over-capacity company) is refused EVERY request on the active company, READS INCLUDED, named
+ * `SEAT_REQUIRED` (product decision 2026-11-13: a member with no seat cannot even read). Only the
+ * BLOCKED/ZIPPED check stays write-only. On a write it runs AFTER `assertCompanyWritable`: a company
+ * that is itself BLOCKED/ZIPPED should surface that reason first, regardless of the caller's own seat.
+ * A route marked `@SeatGateExempt()` (`seat-gate-exempt.decorator.ts`: the user-level legal routes and
+ * the company switch) skips the seat check.
  *
  * Applied by `request.user.id` alone — deliberately WITHOUT branching on `request.scopes` (session vs.
  * API key): `AuthGuard` sets `request.user` to the KEY'S OWN HOLDER for an API-key-authenticated
@@ -39,12 +36,11 @@ import { Reflector } from '@nestjs/core';
 
 import { RequestWithUser } from '@/types/request';
 
-import { BILLING_GATE_EXEMPT_KEY } from './billing-gate-exempt.decorator';
 import { assertUserHasSeatOrThrow } from './seat-gate';
+import { SEAT_GATE_EXEMPT_KEY } from './seat-gate-exempt.decorator';
 import { assertCompanyWritable } from './write-gate';
 
-/** HTTP methods this guard never gates — read-only by construction. Checked case-sensitively against
- *  `request.method`, which Express/Nest always report upper-case. */
+/** Compared case-sensitively; Express/Nest report `request.method` upper-case. */
 const READ_ONLY_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 @Injectable()
@@ -54,21 +50,23 @@ export class CompanyWriteGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest() as RequestWithUser;
 
-    if (READ_ONLY_METHODS.has(request.method)) return true;
     if (!request.companyId) return true;
-    if (
-      this.reflector.getAllAndOverride<boolean>(BILLING_GATE_EXEMPT_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ])
-    ) {
-      return true;
-    }
 
-    await assertCompanyWritable(request.companyId);
-    if (request.user?.id) {
+    if (!READ_ONLY_METHODS.has(request.method)) {
+      await assertCompanyWritable(request.companyId);
+    }
+    if (request.user?.id && !this.isSeatGateExempt(context)) {
       await assertUserHasSeatOrThrow(request.companyId, request.user.id);
     }
     return true;
+  }
+
+  private isSeatGateExempt(context: ExecutionContext): boolean {
+    return (
+      this.reflector.getAllAndOverride<boolean>(SEAT_GATE_EXEMPT_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) === true
+    );
   }
 }

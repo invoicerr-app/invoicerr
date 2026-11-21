@@ -16,6 +16,7 @@ import { CurrentUser } from '@/types/user';
 import { SUPPORTED_RENDER_LANGUAGES } from '@/modules/documents/rendering/language/supported-languages';
 import { parseAccountLocaleInput, setUserLocale } from './preferences';
 import { DemoRestricted } from '@/decorators/demo-restricted.decorator';
+import { redactLogValue } from '@/logger/redaction';
 
 @ApiTags('auth-extended')
 @Controller('auth-extended')
@@ -65,7 +66,7 @@ export class AuthExtendedController {
       });
       return { success: true, message: 'Password set successfully' };
     } catch (error) {
-      console.error('Error setting password:', error);
+      console.error('Error setting password:', redactLogValue(error));
       throw new UnauthorizedException('Failed to set password');
     }
   }

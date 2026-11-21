@@ -20,7 +20,7 @@ You can do either on its own, or both.
 
 ## Declaring your last number issued
 
-In **Settings → Company**, the **Declare your last number issued** card lets you tell Invoicerr the
+In **Settings → Company**, the **Declare your last number issued** section lets you tell Invoicerr the
 last number your previous tool printed, and the date it was issued:
 
 1. Choose the **Document type** (Invoice or Credit note).
@@ -48,14 +48,46 @@ numbering has already started, and nothing may silently move it.
 From the **Invoices** or **Credit notes** page, two entry points sit next to **Add New**:
 
 - **Import**: for one document at a time. Upload the original file (PDF, or the XML your previous
-  tool produced), then fill in the usual fields (client, date, lines…) plus the document's **original
-  number** and, if you have it, **transmission evidence** (see below).
+  tool produced), then fill in the usual fields (client for an invoice, date, lines…) plus the
+  document's **original number** and, if you have it, **transmission evidence** (see below). A
+  Factur-X, CII or UBL e-invoice pre-fills the form, see below.
 - **Import CSV**: for many at once. Upload every original file first, then a CSV listing one row per
   document, each naming the file it goes with by filename. A preview shows which rows will be
   imported and which are rejected, with the reason, before anything is written. A CSV row carries at
   most one line item and a credit note imported this way is always a free one (not linked to a
   specific invoice); a document with several lines, or a credit note linked to a specific invoice's
   lines, needs the one-at-a-time **Import** form instead.
+
+### Pre-filling from a Factur-X, CII or UBL file
+
+When the original you upload is a structured e-invoice, Invoicerr reads it and seeds the form:
+
+- a **Factur-X PDF** (the CII XML embedded in the PDF), a bare **CII** XML, or a bare **UBL** XML;
+- the document number, issue date, due date when the file carries one, currency, notes, buyer
+  reference, lines, VAT rates and totals;
+- for an **invoice**, the **client**, matched against your client book by VAT identifier first, then
+  by exact name. When nothing matches, the screen proposes the buyer it read (name, VAT, address,
+  country, currency) and offers to create that client before you confirm. When several clients match,
+  it says so and asks you to pick one: it never picks for you. A **credit note** has no client field
+  to fill (it corrects an invoice, or is free), so the pre-fill neither matches nor proposes one.
+
+Every field stays editable and the original file is still stored unchanged as the legal archive.
+The pre-fill is a reading aid, never an automatic import.
+
+It refuses, with the reason shown on the form, rather than guessing:
+
+- a file that is not a recognized Factur-X, CII or UBL e-invoice;
+- a file whose own totals do not add up (net + VAT different from gross, or the lines not adding up
+  to the stated net or VAT);
+- a line that states a net amount higher than its quantity times unit price, which would mean a
+  line-level charge the import form cannot represent;
+- an invoice imported from the credit-note screen, or the reverse.
+
+A **MINIMUM** Factur-X profile carries header totals but no invoice lines. The header is pre-filled
+and the screen says the lines are missing: add them before confirming. A missing due date, or a
+credit note with no reason, is handled the same way: the form says what to fill in, and nothing is
+invented.
+
 
 An imported document gets its own status, **Imported**:
 
@@ -87,11 +119,11 @@ reset its five-year clock.
 
 ### Downloading the original
 
-An imported document's actions menu offers two separate downloads:
+An imported document's actions menu treats the rendered PDF and the original file separately:
 
-- **Download PDF** renders the document only when the original you attached was itself a PDF. When it
-  was not (the XML your previous tool produced), this action refuses and points you to **Download
-  original** instead.
+- **Preview PDF** and **Download PDF** render the document only when the original you attached was
+  itself a PDF. When it was not (the XML your previous tool produced), both refuse and point you to
+  **Download original** instead.
 - **Download original** serves the exact file you attached at import time, byte for byte, with its own
   file name and content type, whatever format it was issued in (PDF, XML, or an image). This is the
   only way to retrieve a non-PDF original, and it only ever appears on an imported document.
@@ -133,6 +165,8 @@ ATCUD**) before your first Invoicerr document of that type.
 
 ## What v1 does not cover yet
 
-Importing directly from the official original your previous tool produced (a FatturaPA XML with its
-SdI receipt, a KSeF number lookup, a Factur-X/XRechnung file, a Portuguese SAF-T export) is a later
-step. Today, you attach the original file and type in the rest by hand (or a CSV row).
+Importing directly from the official original your previous tool produced now covers Factur-X, CII
+and UBL e-invoices (see above). A FatturaPA XML with its SdI receipt, a KSeF number lookup, and a
+Portuguese SAF-T export are a later step. For those, you still attach the original file and type in
+the rest by hand (or a CSV row).
+

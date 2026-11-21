@@ -17,9 +17,16 @@ export const ISSUABLE_CLIENT_FIELDS = {
   partyIdentifiers: { create: { scheme: 'LEGAL_ID', value: '732829320' } },
 };
 
-/** The identifiers French law requires of a VAT-registered seller on every invoice. Spread into
- *  `prisma.company.create`'s `data`. */
+/** The company-law values French law requires of an SAS on every invoice. */
+export const FRENCH_SAS_COMPANY_LAW = {
+  legalForm: 'FR_SAS',
+  values: { shareCapital: { amount: '1000', currency: 'EUR' }, registerCity: 'Paris' },
+};
+
+/** The identifiers and company-law values French law requires of a VAT-registered seller on every
+ *  invoice. Spread into `prisma.company.create`'s `data`. */
 export const ISSUABLE_FRENCH_SELLER_FIELDS = {
+  companyLaw: FRENCH_SAS_COMPANY_LAW,
   partyIdentifiers: {
     create: [
       { scheme: 'LEGAL_ID', value: '732829320' },

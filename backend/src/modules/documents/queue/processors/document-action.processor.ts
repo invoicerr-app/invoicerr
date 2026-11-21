@@ -44,7 +44,7 @@
  * provider with no reason to live in the Core module either).
  *
  * PDP reception (inbound e-invoices) adds a SIXTH job name — ONE more repeatable
- * (`conformity/reception-sweep.ts`'s `RECEPTION_SWEEP_JOB_NAME`), routed to `PdpReceptionSweepRunner`,
+ * (`conformity/reception-sweep.ts`'s `RECEPTION_SWEEP_JOB_NAME`), routed to `SuperPdpReceptionSweepRunner`,
  * `@Optional()`-injected for the identical reason. UNLIKE `CurrencyRateSweepRunner`/
  * `ReminderSweepRunner`, this one DOES need `ChannelCredentialsService`/`DocumentsService` — the same
  * shape `ConformitySweepRunner` already has — so it is provided by `documents-core.module.ts`, not
@@ -81,7 +81,10 @@ import {
 } from '../../conformity/conformity-sweep';
 import { ConformitySweepRunner, RunConformitySweepResult } from '../../conformity/conformity-sweep-runner';
 import { RECEPTION_SWEEP_JOB_NAME } from '../../conformity/reception-sweep';
-import { PdpReceptionSweepRunner, RunReceptionSweepResult } from '../../conformity/reception-sweep-runner';
+import {
+  SuperPdpReceptionSweepRunner,
+  RunReceptionSweepResult,
+} from '../../conformity/reception-sweep-runner';
 import { DocumentsService } from '../../documents.service';
 import { REMINDER_SWEEP_JOB_NAME } from '../../reminders/reminder-sweep';
 import { ReminderSweepRunner, RunReminderSweepResult } from '../../reminders/reminder-sweep-runner';
@@ -150,7 +153,7 @@ export class DocumentActionProcessor extends WorkerHost {
     // PDP reception — same `@Optional()` reasoning again: every EXISTING spec in this file constructs
     // this processor without one and never sends a reception-sweep-named job; production wiring
     // (documents-core.module.ts, via `DocumentsCoreModule`'s own export) always provides a real one.
-    @Optional() private readonly receptionSweepRunner?: PdpReceptionSweepRunner,
+    @Optional() private readonly receptionSweepRunner?: SuperPdpReceptionSweepRunner,
     // The `Log` table's own age-based purge — same `@Optional()` reasoning again: every EXISTING spec
     // in this file constructs this processor without one and never sends a log-purge-sweep-named job;
     // production wiring (document-queue-worker.module.ts) always provides a real one. `Log` is not a
@@ -343,11 +346,13 @@ export class DocumentActionProcessor extends WorkerHost {
     return this.reminderSweepRunner;
   }
 
-  private requireReceptionSweepRunner(): PdpReceptionSweepRunner {
+  private requireReceptionSweepRunner(): SuperPdpReceptionSweepRunner {
     if (!this.receptionSweepRunner) {
       // Unreachable in production (documents-core.module.ts always provides one) — a loud, named
       // failure rather than a silent no-op if this is ever wired without it.
-      throw new Error('DocumentActionProcessor received a reception job but has no PdpReceptionSweepRunner.');
+      throw new Error(
+        'DocumentActionProcessor received a reception job but has no SuperPdpReceptionSweepRunner.',
+      );
     }
     return this.receptionSweepRunner;
   }
@@ -452,7 +457,7 @@ export class DocumentActionProcessor extends WorkerHost {
       // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
       // with `markSendFailed`'s vocabulary either.
       job.name === REMINDER_SWEEP_JOB_NAME ||
-      // Same reasoning again — `PdpReceptionSweepRunner.runSweep` never throws either (a per-company
+      // Same reasoning again - `SuperPdpReceptionSweepRunner.runSweep` never throws either (a per-company
       // list/import failure is caught and counted in its own `failed`, never rethrown: see that
       // runner's own header), and this job's data (`{}`, no `documentId`/`actionId`) shares nothing
       // with `markSendFailed`'s vocabulary either.

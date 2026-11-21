@@ -17,6 +17,18 @@ UBL 2.1 as the format it carries; there is no channel mandate for an ordinary B2
 not backed by a transport this app talks to yet, so a send to a government client is refused, naming
 the channel, rather than silently falling back to email. The AT monthly declaration now carries each
 document's real ATCUD and declares credit notes too (as `NC`, referencing the invoice they correct).
+Both obligations are triggered by `issued` (DL 198/2012, art. 3: the communication covers documents
+issued, by the 5th of the following month), so an invoice validated and never sent is declared too,
+and one validated then sent is declared once. That deadline is data (`timing.deadline`,
+`{ "monthsAfterTrigger": 1, "dayOfMonth": 5 }`), read by `reporting/periods.ts`. See
+[Declarations](../declarations.md).
+
+The `TaxCode` of each declared VAT-rate group (e-Fatura field 1.6.14.7.3) is read from the
+`ptAtTaxCode` table in the `codeLists` section of `countries/data/pt.json`, through the shared
+`code-lists/lookup.ts`. A stored invoice line holds its rate and no VAT category, so the table is keyed
+on the rate class: `NOR` for a non-zero rate, `ISE` for 0%, `OUT` when no rate could be resolved. The
+table holds the codes the declaration has always sent; the reduced (`RED`) and intermediate (`INT`)
+codes are owed to issue #764, as the table's own provenance says.
 See [Compliance - Portugal](/compliance/pt) for the full, sourced picture.
 
 This page is a pointer by design. Everything Invoicerr knows about Portugal lives in its own data
@@ -48,3 +60,20 @@ art. 36.º, n.º 5, alínea a) asks for the identification number of the acquire
 taxable person (« adquirente sujeito passivo do imposto »), and n.º 16 makes a private buyer's NIF
 mandatory on the invoice only when that buyer asks for it. A private client can therefore be saved,
 and invoiced, without a NIF; one entered is printed on the invoice.
+
+## Company-law mentions
+
+The `companyLaw` section of `countries/data/pt.json` prints, under the seller's name on invoices,
+quotes, credit notes and purchase orders, from Código das Sociedades Comerciais artigo 171.º:
+
+| Legal forms | Printed | Number |
+| --- | --- | --- |
+| every sociedade | "Sociedade por quotas, matriculada na Conservatória do Registo Comercial de Lisboa sob o número de matrícula e de identificação de pessoa coletiva 500000000" | 1 |
+| por quotas, unipessoal por quotas, anónima, em comandita por ações | "Capital social 5000.00 EUR" | 2 |
+| same | "Capital realizado …", only when filled in ("se for diverso") | 2 |
+| Empresário em nome individual, other forms | nothing | artigo 171.º binds sociedades |
+
+The registration number is the NIPC, the `LEGAL_ID` identifier, since artigo 171.º names one
+"número de matrícula e de identificação de pessoa colectiva". The sede is the company address. Not
+modelled: the capital próprio owed when it is at most half the share capital, and liquidation. Text
+read at pgdlisboa.pt (56.ª versão, DL n.º 171/2026) on 2026-10-25.

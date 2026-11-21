@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ActionParamsDialog } from "@/components/documents/action-params-dialog"
@@ -7,11 +8,14 @@ import { DocumentDeleteConfirmDialog } from "@/components/documents/document-del
 import { DocumentField } from "@/components/documents/document-field"
 import { DocumentFormReadOnlyProvider } from "@/components/documents/document-form-readonly"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "@/components/documents/types"
-import type { DocumentFormState } from "@/components/documents/use-document-form"
+import type { DocumentFormState, LineTotalWarning } from "@/components/documents/use-document-form"
 import { useActionTransmissionPreview } from "@/hooks/queries/use-document-types"
+import { useDemoMode } from "@/hooks/queries"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ProseHelp } from "@/components/ui/prose-help"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
+import { formatServerMessage } from "@/lib/server-message"
 
 /**
  * The rendered pieces of a document form — the fields, one action button, the params dialog —
@@ -72,7 +76,8 @@ export function DocumentFormFields({ descriptor, state, readOnly = false }: Docu
 }
 
 // The supplier's own lines and totals disagree: a status the user acts on, the server's figures behind its `?`.
-export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }>) {
+// A legacy message is a bare sentence (see `LineTotalWarning`): shown as-is, never passed to `t()`.
+export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: LineTotalWarning[] }>) {
   const { t } = useTranslation()
   if (!warnings?.length) return null
   return (
@@ -81,7 +86,10 @@ export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }
       title={t("documents.form.lineTotalWarningsTitle")}
       dataCy="document-line-total-warnings"
     >
-      {warnings}
+      {warnings.map((warning) => {
+        if (typeof warning === "string") return warning
+        return formatServerMessage(t, warning)
+      })}
     </ProseHelp>
   )
 }
@@ -89,9 +97,31 @@ export function LineTotalWarnings({ warnings }: Readonly<{ warnings?: string[] }
 // Not prefixed "document-action-": 17-document-descriptor.cy.ts reads that prefix as an action id.
 export function BlockedActionReason({
   action,
+  demoBlocked = false,
   className,
-}: Readonly<{ action: DocumentActionDescriptor; className?: string }>) {
+  id,
+}: Readonly<{
+  action: DocumentActionDescriptor
+  demoBlocked?: boolean
+  className?: string
+  /** Referenced by the disabled button's `aria-describedby`; the demo branch only. */
+  id?: string
+}>) {
   const { t } = useTranslation()
+  // A demo refusal is a short, unconditional status: it stays visible under the button, because a
+  // disabled button is neither hoverable nor focusable, so a tooltip or a `?` would never open.
+  if (demoBlocked) {
+    return (
+      <p
+        id={id}
+        className={`text-xs text-muted-foreground ${className ?? ""}`}
+        data-cy={`document-blocked-reason-${action.id}`}
+        data-slot="demo-blocked-reason"
+      >
+        {t("demo.disabledTooltip", "Disabled in this demo.")}
+      </p>
+    )
+  }
   return (
     <ProseHelp
       tone="warning"
@@ -109,9 +139,9 @@ interface DocumentActionButtonProps {
   action: DocumentActionDescriptor
   state: DocumentFormState
   variant: "default" | "outline" | "secondary"
-  /** Whether to print the transition caption and the blocked reason UNDER the button. The create
-   *  dialog's footer does; the detail page's header keeps the same texts in the button's tooltip
-   *  and in the actions menu instead, where there is room for them. */
+  /** Whether to print the transition caption UNDER the button. The create dialog's footer and the
+   *  detail page's primary header do. A demo-blocked reason is always printed under the button,
+   *  captions or not: it must stay reachable without hovering an unfocusable disabled control. */
   captions?: boolean
   className?: string
 }
@@ -132,7 +162,10 @@ export function DocumentActionButton({
 }: DocumentActionButtonProps) {
   const { t } = useTranslation()
   const { currentStatus, runner } = state
+  const { demoMode } = useDemoMode()
   const hint = transitionHint(t, descriptor, action, currentStatus)
+  const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+  const demoReasonId = useId()
 
   return (
     <div className={className}>
@@ -140,10 +173,18 @@ export function DocumentActionButton({
         type="button"
         variant={variant}
         loading={runner.isRunning && runner.pendingAction === undefined}
-        disabled={!!action.policyBlockedReason}
+        disabled={!!action.policyBlockedReason || demoBlocked}
+        // No tooltip for the demo refusal: a disabled button never receives the hover or focus a
+        // tooltip needs, so the reason is rendered as visible text below it instead (and named on
+        // the button by `aria-describedby`).
         tooltip={
-          action.policyBlockedReason ? t("documents.form.actionBlockedTitle") : captions ? undefined : hint
+          action.policyBlockedReason
+            ? t("documents.form.actionBlockedTitle")
+            : captions || demoBlocked
+              ? undefined
+              : hint
         }
+        aria-describedby={demoBlocked ? demoReasonId : undefined}
         onClick={() => runner.handleAction(action)}
         dataCy={`document-action-${action.id}`}
       >
@@ -157,6 +198,9 @@ export function DocumentActionButton({
         >
           {hint}
         </p>
+      )}
+      {demoBlocked && (
+        <BlockedActionReason action={action} demoBlocked id={demoReasonId} className="mt-1 max-w-xs" />
       )}
       {action.policyBlockedReason && <BlockedActionReason action={action} className="mt-1 max-w-xs" />}
     </div>

@@ -14,18 +14,19 @@ import type { CompanyMember, CompanyRole } from "@/types"
 import {
   SettingsIconDisc,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
   SettingsRowMenu,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 export default function MembersSettings() {
   const { t } = useTranslation()
   const { data: session } = authClient.useSession()
   const { activeRole } = useCompanies()
 
-  const { data: members, loading, mutate } = useGet<CompanyMember[]>("/api/companies/members")
+  const { data: members, loading, error, mutate } = useGet<CompanyMember[]>("/api/companies/members")
 
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
   const isOwner = activeRole === "OWNER"
@@ -81,6 +82,8 @@ export default function MembersSettings() {
       <NoFreeSeatNotice data-cy="members-no-free-seat" />
       {loading ? (
         <SettingsListSkeleton rows={3} />
+      ) : !members && error ? (
+        <SettingsListError onRetry={mutate} dataCy="members-load-error" />
       ) : !members || members.length === 0 ? (
         <EmptyState icon={Users} size="sm" title={t("settings.members.empty")} data-cy="members-empty" />
       ) : (

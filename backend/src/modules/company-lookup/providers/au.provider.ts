@@ -1,15 +1,11 @@
 /**
  * Australia — ABN Lookup (Australian Business Register).
- *
- * Endpoint : GET https://abr.business.gov.au/json/AbnDetails.aspx?abn={abn}&guid={guid}
- * Docs     : https://abr.business.gov.au/Documentation/Default
- * Credentials: ABR_GUID (free registration).
- *
- * The endpoint answers JSONP and reports every problem — including a bad GUID — with
- * HTTP 200 and a `Message` field, so the body has to be inspected, not the status.
+ * Docs: https://abr.business.gov.au/Documentation/Default (ABR_GUID). Answers JSONP and reports
+ * every problem, a bad GUID included, with HTTP 200 and a `Message` field: inspect the body.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchText, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchText, toDate } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -50,10 +46,10 @@ export class AustraliaAbrProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://abr.business.gov.au/Documentation/Default';
   readonly credentialEnvVars = ['ABR_GUID'] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return !!process.env.ABR_GUID;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

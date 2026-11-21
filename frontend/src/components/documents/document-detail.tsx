@@ -1,18 +1,30 @@
-import { ArrowLeft, ChevronDown, Download, FileCode, FileDown, Link2, Repeat, UserCheck } from "lucide-react"
-import { useState } from "react"
+import {
+  ArrowLeft,
+  ChevronDown,
+  Download,
+  Eye,
+  FileCode,
+  FileDown,
+  Link2,
+  Lock,
+  Repeat,
+  UserCheck,
+} from "lucide-react"
+import { type ReactNode, useState } from "react"
+import { useWatch } from "react-hook-form"
 import { Link, useNavigate } from "react-router"
 import { useTranslation } from "react-i18next"
 
 // Side-effect only: makes whatever is registered in custom-slots.ts available — the same pattern
 // document-list.tsx follows, and for the same reason (see custom-registrations.ts's own header).
 import "@/components/documents/custom-registrations"
+import { cn } from "@/lib/utils"
 
 import {
   extraActionGates,
   findSaveAction,
-  pickPrimaryAction,
+  presentActions,
   saveDraftLockNotice,
-  secondaryActions,
   transitionHint,
 } from "@/components/documents/action-presentation"
 import { CreateRecurrenceDialog } from "@/components/documents/create-recurrence-dialog"
@@ -28,6 +40,7 @@ import {
   downloadDocumentOriginal,
   downloadDocumentPdf,
   downloadDocumentXml,
+  previewDocumentPdf,
 } from "@/components/documents/document-downloads"
 import {
   DocumentActionButton,
@@ -40,6 +53,8 @@ import { DocumentReconciliationSection } from "@/components/documents/document-r
 import {
   DocumentSettlementBadge,
   DocumentSettlementSection,
+  SettledMark,
+  useBalanceSettled,
 } from "@/components/documents/document-settlement"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { DocumentTaxWarningsSection } from "@/components/documents/document-tax-warnings"
@@ -68,8 +83,10 @@ import type {
 import { isActionAvailable, numberingDisplayState, statusLabel } from "@/components/documents/types"
 import { type DocumentFormState, useDocumentForm } from "@/components/documents/use-document-form"
 import { useUnsavedChanges } from "@/components/documents/use-unsaved-changes"
+import { useDemoMode } from "@/hooks/queries"
 import { ProseHelp } from "@/components/ui/prose-help"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { DocumentPaper } from "@/components/documents/document-paper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -83,6 +100,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Form } from "@/components/ui/form"
+import { isDemoBlockedAction } from "@/lib/demo-actions"
 
 interface DocumentDetailProps {
   descriptor: DocumentTypeDescriptor
@@ -202,8 +220,8 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
   // from also being a button a human could click a second time mid-flight and race the queue.
   const isProcessing = currentStatus === "sending"
   const actions = isProcessing ? [] : availableActions
-  const primary = pickPrimaryAction(actions, currentStatus, isDirty)
-  const secondary = secondaryActions(actions, primary)
+  const balanceSettled = useBalanceSettled(descriptor.id, instance.id, showSettlement)
+  const { primary, secondary, settled } = presentActions(actions, currentStatus, isDirty, balanceSettled)
   const saveAction = findSaveAction(actions, currentStatus)
   // Issue #468 (and the pre-existing France invoice case) - see `saveDraftLockNotice`'s own header:
   // reads the FULL descriptor, not `availableActions`, since the whole point is to explain why
@@ -225,6 +243,7 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
           state={state}
           primary={primary}
           secondary={secondary}
+          settled={settled}
           isProcessing={isProcessing}
         />
       </DocumentDetailHeader>
@@ -239,15 +258,20 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
+      {liveInstance.conformityRejectedAt && (
+        <DocumentRejectionBanner descriptor={descriptor} instance={liveInstance} />
+      )}
+
       {saveLockedMessage && (
         // Issue #468 - the "Save draft"-shaped action (whatever its label) has silently DISAPPEARED
         // from `availableActions` (isActionAvailable already refuses it, `use-document-form.ts`),
         // which by itself just looks like the feature vanished. This says WHY, and what to do
         // instead - same wording whether the type's own `lockedStatuses` fired or a country policy's
         // `policyRestrictedToStatuses` did (see `saveDraftLockNotice`'s own header).
-        <Alert data-cy="document-save-locked-notice">
-          <AlertDescription>{saveLockedMessage}</AlertDescription>
-        </Alert>
+        <p className="flex items-start gap-2 text-sm text-ink-2" data-cy="document-save-locked-notice">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {saveLockedMessage}
+        </p>
       )}
 
       {liveInstance.status === "imported" && !hasImportTransmissionEvidence(liveInstance) && (
@@ -281,19 +305,49 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        {/* `scroll-mb-24` on anything focused inside the form: a field tabbed into near the bottom
+      <div
+        className={cn(
+          "grid gap-8",
+          saveLockedMessage ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_28rem]",
+        )}
+      >
+        <div className="min-w-0 space-y-6">
+          {saveLockedMessage && (
+            <DocumentPaper
+              descriptor={descriptor}
+              data={liveInstance.data}
+              displayNumber={liveInstance.displayNumber}
+              derivedTotals={liveInstance.derivedTotals}
+            />
+          )}
+          {saveLockedMessage && (
+            <h3 className="pt-2 text-base font-semibold">{t("documents.detail.allFields")}</h3>
+          )}
+          {/* `scroll-mb-24` on anything focused inside the form: a field tabbed into near the bottom
             must clear the sticky "unsaved" bar, not land under it. */}
-        <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
-          <CardContent className="px-5">
-            {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
+          <Card className="gap-4 py-5 [&_:focus]:scroll-mb-24">
+            <CardContent className="px-5">
+              {/* Issue #468 (point 3) - the same fact `saveLockedMessage` above already reads: the
                 notice explains WHY "save-draft" is missing, this is what stops the fields underneath
                 from still looking editable while it does. */}
-            <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
-          </CardContent>
-        </Card>
+              <DocumentFormFields descriptor={descriptor} state={state} readOnly={!!saveLockedMessage} />
+            </CardContent>
+          </Card>
+        </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-6">
+          {/* The transmission history leads the aside: any type or status once the platform has
+              reported at least one event, nothing for a document sent by email or by a channel with
+              no poller. */}
+          <DocumentConformitySection
+            typeId={descriptor.id}
+            documentId={instance.id}
+            createdAt={instance.createdAt}
+          />
+          {/* An editable record composes itself beside its form, as on the new-record page. */}
+          {!saveLockedMessage && (
+            <DraftLivePaper descriptor={descriptor} displayNumber={liveInstance.displayNumber} />
+          )}
           <TotalsCard
             descriptor={descriptor}
             documentId={instance.id}
@@ -318,7 +372,13 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
                 : null
             }
           />
-          {showSettlement && <DocumentSettlementSection typeId={descriptor.id} documentId={instance.id} />}
+          {showSettlement && (
+            <DocumentSettlementSection
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
+          )}
           {/* Legal archiving ⚖ — shown for ANY document type/status once it has at least one
               archive (the component itself renders nothing otherwise, see its own header): never
               gated on "sent" here, since the component's own emptiness check already carries that
@@ -334,11 +394,6 @@ function DocumentDetailBody({ descriptor, instance, state, baseline, onDiscard }
             status={liveInstance.status}
             updatedAt={instance.updatedAt}
           />
-          {/* Conformity tracking — same gate as the archive section right above (any type/status
-              once it has at least one event; renders nothing otherwise, see that component's own
-              header): a document sent by email, or by a channel with no poller (e.g. "sdi"), never
-              shows a section here at all. */}
-          <DocumentConformitySection typeId={descriptor.id} documentId={instance.id} />
           {/* The 3-way-match panel — TYPE-gated, unlike the two sections above: see
               document-reconciliation-section.tsx's own header for why. */}
           {descriptor.id === "received-invoice" && <DocumentReconciliationSection documentId={instance.id} />}
@@ -423,13 +478,17 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
         </Link>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="font-heading text-xl font-semibold tracking-tight">{descriptor.label}</h2>
+          <h2 className="text-[28px] leading-tight">{descriptor.label}</h2>
           {/* See document-list.tsx's own `DocumentCardNumber` comment for the full "why" of the three
            *  states `numberingDisplayState` distinguishes - issue #471's legacy credit note is what
            *  makes "issuedWithoutNumber" a real, distinct case here, not just "no number yet". */}
           {descriptor.numbering && (
             <span
-              className={instance.displayNumber ? "font-mono text-lg" : "text-sm text-muted-foreground"}
+              className={
+                instance.displayNumber
+                  ? "font-heading text-[28px] leading-tight tabular-nums"
+                  : "text-sm text-muted-foreground"
+              }
               data-cy="document-form-number"
             >
               {instance.displayNumber ??
@@ -440,7 +499,11 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
           )}
           <DocumentStatusBadge status={instance.status} label={statusLabel(descriptor, instance.status)} />
           {state.showSettlement && (
-            <DocumentSettlementBadge typeId={descriptor.id} documentId={instance.id} />
+            <DocumentSettlementBadge
+              typeId={descriptor.id}
+              documentId={instance.id}
+              dueDate={instance.data?.dueDate}
+            />
           )}
           <DocumentConformityListIndicator typeId={descriptor.id} documentId={instance.id} />
         </div>
@@ -478,7 +541,13 @@ function DocumentDetailHeader({ descriptor, instance, state, children }: Documen
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">{children}</div>
+      {/* Top-aligned so the primary button's caption hangs below it instead of lifting it. */}
+      <div
+        className="flex shrink-0 flex-wrap items-start gap-2 lg:justify-end"
+        data-cy="document-detail-actions"
+      >
+        {children}
+      </div>
     </header>
   )
 }
@@ -499,13 +568,14 @@ function HeadlineAmount({
   acceptedOption?: string | null
   derivedTotals?: DerivedDocumentTotals | null
 }) {
+  const { t } = useTranslation()
   const optionTotals = useDocumentOptionTotals(descriptor)
   const liveTotals = useDocumentTotals(descriptor)
-  const totals = derivedTotals ? fromDerivedTotals(derivedTotals) : liveTotals
+  const totals = derivedTotals ? fromDerivedTotals(derivedTotals, t) : liveTotals
   const headline = optionTotals ? acceptedOptionTotals(optionTotals, acceptedOption) : totals
   if (!headline) return null
   return (
-    <span className="amount text-base font-semibold text-foreground" data-cy="document-detail-amount">
+    <span className="amount text-lg text-foreground" data-cy="document-detail-amount">
       <LtrValue>{formatTotal(headline.grossMinor, headline.currency || "")}</LtrValue>
     </span>
   )
@@ -598,6 +668,8 @@ interface DocumentDetailActionsProps {
   state: DocumentFormState
   primary: DocumentActionDescriptor | undefined
   secondary: DocumentActionDescriptor[]
+  /** The primary slot shows the settled mark (see `presentActions`). */
+  settled: boolean
   isProcessing: boolean
 }
 
@@ -614,9 +686,11 @@ function DocumentDetailActions({
   state,
   primary,
   secondary,
+  settled,
   isProcessing,
 }: DocumentDetailActionsProps) {
   const { t } = useTranslation()
+  const { demoMode } = useDemoMode()
   const [recurrenceOpen, setRecurrenceOpen] = useState(false)
   const [shareLinkOpen, setShareLinkOpen] = useState(false)
   const [markAcceptedOpen, setMarkAcceptedOpen] = useState(false)
@@ -631,6 +705,31 @@ function DocumentDetailActions({
     !acceptManuallyAction.policyBlockedReason &&
     isActionAvailable(acceptManuallyAction, instance.status)
 
+  let primarySlot: ReactNode = null
+  if (isProcessing) {
+    primarySlot = (
+      <span className="px-2 text-sm text-muted-foreground" data-cy="document-detail-processing">
+        {t("documents.list.processing")}
+      </span>
+    )
+  } else if (settled) {
+    primarySlot = <SettledMark dataCy="document-detail-settled" className="size-9" />
+  } else if (primary) {
+    primarySlot = (
+      // `captions`: the "Draft → Sending" line under the one highlighted button is what tells a
+      // reader what that click commits them to, before they click — the same caption every
+      // secondary entry carries inside the menu.
+      <DocumentActionButton
+        descriptor={descriptor}
+        action={primary}
+        state={state}
+        variant="default"
+        captions
+        className="flex flex-col items-end text-end"
+      />
+    )
+  }
+
   return (
     <>
       {/* Keyed by the component's own function name, not the array index — see document-list.tsx's
@@ -639,8 +738,10 @@ function DocumentDetailActions({
         <CustomExtra key={CustomExtra.name} descriptor={descriptor} instance={instance} />
       ))}
 
-      {/* Always present: the PDF download alone earns the menu its place on every saved record. */}
-      <DropdownMenu>
+      {/* Always present: the PDF actions alone earn the menu its place on every saved record. */}
+      {/* Issue #715: a modal Radix menu marks the sidebar aria-hidden while its focusable buttons
+          stay reachable, which axe reports as aria-hidden-focus. This menu needs no inert page. */}
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" dataCy="document-actions-menu">
             {t("documents.detail.actions")}
@@ -650,7 +751,8 @@ function DocumentDetailActions({
         <DropdownMenuContent align="end" className="min-w-56" data-cy="document-actions-menu-content">
           {secondary.map((action) => {
             const hint = transitionHint(t, descriptor, action, state.currentStatus)
-            const blocked = !!action.policyBlockedReason
+            const demoBlocked = isDemoBlockedAction(action.id, demoMode)
+            const blocked = !!action.policyBlockedReason || demoBlocked
             return (
               <DropdownMenuItem
                 key={action.id}
@@ -673,7 +775,9 @@ function DocumentDetailActions({
                       className="max-w-xs text-xs text-muted-foreground"
                       data-cy={`document-blocked-reason-${action.id}`}
                     >
-                      {t("documents.form.actionBlockedTitle")}
+                      {demoBlocked
+                        ? t("demo.disabledTooltip", "Disabled in this demo.")
+                        : t("documents.form.actionBlockedTitle")}
                     </span>
                   )}
                 </div>
@@ -683,8 +787,15 @@ function DocumentDetailActions({
           {secondary.length > 0 && <DropdownMenuSeparator />}
 
           <DropdownMenuItem
-            onSelect={() => void downloadDocumentPdf(descriptor.id, instance.id, t)}
+            onSelect={() => void previewDocumentPdf(descriptor.id, instance.id, t)}
             data-cy="document-pdf-button"
+          >
+            <Eye aria-hidden="true" />
+            {t("documents.list.previewPdf")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => void downloadDocumentPdf(descriptor, instance, t)}
+            data-cy="document-pdf-download-button"
           >
             <Download aria-hidden="true" />
             {t("documents.list.downloadPdf")}
@@ -759,25 +870,7 @@ function DocumentDetailActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isProcessing ? (
-        <span className="px-2 text-sm text-muted-foreground" data-cy="document-detail-processing">
-          {t("documents.list.processing")}
-        </span>
-      ) : (
-        primary && (
-          // `captions`: the "Draft → Sending" line under the one highlighted button is what tells a
-          // reader what that click commits them to, before they click — the same caption every
-          // secondary entry carries inside the menu.
-          <DocumentActionButton
-            descriptor={descriptor}
-            action={primary}
-            state={state}
-            variant="default"
-            captions
-            className="flex flex-col items-end text-end"
-          />
-        )
-      )}
+      {primarySlot}
 
       {gates.recurrence && recurrenceOpen && (
         <CreateRecurrenceDialog
@@ -807,5 +900,57 @@ function DocumentDetailActions({
         />
       )}
     </>
+  )
+}
+
+/** The record as its client will see it, recomposed from the form on every change. Its own
+ *  component, so a keystroke re-renders only the sheet. */
+function DraftLivePaper({
+  descriptor,
+  displayNumber,
+}: {
+  descriptor: DocumentTypeDescriptor
+  displayNumber?: string | null
+}) {
+  const { t } = useTranslation()
+  const values = useWatch() as Record<string, unknown>
+  return (
+    <section aria-label={t("documents.form.editor.previewLabel")} data-cy="document-detail-live-paper">
+      <p className="mb-3 text-[14px] font-semibold text-ink-2">{t("documents.form.editor.previewLabel")}</p>
+      <DocumentPaper descriptor={descriptor} data={values} displayNumber={displayNumber} />
+    </section>
+  )
+}
+
+/** The e-invoicing platform rejected this document: its reason, and whatever correction entry point
+ *  the document's type registers at "rejection-actions" (custom-slots.ts). */
+function DocumentRejectionBanner({
+  descriptor,
+  instance,
+}: {
+  descriptor: DocumentTypeDescriptor
+  instance: DocumentInstance
+}) {
+  const { t } = useTranslation()
+  const actions = getDocumentCustomComponents(descriptor.id, "rejection-actions")
+  return (
+    <Alert variant="destructive" data-cy="document-rejection-banner">
+      <AlertTitle>{t("documents.rejection.title")}</AlertTitle>
+      <AlertDescription>
+        <p>{t("documents.rejection.detail")}</p>
+        {instance.conformityRejectedReason && (
+          <p className="font-semibold" data-cy="document-rejection-reason">
+            {t("documents.rejection.reason", { reason: instance.conformityRejectedReason })}
+          </p>
+        )}
+        {actions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {actions.map((Action) => (
+              <Action key={Action.name} descriptor={descriptor} instance={instance} />
+            ))}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
   )
 }

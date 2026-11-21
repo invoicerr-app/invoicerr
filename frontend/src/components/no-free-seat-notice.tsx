@@ -4,6 +4,7 @@ import { Link } from "react-router"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useBillingStatus, useCompanies, useSeats } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 
 /**
  * Shown on the Members and Invitations settings screens when the company already has as many
@@ -15,7 +16,7 @@ import { useBillingStatus, useCompanies, useSeats } from "@/hooks/queries"
 export function NoFreeSeatNotice({ dataCy }: { dataCy?: string }) {
   const { t } = useTranslation()
   const { activeRole } = useCompanies()
-  const canManage = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManage = isCompanyAdmin(activeRole)
   const { isSuccess: billingAvailable } = useBillingStatus()
   const { data: seats } = useSeats(billingAvailable && canManage)
 
@@ -25,7 +26,7 @@ export function NoFreeSeatNotice({ dataCy }: { dataCy?: string }) {
     <Alert variant="warning" data-cy={dataCy}>
       <TriangleAlertIcon />
       <AlertTitle>
-        {t("settings.seats.noFreeSeatNotice.title", "No free seat — add one in the Polar portal")}
+        {t("settings.seats.noFreeSeatNotice.title", "No free seat: free one or buy more")}
       </AlertTitle>
       <AlertDescription>
         <Link to="/settings/seats" className="underline underline-offset-4">

@@ -68,19 +68,20 @@ describe('country-fields/data — five countries ship a real overlay', () => {
     ]);
   });
 
-  it.each(
-    SUPPLY_TYPE_COUNTRIES,
-  )("%s adds an OPTIONAL 'select' supplyType subfield to invoice.lines, GOODS/SERVICES only", (countryCode) => {
-    const supplyType = supplyTypeFieldOf(countryCode)!;
+  it.each(SUPPLY_TYPE_COUNTRIES)(
+    "%s adds an OPTIONAL 'select' supplyType subfield to invoice.lines, GOODS/SERVICES only",
+    (countryCode) => {
+      const supplyType = supplyTypeFieldOf(countryCode)!;
 
-    expect(supplyType).toBeDefined();
-    expect(supplyType.kind).toBe('select');
-    expect(supplyType.required).toBeFalsy();
-    expect(supplyType.options?.map((o) => o.value).sort()).toEqual(['GOODS', 'SERVICES']);
-    // DIGITAL is deliberately absent from every one of them: `tax/resolve-invoice-tax.ts` narrows a
-    // stored value to GOODS/SERVICES, so a third option would be discarded on the way in.
-    expect(supplyType.options).toHaveLength(2);
-  });
+      expect(supplyType).toBeDefined();
+      expect(supplyType.kind).toBe('select');
+      expect(supplyType.required).toBeFalsy();
+      expect(supplyType.options?.map((o) => o.value).sort()).toEqual(['GOODS', 'SERVICES']);
+      // DIGITAL is deliberately absent from every one of them: `tax/resolve-invoice-tax.ts` narrows a
+      // stored value to GOODS/SERVICES, so a third option would be discarded on the way in.
+      expect(supplyType.options).toHaveLength(2);
+    },
+  );
 
   it('the supply-type field is the SAME field in all five — only the help text may name a national consequence', () => {
     // The point of the assertion: a directive-level distinction (Directive 2006/112/EC arts. 33(a)

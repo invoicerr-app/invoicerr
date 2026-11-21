@@ -27,8 +27,9 @@
  * call sites: a company that turned signing on gets a loud failure, never a document it believes is
  * signed but silently is not.
  */
+import { PadesSigningProvider } from './providers';
+import { resolveTimestampOptions } from './registry';
 import { SigningCredentialsPort } from './signing-credentials-port';
-import { SigningProviderRegistry } from './registry';
 import { SigningLogger, defaultSigningLogger } from './signing-logger';
 
 /**
@@ -42,7 +43,6 @@ function certRefFor(companyId: string): string {
 }
 
 export interface SignRenderedPdfOptions {
-  registry?: SigningProviderRegistry;
   log?: SigningLogger;
 }
 
@@ -56,12 +56,17 @@ export async function signRenderedPdfIfConfigured(
   pdf: Buffer,
   options: SignRenderedPdfOptions = {},
 ): Promise<Buffer> {
-  const registry = options.registry ?? new SigningProviderRegistry(undefined, credentials);
+  // Built directly (no `SigningProviderRegistry`): PAdES is the only algorithm this flow uses. The
+  // env-derived timestamp options are still passed so the logged signature level stays the same;
+  // the TSA itself is ignored by `PadesSigningProvider` (see its constructor).
+  const provider = new PadesSigningProvider(credentials, resolveTimestampOptions());
   const log = options.log ?? defaultSigningLogger;
 
-  const signed = await registry
-    .get('PAdES')
-    .sign({ mime: 'application/pdf', bytes: new Uint8Array(pdf), label: 'pdf' }, certRefFor(companyId), log);
+  const signed = await provider.sign(
+    { mime: 'application/pdf', bytes: new Uint8Array(pdf), label: 'pdf' },
+    certRefFor(companyId),
+    log,
+  );
 
   return Buffer.from(signed.bytes);
 }

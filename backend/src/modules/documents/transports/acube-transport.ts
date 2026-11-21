@@ -1,6 +1,6 @@
 /**
  * The "acube" transport - A-Cube (`acubeapi.com`), an Italian e-invoicing provider that is also a
- * Peppol access point. Same `DocumentTransport` interface `pdp-transport.ts`, `ksef-transport.ts`
+ * Peppol access point. Same `DocumentTransport` interface `superpdp-transport.ts`, `ksef-transport.ts`
  * and `sdi-transport.ts` implement, registered the same way (`TransportRegistry.register` in
  * `documents-core.module.ts`) - nothing anywhere special-cases it, a company opts in through
  * `Company.invoiceTransportId` like for any other channel.
@@ -56,7 +56,7 @@
  *
  * ## The deposit succeeds at acceptance, not at the SdI verdict
  *
- * Exactly the narrower contract `pdp-transport.ts`'s own header defines: `send()` SUCCEEDS the moment
+ * Exactly the narrower contract `superpdp-transport.ts`'s own header defines: `send()` SUCCEEDS the moment
  * A-Cube ACCEPTS the deposit (a non-empty `uuid` back from `POST /invoices`, HTTP 202). The deposit
  * is asynchronous by A-Cube's own design - the SdI outcome lands later, as a change of the invoice's
  * marking - and following it needs a poller in `conformity/pollers/`, which is separate work from the
@@ -91,6 +91,7 @@
  * `AcubeJurisdiction` plus `JURISDICTION_HOSTS` in the client, so reaching that access point later is
  * a host-table row and a format choice, never a second authentication design.
  */
+import { ACUBE_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -98,10 +99,12 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { AcubeClient, AcubeEnvironment } from './acube/acube-client';
 import {
@@ -146,9 +149,9 @@ export interface AcubeTransportDeps {
   clientFactory?: (credentials: AcubeCredentials) => Pick<AcubeClient, 'sendInvoice' | 'getBaseUrl'>;
 }
 
-const PROVIDER_ID = 'acube';
+const PROVIDER_ID = ACUBE_PROVIDER_ID;
 
-/** Same "the invoice's OWN base descriptor, module-level constant" choice `pdp-transport.ts` makes
+/** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes
  *  for the identical reason: this transport is reached ONLY through `invoiceTransportId`, so it is
  *  always an invoice, never another document type, that it ever builds a payload for. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
@@ -177,8 +180,12 @@ async function requireConnectedAcube(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<AcubeCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractAcubeCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractAcubeCredentials,
+  );
   if (!credentials) {
     logger.warn('A-Cube transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -245,7 +252,7 @@ export function buildAcubeTransport(deps: AcubeTransportDeps): DocumentTransport
         buildInput.descriptor,
         buildInput.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         ctx.companyId,
         buildInput.options,
       );

@@ -37,9 +37,15 @@ on:
 permissions:
   contents: read
 
+# A new commit on a pull request makes the earlier runs of that pull request pointless; other events keep every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   scenario:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       # 5-country prune (2026-09-10) — fr-be/es-pt/mx-us/us-us re-pointed onto kept-country pairs
@@ -49,7 +55,7 @@ jobs:
         scenario: [fr-pl, de-fr, it-it, pt-de, it-pt, pl-de]
     services:
       postgres-test:
-        image: postgres:16@sha256:a902560563d3a5661228585f53474c5065e7f273b21ffd77e555a8b5682c5690
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
         env:
           POSTGRES_USER: invoicerr
           POSTGRES_HOST_AUTH_METHOD: trust
@@ -61,7 +67,7 @@ jobs:
           --health-interval 2s
           --health-retries 10
       mailpit:
-        image: axllent/mailpit@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
+        image: axllent/mailpit@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
         ports:
           - "8025:8025"
           - "1025:1025"
@@ -74,7 +80,7 @@ jobs:
       # running a single assertion. cypress.yml never hit this because its own job sets REDIS_URL
       # explicitly; this job inherited the file's value instead. Hence the job-level override below.
       redis:
-        image: redis:7@sha256:44960b3100c48159a66d28c18b0588c193492e25f7551d60e51dd464fc3eca5b
+        image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
         ports:
           - "6379:6379"
         options: >-
@@ -93,7 +99,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
-          node-version: 24
+          node-version-file: .nvmrc
 
       - name: Install backend dependencies
         env:
@@ -156,10 +162,12 @@ jobs:
           # Nest app itself finished booting — a slow boot or a startup crash used to
           # go unnoticed until the scenario failed with a confusing auth error.
           "$GITHUB_WORKSPACE/e2e/node_modules/.bin/wait-on" http-get://localhost:4000/api/health --timeout 120000
-          (cd "$GITHUB_WORKSPACE/e2e" && CYPRESS_scenario="$SCENARIO" ./node_modules/.bin/cypress run --browser firefox --spec "cypress/e2e/scenarios/full-lifecycle.cy.ts")
+          (cd "$GITHUB_WORKSPACE/e2e" && CYPRESS_scenario="$SCENARIO" CYPRESS_BIN=./node_modules/.bin/cypress SPEC_TIMEOUT_MIN=25 scripts/run-specs.sh "cypress/e2e/scenarios/full-lifecycle.cy.ts" --browser firefox)
 
       - name: Upload backend logs
         if: always()
+        # Diagnostics only: an artifact storage outage must not turn green tests red.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-logs-${{ matrix.scenario }}
@@ -167,6 +175,7 @@ jobs:
 
       - name: Upload Cypress videos and screenshots
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: scenario-${{ matrix.scenario }}-artifacts

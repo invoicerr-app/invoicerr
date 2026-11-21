@@ -34,17 +34,13 @@ export class EditCompanyDto {
   /** BT-84 (Payment account identifier) — see Company.iban's own schema.prisma comment. Null/absent
    *  clears it; never validated/fabricated here, the vendored XRechnung Schematron is the real gate. */
   iban?: string | null;
-  // The six `quote/invoice/paymentStartingNumber`/`*NumberFormat` fields that used to live here are
-  // gone: they belonged to a Prisma query extension removed on this branch (see Company.numberFormats'
-  // own schema.prisma comment and the `20260913120000_migrate_legacy_number_formats` migration that
-  // absorbed their last values), and nothing has read them since. Since issue #496 a document type's
-  // number FORMAT is not the company's to set at all: it comes from the company's country
-  // (`documents/country-policy/data/xx.json`'s `numberFormats`), and `PUT /api/company/number-format`
-  // refuses every change. `company.service.ts#editCompanyInfo` allow-lists its columns explicitly
-  // rather than spreading this object, so `numberFormats` (now the frozen running series) can never be
-  // written through this DTO either. There is no "starting number" capability any more either - see that
-  // migration's own header for what a migrating customer loses.
+  // A document type's format is not the company's to set: it comes from the country's data file, and
+  // `editCompanyInfo` allow-lists columns so the frozen running series can never be written through
+  // this DTO.
   identifiers?: IdentifierEntry[];
+  /** Legal form and company-law values, see `documents/company-law/company-law.ts#normalizeCompanyLawDetails`.
+   *  Null clears them; absent leaves them untouched. */
+  companyLaw?: unknown;
   /** Which registered document transport (documents/transports/transport-registry.ts) the invoice
    *  "send" action uses — e.g. "email". Null/empty clears the choice, which blocks sending until a
    *  new one is chosen; see Company.invoiceTransportId's own comment in schema.prisma. */
@@ -82,4 +78,8 @@ export class EditCompanyDto {
   quoteDueMode?: string | null;
   invoiceDueDays?: number | null;
   invoiceDueMode?: string | null;
+  /** Values for the attributes the company's country declares in its `companyProfile` section, e.g.
+   *  `{ "sizeCategory": "SME" }`. A key set to null or "" is cleared; `null` clears them all. An
+   *  attribute or value the country does not declare is refused with a 400. */
+  reportingProfile?: Record<string, string | null> | null;
 }

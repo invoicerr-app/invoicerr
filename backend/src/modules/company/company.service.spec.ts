@@ -4,26 +4,27 @@
  * `DATABASE_URL` this test run resolves ("invoicerr_dev" in this repo's own dev setup — see
  * `.env`; jest never loads `.env.test`).
  *
- * Covers the mass-assignment close: there is no runtime request validation anywhere in this API (no
- * ValidationPipe, no class-validator — `EditCompanyDto` is a TypeScript `interface`, erased at
- * compile time), so before this fix `editCompanyInfo`'s `data: { ...rest }` would write ANY key a
- * caller named in the JSON body, including `Company.id`/`createdAt` and — directly relevant to
- * numbering - `numberFormats` itself, which since issue #496 holds the company's frozen running
- * series and must never be written by anyone. These tests prove `editCompanyInfo` writes only its
- * explicit allow-list, and that the one endpoint that used to write `numberFormats`
- * (`updateNumberFormat`) now refuses every change.
+ * Covers the mass-assignment close: with no runtime request validation, `data: { ...rest }` would write
+ * any key the caller named, `numberFormats` included, which holds the frozen running series and must
+ * never be rewritten. These tests prove only the allow-list is written and that `updateNumberFormat`
+ * refuses every change.
  */
 
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 vi.mock('../webhooks/webhook-dispatcher.service', () => ({
   WebhookDispatcherService: vi.fn(),
 }));
 
+vi.mock('@/modules/documents/reporting/profile-sync', () => ({
+  syncDeclaredCompanyProfile: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { randomUUID } from 'node:crypto';
 
-import { MethodNotAllowedException } from '@nestjs/common';
+import { BadRequestException, MethodNotAllowedException } from '@nestjs/common';
 import { CompanyService } from './company.service';
+import { syncDeclaredCompanyProfile } from '@/modules/documents/reporting/profile-sync';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 import { getSeatsView } from '@/modules/billing/seats-view';
 import prisma from '@/prisma/prisma.service';
@@ -118,7 +119,7 @@ describe('CompanyService — mass-assignment allow-list', () => {
           name: 'Still Me',
           currency: 'EUR',
           country: 'France',
-          // A running series is frozen (issue #496): nothing a caller sends may replace it.
+          // A running series is frozen: nothing a caller sends may replace it.
           numberFormats: { invoice: 'NOPE', quote: 'ALSO-NOPE' },
         } as never);
 
@@ -179,11 +180,8 @@ describe('CompanyService — mass-assignment allow-list', () => {
 });
 
 /**
- * Issue #603: `getCompanyInfo` exposes the country's own `documentValidationCode` fact
- * (`country-policy/schema.ts`) instead of letting the frontend decide Portugal-only behaviour from
- * `country`/`countryCode` itself - see `actions/atcud-issuance.spec.ts` for the analogous backend
- * enforcement gate, and the frontend's `-[tab].tsx`/`atcud.settings.tsx` for the two readers of this
- * exact field.
+ * `getCompanyInfo` exposes the country's own `documentValidationCode` fact instead of letting the
+ * frontend derive Portugal-only behaviour from the country fields.
  */
 describe('CompanyService#getCompanyInfo - issue #603: documentValidationCode', () => {
   let service: CompanyService;
@@ -217,15 +215,188 @@ describe('CompanyService#getCompanyInfo - issue #603: documentValidationCode', (
   });
 });
 
+describe('CompanyService - the company profile its country asks for', () => {
+  let service: CompanyService;
+
+  beforeAll(() => {
+    service = new CompanyService(fakeWebhookDispatcher);
+  });
+
+  async function withCompany(test: (companyId: string) => Promise<void>) {
+    const company = await createTestCompany();
+    try {
+      await test(company.id);
+    } finally {
+      await prisma.company.delete({ where: { id: company.id } }).catch(() => undefined);
+    }
+  }
+
+  const edit = (companyId: string, changes: Record<string, unknown>) =>
+    service.editCompanyInfo(companyId, {
+      name: 'Profile Co',
+      currency: 'EUR',
+      country: 'France',
+      ...changes,
+    } as never);
+
+  it('a French company is asked its size category and its VAT options, with the regime derived', async () => {
+    await withCompany(async (companyId) => {
+      const info = await service.getCompanyInfo(companyId);
+      const attributes = info?.companyProfileAttributes ?? [];
+
+      expect(attributes.map((attribute) => attribute.key)).toEqual([
+        'sizeCategory',
+        'vatRegime',
+        'vatDebitsOption',
+        'vatGroupMember',
+      ]);
+      expect(attributes[0].values.map((value) => value.value)).toEqual(['LARGE', 'MID', 'SME', 'MICRO']);
+      expect(attributes[1].derived).toEqual({
+        source: 'exemptVat',
+        whenTrue: 'FRANCHISE',
+      });
+      expect(attributes[1].values.map((value) => value.value)).toEqual([
+        'FRANCHISE',
+        'REAL_MONTHLY',
+        'REAL_QUARTERLY',
+        'SIMPLIFIED',
+      ]);
+      expect(attributes[2].askedWhen).toEqual({
+        vatRegime: ['REAL_MONTHLY', 'REAL_QUARTERLY', 'SIMPLIFIED'],
+      });
+      expect(attributes[3].values.map((value) => value.value)).toEqual(['MEMBER', 'NOT_MEMBER']);
+      expect(attributes[3].labelKey).toBe('settings.company.profile.attributes.vatGroupMember.label');
+      expect(attributes[3].helpTextKey).toBe('settings.company.profile.attributes.vatGroupMember.help');
+      expect(attributes[3].values.map((value) => value.labelKey)).toEqual([
+        'settings.company.profile.attributes.vatGroupMember.options.MEMBER',
+        'settings.company.profile.attributes.vatGroupMember.options.NOT_MEMBER',
+      ]);
+      // The three non-exempt regimes are a choice the company must make; nothing is derived for it.
+      expect(info?.companyProfileValues).toEqual({});
+    });
+  });
+
+  it('derives the VAT regime from the VAT exemption switch, and refuses to let the company declare it', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { exemptVat: true });
+
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
+        vatRegime: 'FRANCHISE',
+      });
+      await expect(edit(companyId, { reportingProfile: { vatRegime: 'NORMAL' } })).rejects.toThrow(
+        /reportingProfile.vatRegime follows from the company's own settings and cannot be declared/,
+      );
+      await expect(edit(companyId, { reportingProfile: { vatRegime: 'NORMAL' } })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+  });
+
+  it('revalidates the stored profile when only the VAT exemption switch changes', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { reportingProfile: { vatDebitsOption: 'EXERCISED' } });
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: companyId } })).reportingProfile).toEqual(
+        { vatDebitsOption: 'EXERCISED' },
+      );
+
+      const exempt = await edit(companyId, { exemptVat: true });
+      expect(exempt.reportingProfile).toEqual({});
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({
+        vatRegime: 'FRANCHISE',
+      });
+
+      const normal = await edit(companyId, { exemptVat: false });
+      expect(normal.reportingProfile).toEqual({});
+      expect((await service.getCompanyInfo(companyId))?.companyProfileValues).toEqual({});
+    });
+  });
+
+  it('a Portuguese company is asked nothing', async () => {
+    await withCompany(async (companyId) => {
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { country: 'Portugal', countryCode: 'PT' },
+      });
+
+      expect((await service.getCompanyInfo(companyId))?.companyProfileAttributes).toEqual([]);
+    });
+  });
+
+  it('a German company is asked its EC sales list period, and nothing else', async () => {
+    await withCompany(async (companyId) => {
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { country: 'Germany', countryCode: 'DE' },
+      });
+
+      const attributes = (await service.getCompanyInfo(companyId))?.companyProfileAttributes ?? [];
+      expect(attributes.map((attribute) => attribute.key)).toEqual(['ecSalesListPeriod']);
+      expect(attributes[0].values.map((value) => value.value)).toEqual(['MONTHLY', 'QUARTERLY', 'ANNUAL']);
+      expect(attributes[0].askedWhen).toBeUndefined();
+      expect(attributes[0].derived).toBeUndefined();
+    });
+  });
+
+  it('stores a declared size category, and clears it with null', async () => {
+    await withCompany(async (companyId) => {
+      expect(
+        (await edit(companyId, { reportingProfile: { sizeCategory: 'MICRO' } })).reportingProfile,
+      ).toEqual({
+        sizeCategory: 'MICRO',
+      });
+      expect((await edit(companyId, { reportingProfile: { sizeCategory: null } })).reportingProfile).toEqual(
+        {},
+      );
+    });
+  });
+
+  it('leaves the stored profile alone when an edit does not mention it', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { reportingProfile: { sizeCategory: 'SME' } });
+
+      expect((await edit(companyId, { name: 'Renamed' })).reportingProfile).toEqual({ sizeCategory: 'SME' });
+    });
+  });
+
+  it('pushes a changed profile to the declaration channel, never on an unrelated rename', async () => {
+    const sync = syncDeclaredCompanyProfile as unknown as Mock;
+    await withCompany(async (companyId) => {
+      sync.mockClear();
+      await edit(companyId, { name: 'Renamed' });
+      expect(sync).not.toHaveBeenCalled();
+
+      await edit(companyId, { reportingProfile: { sizeCategory: 'SME' } });
+      expect(sync).toHaveBeenCalledWith(companyId);
+    });
+  });
+
+  it('refuses a value the attribute does not list, and an attribute the country does not ask for (400)', async () => {
+    await withCompany(async (companyId) => {
+      await expect(edit(companyId, { reportingProfile: { sizeCategory: 'HUGE' } })).rejects.toThrow(
+        /reportingProfile.sizeCategory must be one of LARGE, MID, SME, MICRO, not "HUGE"/,
+      );
+      await expect(edit(companyId, { reportingProfile: { headcount: '12' } })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect((await prisma.company.findUnique({ where: { id: companyId } }))?.reportingProfile).toBeNull();
+    });
+  });
+
+  it('drops the values the new country does not ask for when the company moves country', async () => {
+    await withCompany(async (companyId) => {
+      await edit(companyId, { reportingProfile: { sizeCategory: 'SME' } });
+
+      const moved = await edit(companyId, { country: 'Portugal', countryCode: 'PT' });
+
+      expect(moved.reportingProfile).toEqual({});
+    });
+  });
+});
+
 /**
- * Issue #535: one of the two things a fix has to guarantee ("a new company's owner always has a
- * seat"). `createCompany` reserves the OWNER's own seat through `billing/seat-sync.ts#withSeatReservation`
- * (see that call site's own comment, "A brand-new company's own OWNER is its first seat") - this is
- * an END-TO-END proof of that, real Prisma against a real `CompanySubscription` row (`seats Int
- * @default(1)`, `schema.prisma`), not the mocked `withSeatReservation` unit coverage
- * `seat-sync.spec.ts` already has. Gated on the SAME billing flag production reads
- * (`WARNING__ENABLE_BILLING_FOR_USERS__WARNING`), set and restored around each test since
- * `withSeatReservation` reads `process.env` directly, not an injected flag.
+ * End-to-end proof that a new company's owner always gets a seat: `createCompany` reserves it through
+ * `withSeatReservation`, against real Prisma and a real subscription row. Gated on the same billing flag
+ * production reads, set and restored per test.
  */
 describe('CompanyService#createCompany - issue #535: the owner always gets a seat', () => {
   let service: CompanyService;
@@ -280,6 +451,34 @@ describe('CompanyService#createCompany - issue #535: the owner always gets a sea
       expect(seatsView.waiting).toEqual([]);
       expect(seatsView.members).toHaveLength(1);
       expect(seatsView.members[0]).toMatchObject({ userId: owner.id, role: 'OWNER', seatIndex: 1 });
+    } finally {
+      if (companyId) await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
+      await prisma.user.delete({ where: { id: owner.id } }).catch(() => undefined);
+    }
+  });
+});
+
+describe('CompanyService#createCompany - the document template of a new company', () => {
+  it('starts a new company on the atelier template', async () => {
+    const service = new CompanyService(fakeWebhookDispatcher);
+    const owner = await prisma.user.create({
+      data: {
+        id: randomUUID(),
+        firstname: 'Template',
+        lastname: 'Owner',
+        email: `company-service-spec-template-${Date.now()}-${Math.random()}@example.com`,
+      },
+    });
+    let companyId: string | undefined;
+    try {
+      const company = await service.createCompany(owner.id, {
+        name: 'Template Fresh Co',
+        country: 'France',
+        countryCode: 'FR',
+      } as never);
+      companyId = company.id;
+      const stored = await prisma.company.findUnique({ where: { id: company.id } });
+      expect(stored?.brandingTemplate).toBe('atelier');
     } finally {
       if (companyId) await prisma.company.delete({ where: { id: companyId } }).catch(() => undefined);
       await prisma.user.delete({ where: { id: owner.id } }).catch(() => undefined);

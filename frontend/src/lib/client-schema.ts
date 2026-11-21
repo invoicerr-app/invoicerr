@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { TFunction } from "i18next"
 
-import { isValidPostalCode } from "@/pages/(app)/clients/_components/postal-code"
+import { isValidPostalCode } from "@/lib/postal-code"
 
 /** One identifier requirement, as `useRequiredIdentifiers` already shapes it - re-exported here
  *  rather than imported from that hook so this file (used from a plain, non-React context by the CSV
@@ -14,17 +14,17 @@ export interface ClientSchemaIdentifierRequirement {
 }
 
 /**
- * The client create/edit wizard's own zod schema, extracted out of `client-upsert.tsx` (where it used
+ * The client create/edit form's own zod schema, extracted out of `client-upsert.tsx` (where it used
  * to be built inline, around what was lines 930-1070) so a SECOND caller - the CSV import's per-row
  * validation, `frontend/src/lib/csv-import/client-rows.ts` - can validate against the exact same
- * rules instead of a hand-copied twin that could silently drift. The wizard itself now calls this
- * too; its own behaviour is unchanged (see `client-upsert.spec.tsx`, which still exercises the wizard
+ * rules instead of a hand-copied twin that could silently drift. The form itself now calls this
+ * too; its own behaviour is unchanged (see `client-upsert.spec.tsx`, which still exercises the form
  * through its public behaviour, not this function directly).
  *
- * `requiredIdentifiers`/`originalIdentifierValues` are the two pieces of external state the wizard's
+ * `requiredIdentifiers`/`originalIdentifierValues` are the two pieces of external state the form's
  * own `superRefine` used to read off `requiredIdentifiersRef`/`originalIdentifierValuesRef` - passed
  * in explicitly here instead, since a plain builder function has no render cycle to hang a ref off
- * of. The wizard passes its refs' `.current`; the import passes the per-row country's own
+ * of. The form passes its refs' `.current`; the import passes the per-row country's own
  * requirements and an empty map (a freshly imported row has no "value already on file" to
  * grandfather - see `validate-identifier-value.ts`'s own DECISION 2 for what that grandfather clause
  * is for on an EDIT, which an import row never is). `optionalAddress` is the quick-create form, which
@@ -40,6 +40,7 @@ export function buildClientSchema(
   return z
     .object({
       type: z.enum(["INDIVIDUAL", "COMPANY"]),
+      vatRegistered: z.boolean().optional(),
       kind: z.enum(["BUSINESS", "GOVERNMENT"]),
       isSupplier: z.boolean().optional(),
       name: z.string().optional(),
@@ -63,12 +64,12 @@ export function buildClientSchema(
         .optional()
         .refine((val) => {
           if (!val) return true
-          return z.string().email().safeParse(val).success
+          return z.email().safeParse(val).success
         }, t("clients.upsert.validation.contactEmail.format")),
-      // Several named contacts per client (#415) - the wizard's own CONTACT step
+      // Several named contacts per client (#415) - the form's own CONTACT section
       // (`client-upsert.tsx`'s `ContactsSection`). Optional/absent for the CSV import's row schema
       // (a row still carries only the four flat fields above, which stay meaning "the primary
-      // contact" - see `client-import.service.ts`'s own header); the wizard always sends this array,
+      // contact" - see `client-import.service.ts`'s own header); the form always sends this array,
       // never the flat fields, once at least one contact row exists.
       contacts: z
         .array(
@@ -80,14 +81,14 @@ export function buildClientSchema(
             email: z
               .string()
               .optional()
-              .refine((val) => !val || z.string().email().safeParse(val).success, {
-                message: t("clients.upsert.validation.contactEmail.format"),
+              .refine((val) => !val || z.email().safeParse(val).success, {
+                error: t("clients.upsert.validation.contactEmail.format"),
               }),
             phone: z
               .string()
               .optional()
               .refine((val) => !val || /^[+]?[0-9\s\-()]{8,20}$/.test(val), {
-                message: t("clients.upsert.validation.contactPhone.format"),
+                error: t("clients.upsert.validation.contactPhone.format"),
               }),
             isPrimary: z.boolean().optional(),
           }),
@@ -114,13 +115,13 @@ export function buildClientSchema(
     })
     .superRefine((val, ctx) => {
       if (val.type === "INDIVIDUAL") {
-        // The wizard folds the identity step's contactFirstname/contactLastname into the primary
+        // The form folds the Identity section's contactFirstname/contactLastname into the primary
         // contact at submit time (#415 - see `client-upsert.tsx`'s own `buildClientPayload`), so
         // those two top-level fields are still the right thing to validate here regardless of
         // whether `contacts` is also present.
         if (!val.contactFirstname || val.contactFirstname.trim() === "") {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["contactFirstname"],
             message:
               t("clients.upsert.validation.contactFirstname.required") ||
@@ -129,7 +130,7 @@ export function buildClientSchema(
         }
         if (!val.contactLastname || val.contactLastname.trim() === "") {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["contactLastname"],
             message:
               t("clients.upsert.validation.contactLastname.required") ||
@@ -139,7 +140,7 @@ export function buildClientSchema(
       } else {
         if (!val.name || val.name.trim() === "") {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["name"],
             message: t("clients.upsert.validation.name.required"),
           })
@@ -151,7 +152,7 @@ export function buildClientSchema(
         const value = idx >= 0 ? val.identifiers?.[idx]?.value : undefined
         if (req.required && (!value || value.trim() === "")) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: idx >= 0 ? ["identifiers", idx, "value"] : ["identifiers"],
             message: `${req.label} is required`,
           })
@@ -168,7 +169,7 @@ export function buildClientSchema(
         }
         if (!matches) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["identifiers", idx, "value"],
             message: t(
               "clients.upsert.validation.identifiers.patternMismatch",
@@ -180,6 +181,3 @@ export function buildClientSchema(
       }
     })
 }
-
-export type ClientSchema = ReturnType<typeof buildClientSchema>
-export type ClientSchemaValues = z.infer<ClientSchema>

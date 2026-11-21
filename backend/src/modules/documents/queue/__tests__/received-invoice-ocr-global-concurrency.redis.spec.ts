@@ -34,11 +34,10 @@ import { vi } from 'vitest';
 import { Queue, Worker } from 'bullmq';
 
 import { redisConnection } from '../redis.config';
+import { describeWithRedis } from './redis-gate';
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set — see this
 // file's own header and document-action-queue.redis.spec.ts's own header for the full reasoning.
-const hasRedis = !!process.env.REDIS_URL && process.env.DOCUMENTS_QUEUE_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
 
 const JOB_COUNT = 12;
 const GLOBAL_CONCURRENCY = 2;

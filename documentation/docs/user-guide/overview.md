@@ -15,8 +15,12 @@ Open your Invoicerr instance and sign in from the **Sign in** page with your ema
 The very first time you open the app, if your company name isn't set yet, Invoicerr automatically opens an onboarding dialog that takes you to **Settings → Company**.
 
 :::tip[Do this first]
-Complete it before anything else: your company name, address, currency, and document numbering appear on every quote, invoice, and receipt you issue.
+Complete it before anything else: your company name, address, currency, and document numbering appear on every quote and invoice you issue.
 :::
+
+### When the company register is slow
+
+After you pick your country and type your registration number, **Next** asks your country's business register for your company's details and fills them in for you. If the register does not answer within about 5 seconds, Invoicerr stops waiting: you reach the company step with the fields empty and a short message saying the register could not be reached. Type your company's name and address yourself and carry on; nothing else changes. Your administrator can change that wait with `COMPANY_LOOKUP_BUDGET_MS` (see `.env.example`).
 
 A good order for getting started:
 
@@ -24,7 +28,7 @@ A good order for getting started:
 2. **[Clients](clients.md)** — the people and companies you bill
 3. **[Articles](articles.md)** — reusable catalog items for your line items (optional)
 4. **[Payment Methods](billing/payment-methods.md)** — how clients pay you
-5. **[Quotes](billing/quotes.md)** → **[Quote signing](billing/quote-signing.md)** → **[Invoices](billing/invoices.md)** → **[Receipts](billing/receipts.md)** — the document flow
+5. **[Quotes](billing/quotes.md)** → **[Quote signing](billing/quote-signing.md)** → **[Invoices](billing/invoices.md)** → **[Recording payments](billing/invoices.md#recording-payments)** — the document flow
 
 ## The sidebar
 
@@ -35,7 +39,6 @@ Once signed in, the left sidebar is your main navigation. The items appear in th
 | **Dashboard** | At-a-glance revenue, quotes, invoices, and client totals |
 | **Quotes** | Create estimates and send them for signature |
 | **Invoices** | Bill clients and track payment |
-| **Receipts** | Issue proof of payment |
 | **Clients** | Manage the people and companies you bill |
 | **Articles** | Reusable catalog items you can drop into quote and invoice line items |
 | **Payment Methods** | Reusable payment options shown on documents |
@@ -43,5 +46,9 @@ Once signed in, the left sidebar is your main navigation. The items appear in th
 | **Settings** | Company identity, templates, integrations, and account |
 
 The sidebar footer holds the theme toggle (Light / Dark / System) and your profile menu (Account, Logout).
+
+On a phone, the sidebar folds away and a bar at the bottom of the screen takes its place: **Home**
+(the dashboard), **Documents** (your invoices), **Clients**, and **More**, which opens the full
+sidebar.
 
 Ready? Start with [Clients](clients.md).

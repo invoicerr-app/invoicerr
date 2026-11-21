@@ -1,9 +1,4 @@
-import {
-  calculateFrenchVAT,
-  extractSirenFromSiret,
-  formatSiret,
-  isValidSiret,
-} from '@/modules/sirene/sirene.utils';
+import { calculateFrenchVAT, formatSiret, isValidSiret } from '@/modules/sirene/sirene.utils';
 
 describe('sirene.utils', () => {
   describe('formatSiret', () => {
@@ -23,12 +18,6 @@ describe('sirene.utils', () => {
 
     it('returns false when the Luhn checksum is invalid', () => {
       expect(isValidSiret('55208131700019')).toBe(false);
-    });
-  });
-
-  describe('extractSirenFromSiret', () => {
-    it('returns the first 9 digits', () => {
-      expect(extractSirenFromSiret('552 081 317 00018')).toBe('552081317');
     });
   });
 

@@ -268,36 +268,36 @@ describe('SIREN (9 digits) is accepted and emits the identical SIREN as a SIRET 
     ],
   };
 
-  describe.each([
-    ['CII', ciiFormatProvider] as const,
-    ['UBL', ublFormatProvider] as const,
-  ])('%s', (_label, provider) => {
-    it('a bare 9-digit SIREN builds a VALID artifact carrying scheme 0002 = 123456789', async () => {
-      const result = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
-      expect(result.validation.errors).toEqual([]);
-      expect(result.validation.valid).toBe(true);
+  describe.each([['CII', ciiFormatProvider] as const, ['UBL', ublFormatProvider] as const])(
+    '%s',
+    (_label, provider) => {
+      it('a bare 9-digit SIREN builds a VALID artifact carrying scheme 0002 = 123456789', async () => {
+        const result = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
+        expect(result.validation.errors).toEqual([]);
+        expect(result.validation.valid).toBe(true);
 
-      const xml = Buffer.from(result.bytes).toString('utf-8');
-      // CII: <ram:SpecifiedLegalOrganization><ram:ID schemeID="0002">123456789</ram:ID></...>
-      // UBL: <cac:PartyLegalEntity><cbc:CompanyID schemeID="0002">123456789</cbc:CompanyID></...>
-      expect(xml).toMatch(/(?:ram:ID|cbc:CompanyID) schemeID="0002">123456789<\/(?:ram:ID|cbc:CompanyID)>/);
-    }, 30_000);
+        const xml = Buffer.from(result.bytes).toString('utf-8');
+        // CII: <ram:SpecifiedLegalOrganization><ram:ID schemeID="0002">123456789</ram:ID></...>
+        // UBL: <cac:PartyLegalEntity><cbc:CompanyID schemeID="0002">123456789</cbc:CompanyID></...>
+        expect(xml).toMatch(/(?:ram:ID|cbc:CompanyID) schemeID="0002">123456789<\/(?:ram:ID|cbc:CompanyID)>/);
+      }, 30_000);
 
-    it('a 9-digit SIREN and a 14-digit SIRET emit the EXACT SAME seller identity XML (the SIREN portion is byte-identical)', async () => {
-      const withSiren = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
-      const withSiret = await provider.build(descriptor, DOCUMENT, SELLER, BUYER); // SELLER: 14-digit SIRET
-      expect(withSiren.validation.valid).toBe(true);
-      expect(withSiret.validation.valid).toBe(true);
+      it('a 9-digit SIREN and a 14-digit SIRET emit the EXACT SAME seller identity XML (the SIREN portion is byte-identical)', async () => {
+        const withSiren = await provider.build(descriptor, DOCUMENT, SELLER_WITH_SIREN, BUYER);
+        const withSiret = await provider.build(descriptor, DOCUMENT, SELLER, BUYER); // SELLER: 14-digit SIRET
+        expect(withSiren.validation.valid).toBe(true);
+        expect(withSiret.validation.valid).toBe(true);
 
-      const xmlSiren = Buffer.from(withSiren.bytes).toString('utf-8');
-      const xmlSiret = Buffer.from(withSiret.bytes).toString('utf-8');
-      // Byte-identical: neither fixture's own raw digits (9 vs 14) leak through anywhere — both reduce
-      // to the SAME 9-digit SIREN before this bridge ever builds the semantic model.
-      expect(xmlSiren).toBe(xmlSiret);
-      expect(xmlSiren).not.toContain('12345678900017'); // the 14-digit SIRET never appears
-      expect(xmlSiren).toContain('123456789'); // only the derived SIREN does
-    }, 30_000);
-  });
+        const xmlSiren = Buffer.from(withSiren.bytes).toString('utf-8');
+        const xmlSiret = Buffer.from(withSiret.bytes).toString('utf-8');
+        // Byte-identical: neither fixture's own raw digits (9 vs 14) leak through anywhere — both reduce
+        // to the SAME 9-digit SIREN before this bridge ever builds the semantic model.
+        expect(xmlSiren).toBe(xmlSiret);
+        expect(xmlSiren).not.toContain('12345678900017'); // the 14-digit SIRET never appears
+        expect(xmlSiren).toContain('123456789'); // only the derived SIREN does
+      }, 30_000);
+    },
+  );
 });
 
 /**
@@ -390,21 +390,21 @@ describe('issue #145 — a line `date` never leaks into a generated EN 16931 pay
     },
   };
 
-  describe.each([
-    ['CII', ciiFormatProvider] as const,
-    ['UBL', ublFormatProvider] as const,
-  ])('%s', (_label, provider) => {
-    it('the generated XML does not contain the line date anywhere, and still validates exactly as without it', async () => {
-      const result = await provider.build(descriptor, DOCUMENT_WITH_LINE_DATE, SELLER, BUYER);
-      const xml = Buffer.from(result.bytes).toString('utf-8');
+  describe.each([['CII', ciiFormatProvider] as const, ['UBL', ublFormatProvider] as const])(
+    '%s',
+    (_label, provider) => {
+      it('the generated XML does not contain the line date anywhere, and still validates exactly as without it', async () => {
+        const result = await provider.build(descriptor, DOCUMENT_WITH_LINE_DATE, SELLER, BUYER);
+        const xml = Buffer.from(result.bytes).toString('utf-8');
 
-      expect(xml).not.toContain(LINE_WORK_DATE);
-      // Not merely absent by accident — the document must still be exactly as valid as the master
-      // proof's own fixture (same lines, same totals, one extra unmapped key).
-      expect(result.validation.errors).toEqual([]);
-      expect(result.validation.valid).toBe(true);
-    }, 30_000);
-  });
+        expect(xml).not.toContain(LINE_WORK_DATE);
+        // Not merely absent by accident — the document must still be exactly as valid as the master
+        // proof's own fixture (same lines, same totals, one extra unmapped key).
+        expect(result.validation.errors).toEqual([]);
+        expect(result.validation.valid).toBe(true);
+      }, 30_000);
+    },
+  );
 });
 
 describe('line unit: a picked code is exported as is, free text as C62', () => {
@@ -468,4 +468,32 @@ describe('line unit: text stored on an issued invoice exports the code it always
     },
     30_000,
   );
+});
+
+describe('BT-33: the seller company-law mentions reach both EN 16931 syntaxes', () => {
+  const seller: DocumentFormatParty = {
+    ...SELLER,
+    language: 'en',
+    companyLaw: {
+      legalForm: 'FR_SAS',
+      values: {
+        shareCapital: { amount: '10000', currency: 'EUR' },
+        registerCity: 'Paris',
+      },
+    },
+  };
+
+  describe.each([
+    ['CII', ciiFormatProvider, '<ram:Description>', '</ram:Description>'] as const,
+    ['UBL', ublFormatProvider, '<cbc:CompanyLegalForm>', '</cbc:CompanyLegalForm>'] as const,
+  ])('%s', (_label, provider, open, close) => {
+    it('carries the resolved lines once, in the field the syntax gives BT-33', async () => {
+      const result = await provider.build(descriptor, DOCUMENT, seller, BUYER);
+
+      expect(result.validation.valid).toBe(true);
+      const xml = new TextDecoder().decode(result.bytes);
+      expect(xml).toContain(`${open}SAS with a share capital of 10000.00 EUR; RCS Paris${close}`);
+      expect(xml.split(open)).toHaveLength(2);
+    }, 180_000);
+  });
 });

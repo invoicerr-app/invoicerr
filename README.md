@@ -1,10 +1,11 @@
 ![Invoicerr](https://raw.githubusercontent.com/invoicerr-app/brand/main/social/banner.webp)
 
-Open-source invoicing you host yourself: quotes, invoices, payments and the paperwork that follows —
-including the e-invoicing rules of the country you bill from.
+Open-source invoicing and e-invoicing for freelancers, small businesses and their accountants.
+
+Host it yourself: quotes, invoices, payments and the paperwork that follows, including the e-invoicing rules of the country you bill from.
 
 [![Tests](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml/badge.svg)](https://github.com/invoicerr-app/invoicerr/actions/workflows/cypress.yml)
-[![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?label=release)](https://github.com/invoicerr-app/invoicerr/releases)
+[![Latest release](https://img.shields.io/github/v/release/invoicerr-app/invoicerr?include_prereleases&label=release)](https://github.com/invoicerr-app/invoicerr/releases)
 [![Container image](https://img.shields.io/badge/ghcr.io-invoicerr--app%2Finvoicerr-2496ED?logo=docker&logoColor=white)](https://ghcr.io/invoicerr-app/invoicerr)
 [![License](https://img.shields.io/github/license/invoicerr-app/invoicerr)](./LICENSE)
 
@@ -14,7 +15,7 @@ including the e-invoicing rules of the country you bill from.
 
 - Quotes, invoices, credit notes, purchase orders, goods receipts, expenses and received invoices —
   one document engine, one lifecycle, one list and detail screen for every type.
-- Payments, partial payments, deposits, instalments and settlement badges computed from the record,
+- Payments, partial payments, deposits, instalments and settlement states computed from the record,
   never stored on the document.
 - Clients with their own portal, account statements and aged balance.
 - An article catalogue with stock counts, project time tracking that turns into invoice lines, and
@@ -40,10 +41,10 @@ Invoice list, filtered by status, with the settlement state of each one.
 
 ![Invoice list](./documentation/static/img/readme/invoices.webp)
 
-Creation wizard — lines filled from the article catalogue, VAT rates from the seller country's own
-rate list.
+The editor: every section on one page, VAT rates from the seller country's own rate list, and a live
+preview of the document beside it.
 
-![Invoice creation wizard](./documentation/static/img/readme/invoice-wizard.webp)
+![Invoice editor](./documentation/static/img/readme/invoice-editor.webp)
 
 Invoice detail: totals, settlement and the legal archive with its retention rule.
 
@@ -171,6 +172,15 @@ The full per-country picture is generated from those data files on every documen
 [adding a country](https://docs.invoicerr.app/docs/developer-guide/adding-a-country).
 
 ## Quick start
+
+> [!WARNING]
+> Until the first CalVer stable release (`26.11.0`) is published, `:latest` on ghcr.io and the release
+> GitHub marks as "Latest" are still `v1.4.5c`. The whole 1.x line has three published security
+> advisories that are not patched there and never will be (see
+> [SECURITY.md](./SECURITY.md#known-unpatched-issues-on-the-current-release-line)), and the compose
+> file below is written for the v2 line. Set `image:` to the newest v2 tag listed on the
+> [releases page](https://github.com/invoicerr-app/invoicerr/releases) instead of `:latest` until
+> then.
 
 A prebuilt image is published at [ghcr.io/invoicerr-app/invoicerr](https://ghcr.io/invoicerr-app/invoicerr),
 built for `linux/amd64` and `linux/arm64`. `linux/arm/v7` (32-bit ARM) is no longer built: Node.js
@@ -302,7 +312,7 @@ npm run catalogs:release    # from the backend workspace — /usr/share/nginx/ba
 | Tests | Vitest (backend and frontend), Cypress 15 (end-to-end and per-country scenarios) |
 | Tooling | Biome 2.5 (lint and format), Docker, Helm 3, GitHub Actions |
 | Documentation | Docusaurus 3.10 |
-| Hosted billing | Polar (hidden unless the instance explicitly enables it; self-hosting stays free) |
+| Hosted billing | Stripe (hidden unless the instance explicitly enables it; self-hosting stays free) |
 
 ## Contributing
 
@@ -353,6 +363,10 @@ plus everyone who has translated the interface on Weblate.
 Private vulnerability reporting is enabled: open a
 [security advisory](https://github.com/invoicerr-app/invoicerr/security/advisories/new) rather than a
 public issue. Please do not report a vulnerability in an issue, a pull request or a discussion.
+
+The 1.x line, `v1.4.5c` included, has three published advisories that are fixed only from
+`v2.0.0-alpha.1` onwards and will not be backported. [SECURITY.md](./SECURITY.md) lists them; an
+instance still on 1.x is affected by all three until it upgrades.
 
 The paths between the API's routes and the database tables are also checked by
 [Wyro](https://wyro.in/scan/invoicerr-app/invoicerr), a free and independent architecture scanner.

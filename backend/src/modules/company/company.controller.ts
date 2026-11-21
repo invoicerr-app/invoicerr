@@ -55,10 +55,8 @@ export class CompanyController {
   }
 
   /**
-   * GET /api/company/number-formats - issue #496: the document number format each numbered type of
-   * this company is issued with, where it comes from (the country's own format, or a running series
-   * kept for continuity), the next number it would print, and every rule that constrains it with its
-   * source. Read-only: see `updateNumberFormat` below.
+   * The number format each numbered type is issued with, where it comes from, the next number it would
+   * print, and the rules constraining it. Read-only: see `updateNumberFormat` below.
    */
   @Get('number-formats')
   @RequiresScope('company:read')
@@ -75,8 +73,7 @@ export class CompanyController {
   }
 
   /**
-   * PUT /api/company/number-format - kept only to REFUSE (405), with the reason (issue #496): a
-   * number format is no longer the company's to change. See `company.service.ts#updateNumberFormat`.
+   * Kept only to refuse with 405 and the reason: a number format is no longer the company's to change.
    */
   @Put('number-format')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
@@ -93,9 +90,8 @@ export class CompanyController {
   }
 
   /**
-   * POST /api/company/number-formats/infer-pattern - issue #340: suggests a pattern from one example
-   * number (e.g. "FA-2026-0142" -> "FA-{year}-{number:4}"). Pure, read-only - see
-   * `company.service.ts#inferLastNumberPattern`.
+   * Suggests a pattern from one example number (e.g. "FA-2026-0142" -> "FA-{year}-{number:4}"). Pure
+   * and read-only.
    */
   @Post('number-formats/infer-pattern')
   @RequiresScope('company:read')
@@ -111,13 +107,10 @@ export class CompanyController {
   }
 
   /**
-   * POST /api/company/number-formats/declare-last-number - issue #340: "declare your last number
-   * issued", usable with or without also importing a document. See
-   * `company.service.ts#declareLastNumberIssued`'s own header for the full design - the pattern
-   * becomes the company's own running series when it satisfies the country's own constraints,
-   * otherwise the country format applies and the counter still continues at `last + 1`. Portugal
-   * never resumes the previous tool's own series (a validation code is never reused) and always opens
-   * a new one.
+   * "Declare your last number issued", usable with or without importing a document. The pattern
+   * becomes the company's running series when it satisfies the country's constraints; otherwise the
+   * country format applies and the counter continues at `last + 1`. Portugal always opens a new series
+   * (a validation code is never reused).
    */
   @Post('number-formats/declare-last-number')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
@@ -152,10 +145,8 @@ export class CompanyController {
   }
 
   /**
-   * GET /api/company/revenue-settings - issue #516: the RESOLVED revenue basis/period (this
-   * company's own explicit choice, or the computed per-country default), plus whether each is
-   * explicit - the settings screen uses this to show "default" vs. "your own choice" without
-   * duplicating `resolve-revenue-basis.ts`'s own per-country table client-side.
+   * The resolved revenue basis and period (an explicit choice, or the computed per-country default),
+   * plus whether each is explicit, so the settings screen need not duplicate the country table.
    */
   @Get('revenue-settings')
   @RequiresScope('company:read')
@@ -332,10 +323,8 @@ export class CompanyController {
    * through this company's actual send cascade, and reports the reason it failed, vetted: which
    * distinctions survive and which collapse is `mail-endpoint-guard.ts`'s decision, documented there.
    *
-   * Same roles as the PUT that sets the host in the first place. This route makes the server open a
-   * socket to an address a member of this company chose, so "who may make it connect" must not be a
-   * wider set than "who may choose where" — it used to be every MEMBER, which meant the narrowest role
-   * in a company could drive a connection attempt the role above it configured.
+   * Same roles as the PUT that sets the host: this route makes the server open a socket to an address a
+   * member chose, so who may trigger a connection must not be wider than who may choose where.
    */
   @Post('mail-settings/test')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)

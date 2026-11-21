@@ -2,6 +2,10 @@ import { z } from "zod"
 
 import type { DocumentFieldDescriptor } from "./types"
 
+// Built from a runtime field list, so no field type is known at compile time.
+// biome-ignore lint/suspicious/noExplicitAny: the form reads each value as whatever its field holds
+type FieldSchema = z.ZodType<any>
+
 /**
  * Turns a descriptor's fields into a zod schema, purely for immediate in-form feedback — the
  * backend's validateAgainstDescriptor (documents/descriptors/validate.ts) is the one authority on
@@ -9,7 +13,7 @@ import type { DocumentFieldDescriptor } from "./types"
  * kind gets `z.any()` here (nothing to check client-side for it) but is still visibly unsupported in
  * the UI via DocumentField's fallback.
  */
-function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
+function baseSchemaFor(field: DocumentFieldDescriptor): FieldSchema {
   switch (field.kind) {
     case "text":
     case "longText":
@@ -83,12 +87,13 @@ function baseSchemaFor(field: DocumentFieldDescriptor): z.ZodTypeAny {
   }
 }
 
-function isPresentValue(value: unknown): boolean {
+/** A non-blank string, or any other non-null value. Also used by `field-renderers/primitive-fields.tsx`. */
+export function isPresentValue(value: unknown): boolean {
   return typeof value === "string" ? value.trim() !== "" : value != null
 }
 
 export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
-  const shape: Record<string, z.ZodTypeAny> = {}
+  const shape: Record<string, FieldSchema> = {}
   // `requiredIfPresent` (types.ts) can't be expressed on a single field's own schema — it depends on
   // a SIBLING field's value — so it's collected here and enforced by ONE `superRefine` on the whole
   // object below, the same "one extra pass over the shape" approach every zod conditional-field
@@ -129,12 +134,12 @@ export function buildZodSchema(fields: DocumentFieldDescriptor[]) {
     for (const { key, label, requiredIfPresent } of conditionallyRequired) {
       if (!isPresentValue(record[requiredIfPresent])) continue
       if (isPresentValue(record[key])) continue
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `"${label}" is required.` })
+      ctx.addIssue({ code: "custom", path: [key], message: `"${label}" is required.` })
     }
     for (const { key, label, requiredIfAbsent } of conditionallyRequiredIfAbsent) {
       if (isPresentValue(record[requiredIfAbsent])) continue
       if (isPresentValue(record[key])) continue
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `"${label}" is required.` })
+      ctx.addIssue({ code: "custom", path: [key], message: `"${label}" is required.` })
     }
   })
 }

@@ -6,6 +6,8 @@
  * `DocumentsCoreModule`/`document-queue-worker.module.ts`, files this feature has no business reaching
  * into just to register one more repeatable on top of an unrelated module's own queue.
  */
+import { readIntEnv } from '@/utils/read-int-env';
+
 export const Q_COMPANY_TRANSFER = 'company-transfer';
 
 /** `@nestjs/bullmq`'s own `BullModule.forRoot()` always returns a GLOBAL dynamic module regardless of
@@ -22,5 +24,5 @@ export const TRANSFER_EXPIRY_SWEEP_JOB_ID = 'company-transfer-expiry-sweep-singl
  *  `billing-queue.constants.ts#readBillingLifecycleSweepIntervalMs`'s own default for the identical
  *  "day-granularity boundary, hourly sweep" reasoning. */
 export function readTransferExpirySweepIntervalMs(): number {
-  return parseInt(process.env.TRANSFER_EXPIRY_SWEEP_INTERVAL_MS ?? '3600000', 10);
+  return readIntEnv('TRANSFER_EXPIRY_SWEEP_INTERVAL_MS', 3600000);
 }

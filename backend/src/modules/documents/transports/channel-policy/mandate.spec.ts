@@ -5,7 +5,7 @@
  * same split `country-policy.spec.ts` vs. `schema.spec.ts` already keeps for the sibling module.
  */
 import { ChannelPolicyCatalog } from './registry';
-import { activeChannelMandateFor, activeChannelMandateForOperation } from './mandate';
+import { activeChannelMandateFor, activeChannelMandateForOperation, channelFactsForSeller } from './mandate';
 
 // `activeChannelMandateFor` reads the SHIPPED, singleton catalog by default — this first block
 // exercises it against the real, shipped `fr.json` (item 11's actual data), rather than only ever a
@@ -212,7 +212,7 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
       issueDate: '2026-09-15',
     });
     expect(mandate?.providerId).toBe('pdp');
-    expect(mandate?.scope).toEqual({ parties: 'domestic' });
+    expect(mandate?.scope).toMatchObject({ parties: 'domestic' });
   });
 
   it('FR seller -> IT buyer, same date: NO mandate - the French obligation does not reach a buyer established abroad', () => {
@@ -268,6 +268,32 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
     ).toBeUndefined();
   });
 
+  it('a mandate scoped to business buyers binds a business buyer and an unknown buyer type, never a private one', () => {
+    const businessOnly = new ChannelPolicyCatalog([
+      {
+        countryCode: 'ZZ',
+        facts: [
+          {
+            providerId: 'fixture-channel',
+            requirement: 'mandated',
+            mandatedFrom: '2030-06-15',
+            scope: { buyerType: ['COMPANY'] },
+            provenance: { kind: 'legal', sourceText: 'Fixture legal text.', sourceCheckedAt: '2026-08-27' },
+          },
+        ],
+      },
+    ]);
+    const operation = { sellerCountryCode: 'ZZ', buyerCountryCode: 'ZZ', issueDate: '2030-06-15' };
+
+    expect(
+      activeChannelMandateForOperation({ ...operation, buyerType: 'COMPANY' }, businessOnly)?.providerId,
+    ).toBe('fixture-channel');
+    expect(activeChannelMandateForOperation(operation, businessOnly)?.providerId).toBe('fixture-channel');
+    expect(
+      activeChannelMandateForOperation({ ...operation, buyerType: 'INDIVIDUAL' }, businessOnly),
+    ).toBeUndefined();
+  });
+
   it('a mandate with NO scope at all binds every operation, cross border included - the pre-existing default', () => {
     const unscoped = new ChannelPolicyCatalog([
       {
@@ -297,5 +323,86 @@ describe('activeChannelMandateForOperation - a national mandate governs DOMESTIC
     // first one by folding the narrowing into it, which would quietly stop telling a French company
     // to connect its PDP at all.
     expect(activeChannelMandateFor('FR', '2026-09-15')?.providerId).toBe('pdp');
+  });
+});
+
+describe('activeChannelMandateForOperation - the French PDP mandate follows the seller size and VAT group', () => {
+  const domesticBusinessSale = {
+    sellerCountryCode: 'FR',
+    buyerCountryCode: 'FR',
+    buyerType: 'COMPANY' as const,
+  };
+
+  it('a micro-enterprise that is not a member is not bound before 2027-09-01', () => {
+    expect(
+      activeChannelMandateForOperation({
+        ...domesticBusinessSale,
+        issueDate: '2026-10-25',
+        sellerProfile: { sizeCategory: 'MICRO', vatGroupMember: 'NOT_MEMBER' },
+      }),
+    ).toBeUndefined();
+  });
+
+  it('an SME that is not a member is not bound on 2027-08-31 and is bound from 2027-09-01', () => {
+    const sme = {
+      ...domesticBusinessSale,
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' },
+    };
+
+    expect(activeChannelMandateForOperation({ ...sme, issueDate: '2027-08-31' })).toBeUndefined();
+    expect(activeChannelMandateForOperation({ ...sme, issueDate: '2027-09-01' })?.providerId).toBe('pdp');
+  });
+
+  it('an SME that is a member is bound from 2026-09-01 whatever its size', () => {
+    const member = {
+      ...domesticBusinessSale,
+      sellerProfile: { sizeCategory: 'SME', vatGroupMember: 'MEMBER' },
+    };
+
+    expect(activeChannelMandateForOperation({ ...member, issueDate: '2026-08-31' })).toBeUndefined();
+    expect(activeChannelMandateForOperation({ ...member, issueDate: '2026-09-01' })?.providerId).toBe('pdp');
+  });
+
+  it('an SME that has not answered the VAT group question stays bound from 2026-09-01', () => {
+    const unanswered = { ...domesticBusinessSale, sellerProfile: { sizeCategory: 'SME' } };
+
+    expect(activeChannelMandateForOperation({ ...unanswered, issueDate: '2026-08-31' })).toBeUndefined();
+    expect(activeChannelMandateForOperation({ ...unanswered, issueDate: '2026-09-01' })?.providerId).toBe(
+      'pdp',
+    );
+  });
+
+  it('a large company and a mid-size company are bound from 2026-09-01', () => {
+    for (const sizeCategory of ['LARGE', 'MID']) {
+      expect(
+        activeChannelMandateForOperation({
+          ...domesticBusinessSale,
+          issueDate: '2026-10-25',
+          sellerProfile: { sizeCategory },
+        })?.providerId,
+      ).toBe('pdp');
+    }
+  });
+
+  it('a seller that has not declared its size category is bound from 2026-09-01', () => {
+    expect(
+      activeChannelMandateForOperation({ ...domesticBusinessSale, issueDate: '2026-10-25' })?.providerId,
+    ).toBe('pdp');
+    expect(
+      activeChannelMandateForOperation({
+        ...domesticBusinessSale,
+        issueDate: '2026-10-25',
+        sellerProfile: {},
+      })?.providerId,
+    ).toBe('pdp');
+  });
+
+  it('the settings screen shows an SME its own start date', () => {
+    const startDate = (sellerProfile: { sizeCategory?: string; vatGroupMember?: string }) =>
+      channelFactsForSeller('FR', sellerProfile).find((fact) => fact.providerId === 'pdp')?.mandatedFrom;
+
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'NOT_MEMBER' })).toBe('2027-09-01');
+    expect(startDate({ sizeCategory: 'SME', vatGroupMember: 'MEMBER' })).toBe('2026-09-01');
+    expect(startDate({ sizeCategory: 'SME' })).toBe('2026-09-01');
   });
 });

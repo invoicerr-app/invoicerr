@@ -1,0 +1,282 @@
+/**
+ * REAL round-trip proof of PDP RECEPTION — gated the same way `superpdp.live.spec.ts`/
+ * `superpdp-conformity.live.spec.ts` already are (`SUPERPDP_LIVE=1` + the same three credential env vars,
+ * `live-gate.ts`, REPRISED verbatim), run the same way:
+ *
+ *   cd backend && set -a; . .env.test.local; set +a
+ *   SUPERPDP_LIVE=1 npx vitest run superpdp-reception.live --no-file-parallelism
+ *
+ * DB-CONNECTED, deliberately — same reasoning `superpdp-conformity.live.spec.ts`'s own header gives for
+ * ITS OWN choice: this spec's whole point is that a REAL `received-invoice` `DocumentInstance` genuinely
+ * gets created from a REAL PDP inbound deposit, not merely that a poller function returns a
+ * plausible-looking array in memory.
+ *
+ * ## What this spec proves LIVE, and how - see `superpdp-reception.ts`'s own header for the full,
+ * dated evidence this recipe is built from:
+ *
+ *  1. ONLY ONE PDP account is available to this session (`.env.test.local` carries ONE client_id/
+ *     secret pair, not a separate seller+buyer pair — see `credentials-guide.md`'s own PDP section).
+ *     A real cross-company B2B deposit therefore cannot be tested here; a SELF-ADDRESSED one can —
+ *     this company depositing an invoice to its OWN identifiers: name and SIREN as
+ *     `GET /v1.beta/companies/me` answers them for these credentials, addressed at
+ *     `SUPERPDP_SELLER_ROUTING`.
+ *  2. `SuperPdpClient.listInvoices({direction:'in'})` genuinely lists the deposit's own INBOUND twin - a
+ *     DIFFERENT id from the outbound deposit's own, proven live (`superpdp-reception.ts`'s own header).
+ *  3. THE POLLER AND THE RUNNER ARE REAL PRODUCTION CODE - `buildSuperPdpReceptionPoller`
+ *     (`../../conformity/pollers/superpdp-reception-poller.ts`) and `SuperPdpReceptionSweepRunner`
+ *     (`../../conformity/reception-sweep-runner.ts`), imported and run exactly as the BullMQ
+ *     repeatable would. NOT a copy, NOT a hand-rolled re-implementation.
+ *  4. `DocumentsService` is ALSO real production code (real descriptor, real
+ *     `registerReceivedInvoiceActions`, real country-policy evaluation) — the ONE thing narrowed down
+ *     from the full app graph is which OTHER document types/transports it carries (none needed here),
+ *     the same "construct just enough of the real service" choice
+ *     `documents.service.received-invoice.spec.ts#buildService` already makes for its own (mocked-
+ *     persistence) unit coverage — this spec's own version does NOT mock `./persistence` or
+ *     `./received-invoices/supplier-reconciliation`, so every write is a REAL Prisma write.
+ *  5. The ONE substitution: `ChannelCredentialsService` is a plain stub object handing back the SAME
+ *     real credentials this file reads from `process.env` — identical reasoning
+ *     `superpdp-conformity.live.spec.ts`'s own header already gives for its own stub.
+ *
+ * ## The lifecycle-status PUSH: corrected route, not re-asserted live here
+ *
+ * `superpdp-client.ts#pushLifecycleStatus`'s own header documents the correction: the old
+ * `POST /v1.beta/invoices/{id}/lifecycle_events` never existed (multiple path variants, all a generic
+ * 404), and the push now targets `POST /v1.beta/invoice_events` as SuperPDP's published OpenAPI
+ * declares. No live round-trip of the corrected push is asserted here: this spec's own
+ * "approve"/"record-payment" steps below still exercise the REAL push call (through the REAL
+ * `superPdpStatusPusher`), proving it does not crash the action, and a failure is now logged at `error`.
+ */
+
+import { ActionExtensionRegistry } from '../../actions/action-extensions';
+import { ActionRegistry } from '../../actions/action-registry';
+import { registerReceivedInvoiceActions } from '../../actions/received-invoice-actions';
+import {
+  ChannelCredentialsService,
+  ResolvedChannelConfig,
+} from '@/modules/company/channels/channels.service';
+import { ContributionRegistry } from '../../contributions/contribution-registry';
+import { SuperPdpReceptionSweepRunner } from '../../conformity/reception-sweep-runner';
+import { DocumentsService } from '../../documents.service';
+import { buildReceivedInvoiceDescriptor } from '../../descriptors/received-invoice.descriptor';
+import { FieldKindRegistry, registerCoreFieldKinds } from '../../descriptors/field-kinds';
+import { DocumentTypeRegistry } from '../../descriptors/type-registry';
+import { EntityReferenceRegistry } from '../../references/reference-registry';
+import { TransportRegistry } from '../../transports/transport-registry';
+import prisma from '@/prisma/prisma.service';
+import { detectAndReseedCountryPolicyDrift } from '../../country-policy/boot-reseed';
+import { liveDescribe } from '../live-gate';
+import { buildSuperPdpReceptionStatusPusher } from './superpdp-reception';
+import { buildLiveFacturx, depositLiveFacturx } from './superpdp-live-facturx';
+import {
+  resolveSandboxCompany,
+  SUPERPDP_BASE_URL,
+  SUPERPDP_LIVE_ENV,
+  superpdpLiveClient,
+} from './superpdp-live-parties';
+
+const describeLive = liveDescribe('SUPERPDP_LIVE', SUPERPDP_LIVE_ENV);
+
+/** Same stub reasoning `superpdp-conformity.live.spec.ts`'s own header documents for ITS OWN stub — hands
+ *  the REAL credentials straight from `process.env` to the REAL poller/pusher/runner, without needing
+ *  a real encrypted `CompanyChannelConfig` row. Both `resolveActive` (the poller/pusher's own call)
+ *  AND `listActiveByProvider` (the sweep's own "which companies have PDP connected" call) resolve to
+ *  the SAME one company created below. */
+function buildRealCredentialsStub(companyId: string): ChannelCredentialsService {
+  const resolved: ResolvedChannelConfig = {
+    providerId: 'pdp',
+    channel: 'PDP',
+    environment: 'TEST',
+    isActive: true,
+    config: {
+      baseUrl: SUPERPDP_BASE_URL,
+      clientId: process.env.SUPERPDP_CLIENT_ID,
+      clientSecret: process.env.SUPERPDP_CLIENT_SECRET,
+    },
+  };
+  return {
+    resolveActive: async () => resolved,
+    listActiveByProvider: async () => [{ ...resolved, companyId }],
+  } as unknown as ChannelCredentialsService;
+}
+
+/** A REAL, but minimal, `DocumentsService` — same "construct just enough of the real service" choice
+ *  `documents.service.received-invoice.spec.ts#buildService` already makes for its own unit coverage,
+ *  except NOTHING is mocked here (see this file's own header, point 4): every write below is a real
+ *  Prisma write, gated by the REAL country-policy catalog. */
+function buildRealDocumentsService(
+  superPdpStatusPusher: ReturnType<typeof buildSuperPdpReceptionStatusPusher>,
+) {
+  const typeRegistry = new DocumentTypeRegistry();
+  typeRegistry.register(buildReceivedInvoiceDescriptor());
+  const fieldKindRegistry = new FieldKindRegistry();
+  registerCoreFieldKinds(fieldKindRegistry);
+  const actionRegistry = new ActionRegistry();
+  registerReceivedInvoiceActions(actionRegistry, undefined, superPdpStatusPusher);
+  return new DocumentsService(
+    typeRegistry,
+    fieldKindRegistry,
+    actionRegistry,
+    new ActionExtensionRegistry(),
+    new EntityReferenceRegistry(),
+    new TransportRegistry(),
+    new ContributionRegistry(),
+  );
+}
+
+describeLive('PDP reception — REAL self-addressed deposit becomes a REAL received-invoice', () => {
+  let cleanupCompanyId: string | undefined;
+
+  // This spec never boots the full Nest app (no `CountryPolicyBootReseedService.onModuleInit` runs),
+  // so the DB-backed country-action policy this session's own DATABASE_URL points at could be stale —
+  // missing THIS task's own new `received-invoice`/`record-payment` rule, e.g. on a fresh checkout or
+  // a dev DB nobody has booted the app against since this rule was added. Same idempotent, drift-
+  // detecting correction `CountryPolicyBootReseedService` itself calls at every real boot — safe to
+  // call here too, a genuine no-op once the table already matches `data/*.json`.
+  beforeAll(async () => {
+    await detectAndReseedCountryPolicyDrift(prisma);
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  afterEach(async () => {
+    if (cleanupCompanyId) {
+      await prisma.company.delete({ where: { id: cleanupCompanyId } }).catch(() => undefined);
+      cleanupCompanyId = undefined;
+    }
+  });
+
+  it('deposit (self-addressed) -> direction=in lists it -> real sweep creates a real received-invoice ' +
+    '-> approve -> record-payment, all through REAL production code', async () => {
+    const timestamp = Date.now();
+    const client = superpdpLiveClient();
+    await client.authenticate();
+    const self = await resolveSandboxCompany(client);
+    const facturxPdf = await buildLiveFacturx({
+      displayNumber: `INV-RECEPTION-${timestamp}`,
+      seller: self,
+      buyer: self,
+      description: 'Reception live proof',
+      unitPrice: 42,
+      businessProcess: 'none',
+    });
+    await depositLiveFacturx(client, facturxPdf, `INV-RECEPTION-${timestamp}`);
+
+    // The inbound TWIN's own id is DIFFERENT — see this file's own header, point 2. Poll `direction=in`
+    // newest first (the twin appears within ~1s per prior live observation) and pick the one created
+    // most recently: this sandbox account carries every earlier inbound deposit. Read patiently:
+    // backing off from 800ms to 5s, up to 60s, because a shared inbox that is slow one morning is
+    // not a reception bug, and the old 10 x 800ms (8s) window turned it into a red nightly.
+    let inboundId: number | undefined;
+    const inboundDeadline = Date.now() + 60_000;
+    let inboundDelay = 800;
+    while (!inboundId && Date.now() < inboundDeadline) {
+      const { data } = await client.listInvoices({ direction: 'in', order: 'desc', limit: 10 });
+      const newest = [...data].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+      if (newest && new Date(newest.created_at).getTime() >= timestamp - 2000) {
+        inboundId = newest.id;
+      } else {
+        await new Promise((r) => setTimeout(r, inboundDelay));
+        inboundDelay = Math.min(inboundDelay * 2, 5_000);
+      }
+    }
+    if (!inboundId) {
+      throw new Error("direction=in never listed this deposit's own inbound twin within 60s - hard failure.");
+    }
+    console.log('INBOUND twin id:', inboundId);
+
+    // A real Company, exactly the shape `superpdp-conformity.live.spec.ts` already creates directly via
+    // Prisma (never through the HTTP API) — this spec's own point is reception, not company signup.
+    const company = await prisma.company.create({
+      data: {
+        name: 'Reception Live Test Co',
+        foundedAt: new Date('2020-01-01'),
+        address: '1 Reception Street',
+        postalCode: '00000',
+        city: 'Testville',
+        country: 'France',
+        countryCode: 'FR',
+        phone: '+33000000000',
+        email: `reception-live-${timestamp}@example.com`,
+      },
+    });
+    const companyId = company.id;
+    cleanupCompanyId = companyId;
+    // The sweep resumes after the highest deposit a company already imported. A brand-new company
+    // would start from the oldest deposit of this long-lived sandbox inbox, so record the one just
+    // before the twin as already imported, as a company that has been receiving all along would have.
+    await prisma.documentInstance.create({
+      data: {
+        companyId,
+        typeId: 'received-invoice',
+        status: 'received',
+        data: { pdpInboundId: String(inboundId - 1) },
+      },
+    });
+
+    const credentialsStub = buildRealCredentialsStub(companyId);
+    const superPdpStatusPusher = buildSuperPdpReceptionStatusPusher(credentialsStub);
+    const documentsService = buildRealDocumentsService(superPdpStatusPusher);
+    const runner = new SuperPdpReceptionSweepRunner(credentialsStub, documentsService);
+
+    const sweepResult = await runner.runSweep();
+    console.log('REAL sweep result:', JSON.stringify(sweepResult));
+    expect(sweepResult.companies).toBe(1);
+    // >= 1, never a hard `=== 1`: another deposit may have reached this shared sandbox inbox after
+    // the twin; the HARD assertion is on THIS run's own deposit, checked next.
+    expect(sweepResult.imported).toBeGreaterThanOrEqual(1);
+
+    // Another deposit can land on this shared sandbox inbox after the twin, so the hard assertion is
+    // on THIS run's own deposit specifically, matched by `data.pdpInboundId`.
+    const createdForThisRun = await prisma.documentInstance.findFirst({
+      where: {
+        companyId,
+        typeId: 'received-invoice',
+        data: { path: ['pdpInboundId'], equals: String(inboundId) },
+      },
+    });
+    const created = createdForThisRun;
+    if (!created) {
+      throw new Error(
+        `The REAL sweep ran but no received-invoice DocumentInstance carries THIS run's own ` +
+          `pdpInboundId (${inboundId}) — hard failure.`,
+      );
+    }
+    const data = created.data as Record<string, unknown>;
+    console.log(
+      'REAL received-invoice created:',
+      JSON.stringify({ id: created.id, status: created.status, data }),
+    );
+    expect(created.status).toBe('received');
+    expect(data.pdpProviderId).toBe('pdp');
+    expect(typeof data.fileRef).toBe('string');
+    expect((data.fileRef as string).length).toBeGreaterThan(0);
+    // The self-addressed identity's own name, structurally extracted from the REAL downloaded
+    // Factur-X (never invented) - see `superpdp-reception-poller.ts`'s own header on why this reuses the
+    // SAME extraction the manual upload screen uses.
+    expect(data.supplier).toBe(self.name);
+    expect(data.currency).toBe('EUR');
+
+    // "approve" — real production code, real Prisma write, real (best-effort, documented-404) push.
+    const approveResult = await documentsService.runAction(companyId, 'received-invoice', 'approve', {
+      documentId: created.id,
+      data: {},
+    });
+    expect(approveResult.document?.status).toBe('approved');
+
+    // "record-payment" — same, plus the "paid" push attempt once the recorded amount reaches the
+    // record's own stated gross.
+    const grossAmount = typeof data.grossAmount === 'number' ? data.grossAmount : 50.4; // 42 + 20% VAT
+    const paymentResult = await documentsService.runAction(companyId, 'received-invoice', 'record-payment', {
+      documentId: created.id,
+      data: {},
+      params: { amount: grossAmount, currency: 'EUR', paidAt: new Date().toISOString() },
+    });
+    expect(paymentResult.changed).toBe(true);
+    expect(paymentResult.createdPaymentId).toBeTruthy();
+    console.log('REAL payment recorded:', paymentResult.message);
+  }, 180_000);
+});

@@ -3,7 +3,6 @@ import {
   canWriteDocumentType,
   DOCUMENT_READ_SCOPES,
   DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
   scopeForDocumentType,
 } from './scope-mapping';
 
@@ -26,12 +25,6 @@ describe('scope-mapping', () => {
     expect(DOCUMENT_READ_SCOPES).not.toContain('articles:read');
     expect(DOCUMENT_WRITE_SCOPES).not.toContain('clients:write');
     expect(DOCUMENT_WRITE_SCOPES).not.toContain('articles:write');
-  });
-
-  it('hasAnyScope is true whenever at least one candidate is granted', () => {
-    expect(hasAnyScope(['quotes:read', 'invoices:read'], ['invoices:read'])).toBe(true);
-    expect(hasAnyScope(['quotes:read', 'invoices:read'], ['clients:read'])).toBe(false);
-    expect(hasAnyScope(['quotes:read'], [])).toBe(false);
   });
 
   it('canReadDocumentType is granted by EITHER the read or the write scope', () => {

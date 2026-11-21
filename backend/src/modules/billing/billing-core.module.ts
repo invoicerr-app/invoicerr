@@ -8,7 +8,7 @@
  *
  * BEFORE this split, `BillingModule` (the module below, unchanged in shape otherwise) was imported
  * ONLY by `AppModule` — `worker.module.ts` never touched it at all, so `BillingLifecycleSweepRunner`'s
- * own repeatable (Polar sync, and its export-and-email-on-block path) always ran on an API replica,
+ * own repeatable (the lifecycle sweep, and its export-and-email-on-block path) always ran on an API replica,
  * competing with request serving, while the target topology's 15 dedicated workers sat idle for it —
  * exactly the "two queues structurally unreachable from the workers" defect this closes.
  *
@@ -29,21 +29,25 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
+import { ClientsModule } from '../clients/clients.module';
 import { DocumentsCoreModule } from '../documents/documents-core.module';
 import { MailService } from '@/mail/mail.service';
 
 import { redisConnection } from '../documents/queue/redis.config';
 import { BillingExportService } from './export-zip.service';
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
+import { SubscriptionInvoiceIssuer } from './subscription-invoice-issuer';
 import { BILLING_BULL_CONFIG_KEY, Q_BILLING_LIFECYCLE } from './queue/billing-queue.constants';
 
 @Module({
   imports: [
     DocumentsCoreModule,
+    // `ClientsService` for the subscription invoices' clients (`subscription-invoice-issuer.ts`).
+    ClientsModule,
     BullModule.forRoot(BILLING_BULL_CONFIG_KEY, { connection: redisConnection() }),
     BullModule.registerQueue({ configKey: BILLING_BULL_CONFIG_KEY, name: Q_BILLING_LIFECYCLE }),
   ],
-  providers: [MailService, BillingExportService, BillingLifecycleSweepRunner],
-  exports: [BullModule, BillingLifecycleSweepRunner],
+  providers: [MailService, BillingExportService, BillingLifecycleSweepRunner, SubscriptionInvoiceIssuer],
+  exports: [BullModule, BillingLifecycleSweepRunner, SubscriptionInvoiceIssuer],
 })
 export class BillingCoreModule {}

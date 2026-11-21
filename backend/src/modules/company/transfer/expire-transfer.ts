@@ -13,6 +13,7 @@ import { resolveUserLanguage } from '@/modules/documents/rendering/language/reso
 import prisma from '@/prisma/prisma.service';
 
 import { CompanyOwnershipTransfer } from '../../../../prisma/generated/prisma/client';
+import { appOrigin } from '@/utils/app-origin';
 
 /**
  * Guarded on `status: 'PENDING'` — a concurrent accept or cancel may have already moved this exact
@@ -23,7 +24,7 @@ import { CompanyOwnershipTransfer } from '../../../../prisma/generated/prisma/cl
 export async function expireOwnershipTransfer(
   transfer: Pick<CompanyOwnershipTransfer, 'id' | 'companyId' | 'fromUserId' | 'toEmail'>,
   mailService: MailService,
-  appUrl: string = process.env.APP_URL || 'http://localhost:3000',
+  appUrl: string = appOrigin(),
 ): Promise<boolean> {
   const { count } = await prisma.companyOwnershipTransfer.updateMany({
     where: { id: transfer.id, status: 'PENDING' },

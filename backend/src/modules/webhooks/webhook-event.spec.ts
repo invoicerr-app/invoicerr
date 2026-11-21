@@ -2,21 +2,13 @@ import { WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { EVENT_STYLES } from './drivers/event-formatters';
 
 /**
- * The post-purge pin (2026-09-03) — pins the WebhookEvent enum to the exact list a grep proved alive
- * (see the migration's own header, `20260903200000_purge_dead_webhook_events`, for the per-family
- * evidence). This is a tripwire: it fails LOUDLY the moment anyone adds, removes, or reorders a
- * WebhookEvent member without updating this list AND its own justification (a real dispatch call
- * site, proven by grep, or an explicit decision recorded the way the migration header records one).
- *
- * `Object.values(WebhookEvent)` is exactly what `GET /api/webhooks/options` returns to the screen
- * (`webhooks.controller.ts#options`) and what `EVENT_STYLES`/`formatPayloadForEvent`
- * (`drivers/event-formatters.ts`) key their `Record<WebhookEvent, ...>` on — so this single pin
- * indirectly protects all three from drifting apart.
+ * Pins the WebhookEvent enum to the members that have a real emitter: it fails the moment one is added,
+ * removed or reordered. This also protects the options endpoint and the `EVENT_STYLES`/formatter records
+ * keyed on the enum.
  */
 describe('WebhookEvent enum (the post-purge pin)', () => {
-  // Order matches the enum's own declaration in schema.prisma exactly — Object.values on a TS
-  // `as const` object preserves insertion order, so this also pins the *order* the settings screen
-  // renders the event picker in, not merely its membership.
+  // Order matches the enum declaration in schema.prisma, which also pins the order the settings screen
+  // renders the event picker in.
   const EXPECTED_EVENTS = [
     'DOCUMENT_CREATED',
     'DOCUMENT_SENT',
@@ -25,8 +17,7 @@ describe('WebhookEvent enum (the post-purge pin)', () => {
     'DOCUMENT_DELETED',
     'DOCUMENT_SETTLED',
     'DOCUMENT_CANCELLED',
-    // See signatures/signatures.service.ts's own
-    // "markSigned" for the real emitter (the public OTP-verification flow).
+    // Fires from the public OTP-verification flow.
     'DOCUMENT_SIGNED',
     'CLIENT_CREATED',
     'CLIENT_UPDATED',
@@ -46,15 +37,14 @@ describe('WebhookEvent enum (the post-purge pin)', () => {
 
   it('does not resurrect any of the 79 members purged on 2026-09-03', () => {
     const purged = [
-      // Client / Company / Webhook families — the ones purged alongside their surviving siblings.
+      // Removed alongside their surviving siblings.
       'CLIENT_ACTIVATED',
       'CLIENT_DEACTIVATED',
       'COMPANY_PDF_CONFIG_UPDATED',
       'COMPANY_INFO_VIEWED',
       'WEBHOOK_TRIGGERED',
       'WEBHOOK_FAILED',
-      // A representative of every other purged family — the exhaustive 79-value list lives in the
-      // migration's own header; this spot-checks each family rather than repeating it verbatim.
+      // One representative per other removed family.
       'RECURRING_INVOICE_CREATED',
       'RECURRING_INVOICE_ITEM_CREATED',
       'PLUGIN_WEBHOOK_RECEIVED',

@@ -216,19 +216,14 @@ describe('FieldKindRegistry', () => {
       ).toEqual([{ key: 'vatRate', message: '"VAT rate" is not one of the offered choices.' }]);
     });
 
-    it.each([
-      'S',
-      'Z',
-      'E',
-      'AE',
-      'K',
-      'G',
-      'O',
-    ])('every real EN 16931 BT-151 code (%s) still opens the exception', (code) => {
-      expect(
-        validateAgainstDescriptor([vatRateField], { vatRate: '19', __crossBorderCategory: code }, registry),
-      ).toEqual([]);
-    });
+    it.each(['S', 'Z', 'E', 'AE', 'K', 'G', 'O'])(
+      'every real EN 16931 BT-151 code (%s) still opens the exception',
+      (code) => {
+        expect(
+          validateAgainstDescriptor([vatRateField], { vatRate: '19', __crossBorderCategory: code }, registry),
+        ).toEqual([]);
+      },
+    );
   });
 
   // Enriched expense categories ("notes de frais enrichies") — the 12th kind, an uploaded attachment.

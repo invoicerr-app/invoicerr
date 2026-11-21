@@ -1,8 +1,8 @@
 /**
- * `PdpReceptionSweepRunner` in isolation — `pollers/pdp-reception-poller.ts` and
- * `transports/pdp/pdp-reception.ts` (the poller/pusher this runner builds internally, see its own
+ * `SuperPdpReceptionSweepRunner` in isolation - `pollers/superpdp-reception-poller.ts` and
+ * `transports/superpdp/superpdp-reception.ts` (the poller/pusher this runner builds internally, see its own
  * header) are BOTH mocked wholesale: the real PDP round-trip is those two files' own specs
- * (`pdp-reception-poller.spec.ts`, `pdp-reception.spec.ts`) plus `superpdp-reception.live.spec.ts`. This
+ * (`superpdp-reception-poller.spec.ts`, `superpdp-reception.spec.ts`) plus `superpdp-reception.live.spec.ts`. This
  * file's own concern is the SWEEP's wiring: which companies it visits, the dedup-by-`pdpInboundId`
  * check, and that `DocumentsService.runAction('receive')` is called with the right shape — the SAME
  * "mock the leaf, prove the orchestration" split every OTHER sweep runner spec in this directory
@@ -18,12 +18,12 @@ import * as storage from '../received-invoices/storage';
 import * as supplierReconciliation from '../received-invoices/supplier-reconciliation';
 import { DocumentsService } from '../documents.service';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
-import { buildPdpReceptionPoller } from './pollers/pdp-reception-poller';
-import { PdpReceptionSweepRunner } from './reception-sweep-runner';
-import { buildPdpReceptionStatusPusher } from '../transports/pdp/pdp-reception';
+import { buildSuperPdpReceptionPoller } from './pollers/superpdp-reception-poller';
+import { SuperPdpReceptionSweepRunner } from './reception-sweep-runner';
+import { buildSuperPdpReceptionStatusPusher } from '../transports/superpdp/superpdp-reception';
 
-vi.mock('./pollers/pdp-reception-poller');
-vi.mock('../transports/pdp/pdp-reception');
+vi.mock('./pollers/superpdp-reception-poller');
+vi.mock('../transports/superpdp/superpdp-reception');
 vi.mock('@/prisma/prisma.service', () => ({
   __esModule: true,
   default: { $queryRaw: vi.fn() },
@@ -31,8 +31,8 @@ vi.mock('@/prisma/prisma.service', () => ({
 vi.mock('../received-invoices/storage');
 vi.mock('../received-invoices/supplier-reconciliation');
 
-const mockedBuildPoller = buildPdpReceptionPoller as Mock;
-const mockedBuildPusher = buildPdpReceptionStatusPusher as Mock;
+const mockedBuildPoller = buildSuperPdpReceptionPoller as Mock;
+const mockedBuildPusher = buildSuperPdpReceptionStatusPusher as Mock;
 // `isAlreadyImported` issues a raw, tagged-template query (see that method's own header for why —
 // the index this proves against would never actually be USED by Prisma's own JSON-path filter) —
 // mocked as a plain function, called with the template's own interpolated values as its rest args,
@@ -69,7 +69,7 @@ function buildDocumentsService(runAction = vi.fn()) {
   return { runAction } as unknown as DocumentsService;
 }
 
-describe('PdpReceptionSweepRunner.runSweep', () => {
+describe('SuperPdpReceptionSweepRunner.runSweep', () => {
   let listInbound: Mock;
   let downloadAndExtract: Mock;
   let pushTakenInCharge: Mock;
@@ -97,7 +97,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     const channelCredentials = buildChannelCredentials(
       vi.fn().mockResolvedValue([ACTIVE_CONFIG_A, ACTIVE_CONFIG_B]),
     );
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
 
     const result = await runner.runSweep();
 
@@ -117,7 +117,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     });
     const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri-1' }, changed: true });
     const eventsPublisher = { publish: vi.fn() } as unknown as DocumentEventsPublisher;
-    const runner = new PdpReceptionSweepRunner(
+    const runner = new SuperPdpReceptionSweepRunner(
       channelCredentials,
       buildDocumentsService(runAction),
       eventsPublisher,
@@ -160,7 +160,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     });
     mockedReconcile.mockResolvedValue({ outcome: 'matched', clientId: 'client-9' });
     const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri-1' }, changed: true });
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     await runner.runSweep();
 
@@ -181,7 +181,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     listInbound.mockResolvedValue([{ id: 604667, direction: 'in' }]);
     mockedQueryRaw.mockResolvedValue([{ id: 'ri-1' }]);
     const runAction = vi.fn();
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 
@@ -205,7 +205,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     listInbound.mockResolvedValue([{ id: 1, direction: 'in' }]);
     mockedQueryRaw.mockResolvedValue([{ id: 'ri-old' }]);
     const runAction = vi.fn();
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 
@@ -232,7 +232,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       fileName: 'invoice.pdf',
       extraction: { fields: {} },
     });
-    const runner = new PdpReceptionSweepRunner(
+    const runner = new SuperPdpReceptionSweepRunner(
       channelCredentials,
       buildDocumentsService(vi.fn().mockResolvedValue({ document: { id: 'ri-1' }, changed: true })),
     );
@@ -264,7 +264,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       .fn()
       .mockRejectedValueOnce(p2002Error()) // deposit 1: lost the race
       .mockResolvedValueOnce({ document: { id: 'ri-2' }, changed: true }); // deposit 2: imports fine
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 
@@ -276,7 +276,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
     const channelCredentials = buildChannelCredentials(vi.fn().mockResolvedValue([ACTIVE_CONFIG_A]));
     listInbound.mockResolvedValue([{ id: 1, direction: 'in' }]);
     downloadAndExtract.mockRejectedValue(new Error('PDP download timed out'));
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
 
     const result = await runner.runSweep();
 
@@ -291,7 +291,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       if (companyId === 'company-a') throw new Error('sandbox network blip');
       return [];
     });
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService());
 
     const result = await runner.runSweep();
 
@@ -314,7 +314,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       extraction: { syntax: 'FACTURX_CII', fields: {} },
     });
     const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri' }, changed: true });
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 
@@ -340,7 +340,7 @@ describe('PdpReceptionSweepRunner.runSweep', () => {
       };
     });
     const runAction = vi.fn().mockResolvedValue({ document: { id: 'ri' }, changed: true });
-    const runner = new PdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
+    const runner = new SuperPdpReceptionSweepRunner(channelCredentials, buildDocumentsService(runAction));
 
     const result = await runner.runSweep();
 

@@ -1,6 +1,6 @@
-import { Fingerprint } from "lucide-react"
+import { Check, CircleAlert, Copy, Fingerprint, Info } from "lucide-react"
 import type React from "react"
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router"
 import { toast } from "sonner"
@@ -14,37 +14,97 @@ import { Label } from "@/components/ui/label"
 import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { authClient } from "@/lib/auth"
+import { copyToClipboard } from "@/lib/clipboard"
+import { hasSignedOutInThisTab } from "@/lib/sign-out"
 import { envOidcProviderId, getEnvVariable, isOidcOnly } from "@/lib/runtime-config"
 import { useBackendHealth } from "@/hooks/use-backend-health"
-import { useDemoMode, useRegistrationStatus } from "@/hooks/queries"
-import { Info } from "lucide-react"
+import { type DemoInstanceView, useDemoMode, useRegistrationStatus } from "@/hooks/queries"
 
-/**
- * Issue #533: shown above the sign-in form only, on the demo instance. The credentials shown here
- * are literally correct, not a placeholder, so someone landing on the demo can sign in without going
- * looking elsewhere for them (the issue's own requirement: "the demo sign-in page shows the
- * credentials").
- */
-function DemoCredentialsNotice() {
+function CopyValueButton({ value, label }: Readonly<{ value: string; label: string }>) {
   const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
   return (
-    <Alert variant="default" className="mb-4" data-cy="demo-credentials-notice">
-      <Info />
-      <AlertTitle>{t("demo.signIn.title", "This is a public demo")}</AlertTitle>
-      <AlertDescription>
-        {t("demo.signIn.description", "Sign in with demo@invoicerr.app / demo. Data resets every 4 hours.")}
-      </AlertDescription>
-    </Alert>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-8 text-muted-foreground"
+      aria-label={copied ? t("demo.signIn.copied") : label}
+      onClick={async () => {
+        if (!(await copyToClipboard(value))) return
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+    >
+      {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+    </Button>
   )
 }
+
+function DemoCredentialsNotice({
+  demo,
+  onTry,
+  loading,
+}: Readonly<{ demo: DemoInstanceView; onTry: () => void; loading: boolean }>) {
+  const { t } = useTranslation()
+  return (
+    <section
+      className="rounded-xl border border-dashed border-primary bg-card/60 p-4"
+      aria-labelledby="demo-credentials-title"
+      data-cy="demo-credentials-notice"
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2
+          id="demo-credentials-title"
+          className="inline-flex items-center gap-1.5 rounded-full bg-info px-2.5 py-0.5 font-sans text-[13px] font-semibold text-info-foreground"
+        >
+          <Info className="size-3.5" aria-hidden="true" />
+          {t("demo.signIn.title", "This is a public demo")}
+        </h2>
+        <p className="text-[13.5px] text-muted-foreground">
+          {t("demo.signIn.resets", { count: demo.resetIntervalHours })}
+        </p>
+      </div>
+      <p className="mt-2 text-[13.5px] text-ink-2">{t("demo.signIn.description")}</p>
+      <dl className="mt-2 divide-y border-y text-sm">
+        <div className="grid grid-cols-[7rem_1fr_auto] items-center gap-2 py-1">
+          <dt className="text-muted-foreground">{t("auth.login.form.email.label")}</dt>
+          <dd className="font-semibold text-foreground select-all" data-cy="demo-credentials-email">
+            {demo.email}
+          </dd>
+          <CopyValueButton value={demo.email} label={t("demo.signIn.copyEmail")} />
+        </div>
+        <div className="grid grid-cols-[7rem_1fr_auto] items-center gap-2 py-1">
+          <dt className="text-muted-foreground">{t("auth.login.form.password.label")}</dt>
+          <dd className="font-semibold text-foreground select-all" data-cy="demo-credentials-password">
+            {demo.password}
+          </dd>
+          <CopyValueButton value={demo.password} label={t("demo.signIn.copyPassword")} />
+        </div>
+      </dl>
+      <Button
+        type="button"
+        className="mt-3 w-full"
+        loading={loading}
+        onClick={onTry}
+        data-cy="demo-try-button"
+      >
+        {t("demo.signIn.tryButton")}
+      </Button>
+    </section>
+  )
+}
+
+type SignInError = { title: string; description: string }
 
 export default function LoginPage() {
   const { t } = useTranslation()
 
   const [loading, setLoading] = useState(false)
+  const [signInError, setSignInError] = useState<SignInError | null>(null)
   const backendHealth = useBackendHealth()
   const backendUnavailable = backendHealth === "unavailable"
-  const { demoMode } = useDemoMode()
+  const { demo } = useDemoMode()
   const { data: registration, isPending: registrationPending } = useRegistrationStatus()
   // Kept on an invitation-only instance: the sign-up page is where an invitee types their code.
   // Hidden until the server answers, so a closed instance never flashes it; a failed check keeps it.
@@ -91,29 +151,62 @@ export default function LoginPage() {
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true)
+      setSignInError(null)
 
-    setLoading(true)
+      const result = await authClient.signIn.email({ email, password, rememberMe: true })
 
-    const result = await authClient.signIn.email({
-      email: (event.currentTarget.elements.namedItem("email") as HTMLInputElement).value,
-      password: (event.currentTarget.elements.namedItem("password") as HTMLInputElement).value,
-      rememberMe: true,
-    })
+      if (result.error) {
+        setSignInError(
+          result.error.code === "INVALID_ORIGIN"
+            ? {
+                title: t("auth.login.messages.invalidOriginTitle"),
+                description: t("auth.login.messages.invalidOrigin", { origin: window.location.origin }),
+              }
+            : {
+                title: t("auth.login.messages.loginErrorTitle"),
+                description: result.error.message || t("auth.login.messages.loginError"),
+              },
+        )
+        setLoading(false)
+        return
+      }
 
-    if (result.error) {
-      toast.error(result.error.message || t("auth.login.messages.loginError"))
-    }
+      // A 200 does not mean the browser stored the session cookie (a Secure cookie over http is dropped).
+      const session = await authClient.getSession()
+      if (!session.data) {
+        setSignInError({
+          title: t("auth.login.messages.sessionNotStoredTitle"),
+          description: t("auth.login.messages.sessionNotStored"),
+        })
+        setLoading(false)
+        return
+      }
 
-    if (result.data?.user.createdAt) {
       toast.success(t("auth.login.messages.loginSuccess"))
       // Force a full page reload to refresh the session state
       window.location.href = "/dashboard"
-      return
-    }
+    },
+    [t],
+  )
 
-    setLoading(false)
+  // Once per visit: a failure leaves the page as it is, with the error and the form.
+  const autoSignInStarted = useRef(false)
+  useEffect(() => {
+    if (!demo || autoSignInStarted.current || hasSignedOutInThisTab()) return
+    autoSignInStarted.current = true
+    void signInWithPassword(demo.email, demo.password)
+  }, [demo, signInWithPassword])
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const fields = event.currentTarget.elements
+    void signInWithPassword(
+      (fields.namedItem("email") as HTMLInputElement).value,
+      (fields.namedItem("password") as HTMLInputElement).value,
+    )
   }
 
   const footer = (
@@ -154,7 +247,20 @@ export default function LoginPage() {
       dataCy="auth-card"
     >
       {backendUnavailable && <ServerUnavailableBanner />}
-      {demoMode && <DemoCredentialsNotice />}
+      {demo && (
+        <DemoCredentialsNotice
+          demo={demo}
+          loading={loading}
+          onTry={() => void signInWithPassword(demo.email, demo.password)}
+        />
+      )}
+      {signInError && (
+        <Alert variant="destructive" className="mb-4" data-cy="auth-signin-error">
+          <CircleAlert />
+          <AlertTitle>{signInError.title}</AlertTitle>
+          <AlertDescription>{signInError.description}</AlertDescription>
+        </Alert>
+      )}
 
       {/* A provider named by the link, or found from the address typed below. Offered above the
           form: someone arriving on their company's own link should not have to read past a

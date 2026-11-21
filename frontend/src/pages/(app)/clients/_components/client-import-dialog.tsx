@@ -40,6 +40,7 @@ import {
   useImportClientsPreview,
 } from "@/hooks/queries"
 import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
+import { downloadBlob } from "@/lib/download"
 import {
   fetchRequiredIdentifiers,
   mapRow,
@@ -123,14 +124,7 @@ export function ClientImportDialog() {
       const res = await authenticatedFetch("/api/clients/import/template")
       if (!res.ok) throw new Error("template download failed")
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = "clients-import-template.csv"
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, "clients-import-template.csv")
     } catch {
       toast.error(t("clients.import.errors.templateDownload"))
     }
@@ -392,22 +386,19 @@ export function ClientImportDialog() {
             <div className="space-y-3" data-cy="clients-import-result">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.created")}</span>
-                <span className="font-mono tabular-nums font-medium" data-cy="clients-import-result-created">
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-created">
                   {result.created}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.duplicates")}</span>
-                <span
-                  className="font-mono tabular-nums font-medium"
-                  data-cy="clients-import-result-duplicates"
-                >
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-duplicates">
                   {result.duplicates}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("clients.import.result.rejected")}</span>
-                <span className="font-mono tabular-nums font-medium" data-cy="clients-import-result-rejected">
+                <span className="tabular-nums font-medium" data-cy="clients-import-result-rejected">
                   {result.rejected}
                 </span>
               </div>

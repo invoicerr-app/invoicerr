@@ -4,13 +4,14 @@ import prisma from '@/prisma/prisma.service';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { companyLawMentions } from '../company-law/company-law';
 import {
   PrintedIdentifier,
   invoiceBuyer,
   invoiceSeller,
   printedPartyIdentifiers,
 } from '../country-identifiers/printed-identifiers';
-import { findClientReferenceField } from '../actions/email-template';
+import { findClientReferenceField } from '../descriptors/recipient-reference';
 import { resolveDocumentCustomFieldDescriptors } from '../company-custom-fields/persistence';
 import { DocumentFieldDescriptor, DocumentTypeDescriptor } from '../descriptors/types';
 import { extractCrossBorderMentions } from '../formats/shared-build';
@@ -32,6 +33,7 @@ import { computeDocumentTotals, DocumentTotals } from '../totals/compute-totals'
 import { findLinkedCreditNote, LinkedCreditNote, linkedCreditNoteTotals } from '../totals/linked-credit-note';
 import { RenderLanguage } from './language/supported-languages';
 import { resolveRecipientLanguage } from './language/resolve-recipient-language';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { logoDataUriFor } from './branding/logo-storage';
 import { renderDocumentHtml, RenderDocumentHtmlInput } from './render-html';
 import { renderPdf } from './render-pdf';
@@ -238,6 +240,7 @@ async function recipientClientFor(
       country: true,
       countryCode: true,
       type: true,
+      vatRegistered: true,
       partyIdentifiers: { select: { scheme: true, value: true } },
     },
   });
@@ -374,6 +377,7 @@ export async function renderDocumentInstance(
     | 'vatNationalCurrencyVatMinor'
     | 'vatNationalCurrencyRate'
     | 'vatNationalCurrencyRateAsOf'
+    | 'buyerIdentifiers'
   >,
   // Issue #494: required, so every caller says which copy it renders. See `status-line-policy.ts`.
   purpose: RenderPurpose,
@@ -399,9 +403,11 @@ export async function renderDocumentInstance(
       language: true,
       exemptVat: true,
       partyIdentifiers: { select: { scheme: true, value: true } },
+      companyLaw: true,
       brandingAccentColor: true,
       brandingFont: true,
       brandingLogoId: true,
+      brandingTemplate: true,
     },
   });
   if (!company) {
@@ -484,7 +490,8 @@ export async function renderDocumentInstance(
   const quoteCommonLineTotals = quoteOptionTotals
     ? computeCommonLineTotals(instanceData, totalsOptions)
     : null;
-  const recipientClient = await recipientClientFor(companyId, descriptor, instanceData);
+  const liveRecipientClient = await recipientClientFor(companyId, descriptor, instanceData);
+  const recipientClient = liveRecipientClient && withIssuedBuyerIdentifiers(liveRecipientClient, instance);
   const language = resolveRecipientLanguage(recipientClient?.language, company.language);
   const paymentMethods = await paymentMethodsFor(
     descriptor,
@@ -516,12 +523,21 @@ export async function renderDocumentInstance(
   }
 
   const printStatus = printsStatusLine(descriptor, instance.status, purpose);
+  const seller = invoiceSeller(company);
+  // Only a working copy names a missing identifier: the copy a client keeps never prints a gap.
+  const includeMissingRequired = !!descriptor.usesLegalMentions && printStatus;
   const partyIdentifiers = printedPartyIdentifiers({
-    seller: invoiceSeller(company),
+    seller,
     buyer: recipientClient ? invoiceBuyer(recipientClient) : undefined,
-    // Only a working copy names a missing identifier: the copy a client keeps never prints a gap.
-    includeMissingRequired: !!descriptor.usesLegalMentions && printStatus,
+    includeMissingRequired,
   });
+  const companyLaw = companyLawMentions({
+    countryCode: seller.countryCode,
+    documentTypeId: descriptor.id,
+    language,
+    details: company.companyLaw,
+    identifiers: seller.identifiers,
+  }).lines.filter((line) => includeMissingRequired || line.parts.every((part) => 'text' in part));
 
   const html = renderDocumentHtml({
     descriptor,
@@ -534,7 +550,7 @@ export async function renderDocumentInstance(
       atcud: instance.atcud,
     },
     printStatus,
-    company: { ...company, identifiers: partyIdentifiers.seller },
+    company: { ...company, identifiers: partyIdentifiers.seller, companyLaw },
     recipient: recipientPartyFor(descriptor, referenceLabels, recipientClient, partyIdentifiers.buyer),
     referenceLabels,
     ...(linkedCreditNote ? linkedCreditNoteRenderInput(descriptor, linkedCreditNote) : {}),
@@ -581,6 +597,7 @@ export async function renderDocumentInstance(
       accentColor: company.brandingAccentColor,
       font: company.brandingFont,
       logoDataUri: await logoDataUriFor(companyId, company.brandingLogoId),
+      template: company.brandingTemplate,
     },
   });
 

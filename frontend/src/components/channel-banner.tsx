@@ -20,7 +20,7 @@ export interface ChannelProvenance {
  *  only the English fallback + translation key stem. A channel this map has no opinion about (a
  *  future legal channel the operator catalogue grows) falls back to its bare, upper-cased id. */
 const LEGAL_CHANNEL_LABEL_DEFAULTS: Record<string, string> = {
-  pdp: "Accredited platform (PDP)",
+  pdp: "Accredited platform (PA)",
   sdi: "Sistema di Interscambio (SdI)",
   ksef: "KSeF",
   "chorus-pro": "Chorus Pro",
@@ -29,18 +29,6 @@ const LEGAL_CHANNEL_LABEL_DEFAULTS: Record<string, string> = {
 
 export function legalChannelLabel(t: TFunction, id: string): string {
   return t(`settings.channels.legal.${id}.label`, LEGAL_CHANNEL_LABEL_DEFAULTS[id] ?? id.toUpperCase())
-}
-
-/** A human-readable country name from an ISO 3166-1 alpha-2 code, in the reader's own language -
- *  same `Intl.DisplayNames` convention `lib/apply-address-suggestion.ts` already uses; never a legal
- *  fact, purely a display nicety over a code the backend already resolved. */
-export function countryName(language: string, code?: string): string {
-  if (!code) return ""
-  try {
-    return new Intl.DisplayNames([language, "en"], { type: "region" }).of(code) ?? code
-  } catch {
-    return code
-  }
 }
 
 /** A `YYYY-MM-DD` mandate date, spelled out in the reader's own language (e.g. "1 September 2026") -

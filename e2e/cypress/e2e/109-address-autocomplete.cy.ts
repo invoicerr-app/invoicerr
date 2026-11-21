@@ -55,7 +55,6 @@ describe("Address autocomplete (#197)", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Autocomplete Demo SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		// Country deliberately left UNPICKED here - this is what proves the suggestion itself fills
 		// it (see the assertion after the click below), rather than merely leaving an
@@ -73,17 +72,14 @@ describe("Address autocomplete (#197)", () => {
 		cy.get('[name="city"]').should("have.value", "Paris");
 		cy.get('[data-cy="client-country-select"]').should("contain.text", countryLabel("FR"));
 
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("552100554");
 		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[name="contacts.0.email"]').clear().type("contact@autocomplete-demo.example");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -130,7 +126,6 @@ describe("Address autocomplete (#197)", () => {
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Plain Typing SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.wait("@capability");
 		cy.get('[name="address"]').clear().type("12 rue de la paix, this instance never asks Photon");

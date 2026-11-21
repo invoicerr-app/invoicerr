@@ -6,14 +6,14 @@ import { toast } from "sonner"
 
 import { actionLocksDocument } from "@/components/documents/action-presentation"
 import type { DocumentActionDescriptor, DocumentInstance } from "@/components/documents/types"
-import { countryName } from "@/components/channel-banner"
+import { countryName } from "@/lib/display-names"
 import {
   INVOICE_IDENTIFIERS_MISSING_CODE,
   type InvoiceIdentifiersMissingParams,
   invoiceIdentifiersMissingNotice,
 } from "@/components/documents/invoice-identifiers-missing"
 import { useResolveActionParamsDefaults, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 
 /** Server-side code `domestic-currency-issuance.ts`'s own `DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE`
  *  names a 400 with, mirrored by hand, the same "no shared package between the four projects"
@@ -37,11 +37,6 @@ interface DomesticInvoiceCurrencyMismatchParams {
   countryCode?: string
   requiredCurrency?: string
   invoiceCurrency?: string
-}
-
-function apiErrorCode(error: unknown): string | undefined {
-  if (!(error instanceof ApiError)) return undefined
-  return (error.body as { code?: string } | undefined)?.code
 }
 
 /** The server's coded refusals of a delete, re-worded in the reader's language with the linked

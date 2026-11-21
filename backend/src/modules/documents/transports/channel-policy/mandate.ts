@@ -37,6 +37,8 @@
  * `actions/convert-to-invoice.ts`). `isOnOrAfter` below compares both the same way (as calendar
  * instants), so it makes no difference which shape a given caller happens to have on hand.
  */
+import { CompanyProfileValues, ProfileCondition } from '../../company-profile/schema';
+import { PartyType } from '../../country-identifiers/schema';
 import { LegalProvenance } from '../../country-policy/schema';
 import { ChannelPolicyCatalog, defaultChannelPolicyCatalog } from './registry';
 import { ChannelPolicyFact, ChannelPolicyScope } from './schema';
@@ -108,7 +110,7 @@ function isOnOrAfter(issueDate: string | undefined, mandatedFrom: string): boole
  * entries (the FIRST active one in file order wins — the same "in file order" convention
  * `registry.ts`'s own `factsFor` already documents); no shipped file does this today.
  *
- * ## THIS FUNCTION APPLIES NO `scope` NARROWING, AND MUST NEVER BE USED TO GATE A SEND
+ * ## THIS FUNCTION APPLIES NO OPERATION NARROWING, AND MUST NEVER BE USED TO GATE A SEND
  *
  * It answers the COUNTRY-LEVEL question - "does this country declare a mandated channel, and has
  * that mandate come into force for an invoice issued on this date" - which is exactly what
@@ -116,7 +118,9 @@ function isOnOrAfter(issueDate: string | undefined, mandatedFrom: string): boole
  * prompt) needs and all it can answer: that screen has no invoice and no buyer, so there is no
  * operation to narrow against. A mandate narrowed by `ChannelPolicyFact.scope` (e.g.
  * `parties: 'domestic'`) is still genuinely declared and in force for the country, and the settings
- * screen is still right to tell the company to connect the channel.
+ * screen is still right to tell the company to connect the channel. The one narrowing it does apply
+ * is `scope.seller`, when a `sellerProfile` is given: the seller is known on that screen, and its
+ * size category decides which start date it is shown.
  *
  * Deciding whether a mandate binds ONE PARTICULAR INVOICE is `activeChannelMandateForOperation`
  * below, and that is the only one `actions/invoice-actions.ts`'s send preflight calls.
@@ -132,9 +136,11 @@ export function activeChannelMandateFor(
   countryCode: string,
   issueDate: string | undefined,
   catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
+  sellerProfile?: CompanyProfileValues,
 ): ActiveChannelMandate | undefined {
   for (const fact of catalog.factsFor(countryCode)) {
     if (fact.requirement !== 'mandated') continue;
+    if (!sellerIsInScope(fact.scope?.seller, sellerProfile)) continue;
     // schema.ts's `assertValidChannelPolicyFact` — run for every shipped file at load time, see
     // data/all.ts — guarantees a 'mandated' fact always carries a non-empty `mandatedFrom` and
     // 'legal' provenance; a fact that failed either check never made it into the catalog at all, so
@@ -144,6 +150,21 @@ export function activeChannelMandateFor(
     }
   }
   return undefined;
+}
+
+/** A country's facts that cover this seller, the first one per channel in file order: what the
+ *  settings screen shows a company about each channel. */
+export function channelFactsForSeller(
+  countryCode: string,
+  sellerProfile?: CompanyProfileValues,
+  catalog: ChannelPolicyCatalog = defaultChannelPolicyCatalog,
+): ChannelPolicyFact[] {
+  const seen = new Set<string>();
+  return catalog.factsFor(countryCode).filter((fact) => {
+    if (seen.has(fact.providerId) || !sellerIsInScope(fact.scope?.seller, sellerProfile)) return false;
+    seen.add(fact.providerId);
+    return true;
+  });
 }
 
 function toActiveMandate(fact: ChannelPolicyFact): ActiveChannelMandate {
@@ -167,6 +188,24 @@ export interface ChannelMandateOperation {
   buyerCountryCode?: string;
   /** The INVOICE's own `issueDate`, never the server's clock - see this file's header. */
   issueDate?: string;
+  /** The buyer's party type, `undefined` when unknown (the mandate then binds). */
+  buyerType?: PartyType;
+  /** The seller's declared company profile; an undeclared attribute binds. */
+  sellerProfile?: CompanyProfileValues;
+}
+
+/** Whether a fact's seller condition covers this seller. An attribute the seller has not declared
+ *  counts as covered, so an undeclared size category never lifts a mandate, and a seller that has
+ *  not answered a question declared in only one start date's condition is bound by that date. */
+export function sellerIsInScope(
+  condition: ProfileCondition | undefined,
+  profile?: CompanyProfileValues,
+): boolean {
+  if (!condition) return true;
+  return Object.entries(condition).every(([key, values]) => {
+    const declared = profile?.[key];
+    return declared === undefined || values.includes(declared);
+  });
 }
 
 function isDomestic(operation: ChannelMandateOperation): boolean {
@@ -222,6 +261,10 @@ export function activeChannelMandateForOperation(
     // A fact with no `scope` binds unconditionally - the behaviour every fact had before `scope` was
     // read at all (schema.ts's own header on that field).
     if (fact.scope?.parties === 'domestic' && !isDomestic(operation)) continue;
+    if (operation.buyerType && fact.scope?.buyerType && !fact.scope.buyerType.includes(operation.buyerType)) {
+      continue;
+    }
+    if (!sellerIsInScope(fact.scope?.seller, operation.sellerProfile)) continue;
     return toActiveMandate(fact);
   }
   return undefined;

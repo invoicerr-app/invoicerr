@@ -74,48 +74,51 @@ describe('PecNotificheService.handleMessage', () => {
     ['notificaMancataConsegna', 'MC', 'PENDING'],
     ['notificaDecorrenzaTermini', 'DT', 'CLEARED'],
     ['attestazioneTrasmissioneFattura', 'AT', 'CLEARED'],
-  ] as const)('journals a %s (%s) notifica onto its own document, mapped to the correct internal status (%s)', async (root, notificaType, internalStatus) => {
-    mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
-    mockedCreateEvents.mockResolvedValue(1);
-    const channelCredentials = buildChannelCredentials();
-    const service = new PecNotificheService(channelCredentials as never);
+  ] as const)(
+    'journals a %s (%s) notifica onto its own document, mapped to the correct internal status (%s)',
+    async (root, notificaType, internalStatus) => {
+      mockedFindDocument.mockResolvedValue({ id: 'doc-42', companyId: 'company-42', typeId: 'invoice' });
+      mockedCreateEvents.mockResolvedValue(1);
+      const channelCredentials = buildChannelCredentials();
+      const service = new PecNotificheService(channelCredentials as never);
 
-    const result = await service.handleMessage(
-      'company-42',
-      message({
-        attachments: [
-          {
-            filename: 'IT01234567890_00001.xml',
-            content: Buffer.from(notificaXml(root, '123456789012', 'IT01234567890_00001.xml')),
-          },
-        ],
-      }),
-    );
-
-    expect(result).toEqual({
-      handled: true,
-      notificaType,
-      nomeFile: 'IT01234567890_00001.xml',
-      identificativoSdI: '123456789012',
-      internalStatus,
-    });
-    expect(mockedFindDocument).toHaveBeenCalledWith(
-      'company-42',
-      SDI_PEC_PROVIDER_ID,
-      'IT01234567890_00001.xml',
-    );
-    expect(mockedCreateEvents).toHaveBeenCalledWith(
-      'company-42',
-      'doc-42',
-      SDI_PEC_PROVIDER_ID,
-      expect.arrayContaining([
-        expect.objectContaining({
-          statusCode: `it:${notificaType}`,
-          rawPayload: expect.objectContaining({ channel: 'pec', mappedStatus: internalStatus }),
+      const result = await service.handleMessage(
+        'company-42',
+        message({
+          attachments: [
+            {
+              filename: 'IT01234567890_00001.xml',
+              content: Buffer.from(notificaXml(root, '123456789012', 'IT01234567890_00001.xml')),
+            },
+          ],
         }),
-      ]),
-    );
-  });
+      );
+
+      expect(result).toEqual({
+        handled: true,
+        notificaType,
+        nomeFile: 'IT01234567890_00001.xml',
+        identificativoSdI: '123456789012',
+        internalStatus,
+      });
+      expect(mockedFindDocument).toHaveBeenCalledWith(
+        'company-42',
+        SDI_PEC_PROVIDER_ID,
+        'IT01234567890_00001.xml',
+      );
+      expect(mockedCreateEvents).toHaveBeenCalledWith(
+        'company-42',
+        'doc-42',
+        SDI_PEC_PROVIDER_ID,
+        expect.arrayContaining([
+          expect.objectContaining({
+            statusCode: `it:${notificaType}`,
+            rawPayload: expect.objectContaining({ channel: 'pec', mappedStatus: internalStatus }),
+          }),
+        ]),
+      );
+    },
+  );
 
   // The AT case's explanatory note ("SdI accepted the invoice but could not deliver it [...] the
   // seller must tell the buyer") used to be computed by `SdiClient.mapNotifica` and then discarded —

@@ -1,10 +1,4 @@
-/**
- * The provider registry: which registry API serves which country, in what order.
- *
- * Which providers serve a country, in what order, and the note shown with it are country data
- * (`coverage/registry.ts`); this file only maps those ids to provider instances and appends the
- * worldwide directories, which serve every country and always come last.
- */
+/** Maps the provider ids of the country data (`coverage/registry.ts`) to instances, worldwide last. */
 import { AustraliaAbrProvider } from './providers/au.provider';
 import { BrazilCnpjProvider } from './providers/br.provider';
 import { SwitzerlandZefixProvider } from './providers/ch.provider';

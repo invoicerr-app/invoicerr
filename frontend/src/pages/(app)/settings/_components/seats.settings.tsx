@@ -1,6 +1,6 @@
 /**
  * `Settings > Seats` — the company's own generative office plan: how many seats are bought (read from
- * Polar, never written back to it — backend's `billing/seat-sync.ts`), who sits at which numbered
+ * the billing provider, never written back to it - backend's `billing/seat-sync.ts`), who sits at which numbered
  * desk, and who is waiting for one. SaaS mode only — this tab is filtered out entirely by
  * `-[tab].tsx` on the same `billingAvailable` signal `billing.settings.tsx` itself gates on (no
  * `/api/billing/*` route exists at all on a self-hosted instance).
@@ -13,33 +13,28 @@
  * they sit on is not a place an OWNER can deposit someone into by hand; they only ever leave it
  * automatically, once a seat frees up or is bought back.
  */
-import { ExternalLinkIcon, LayoutGridIcon, TableIcon, Wallet } from "lucide-react"
+import { LayoutGridIcon, TableIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Avatar, AvatarFallback, getInitials } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useCompanies, useMoveSeat, useOpenCustomerPortal, useSeats } from "@/hooks/queries"
+import { useCompanies, useMoveSeat, useSeats } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import type { SeatMemberView } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { authClient } from "@/lib/auth"
 
-import { OfficeRoom } from "./seats/office-svg"
-import { SettingsListSkeleton, SettingsPage, SettingsSection } from "./settings-section"
+import { memberName, OfficeRoom } from "./seats/office-svg"
+import { SettingsListSkeleton, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
-}
-
-function memberName(member: SeatMemberView): string {
-  const name = `${member.firstname} ${member.lastname}`.trim()
-  return name || member.email
 }
 
 const ROLE_BADGE_VARIANT: Record<SeatMemberView["role"], "default" | "secondary" | "outline"> = {
@@ -66,7 +61,7 @@ function WaitingBench({
 
   return (
     <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-3" data-cy="seats-waiting-bench">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="mb-2 text-[13px] font-medium text-muted-foreground">
         {t("settings.seats.waitingBench", "Waiting for a seat")}
       </p>
       <div className="flex flex-wrap gap-3">
@@ -195,12 +190,11 @@ export default function SeatsSettings() {
   const { t } = useTranslation()
   const { data: session } = authClient.useSession()
   const { activeRole, activeCompanyId } = useCompanies()
-  const canManage = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canManage = isCompanyAdmin(activeRole)
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
 
   const { data, isLoading } = useSeats()
   const moveSeat = useMoveSeat()
-  const openPortal = useOpenCustomerPortal()
   const isMobile = useIsMobile()
   const [view, setView] = useState<"office" | "list">("office")
   // The office plan is a pointer-fine, drag-driven surface — on a coarse-pointer/narrow viewport there
@@ -209,7 +203,6 @@ export default function SeatsSettings() {
   // la vue en liste possible").
   const effectiveView = isMobile ? "list" : view
   const [liveMessage, setLiveMessage] = useState("")
-  const [navigatingPortal, setNavigatingPortal] = useState(false)
 
   const handleMove = (userId: string, seatIndex: number) => {
     const member = data?.members.find((m) => m.userId === userId)
@@ -230,24 +223,6 @@ export default function SeatsSettings() {
         },
       },
     )
-  }
-
-  const handleOpenPortal = () => {
-    openPortal.mutate(undefined, {
-      onSuccess: (result) => {
-        setNavigatingPortal(true)
-        window.location.assign(result.url)
-      },
-      onError: (error) => {
-        setNavigatingPortal(false)
-        toast.error(
-          apiErrorMessage(
-            error,
-            t("settings.billing.messages.portalError", "Failed to open the subscription portal"),
-          ),
-        )
-      },
-    })
   }
 
   return (
@@ -297,20 +272,6 @@ export default function SeatsSettings() {
                   total: data.seats,
                 })}
               </p>
-              {canManage && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  loading={openPortal.isPending || navigatingPortal}
-                  onClick={handleOpenPortal}
-                  data-cy="seats-add-desks-button"
-                >
-                  <Wallet />
-                  {t("settings.seats.addDesks", "Add desks in the Polar portal")}
-                  <ExternalLinkIcon className="size-3.5" />
-                </Button>
-              )}
             </div>
 
             {effectiveView === "office" ? (

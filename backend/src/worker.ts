@@ -2,7 +2,10 @@ import * as http from 'node:http';
 
 import { NestFactory } from '@nestjs/core';
 
+import { logPersistenceHealth } from './logger/log-persistence-health';
 import { WorkerModule } from './worker.module';
+import { RedactingConsoleLogger } from './logger/redacting-console-logger';
+import { redactLogValue } from './logger/redaction';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -13,7 +16,10 @@ import { WorkerModule } from './worker.module';
  * only under `NODE_ENV=production` and only in the `api` role) — just a Nest application CONTEXT (so
  * DI wires up and the `@Processor()` in `DocumentsQueueWorkerModule` starts consuming) plus a minimal
  * health-check HTTP server on port 3001 for container healthchecks (docker-compose.scale.yml's own
- * `worker` service healthcheck targets exactly this port).
+ * `worker` service healthcheck targets exactly this port). Its body carries this process's own
+ * `logPersistence` counters: with `WORKER_INLINE=false` the background log writes land here, not in
+ * an API replica. `status` mirrors that nested signal, still with a 200, so the HTTP code stays the
+ * process's liveness for the probes.
  *
  * `NestFactory.createApplicationContext` runs every `OnModuleInit` hook in the graph, INCLUDING
  * `DocumentQueueRedisRequiredGuard` (queue/redis-required.guard.ts) — so an unreachable Redis fails
@@ -23,14 +29,17 @@ import { WorkerModule } from './worker.module';
  */
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(WorkerModule);
+  // Same redaction as the API process: the worker prints the same kind of provider/document payloads.
+  app.useLogger(new RedactingConsoleLogger());
   app.enableShutdownHooks();
   await app.init();
 
   const port = 3001;
   http
     .createServer((_req, res) => {
+      const logPersistence = logPersistenceHealth.snapshot();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok' }));
+      res.end(JSON.stringify({ status: logPersistence.status, logPersistence }));
     })
     .listen(port);
 
@@ -38,6 +47,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  console.error('Error during worker bootstrap:', err);
+  console.error('Error during worker bootstrap:', redactLogValue(err));
   process.exit(1);
 });

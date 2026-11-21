@@ -12,7 +12,7 @@
  *
  * A poller answers "what does the platform now say about a deposit I ALREADY MADE" — it needs only
  * `(companyId, transportRef)`, because the deposit itself already happened through a TRANSPORT
- * (`transports/pdp-transport.ts`, …). A `DeclarationProvider` answers a different question: "declare
+ * (`transports/superpdp-transport.ts`, …). A `DeclarationProvider` answers a different question: "declare
  * THIS invoice's data to the tax authority" — there is no prior deposit to reference (NAV/myDATA are
  * never how the invoice reaches the buyer, see `report-on-send.ts`'s own header), so it needs the
  * invoice's own DATA instead of a `transportRef`, and it produces exactly ONE event per call rather
@@ -71,6 +71,13 @@ export interface DeclaredInvoice {
   seller: DeclaredParty;
   buyer: DeclaredParty;
   lines: DeclaredInvoiceLine[];
+  /**
+   * The nature of each line, when the caller could establish it from the article catalogue
+   * (`reporting/operation-context.ts`). Absent when at least one line has no article, exactly like
+   * the classifier's own `lineNatures`: a provider that must distinguish goods from services
+   * (France's e-reporting category) refuses rather than guessing.
+   */
+  lineNatures?: ('goods' | 'service')[];
   netTotal: number;
   vatTotal: number;
   grossTotal: number;
@@ -103,6 +110,43 @@ export interface DeclaredInvoice {
  */
 export interface DeclarationResult extends RawAuthorityEvent {
   authorityId: string;
+  /**
+   * Who minted `authorityId` (issue #767). Absent means `authority`, the contract this field had
+   * before the kind existed, so a provider written against it keeps declaring unchanged.
+   */
+  referenceKind?: DeclarationReferenceKind;
+}
+
+/**
+ * - `authority`: the tax administration's own identifier for the declaration (NAV, myDATA).
+ * - `platform`: an intermediary's own record id; the platform transmits to the administration later.
+ * - `synthesized`: built by this code because the authority returns none (Portugal's AT), never to be
+ *   shown as the administration's confirmation number.
+ */
+export type DeclarationReferenceKind = 'authority' | 'platform' | 'synthesized';
+
+export const DECLARATION_REFERENCE_KINDS: readonly DeclarationReferenceKind[] = [
+  'authority',
+  'platform',
+  'synthesized',
+];
+
+/**
+ * One payment, ready to declare  -  the payment-data twin of `DeclaredInvoice` (CGI art. 290 A).
+ * `subtotals` splits the amount actually received across the invoice's own VAT rates, never
+ * recomputed from a rate the invoice did not carry: the split is proportional to each rate's gross
+ * share, and `taxableAmount`/`vatAmount` are derived from the same received amount.
+ */
+export interface DeclaredPayment {
+  documentId: string;
+  paymentId: string;
+  /** ISO date-only (`yyyy-mm-dd`) of the payment. */
+  paidAt: string;
+  currency: string;
+  /** The amount received, major currency units, in the document's own currency. */
+  amount: number;
+  invoice: DeclaredInvoice;
+  subtotals: { vatRatePercent: number; taxableAmount: number; vatAmount: number }[];
 }
 
 /**
@@ -130,6 +174,25 @@ export interface DeclarationProvider {
    *   retry is exhausted.
    */
   declare(companyId: string, invoice: DeclaredInvoice): Promise<DeclarationResult>;
+
+  /**
+   * Declares one PAYMENT's data, when the channel's law distinguishes it from the invoice
+   * declaration (France's CGI art. 290 A). Optional so a provider that only declares invoices (the
+   * Portuguese `pt-at` today) keeps its interface unchanged: the runner journals `report:blocked`
+   * when a country's data asks for payment data and the resolved provider cannot declare it, never
+   * silently treats it as declared.
+   */
+  declarePayment?(companyId: string, payment: DeclaredPayment): Promise<DeclarationResult>;
+
+  /**
+   * Pushes the company facts the platform's own declaration schedule depends on (VAT regime, option
+   * for VAT on debits). Called when the company settings change, so a new answer takes effect before
+   * the next declaration. Optional: a provider whose platform keeps no such record does nothing.
+   *
+   * @throws ChannelNotConnectedError when no connected channel can carry this provider's obligation
+   *   right now. A settings write treats that as "nothing to sync yet", never as a save failure.
+   */
+  syncCompanyProfile?(companyId: string): Promise<void>;
 }
 
 /**
@@ -157,6 +220,22 @@ export class DeclarationProviderRegistry {
         return provider.declare(companyId, invoice);
       },
     };
+    // The wrapper must carry every optional method over, or it silently turns a provider that can
+    // declare payments into one that cannot.
+    const declarePayment = provider.declarePayment;
+    if (declarePayment) {
+      guarded.declarePayment = async (companyId, payment) => {
+        assertDemoSendingAllowed(`Declaring to "${providerId}"`);
+        return declarePayment(companyId, payment);
+      };
+    }
+    const syncCompanyProfile = provider.syncCompanyProfile;
+    if (syncCompanyProfile) {
+      guarded.syncCompanyProfile = (companyId) => {
+        assertDemoSendingAllowed('Declaration profile sync');
+        return syncCompanyProfile(companyId);
+      };
+    }
     this.providers.set(providerId, guarded);
   }
 

@@ -102,7 +102,7 @@ describe("save-draft CAS - a status that moved on between runAction's read and t
 
     const row = await prisma.documentInstance.findUnique({ where: { id: documentId } });
     expect(row?.status).toBe('signed');
-    expect((row?.data as Record<string, unknown>).description).toBe('v1 - original');
+    expect((row!.data as Record<string, unknown>).description).toBe('v1 - original');
   });
 
   it("the invoice's own save-draft handler (registerInvoiceSaveDraftAction) honors the same CAS", async () => {
@@ -133,7 +133,7 @@ describe("save-draft CAS - a status that moved on between runAction's read and t
 
     const row = await prisma.documentInstance.findUnique({ where: { id: documentId } });
     expect(row?.status).toBe('sent');
-    expect((row?.data as Record<string, unknown>).client).toBeUndefined();
+    expect((row!.data as Record<string, unknown>).client).toBeUndefined();
   });
 
   it("the credit note's own save-draft handler (registerCreditNoteSaveDraftAction) honors the same CAS", async () => {
@@ -170,7 +170,7 @@ describe("save-draft CAS - a status that moved on between runAction's read and t
 
     const row = await prisma.documentInstance.findUnique({ where: { id: documentId } });
     expect(row?.status).toBe('sent');
-    expect((row?.data as Record<string, unknown>).lines).toEqual([
+    expect((row!.data as Record<string, unknown>).lines).toEqual([
       { description: 'Refund', quantity: 1, unitPrice: 10, vatRate: 0 },
     ]);
   });

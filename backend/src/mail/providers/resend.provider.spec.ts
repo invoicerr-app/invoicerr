@@ -1,5 +1,5 @@
 /**
- * `ResendMailProvider` in isolation — mocked HTTP layer (same discipline `pdp-client.spec.ts` already
+ * `ResendMailProvider` in isolation - mocked HTTP layer (same discipline `superpdp-client.spec.ts` already
  * holds: no network calls, every `fetch()` mocked). Proves the exact request body Resend's own
  * documented API expects (`resend.provider.ts`'s own header cites the source), the attachment
  * encoding, and that an HTTP error surfaces the REAL Resend error message rather than a generic one.

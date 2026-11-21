@@ -1,0 +1,97 @@
+/**
+ * The reception poller for SuperPDP - the read side of `superpdp-status-poller.ts`'s own write-status-of-what-
+ * WE-sent role. Same "one small interface, resolved from `ChannelCredentialsService`" shape as that
+ * file, deliberately NOT an `AuthorityStatusPoller` (`authority-status-poller.ts`): that interface
+ * polls the CURRENT VERDICT of one document THIS company already deposited (`poll(companyId,
+ * transportRef)` — one document in, its own events out); reception is the opposite direction
+ * entirely — LIST every inbound deposit this company's own connected PDP account currently holds,
+ * for documents this company never created a `DocumentInstance` for yet. Forcing that into
+ * `AuthorityStatusPoller`'s shape would mean inventing a fake `transportRef` for a document that does
+ * not exist yet, which is backwards — a genuinely different interface, used by
+ * `reception-sweep-runner.ts` instead of `ConformitySweepRunner`, is the honest shape.
+ *
+ * See `transports/superpdp/superpdp-reception.ts`'s own header for what is LIVE-VERIFIED here (list + download)
+ * and `superpdp-client.ts#downloadInvoiceFile`'s own header for the exact endpoint this reads.
+ */
+import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
+
+import { SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
+import { extractReceivedInvoiceFields, ExtractionResult } from '../../received-invoices/extraction';
+import { extFor } from '../../received-invoices/storage';
+import { PDP_RECEPTION_PROVIDER_ID, resolveClient } from '../../transports/superpdp/superpdp-reception';
+
+export interface SuperPdpInboundFile {
+  bytes: Buffer;
+  mime: string;
+  fileName: string;
+  extraction: ExtractionResult;
+}
+
+export interface ReceptionPoller {
+  readonly providerId: string;
+  /** The inbound deposits with an id strictly greater than `afterId` (every one when it is
+   *  undefined), oldest first, at most `RECEPTION_PAGE_SIZE * RECEPTION_MAX_PAGES` per call. An EMPTY
+   *  array, never a throw, when the channel isn't connected for this company: the sweep runner treats
+   *  that as "nothing to import this pass". */
+  listInbound(companyId: string, afterId?: number): Promise<SuperPdpInvoice[]>;
+  /** The one deposit's own original file bytes, downloaded, and run through the SAME structural
+   *  extraction the manual upload screen uses (`received-invoices/extraction.ts`) — reused verbatim,
+   *  never a second, PDP-specific field mapper: a PDP-sourced received-invoice and a manually-uploaded
+   *  one both end up going through the identical CII/UBL/Factur-X reader, so they behave identically
+   *  (same warnings, same supplier-VAT extraction) from this point on. A synthetic `fileName` is built
+   *  from the platform's own `content-type` (`extFor`, `received-invoices/storage.ts`) purely so
+   *  `extractReceivedInvoiceFields`'s own filename-sniffing branch (`.xml`/`.pdf`) has something to
+   *  read — the ACTUAL bytes/mime are what decide the outcome, never the synthetic name alone.
+   */
+  downloadAndExtract(companyId: string, pdpInboundId: number): Promise<SuperPdpInboundFile>;
+}
+
+export interface SuperPdpReceptionPollerDeps {
+  channelCredentials: ChannelCredentialsService;
+}
+
+export const RECEPTION_PAGE_SIZE = 100;
+// Bounds one pass; the runner resumes after the highest imported id, so a longer backlog is
+// drained over the following passes without skipping anything.
+export const RECEPTION_MAX_PAGES = 10;
+
+export function buildSuperPdpReceptionPoller(deps: SuperPdpReceptionPollerDeps): ReceptionPoller {
+  return {
+    providerId: PDP_RECEPTION_PROVIDER_ID,
+
+    async listInbound(companyId: string, afterId?: number): Promise<SuperPdpInvoice[]> {
+      const client = await resolveClient(deps.channelCredentials, companyId);
+      if (!client) return [];
+      // Ascending from a cursor, never "the first page": the platform sorts by id ascending, so an
+      // uncursored page is the OLDEST deposits and a company past one page would never see a new one.
+      const inbound: SuperPdpInvoice[] = [];
+      let cursor = afterId;
+      for (let page = 0; page < RECEPTION_MAX_PAGES; page++) {
+        const { data, has_after } = await client.listInvoices({
+          direction: 'in',
+          order: 'asc',
+          limit: RECEPTION_PAGE_SIZE,
+          startingAfterId: cursor,
+        });
+        inbound.push(...data);
+        if (!has_after || data.length === 0) break;
+        cursor = data[data.length - 1].id;
+      }
+      return inbound;
+    },
+
+    async downloadAndExtract(companyId: string, pdpInboundId: number): Promise<SuperPdpInboundFile> {
+      const client = await resolveClient(deps.channelCredentials, companyId);
+      if (!client) {
+        throw new Error(
+          `PDP reception: channel not connected for company ${companyId} — cannot download deposit ` +
+            `${pdpInboundId}.`,
+        );
+      }
+      const file = await client.downloadInvoiceFile(pdpInboundId, 'original');
+      const fileName = `pdp-inbound-${pdpInboundId}.${extFor(file.contentType)}`;
+      const extraction = await extractReceivedInvoiceFields(file.bytes, file.contentType, fileName);
+      return { bytes: file.bytes, mime: file.contentType, fileName, extraction };
+    },
+  };
+}

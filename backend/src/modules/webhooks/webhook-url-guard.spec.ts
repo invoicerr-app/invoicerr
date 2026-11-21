@@ -1,24 +1,17 @@
 /**
- * SSRF via an outbound webhook URL — the guard's own decision logic. `webhooks.service.spec.ts`
- * proves the guard is actually CALLED at create/update/send; this file proves what it decides: scheme
- * filtering, every private/loopback/link-local IP range a webhook target must not resolve to, and
- * real DNS resolution (mocked at `node:dns`) including the "reject if ANY resolved address is
- * private" and "re-resolve on every call" properties the anti-rebinding defense relies on.
- *
- * Removing the guard (or gutting any one of its checks) must turn one of these tests red — that is
- * the point of testing a security control this way rather than only asserting the happy path.
+ * The guard's decision logic: scheme filtering, every private range a target must not resolve to, and
+ * mocked DNS showing that any private answer rejects and that every call re-resolves.
  */
 
 import { vi, type Mock } from 'vitest';
 
 import * as dns from 'node:dns';
 
-import { WebhookUrlValidationError, assertPublicWebhookUrl } from './webhook-url-guard';
+import { assertPublicWebhookUrl } from './webhook-url-guard';
+import { OutboundUrlValidationError } from '@/utils/outbound-url';
 
-// `webhook-url-guard.ts` imports `node:dns` as a namespace (`import * as dns`, not a default import —
-// see that file's own comment on why), so the mock must match that shape exactly: no `__esModule`/
-// `default` wrapper, or the guard's `dns.promises.lookup` call would see `undefined` and never reach
-// this mock at all.
+// The guard imports `node:dns` as a namespace (`import * as dns`), so the mock must match that shape:
+// no `__esModule`/`default` wrapper, or `dns.promises.lookup` would be `undefined` here.
 vi.mock('node:dns', () => ({ promises: { lookup: vi.fn() } }));
 
 const lookup = dns.promises.lookup as unknown as Mock;
@@ -28,20 +21,19 @@ describe('assertPublicWebhookUrl', () => {
 
   describe('scheme validation', () => {
     it('rejects file:// (local filesystem, not a network fetch at all)', async () => {
-      await expect(assertPublicWebhookUrl('file:///etc/passwd')).rejects.toThrow(WebhookUrlValidationError);
+      await expect(assertPublicWebhookUrl('file:///etc/passwd')).rejects.toThrow(OutboundUrlValidationError);
       expect(lookup).not.toHaveBeenCalled();
     });
 
-    it.each([
-      'gopher://example.com/',
-      'ftp://example.com/',
-      'data:text/plain;base64,aGk=',
-    ])('rejects non-http(s) scheme: %s', async (url) => {
-      await expect(assertPublicWebhookUrl(url)).rejects.toThrow(WebhookUrlValidationError);
-    });
+    it.each(['gopher://example.com/', 'ftp://example.com/', 'data:text/plain;base64,aGk='])(
+      'rejects non-http(s) scheme: %s',
+      async (url) => {
+        await expect(assertPublicWebhookUrl(url)).rejects.toThrow(OutboundUrlValidationError);
+      },
+    );
 
     it('rejects a string that is not a URL at all, without throwing an uncaught error', async () => {
-      await expect(assertPublicWebhookUrl('not a url')).rejects.toThrow(WebhookUrlValidationError);
+      await expect(assertPublicWebhookUrl('not a url')).rejects.toThrow(OutboundUrlValidationError);
     });
 
     it('accepts https', async () => {
@@ -58,7 +50,7 @@ describe('assertPublicWebhookUrl', () => {
   describe('blocked literal hostnames — rejected before any DNS lookup', () => {
     it('rejects http://localhost', async () => {
       await expect(assertPublicWebhookUrl('http://localhost:3000/hook')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
       expect(lookup).not.toHaveBeenCalled();
     });
@@ -66,7 +58,7 @@ describe('assertPublicWebhookUrl', () => {
     it('rejects the GCP metadata hostname', async () => {
       await expect(
         assertPublicWebhookUrl('http://metadata.google.internal/computeMetadata/v1/'),
-      ).rejects.toThrow(WebhookUrlValidationError);
+      ).rejects.toThrow(OutboundUrlValidationError);
       expect(lookup).not.toHaveBeenCalled();
     });
   });
@@ -90,7 +82,7 @@ describe('assertPublicWebhookUrl', () => {
       ['IPv4-mapped IPv6 metadata (dotted form)', 'http://[::ffff:169.254.169.254]/hook'],
       ['IPv4-mapped IPv6 loopback (hex-group form)', 'http://[::ffff:7f00:1]/hook'],
     ])('rejects %s', async (_label, url) => {
-      await expect(assertPublicWebhookUrl(url)).rejects.toThrow(WebhookUrlValidationError);
+      await expect(assertPublicWebhookUrl(url)).rejects.toThrow(OutboundUrlValidationError);
       expect(lookup).not.toHaveBeenCalled();
     });
 
@@ -115,14 +107,14 @@ describe('assertPublicWebhookUrl', () => {
     it('rejects a hostname that resolves to a private address', async () => {
       lookup.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
       await expect(assertPublicWebhookUrl('https://internal.example.com/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
     });
 
     it('rejects a hostname that resolves to a private IPv6 address', async () => {
       lookup.mockResolvedValue([{ address: 'fc00::1', family: 6 }]);
       await expect(assertPublicWebhookUrl('https://ula.example.com/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
     });
 
@@ -132,21 +124,21 @@ describe('assertPublicWebhookUrl', () => {
         { address: '169.254.169.254', family: 4 },
       ]);
       await expect(assertPublicWebhookUrl('https://mixed.example.com/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
     });
 
     it('rejects cleanly — not a crash — when the hostname does not resolve at all', async () => {
       lookup.mockRejectedValue(Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' }));
       await expect(assertPublicWebhookUrl('https://does-not-exist.invalid/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
     });
 
     it('rejects cleanly when DNS resolves to an empty answer set', async () => {
       lookup.mockResolvedValue([]);
       await expect(assertPublicWebhookUrl('https://empty.example.com/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
     });
 
@@ -156,7 +148,7 @@ describe('assertPublicWebhookUrl', () => {
 
       lookup.mockResolvedValueOnce([{ address: '169.254.169.254', family: 4 }]);
       await expect(assertPublicWebhookUrl('https://rebind.example.com/endpoint')).rejects.toThrow(
-        WebhookUrlValidationError,
+        OutboundUrlValidationError,
       );
 
       expect(lookup).toHaveBeenCalledTimes(2);
@@ -180,14 +172,14 @@ describe('assertPublicWebhookUrl — ALLOW_PRIVATE_WEBHOOK_URLS escape hatch (de
   it('the flag NEVER relaxes the scheme check — file: is still rejected even when set', async () => {
     process.env.ALLOW_PRIVATE_WEBHOOK_URLS = '1';
     await expect(assertPublicWebhookUrl('file:///etc/passwd')).rejects.toBeInstanceOf(
-      WebhookUrlValidationError,
+      OutboundUrlValidationError,
     );
   });
 
   it('without the flag, a private URL is rejected — the guard is on by default (jest never loads .env.test)', async () => {
     delete process.env.ALLOW_PRIVATE_WEBHOOK_URLS;
     await expect(assertPublicWebhookUrl('http://127.0.0.1:9099/hook')).rejects.toBeInstanceOf(
-      WebhookUrlValidationError,
+      OutboundUrlValidationError,
     );
   });
 });

@@ -6,25 +6,22 @@ import { toast } from "sonner"
 
 import { Wallet } from "lucide-react"
 
-import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/components/documents/totals-calculator"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 import type { CashedRevenueReport } from "@/types"
 
-import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "@/components/settings-section"
 
 /** The company's own default ("" - resolved server-side from `Company.revenuePeriod`, see
  *  `resolve-revenue-basis.ts`), or an explicit override for THIS screen only - never written back to
  *  the company setting (that happens on the Company tab's own "Revenue basis" section). */
 const USE_COMPANY_DEFAULT = "__default__"
-
-function formatAmount(totalMinor: number, currency: string): string {
-  return `${fromMinor(totalMinor, currency).toFixed(decimalsFor(currency))} ${currency}`
-}
 
 /**
  * Issue #516's "cashed-revenue view per period" - money actually received against sent invoices,
@@ -53,14 +50,7 @@ export default function CashedRevenueSettings() {
         throw new Error(body?.message || `HTTP ${response.status}`)
       }
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `cashed-revenue-${report?.granularity ?? "export"}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, `cashed-revenue-${report?.granularity ?? "export"}.csv`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("settings.cashedRevenue.messages.exportError"))
     } finally {
@@ -166,10 +156,10 @@ export default function CashedRevenueSettings() {
                           <span
                             key={amount.currency}
                             dir="ltr"
-                            className="font-mono tabular-nums"
+                            className="amount"
                             data-cy={`cashed-revenue-period-${period.key}-amount-${amount.currency}`}
                           >
-                            {formatAmount(amount.totalMinor, amount.currency)}
+                            {formatMinor(amount.totalMinor, amount.currency)}
                           </span>
                         ))}
                       </span>
@@ -179,11 +169,11 @@ export default function CashedRevenueSettings() {
                     period.consolidated ? (
                       <span
                         dir="ltr"
-                        className="font-mono tabular-nums text-sm"
+                        className="amount text-sm"
                         title={period.consolidated.notes.join(" ")}
                         data-cy={`cashed-revenue-period-${period.key}-consolidated`}
                       >
-                        ≈ {formatAmount(period.consolidated.totalMinor, period.consolidated.currency)}
+                        ≈ {formatMinor(period.consolidated.totalMinor, period.consolidated.currency)}
                       </span>
                     ) : period.warnings.length > 0 ? (
                       <Badge

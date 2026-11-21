@@ -36,13 +36,13 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 
+import { AttachmentRef, AttachmentsService, MAX_ATTACHMENT_BYTES } from './attachments/attachments.service';
 import {
-  ALLOWED_ATTACHMENT_MIMES,
-  AttachmentRef,
-  AttachmentsService,
-  MAX_ATTACHMENT_BYTES,
-} from './attachments/attachments.service';
-import { buildOriginalContentDisposition, DocumentsService } from './documents.service';
+  buildOriginalContentDisposition,
+  safeOriginalMime,
+  sendInlinePdf,
+} from './attachments/content-disposition';
+import { DocumentsService } from './documents.service';
 import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
 import {
@@ -202,7 +202,16 @@ export class DocumentsController {
       "the type's descriptor default, else the generic fallback — `source` says which), plus the " +
       '`variables` that type actually offers, mapped to sample values: the keys are the available- ' +
       'placeholder list, the values make a preview. Derived per type, so `recipientName` is absent ' +
-      'for a type with no client reference and `totalGross` for a type with no money at all.',
+      'for a type with no client reference and `totalGross` for a type with no money at all.\n\n' +
+      '- `{issueDate}` and `{dueDate}` require the corresponding date fields. Dates are formatted in the ' +
+      "recipient's language, and missing dates render as empty strings.\n" +
+      '- `{amountPaid}` and `{amountDue}` require settlement support. They show recorded payments and ' +
+      'the outstanding balance after payments and credits, in the document currency.\n' +
+      '- `{viewUrl}` requires permission to share the document at delivery. The public PDF link is created ' +
+      'at send time and expires after 30 days. Set `BACKEND_PUBLIC_URL` when the API has a separate public ' +
+      'origin from `APP_URL`. Find the link ID with ' +
+      '`GET /api/documents/{id}/share-links?typeId={typeId}` and revoke it with ' +
+      '`DELETE /api/documents/{id}/share-link/{tokenId}?typeId={typeId}`.',
   })
   @ApiResponse({ status: 200, description: 'Email templates retrieved' })
   listEmailTemplates(@ActiveCompany() companyId: string) {
@@ -232,7 +241,8 @@ export class DocumentsController {
       'part is sanitized server-side before storage. An unknown `{placeholder}` is REPORTED in ' +
       '`warnings`, never rejected — the same contract the send path holds, so a typo can never be ' +
       'what blocks a document from reaching a customer. A blank subject, or neither body nor html, ' +
-      'IS refused: there would be no message to send.',
+      'IS refused: there would be no message to send. A supported `{viewUrl}` blocked by sharing policy ' +
+      'produces a warning when saved. The send fails if sharing is still blocked at delivery.',
   })
   @ApiParam({ name: 'typeId', type: String })
   @ApiBody({
@@ -244,6 +254,13 @@ export class DocumentsController {
         html: { type: 'string', description: 'Optional html part, sent alongside the text one' },
       },
       required: ['subject'],
+      example: {
+        subject: 'Your invoice {displayNumber} is available',
+        html:
+          '<p>Issued {issueDate}. Due {dueDate}.</p>' +
+          '<p>Paid {amountPaid}. Balance {amountDue}.</p>' +
+          '<p><a href="{viewUrl}">View invoice</a></p>',
+      },
     },
   })
   @ApiResponse({ status: 200, description: 'Template saved, with any placeholder warnings' })
@@ -359,6 +376,21 @@ export class DocumentsController {
     return this.documentsService.listRequiredIdentifiers(countryCode, partyType);
   }
 
+  @Get('company-law')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'The company-law values a country asks of a seller, per legal form',
+    description:
+      "Each legal form the country's `companyLaw` section declares and the fields its mentions quote, " +
+      'with whether a mention requires them. `legalForms` is empty for a country that declares none. ' +
+      'Not scoped by @ActiveCompany(): the country is the one picked in the company settings form.',
+  })
+  @ApiQuery({ name: 'countryCode', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'Legal forms and their fields (possibly none)' })
+  listCompanyLawSettings(@Query('countryCode') countryCode: string) {
+    return this.documentsService.listCompanyLawSettings(countryCode);
+  }
+
   @Get('b2g-routing')
   @RequiresDocumentTypeScope('read', 'every-type')
   @ApiOperation({
@@ -464,6 +496,21 @@ export class DocumentsController {
   })
   listDashboardWidgets(@ActiveCompany() companyId: string, @Query() rawQuery: RawDashboardQuery) {
     return this.documentsService.collectWidgets(companyId, 'dashboard', parseDashboardQuery(rawQuery));
+  }
+
+  @Get('dashboard/overview')
+  @RequiresDocumentTypeScope('read', 'every-type')
+  @ApiOperation({
+    summary: 'Invoicing overview for the dashboard',
+    description:
+      'What was invoiced this month and last month (net, in the company currency), money collected ' +
+      'month by month this year with what is still owed by due month after the current one, the ' +
+      'clients with overdue invoices (one row per client and currency) and the invoices due in the ' +
+      'next seven days.',
+  })
+  @ApiResponse({ status: 200, description: 'Overview computed' })
+  invoiceOverview(@ActiveCompany() companyId: string) {
+    return this.documentsService.invoiceOverview(companyId);
   }
 
   @Get('statistics')
@@ -737,9 +784,7 @@ export class DocumentsController {
     // what the BROWSER is told they are changes. `Content-Disposition: attachment` and `nosniff` are
     // kept regardless, as defense in depth: even a mime this app trusts should not execute in a page
     // navigated to directly, and `nosniff` stops the browser from ever second-guessing either header.
-    const safeMime = ALLOWED_ATTACHMENT_MIMES.includes(resolvedMime)
-      ? resolvedMime
-      : 'application/octet-stream';
+    const safeMime = safeOriginalMime(resolvedMime);
     res.setHeader('Content-Type', safeMime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', 'attachment');
@@ -1032,9 +1077,7 @@ export class DocumentsController {
     @Res() res: Response,
   ): Promise<void> {
     const pdfBuffer = await this.documentsService.renderInstancePdf(companyId, typeId, id);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${typeId}-${id}.pdf"`);
-    res.send(pdfBuffer);
+    sendInlinePdf(res, typeId, id, pdfBuffer);
   }
 
   @Get(':id/original')
@@ -1185,6 +1228,35 @@ export class DocumentsController {
     @Query('typeId') typeId: string,
   ) {
     return this.documentsService.getManualAcceptance(companyId, typeId, id);
+  }
+
+  @Get(':id/manual-acceptance/attachment')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: 'Download the file attached to a manual acceptance',
+    description:
+      'Issue #364 - the proof file the issuer attached when marking the quote accepted manually, ' +
+      'read back from the ACCEPTANCE archive row, so the bytes are exactly the ones that were hashed.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Attachment retrieved',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 404, description: 'No such document, or no attachment on its manual acceptance' })
+  async downloadManualAcceptanceAttachment(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.documentsService.downloadManualAcceptanceAttachment(companyId, typeId, id);
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Content-Disposition', buildOriginalContentDisposition(file.filename));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(Buffer.from(file.bytes));
   }
 
   @Post(':id/archives/:archiveId/verify')

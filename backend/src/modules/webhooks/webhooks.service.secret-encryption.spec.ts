@@ -1,16 +1,7 @@
 /**
- * `Webhook.secret` used to be persisted exactly as the caller typed it, the one integration
- * credential in this codebase that bypassed `utils/secret-crypto.ts` (every other one — channel
- * configs, signing certificates — already goes through it). This file proves: (1) `create`/`update`
- * encrypt the value before it reaches Prisma, (2) `create`'s own response still hands the CALLER the
- * plaintext exactly once (the settings screen's "shown once" reveal — `webhooks.settings.tsx`), never
- * the ciphertext that actually landed in the column, (3) an update that does not touch the secret
- * never re-encrypts (and so never corrupts) whatever was already stored, and (4) `send()` decrypts
- * before computing the HMAC signature, falling back sanely when a blob can't be decrypted or a stored
- * value is still legacy plaintext (pre-migration, or written while no key was configured).
- *
- * `CREDENTIALS_ENCRYPTION_KEY` is set here, in-process, to a fixed test value — the same pattern
- * `channels.service.spec.ts` already established for exercising the real AES-256-GCM round-trip.
+ * Proves that `create`/`update` encrypt the secret before Prisma, that only `create` returns it in
+ * plaintext, that an update leaving it untouched never re-encrypts, and that `send` decrypts before
+ * signing, falling back when the blob is unreadable or the value is still plaintext.
  */
 
 import { vi, type Mock } from 'vitest';
@@ -128,8 +119,7 @@ describe('WebhooksService — secret encryption', () => {
       await service.update(COMPANY_ID, 'wh-1', { url: 'https://8.8.8.8/other' });
 
       const persisted = mockedPrisma.webhook.update.mock.calls[0][0].data.secret;
-      // Byte-for-byte the SAME ciphertext — proof it was passed through, not decrypted-then-re-encrypted
-      // (which would still decrypt correctly but produce a different blob, masking a double-encryption bug).
+      // Byte-for-byte identical ciphertext: passed through, not decrypted and re-encrypted.
       expect(persisted).toBe(alreadyEncrypted);
       expect(decryptJson<string>(persisted)).toBe('untouched-secret');
     });

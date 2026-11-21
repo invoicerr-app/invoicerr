@@ -35,7 +35,7 @@ export function DetailItem({ label, children, wide, mono, dataCy }: DetailItemPr
   const empty = children === undefined || children === null || children === "" || children === false
   return (
     <div className={cn("min-w-0", wide && "sm:col-span-2")} data-cy={dataCy}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-[13px] font-medium text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "mt-0.5 break-words text-sm text-foreground",
@@ -56,13 +56,13 @@ interface DetailSectionProps {
   children: React.ReactNode
 }
 
-/** A titled block of a record's "view" — same small uppercase title as `FormSection`, same divider
+/** A titled block of a record's "view" — same short semibold title as `FormSection`, same divider
  *  between siblings. */
 export function DetailSection({ title, aside, dataCy, children }: DetailSectionProps) {
   return (
     <section className="border-t py-5 first:border-t-0 first:pt-0 last:pb-0" data-cy={dataCy}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {aside}
       </div>
       {children}

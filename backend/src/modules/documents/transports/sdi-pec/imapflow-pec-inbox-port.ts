@@ -22,13 +22,20 @@
  * volume one company's own invoicing mailbox actually sees (a handful of messages a day, not
  * thousands), reconnecting per operation costs nothing that matters, and it sidesteps every
  * connection-lifecycle bug a long-lived, shared connection would risk (a stale session across two
- * calls, a lock left held) — the same trade a `pdp-transport.ts`-style stateless per-call client
+ * calls, a lock left held) - the same trade a `superpdp-transport.ts`-style stateless per-call client
  * already makes for its own HTTPS calls. A future high-volume deployment reusing one connection across
  * a whole poll cycle is a real optimization, just not one this task's own scope needs.
  */
 import { FetchMessageObject, ImapFlow, MessageStructureObject } from 'imapflow';
 
+import { logger } from '@/logger/logger.service';
+
+import { SDI_XML_MAX_BYTES } from '../sdi/xml-helpers';
 import { PecInboundAttachment, PecInboundMessage, PecInboxPort } from './pec-inbox-port';
+
+/** Largest decoded attachment kept in memory. Anyone can mail this inbox, and an SdI notifica is a few
+ *  KB, so the SDICoop 5 MB ceiling `xml-helpers.ts` applies to every SdI XML is reused here. */
+export const PEC_ATTACHMENT_MAX_BYTES = SDI_XML_MAX_BYTES;
 
 export interface ImapFlowPecInboxPortConfig {
   host: string;
@@ -48,13 +55,26 @@ function collectAttachmentParts(node: MessageStructureObject | undefined): Messa
   return [...own, ...children];
 }
 
-function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+/** Buffers `stream` up to `maxBytes`, resolving `null` once it goes past that. The rest of an
+ *  oversized stream is still read to its end and discarded rather than the stream being destroyed:
+ *  it is an imapflow download on a connection the next `download()` reuses. */
+export function streamToBuffer(stream: NodeJS.ReadableStream, maxBytes: number): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
+    let total = 0;
+    let oversized = false;
     stream.on('data', (chunk: Buffer | string) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      if (oversized) return;
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += buffer.length;
+      if (total > maxBytes) {
+        oversized = true;
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(buffer);
     });
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('end', () => resolve(oversized ? null : Buffer.concat(chunks)));
     stream.on('error', reject);
   });
 }
@@ -71,8 +91,15 @@ export async function toPecInboundMessage(
   for (const part of collectAttachmentParts(message.bodyStructure)) {
     const { content } = await client.download(String(message.uid), part.part, { uid: true });
     if (!content) continue;
-    const buffer = await streamToBuffer(content);
     const filename = part.dispositionParameters?.filename ?? `part-${part.part}`;
+    const buffer = await streamToBuffer(content, PEC_ATTACHMENT_MAX_BYTES);
+    if (!buffer) {
+      logger.warn(`PEC attachment skipped: larger than ${PEC_ATTACHMENT_MAX_BYTES} bytes`, {
+        category: 'documents',
+        details: { uid: String(message.uid), part: part.part, filename },
+      });
+      continue;
+    }
     attachments.push({ filename, content: buffer });
   }
   return {

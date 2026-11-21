@@ -1,5 +1,6 @@
 "use client"
 
+import { formatShortDate } from "@/lib/format"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -18,12 +19,13 @@ import {
   SettingsFormFooter,
   SettingsIconDisc,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
   SettingsSection,
   useSavedFlash,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 type Applicability = "*" | "XAdES" | "CAdES" | "PAdES"
 type Environment = "TEST" | "PROD"
@@ -42,10 +44,6 @@ interface CertificateMeta {
 
 function isExpired(notAfter: string) {
   return new Date(notAfter) < new Date()
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
 }
 
 /**
@@ -112,7 +110,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
           </span>
           <span data-cy={`signing-cert-row-${cert.id}-validity`}>
             {t("settings.signing.expires", "Expires")}:{" "}
-            <span className="font-mono tabular-nums">{formatDate(cert.notAfter)}</span>
+            <span className="tabular-nums">{formatShortDate(cert.notAfter)}</span>
             {" · "}
             {t("settings.signing.serial", "Serial")}:{" "}
             <span className="font-mono tabular-nums">{cert.serial}</span>
@@ -152,7 +150,7 @@ function CertificateRow({ cert, onDeactivated }: { cert: CertificateMeta; onDeac
  */
 export default function SigningCertificatesSettings() {
   const { t } = useTranslation()
-  const { data, loading, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
+  const { data, loading, error, mutate } = useGet<CertificateMeta[]>("/api/company/signing-certificates")
   const certs = data ?? []
   const [saved, flash] = useSavedFlash()
 
@@ -309,6 +307,10 @@ export default function SigningCertificatesSettings() {
       <div data-cy="signing-cert-list">
         {loading ? (
           <SettingsListSkeleton rows={2} />
+        ) : !data && error ? (
+          <SettingsSection>
+            <SettingsListError onRetry={mutate} dataCy="signing-cert-load-error" />
+          </SettingsSection>
         ) : certs.length > 0 ? (
           <SettingsList>
             {certs.map((cert) => (

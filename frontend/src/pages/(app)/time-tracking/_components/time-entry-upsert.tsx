@@ -14,22 +14,22 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { useCompany, useCreateTimeEntry, useUpdateTimeEntry } from "@/hooks/queries"
+import { useCompanyCurrencySymbol, useCreateTimeEntry, useUpdateTimeEntry } from "@/hooks/queries"
 import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "@/lib/calendar-date"
-import { currencies } from "@/lib/constants/currencies"
+import { typeErrors } from "@/lib/zod-messages"
 import type { TimeEntry } from "@/types"
 
 export const buildTimeEntrySchema = (t: TFunction) =>
   z.object({
-    date: z.string().min(1, { message: t("timeTracking.entries.errors.dateRequired") }),
+    date: z.string().min(1, { error: t("timeTracking.entries.errors.dateRequired") }),
     // Hours, not minutes — the unit a person actually thinks in; converted at the submit boundary
     // (onSubmit below) the same way ArticleUpsert converts a typed price into minor units server-side.
-    hours: z.number().gt(0, { message: t("timeTracking.entries.errors.durationPositive") }),
+    hours: z.number().gt(0, { error: t("timeTracking.entries.errors.durationPositive") }),
     description: z.string().optional(),
     billable: z.boolean(),
     hourlyRate: z
-      .number({ invalid_type_error: t("timeTracking.entries.errors.hourlyRateMin") })
-      .min(0, { message: t("timeTracking.entries.errors.hourlyRateMin") })
+      .number({ error: typeErrors({ invalid: t("timeTracking.entries.errors.hourlyRateMin") }) })
+      .min(0, { error: t("timeTracking.entries.errors.hourlyRateMin") })
       .nullable(),
   })
 
@@ -54,7 +54,7 @@ function TaskStep({ control, projectName }: { control: Control<TimeEntryForm>; p
   return (
     <div className="space-y-4" data-cy="time-entry-form">
       <div className="rounded-md border bg-muted/40 px-3 py-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-[13px] font-medium text-muted-foreground">
           {t("timeTracking.entries.upsert.projectLabel")}
         </p>
         <p className="text-sm font-medium text-foreground">{projectName}</p>
@@ -214,8 +214,7 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
   const { t } = useTranslation()
   const timeEntrySchema = useMemo(() => buildTimeEntrySchema(t), [t])
   const isEdit = !!entry
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const { mutateAsync: createEntry, isPending: creating } = useCreateTimeEntry()
   const { mutateAsync: updateEntry, isPending: updating } = useUpdateTimeEntry()

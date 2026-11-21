@@ -176,18 +176,20 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		});
 	});
 
-	it("a REQUIRED custom field left empty blocks the wizard's own 'Continue', exactly like a native required field", () => {
+	it("a REQUIRED custom field left empty blocks the save, exactly like a native required field", () => {
 		openExpenseCreateDialog();
 		fillMinimalExpenseNativeFields("Missing cost center");
-		// "Cost Center" (required text, merged onto the SAME "Details" step as the native required
-		// fields — it is `required`, same criterion as document-create-dialog.tsx's `buildFieldGroups`)
-		// is left empty on purpose. "Continue" runs `form.trigger` on the step's OWN fields
-		// (stepped-dialog.tsx) — no API call happens at all, so this blocks locally, with no toast.
-		cy.get('[data-cy="document-create-dialog-continue"]').click();
+		// "Cost Center" (required text, in the same "Details" section as the native required fields)
+		// is left empty on purpose. Saving runs `form.trigger` on the whole form first
+		// (form-page-dialog.tsx) — no API call happens at all, so this blocks locally.
+		cy.intercept("POST", "**/api/documents/types/expense/actions/*").as("expenseAction");
+		cy.get('[data-cy="document-action-save-draft"]').click();
 
-		// Still on "Details" — the wizard never advances a step it can't validate.
-		cy.get('[data-cy="document-create-dialog-step-body-details"]', { timeout: 10000 }).should("exist");
+		// Still in the editor, with the field's own error under it, and nothing was sent.
+		cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-create-dialog-step-body-details"]').should("exist");
 		cy.get('[data-cy="document-field-custom:cost_center-input"]').should("exist");
+		cy.get("@expenseAction.all").should("have.length", 0);
 	});
 
 	it("filling both custom fields through the screen saves, and the API shows them under their PREFIXED keys", () => {
@@ -197,11 +199,9 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		// required fields (document-create-dialog.tsx's `buildFieldGroups`) — fill it before
 		// "Continue"; "Internal Notes" is optional, on "Options", one step later.
 		cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-42");
-		cy.continueDocumentWizard(); // Details -> Options
 		cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(
 			"A distinctly long internal note that should add real, measurable bytes to the rendered PDF.",
 		);
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		// A successful first save lands on the new record's own page (document-create-dialog.tsx) —
 		// nothing about that screen is asserted here: content assertions belong to the API below.
@@ -261,11 +261,9 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			// "Cost Center" (required) is on "Details"; "Internal Notes" (optional) is one step
 			// later, on "Options" — see the earlier test's own comment.
 			cy.get('[data-cy="document-field-custom:cost_center-input"]').type("CC-PDF");
-			cy.continueDocumentWizard(); // Details -> Options
 			if (notes) {
 				cy.get('[data-cy="document-field-custom:internal_notes-input"]').type(notes);
 			}
-			cy.continueDocumentWizard(); // Options -> Summary
 			// A successful first save lands on the new record's own page — see the earlier test above;
 			// the size comparison below reads the API, never that screen.
 			cy.get('[data-cy="document-action-save-draft"]').click();
@@ -304,26 +302,22 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 		cy.get('[data-cy="client-dialog"]', { timeout: 5000 }).should("be.visible");
 
 		cy.get('[name="name"]').clear().type("Custom Fields Client SARL");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", "France");
 		cy.get('[name="address"]').clear().type("1 Rue des Champs Personnalisés");
 		cy.get('[name="postalCode"]').clear().type("75000");
 		cy.get('[name="city"]').clear().type("Paris");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-identifier-LEGAL_ID"]', { timeout: 10000 }).clear().type("123456789");
 		cy.get('[data-cy="client-currency-select"] button').scrollIntoView().click();
 		cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 		cy.get('[data-cy="client-currency-select"] input').type("Euro");
 		cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-		cy.continueSteppedDialog("client-dialog");
 
 		// Custom CLIENT-target fields now live at the end of the Contact & portal step.
 		cy.get('[name="contacts.0.email"]').clear().type("cf-client@example.com");
 		cy.get('[data-cy="client-custom-fields-section"]').scrollIntoView().should("be.visible");
 		pickSelectOption("loyalty_tier", "gold");
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.get('[data-cy="client-submit"]').click();
 		cy.get('[data-cy="client-dialog"]').should("not.exist");
@@ -359,7 +353,6 @@ describe("Custom fields — settings-defined, appear on the form/list/PDF", () =
 			// "Internal Notes" (optional) is on "Options", one step later — the native required
 			// fields have to be filled first to reach it.
 			fillMinimalExpenseNativeFields("Checking archived custom field visibility");
-			cy.continueDocumentWizard(); // Details -> Options
 			cy.get('[data-cy="document-field-custom:internal_notes-input"]').should("exist");
 
 			// The document list still shows the value on the record that already had one — an

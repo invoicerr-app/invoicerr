@@ -257,7 +257,6 @@
                 "totalTTC": "Suma brutto"
             },
             "tooltips": {
-                "viewPdf": "Zobacz PDF",
                 "downloadPdf": "Pobierz PDF",
                 "edit": "Edytuj ofertę",
                 "sendSignature": "Wyślij do podpisu",
@@ -2277,7 +2276,6 @@
                 "totalTTC": "Suma brutto"
             },
             "tooltips": {
-                "viewPdf": "Zobacz PDF",
                 "downloadPdf": "Pobierz PDF",
                 "edit": "Edytuj płatność",
                 "sendToClient": "Wyślij do klienta",

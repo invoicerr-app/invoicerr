@@ -6,9 +6,11 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { useCompanies } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 
-import { SettingsFormFooter, SettingsSection } from "./settings-section"
+import { SettingsFormFooter, SettingsSection } from "@/components/settings-section"
 
 /**
  * Self-service full data export (`POST /api/companies/export`) — the same archive the hosted-billing
@@ -27,7 +29,7 @@ import { SettingsFormFooter, SettingsSection } from "./settings-section"
 export default function DataExportSettings() {
   const { t } = useTranslation()
   const { activeRole } = useCompanies()
-  const canExport = activeRole === "OWNER" || activeRole === "ADMIN"
+  const canExport = isCompanyAdmin(activeRole)
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {
@@ -46,14 +48,7 @@ export default function DataExportSettings() {
       }
 
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = "invoicerr-export.zip"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, "invoicerr-export.zip")
       toast.success(t("settings.dataExport.messages.downloaded"))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("settings.dataExport.messages.error"))

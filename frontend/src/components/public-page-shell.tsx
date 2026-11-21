@@ -53,7 +53,7 @@ export function PublicPageShell({
                 className="size-9 shrink-0 rounded-md bg-card object-contain ring-1 ring-border"
               />
             )}
-            <span className="truncate font-heading text-lg font-semibold tracking-tight">{company.name}</span>
+            <span className="truncate font-sans text-[15px] font-semibold">{company.name}</span>
           </div>
         ) : (
           <BrandWordmark />

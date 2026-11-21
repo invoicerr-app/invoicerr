@@ -1,3 +1,4 @@
+import { appOrigin } from '@/utils/app-origin';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -262,7 +263,7 @@ export class PortalService {
     documentId: string,
   ): Promise<InvoiceCheckoutSessionResult> {
     await this.assertVisibleToClient(companyId, clientId, 'invoice', documentId);
-    const appUrl = (process.env.APP_URL || '').replace(/\/+$/, '');
+    const appUrl = appOrigin();
     return this.paymentSessions.createInvoiceCheckoutSession(companyId, documentId, {
       successUrl: `${appUrl}/portal?payment=success`,
       cancelUrl: `${appUrl}/portal?payment=cancelled`,
@@ -350,8 +351,13 @@ export class PortalService {
     }
     const invoiceId = invoiceIdOfCreditNote(data);
     if (!invoiceId) return false;
-    const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId).catch(() => null);
-    if (!invoice) return false;
+    let invoice: DocumentInstanceResult;
+    try {
+      invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
+    } catch (error) {
+      if (error instanceof NotFoundException) return false;
+      throw error;
+    }
     const invoiceData = (invoice.data ?? {}) as Record<string, unknown>;
     return directClientId(invoiceData) === clientId;
   }

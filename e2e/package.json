@@ -1,18 +1,21 @@
 {
+  "engines": {
+    "node": ">=26 <27"
+  },
   "devDependencies": {
-    "@signpdf/utils": "^3.3.0",
-    "@types/node": "^24.6.2",
-    "@types/pg": "^8.15.0",
+    "@signpdf/utils": "^3.4.0",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "@types/wait-on": "^5.3.4",
-    "asn1js": "^3.0.10",
-    "axe-core": "4.13.0",
-    "bullmq": "^5.80.2",
-    "cypress": "^15.18.0",
+    "asn1js": "^3.1.0",
+    "axe-core": "4.14.0",
+    "bullmq": "^5.81.5",
+    "cypress": "^15.21.2",
     "cypress-axe": "1.7.0",
     "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
-    "pg": "^8.16.3",
-    "pkijs": "^3.4.0"
+    "pg": "^8.23.1",
+    "pkijs": "^3.4.3"
   },
   "scripts": {
     "e2e:open": "cypress open",
@@ -21,10 +24,10 @@
     "check:ports": "node scripts/check-literal-ports.mjs"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "pdfjs-dist": "^6.3.289",
+    "dotenv": "^17.4.2",
+    "pdfjs-dist": "^6.5.438",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "wait-on": "^9.0.1"
+    "wait-on": "^9.5.1"
   }
 }

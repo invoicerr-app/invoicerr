@@ -149,7 +149,7 @@ export default function SearchSelect({
             aria-invalid={ariaInvalid}
             disabled={disabled}
             className={cn(
-              "w-full min-w-0 justify-between overflow-hidden text-start font-normal h-9 min-h-8 p-3",
+              "w-full min-w-0 justify-between overflow-hidden bg-card text-start text-[15px] font-normal shadow-inset h-auto min-h-[42px] px-3.5 py-2 dark:bg-card",
               (!multiple && !value) || (multiple && !(value as string[]).length)
                 ? "text-muted-foreground"
                 : "",
@@ -233,9 +233,10 @@ export default function SearchSelect({
                   aria-selected={isSelected(option.value)}
                   onClick={() => handleOptionSelect(option.value)}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground",
+                    "w-full flex items-center justify-between px-3 py-2.5 text-[15px] rounded-md hover:bg-accent hover:text-accent-foreground",
                     isSelected(option.value) && "bg-accent",
-                    index === highlighted && "bg-accent text-accent-foreground ring-2 ring-ring ring-inset",
+                    index === highlighted &&
+                      "bg-accent text-accent-foreground outline-2 -outline-offset-2 outline-focus",
                   )}
                   {...(dataCyValue
                     ? dataCy(`${dataCyValue}-option-${option.label.toLowerCase().replace(/\s+/g, "-")}`)

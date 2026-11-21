@@ -160,7 +160,8 @@ export function ComboboxInput({
               onMouseEnter={() => setActiveIndex(index)}
               className={cn(
                 "cursor-pointer rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
-                index === activeIndex && "bg-accent text-accent-foreground ring-2 ring-ring ring-inset",
+                index === activeIndex &&
+                  "bg-accent text-accent-foreground outline-2 -outline-offset-2 outline-focus",
               )}
               data-cy={dataCy ? `${dataCy}-option-${option.value}` : undefined}
             >

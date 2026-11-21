@@ -1,19 +1,14 @@
 /**
  * Israel — רשם החברות (Registrar of Companies), published as a data.gov.il dataset.
+ * Docs: https://data.gov.il/dataset/ica_companies (no credentials).
  *
- * Endpoint : GET https://data.gov.il/api/3/action/datastore_search
- *            ?resource_id={COMPANIES_RESOURCE}&filters={"מספר חברה":510000011}&limit=1
- * Docs     : https://data.gov.il/dataset/ico_gis
- * Credentials: none.
- *
- * The dataset is the register itself (~730k rows), so the field names are Hebrew and
- * the address arrives split across columns. Israeli VAT (מספר עוסק) equals the company
- * number, so no separate VAT lookup is needed.
+ * The field names are Hebrew and the address arrives split across columns. Israeli VAT equals the
+ * company number, so no separate VAT lookup is needed.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const CKAN_URL = 'https://data.gov.il/api/3/action/datastore_search';
 const COMPANIES_RESOURCE = 'f004176c-b85f-4542-8901-7b3176f9a054';
@@ -44,13 +39,13 @@ export class IsraelRegistrarProvider implements CompanyRegistryProvider {
   readonly label = 'רשם החברות (data.gov.il)';
   readonly schemes: readonly LookupScheme[] = ['LEGAL_ID', 'VAT'];
   readonly identifierLabel = 'מספר חברה (9 digits)';
-  readonly docsUrl = 'https://data.gov.il/dataset/ico_gis';
+  readonly docsUrl = 'https://data.gov.il/dataset/ica_companies';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

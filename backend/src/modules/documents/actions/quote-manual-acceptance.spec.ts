@@ -1,13 +1,17 @@
 import { vi, type Mock } from 'vitest';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, PayloadTooLargeException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 
 import { ActionRegistry } from './action-registry';
 import { MAX_NOTE_LENGTH, registerAcceptManuallyAction } from './quote-manual-acceptance';
 import * as persistence from '../persistence';
 import * as archivePersistence from '../archive/persistence';
+import * as inboundStorage from '../received-invoices/storage';
+import { MAX_ATTACHMENT_BYTES } from '../attachments/attachments.service';
 
 vi.mock('../persistence');
 vi.mock('../archive/persistence');
+vi.mock('../received-invoices/storage');
 vi.mock('@/logger/logger.service', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), audit: vi.fn() },
 }));
@@ -78,12 +82,7 @@ describe('accept-manually (issue #421)', () => {
       'quote',
       'quote-1',
       'accepted',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      undefined,
-      expect.any(Date),
+      { fromStatuses: ['sent'], knownUpdatedAt: expect.any(Date) },
     );
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'accepted' });
@@ -163,12 +162,7 @@ describe('accept-manually (issue #421)', () => {
         'quote',
         'quote-1',
         'accepted',
-        null,
-        undefined,
-        undefined,
-        ['sent'],
-        'Premium',
-        expect.any(Date),
+        { fromStatuses: ['sent'], acceptedOption: 'Premium', knownUpdatedAt: expect.any(Date) },
       );
       expect(result.message).toContain('Premium');
 
@@ -376,5 +370,94 @@ describe('accept-manually (issue #421)', () => {
     });
     expect(typeof manifest.acceptedAt).toBe('string');
     expect(Object.keys(manifest).some((k) => /sign|otp/i.test(k))).toBe(false);
+  });
+
+  describe('issue #364 - a proof file attached to the manual acceptance', () => {
+    const PDF = Buffer.from('%PDF-1.7 signed paper scan');
+    const PDF_REF = createHash('sha256').update(PDF).digest('hex');
+
+    function run(attachment: unknown) {
+      const handler = buildRegistry().resolve('quote', 'accept-manually')!;
+      return handler({
+        companyId: 'company-1',
+        typeId: 'quote',
+        documentId: 'quote-1',
+        data: {},
+        params: { note: 'Signed paper returned by post.', attachment },
+        currentStatus: 'sent',
+        actor: ACTOR,
+      });
+    }
+
+    beforeEach(() => {
+      (persistence.updateDocumentStatus as Mock).mockResolvedValue(updatedQuote());
+      (archivePersistence.createManualAcceptanceArchive as Mock).mockResolvedValue({ id: 'archive-1' });
+    });
+
+    it('archives the file in the SAME call as the manifest, which names it by hash', async () => {
+      (inboundStorage.readInboundFile as Mock).mockResolvedValue(PDF);
+
+      await run({ fileRef: PDF_REF, fileName: ' scan.pdf ', mime: 'application/pdf' });
+
+      expect(inboundStorage.readInboundFile).toHaveBeenCalledWith('company-1', PDF_REF, 'application/pdf');
+      expect(archivePersistence.createManualAcceptanceArchive).toHaveBeenCalledTimes(1);
+      const call = (archivePersistence.createManualAcceptanceArchive as Mock).mock.calls[0][0];
+      expect(call.attachment).toEqual({ mime: 'application/pdf', bytes: PDF });
+      const manifest = JSON.parse(Buffer.from(call.manifest).toString('utf8'));
+      expect(manifest.attachment).toEqual({
+        fileName: 'scan.pdf',
+        mime: 'application/pdf',
+        byteLength: PDF.length,
+        sha256: PDF_REF,
+      });
+    });
+
+    it('without a file, archives exactly as before: no attachment, no storage read', async () => {
+      await run(undefined);
+
+      expect(inboundStorage.readInboundFile).not.toHaveBeenCalled();
+      const call = (archivePersistence.createManualAcceptanceArchive as Mock).mock.calls[0][0];
+      expect(call.attachment).toBeUndefined();
+      expect(JSON.parse(Buffer.from(call.manifest).toString('utf8')).attachment).toBeUndefined();
+    });
+
+    it('refuses a disallowed mime with a named 400, before any status write', async () => {
+      const attempt = run({ fileRef: PDF_REF, fileName: 'invoice.xml', mime: 'application/xml' });
+
+      await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
+      await expect(attempt).rejects.toThrow(/Unsupported attachment type "application\/xml"/);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('refuses a file over the size cap with a named 413', async () => {
+      const big = Buffer.alloc(MAX_ATTACHMENT_BYTES + 1);
+      const bigRef = createHash('sha256').update(big).digest('hex');
+      (inboundStorage.readInboundFile as Mock).mockResolvedValue(big);
+
+      await expect(
+        run({ fileRef: bigRef, fileName: 'big.pdf', mime: 'application/pdf' }),
+      ).rejects.toBeInstanceOf(PayloadTooLargeException);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('refuses a reference that was never uploaded for this company', async () => {
+      (inboundStorage.readInboundFile as Mock).mockResolvedValue(null);
+
+      await expect(run({ fileRef: PDF_REF, fileName: 'scan.pdf', mime: 'application/pdf' })).rejects.toThrow(
+        /not found for this company/,
+      );
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
+
+    it('refuses bytes that do not hash to the reference, and a malformed reference', async () => {
+      (inboundStorage.readInboundFile as Mock).mockResolvedValue(Buffer.from('other bytes'));
+      await expect(run({ fileRef: PDF_REF, fileName: 'scan.pdf', mime: 'application/pdf' })).rejects.toThrow(
+        /no longer matches its reference/,
+      );
+      await expect(
+        run({ fileRef: '../etc/passwd', fileName: 'x.pdf', mime: 'application/pdf' }),
+      ).rejects.toThrow(/file reference returned by the upload endpoint/);
+      expect(persistence.updateDocumentStatus).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,5 +1,4 @@
 import {
-  Building2,
   Check,
   ChevronDown,
   ChevronRight,
@@ -7,7 +6,6 @@ import {
   Clock,
   CreditCard,
   FileStack,
-  FileText,
   Gavel,
   Landmark,
   LayoutDashboard,
@@ -15,10 +13,14 @@ import {
   Package,
   Plus,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
   TrendingUp,
   User,
   Users,
 } from "lucide-react"
+
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,13 +50,15 @@ import { useOnboardingDialog } from "./onboarding"
 import type React from "react"
 import { Skeleton } from "./ui/skeleton"
 import { authClient } from "@/lib/auth"
+import { useSignOutAndRedirect } from "@/hooks/use-sign-out-and-redirect"
 import { useEffect, useRef, useState } from "react"
-import { usePost } from "@/hooks/use-fetch"
+import { useSwitchCompany } from "@/hooks/use-switch-company"
 
 import { useAvailableDocumentTypes, useCompanies, useCompany, useVersionInfo } from "@/hooks/queries"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 import { isRtlLocale } from "@/lib/i18n"
+import { initialsOf } from "@/lib/initials"
 
 export function Sidebar() {
   const { t, i18n } = useTranslation()
@@ -62,6 +66,9 @@ export function Sidebar() {
   const location = useLocation()
 
   const { data, isPending: userLoading } = authClient.useSession()
+  const sessionUser = data?.user as { firstname?: string; lastname?: string; email?: string } | undefined
+  const accountName =
+    [sessionUser?.firstname, sessionUser?.lastname].filter(Boolean).join(" ") || sessionUser?.email
   const { companies, activeCompanyId, isPending: companiesLoading } = useCompanies()
 
   const { data: company } = useCompany()
@@ -71,7 +78,7 @@ export function Sidebar() {
   const { setOpen: setOnboardingOpen } = useOnboardingDialog()
   const hasAutoOpenedOnboarding = useRef(false)
 
-  const { trigger: switchCompanyApi } = usePost<{ success: boolean }>("/api/companies/switch")
+  const { switchCompany: switchCompanyApi } = useSwitchCompany()
 
   useEffect(() => {
     if (
@@ -93,14 +100,7 @@ export function Sidebar() {
 
   const switchCompany = async (companyId: string) => {
     if (companyId === activeCompanyId) return
-    await switchCompanyApi({ companyId })
-    // Full reload: company-scoped data is fetched by two different
-    // mechanisms across the app (TanStack Query hooks and the older
-    // useGet/usePost hooks in use-fetch.ts, e.g. every settings page).
-    // invalidateQueries() only refreshes the former, leaving the latter
-    // showing the previous company's data — a reload guarantees every
-    // page re-fetches under the newly active company.
-    window.location.reload()
+    await switchCompanyApi(companyId)
   }
 
   // The static part of the nav — Dashboard, Statistics, Settings never depend on anything: they
@@ -175,6 +175,30 @@ export function Sidebar() {
     },
   ]
 
+  // The Account group: the signed-in person's own screens, visible as a labelled group again.
+  // The footer avatar menu still opens the same destinations (its own data-cy keys are what the
+  // existing specs read), this group is the always-visible path to them.
+  const accountItems: { title: string; icon: React.ReactNode; url: string; dataCy: string }[] = [
+    {
+      title: t("sidebar.userMenu.account"),
+      icon: <User className="w-4 h-4" />,
+      url: "/account",
+      dataCy: "sidebar-account-link",
+    },
+    {
+      title: t("account.nav.preferences"),
+      icon: <SlidersHorizontal className="w-4 h-4" />,
+      url: "/account/preferences",
+      dataCy: "sidebar-account-preferences-link",
+    },
+    {
+      title: t("account.nav.security"),
+      icon: <ShieldCheck className="w-4 h-4" />,
+      url: "/account/security",
+      dataCy: "sidebar-account-security-link",
+    },
+  ]
+
   // The Documents group's own content — the ONLY place in the sidebar that reads what the active
   // company's COUNTRY makes available (see country-policy/country-policy.ts's
   // resolveAvailableDocumentTypes on the backend). Open by default: a company almost always has at
@@ -191,10 +215,7 @@ export function Sidebar() {
   // companies actually use, so starting collapsed would hide the normal case behind an extra click.
   const [dataOpen, setDataOpen] = useState(true)
 
-  const handleLogout = async () => {
-    await authClient.signOut()
-    void navigate("/auth/sign-in")
-  }
+  const handleLogout = useSignOutAndRedirect()
 
   // ui/sidebar.tsx's own `side` prop ("left" | "right") is a PHYSICAL dock-side choice, independent
   // of text direction by design (see that component's own header comment, and sheet.tsx's matching
@@ -218,7 +239,7 @@ export function Sidebar() {
             alone stays, exactly like every other icon-only row when the sidebar is collapsed. */}
         <div className="flex items-center gap-2 px-2 pt-1 pb-2">
           <BrandMark className="size-5 text-sidebar-foreground" />
-          <span className="font-heading text-sm font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+          <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
             Invoicerr
           </span>
         </div>
@@ -228,15 +249,20 @@ export function Sidebar() {
               <DropdownMenuTrigger className="cursor-pointer" asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="bg-sidebar-accent/70 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   data-cy="sidebar-company-button"
                 >
-                  <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                    <Building2 className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-start text-sm leading-tight">
-                    <span className="truncate font-medium">{company?.name}</span>
-                    <span className="truncate text-xs">{t("sidebar.company.plan")}</span>
+                  <span
+                    aria-hidden="true"
+                    className="initials bg-foreground text-background flex aspect-square size-8 items-center justify-center rounded-md text-xs font-semibold"
+                  >
+                    {initialsOf(company?.name)}
+                  </span>
+                  <div className="grid flex-1 text-start leading-tight">
+                    <span className="truncate text-[14.5px] font-semibold">{company?.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {t("sidebar.company.plan")}
+                    </span>
                   </div>
                   {companies.length > 1 && <ChevronsUpDown className="ms-auto size-4" />}
                 </SidebarMenuButton>
@@ -299,19 +325,14 @@ export function Sidebar() {
 
       <SidebarContent className="px-2">
         <SidebarGroup className="px-0">
-          <SidebarGroupLabel>{t("sidebar.menu")}</SidebarGroupLabel>
           <SidebarMenu>
             {items.map((item) => (
               <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
                   <Link
                     data-cy={item.dataCy}
                     to={item.url}
-                    className={`flex items-center gap-2 py-6 ${
-                      location.pathname.startsWith(item.url)
-                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                        : ""
-                    }`}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
                   >
                     {item.icon}
                     <span>{item.title}</span>
@@ -326,12 +347,12 @@ export function Sidebar() {
                 unfiltered), which this sidebar deliberately does NOT use. */}
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="flex items-center gap-2 py-6"
+                className="mt-3 h-8 text-[13px] font-medium text-muted-foreground hover:bg-transparent hover:text-foreground group-data-[collapsible=icon]:mt-0"
                 onClick={() => setDocumentsOpen((open) => !open)}
                 aria-expanded={documentsOpen}
                 data-cy="sidebar-documents-group-toggle"
               >
-                <FileStack className="w-4 h-4" />
+                <FileStack className="hidden w-4 h-4 group-data-[collapsible=icon]:block" />
                 <span className="flex-1">{t("sidebar.navigation.documents")}</span>
                 {documentsOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
@@ -365,7 +386,7 @@ export function Sidebar() {
                     <SidebarMenuSubItem key={type.id}>
                       <SidebarMenuSubButton asChild isActive={location.pathname === `/documents/${type.id}`}>
                         <Link data-cy={`sidebar-document-type-link-${type.id}`} to={`/documents/${type.id}`}>
-                          <FileText className="h-4 w-4" />
+                          <DocumentTypeIcon icon={type.icon} />
                           <span>{type.label}</span>
                         </Link>
                       </SidebarMenuSubButton>
@@ -389,12 +410,12 @@ export function Sidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                className="flex items-center gap-2 py-6"
+                className="mt-3 h-8 text-[13px] font-medium text-muted-foreground hover:bg-transparent hover:text-foreground group-data-[collapsible=icon]:mt-0"
                 onClick={() => setDataOpen((open) => !open)}
                 aria-expanded={dataOpen}
                 data-cy="sidebar-data-group-toggle"
               >
-                <Users className="w-4 h-4" />
+                <Users className="hidden w-4 h-4 group-data-[collapsible=icon]:block" />
                 <span className="flex-1">{t("sidebar.groups.data")}</span>
                 {dataOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 shrink-0" />
@@ -421,18 +442,36 @@ export function Sidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="px-0">
+          <SidebarGroupLabel className="mt-3 text-muted-foreground">
+            {t("sidebar.groups.account")}
+          </SidebarGroupLabel>
           <SidebarMenu>
-            {trailingItems.map((item) => (
+            {accountItems.map((item) => (
               <SidebarMenuItem key={item.url}>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
                   <Link
                     data-cy={item.dataCy}
                     to={item.url}
-                    className={`flex items-center gap-2 py-6 ${
-                      location.pathname.startsWith(item.url)
-                        ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                        : ""
-                    }`}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup className="px-0">
+          <SidebarMenu>
+            {trailingItems.map((item) => (
+              <SidebarMenuItem key={item.url}>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith(item.url)}>
+                  <Link
+                    data-cy={item.dataCy}
+                    to={item.url}
+                    aria-current={location.pathname.startsWith(item.url) ? "page" : undefined}
                   >
                     {item.icon}
                     <span>{item.title}</span>
@@ -454,9 +493,12 @@ export function Sidebar() {
                   data-cy="sidebar-user-menu-trigger"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <div className="bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                    <User className="size-4" />
-                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="initials bg-accent text-accent-foreground flex aspect-square size-8 items-center justify-center rounded-full text-xs font-semibold"
+                  >
+                    {initialsOf(accountName)}
+                  </span>
                   {userLoading ? (
                     <div className="grid flex-1 text-start text-sm leading-tight">
                       <Skeleton className="h-3 w-3/4" />
@@ -468,7 +510,7 @@ export function Sidebar() {
                         {/* @ts-ignore */}
                         {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
                       </span>
-                      <span className="truncate text-xs">{data?.user?.email}</span>
+                      <span className="truncate text-xs text-muted-foreground">{data?.user?.email}</span>
                     </div>
                   )}
                   <ChevronsUpDown className="ms-auto size-4" />
@@ -502,7 +544,11 @@ export function Sidebar() {
                     {t("sidebar.userMenu.account")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={handleLogout}
+                  data-cy="sidebar-sign-out-menu-item"
+                >
                   <LogOut />
                   {t("sidebar.userMenu.logout")}
                 </DropdownMenuItem>
@@ -520,7 +566,7 @@ export function Sidebar() {
             release notes in a new tab rather than navigating the app away. */}
         {versionInfo && (
           <div className="flex items-center gap-1.5 px-2 pb-1 pt-1 group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-[11px] text-sidebar-foreground/60" data-cy="sidebar-app-version">
+            <span className="truncate text-xs text-muted-foreground" data-cy="sidebar-app-version">
               {t("sidebar.version.label", { version: versionInfo.currentVersion })}
             </span>
             {versionInfo.updateAvailable && versionInfo.latestUrl && (
@@ -531,9 +577,9 @@ export function Sidebar() {
                 title={t("sidebar.version.updateTooltip", { version: versionInfo.latestVersion })}
                 data-cy="sidebar-update-available"
               >
-                <Badge variant="info" className="cursor-pointer">
+                <span className="text-xs text-link underline-offset-4 hover:underline">
                   {t("sidebar.version.updateAvailable")}
-                </Badge>
+                </span>
               </a>
             )}
           </div>

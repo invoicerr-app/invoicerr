@@ -129,6 +129,36 @@ export function secondaryActions(
   return actions.filter((action) => action !== primary)
 }
 
+/** The action that adds a payment to the record's balance. */
+export const RECORD_PAYMENT_ACTION_ID = "record-payment"
+
+export interface ActionPresentation {
+  primary: DocumentActionDescriptor | undefined
+  secondary: DocumentActionDescriptor[]
+  /** The primary slot shows the settled mark instead of a button. */
+  settled: boolean
+}
+
+/**
+ * `pickPrimaryAction` and `secondaryActions` once the record's balance is known. A settled balance
+ * leaves nothing to record, so "record-payment" is dropped; when it was the primary, the slot shows
+ * the settled mark rather than promoting the next action into it.
+ */
+export function presentActions(
+  actions: DocumentActionDescriptor[],
+  currentStatus: string | undefined,
+  isDirty: boolean,
+  balanceSettled: boolean,
+): ActionPresentation {
+  const primary = pickPrimaryAction(actions, currentStatus, isDirty)
+  if (!balanceSettled) return { primary, secondary: secondaryActions(actions, primary), settled: false }
+
+  const remaining = actions.filter((action) => action.id !== RECORD_PAYMENT_ACTION_ID)
+  if (primary?.id === RECORD_PAYMENT_ACTION_ID)
+    return { primary: undefined, secondary: remaining, settled: true }
+  return { primary, secondary: secondaryActions(remaining, primary), settled: false }
+}
+
 /** Actions a create dialog never submits (see `use-document-form.ts`'s own `availableActions`
  *  filter: none of them is a create-time POST through `runAction`). */
 const NON_CREATE_ACTION_IDS = new Set(["cancel", "download-xml", "share-link", "accept-manually"])

@@ -1,4 +1,5 @@
 import { checkReceivedInvoiceLineTotals } from './line-totals-check';
+import { formatServerMessage, formatServerMessages } from '../messages/server-message';
 
 /**
  * "The total checks the sum of the lines". Pure-function tests: no descriptor
@@ -64,8 +65,8 @@ describe('received-invoices/line-totals-check', () => {
         netAmount: 1000.02,
       });
       expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toMatch(/Line total mismatch \(net \/ HT\)/);
-      expect(warnings[0]).toMatch(/1,000\.00 EUR|1000\.00 EUR/);
+      expect(formatServerMessage(warnings[0])).toMatch(/Line total mismatch \(net \/ HT\)/);
+      expect(formatServerMessage(warnings[0])).toMatch(/1,000\.00 EUR|1000\.00 EUR/);
     });
 
     it('a 3-line document tolerates up to 3 cents (one per line), not 4', () => {
@@ -93,9 +94,10 @@ describe('received-invoices/line-totals-check', () => {
       grossAmount: 1, // off by 1199 EUR
     });
     expect(warnings).toHaveLength(3);
-    expect(warnings.some((w) => w.includes('net / HT'))).toBe(true);
-    expect(warnings.some((w) => w.includes('VAT'))).toBe(true);
-    expect(warnings.some((w) => w.includes('gross / TTC'))).toBe(true);
+    const texts = formatServerMessages(warnings);
+    expect(texts.some((w) => w.includes('net / HT'))).toBe(true);
+    expect(texts.some((w) => w.includes('VAT'))).toBe(true);
+    expect(texts.some((w) => w.includes('gross / TTC'))).toBe(true);
   });
 
   it('a line with no usable VAT rate is counted in net only — VAT/gross totals compare against that', () => {

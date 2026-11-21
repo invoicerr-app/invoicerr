@@ -1,0 +1,48 @@
+name: Critical dependency audit
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "backend/package.json"
+      - "backend/package-lock.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "e2e/package.json"
+      - "e2e/package-lock.json"
+      - "documentation/package.json"
+      - "documentation/package-lock.json"
+      - ".github/workflows/critical-dependency-audit.yml"
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/package.json"
+      - "backend/package-lock.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "e2e/package.json"
+      - "e2e/package-lock.json"
+      - "documentation/package.json"
+      - "documentation/package-lock.json"
+      - ".github/workflows/critical-dependency-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: npm audit (${{ matrix.workspace }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [backend, frontend, e2e, documentation]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Fail on critical npm vulnerabilities
+        working-directory: ${{ matrix.workspace }}
+        run: npm audit --package-lock-only --audit-level=critical

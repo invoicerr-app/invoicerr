@@ -37,6 +37,7 @@ vi.mock('@/lib/pending-signup-store', () => ({
 
 import { InvitationsController } from './invitations.controller';
 import { InvitationsService } from './invitations.service';
+import { hashInvitationCode } from '@/lib/invitation-code';
 
 function buildController() {
   const service = {
@@ -52,13 +53,14 @@ function buildController() {
 describe('InvitationsController.validateInvitation', () => {
   beforeEach(() => mockSetPendingInvitationCode.mockClear());
 
-  it('deposits the code into the shared, cross-replica store — never a local Map any more', async () => {
+  it('deposits the digest, never the plaintext code, into the shared cross-replica store', async () => {
     const { controller, service } = buildController();
     (service.canRegister as Mock).mockResolvedValue({ allowed: true, requiresCode: false });
 
     await controller.validateInvitation({ code: 'CODE123', email: 'Ada@Acme.test' });
 
-    expect(mockSetPendingInvitationCode).toHaveBeenCalledWith('ada@acme.test', 'CODE123');
+    expect(mockSetPendingInvitationCode).toHaveBeenCalledWith('ada@acme.test', hashInvitationCode('CODE123'));
+    expect(mockSetPendingInvitationCode).not.toHaveBeenCalledWith('ada@acme.test', 'CODE123');
   });
 });
 

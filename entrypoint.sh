@@ -3,6 +3,35 @@
 # Navigate to the backend directory where the compiled code and config are
 cd /usr/share/nginx/backend/src
 
+# Non-root preflight. The image runs as uid 10001 (see the Dockerfile); turn the two ways that can
+# break on an existing install into one clear message instead of a crash deep in the backend.
+if [ "$(id -u)" != "0" ]; then
+  # Storage directories: a volume created by an older image (which ran as root) is still root-owned.
+  for dir in "${DOCUMENTS_ARCHIVE_DIR:-$PWD/.documents-archive}" "${DOCUMENTS_INBOUND_DIR:-$PWD/.documents-inbound}"; do
+    probe="$dir"
+    while [ ! -e "$probe" ]; do probe=$(dirname "$probe"); done
+    if [ ! -w "$probe" ]; then
+      echo "ERROR: $probe is not writable by uid $(id -u). This image no longer runs as root." >&2
+      echo "  A volume created by an older invoicerr image is owned by root. Fix it once with:" >&2
+      echo "    docker run --rm -u 0 -v <volume>:/data <this image> chown -R $(id -u):$(id -g) /data" >&2
+      echo "  (on Kubernetes the chart's podSecurityContext.fsGroup does this on mount)," >&2
+      echo "  or run the container as root (user: \"0:0\") until you can." >&2
+      exit 1
+    fi
+  done
+  # nginx binds port 80, which needs net.ipv4.ip_unprivileged_port_start <= 80 without root.
+  # Docker sets it to 0 by default; the Helm chart sets it in the api pod.
+  if [ "${ROLE:-api}" != "worker" ] && [ -r /proc/sys/net/ipv4/ip_unprivileged_port_start ]; then
+    port_start=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start)
+    if [ "$port_start" -gt 80 ]; then
+      echo "ERROR: nginx cannot bind port 80 as uid $(id -u): net.ipv4.ip_unprivileged_port_start is $port_start." >&2
+      echo "  Run the container with --sysctl net.ipv4.ip_unprivileged_port_start=0 (Docker 20.10+ does this" >&2
+      echo "  by default), or set it in the pod securityContext.sysctls on Kubernetes." >&2
+      exit 1
+    fi
+  fi
+fi
+
 # ROLE switch: same image, different process. ROLE=worker runs ONLY the dedicated
 # document-action queue worker (dist/src/worker.js) — no nginx, no frontend config, no migrations
 # (those are API-only, handled inside main.js via syncDatabaseSchema()). Default (unset or "api")

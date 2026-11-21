@@ -1,5 +1,77 @@
 {
   "countryCode": "PL",
+  "companyProfile": {
+    "countryCode": "PL",
+    "attributes": [
+      {
+        "key": "vatUeRegistration",
+        "label": "Intra-EU VAT registration",
+        "help": "Whether the company is entered in the Polish register of VAT UE taxpayers, which an intra-Community supply requires.",
+        "values": [
+          {
+            "value": "REGISTERED",
+            "label": "Registered as a VAT UE taxpayer"
+          },
+          {
+            "value": "NOT_REGISTERED",
+            "label": "Not registered as a VAT UE taxpayer"
+          }
+        ],
+        "provenance": {
+          "kind": "unverified",
+          "resolutionNote": "Ustawa o podatku od towarów i usług art. 97 ust. 1 (rejestr podatników VAT UE): read the consolidated text and quote the registration rule before this attribute gates anything. The isap.sejm.gov.pl page answered a bot check on 2026-10-31."
+        }
+      }
+    ]
+  },
+  "codeLists": {
+    "countryCode": "PL",
+    "lists": [
+      {
+        "id": "vatUePart",
+        "label": "VAT-UE summary return part, the section of the Polish recapitulative statement an intra-Community operation is reported in",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Obwieszczenie Ministra Finansów z dnia 20 stycznia 2022 r. (Dz.U. 2022 poz. 332), jednolity tekst rozporządzenia Ministra Finansów z dnia 26 czerwca 2020 r. w sprawie informacji podsumowującej, załącznik nr 1, wzór VAT-UE(5): \"C. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYCH DOSTAWACH TOWARÓW\", \"D. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYCH NABYCIACH TOWARÓW\", \"E. INFORMACJA O WEWNĄTRZWSPÓLNOTOWYM ŚWIADCZENIU USŁUG\", \"F. INFORMACJA O PRZEMIESZCZENIACH TOWARÓW W PROCEDURZE MAGAZYNU TYPU CALL-OFF STOCK NA TERYTORIUM PAŃSTWA CZŁONKOWSKIEGO INNE NIŻ TERYTORIUM KRAJU\"",
+          "sourceCheckedAt": "2026-11-13"
+        },
+        "entries": [
+          {
+            "code": "C",
+            "label": "Intra-Community supplies of goods",
+            "when": {
+              "operation": ["GOODS_SUPPLY"]
+            },
+            "notes": "Część C, wewnątrzwspólnotowe dostawy towarów. Column d marks the second taxpayer in a simplified triangular procedure (art. 135-138 ustawy o VAT); it is a flag on the row, not a separate part."
+          },
+          {
+            "code": "D",
+            "label": "Intra-Community acquisitions of goods",
+            "when": {
+              "operation": ["GOODS_ACQUISITION"]
+            },
+            "notes": "Część D, wewnątrzwspólnotowe nabycia towarów. Column d is the same triangular flag as part C."
+          },
+          {
+            "code": "E",
+            "label": "Intra-Community supplies of services",
+            "when": {
+              "operation": ["SERVICE_SUPPLY"]
+            },
+            "notes": "Część E, wewnątrzwspólnotowe świadczenie usług: the services of art. 100 ust. 1 pkt 4 ustawy o VAT (objaśnienia, załącznik nr 2, pkt 6)."
+          },
+          {
+            "code": "F",
+            "label": "Transfers of goods under call-off stock arrangements to another member state",
+            "when": {
+              "operation": ["CALL_OFF_STOCK_TRANSFER"]
+            },
+            "notes": "Część F, przemieszczenia towarów w procedurze magazynu typu call-off stock; column c names a replaced customer (art. 13j) and column d marks a return transfer (art. 13l ust. 2)."
+          }
+        ]
+      }
+    ]
+  },
   "policy": {
     "countryCode": "PL",
     "documentTypes": [
@@ -494,14 +566,14 @@
         "scheme": "LEGAL_ID",
         "appliesTo": "COMPANY",
         "label": "NIP",
-        "required": false,
+        "required": true,
         "demoGenerator": { "id": "pl-nip" },
         "provenance": {
           "kind": "legal",
-          "sourceText": "«Art. 106e. 1. Faktura powinna zawierać: [...] 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25;»",
-          "sourceCheckedAt": "2026-09-13"
+          "sourceText": "«Art. 106e. 1. Faktura powinna zawierać: [...] 4) numer, za pomocą którego podatnik jest zidentyfikowany na potrzeby podatku, z zastrzeżeniem pkt 24 lit. a oraz pkt 25; 5) numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej, pod którym otrzymał on towary lub usługi, z zastrzeżeniem pkt 24 lit. b;»",
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 106e ust. 1 pkt 4 — read as the official consolidated text (tekst jednolity) at Dz.U. 2025 poz. 775 (Obwieszczenie Marszałka Sejmu RP z dnia 21 maja 2025 r.), fetched directly as a PDF from dziennikustaw.gov.pl (https://dziennikustaw.gov.pl/D2025000077501.pdf, landing page https://dziennikustaw.gov.pl/DU/rok/2025/pozycja/775), curl then `pdftotext -layout`, 2026-09-13 — isap.sejm.gov.pl was not used (sits behind Incapsula bot protection). This binds the SELLER (`podatnik`, the taxpayer issuing the invoice) and is required on every invoice except two narrow, non-waiving substitutions: pkt 24 lit. a (a PL-prefixed number for one triangulation-type intra-EU case) and pkt 25 (an EX-suffixed cross-border small-business-exemption number, a 2025 addition under art. 113a ust. 1) — neither carve-out removes the requirement, both substitute a differently-formatted identifier for the same slot. There is no exemption for a small/exempt domestic seller comparable to France's or Portugal's franchise-based waiver of the identifier itself. Also confirmed NOT waived by the <=450 zl / 100 EUR simplified-invoice threshold (art. 106e ust. 5 pkt 3 i ust. 6): that threshold omits only the buyer's name/address and price-breakdown detail (pkt 3, 8, 9, 11-14), never the seller's or buyer's identification number — ust. 6 goes further and forbids using the threshold AT ALL for a sale where no buyer number under ust. 1 pkt 5 is stated, i.e. the simplification is designed for the known-buyer case, not as a blanket small-amount exemption from identification. IMPORTANT TEXTUAL POINT: the Act's own text never uses the abbreviation \"NIP\" anywhere in art. 106e, or (per a full-text search of the whole consolidated text) anywhere in the Act at all — it always uses the phrase quoted above. \"NIP\" is defined in a SEPARATE statute, ustawa z dnia 13 października 1995 r. o zasadach ewidencji i identyfikacji podatników i płatników (read as the tekst jednolity at Dz.U. 2026 poz. 151, https://dziennikustaw.gov.pl/D2026000015101.pdf, same method, 2026-09-13): its art. 3 ust. 1 assigns NIP to \"pozostałych podmiotów podlegających obowiązkowi ewidencyjnemu\" (all OTHER — i.e. non-natural-person — entities subject to the registration duty) but PESEL instead to a natural person who is neither a registered active VAT taxpayer nor otherwise required to register (art. 3 ust. 1 pkt 1, ust. 1a). `appliesTo` is therefore deliberately set to `'COMPANY'`, NOT `'BOTH'`: for a COMPANY-record seller, NIP specifically (not PESEL) is what this same identification Act assigns, unconditionally alongside art. 106e's own unconditional seller mandate — but for an INDIVIDUAL-record seller the correct identifier can legally be PESEL instead, a different scheme this catalog does not model at all; labelling this fact \"NIP\" and applying it to INDIVIDUAL sellers too would be wrong in exactly that case, not merely imprecise. `required` is nonetheless set to `false` at country level, for the SAME structural reason as Italy's own facts (see it.json's file-level notes for the full reasoning, reproduced here briefly): this catalog's `appliesTo` axis is consumed identically by the SELLER call-sites (`onboarding.tsx`/`company.settings.tsx`, always `partyType: \"COMPANY\"`) and the BUYER call-site (`client-upsert.tsx`, `partyType` from the client's own record type), with `required: true` enforced as a real hard save-block in all three. Poland's BUYER-side rule (art. 106e ust. 1 pkt 5) is genuinely conditional — quoted here for completeness: «5) numer, za pomocą którego nabywca towarów lub usług jest zidentyfikowany na potrzeby podatku lub podatku od wartości dodanej, pod którym otrzymał on towary lub usługi, z zastrzeżeniem pkt 24 lit. b;» — self-limiting by its own wording rather than carved out by a numbered exception: it only obligates stating the buyer's number when the buyer actually HAS one and used it to receive the supply; a private consumer simply has no such number to state, so the obligation has no object for that buyer, not because a waiver applies. This is a materially different drafting technique from Italy's (which names Codice Fiscale as an explicit alternative document) but reaches the same practical conclusion this catalog must respect: the buyer's own NIP cannot be safely marked `required: true` here either, so — exactly as for Italy — a single `required` value cannot honestly serve both the seller's unconditional duty and the buyer's conditional one, and `false` is the value that never risks refusing a lawful save. What a resolutionNote-style fix would need: a way to ask whether a given party is itself a registered VAT taxpayer (or, on the seller side, whether an INDIVIDUAL seller is VAT-registered/cash-register-using — the PESEL/NIP switch above) — the same missing axis this task's report names for Italy. No separate `unverified` fact is added for this buyer-side half, unlike Italy's Codice Fiscale: Poland has no second, distinctly-named identifier scheme to host it under (the buyer's number, when owed at all, IS the same NIP already modeled here) — the conditional buyer-side position is instead documented here, in this fact's own `notes`, and in this file's own top-level `notes` below, rather than invented as a second scheme entry with nothing new to say. REGON and KRS (art. 96b ust. 1 i ust. 3 pkt 3 i 5 — the public \"wykaz podatników VAT\" the tax administration publishes, a completely different provision from art. 106e) are established NOT to be invoice-content requirements at all: a full-text search of the whole consolidated Act for \"REGON\" and \"Krajowym Rejestrze Sądowym\" found zero occurrences inside art. 106e or its neighboring invoice-content articles (106a-106q) — neither is added as a scheme here on the strength of commercial habit alone."
+        "notes": "Ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, art. 106e ust. 1 pkt 4 — read as the official consolidated text (tekst jednolity) at Dz.U. 2025 poz. 775 (Obwieszczenie Marszałka Sejmu RP z dnia 21 maja 2025 r.), fetched directly as a PDF from dziennikustaw.gov.pl (https://dziennikustaw.gov.pl/D2025000077501.pdf, landing page https://dziennikustaw.gov.pl/DU/rok/2025/pozycja/775), curl then `pdftotext -layout`, 2026-09-13 and again 2026-10-26 — isap.sejm.gov.pl was not used (sits behind Incapsula bot protection). This binds the SELLER (`podatnik`, the taxpayer issuing the invoice) and is required on every invoice except two narrow, non-waiving substitutions: pkt 24 lit. a (a PL-prefixed number for one triangulation-type intra-EU case) and pkt 25 (an EX-suffixed cross-border small-business-exemption number, a 2025 addition under art. 113a ust. 1) — neither carve-out removes the requirement, both substitute a differently-formatted identifier for the same slot. There is no exemption for a small/exempt domestic seller comparable to France's or Portugal's franchise-based waiver of the identifier itself. Also confirmed NOT waived by the <=450 zl / 100 EUR simplified-invoice threshold (art. 106e ust. 5 pkt 3 i ust. 6): that threshold omits only the buyer's name/address and price-breakdown detail (pkt 3, 8, 9, 11-14), never the seller's or buyer's identification number — ust. 6 goes further and forbids using the threshold AT ALL for a sale where no buyer number under ust. 1 pkt 5 is stated, i.e. the simplification is designed for the known-buyer case, not as a blanket small-amount exemption from identification. IMPORTANT TEXTUAL POINT: the Act's own text never uses the abbreviation \"NIP\" anywhere in art. 106e, or (per a full-text search of the whole consolidated text) anywhere in the Act at all — it always uses the phrase quoted above. \"NIP\" is defined in a SEPARATE statute, ustawa z dnia 13 października 1995 r. o zasadach ewidencji i identyfikacji podatników i płatników (read as the tekst jednolity at Dz.U. 2026 poz. 151, https://dziennikustaw.gov.pl/D2026000015101.pdf, same method, 2026-09-13): its art. 3 ust. 1 assigns NIP to \"pozostałych podmiotów podlegających obowiązkowi ewidencyjnemu\" (all OTHER — i.e. non-natural-person — entities subject to the registration duty) but PESEL instead to a natural person who is neither a registered active VAT taxpayer nor otherwise required to register (art. 3 ust. 1 pkt 1, ust. 1a). `appliesTo` is therefore deliberately set to `'COMPANY'`, NOT `'BOTH'`: for a COMPANY-record seller, NIP specifically (not PESEL) is what this same identification Act assigns, unconditionally alongside art. 106e's own unconditional seller mandate — but for an INDIVIDUAL-record seller the correct identifier can legally be PESEL instead, a different scheme this catalog does not model at all; labelling this fact \"NIP\" and applying it to INDIVIDUAL sellers too would be wrong in exactly that case, not merely imprecise. `required: true` binds COMPANY, the one party type `appliesTo` offers: `onboarding.tsx` and `company.settings.tsx` read this scheme for the company about to issue invoices, whose number pkt 4 asks on every invoice, and `client-upsert.tsx` for a company client, whose number pkt 5 asks (quoted in `provenance` above). Pkt 5 limits itself by its own wording rather than through a numbered exception: it asks for the buyer's number only when the buyer HAS one and received the supply under it, so a private consumer has nothing to give. A COMPANY-type client stands in for a buyer that does, the same approximation `invoiceRequirements` makes; whether a non-VAT-registered Polish company still holds a NIP is the open question in this file's top-level `notes`. REGON and KRS (art. 96b ust. 1 i ust. 3 pkt 3 i 5 — the public \"wykaz podatników VAT\" the tax administration publishes, a completely different provision from art. 106e) are established NOT to be invoice-content requirements at all: a full-text search of the whole consolidated Act for \"REGON\" and \"Krajowym Rejestrze Sądowym\" found zero occurrences inside art. 106e or its neighboring invoice-content articles (106a-106q) — neither is added as a scheme here on the strength of commercial habit alone."
       }
     ],
     "invoiceRequirements": [
@@ -533,7 +605,7 @@
         "party": "BUYER",
         "scheme": "VAT",
         "when": {
-          "buyerType": ["COMPANY"],
+          "buyerVatRegistered": [true],
           "buyerEstablishment": ["OTHER_UNION_MEMBER"]
         },
         "provenance": {
@@ -544,7 +616,7 @@
         "notes": "VAT Act art. 106e ust. 1 pkt 5 and pkt 24 lit. b. Consolidated text Dz.U. 2025 poz. 775, read as the PDF at https://dziennikustaw.gov.pl/D2025000077501.pdf with pdftotext. Art. 97 ust. 10 pkt 2 i 3 are the intra-Community supply of goods and the B2B service taxed in the client's member state, the case of a business client established there."
       }
     ],
-    "notes": "Poland (2026-09-13). Primary source: ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, read as the tekst jednolity gazetted at Dz.U. 2025 poz. 775 (https://dziennikustaw.gov.pl/D2025000077501.pdf), curl + `pdftotext -layout`, cross-checked against the next-newest tekst jednolity (Dz.U. 2024 poz. 361) where noted in the underlying research; isap.sejm.gov.pl was not used (Incapsula bot protection). Only ONE scheme is declared (\"LEGAL_ID\", i.e. NIP) — no separate \"VAT\" scheme is proposed: Polish invoice law's \"numer, za pomocą którego podatnik/nabywca jest zidentyfikowany na potrzeby podatku\" is the SAME number this catalog already models as LEGAL_ID for a domestic party, unlike France's or Portugal's own SIREN-vs-TVA / NIF-vs-VAT-prefix splits. `required: false` is a DELIBERATE, structural choice, not an under-statement of the law — see this scheme's own `notes` for why a single boolean cannot honestly represent both Poland's unconditional SELLER duty (art. 106e ust. 1 pkt 4) and its conditional BUYER duty (art. 106e ust. 1 pkt 5) given this catalog's `appliesTo` axis and this product's shared seller/buyer consumption path (`country-identifiers.ts`'s `resolveRequiredIdentifiers`, `onboarding.tsx`, `company.settings.tsx`, `client-upsert.tsx` — all read before writing this file). DELIBERATELY NOT ENCODED, reported instead: (1) the buyer-side conditional half of pkt 5 — see this scheme's own `notes`, folded in rather than given a separate `unverified` fact because Poland has no second, distinctly-named identifier to host one under (contrast Italy's Codice Fiscale, which does get its own fact in it.json). (2) A KSeF-specific routing identifier for the buyer — established NOT to exist: art. 106gb ust. 4 i ust. 5 (formerly art. 106nc in the 2024-vintage text) shows a domestic, actively-registered VAT taxpayer's KSeF delivery resolves automatically off their own NIP (no second identifier), and the four carved-out buyer classes (foreign, no Polish establishment, an uninvolved Polish fixed establishment, or a small-business-exemption taxpayer under art. 113a) fall back to \"made available in a manner agreed with the buyer\" secured by a PER-INVOICE access/verification code (ust. 5), not a persistent per-party routing identifier comparable to Italy's Codice Destinatario — so no third scheme is needed for Poland's KSeF channel, it rides entirely on the NIP already modeled here. (3) The PESEL alternative for a non-VAT-registered INDIVIDUAL seller (ustawa o zasadach ewidencji i identyfikacji podatników i płatników, art. 3 ust. 1 pkt 1 i ust. 1a) — reported in this scheme's own `notes`; this catalog has no PESEL scheme and `appliesTo` is kept `'COMPANY'`-only for exactly this reason, rather than `'BOTH'` with a wrong label for some individual sellers. OPEN QUESTIONS NOT RESOLVED BY THIS PASS (see the underlying research file for the full list): whether a non-VAT-registered Polish COMPANY (as opposed to an individual) still holds and must state a NIP at all — the identification Act's PESEL/NIP branch is drafted specifically for natural-person taxpayers, and this task did not chase whether a non-VAT-registered legal person can issue a `faktura VAT` under this Act in the first place; the exact NIP character format (10-digit numeric is the widely-known convention, not chased to a primary-text statement in either statute read here — no `pattern` is declared for that reason)."
+    "notes": "Poland (2026-09-13). Primary source: ustawa z dnia 11 marca 2004 r. o podatku od towarów i usług, read as the tekst jednolity gazetted at Dz.U. 2025 poz. 775 (https://dziennikustaw.gov.pl/D2025000077501.pdf), curl + `pdftotext -layout`, cross-checked against the next-newest tekst jednolity (Dz.U. 2024 poz. 361) where noted in the underlying research; isap.sejm.gov.pl was not used (Incapsula bot protection). Only ONE scheme is declared (\"LEGAL_ID\", i.e. NIP) — no separate \"VAT\" scheme is proposed: Polish invoice law's \"numer, za pomocą którego podatnik/nabywca jest zidentyfikowany na potrzeby podatku\" is the SAME number this catalog already models as LEGAL_ID for a domestic party, unlike France's or Portugal's own SIREN-vs-TVA / NIF-vs-VAT-prefix splits. `required: true` for a company: art. 106e ust. 1 pkt 4 asks the seller's number on every invoice and pkt 5 a business buyer's, the two cases `invoiceRequirements` encodes for a domestic sale. DELIBERATELY NOT ENCODED, reported instead: (1) a separate fact for the buyer's number: Poland has no second, distinctly-named identifier to host one under (contrast Italy's Codice Fiscale, which does get its own fact in it.json), so the NIP serves both. (2) A KSeF-specific routing identifier for the buyer — established NOT to exist: art. 106gb ust. 4 i ust. 5 (formerly art. 106nc in the 2024-vintage text) shows a domestic, actively-registered VAT taxpayer's KSeF delivery resolves automatically off their own NIP (no second identifier), and the four carved-out buyer classes (foreign, no Polish establishment, an uninvolved Polish fixed establishment, or a small-business-exemption taxpayer under art. 113a) fall back to \"made available in a manner agreed with the buyer\" secured by a PER-INVOICE access/verification code (ust. 5), not a persistent per-party routing identifier comparable to Italy's Codice Destinatario — so no third scheme is needed for Poland's KSeF channel, it rides entirely on the NIP already modeled here. (3) The PESEL alternative for a non-VAT-registered INDIVIDUAL seller (ustawa o zasadach ewidencji i identyfikacji podatników i płatników, art. 3 ust. 1 pkt 1 i ust. 1a) — reported in this scheme's own `notes`; this catalog has no PESEL scheme and `appliesTo` is kept `'COMPANY'`-only for exactly this reason, rather than `'BOTH'` with a wrong label for some individual sellers. OPEN QUESTIONS NOT RESOLVED BY THIS PASS (see the underlying research file for the full list): whether a non-VAT-registered Polish COMPANY (as opposed to an individual) still holds and must state a NIP at all — the identification Act's PESEL/NIP branch is drafted specifically for natural-person taxpayers, and this task did not chase whether a non-VAT-registered legal person can issue a `faktura VAT` under this Act in the first place; the exact NIP character format (10-digit numeric is the widely-known convention, not chased to a primary-text statement in either statute read here — no `pattern` is declared for that reason)."
   },
   "correctionRoutes": {
     "countryCode": "PL",
@@ -750,12 +822,15 @@
       {
         "providerId": "ksef",
         "requirement": "suggested",
+        "scope": {
+          "buyerType": ["COMPANY"]
+        },
         "provenance": {
           "kind": "legal",
-          "sourceText": "Art. 106ga.79) 1. Podatnicy są obowiązani wystawiać faktury ustrukturyzowane przy użyciu Krajowego Systemu e-Faktur.",
-          "sourceCheckedAt": "2026-09-28"
+          "sourceText": "Art. 106ga.79) 1. Podatnicy są obowiązani wystawiać faktury ustrukturyzowane przy użyciu Krajowego Systemu e-Faktur. 2. Obowiązek, o którym mowa w ust. 1, nie dotyczy wystawiania faktur: [...] 4) na rzecz nabywcy towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej;",
+          "sourceCheckedAt": "2026-10-24"
         },
-        "notes": "RE-VERIFIED 2026-09-28 (issue #527) against the Ministry of Finance's own tax explanatory note (\"Objaśnienia podatkowe\", 28 January 2026, art. 14a par. 1 pkt 2 Ordynacja podatkowa, gov.pl/attachment/8fde481a-18aa-4b1b-843e-5bbd303d6f94 - fetched and read directly): every claim below is CONFIRMED, word for word, including the 2024 turnover reference year for the 200 000 000 zl threshold (a couple of low-quality secondary summaries say \"2025\" - wrong, contradicted by the MoF's own text and by the statute mirrors on lexlege.pl/arslege.pl, which all agree on 2024). The MoF note itself states plainly this regime applies \"od dnia 1 lutego 2026 r.\" with no slippage. As of this re-check, BOTH real-world start dates have already passed: the >200M zl tier has been bound since 1 February 2026, and the general tier since 1 April 2026 (corroborated by an individual tax ruling applying KSeF post-go-live, Dyrektor KIS 9 April 2026, sygn. 0114-KDIP1-1.4012.132.2026.1.ESZ). THIS DOES NOT CHANGE THE CONCLUSION BELOW: the art. 145m ust. 1 monthly allowance (<= 10 000 zl of structured-eligible sales per calendar month) remains ACTIVE through 31 December 2026 for every obligated taxpayer, general tier included - so even a company well past its own go-live date can still lawfully send a plain invoice for a given month under that threshold. Arming `requirement: 'mandated'` today would refuse those still-lawful invoices exactly as before; the reasoning that keeps this fact `suggested` (see below) is therefore UNCHANGED by both go-live dates now being in the past, not weakened by it. One adjacent, NOT settled, development found in Polish tax press (rp.pl, bezprawnik.pl, mid-to-late September 2026): the Ministry of Finance is reported to be proposing to defer PENALTIES for KSeF errors from 1 January 2027 to 1 January 2028 - about the SANCTION regime, never the invoicing-obligation dates themselves, and not confirmed via any primary gov.pl page as enacted (could be a draft nowelizacja still) - noted here for completeness, not acted on. Base obligation (art. 106ga ust. 1 of the VAT act of 11 March 2004, unified text announced by the Marszałek Sejmu on 21 May 2025, Dz.U. 2025 poz. 775): this is the citation carried by `sourceText` above. The same article, ust. 2, provides SIX exemption categories from this obligation, reproduced here verbatim because they condition who is even concerned by KSeF: « 2. Obowiązek, o którym mowa w ust. 1, nie dotyczy wystawiania faktur: 1) przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju; 2) przez podatnika nieposiadającego siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miejsce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę; 3) przez podatnika korzystającego z procedur szczególnych, o których mowa w dziale XII w rozdziałach 7, 7a i 9, dokumentujących czynności rozliczane w tych procedurach; 4) na rzecz nabywcy towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej; 5) w przypadku odpowiednio udokumentowanych dostaw towarów lub świadczenia usług, określonych w przepisach wydanych na podstawie art. 106s; 6) przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust. 1. » The base date often cited (1 February 2026) is that of art. 23 of the law of 16 June 2023 (Dz.U. 2023 poz. 1598, as amended), printed in the same unified text: « Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 [...], które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 4) art. 1 pkt 7 lit. e, pkt 13 lit. b w zakresie art. 106h ust. 2 i 4, pkt 24 w zakresie art. 106ni ust. 1–3 i 5–7 i pkt 30, które wchodzą w życie z dniem 1 sierpnia 2026 r. » BUT two transitional articles — inserted by a MORE RECENT law, that of 5 August 2025 (Dz.U. 2025 poz. 1203, art. 1 pkt 34, published 1 September 2025) — replace an older transitional regime (the same unified text of May 2025 still carried, before this August law, an art. 145l running only until 31 July 2026 and no art. 145m — an OUTDATED version, no longer to be cited) and change the real scope of this date for most taxpayers: « „Art. 145l. W okresie od dnia 1 lutego 2026 r. do dnia 31 marca 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników nie przekroczyła w 2024 r. kwoty 200 000 000 zł. Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł. 2. Podatnik, o którym mowa w ust. 1, traci prawo do wystawiania faktur elektronicznych oraz faktur w postaci papierowej począwszy od faktury, którą przekroczono wartość, o której mowa w ust. 1.” » In other words, as of the drafting date (2026-09-13): taxpayers whose 2024 turnover including VAT exceeded 200,000,000 zł are indeed bound from 1 February 2026 (no grace period, art. 145l); ALL OTHER taxpayers subject to the obligation remain free to issue ordinary invoices (electronic or paper) up to and including 31 March 2026 — they are therefore only bound from 1 April 2026; and, independently of this threshold, EVERY taxpayer subject to the obligation keeps, until 31 December 2026, the right to issue ordinary invoices for a given calendar month as long as the total including VAT of sales documented by structured invoices that month stays ≤ 10,000 zł — losing this grace period from the invoice that exceeds this threshold onward (art. 145m ust. 1 and 2). This entry deliberately stays `requirement: 'suggested'` despite provenance now being `legal`: `channel-policy/mandate.ts#activeChannelMandateFor` only knows a SINGLE `mandatedFrom` date, compared against each invoice's own `issueDate` — it knows nothing of the company's 2024 turnover nor of its structured-eligible sales for the current month. Arming this fact with `mandatedFrom: '2026-02-01'` (or even '2026-04-01') WOULD REFUSE invoices that are still perfectly lawful: an electronic or paper invoice issued by an SME under the 200,000,000 zł threshold before 1 April 2026, or by ANY taxpayer for a month where its structured-eligible sales stay ≤ 10,000 zł until 31 December 2026 inclusive, remains LAWFUL today. Refusing a still-lawful invoice would be a PRODUCT FAILURE; leaving this fact `suggested` is only a GAP that the user remains free to avoid by connecting KSeF voluntarily — the former is worse than the latter. A correct implementation would require (1) that the mandate mechanism know the company's 2024 turnover including VAT, to decide between 1 February and 1 April 2026 (art. 145l), and (2) that it know its structured-eligible sales FOR THE CALENDAR MONTH of each invoice, to apply or not the art. 145m allowance until 31 December 2026 — two pieces of data this product neither computes nor stores today (they would need to be derived from the company's own invoice history, or explicitly declared), and a mandate schema that accepts more than a single date (an annual turnover threshold, a rolling monthly cap) to faithfully represent this two-speed timetable plus its residual allowance."
+        "notes": "BUYER TYPE: art. 106ga ust. 2 pkt 4, quoted above from the consolidated text on lexlege.pl, lifts the KSeF obligation for an invoice to a natural person not carrying on a business (client type INDIVIDUAL). `scope.buyerType` records it so that a private buyer stays outside KSeF if this fact is ever made mandated; while the fact is suggested, the scope has no effect. - RE-VERIFIED 2026-09-28 (issue #527) against the Ministry of Finance's own tax explanatory note (\"Objaśnienia podatkowe\", 28 January 2026, art. 14a par. 1 pkt 2 Ordynacja podatkowa, gov.pl/attachment/8fde481a-18aa-4b1b-843e-5bbd303d6f94 - fetched and read directly): every claim below is CONFIRMED, word for word, including the 2024 turnover reference year for the 200 000 000 zl threshold (a couple of low-quality secondary summaries say \"2025\" - wrong, contradicted by the MoF's own text and by the statute mirrors on lexlege.pl/arslege.pl, which all agree on 2024). The MoF note itself states plainly this regime applies \"od dnia 1 lutego 2026 r.\" with no slippage. As of this re-check, BOTH real-world start dates have already passed: the >200M zl tier has been bound since 1 February 2026, and the general tier since 1 April 2026 (corroborated by an individual tax ruling applying KSeF post-go-live, Dyrektor KIS 9 April 2026, sygn. 0114-KDIP1-1.4012.132.2026.1.ESZ). THIS DOES NOT CHANGE THE CONCLUSION BELOW: the art. 145m ust. 1 monthly allowance (<= 10 000 zl of structured-eligible sales per calendar month) remains ACTIVE through 31 December 2026 for every obligated taxpayer, general tier included - so even a company well past its own go-live date can still lawfully send a plain invoice for a given month under that threshold. Arming `requirement: 'mandated'` today would refuse those still-lawful invoices exactly as before; the reasoning that keeps this fact `suggested` (see below) is therefore UNCHANGED by both go-live dates now being in the past, not weakened by it. One adjacent, NOT settled, development found in Polish tax press (rp.pl, bezprawnik.pl, mid-to-late September 2026): the Ministry of Finance is reported to be proposing to defer PENALTIES for KSeF errors from 1 January 2027 to 1 January 2028 - about the SANCTION regime, never the invoicing-obligation dates themselves, and not confirmed via any primary gov.pl page as enacted (could be a draft nowelizacja still) - noted here for completeness, not acted on. Base obligation (art. 106ga ust. 1 of the VAT act of 11 March 2004, unified text announced by the Marszałek Sejmu on 21 May 2025, Dz.U. 2025 poz. 775): this is the citation carried by `sourceText` above. The same article, ust. 2, provides SIX exemption categories from this obligation, reproduced here verbatim because they condition who is even concerned by KSeF: « 2. Obowiązek, o którym mowa w ust. 1, nie dotyczy wystawiania faktur: 1) przez podatnika nieposiadającego siedziby działalności gospodarczej ani stałego miejsca prowadzenia działalności gospodarczej na terytorium kraju; 2) przez podatnika nieposiadającego siedziby działalności gospodarczej na terytorium kraju, który posiada stałe miejsce prowadzenia działalności gospodarczej na terytorium kraju, przy czym to stałe miejsce prowadzenia działalności nie uczestniczy w dostawie towarów lub świadczeniu usług, dla których wystawiono fakturę; 3) przez podatnika korzystającego z procedur szczególnych, o których mowa w dziale XII w rozdziałach 7, 7a i 9, dokumentujących czynności rozliczane w tych procedurach; 4) na rzecz nabywcy towarów lub usług będącego osobą fizyczną nieprowadzącą działalności gospodarczej; 5) w przypadku odpowiednio udokumentowanych dostaw towarów lub świadczenia usług, określonych w przepisach wydanych na podstawie art. 106s; 6) przez podatnika korzystającego ze zwolnienia, o którym mowa w art. 113a ust. 1. » The base date often cited (1 February 2026) is that of art. 23 of the law of 16 June 2023 (Dz.U. 2023 poz. 1598, as amended), printed in the same unified text: « Art. 23. Ustawa wchodzi w życie z dniem 1 lutego 2026 r., z wyjątkiem: 1) art. 3 pkt 1, 3 i pkt 5 [...], które wchodzą w życie z dniem następującym po dniu ogłoszenia; 2) art. 1 pkt 8, 9, 10 i 14 oraz art. 14, które wchodzą w życie z dniem 1 września 2023 r.; 3) art. 1 pkt 4 i 5, art. 4–6, art. 7 pkt 1 i 3, art. 9 i art. 18–21, które wchodzą w życie z dniem 1 stycznia 2024 r.; 4) art. 1 pkt 7 lit. e, pkt 13 lit. b w zakresie art. 106h ust. 2 i 4, pkt 24 w zakresie art. 106ni ust. 1–3 i 5–7 i pkt 30, które wchodzą w życie z dniem 1 sierpnia 2026 r. » BUT two transitional articles — inserted by a MORE RECENT law, that of 5 August 2025 (Dz.U. 2025 poz. 1203, art. 1 pkt 34, published 1 September 2025) — replace an older transitional regime (the same unified text of May 2025 still carried, before this August law, an art. 145l running only until 31 July 2026 and no art. 145m — an OUTDATED version, no longer to be cited) and change the real scope of this date for most taxpayers: « „Art. 145l. W okresie od dnia 1 lutego 2026 r. do dnia 31 marca 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników nie przekroczyła w 2024 r. kwoty 200 000 000 zł. Art. 145m. 1. W okresie od dnia 1 kwietnia 2026 r. do dnia 31 grudnia 2026 r. podatnicy obowiązani do wystawiania faktur ustrukturyzowanych mogą wystawiać faktury elektroniczne lub faktury w postaci papierowej, jeżeli łączna wartość sprzedaży wraz z kwotą podatku u tych podatników udokumentowana tymi fakturami wystawionymi w danym miesiącu jest mniejsza lub równa 10 000 zł. 2. Podatnik, o którym mowa w ust. 1, traci prawo do wystawiania faktur elektronicznych oraz faktur w postaci papierowej począwszy od faktury, którą przekroczono wartość, o której mowa w ust. 1.” » In other words, as of the drafting date (2026-09-13): taxpayers whose 2024 turnover including VAT exceeded 200,000,000 zł are indeed bound from 1 February 2026 (no grace period, art. 145l); ALL OTHER taxpayers subject to the obligation remain free to issue ordinary invoices (electronic or paper) up to and including 31 March 2026 — they are therefore only bound from 1 April 2026; and, independently of this threshold, EVERY taxpayer subject to the obligation keeps, until 31 December 2026, the right to issue ordinary invoices for a given calendar month as long as the total including VAT of sales documented by structured invoices that month stays ≤ 10,000 zł — losing this grace period from the invoice that exceeds this threshold onward (art. 145m ust. 1 and 2). This entry deliberately stays `requirement: 'suggested'` despite provenance now being `legal`: `channel-policy/mandate.ts#activeChannelMandateFor` only knows a SINGLE `mandatedFrom` date, compared against each invoice's own `issueDate` — it knows nothing of the company's 2024 turnover nor of its structured-eligible sales for the current month. Arming this fact with `mandatedFrom: '2026-02-01'` (or even '2026-04-01') WOULD REFUSE invoices that are still perfectly lawful: an electronic or paper invoice issued by an SME under the 200,000,000 zł threshold before 1 April 2026, or by ANY taxpayer for a month where its structured-eligible sales stay ≤ 10,000 zł until 31 December 2026 inclusive, remains LAWFUL today. Refusing a still-lawful invoice would be a PRODUCT FAILURE; leaving this fact `suggested` is only a GAP that the user remains free to avoid by connecting KSeF voluntarily — the former is worse than the latter. A correct implementation would require (1) that the mandate mechanism know the company's 2024 turnover including VAT, to decide between 1 February and 1 April 2026 (art. 145l), and (2) that it know its structured-eligible sales FOR THE CALENDAR MONTH of each invoice, to apply or not the art. 145m allowance until 31 December 2026 — two pieces of data this product neither computes nor stores today (they would need to be derived from the company's own invoice history, or explicitly declared), and a mandate schema that accepts more than a single date (an annual turnover threshold, a rolling monthly cap) to faithfully represent this two-speed timetable plus its residual allowance."
       }
     ]
   },
@@ -815,11 +890,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -843,11 +920,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -871,11 +950,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -899,11 +980,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -949,5 +1032,224 @@
       },
       "notes": "Read at standardyprawa.pl/akt/312. The statute says when statutory interest starts to run if the contract sets no payment date: 30 days after the creditor's own performance; it sets no payment term. The application uses those 30 days as its fallback and counts them from the invoice date, not from performance."
     }
+  },
+  "companyLaw": {
+    "countryCode": "PL",
+    "legalFormLabel": "Forma prawna",
+    "legalForms": [
+      {
+        "code": "PL_SP_ZOO",
+        "name": "Spółka z ograniczoną odpowiedzialnością",
+        "designation": "sp. z o.o."
+      },
+      {
+        "code": "PL_SA",
+        "name": "Spółka akcyjna",
+        "designation": "S.A."
+      },
+      {
+        "code": "PL_SKA",
+        "name": "Spółka komandytowo-akcyjna",
+        "designation": "S.K.A."
+      },
+      {
+        "code": "PL_PSA",
+        "name": "Prosta spółka akcyjna",
+        "designation": "P.S.A."
+      },
+      {
+        "code": "PL_SP_J",
+        "name": "Spółka jawna",
+        "designation": "sp.j.",
+        "notes": "No mention: this research read the business-letter articles of the capital companies (206, 374, 127 § 5, 300^61) and none of them binds a partnership."
+      },
+      {
+        "code": "PL_SP_K",
+        "name": "Spółka komandytowa",
+        "designation": "sp.k.",
+        "notes": "No mention: see the spółka jawna note."
+      },
+      {
+        "code": "PL_SP_P",
+        "name": "Spółka partnerska",
+        "designation": "sp.p.",
+        "notes": "No mention: see the spółka jawna note."
+      },
+      {
+        "code": "PL_JDG",
+        "name": "Jednoosobowa działalność gospodarcza",
+        "designation": "Jednoosobowa działalność gospodarcza",
+        "notes": "No mention: the Kodeks spółek handlowych binds companies, not a sole trader."
+      },
+      {
+        "code": "PL_OTHER",
+        "name": "Inna forma",
+        "designation": "Inna forma",
+        "notes": "No mention is declared for a form this catalog does not list."
+      }
+    ],
+    "fields": [
+      {
+        "key": "registerCourt",
+        "kind": "text",
+        "label": "Sąd rejestrowy (z wydziałem)"
+      },
+      {
+        "key": "krsNumber",
+        "kind": "text",
+        "label": "Numer KRS"
+      },
+      {
+        "key": "shareCapital",
+        "kind": "money",
+        "label": "Kapitał zakładowy"
+      },
+      {
+        "key": "paidUpCapital",
+        "kind": "money",
+        "label": "Kapitał wpłacony"
+      },
+      {
+        "key": "shareholdersCapital",
+        "kind": "money",
+        "label": "Kapitał akcyjny"
+      }
+    ],
+    "mentions": [
+      {
+        "id": "pl-sp-zoo-register",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_SP_ZOO"],
+        "required": true,
+        "template": {
+          "en": "Register court: {registerCourt}, KRS no. {krsNumber}",
+          "fr": "Tribunal d'enregistrement : {registerCourt}, KRS n° {krsNumber}",
+          "it": "Tribunale del registro: {registerCourt}, KRS n. {krsNumber}",
+          "pl": "Sąd rejestrowy: {registerCourt}, KRS {krsNumber}",
+          "de": "Registergericht: {registerCourt}, KRS-Nr. {krsNumber}",
+          "pt": "Tribunal de registo: {registerCourt}, KRS n.º {krsNumber}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 206 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki, powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego, a dla spółki, której umowę zawarto przy wykorzystaniu wzorca umowy, do czasu pokrycia kapitału zakładowego, także informację, że wymagane wkłady na kapitał zakładowy nie zostały wniesione; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 206 § 1, 2). The register is the Krajowy Rejestr Sądowy, hence \"KRS\"; the NIP of 3) is the LEGAL_ID identifier and the seat and address of 1) are the company address printed above. Not modelled: the group of companies of 5) and the unpaid contributions of a company formed from the model agreement. Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      },
+      {
+        "id": "pl-sp-zoo-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_SP_ZOO"],
+        "required": true,
+        "template": {
+          "en": "Share capital {shareCapital}",
+          "fr": "Capital social {shareCapital}",
+          "it": "Capitale sociale {shareCapital}",
+          "pl": "Kapitał zakładowy {shareCapital}",
+          "de": "Stammkapital {shareCapital}",
+          "pt": "Capital social {shareCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 206 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki, powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego, a dla spółki, której umowę zawarto przy wykorzystaniu wzorca umowy, do czasu pokrycia kapitału zakładowego, także informację, że wymagane wkłady na kapitał zakładowy nie zostały wniesione; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 206 § 1, 4). Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      },
+      {
+        "id": "pl-sa-register",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_SA", "PL_SKA"],
+        "required": true,
+        "template": {
+          "en": "Register court: {registerCourt}, KRS no. {krsNumber}",
+          "fr": "Tribunal d'enregistrement : {registerCourt}, KRS n° {krsNumber}",
+          "it": "Tribunale del registro: {registerCourt}, KRS n. {krsNumber}",
+          "pl": "Sąd rejestrowy: {registerCourt}, KRS {krsNumber}",
+          "de": "Registergericht: {registerCourt}, KRS-Nr. {krsNumber}",
+          "pt": "Tribunal de registo: {registerCourt}, KRS n.º {krsNumber}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 374 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego i kapitału wpłaconego; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\" Art. 127 § 5 KSH (spółka komandytowo-akcyjna): \"[...] powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego i kapitału wpłaconego.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 374 § 1, 2) and art. 127 § 5, 2). The register is the Krajowy Rejestr Sądowy, hence \"KRS\"; the NIP of 3) is the LEGAL_ID identifier and the seat and address of 1) are the company address printed above. Not modelled: the group of companies of 5) and the unpaid contributions of a company formed from the model agreement. Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      },
+      {
+        "id": "pl-sa-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_SA", "PL_SKA"],
+        "required": true,
+        "template": {
+          "en": "Share capital {shareCapital}, paid-up capital {paidUpCapital}",
+          "fr": "Capital social {shareCapital}, capital libéré {paidUpCapital}",
+          "it": "Capitale sociale {shareCapital}, capitale versato {paidUpCapital}",
+          "pl": "Kapitał zakładowy {shareCapital}, kapitał wpłacony {paidUpCapital}",
+          "de": "Grundkapital {shareCapital}, eingezahltes Kapital {paidUpCapital}",
+          "pt": "Capital social {shareCapital}, capital realizado {paidUpCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 374 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego i kapitału wpłaconego; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\" Art. 127 § 5 KSH (spółka komandytowo-akcyjna): \"[...] powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki oraz numer pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału zakładowego i kapitału wpłaconego.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 374 § 1, 4) and art. 127 § 5, 4). Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      },
+      {
+        "id": "pl-psa-register",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_PSA"],
+        "required": true,
+        "template": {
+          "en": "Register court: {registerCourt}, KRS no. {krsNumber}",
+          "fr": "Tribunal d'enregistrement : {registerCourt}, KRS n° {krsNumber}",
+          "it": "Tribunale del registro: {registerCourt}, KRS n. {krsNumber}",
+          "pl": "Sąd rejestrowy: {registerCourt}, KRS {krsNumber}",
+          "de": "Registergericht: {registerCourt}, KRS-Nr. {krsNumber}",
+          "pt": "Tribunal de registo: {registerCourt}, KRS n.º {krsNumber}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 300^61 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki, oraz numer, pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału akcyjnego; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 300^61 § 1, 2). The register is the Krajowy Rejestr Sądowy, hence \"KRS\"; the NIP of 3) is the LEGAL_ID identifier and the seat and address of 1) are the company address printed above. Not modelled: the group of companies of 5) and the unpaid contributions of a company formed from the model agreement. Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      },
+      {
+        "id": "pl-psa-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["PL_PSA"],
+        "required": true,
+        "template": {
+          "en": "Share capital (kapitał akcyjny) {shareholdersCapital}",
+          "fr": "Capital actionnarial (kapitał akcyjny) {shareholdersCapital}",
+          "it": "Capitale azionario (kapitał akcyjny) {shareholdersCapital}",
+          "pl": "Kapitał akcyjny {shareholdersCapital}",
+          "de": "Aktienkapital (kapitał akcyjny) {shareholdersCapital}",
+          "pt": "Capital acionista (kapitał akcyjny) {shareholdersCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Art. 300^61 § 1 KSH: \"Pisma i zamówienia handlowe składane przez spółkę w formie papierowej i elektronicznej, a także informacje na stronach internetowych spółki powinny zawierać: 1) firmę spółki, jej siedzibę i adres; 2) oznaczenie sądu rejestrowego, w którym przechowywana jest dokumentacja spółki, oraz numer, pod którym spółka jest wpisana do rejestru; 3) numer identyfikacji podatkowej (NIP); 4) wysokość kapitału akcyjnego; 5) oznaczenie grupy spółek, jeżeli spółka do niej należy.\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 300^61 § 1, 4); § 2 lets a paper document show the capital at the end of the previous financial year instead, which is the amount the company enters. Kodeks spółek handlowych, consolidated text prepared by the Kancelaria Sejmu (t.j. Dz. U. z 2024 r. poz. 18, 96, z 2026 r. poz. 176, 187, 644), https://eli.gov.pl/api/acts/DU/2024/18/text/U/D20240018Lj.pdf."
+      }
+    ],
+    "demo": {
+      "legalFormByNameSuffix": {
+        "Sp. z o.o.": "PL_SP_ZOO"
+      },
+      "values": {
+        "registerCourt": "Sąd Rejonowy dla m.st. Warszawy, XII Wydział Gospodarczy KRS",
+        "krsNumber": "0000123456",
+        "shareCapital": {
+          "amount": "5000",
+          "currency": "PLN"
+        }
+      }
+    },
+    "notes": "Every mention reads the \"pisma i zamówienia handlowe\" articles of the Kodeks spółek handlowych."
   }
 }

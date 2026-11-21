@@ -27,6 +27,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * numbered file in the suite: the switch does not contaminate any other spec.
  */
 import { FRENCH_BUYER_IDENTIFIERS, POLISH_BUYER_IDENTIFIERS } from "../fixtures/identifiers";
+import { companyLawFor } from "../fixtures/company-law";
 
 const api = Cypress.env("apiUrl");
 
@@ -396,9 +397,11 @@ describe("Correct — the screen, browser level", () => {
 					// screen, the creation dialog already opens, the invoice reference is already
 					// resolved (the backend label combines client + issue date — never an empty field)
 					// and `lockedFromReference` already locks the currency, with no manual search at all.
+					// The list page forwards the pre-linked seed to its `/new` route at once, so the
+					// bare list URL is only transient; wait for where the navigation settles.
 					cy.location("pathname", { timeout: 10000 }).should(
 						"eq",
-						"/documents/credit-note",
+						"/documents/credit-note/new",
 					);
 					cy.get('[data-cy="document-create-dialog"]', {
 						timeout: 10000,
@@ -415,7 +418,6 @@ describe("Correct — the screen, browser level", () => {
 						.should("be.disabled")
 						.and("contain.text", "EUR");
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard(); // Details -> Lines
 
 					cy.get(
 						'[data-cy^="document-field-correctedLines-row-"][data-cy$="-checkbox"]',
@@ -423,8 +425,6 @@ describe("Correct — the screen, browser level", () => {
 					)
 						.first()
 						.check({ force: true });
-					cy.continueDocumentWizard(); // Lines -> Options
-					cy.continueDocumentWizard(); // Options -> Recap
 
 					cy.intercept(
 						"POST",
@@ -469,20 +469,18 @@ describe("Correct — the screen, browser level", () => {
 		cy.get(
 			'[data-cy="document-correction-route-INTERNAL_CREDIT_NOTE-button"]',
 		).click();
+		// The list page forwards the pre-linked seed to its `/new` route at once.
 		cy.location("pathname", { timeout: 10000 }).should(
 			"eq",
-			"/documents/credit-note",
+			"/documents/credit-note/new",
 		);
 		// The pre-linked invoice has resolved once it locks the currency.
 		cy.get('[data-cy="document-field-currency-input"] button', { timeout: 10000 }).should("be.disabled");
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
-		cy.continueDocumentWizard();
 	}
 
 	/** Saves the credit note draft from the "Lines" step and reads back its `correctedLines`. */
 	function saveCreditNoteAndReadLines(invoiceId: string, expectedLines: number) {
-		cy.continueDocumentWizard();
-		cy.continueDocumentWizard();
 		cy.intercept(
 			"POST",
 			`${api}/api/documents/types/credit-note/actions/save-draft`,
@@ -955,6 +953,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				name: "Acme Corp",
 				country: "Poland",
 				countryCode: "PL",
+				companyLaw: companyLawFor("PL"),
 				invoiceTransportId: "email",
 			},
 		}).then((res) => {
@@ -1060,9 +1059,10 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				// THE REAL mechanism, pre-linked — never a stub: navigation to the INVOICE screen (never
 				// credit-note: Poland has no separate credit-note instrument, countries/data/pl.json (section "correctionRoutes")'s
 				// own CREDIT_NOTE citation), a fresh create dialog opens.
+				// The list page forwards the pre-linked seed to its `/new` route at once.
 				cy.location("pathname", { timeout: 10000 }).should(
 					"eq",
-					"/documents/invoice",
+					"/documents/invoice/new",
 				);
 				cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should(
 					"be.visible",
@@ -1087,6 +1087,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				}).as("clientAwareDescriptor");
 				cy.get('[data-cy="document-field-client-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-client-input-options"]', {
 					timeout: 10000,
@@ -1107,6 +1108,7 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.pickToday('[data-cy="document-field-dueDate-input"]');
 				cy.get('[data-cy="document-field-currency-input"] button')
 					.first()
+					.scrollIntoView()
 					.click({ force: true });
 				cy.get('[data-cy="document-field-currency-input-options"]', {
 					timeout: 10000,
@@ -1114,7 +1116,6 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				cy.get('[data-cy^="document-field-currency-input-option-eur"]')
 					.first()
 					.click();
-				cy.continueDocumentWizard(); // Details -> Lines
 
 				cy.get('[data-cy="document-field-lines-add-row"]').click();
 				cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
@@ -1150,7 +1151,6 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 				)
 					.first()
 					.click();
-				cy.continueDocumentWizard(); // Lines -> Options
 
 				// Options: correctsInvoiceId (pre-linked, resolved to a label — never a bare id or an
 				// empty picker) and Poland's own correctionReason, REQUIRED (the asterisk this app
@@ -1168,7 +1168,6 @@ describe("Correction routes — Poland's faktura korygująca (the KOR route)", (
 					"Erreur de quantité sur la ligne 1",
 					{ force: true },
 				);
-				cy.continueDocumentWizard(); // Options -> Recap
 
 				cy.intercept(
 					"POST",

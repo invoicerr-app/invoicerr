@@ -1,14 +1,11 @@
 /**
  * Peru — SUNAT taxpayer register, served by apis.net.pe.
- *
- * Endpoint : GET https://api.apis.net.pe/v1/ruc?numero={ruc}
- * Docs     : https://apis.net.pe/api-consulta-ruc
- * Credentials: none — PE_APISNET_TOKEN lifts the anonymous quota when set.
+ * Docs: https://apis.net.pe/api-consulta-ruc (no credentials; PE_APISNET_TOKEN lifts the quota).
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const APISNET_RUC = 'https://api.apis.net.pe/v1/ruc';
 
@@ -31,10 +28,10 @@ export class PeruSunatProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://apis.net.pe/api-consulta-ruc';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

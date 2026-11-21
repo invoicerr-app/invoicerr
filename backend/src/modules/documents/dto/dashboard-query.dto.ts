@@ -1,17 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
 
+import { isValidIsoDay } from '../date-params';
 import { firstValue, RawQueryValue } from './list-documents.dto';
-
-/** `YYYY-MM-DD`, nothing looser - deliberately duplicated from `list-documents.dto.ts`'s own
- *  identical `DATE_PARAM_PATTERN` rather than imported: see that file's own header on why a
- *  duplicated single-purpose constant beats a shared one for two independent endpoints that only
- *  happen to agree on what a calendar-day param looks like. */
-const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseDateParam(name: string, value: RawQueryValue): string | undefined {
   const raw = firstValue(value);
   if (raw === undefined) return undefined;
-  if (!DATE_PARAM_PATTERN.test(raw) || Number.isNaN(new Date(`${raw}T00:00:00.000Z`).getTime())) {
+  if (!isValidIsoDay(raw)) {
     throw new BadRequestException(`"${name}" must be a valid date in YYYY-MM-DD format.`);
   }
   return raw;

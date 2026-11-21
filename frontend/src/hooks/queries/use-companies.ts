@@ -24,3 +24,8 @@ export function useCompanies() {
     refetch: session.refetch,
   }
 }
+
+/** Whether a company role may manage company-wide settings (OWNER or ADMIN). */
+export function isCompanyAdmin(role: CompanyRole | null | undefined): boolean {
+  return role === "OWNER" || role === "ADMIN"
+}

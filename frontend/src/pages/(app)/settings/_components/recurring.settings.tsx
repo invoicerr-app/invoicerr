@@ -16,12 +16,13 @@ import type { DocumentSchedule } from "@/components/documents/types"
 
 import {
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 /** The source document's own human-facing label — via the SAME generic 'reference' resolve endpoint
  *  a `DocumentFieldDescriptor` of kind 'reference' already uses (document reference providers are
@@ -90,10 +91,10 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
       }
       meta={
         <span className="flex flex-wrap gap-x-4">
-          <span className="font-mono tabular-nums" data-cy={`document-schedule-next-run-${schedule.id}`}>
+          <span className="tabular-nums" data-cy={`document-schedule-next-run-${schedule.id}`}>
             {t("documents.schedules.list.nextRunAt", { date: formatDate(schedule.nextRunAt) })}
           </span>
-          <span className="font-mono tabular-nums" data-cy={`document-schedule-last-run-${schedule.id}`}>
+          <span className="tabular-nums" data-cy={`document-schedule-last-run-${schedule.id}`}>
             {t("documents.schedules.list.lastRunAt", { date: formatDate(schedule.lastRunAt) })}
           </span>
         </span>
@@ -141,7 +142,7 @@ function ScheduleRow({ schedule, typeLabel }: ScheduleRowProps) {
  */
 export default function RecurringSettings() {
   const { t } = useTranslation()
-  const { data: schedules, isLoading } = useDocumentSchedules()
+  const { data: schedules, isLoading, isError, refetch } = useDocumentSchedules()
   const { data: types = [] } = useDocumentTypesList()
   const typeLabels = Object.fromEntries(types.map((type) => [type.id, type.label]))
 
@@ -156,6 +157,10 @@ export default function RecurringSettings() {
     >
       {isLoading ? (
         <SettingsListSkeleton rows={2} />
+      ) : !schedules && isError ? (
+        <SettingsSection>
+          <SettingsListError onRetry={() => refetch()} dataCy="document-schedules-load-error" />
+        </SettingsSection>
       ) : !schedules || schedules.length === 0 ? (
         <SettingsSection>
           <EmptyState

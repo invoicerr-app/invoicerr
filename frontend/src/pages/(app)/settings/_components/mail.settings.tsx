@@ -31,7 +31,12 @@ import {
   useTestCompanyMailSettings,
 } from "@/hooks/queries"
 import type { SetCompanyMailSettingsInput } from "@/hooks/queries"
-import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
+import {
+  SettingsFormFooter,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "@/components/settings-section"
 
 /**
  * Same pragmatic check as the backend's own `mail/is-valid-email.ts` — deliberately NOT an exact
@@ -142,35 +147,35 @@ function buildSchema(t: (key: string, fallback: string) => string) {
       if (val.kind === "smtp") {
         if (!val.host.trim()) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["host"],
             message: t("settings.mail.form.validation.hostRequired", "Host is required"),
           })
         }
         if (!val.port) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["port"],
             message: t("settings.mail.form.validation.portRequired", "Port is required"),
           })
         }
         if (!val.username.trim()) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["username"],
             message: t("settings.mail.form.validation.usernameRequired", "Username is required"),
           })
         }
         if (!val.password.trim()) {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             path: ["password"],
             message: t("settings.mail.form.validation.passwordRequired", "Password is required"),
           })
         }
       } else if (!val.apiKey.trim()) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["apiKey"],
           message: t("settings.mail.form.validation.apiKeyRequired", "API key is required"),
         })

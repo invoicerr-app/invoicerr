@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import {
   computeLogPurgeCutoff,
   isLogPurgeEnabled,
@@ -23,6 +25,19 @@ describe('readLogRetentionDays', () => {
     process.env.LOG_RETENTION_DAYS = '30';
     expect(readLogRetentionDays()).toBe(30);
   });
+
+  it('keeps zero and negative values, the "keep everything" escape hatch', () => {
+    process.env.LOG_RETENTION_DAYS = '0';
+    expect(readLogRetentionDays()).toBe(0);
+
+    process.env.LOG_RETENTION_DAYS = '-1';
+    expect(readLogRetentionDays()).toBe(-1);
+  });
+
+  it('reads a non-integer value as NaN, which keeps the sweep disabled', () => {
+    process.env.LOG_RETENTION_DAYS = '1h';
+    expect(readLogRetentionDays()).toBeNaN();
+  });
 });
 
 describe('readLogPurgeSweepIntervalMs', () => {
@@ -41,6 +56,15 @@ describe('readLogPurgeSweepIntervalMs', () => {
   it('reads an override from the environment', () => {
     process.env.LOG_PURGE_SWEEP_INTERVAL_MS = '60000';
     expect(readLogPurgeSweepIntervalMs()).toBe(60000);
+  });
+
+  it('falls back to the default and warns when the value is not a positive integer', () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    process.env.LOG_PURGE_SWEEP_INTERVAL_MS = '1h';
+
+    expect(readLogPurgeSweepIntervalMs()).toBe(3_600_000);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 });
 

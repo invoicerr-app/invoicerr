@@ -25,26 +25,18 @@
  * thought to revoke them). 30 days is the reasonable default when the removed compliance engine's
  * own number doesn't transfer to the new use case.
  */
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { evaluateCountryPolicy } from '../country-policy/country-policy';
-import { isActionAvailable } from '../descriptors/types';
 import { DocumentsService } from '../documents.service';
-import { generateShareLinkToken, hashShareLinkToken } from './share-link-token';
+import { createDocumentShareLink } from './create-share-link';
+import { hashShareLinkToken } from './share-link-token';
 import {
-  createShareLinkToken,
   findOwnedShareLinkToken,
   findShareLinkTokenByHash,
   listShareLinkTokens,
   revokeShareLinkToken,
   ShareLinkTokenRecord,
 } from './share-link.persistence';
-
-const SHARE_LINK_ACTION_ID = 'share-link';
-
-/** 30 days — see this file's own header for why the removed compliance engine's 1-hour TTL was not
- *  reused. */
-const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface CreatedShareLink {
   id: string;
@@ -87,24 +79,9 @@ function toSummary(record: ShareLinkTokenRecord, now: Date): ShareLinkSummary {
   };
 }
 
-function publicPathFor(token: string): string {
-  return `/api/public/documents/${token}/pdf`;
-}
-
 @Injectable()
 export class ShareLinksService {
   constructor(private readonly documentsService: DocumentsService) {}
-
-  /** 404s for an unknown type OR a type that never declared "share-link" at all — same message shape
-   *  `documents.service.ts`'s own private `resolveAction` uses for "download-xml". */
-  private resolveShareLinkAction(typeId: string) {
-    const descriptor = this.documentsService.getType(typeId); // 404s for an unknown typeId.
-    const action = descriptor.actions.find((candidate) => candidate.id === SHARE_LINK_ACTION_ID);
-    if (!action) {
-      throw new NotFoundException(`Document type "${typeId}" has no action "${SHARE_LINK_ACTION_ID}".`);
-    }
-    return action;
-  }
 
   /**
    * Creates a new public link — the ONE write in this class that actually needs the country-policy
@@ -122,36 +99,8 @@ export class ShareLinksService {
    *     action's own four-gate story only ever has two gates with something to say.
    */
   async create(companyId: string, typeId: string, documentId: string): Promise<CreatedShareLink> {
-    const action = this.resolveShareLinkAction(typeId);
-
-    const policyDecision = await evaluateCountryPolicy(companyId, typeId, SHARE_LINK_ACTION_ID);
-    if (!policyDecision.allowed) {
-      throw new ForbiddenException(policyDecision.reason);
-    }
-
-    const instance = await this.documentsService.getDocument(companyId, typeId, documentId);
-
-    if (!isActionAvailable(action, instance.status)) {
-      throw new ConflictException(
-        `Cannot create a public share link for a document with status "${instance.status}" — a draft ` +
-          'has no number and no legal existence yet to hand a stranger a link to.',
-      );
-    }
-    if (
-      policyDecision.restrictedToStatuses &&
-      !policyDecision.restrictedToStatuses.includes(instance.status)
-    ) {
-      throw new ConflictException(
-        `Action "${SHARE_LINK_ACTION_ID}" of document type "${typeId}" is restricted by this company's ` +
-          `country policy to status(es) ${policyDecision.restrictedToStatuses.join(', ')}, not "${instance.status}".`,
-      );
-    }
-
-    const { token, tokenHash } = generateShareLinkToken();
-    const expiresAt = new Date(Date.now() + DEFAULT_TTL_MS);
-    const record = await createShareLinkToken({ companyId, typeId, documentId, tokenHash, expiresAt });
-
-    return { id: record.id, token, path: publicPathFor(token), expiresAt: record.expiresAt };
+    const descriptor = this.documentsService.getType(typeId); // 404s for an unknown typeId.
+    return createDocumentShareLink(companyId, descriptor, documentId);
   }
 
   /** Metadata only — see `ShareLinkTokenRecord`/`ShareLinkSummary`: there is no `token`/`tokenHash`

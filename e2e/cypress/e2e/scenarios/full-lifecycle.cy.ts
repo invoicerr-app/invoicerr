@@ -1,3 +1,4 @@
+import { companyLawFor } from "../../fixtures/company-law";
 import { SCENARIOS, Scenario } from "../../fixtures/scenarios";
 
 /**
@@ -647,7 +648,7 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		cy.request({
 			method: "POST",
 			url: `${api}/api/company/info`,
-			body: { invoiceTransportId: "email" },
+			body: { invoiceTransportId: "email", companyLaw: companyLawFor(s.company.country) },
 			failOnStatusCode: false,
 		}).then((res) => {
 			expect(res.status, "baseline email transport configured").to.be.oneOf([200, 201]);
@@ -673,13 +674,11 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 		} else {
 			cy.get('[name="name"]').clear().type(s.client.name);
 		}
-		cy.continueSteppedDialog("client-dialog");
 
 		cy.selectCountry("client-country-select", s.client.country);
 		cy.get('[name="address"]').clear().type(s.client.address);
 		cy.get('[name="postalCode"]').clear().type(s.client.postalCode);
 		cy.get('[name="city"]').clear().type(s.client.city);
-		cy.continueSteppedDialog("client-dialog");
 
 		// The form must offer EXACTLY what the buyer country's own catalog declares — each declared
 		// scheme present, each undeclared one absent. Asserting both directions is the point: a
@@ -747,10 +746,8 @@ describe(`Full lifecycle — ${scenarioId}`, () => {
 				]);
 			});
 		} else {
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[name="contacts.0.email"]').clear().type(s.client.email);
-			cy.continueSteppedDialog("client-dialog");
 
 			cy.get('[data-cy="client-submit"]').click();
 			cy.get('[data-cy="client-dialog"]').should("not.exist");

@@ -1,3 +1,5 @@
+import { formatOtp } from "@/lib/format"
+import { isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, Lock, RotateCcw, Trash2 } from "lucide-react"
 import type React from "react"
 import { useMemo, useState } from "react"
@@ -21,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { afterCompanyGone } from "@/lib/after-company-gone"
 import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
-import { SettingsPage, SettingsSection } from "./settings-section"
+import { SettingsPage, SettingsSection } from "@/components/settings-section"
 import InstanceResetSection from "./instance-reset.section"
 import TransferCompanySection from "./transfer-company.section"
 
@@ -36,6 +38,7 @@ interface CompanyDataResetPreflight {
   blocked: boolean
   retainedDocuments: number
   retentionUntil: string | null
+  paymentRecords: number
   counts: {
     documents: number
     clients: number
@@ -45,15 +48,6 @@ interface CompanyDataResetPreflight {
     bankStatements: number
     archives: number
   }
-}
-
-/** The confirm step's own OTP failures stay deliberately generic no matter the cause (wrong code,
- *  expired, or already locked — the backend folds all three into the same message on purpose, so a
- *  caller here can never narrow down a guess). The ONE outcome the backend does surface distinctly is
- *  the permanent lockout on the REQUEST step itself (five failed confirmations, for good) — matched on
- *  the response text since that refusal carries no separate error code, only this one stable phrase. */
-function isOtpLockedError(error: unknown): boolean {
-  return error instanceof Error && /locked/i.test(error.message)
 }
 
 export default function DangerZoneSettings() {
@@ -169,17 +163,11 @@ export default function DangerZoneSettings() {
       })
   }
 
-  const formatOtp = (value: string) => {
-    const cleaned = value.replace(/\D/g, "").slice(0, 8)
-    if (cleaned.length <= 4) return cleaned
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
-  }
-
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOtp(formatOtp(e.target.value))
   }
 
-  const canConfirm = otp.length === 9 && confirmText === confirmKeyword
+  const canConfirm = isOtpComplete(otp) && confirmText === confirmKeyword
   const resetBlocked = preflight?.blocked ?? false
   const retentionDate = preflight?.retentionUntil
     ? new Date(preflight.retentionUntil).toLocaleDateString()
@@ -235,7 +223,18 @@ export default function DangerZoneSettings() {
                 })}
               </p>
             )}
-            {resetBlocked && (
+            {resetBlocked && !preflight?.retainedDocuments && (
+              <Alert variant="destructive" data-cy="danger-payment-ledger-blocked-alert">
+                <Lock aria-hidden="true" />
+                <AlertTitle>{t("settings.dangerZone.resetCompanyData.paymentLedgerBlockedTitle")}</AlertTitle>
+                <AlertDescription>
+                  {t("settings.dangerZone.resetCompanyData.paymentLedgerBlockedDescription", {
+                    count: preflight?.paymentRecords ?? 0,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
+            {resetBlocked && !!preflight?.retainedDocuments && (
               <Alert variant="destructive" data-cy="danger-retention-blocked-alert">
                 <Lock aria-hidden="true" />
                 <AlertTitle>{t("settings.dangerZone.resetCompanyData.retentionBlockedTitle")}</AlertTitle>
@@ -315,7 +314,7 @@ export default function DangerZoneSettings() {
                 onChange={handleOtpChange}
                 placeholder={t("settings.dangerZone.modal.otpPlaceholder")}
                 className="text-center text-lg font-mono tracking-wider"
-                maxLength={9}
+                maxLength={OTP_DISPLAY_LENGTH}
                 data-cy="danger-otp-input"
               />
             </div>

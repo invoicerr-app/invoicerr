@@ -54,10 +54,3 @@ export function resolveCancelPolicyForCountry(countryCode: string | undefined | 
     ? { allowed: true, restrictedToStatuses: route.restrictedToStatuses }
     : { allowed: true };
 }
-
-/** Every seller country whose data founds a local cancel. */
-export function countriesWithLocalCancel(): string[] {
-  return defaultCorrectionRoutesCatalog
-    .countries()
-    .filter((countryCode) => findCancelAndReplaceRoute(countryCode)?.locallyImplementable === true);
-}

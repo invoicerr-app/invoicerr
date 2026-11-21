@@ -1,11 +1,8 @@
 import { z } from 'zod';
 
-import {
-  canWriteDocumentType,
-  DOCUMENT_WRITE_SCOPES,
-  hasAnyScope,
-  scopeForDocumentType,
-} from './scope-mapping';
+import { hasAnyScope } from '@/utils/scope-check';
+
+import { canWriteDocumentType, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {
@@ -15,10 +12,13 @@ const inputSchema = {
     .describe('A DECLARED action id from that type\'s descriptor, e.g. "save-draft" or "send"'),
   documentId: z.string().optional().describe('Omit to create a new document instance of this type'),
   data: z
-    .record(z.unknown())
+    .record(z.string(), z.unknown())
     .optional()
     .describe("The document's own field values (see the type's descriptor)"),
-  params: z.record(z.unknown()).optional().describe("The action's own parameters, if it declares any"),
+  params: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("The action's own parameters, if it declares any"),
 };
 
 /**
@@ -54,7 +54,7 @@ export const runDocumentActionTool: ToolDescriptor<typeof inputSchema> = {
     '"delete" is destructive and irreversible: it permanently removes a draft that has never been ' +
     'numbered, with no confirmation step.',
   annotations: { destructiveHint: true },
-  isRegistered: (scopes) => hasAnyScope(DOCUMENT_WRITE_SCOPES, scopes),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, DOCUMENT_WRITE_SCOPES),
   inputSchema,
   handler: async (ctx, input) => {
     if (!canWriteDocumentType(ctx.scopes, input.typeId)) {

@@ -12,6 +12,8 @@
  * `city` is filled from the first of city/town/village/county that Photon returned - OSM tags a
  * settlement differently depending on its size, and this app's forms have exactly one "city" field.
  */
+import { INVOICERR_USER_AGENT } from '@/utils/user-agent';
+
 export class PhotonClientError extends Error {
   constructor(message: string) {
     super(message);
@@ -24,7 +26,7 @@ export const DEFAULT_TIMEOUT_MS = 5000;
 /** Identifies this instance to the geocoder - matters most for the shared photon.komoot.io demo
  *  server, whose fair-use policy is the whole reason this feature defaults to off (see
  *  `address-autocomplete.service.ts`'s own header). */
-export const USER_AGENT = 'invoicerr/1.0 (+https://github.com/Impre-visible/invoicerr)';
+export const USER_AGENT = INVOICERR_USER_AGENT;
 
 interface PhotonProperties {
   name?: string;

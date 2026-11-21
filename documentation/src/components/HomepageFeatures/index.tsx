@@ -44,7 +44,7 @@ const FeatureList: FeatureItem[] = [
         Built-in signing workflow with secure tokens, so clients can review and sign quotes without an account.
       </Translate>
     ),
-    to: '/docs/developer-guide/architecture',
+    to: '/docs/user-guide/client-portal',
   },
   {
     title: (

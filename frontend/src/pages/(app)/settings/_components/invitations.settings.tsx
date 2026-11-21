@@ -1,3 +1,4 @@
+import { formatShortDate } from "@/lib/format"
 import { CopyIcon, PlusIcon, RefreshCwIcon, TicketIcon, TrashIcon } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -17,12 +18,13 @@ import {
   SettingsFormFooter,
   SettingsIconDisc,
   SettingsList,
+  SettingsListError,
   SettingsListRow,
   SettingsListSkeleton,
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
+} from "@/components/settings-section"
 
 type InvitationCode = {
   id: string
@@ -44,18 +46,20 @@ export default function InvitationsSettings() {
   const [expiresInDays, setExpiresInDays] = useState<number | "">("")
   const [role, setRole] = useState<CompanyRole>("MEMBER")
 
-  const { data: invitations, loading, mutate } = useGet<InvitationCode[]>("/api/invitations")
+  const { data: invitations, loading, error, mutate } = useGet<InvitationCode[]>("/api/invitations")
   const { trigger: createInvitationApi, loading: creating } = usePost<InvitationCode>("/api/invitations")
+  // The plaintext code leaves the API exactly once, in the create response. Keeping it here is the
+  // only place a human can still read it: the list below is fed by rows that hold a digest.
+  const [createdCode, setCreatedCode] = useState<string | null>(null)
 
   const createInvitation = async () => {
     const result = await createInvitationApi({ expiresInDays: expiresInDays || undefined, role })
     if (result) {
+      setCreatedCode(result.code)
       toast.success(t("settings.invitations.messages.createSuccess"))
       setExpiresInDays("")
       mutate()
 
-      // Copy code to clipboard — the code stays readable in the list below either way (see
-      // `copyCode`), so a rejected/unsupported copy only downgrades the toast, never the outcome.
       if (await copyToClipboard(result.code)) {
         toast.info(t("settings.invitations.messages.codeCopied"))
       } else {
@@ -90,14 +94,6 @@ export default function InvitationsSettings() {
     } else {
       toast.error(t("settings.invitations.messages.copyFailed"))
     }
-  }
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
   }
 
   const getStatus = (invitation: InvitationCode) => {
@@ -152,6 +148,36 @@ export default function InvitationsSettings() {
         </div>
       </SettingsSection>
 
+      {createdCode && (
+        <SettingsSection
+          tone="warning"
+          title={t("settings.invitations.create.createdCode")}
+          dataCy="invitation-created-code-panel"
+        >
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-muted p-2">
+              <code className="min-w-0 flex-1 break-all font-mono text-sm" data-cy="invitation-created-code">
+                {createdCode}
+              </code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("settings.common.copy")}
+                tooltip={t("settings.common.copy")}
+                onClick={() => copyCode(createdCode)}
+                data-cy="invitation-created-code-copy"
+              >
+                <CopyIcon />
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {t("settings.invitations.create.createdCodeHint")}
+            </p>
+          </div>
+        </SettingsSection>
+      )}
+
       <SettingsSection
         title={t("settings.invitations.list.title")}
         description={t("settings.invitations.list.description")}
@@ -172,6 +198,8 @@ export default function InvitationsSettings() {
       >
         {loading ? (
           <SettingsListSkeleton rows={3} />
+        ) : !invitations && error ? (
+          <SettingsListError onRetry={mutate} dataCy="invitations-load-error" />
         ) : !invitations || invitations.length === 0 ? (
           <EmptyState
             icon={TicketIcon}
@@ -198,12 +226,12 @@ export default function InvitationsSettings() {
                   meta={
                     <>
                       {t("settings.invitations.list.createdAt")}:{" "}
-                      <span className="font-mono tabular-nums">{formatDate(invitation.createdAt)}</span>
+                      <span className="tabular-nums">{formatShortDate(invitation.createdAt)}</span>
                       {" · "}
                       {t("settings.invitations.list.expiresAt")}:{" "}
-                      <span className="font-mono tabular-nums">
+                      <span className="tabular-nums">
                         {invitation.expiresAt
-                          ? formatDate(invitation.expiresAt)
+                          ? formatShortDate(invitation.expiresAt)
                           : t("settings.invitations.list.noExpiry")}
                       </span>
                       {invitation.usedBy && (
@@ -214,19 +242,6 @@ export default function InvitationsSettings() {
                         </>
                       )}
                     </>
-                  }
-                  primary={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label={t("settings.common.copy")}
-                      tooltip={t("settings.common.copy")}
-                      onClick={() => copyCode(invitation.code)}
-                      data-cy={`invitation-copy-${invitation.id}`}
-                    >
-                      <CopyIcon />
-                    </Button>
                   }
                   menu={
                     !invitation.usedAt ? (

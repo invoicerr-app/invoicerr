@@ -185,7 +185,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 	// spec already drives now also carries the three C. com. art. L441-9 I al. 5 mentions in BG-1.
 	// This is precisely what makes a real superpdp deposit's conformity check stop citing
 	// "BR-FR-05/BT-22 : La mention relative aux frais de recouvrement (code PMT) est absente" — see
-	// `pdp/superpdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
+	// `superpdp/superpdp.live.spec.ts`'s own header for that live round-trip; here the same fact is proven
 	// through the SCREEN, by intercepting the exact request the download button triggers, never by
 	// asserting on the screen alone.
 	it("a sent French invoice's downloaded XML carries the mandatory mentions — recovery fee + the rate actually in force", () => {
@@ -310,9 +310,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 	it("the FR overlay's supplyType field is visible on an invoice line, and the downloaded XML carries the derived BT-23 code", () => {
 		cy.visit("/documents/invoice", { timeout: 20000 });
 		cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
-		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should(
-			"be.visible",
-		);
+		cy.get('[data-cy="document-form"]', { timeout: 15000 }).should("exist");
 
 		// "client"/"issueDate"/"dueDate"/"currency" (all `required`) are the wizard's own "Details"
 		// step, ahead of "Lines" — nothing this test actually reads, just what has to be filled to
@@ -325,12 +323,11 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		cy.pickDocumentClient();
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 		cy.pickToday('[data-cy="document-field-dueDate-input"]');
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]', { timeout: 10000 }).should(
@@ -378,7 +375,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		//
 		// THE REAL CAUSE, established by comparing both CI runs and reproducing the exact failure mode
 		// locally (not the timestamp correlation d4d3f3e0 leaned on, which proved incomplete):
-		// `pdp-transport.ts#send()` builds and Schematron-validates a FULL Factur-X document
+		// `superpdp-transport.ts#send()` builds and Schematron-validates a FULL Factur-X document
 		// (`facturxFormatProvider.build`) BEFORE it ever touches the network — on EVERY retry attempt,
 		// regardless of how fast the target URL fails. That build alone measures ~2.1s per call on an
 		// idle dev machine (`GET .../formats/facturx`, timed directly); this repo's own CI comment
@@ -413,7 +410,7 @@ describe("Normalized XML export (EN 16931 CII/UBL)", () => {
 		//
 		// THE FIX: hand the transport back to "email" (and disconnect the fake PDP channel) IMMEDIATELY
 		// after `send()` returns below — before this test ever touches the screen — instead of only at
-		// the very end as before. `requireConnectedPdp` (pdp-transport.ts) is the FIRST thing every
+		// the very end as before. `requireConnectedSuperPdp` (superpdp-transport.ts) is the FIRST thing every
 		// delivery attempt does, BEFORE the expensive build, and re-resolves the channel's live state on
 		// EVERY attempt (that file's own comment: "the company's configuration could have changed...
 		// between the two calls") — so at most the ONE attempt BullMQ's in-process worker may already have

@@ -1,4 +1,5 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { companyLawFor } from "../fixtures/company-law";
 
 /**
  * Issue #497 - a Portuguese credit note carries its own ATCUD.
@@ -35,6 +36,7 @@ function switchSellerToPortugal() {
 			name: "Acme Corp",
 			country: "Portugal",
 			countryCode: "PT",
+			companyLaw: companyLawFor("PT"),
 			invoiceTransportId: "email",
 			identifiers: [
 				{ scheme: "LEGAL_ID", value: "509442661" },

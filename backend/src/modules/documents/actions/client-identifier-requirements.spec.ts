@@ -40,8 +40,14 @@ const EXPECTED: Record<string, { form: Asked; issuance: Asked }> = {
     issuance: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] },
   },
   // The codice fiscale is a personal tax code, owed on the invoice of an Italian private buyer.
-  IT: { form: { COMPANY: [], INDIVIDUAL: [] }, issuance: { COMPANY: ['VAT'], INDIVIDUAL: ['LEGAL_ID'] } },
-  PL: { form: { COMPANY: [], INDIVIDUAL: [] }, issuance: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] } },
+  IT: {
+    form: { COMPANY: ['VAT'], INDIVIDUAL: ['LEGAL_ID'] },
+    issuance: { COMPANY: ['VAT'], INDIVIDUAL: ['LEGAL_ID'] },
+  },
+  PL: {
+    form: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] },
+    issuance: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] },
+  },
   PT: {
     form: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] },
     issuance: { COMPANY: ['LEGAL_ID'], INDIVIDUAL: [] },
@@ -123,25 +129,25 @@ describe('a client is asked only for the identifiers its country requires of its
     expect(COUNTRIES).toEqual(defaultCountryIdentifierRequirementsCatalog.countries());
   });
 
-  it.each(CASES)('$countryCode $type client: the form requires only what the country asks', async ({
-    countryCode,
-    type,
-  }) => {
-    const { requirements } = await resolveRequiredIdentifiers(countryCode, type);
+  it.each(CASES)(
+    '$countryCode $type client: the form requires only what the country asks',
+    async ({ countryCode, type }) => {
+      const { requirements } = await resolveRequiredIdentifiers(countryCode, type);
 
-    const required = requirements.filter((requirement) => requirement.required).map((r) => r.scheme);
+      const required = requirements.filter((requirement) => requirement.required).map((r) => r.scheme);
 
-    expect(required.toSorted()).toEqual(EXPECTED[countryCode].form[type].toSorted());
-  });
+      expect(required.toSorted()).toEqual(EXPECTED[countryCode].form[type].toSorted());
+    },
+  );
 
-  it.each(CASES)('$countryCode $type client: issuance asks only for what the invoice must carry', async ({
-    countryCode,
-    type,
-  }) => {
-    const { companyId, clientId } = await domesticSellerAndClient(countryCode, type);
+  it.each(CASES)(
+    '$countryCode $type client: issuance asks only for what the invoice must carry',
+    async ({ countryCode, type }) => {
+      const { companyId, clientId } = await domesticSellerAndClient(countryCode, type);
 
-    const asked = await clientIdentifiersAskedAtIssuance(companyId, clientId);
+      const asked = await clientIdentifiersAskedAtIssuance(companyId, clientId);
 
-    expect(asked).toEqual(EXPECTED[countryCode].issuance[type]);
-  });
+      expect(asked).toEqual(EXPECTED[countryCode].issuance[type]);
+    },
+  );
 });

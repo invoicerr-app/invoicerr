@@ -2,16 +2,12 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import {
-  countDocuments,
-  dateValueInRange,
-  dayMs,
-  listAllDocuments,
-  listRecentDocuments,
-} from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { acceptedOptionTotals, deriveQuoteOptions } from '../options/quote-options';
 import { fromMinor } from '@/utils/financial';
+import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import { MetricWidget, MetricWidgetLink, ShortListWidget, TableWidget, Widget } from './widgets';
 
@@ -241,7 +237,12 @@ export const buildQuoteStatisticsWidgets: ContributionHandler = async ({ company
     // exactly like a complete one, so the widget says which it is.
     warnings:
       quoteCount > rows.length
-        ? [`Showing the ${rows.length} most recently updated quotes of ${quoteCount}.`]
+        ? [
+            serverMessage('documents.messages.widgets.quotesCapped', {
+              shown: rows.length,
+              total: quoteCount,
+            }),
+          ]
         : undefined,
     columns: [
       { key: 'issueDate', label: 'Issue date' },

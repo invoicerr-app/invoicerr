@@ -34,7 +34,7 @@ function HomepageHeader() {
         </Heading>
         <p className={styles.tagline}>
           <Translate id="homepage.tagline">
-            Open-source invoicing for freelancers
+            Open-source invoicing and e-invoicing for freelancers, small businesses and their accountants.
           </Translate>
         </p>
         <div className={styles.buttons}>
@@ -62,7 +62,7 @@ export default function Home(): ReactNode {
       description={translate({
         id: 'homepage.meta.description',
         message:
-          'Documentation for Invoicerr, the open-source invoicing platform for freelancers.',
+          'Documentation for Invoicerr. Open-source invoicing and e-invoicing for freelancers, small businesses and their accountants.',
       })}>
       <HomepageHeader />
       <main>

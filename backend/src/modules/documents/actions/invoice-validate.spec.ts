@@ -27,6 +27,7 @@ import {
 import * as atcudIssuance from './atcud-issuance';
 import * as vatCurrencyIssuance from '../vat-currency/vat-currency-issuance';
 import * as applyStockOnIssuance from '../stock/apply-stock-on-issuance';
+import * as onDocumentEvent from '../reporting/on-document-event';
 
 vi.mock('../persistence');
 vi.mock('../transports/company-transport');
@@ -50,6 +51,29 @@ describe('invoice "validate" (issue #581)', () => {
     vi.spyOn(atcudIssuance, 'attachAtcudToNumberedDocument').mockResolvedValue(undefined);
     vi.spyOn(vatCurrencyIssuance, 'attachVatNationalCurrencyToNumberedDocument').mockResolvedValue(undefined);
     vi.spyOn(applyStockOnIssuance, 'applyStockOnIssuance').mockResolvedValue(undefined);
+    vi.spyOn(onDocumentEvent, 'reportOnDocumentEvent').mockResolvedValue(undefined);
+  });
+
+  // Issue #768: an invoice validated and never sent is issued all the same, so the declarations its
+  // issuance makes due (Portugal's AT communication) are enqueued here, not only on send.
+  it('fires the "issued" declaration hook once the invoice is numbered without being sent', async () => {
+    mockCompany({ countryCode: 'PT', mandate: undefined, document: draftDocument() });
+    // A Portuguese company goes through the ATCUD preflight before numbering; its own rules are
+    // `atcud-issuance.spec.ts`'s concern, and this spec mocks the country catalog wholesale.
+    vi.spyOn(atcudIssuance, 'runAtcudPreflight').mockResolvedValue(undefined);
+    mockAtomicNumbering(validatedDocument());
+
+    await runInvoiceAction('validate', documentData, { currentStatus: 'draft' }, new TransportRegistry());
+
+    expect(onDocumentEvent.reportOnDocumentEvent).toHaveBeenCalledTimes(1);
+    expect(onDocumentEvent.reportOnDocumentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'issued',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+      }),
+    );
   });
 
   it('a NON-MANDATED country (DE): numbers and locks to "validated" directly - never touches a transport', async () => {

@@ -1,5 +1,6 @@
+import { LOG_PERSIST_FAILURE_THRESHOLD, logPersistenceHealth } from '@/logger/log-persistence-health';
 import { readBackendPackageJsonVersion } from '@/lib/app-version';
-import { createIoredisClient } from '@/modules/documents/queue/redis.config';
+import { createLibRedisClient } from '@/lib/redis-connection';
 import prisma from '@/prisma/prisma.service';
 
 import { HEALTH_CHECK_TIMEOUT_MS, HEALTH_PROBE_REUSE_MS, HealthService } from './health.service';
@@ -9,8 +10,8 @@ vi.mock('@/prisma/prisma.service', () => ({
   default: { $queryRaw: vi.fn() },
 }));
 
-vi.mock('@/modules/documents/queue/redis.config', () => ({
-  createIoredisClient: vi.fn(),
+vi.mock('@/lib/redis-connection', () => ({
+  createLibRedisClient: vi.fn(),
 }));
 
 const fakeRedis = {
@@ -28,10 +29,11 @@ describe('HealthService', () => {
   let service: HealthService;
 
   beforeEach(() => {
-    vi.mocked(createIoredisClient).mockReturnValue(fakeRedis as never);
+    vi.mocked(createLibRedisClient).mockReturnValue(fakeRedis as never);
     fakeRedis.status = 'ready';
     fakeRedis.ping.mockResolvedValue('PONG');
     vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as never);
+    logPersistenceHealth.reset();
     service = new HealthService();
   });
 
@@ -61,6 +63,12 @@ describe('HealthService', () => {
         version: 'v2.0.0-alpha.4',
         time: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
         uptimeSeconds: expect.any(Number),
+        logPersistence: {
+          status: 'ok',
+          failures: 0,
+          consecutiveFailures: 0,
+          lastFailureAt: null,
+        },
       },
     });
   });
@@ -69,6 +77,21 @@ describe('HealthService', () => {
     const result = await service.check();
 
     expect(result.healthy && JSON.stringify(result.report)).toMatch(/^\{"status":"ok","database":"up",/);
+  });
+
+  it('stays healthy but reports "degraded" once log writes keep failing', async () => {
+    for (let i = 0; i < LOG_PERSIST_FAILURE_THRESHOLD; i++) logPersistenceHealth.recordFailure();
+
+    const result = await service.check();
+
+    expect(result.healthy).toBe(true);
+    expect(result.healthy && result.report.status).toBe('degraded');
+    expect(result.healthy && result.report.logPersistence).toEqual({
+      status: 'degraded',
+      failures: LOG_PERSIST_FAILURE_THRESHOLD,
+      consecutiveFailures: LOG_PERSIST_FAILURE_THRESHOLD,
+      lastFailureAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+    });
   });
 
   it('falls back to the package.json version when no build version is set', async () => {
@@ -132,7 +155,7 @@ describe('HealthService', () => {
     await vi.advanceTimersByTimeAsync(HEALTH_PROBE_REUSE_MS);
     await service.check();
 
-    expect(createIoredisClient).toHaveBeenCalledTimes(1);
+    expect(createLibRedisClient).toHaveBeenCalledTimes(1);
     expect(fakeRedis.connect).toHaveBeenCalledTimes(1);
     expect(fakeRedis.ping).toHaveBeenCalledTimes(2);
   });

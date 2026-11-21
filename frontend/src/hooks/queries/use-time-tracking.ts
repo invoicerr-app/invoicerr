@@ -28,7 +28,7 @@ export interface CreateProjectVariables {
 
 export function useCreateProject() {
   return useApiMutation<CreateProjectVariables, Project>("POST", "/api/projects", {
-    invalidateKeys: [["projects", "list"]],
+    invalidateKeys: [queryKeys.projects.listsAll()],
   })
 }
 
@@ -42,7 +42,7 @@ export interface EditProjectVariables {
 
 export function useUpdateProject() {
   return useApiMutation<EditProjectVariables, Project>("PATCH", (vars) => `/api/projects/${vars.id}`, {
-    invalidateKeys: [["projects", "list"]],
+    invalidateKeys: [queryKeys.projects.listsAll()],
   })
 }
 
@@ -76,7 +76,7 @@ export interface CreateTimeEntryVariables {
 
 export function useCreateTimeEntry() {
   return useApiMutation<CreateTimeEntryVariables, TimeEntry>("POST", "/api/time-entries", {
-    invalidateKeys: [["timeEntries", "list"]],
+    invalidateKeys: [queryKeys.timeEntries.listsAll()],
   })
 }
 
@@ -93,13 +93,13 @@ export function useUpdateTimeEntry() {
   return useApiMutation<EditTimeEntryVariables, TimeEntry>(
     "PATCH",
     (vars) => `/api/time-entries/${vars.id}`,
-    { invalidateKeys: [["timeEntries", "list"]] },
+    { invalidateKeys: [queryKeys.timeEntries.listsAll()] },
   )
 }
 
 export function useDeleteTimeEntry() {
   return useApiMutation<{ id: string }, { id: string }>("DELETE", (vars) => `/api/time-entries/${vars.id}`, {
-    invalidateKeys: [["timeEntries", "list"]],
+    invalidateKeys: [queryKeys.timeEntries.listsAll()],
   })
 }
 
@@ -120,6 +120,6 @@ export function useGenerateInvoiceFromTimeEntries() {
   return useApiMutation<GenerateInvoiceVariables, GenerateInvoiceFromTimeEntriesResult>(
     "POST",
     "/api/time-entries/generate-invoice",
-    { invalidateKeys: [["timeEntries", "list"], ["documents"]] },
+    { invalidateKeys: [queryKeys.timeEntries.listsAll(), ["documents"]] },
   )
 }

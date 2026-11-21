@@ -132,7 +132,7 @@ interface FormSectionProps {
 /**
  * A titled group of fields inside a `FormDialog` body — sections stack with a divider between them,
  * so a long form reads as "Identity / Contact / Address" rather than one undifferentiated column.
- * The title is a small uppercase label, deliberately quieter than the dialog's own title.
+ * The title is a short semibold label, deliberately quieter than the dialog's own title.
  */
 export function FormSection({
   title,
@@ -147,7 +147,7 @@ export function FormSection({
       className={cn("border-t py-5 first:border-t-0 first:pt-0 last:pb-0", className)}
       data-cy={dataCy}
     >
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {description && <p className="mt-1 text-sm text-muted-foreground text-pretty">{description}</p>}
       <div className={cn("mt-3 grid gap-4", columns === "pair" && "sm:grid-cols-2")}>{children}</div>
     </section>

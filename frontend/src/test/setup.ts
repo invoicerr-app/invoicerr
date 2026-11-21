@@ -8,6 +8,7 @@ import "@testing-library/jest-dom/vitest"
 // that dropped `{{years}}` on the floor would still look green. Importing the app's own instance
 // costs one module load and means a component rendering a number is actually rendering it.
 import "@/lib/i18n"
+import "@/lib/zod-messages"
 import { configure } from "@testing-library/dom"
 import i18n from "i18next"
 

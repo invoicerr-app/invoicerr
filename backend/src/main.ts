@@ -1,11 +1,14 @@
+import { Logger } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
 
 import { syncDatabaseSchema } from './prisma/sync-schema';
 import { assertSecretsConfiguredForBoot } from './lib/secret-guard';
-import { assertPolarEnvConfiguredForBoot } from './modules/billing/polar-env';
+import { assertStripeEnvConfiguredForBoot } from './modules/billing/stripe-env';
 import { createSwaggerBasicAuthMiddleware } from './lib/swagger-basic-auth';
 import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
+import { insecureAppUrlWarning } from './lib/app-url-scheme';
+import { redactLogValue } from './logger/redaction';
 
 async function bootstrap() {
   // Refuse to boot on a known-placeholder or empty auth secret: docker-compose.yml's example
@@ -15,22 +18,19 @@ async function bootstrap() {
   // needed). Must run before anything else touches `lib/auth.ts` — see secret-guard.ts's own header
   // for why this is gated to production only.
   assertSecretsConfiguredForBoot();
-  // Hosted billing (product decision 2026-09-15): refuse to boot with
-  // `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real Polar credentials — a no-op when the
-  // flag is unset, see that function's own header for why the gate lives inside it rather than here.
-  // `billing/polar-client.ts`'s own `getPolarClient()` (checkout, portal, seat-sync, the webhook
-  // receiver's dispatch path) never validates `POLAR_ACCESS_TOKEN` eagerly either — it only reads
-  // `process.env` the first time something actually calls it, LAZILY, inside that request's own
-  // handler — so without this explicit call the process would boot "successfully" and only fail,
-  // opaquely, on the FIRST real checkout/webhook request. This turns that into a clean, named,
-  // immediate refusal instead — before `app.listen()` ever runs.
-  assertPolarEnvConfiguredForBoot();
+  // Hosted billing: refuse to boot with `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` set but no real
+  // Stripe credentials, a no-op when the flag is unset. Without this explicit call the process would
+  // boot "successfully" and only fail, opaquely, on the first real checkout or webhook request.
+  assertStripeEnvConfiguredForBoot();
+
+  const appUrlWarning = insecureAppUrlWarning(process.env.APP_URL);
+  if (appUrlWarning) new Logger('Bootstrap').warn(appUrlWarning);
 
   if (process.env.NODE_ENV === 'production') {
     try {
       await syncDatabaseSchema();
     } catch (err) {
-      console.error('[bootstrap] database sync failed, aborting startup:', err);
+      console.error('[bootstrap] database sync failed, aborting startup:', redactLogValue(err));
       process.exit(1);
     }
   }
@@ -69,6 +69,6 @@ async function bootstrap() {
 // ever imports it from here: `./create-app` carries the function alone, with no such side effect. See
 // that file's own header for the incident that made this distinction matter.
 bootstrap().catch((err) => {
-  console.error('Error during backend bootstrap:', err);
+  console.error('Error during backend bootstrap:', redactLogValue(err));
   process.exit(1);
 });

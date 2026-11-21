@@ -55,7 +55,7 @@ describe('performSaveDraft — company custom fields persist verbatim; validatio
     expect(result.changed).toBe(true);
 
     const row = await prisma.documentInstance.findUnique({ where: { id: result.document.id } });
-    expect((row?.data as Record<string, unknown>)['custom:cost_center']).toBeUndefined();
+    expect((row!.data as Record<string, unknown>)['custom:cost_center']).toBeUndefined();
   });
 
   it('persists a prefixed custom field value verbatim when the caller supplies one', async () => {
@@ -65,7 +65,7 @@ describe('performSaveDraft — company custom fields persist verbatim; validatio
     });
 
     const row = await prisma.documentInstance.findUnique({ where: { id: result.document.id } });
-    expect((row?.data as Record<string, unknown>)['custom:cost_center']).toBe('CC-007');
+    expect((row!.data as Record<string, unknown>)['custom:cost_center']).toBe('CC-007');
   });
 
   it('a document type this company defined NO custom field for is entirely unaffected', async () => {

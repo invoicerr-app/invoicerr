@@ -1,16 +1,10 @@
 /**
- * Company ownership transfer (product decision 2026-09-17) — an OWNER hands the OWNER role to another
- * user's account; the recipient must explicitly accept before anything changes. See this module's
- * `transfer.module.ts` header for the full shape (controllers, sweep, mail).
+ * Company ownership transfer: an OWNER hands the role to another account, and nothing changes until
+ * the recipient accepts.
  *
- * ## Anti-enumeration, by construction
- * `initiateTransfer` returns the SAME `{ message }` whether or not `toEmail` resolves to an existing
- * account, and — this is the part a response shape alone can't fake — creates NO row at all when it
- * doesn't. The two branches still diverge in local work after that (one extra company lookup and one
- * row insert on the "exists" branch) — negligible against a local Postgres — but the one difference
- * that would actually be WORTH timing (a real network round-trip to the mail provider, only ever on
- * the "exists" branch) is closed by never awaiting that send before responding — see the `void
- * this.mailService.sendForCompany(...)` below.
+ * Anti-enumeration: the response is identical whether or not the email resolves to an account, and no
+ * row is created when it does not. The mail send is never awaited, so timing cannot tell the two
+ * branches apart either.
  */
 import {
   BadRequestException,
@@ -30,7 +24,6 @@ import {
 } from '@/mail/system-email-templates';
 import { isBillingEnabled } from '@/modules/billing/billing-flag';
 import { getOrCreateCompanySubscription } from '@/modules/billing/company-subscription.store';
-import { syncCompanyMemberOnMembershipChange } from '@/modules/billing/member-sync';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '@/modules/billing/seat-sync';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
@@ -40,6 +33,7 @@ import { CurrentUser } from '@/types/user';
 import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prisma/generated/prisma/client';
 import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
+import { appOrigin } from '@/utils/app-origin';
 
 // RFC 5321 caps a whole address at 254 octets — longer input is rejected before any parsing.
 const MAX_EMAIL_LENGTH = 254;
@@ -71,10 +65,6 @@ export const TRANSFER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  *  writable. Self-hosted (billing disabled) never sees this code — there is no subscription to be
  *  blocked or unpaid on. */
 export const OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED = 'OWNERSHIP_TRANSFER_SUBSCRIPTION_BLOCKED';
-
-function appUrl(): string {
-  return process.env.APP_URL || 'http://localhost:3000';
-}
 
 export interface OwnershipTransferView {
   id: string;
@@ -200,7 +190,7 @@ export class TransferService {
     }
 
     const email = buildOwnershipTransferRequestEmail({
-      appUrl: appUrl(),
+      appUrl: appOrigin(),
       companyName: company.name,
       fromName: `${fromUser.firstname} ${fromUser.lastname}`.trim() || fromUser.email,
       // The RECIPIENT's own preference — never the initiator's, since it is their inbox this lands
@@ -287,7 +277,7 @@ export class TransferService {
       });
       if (company && fromUser) {
         const email = buildOwnershipTransferEndedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           toEmail: transfer.toEmail,
           reason: 'canceled',
@@ -348,7 +338,7 @@ export class TransferService {
     }
 
     if (transfer.expiresAt.getTime() <= Date.now()) {
-      await expireOwnershipTransfer(transfer, this.mailService, appUrl());
+      await expireOwnershipTransfer(transfer, this.mailService, appOrigin());
       throw new GoneException('This transfer request has expired');
     }
 
@@ -405,12 +395,7 @@ export class TransferService {
       throw error;
     }
 
-    // Outside the transaction, same placement `invitations.service.ts#useInvitation`/
-    // `companies.service.ts#changeMemberRole` already use: a Polar hiccup here must not roll back a
-    // role change that already committed. Never throws (see `member-sync.ts`'s own header).
     await sessionCache.invalidateUsers([transfer.toUserId, transfer.fromUserId]);
-    await syncCompanyMemberOnMembershipChange(transfer.companyId, transfer.toUserId);
-    await syncCompanyMemberOnMembershipChange(transfer.companyId, transfer.fromUserId);
 
     try {
       const company = await prisma.company.findUnique({
@@ -427,7 +412,7 @@ export class TransferService {
       });
       if (company && fromUser && toUser) {
         const forNewOwner = buildOwnershipTransferFinalizedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           forNewOwner: true,
           // Each party reads this in THEIR OWN language, never the other's — the new owner's mail is
@@ -435,7 +420,7 @@ export class TransferService {
           language: resolveUserLanguage(toUser.locale, company.language),
         });
         const forFormerOwner = buildOwnershipTransferFinalizedEmail({
-          appUrl: appUrl(),
+          appUrl: appOrigin(),
           companyName: company.name,
           forNewOwner: false,
           language: resolveUserLanguage(fromUser.locale, company.language),

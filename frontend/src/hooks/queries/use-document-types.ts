@@ -3,7 +3,7 @@ import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
-import { computeConformityVerdict } from "@/components/documents/document-conformity-section"
+import { computeConformityVerdict } from "@/components/documents/conformity-verdict"
 import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
 
 import type {
@@ -577,16 +577,19 @@ export function useSelectableRows(
   )
 }
 
-/** The same query as `useSelectableRows`, for a caller outside render (shares its cache entry). */
-export function useFetchSelectableRows() {
+/** The same query as `useSelectableRows`, for a caller outside render (shares its cache entry).
+ *  `staleTime`, when given, is passed to `fetchQuery` (e.g. `0` to always refetch). */
+export function useFetchSelectableRows(options: { staleTime?: number } = {}) {
   const queryClient = useQueryClient()
+  const { staleTime } = options
   return useCallback(
     (typeId: string, fieldKey: string, sourceId: string) =>
       queryClient.fetchQuery({
         queryKey: selectableRowsKey(typeId, fieldKey, sourceId),
+        ...(staleTime === undefined ? {} : { staleTime }),
         queryFn: () => apiFetch<SelectableRowsResult>(selectableRowsUrl(typeId, fieldKey, sourceId)),
       }),
-    [queryClient],
+    [queryClient, staleTime],
   )
 }
 
@@ -596,4 +599,11 @@ function selectableRowsKey(typeId?: string, fieldKey?: string, sourceId?: string
 
 function selectableRowsUrl(typeId?: string, fieldKey?: string, sourceId?: string) {
   return `/api/documents/types/${typeId}/fields/${fieldKey}/rows?sourceId=${encodeURIComponent(sourceId ?? "")}`
+}
+
+/** One type's label and icon from the list of available types, which every signed-in page already
+ *  holds: the name a page shows while the type's own descriptor is loading or failed to load. */
+export function useDocumentTypeSummary(typeId: string | undefined): DocumentTypeSummary | undefined {
+  const { data } = useAvailableDocumentTypes()
+  return typeId ? data?.types.find((type) => type.id === typeId) : undefined
 }

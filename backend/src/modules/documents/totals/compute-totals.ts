@@ -1,6 +1,7 @@
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
-import { toMinor, decimalsFor, fromMinor } from '@/utils/financial';
+import { toMinor } from '@/utils/financial';
 import { defaultVatRateCatalog, findVatRateById } from '../vat-rates/registry';
+import { ServerMessage, serverMessage } from '../messages/server-message';
 
 export interface LineTotal {
   index: number;
@@ -23,7 +24,7 @@ export interface DocumentTotals {
   vatMinor: number;
   grossMinor: number;
   vatBreakdown: VatBreakdownEntry[];
-  warnings: string[];
+  warnings: ServerMessage[];
   /**
    * Whether the VAT breakdown is worth printing at all — a display flag, never an input to the
    * arithmetic above (net/vat/gross stay exactly what the lines say either way). False when either:
@@ -110,7 +111,7 @@ export function computeDocumentTotals(
   data: Record<string, unknown>,
   options?: ComputeTotalsOptions,
 ): DocumentTotals {
-  const warnings: string[] = [];
+  const warnings: ServerMessage[] = [];
   const lines: LineTotal[] = [];
 
   // === Find currency at document level ===
@@ -126,7 +127,7 @@ export function computeDocumentTotals(
   }
 
   if (!currency) {
-    warnings.push('Document currency not found, using the default (2 decimals).');
+    warnings.push(serverMessage('documents.messages.totals.currencyMissing'));
   }
 
   // === Find array fields with both 'money' and 'number' subfields ===
@@ -191,8 +192,10 @@ export function computeDocumentTotals(
           quantity = qtyValue;
         } else if (qtyValue !== undefined && qtyValue !== null && qtyValue !== '') {
           warnings.push(
-            `line ${globalLineNumber} has a non-numeric quantity ` +
-              `(received ${JSON.stringify(qtyValue)}), counted as 1`,
+            serverMessage('documents.messages.totals.nonNumericQuantity', {
+              line: globalLineNumber,
+              value: JSON.stringify(qtyValue),
+            }),
           );
         }
       }
@@ -205,8 +208,10 @@ export function computeDocumentTotals(
         unitPriceMinor = toMinor(priceValue, currency || 'EUR');
       } else if (priceValue !== undefined && priceValue !== null && priceValue !== '') {
         warnings.push(
-          `line ${globalLineNumber} has a non-numeric unit price ` +
-            `(received ${JSON.stringify(priceValue)}), counted as 0`,
+          serverMessage('documents.messages.totals.nonNumericUnitPrice', {
+            line: globalLineNumber,
+            value: JSON.stringify(priceValue),
+          }),
         );
       }
 
@@ -225,7 +230,7 @@ export function computeDocumentTotals(
       const netMinor = Math.round(unitPriceMinor * quantity * (1 - discountPercent / 100));
 
       // Find VAT rate
-      const vatRatePercent = extractVatRate(arrayField, row, rowIndex, globalLineNumber, warnings);
+      const vatRatePercent = extractVatRate(arrayField, row, globalLineNumber, warnings);
 
       allLinesProcessed.push({ index: allLinesProcessed.length, netMinor, vatRatePercent });
       globalLineNumber++;
@@ -234,7 +239,6 @@ export function computeDocumentTotals(
 
   // === Build LineTotal entries and accumulate by VAT rate ===
   const rateToBase: Record<string, number> = {}; // "rate_percent" -> baseMinor
-  const rateToLineTotals: Record<string, { vatMinor: number; grossMinor: number }> = {};
 
   for (const { index, netMinor, vatRatePercent } of allLinesProcessed) {
     const lineVatMinor = vatRatePercent !== null ? Math.round((netMinor * vatRatePercent) / 100) : 0;
@@ -358,9 +362,8 @@ function findLineArrayFields(descriptor: DocumentTypeDescriptor): DocumentFieldD
 function extractVatRate(
   arrayField: DocumentFieldDescriptor,
   row: Record<string, unknown>,
-  rowIndex: number,
   lineNumber: number,
-  warnings: string[],
+  warnings: ServerMessage[],
 ): number | null {
   if (!arrayField.fields) return null;
 
@@ -377,7 +380,7 @@ function extractVatRate(
 
   const value = row[vatField.key];
   if (value === undefined || value === null || value === '') {
-    warnings.push(`line ${lineNumber} has no usable VAT rate, counted in net only`);
+    warnings.push(serverMessage('documents.messages.totals.vatRateMissing', { line: lineNumber }));
     return null;
   }
 
@@ -400,7 +403,7 @@ function extractVatRate(
   // percentage itself, e.g. "20"). Parsed exactly as this function always has.
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
-    warnings.push(`line ${lineNumber} has no usable VAT rate, counted in net only`);
+    warnings.push(serverMessage('documents.messages.totals.vatRateMissing', { line: lineNumber }));
     return null;
   }
 

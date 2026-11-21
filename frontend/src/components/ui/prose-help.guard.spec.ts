@@ -17,8 +17,6 @@ const KEPT_VISIBLE = new Set([
   "components/documents/document-totals.tsx|totals.warnings.map(",
   "components/widgets/widget-renderers/metric-widget.tsx|metric.warnings.map(",
   "components/documents/mark-quote-accepted-dialog.tsx|documents.acceptance.dialogWarning",
-  "pages/(app)/settings/_components/billing.settings.tsx|settings.billing.billingEmail.noneOnFileNotice",
-  "pages/(app)/settings/_components/billing.settings.tsx|settings.billing.refundNotice.prefix",
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.resetCompanyData.detail",
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.resetCompanyData.countsSummary",
   "pages/(app)/settings/_components/danger.settings.tsx|settings.dangerZone.deleteCompany.detail",

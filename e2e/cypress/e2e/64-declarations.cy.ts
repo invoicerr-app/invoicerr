@@ -1,4 +1,5 @@
 export {}; // makes this spec a module, not a global script -- see tsconfig.json
+import { companyLawFor } from "../fixtures/company-law";
 
 /**
  * The "Declarations" screen — makes visible what
@@ -167,6 +168,7 @@ describe("Declarations — a Portuguese seller's blocked pt-at declaration is jo
 				name: "Acme Corp",
 				country: "Portugal",
 				countryCode: "PT",
+				companyLaw: companyLawFor("PT"),
 				invoiceTransportId: "email",
 				identifiers: [
 					{ scheme: "LEGAL_ID", value: "509442661" },

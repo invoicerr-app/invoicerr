@@ -10,7 +10,7 @@ import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import CurrencySelect from "@/components/currency-select"
-import { fromMinor, decimalsFor, toMinor } from "@/components/documents/totals-calculator"
+import { formatMinor, toMinor } from "@/components/documents/totals-calculator"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -548,7 +548,7 @@ function ColumnsStep({ headers, parsedText }: { headers: string[]; parsedText: s
 
       {previewRows.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-[13px] font-medium text-muted-foreground">
             {t("bankReconciliation.import.mapping.previewTitle")}
           </p>
           <Table data-cy="bank-reconciliation-import-mapping-preview">
@@ -623,11 +623,11 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
                 <TableCell
                   dir="ltr"
                   className={cn(
-                    "text-right font-mono tabular-nums whitespace-nowrap",
+                    "amount text-right whitespace-nowrap",
                     (line.amountMinor ?? 0) < 0 && "text-destructive",
                   )}
                 >
-                  {fromMinor(line.amountMinor ?? 0, currency).toFixed(decimalsFor(currency))} {currency}
+                  {formatMinor(line.amountMinor ?? 0, currency)}
                 </TableCell>
                 <TableCell>
                   {line.isDuplicate && (
@@ -660,11 +660,11 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
               </span>
               <span
                 className={cn(
-                  "font-mono text-sm tabular-nums whitespace-nowrap",
+                  "amount text-sm whitespace-nowrap",
                   (line.amountMinor ?? 0) < 0 && "text-destructive",
                 )}
               >
-                {fromMinor(line.amountMinor ?? 0, currency).toFixed(decimalsFor(currency))} {currency}
+                {formatMinor(line.amountMinor ?? 0, currency)}
               </span>
             </div>
             <p className="mt-1 truncate text-sm" title={line.label}>
@@ -684,8 +684,8 @@ function PreviewStep({ currency, preview }: { currency: string; preview: Preview
         data-cy="bank-reconciliation-import-preview-total"
       >
         <span>{t("bankReconciliation.import.preview.total")}</span>
-        <span className={cn("font-mono tabular-nums", preview.totalMinor < 0 && "text-destructive")}>
-          {fromMinor(preview.totalMinor, currency).toFixed(decimalsFor(currency))} {currency}
+        <span className={cn("amount", preview.totalMinor < 0 && "text-destructive")}>
+          {formatMinor(preview.totalMinor, currency)}
         </span>
       </div>
 
@@ -721,19 +721,13 @@ function ImportStep({
         <p className="text-sm font-medium">{t("bankReconciliation.import.result.title")}</p>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.result.imported")}</span>
-          <span
-            className="font-mono tabular-nums font-medium"
-            data-cy="bank-reconciliation-import-result-imported"
-          >
+          <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-result-imported">
             {result.statement.lineCount}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.result.ignored")}</span>
-          <span
-            className="font-mono tabular-nums font-medium"
-            data-cy="bank-reconciliation-import-result-ignored"
-          >
+          <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-result-ignored">
             {result.errors.length}
           </span>
         </div>
@@ -759,11 +753,11 @@ function ImportStep({
       </div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{t("bankReconciliation.import.recap.currency")}</span>
-        <span className="font-mono">{currency}</span>
+        <span>{currency}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{t("bankReconciliation.import.recap.lines")}</span>
-        <span className="font-mono tabular-nums font-medium" data-cy="bank-reconciliation-import-recap-lines">
+        <span className="tabular-nums font-medium" data-cy="bank-reconciliation-import-recap-lines">
           {preview.lines.length}
         </span>
       </div>
@@ -776,7 +770,7 @@ function ImportStep({
       {preview.errorCount > 0 && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bankReconciliation.import.recap.ignored")}</span>
-          <span className="font-mono tabular-nums">{preview.errorCount}</span>
+          <span className="tabular-nums">{preview.errorCount}</span>
         </div>
       )}
     </div>
@@ -817,7 +811,7 @@ export function ImportStatementDialog({ onImported }: ImportStatementDialogProps
     () =>
       z.object({
         file: z.custom<File | null>((value) => value instanceof File, {
-          message: t("bankReconciliation.import.errors.fileRequired"),
+          error: t("bankReconciliation.import.errors.fileRequired"),
         }),
         currency: z.string().min(1, t("bankReconciliation.import.errors.currencyRequired")),
         dateColumn: z.string().min(1, t("bankReconciliation.import.errors.columnRequired")),

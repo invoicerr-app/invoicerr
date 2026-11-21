@@ -23,10 +23,45 @@ export class ImportDocumentDto {
   originalFile: ImportOriginalFileRef;
 }
 
+/** The pre-fill request: only the already-uploaded file, nothing else. See
+ *  `DocumentImportService.prefill`. */
+export class ImportPrefillDto {
+  originalFile: ImportOriginalFileRef;
+}
+
 @ApiTags('documents')
 @Controller('documents/types/:typeId/import')
 export class DocumentImportController {
   constructor(private readonly importService: DocumentImportService) {}
+
+  @Post('prefill')
+  @RequiresDocumentTypeScope('write')
+  @ApiOperation({
+    summary: 'Pre-fill the import form from a Factur-X, CII or UBL original',
+    description:
+      'Reads the original file already uploaded to this company and returns the fields the import ' +
+      'form can seed (number, dates, client match or proposal, lines, totals). Writes nothing. ' +
+      'Refuses with a 400 when the file is not a recognized structured invoice, when its totals do ' +
+      'not add up, or when it is a credit note being imported as an invoice (or the reverse).',
+  })
+  @ApiParam({ name: 'typeId', type: String })
+  @ApiResponse({ status: 200, description: 'Pre-fill result' })
+  @ApiResponse({ status: 400, description: 'Unrecognized, inconsistent, or wrong-type file' })
+  prefill(
+    @ActiveCompany() companyId: string,
+    @Param('typeId') typeId: string,
+    @Body() body: ImportPrefillDto,
+  ) {
+    if (!isImportableTypeId(typeId)) {
+      throw new BadRequestException(
+        `"${typeId}" cannot be imported - issue #340's v1 covers "invoice" and "credit-note" only.`,
+      );
+    }
+    if (!body?.originalFile?.fileRef) {
+      throw new BadRequestException('An uploaded original file is required to pre-fill an import.');
+    }
+    return this.importService.prefill(companyId, typeId, body.originalFile);
+  }
 
   @Post()
   @RequiresDocumentTypeScope('write')

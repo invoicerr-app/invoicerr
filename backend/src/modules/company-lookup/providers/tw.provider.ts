@@ -1,16 +1,13 @@
 /**
  * Taiwan — 商工登記公示資料 (Ministry of Economic Affairs, GCIS open data).
+ * Docs: https://data.gcis.nat.gov.tw/main/api (no credentials).
  *
- * Endpoint : GET https://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6
- *            ?$format=json&$filter=Business_Accounting_NO eq {ban}&$skip=0&$top=1
- * Docs     : https://data.gcis.nat.gov.tw/main/api
- * Credentials: none.
- *
- * The 統一編號 (BAN, "unified business number") is both the registration number and the
- * tax number. Dates come back in the Minguo calendar — "0760221" is 1987-02-21.
+ * The 統一編號 (BAN) is both the registration and the tax number, and dates come back in the Minguo
+ * calendar: "0760221" is 1987-02-21.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const GCIS_URL = 'https://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6';
@@ -51,10 +48,10 @@ export class TaiwanGcisProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://data.gcis.nat.gov.tw/main/api';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

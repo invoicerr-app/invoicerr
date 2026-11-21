@@ -1,16 +1,12 @@
 /**
  * Finland — PRH / YTJ open data (Patentti- ja rekisterihallitus).
- *
- * Endpoint : GET https://avoindata.prh.fi/opendata-ytj-api/v3/companies?businessId={id}
- * Docs     : https://avoindata.prh.fi/ytj_en.html
- * Credentials: none.
- *
- * The Finnish VAT number is the business id without its dash, prefixed with FI.
+ * Docs: https://avoindata.prh.fi/ytj_en.html (no credentials). The VAT number is the business id
+ * without its dash, prefixed with FI.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join } from './shared';
+import { credentialsPresent, join } from './shared';
 
 const PRH_URL = 'https://avoindata.prh.fi/opendata-ytj-api/v3/companies';
 
@@ -30,10 +26,10 @@ export class FinlandPrhProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://avoindata.prh.fi/ytj_en.html';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

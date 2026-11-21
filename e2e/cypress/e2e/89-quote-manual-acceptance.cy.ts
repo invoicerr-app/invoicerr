@@ -217,6 +217,65 @@ describe("Quote manual acceptance (issue #421)", () => {
 		});
 	});
 
+	it("issue #364 - archives a proof file with the manual acceptance and serves it back from the archive", () => {
+		const SCAN = "%PDF-1.4\n% signed paper quote scan\n%%EOF\n";
+		createClient("Manual Acceptance Attachment Client", "manual-attach@example.com").then((clientId) => {
+			createSentQuote(clientId, "manual-attach@example.com").then((quoteId) => {
+				cy.visit(`${appOrigin}/documents/quote/${quoteId}`);
+				cy.get('[data-cy="document-actions-menu"]').click();
+				cy.get('[data-cy="document-accept-manually-button"]').should("be.visible").click();
+				cy.get('[data-cy="mark-quote-accepted-dialog"]').should("be.visible");
+
+				cy.get('[data-cy="mark-quote-accepted-attachment-input"]').selectFile(
+					{ contents: Cypress.Buffer.from(SCAN), fileName: "signed-quote.pdf", mimeType: "application/pdf" },
+					{ force: true },
+				);
+				cy.get('[data-cy="mark-quote-accepted-attachment-name"]').should("contain.text", "signed-quote.pdf");
+
+				cy.intercept("POST", "**/api/documents/types/quote/actions/accept-manually").as("acceptManually");
+				cy.get('[data-cy="mark-quote-accepted-note"]').type("Signed paper copy received by post.");
+				cy.get('[data-cy="mark-quote-accepted-confirm"]').click();
+				cy.wait("@acceptManually").its("response.statusCode").should("be.oneOf", [200, 201]);
+				cy.get('[data-cy="mark-quote-accepted-dialog"]').should("not.exist");
+				cy.get('[data-cy="document-status-badge"]').should("contain.text", "Accepted");
+
+				cy.get('[data-cy="document-acceptance-manual-attachment-name"]').should(
+					"contain.text",
+					"signed-quote.pdf",
+				);
+
+				cy.request({ url: `${api}/api/documents/${quoteId}/manual-acceptance?typeId=quote` }).then((res) => {
+					expect(res.status, "manual-acceptance record readable").to.eq(200);
+					expect(res.body.attachment, "the manifest names the attached file").to.include({
+						fileName: "signed-quote.pdf",
+						mime: "application/pdf",
+						byteLength: SCAN.length,
+					});
+				});
+
+				cy.request({ url: `${api}/api/documents/${quoteId}/archives?typeId=quote` }).then((res) => {
+					const acceptance = (res.body as Array<{ kind: string; artifacts: Array<{ role: string }> }>).filter(
+						(a) => a.kind === "ACCEPTANCE",
+					);
+					expect(acceptance, "exactly one ACCEPTANCE row").to.have.length(1);
+					expect(
+						acceptance[0].artifacts.map((a) => a.role).sort(),
+						"the manifest and the file live in the same row",
+					).to.deep.eq(["manual-acceptance", "manual-acceptance-attachment"]);
+				});
+
+				cy.request({
+					url: `${api}/api/documents/${quoteId}/manual-acceptance/attachment?typeId=quote`,
+					encoding: "binary",
+				}).then((res) => {
+					expect(res.status, "attachment downloadable").to.eq(200);
+					expect(res.headers["content-type"], "served as PDF").to.contain("application/pdf");
+					expect(res.body, "the archived bytes, unchanged").to.eq(SCAN);
+				});
+			});
+		});
+	});
+
 	it("a real e-signed quote's Acceptance section says SIGNED, never manual - and is never mistaken for one", () => {
 		const CLIENT_EMAIL = "esign-compare@example.com";
 		createClient("E-signature Compare Client", CLIENT_EMAIL).then((clientId) => {

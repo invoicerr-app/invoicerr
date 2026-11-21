@@ -37,6 +37,7 @@
  * imported document's `client`/`issueDate`/`lines`/etc. are validated exactly as strictly as a normal
  * one's, only the STATUS they land on and the extra import-only facts (below) differ.
  */
+import { KSEF_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
@@ -58,7 +59,13 @@ import { referencedArrayFieldKeys, stampRowIds } from '../row-selection/row-sele
 import { CountryFieldOverlayCatalog } from '../country-fields/registry';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { COUNTRY_FIELD_OVERLAY_REGISTRY, DOCUMENT_TYPE_REGISTRY, FIELD_KIND_REGISTRY } from '../tokens';
-import { hasTransmissionEvidence, ImportDocumentInput, ImportDocumentResult } from './document-import.types';
+import {
+  hasTransmissionEvidence,
+  ImportDocumentInput,
+  ImportDocumentResult,
+  ImportPrefillResult,
+} from './document-import.types';
+import { buildImportPrefill } from './einvoice-import-prefill';
 
 /** Poland's own transport id (`transports/ksef-transport.ts`, `KSEF_PROVIDER_ID` in
  *  `formats/national/fa3-kor.ts`): an imported invoice that carries a declared KSeF number is given
@@ -66,7 +73,6 @@ import { hasTransmissionEvidence, ImportDocumentInput, ImportDocumentResult } fr
  *  against it (`fa3-kor.ts#resolveFaVatKorContext`) takes the "look up the observed KSeF number"
  *  branch instead of the "never submitted to KSeF" statutory exception. This is exactly right, since
  *  this invoice genuinely WAS submitted to KSeF, just not by this application. */
-const KSEF_PROVIDER_ID = 'ksef';
 
 export class DocumentImportValidationError extends BadRequestException {
   constructor(errors: ValidationError[]) {
@@ -185,6 +191,26 @@ export class DocumentImportService {
       input.originalFile.fileRef,
       input.originalFile.mime,
     );
+  }
+
+  /**
+   * Pre-fills the import form from the original file the user just uploaded (issue #758). The
+   * file is read from the tenant-scoped attachment store, exactly like a real import would read
+   * it, then parsed by the SAME reader the received-invoice screen uses - this method only adds
+   * the import-specific decisions (`einvoice-import-prefill.ts`'s own header). Writes nothing:
+   * the user reviews every field before `importDocument` ever runs.
+   */
+  async prefill(
+    companyId: string,
+    typeId: 'invoice' | 'credit-note',
+    originalFile: { fileRef: string; fileName: string; mime: string },
+  ): Promise<ImportPrefillResult> {
+    const original = await this.attachmentsService.download(
+      companyId,
+      originalFile.fileRef,
+      originalFile.mime,
+    );
+    return buildImportPrefill(companyId, typeId, original.bytes, original.mime, originalFile.fileName);
   }
 
   async importDocument(input: ImportDocumentInput): Promise<ImportDocumentResult> {

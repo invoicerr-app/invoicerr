@@ -1,3 +1,5 @@
+import { formatOtp, formatShortDate } from "@/lib/format"
+import { isOtpComplete, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ArrowRightLeft } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -25,17 +27,7 @@ import {
   useInitiateTransfer,
   useRequestTransferOtp,
 } from "@/hooks/queries"
-import { SettingsSection } from "./settings-section"
-
-function formatOtp(value: string): string {
-  const cleaned = value.replace(/\D/g, "").slice(0, 8)
-  if (cleaned.length <= 4) return cleaned
-  return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-}
+import { SettingsSection } from "@/components/settings-section"
 
 /**
  * Mounted inside `danger.settings.tsx` (that file's own `{/* transfer-company section mounts here *\/}`
@@ -148,10 +140,10 @@ export default function TransferCompanySection() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t("settings.transferCompany.current.requestedAt")}:{" "}
-              <span className="font-mono tabular-nums">{formatDate(current.createdAt)}</span>
+              <span className="tabular-nums">{formatShortDate(current.createdAt)}</span>
               {" · "}
               {t("settings.transferCompany.current.expiresAt")}:{" "}
-              <span className="font-mono tabular-nums">{formatDate(current.expiresAt)}</span>
+              <span className="tabular-nums">{formatShortDate(current.expiresAt)}</span>
             </p>
           </div>
           <Button
@@ -214,7 +206,7 @@ export default function TransferCompanySection() {
               onChange={handleOtpChange}
               placeholder={t("settings.transferCompany.otpDialog.otpPlaceholder")}
               className="text-center text-lg font-mono tracking-wider"
-              maxLength={9}
+              maxLength={OTP_DISPLAY_LENGTH}
               data-cy="transfer-company-otp-input"
             />
           </div>
@@ -229,7 +221,7 @@ export default function TransferCompanySection() {
             <Button
               variant="destructive"
               onClick={handleConfirm}
-              disabled={otp.length !== 9}
+              disabled={!isOtpComplete(otp)}
               loading={initiate.isPending}
               dataCy="transfer-company-otp-confirm"
             >

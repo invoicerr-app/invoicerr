@@ -4,6 +4,7 @@ import {
   registerReferenceCreateComponent,
   type ReferenceCreateComponentProps,
 } from "@/components/documents/reference-create-registry"
+import { queryKeys } from "@/lib/query-keys"
 import { ClientUpsert } from "@/pages/(app)/clients/_components/client-upsert"
 import type { Client } from "@/types"
 
@@ -28,7 +29,7 @@ function ClientQuickCreate({ open, onOpenChange, onCreated }: ReferenceCreateCom
       open={open}
       onOpenChange={onOpenChange}
       onCreate={(client: Client) => {
-        queryClient.invalidateQueries({ queryKey: ["document-references", "client"] })
+        queryClient.invalidateQueries({ queryKey: queryKeys.documentReferences.entity("client") })
         onCreated(client.id)
       }}
     />

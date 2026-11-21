@@ -1,23 +1,16 @@
 /**
  * VIES — the EU-wide VAT number validation service (European Commission).
+ * Docs: https://ec.europa.eu/taxation_customs/vies/#/technical-information (no credentials).
  *
- * Endpoint : GET https://ec.europa.eu/taxation_customs/vies/rest-api/ms/{MS}/vat/{number}
- * Docs     : https://ec.europa.eu/taxation_customs/vies/#/technical-information
- * Credentials: none.
- *
- * Coverage note — VIES always answers "is this VAT number valid", but the name and
- * address are only returned by the member states that opt to disclose them (IT and
- * most of the smaller MS do; DE and ES return "---"). We surface whatever is given
- * and fall back to a VAT-validity-only answer, which is still worth showing: it
- * confirms the number and the registration before an invoice is issued.
- *
- * Rate limits are per member state and unpublished; the service returns
- * `userError: MS_MAX_CONCURRENT_REQ` when a MS is saturated — treated as an error
- * (retryable) rather than as "not found".
+ * Always answers "is this VAT number valid", but the name and address only come back from member
+ * states that disclose them (DE and ES return "---"); a validity-only answer is still worth showing.
+ * Rate limits are per member state and unpublished: `MS_MAX_CONCURRENT_REQ` is a retryable error,
+ * not "not found".
  */
 import { defaultTaxUnionRegistry } from '@/modules/documents/tax/tax-unions/registry';
 import { defaultLookupCoverage } from '../coverage/registry';
-import { fetchJson, stripVatPrefix } from '../http';
+import { DEFAULT_TIMEOUT_MS, fetchJson, stripVatPrefix } from '../http';
+import { credentialsPresent } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -86,10 +79,10 @@ export class ViesProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://ec.europa.eu/taxation_customs/vies/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
   isConfigured(): boolean {
-    return true;
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

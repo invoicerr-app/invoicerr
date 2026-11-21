@@ -2,6 +2,7 @@
  * Coverage guard for the SHIPPED identifier-requirements files — the same role
  * country-policy/data/all.spec.ts plays for the action-policy files, scaled to this concern.
  */
+import { requiredPartyTypes } from '../schema';
 import { ALL_COUNTRY_IDENTIFIER_FILES } from './all';
 
 function fileFor(countryCode: string) {
@@ -13,11 +14,8 @@ function fileFor(countryCode: string) {
 describe('country-identifiers/data — the shipped FR, DE, PT, IT and PL files', () => {
   // Re-pinned by the 5-country prune (2026-09-10): this mechanism shipped identifier requirements
   // for DE, FR and PT only at first — PL and IT had no country-identifiers file yet. IT and PL were
-  // added afterwards (see it.json/pl.json's own file-level `notes` for the research and the
-  // deliberate `required: false` grading on every fact — this catalog has no seller/buyer axis, see
-  // those notes for why an unconditional seller-side rule still can't be encoded as `required: true`
-  // without also wrongly gating a buyer-side client record). US, GB and BE (below) were removed by
-  // the prune along with every other country outside FR/PL/IT/PT/DE.
+  // added afterwards (see it.json/pl.json's own file-level `notes` for the research). US, GB and BE
+  // (below) were removed by the prune along with every other country outside FR/PL/IT/PT/DE.
   it('loads exactly the six countries this mechanism ships', () => {
     const codes = ALL_COUNTRY_IDENTIFIER_FILES.map((f) => f.countryCode).sort();
     expect(codes).toEqual(['DE', 'DZ', 'FR', 'IT', 'PL', 'PT']);
@@ -244,62 +242,57 @@ describe('country-identifiers/data — the shipped DE and PT files', () => {
   });
 });
 
-// IT and PL, added by researching primary law (DPR 633/1972 arts. 21/21-bis via normattiva.it, the
-// FatturaPA technical specification, ustawa o VAT art. 106e via dziennikustaw.gov.pl) — see
-// it.json/pl.json's own file-level `notes` for the full research and, critically, for WHY every
-// fact in both files stays `required: false` despite each country's SELLER-side rule (Partita IVA /
-// NIP) being established as unconditional: this catalog's `appliesTo` axis (COMPANY/INDIVIDUAL/BOTH)
-// has no notion of transactional role, and the exact same per-country array is read by the SELLER
-// call-sites (onboarding.tsx/company.settings.tsx, always partyType "COMPANY") and the BUYER
-// call-site (client-upsert.tsx, partyType from the client's own record type) — with `required: true`
-// enforced as a real, hard save-block in all three (confirmed by reading each screen's own
-// onSubmit). Setting `required: true` would therefore ALSO hard-block a lawful Italian/Polish
-// buyer/client record that this research does NOT establish as needing that identifier (the buyer's
-// correct identifier depends on taxable-person status, an axis this catalog does not track) — so
-// `required: false` here is a deliberate, documented choice, not an oversight.
+// IT and PL, researched from primary law (DPR 633/1972 art. 21 via normattiva.it, ustawa o VAT
+// art. 106e via dziennikustaw.gov.pl). Each form requires what that country's `invoiceRequirements`
+// always ask of the party: a company's Partita IVA or NIP, an Italian private client's codice fiscale.
 describe('country-identifiers/data — the shipped IT and PL files', () => {
-  it('IT declares a VAT scheme (Partita IVA) and a LEGAL_ID scheme (Codice Fiscale), both COMPANY/BOTH and NOT required', () => {
+  it('IT requires the Partita IVA of a company and the codice fiscale of a private client, from DPR 633/1972 art. 21 comma 2', () => {
     const it = fileFor('IT');
     const vat = it.schemes.find((s) => s.scheme === 'VAT')!;
     expect(vat.appliesTo).toBe('COMPANY');
-    expect(vat.required).toBe(false); // seller-side is unconditional (DPR 633/1972 art. 21 co. 2
-    // lett. d) — see this fact's own `notes` for why `required` still stays false at country level.
+    expect(requiredPartyTypes(vat)).toEqual(['COMPANY']);
     expect(vat.provenance.kind).toBe('legal');
     if (vat.provenance.kind === 'legal') {
-      expect(vat.provenance.sourceText).toMatch(/partita IVA del soggetto cedente o prestatore/);
-      expect(vat.provenance.sourceCheckedAt).toBe('2026-09-13');
+      expect(vat.provenance.sourceText).toMatch(
+        /d\) numero di partita IVA del soggetto cedente o prestatore/,
+      );
+      expect(vat.provenance.sourceText).toMatch(
+        /f\) numero di partita IVA del soggetto cessionario o committente/,
+      );
+      expect(vat.provenance.sourceCheckedAt).toBe('2026-10-26');
     }
     expect(vat.pattern).toBeUndefined(); // 11-digit format not found in either primary source read
 
     const legalId = it.schemes.find((s) => s.scheme === 'LEGAL_ID')!;
     expect(legalId.label).toBe('Codice Fiscale');
     expect(legalId.appliesTo).toBe('BOTH');
-    expect(legalId.required).toBe(false);
-    expect(legalId.provenance.kind).toBe('unverified'); // known law, not yet safely enforceable —
-    // see this fact's own resolutionNote and its own `notes` (which embeds the actual DPR 633/1972
-    // art. 21 co. 2 lett. f) quote verbatim, not merely a paraphrase).
-    if (legalId.provenance.kind === 'unverified') {
-      expect(legalId.provenance.resolutionNote.length).toBeGreaterThan(40);
+    expect(requiredPartyTypes(legalId)).toEqual(['INDIVIDUAL']);
+    expect(legalId.provenance.kind).toBe('legal');
+    if (legalId.provenance.kind === 'legal') {
+      expect(legalId.provenance.sourceText).toMatch(
+        /non agisce nell'esercizio d'impresa, arte o professione, codice fiscale/,
+      );
+      expect(legalId.provenance.sourceCheckedAt).toBe('2026-10-26');
     }
-    expect(legalId.notes).toMatch(/numero di partita IVA del soggetto cessionario o committente/);
   });
 
-  it('PL declares a single LEGAL_ID scheme (NIP), COMPANY-only (not BOTH — PESEL is a distinct, unmodeled case for individual sellers), NOT required', () => {
+  it('PL requires the NIP of a company, from ustawa o VAT art. 106e ust. 1 pkt 4 and 5', () => {
     const pl = fileFor('PL');
     expect(pl.schemes).toHaveLength(1);
     const legalId = pl.schemes[0];
     expect(legalId.scheme).toBe('LEGAL_ID');
     expect(legalId.label).toBe('NIP');
     expect(legalId.appliesTo).toBe('COMPANY');
-    expect(legalId.required).toBe(false);
+    expect(requiredPartyTypes(legalId)).toEqual(['COMPANY']);
     expect(legalId.provenance.kind).toBe('legal');
     if (legalId.provenance.kind === 'legal') {
-      expect(legalId.provenance.sourceText).toMatch(/zidentyfikowany na potrzeby podatku/);
-      expect(legalId.provenance.sourceCheckedAt).toBe('2026-09-13');
+      expect(legalId.provenance.sourceText).toMatch(
+        /4\) numer, za pomocą którego podatnik jest zidentyfikowany/,
+      );
+      expect(legalId.provenance.sourceText).toMatch(/5\) numer, za pomocą którego nabywca towarów lub usług/);
+      expect(legalId.provenance.sourceCheckedAt).toBe('2026-10-26');
     }
     expect(legalId.pattern).toBeUndefined(); // NIP digit count not chased to a primary-text statement
-    expect(legalId.notes).toMatch(/pomocą którego nabywca towarów lub usług/); // the buyer-side
-    // conditional half (art. 106e ust. 1 pkt 5) is documented in this fact's own `notes`, not encoded
   });
 
   it('IT and PL genuinely differ from each other and from DE/FR/PT — not a copy with labels swapped', () => {

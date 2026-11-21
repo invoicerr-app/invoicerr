@@ -14,7 +14,12 @@ import { usePaymentTerms, useSavePaymentTerms } from "@/hooks/queries/use-paymen
 import type { DueDateMode } from "@/lib/due-date"
 import type { ResolvedPaymentTerms } from "@/types"
 
-import { SettingsFormFooter, SettingsPage, SettingsSection, useSavedFlash } from "./settings-section"
+import {
+  SettingsFormFooter,
+  SettingsPage,
+  SettingsSection,
+  useSavedFlash,
+} from "@/components/settings-section"
 
 type TermKey = "quote" | "invoice"
 

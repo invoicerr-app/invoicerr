@@ -21,6 +21,7 @@ export type Path =
   | `/documents`
   | `/documents/:typeId`
   | `/documents/:typeId/:id`
+  | `/documents/:typeId/new`
   | `/legal/:slug`
   | `/legal/accept`
   | `/payment-methods`
@@ -34,6 +35,7 @@ export type Path =
 export type Params = {
   '/documents/:typeId': { typeId: string }
   '/documents/:typeId/:id': { typeId: string; id: string }
+  '/documents/:typeId/new': { typeId: string }
   '/legal/:slug': { slug: string }
   '/portal/:token': { token: string }
   '/settings/:tab?': { tab?: string }

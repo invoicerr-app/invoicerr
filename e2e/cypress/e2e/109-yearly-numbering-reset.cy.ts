@@ -33,6 +33,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  *     case, so this spec cannot pass by accident just because SOME country resets.
  */
 const api = Cypress.env("apiUrl");
+import { companyLawFor } from "../fixtures/company-law";
 
 interface NumberFormatRow {
 	typeId: string;
@@ -49,6 +50,7 @@ function switchCompanyToGermany() {
 			name: "Acme Corp",
 			country: "Germany",
 			countryCode: "DE",
+			companyLaw: companyLawFor("DE"),
 			currency: "EUR",
 			invoiceTransportId: "email",
 			identifiers: [{ scheme: "VAT", value: "DE129273398" }],
@@ -66,6 +68,7 @@ function switchCompanyToPortugal() {
 			name: "Acme Corp",
 			country: "Portugal",
 			countryCode: "PT",
+			companyLaw: companyLawFor("PT"),
 			currency: "EUR",
 			invoiceTransportId: "email",
 			identifiers: [{ scheme: "VAT", value: "PT980405319" }],
@@ -83,6 +86,7 @@ function switchCompanyToPoland() {
 			name: "Acme Corp",
 			country: "Poland",
 			countryCode: "PL",
+			companyLaw: companyLawFor("PL"),
 			currency: "PLN",
 			invoiceTransportId: "email",
 			identifiers: [

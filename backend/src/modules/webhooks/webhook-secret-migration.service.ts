@@ -1,9 +1,6 @@
 /**
- * Runs `migratePlaintextWebhookSecrets` on EVERY backend boot — modeled directly on
- * `documents/country-policy/boot-reseed.service.ts` (same `OnModuleInit` shape, same "NEVER throws"
- * choice, same detect-first idempotence). Registered in `webhooks.module.ts`, which both `app.module.ts`
- * (API) and `worker.module.ts` import — so a scaled-out worker replica converges the table too, not
- * just the inline API process (see that file's own header on why this can't be branched on role).
+ * Runs the plaintext-secret catch-up on every backend boot, from both the API and worker modules, so
+ * every replica converges the table. Never throws.
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
@@ -31,10 +28,8 @@ export class WebhookSecretMigrationService implements OnModuleInit {
         );
       }
     } catch (error) {
-      // NEVER throws — same reasoning as every other boot-reseed service in this codebase: a
-      // transient DB hiccup here must not crash the whole app. Worst case, a row stays plaintext (its
-      // pre-existing, already-shipped state) until this succeeds on a later boot — never a REGRESSION
-      // relative to before this migration existed.
+      // Never throw: a transient DB error must not crash the app, and a row simply stays plaintext
+      // until a later boot succeeds.
       this.logger.error(
         'Failed to run the webhook-secret encryption catch-up at boot — some secrets may remain ' +
           `plaintext until this succeeds on a later boot: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,12 +1,16 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
 
+import { MAX_ATTACHMENT_BYTES } from '../attachments/attachments.service';
+import { computeArtifactHash } from '../archive/hashing';
 import {
   createManualAcceptanceArchive,
   findCurrentDeliveredVersion,
+  ManualAcceptanceAttachmentMeta,
   ManualAcceptanceManifest,
 } from '../archive/persistence';
+import { readInboundFile } from '../received-invoices/storage';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { computeQuoteOptionTotals, deriveQuoteOptions, resolveChosenOption } from '../options/quote-options';
 import { ActionRegistry } from './action-registry';
@@ -56,6 +60,62 @@ import { ActionRegistry } from './action-registry';
  */
 const MAX_NOTE_LENGTH = 2000;
 
+/**
+ * Issue #364 - what a proof of acceptance may be: a scan or a photo of the signed paper. Narrower than
+ * `ALLOWED_ATTACHMENT_MIMES`, which also admits XML for imported originals.
+ */
+const ACCEPTANCE_ATTACHMENT_MIMES: readonly string[] = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+const MAX_ATTACHMENT_FILE_NAME_LENGTH = 255;
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+interface ResolvedAttachment {
+  meta: ManualAcceptanceAttachmentMeta;
+  bytes: Buffer;
+}
+
+/**
+ * Issue #364 - re-reads the uploaded file by its reference and re-checks it (mime, size, hash) rather
+ * than trusting the reference the frontend echoes back. Runs BEFORE the status write, so a bad file
+ * refuses the whole action instead of leaving an accepted quote whose proof was silently dropped.
+ */
+async function resolveAttachment(companyId: string, raw: unknown): Promise<ResolvedAttachment | undefined> {
+  if (raw === undefined || raw === null) return undefined;
+  const { fileRef, fileName, mime } = (typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  if (typeof fileRef !== 'string' || !SHA256_HEX.test(fileRef)) {
+    throw new BadRequestException('The attachment must be a file reference returned by the upload endpoint.');
+  }
+  if (typeof mime !== 'string' || !ACCEPTANCE_ATTACHMENT_MIMES.includes(mime)) {
+    throw new BadRequestException(
+      `Unsupported attachment type "${String(mime)}" - allowed: ${ACCEPTANCE_ATTACHMENT_MIMES.join(', ')}.`,
+    );
+  }
+  const name = typeof fileName === 'string' ? fileName.trim() : '';
+  if (!name || name.length > MAX_ATTACHMENT_FILE_NAME_LENGTH) {
+    throw new BadRequestException(
+      `The attachment needs a file name of at most ${MAX_ATTACHMENT_FILE_NAME_LENGTH} characters.`,
+    );
+  }
+  const bytes = await readInboundFile(companyId, fileRef, mime);
+  if (!bytes) {
+    throw new BadRequestException('The attached file was not found for this company - upload it again.');
+  }
+  if (bytes.length > MAX_ATTACHMENT_BYTES) {
+    throw new PayloadTooLargeException(
+      `The attached file is ${bytes.length} bytes, over the ${MAX_ATTACHMENT_BYTES}-byte limit.`,
+    );
+  }
+  const sha256 = computeArtifactHash(bytes);
+  if (sha256 !== fileRef) {
+    throw new BadRequestException('The attached file no longer matches its reference - upload it again.');
+  }
+  return { meta: { fileName: name, mime, byteLength: bytes.length, sha256 }, bytes };
+}
+
 export function registerAcceptManuallyAction(registry: ActionRegistry): void {
   registry.register('quote', 'accept-manually', async (ctx) => {
     if (!ctx.documentId) {
@@ -94,6 +154,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
     const currentData = (current.data ?? {}) as Record<string, unknown>;
     const options = deriveQuoteOptions(currentData);
     const chosenOption = resolveChosenOption(options, ctx.params.option);
+    const attachment = await resolveAttachment(ctx.companyId, ctx.params.attachment);
 
     // The compare-and-swap IS the 409 for "already accepted"/"already signed"/"draft"/"refused" -
     // `runAction`'s own `isActionAvailable` gate already refuses every status but "sent" before this
@@ -107,18 +168,11 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
     // accepting a `chosenOption` validated against options that no longer exist. `chosenOption`
     // travels on the SAME write as the status change - see `updateDocumentStatus`'s own header on why
     // this must never be a second, separate write.
-    const updated = await updateDocumentStatus(
-      ctx.companyId,
-      'quote',
-      ctx.documentId,
-      'accepted',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      chosenOption,
-      current.updatedAt,
-    );
+    const updated = await updateDocumentStatus(ctx.companyId, 'quote', ctx.documentId, 'accepted', {
+      fromStatuses: ['sent'],
+      acceptedOption: chosenOption,
+      knownUpdatedAt: current.updatedAt,
+    });
 
     const acceptedAt = new Date();
     // The frozen option snapshot (name, lines, total) - see `ManualAcceptanceManifest.option`'s own
@@ -163,6 +217,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
         ctx.documentId,
         current.deliveryConfirmedAt ?? null,
       ),
+      ...(attachment ? { attachment: attachment.meta } : {}),
     };
 
     // The AUDIT TRAIL - see this file's own header, point 2.
@@ -177,6 +232,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
         actorEmail: ctx.actor.email,
         note,
         ...(chosenOption ? { chosenOption } : {}),
+        ...(attachment ? { attachment: attachment.meta } : {}),
       },
     });
 
@@ -187,6 +243,7 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
         companyId: ctx.companyId,
         documentId: ctx.documentId,
         manifest: Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'),
+        ...(attachment ? { attachment: { mime: attachment.meta.mime, bytes: attachment.bytes } } : {}),
       });
     } catch (error) {
       logger.error('Failed to archive a manual quote acceptance - the acceptance itself still stands', {
@@ -213,4 +270,4 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
 // Re-exported so this feature's own unit/archive tests can build a manifest by hand without
 // re-deriving the shape from the handler's own closure - same convention
 // `contributions/quote-contributions.ts`'s own bottom export follows for `quoteGrossTotal`.
-export { MAX_NOTE_LENGTH };
+export { ACCEPTANCE_ATTACHMENT_MIMES, MAX_NOTE_LENGTH };

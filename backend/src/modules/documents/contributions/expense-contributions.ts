@@ -4,13 +4,9 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildExpenseDescriptor } from '../descriptors/expense.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import {
-  countDocuments,
-  dateValueInRange,
-  dayMs,
-  listAllDocuments,
-  listRecentDocuments,
-} from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
+import { serverMessage } from '../messages/server-message';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
   consolidateByCurrency,
@@ -353,7 +349,12 @@ export const buildExpenseStatisticsWidgets: ContributionHandler = async ({ compa
     // exactly like a complete one, so the widget says which it is.
     warnings:
       expenseCount > rows.length
-        ? [`Showing the ${rows.length} most recently updated expenses of ${expenseCount}.`]
+        ? [
+            serverMessage('documents.messages.widgets.expensesCapped', {
+              shown: rows.length,
+              total: expenseCount,
+            }),
+          ]
         : undefined,
     columns: [
       { key: 'date', label: 'Date' },

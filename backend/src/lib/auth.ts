@@ -15,14 +15,15 @@ import {
   SSO_PROVISIONED_ROLE,
   accountLinkingOptions,
   companyForOAuthSignup,
+  createEnvOidcConfig,
   deriveUserNames,
   isOidcOnly,
   providerIdFromEndpointContext,
   resolveEnvOidcProvider,
-  resolveOidcEndpoints,
   signupMayAssertVerifiedEmail,
   ssoLinkValidator,
 } from './sso-policy';
+import { USER_ADDITIONAL_FIELDS } from './user-additional-fields';
 import {
   LEGAL_ACCEPTANCE_REQUIRED_CODE,
   LEGAL_ACCEPTANCE_REQUIRED_MESSAGE,
@@ -32,6 +33,8 @@ import {
 import { recordLegalAcceptance } from '../legal/legal-acceptance';
 import { REQUIRED_ACCEPTANCE_SLUGS } from '../legal/legal-documents';
 import { isBillingEnabled } from '../modules/billing/billing-flag';
+import { companyHoldsFounderGrid } from '../modules/billing/founder-grid';
+import { buildStripePlugin } from '../modules/billing/stripe-plugin';
 import {
   SoleOwnerError,
   assertNotSoleOwner,
@@ -39,15 +42,18 @@ import {
   sendChangeEmailMail,
 } from '../modules/auth-extended/account-lifecycle';
 import { NO_FREE_SEAT_CODE, NoFreeSeatError, withSeatReservation } from '../modules/billing/seat-sync';
-import { syncCompanyMemberOnMembershipChange } from '../modules/billing/member-sync';
-import { syncPolarMemberEmailForUser } from '../modules/billing/member-email-sync';
 import { MailService } from '../mail/mail.service';
+import { servedOverHttps } from './app-url-scheme';
 import { deleteOrphanedUserAfterSeatRefusal, isNoFreeSeatRefusal } from './seat-refusal-cleanup';
 import { createPendingSignupStore, createRedisClientForPendingSignups } from './pending-signup-store';
+import { redactLogText } from '../logger/redaction';
 import { CLIENT_IP_HEADER } from './client-ip-header';
-import { devOnlyOrigins } from './dev-origins';
+import { effectiveAuthSecret } from './auth-secret';
+import { allowedBrowserOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
+import { appOrigin } from '@/utils/app-origin';
+import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 
@@ -58,8 +64,6 @@ const prisma = new PrismaClient({ adapter });
 // INSTANCE mail path (`sendMail`), never `sendForCompany`'s per-company cascade — a user account
 // belongs to no company (see `account-lifecycle.ts`'s own header on `buildChangeEmailMail`).
 const mailService = new MailService();
-
-const appUrl = () => process.env.APP_URL || 'http://localhost:3000';
 
 /**
  * Redis-backed, not two bare in-process `Map`s — see `pending-signup-store.ts`'s own header for the
@@ -82,29 +86,10 @@ const pendingSignupStore = createPendingSignupStore(createRedisClientForPendingS
  */
 const envOidcProvider = resolveEnvOidcProvider();
 
-const createOidcConfig = (): GenericOAuthConfig[] => {
-  const config: GenericOAuthConfig = {
-    // `sso-policy.ts#resolveEnvOidcProvider` owns this id so the backend, `entrypoint.sh`'s
-    // config.json, and the sign-in page cannot disagree about it — and so the default is URL-safe
-    // (the old `'Generic OIDC'` default carried a SPACE into a callback path segment).
-    providerId: envOidcProvider.providerId,
-    clientId: process.env.OIDC_CLIENT_ID || 'TEMP',
-    scopes: ['openid', 'profile', 'email'],
-  };
-
-  if (process.env.OIDC_CLIENT_SECRET) {
-    config.clientSecret = process.env.OIDC_CLIENT_SECRET;
-  }
-
-  // Discovery-vs-manual endpoint selection, the `OIDC_JWKS_URI` legacy alias, and
-  // `OIDC_END_SESSION_ENDPOINT` (RP-Initiated Logout) are all decided in
-  // `sso-policy.ts#resolveOidcEndpoints` — pulled out of this function specifically so they can be
-  // unit-tested, since importing THIS file at all builds a live Prisma adapter (see `sso-policy.ts`'s
-  // own module header for why no spec imports `auth.ts`).
-  Object.assign(config, resolveOidcEndpoints());
-
-  return [config];
-};
+// The config itself is built in `sso-policy.ts#createEnvOidcConfig`, so the wiring (registered id,
+// client secret, endpoint selection) has a spec that can import it; importing THIS file would build
+// a live Prisma adapter and read the real `.env` (see that module's own header).
+const createOidcConfig = (): GenericOAuthConfig[] => createEnvOidcConfig(process.env, envOidcProvider);
 
 const validateInvitationForSignup = async (
   email: string,
@@ -126,36 +111,49 @@ const validateInvitationForSignup = async (
     await pendingSignupStore.deletePendingInvitationCode(email);
   }
 
-  const invitationCode = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
+  // What the store holds is the DIGEST of the code (`invitations.controller.ts` writes it), so this
+  // hook can look the row up without ever seeing, or persisting, the plaintext credential.
+  const pendingInvitationCodeHash = (await pendingSignupStore.getPendingInvitationCode(email)) ?? undefined;
 
   let invitation: InvitationLookupResult | undefined;
-  if (invitationCode) {
-    const record = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
+  if (pendingInvitationCodeHash) {
+    const record = await prisma.invitationCode.findUnique({
+      where: { codeHash: pendingInvitationCodeHash },
+    });
     invitation = record
       ? { found: true, usedAt: record.usedAt, expiresAt: record.expiresAt }
       : { found: false };
   }
 
-  const decision = decideRegistration({ invitationCode, invitation, isFirstUser, email });
+  const decision = decideRegistration({
+    invitationCode: pendingInvitationCodeHash,
+    invitation,
+    isFirstUser,
+    email,
+  });
 
   if (!decision.allowed) {
     // A code was supplied and rejected: forget it, it must not be silently retried
     // (or re-consumed) by a later signup attempt for the same email.
-    if (invitationCode) {
+    if (pendingInvitationCodeHash) {
       await pendingSignupStore.deletePendingInvitationCode(email);
     }
     return { valid: false, message: registrationDenialMessage(decision.reason) };
   }
 
-  return { valid: true, invitationCode };
+  return { valid: true, invitationCode: pendingInvitationCodeHash };
 };
 
 const markInvitationAsUsed = async (email: string, userId: string) => {
-  const invitationCode = await pendingSignupStore.getPendingInvitationCode(email);
-  if (invitationCode) {
+  const invitationCodeHash = await pendingSignupStore.getPendingInvitationCode(email);
+  if (invitationCodeHash) {
     try {
-      const invitation = await prisma.invitationCode.findUnique({ where: { code: invitationCode } });
-      if (!invitation) throw new Error(`Invitation code "${invitationCode}" not found`);
+      const invitation = await prisma.invitationCode.findUnique({
+        where: { codeHash: invitationCodeHash },
+      });
+      // The message never carries the digest either: it is half of a lookup key and ends up in a
+      // stack trace the moment this throws.
+      if (!invitation) throw new Error('Pending invitation code not found');
 
       // Marking the code used and attaching the new user to the company/role it was issued for happen
       // in the SAME transaction as the seat reservation — a `NoFreeSeatError` (thrown before either
@@ -179,7 +177,7 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
           data: { usedAt: new Date(), usedById: userId },
         });
         if (count === 0) {
-          throw new Error(`Invitation code "${invitationCode}" has already been used`);
+          throw new Error('Pending invitation code has already been used');
         }
         return tx.userCompany.upsert({
           where: { userId_companyId: { userId, companyId: invitation.companyId } },
@@ -187,14 +185,15 @@ const markInvitationAsUsed = async (email: string, userId: string) => {
           update: {},
         });
       });
-      // The invitation can carry OWNER/ADMIN — see `member-sync.ts`'s own header.
-      await syncCompanyMemberOnMembershipChange(invitation.companyId, userId);
     } catch (error) {
       await pendingSignupStore.deletePendingInvitationCode(email);
       if (error instanceof NoFreeSeatError) {
         throw new APIError('FORBIDDEN', { message: error.message, code: NO_FREE_SEAT_CODE });
       }
-      console.warn(`Could not mark invitation code as used: ${error}`);
+      console.warn(
+        'Could not mark a pending invitation code as used',
+        redactLogText(error instanceof Error ? error.message : String(error)),
+      );
       return;
     }
     await pendingSignupStore.deletePendingInvitationCode(email);
@@ -246,8 +245,6 @@ const attachSsoProvisionedMembership = async (companyId: string, userId: string)
     }
     throw error;
   }
-  // `SSO_PROVISIONED_ROLE` can be OWNER/ADMIN — see `member-sync.ts`'s own header.
-  await syncCompanyMemberOnMembershipChange(companyId, userId);
 };
 
 const userHookFunction = async (user, context) => {
@@ -339,7 +336,11 @@ const userAfterCreateHook = async (user, context) => {
           user.id,
           (id) => prisma.user.delete({ where: { id } }),
           (cleanupError) =>
-            console.warn(`Could not delete orphaned user ${user.id} after a refused seat: ${cleanupError}`),
+            console.warn(
+              `Could not delete orphaned user ${user.id} after a refused seat: ${redactLogText(
+                cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+              )}`,
+            ),
         );
       }
       throw error;
@@ -363,32 +364,59 @@ const userAfterCreateHook = async (user, context) => {
 const SESSION_REFRESH_FIELDS = new Set(['expiresAt', 'updatedAt']);
 const sessionUpdatesToInvalidate = new WeakSet<object>();
 
+const stripePlugin = buildStripePlugin({
+  findCompanyRole: async (userId, companyId) => {
+    const membership = await prisma.userCompany.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+      select: { role: true },
+    });
+    return membership?.role ?? null;
+  },
+  companyHoldsFounderGrid,
+  findCompanyCustomerDetails: (companyId) =>
+    prisma.company.findUnique({ where: { id: companyId }, select: { name: true, email: true } }),
+  findCompanyTaxProfile: async (companyId) => {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        address: true,
+        addressLine2: true,
+        postalCode: true,
+        city: true,
+        state: true,
+        country: true,
+        countryCode: true,
+        partyIdentifiers: { where: { scheme: 'VAT' }, select: { value: true, validationStatus: true } },
+      },
+    });
+    if (!company) return null;
+    const vat = company.partyIdentifiers[0];
+    return {
+      address: {
+        line1: company.address,
+        line2: company.addressLine2,
+        postalCode: company.postalCode,
+        city: company.city,
+        state: company.state,
+        countryCode: company.countryCode ?? guessCountryCode(company.country) ?? null,
+      },
+      vat: vat ? { value: vat.value, validationStatus: vat.validationStatus } : null,
+    };
+  },
+});
+
 export const auth = betterAuth({
-  baseURL: process.env.APP_URL || 'http://localhost:3000',
+  baseURL: appOrigin(),
   // Fall back to JWT_SECRET so existing deployments that only set it keep working
-  secret: process.env.BETTER_AUTH_SECRET || process.env.JWT_SECRET,
-  trustedOrigins: [
-    ...devOnlyOrigins(),
-    process.env.APP_URL,
-    ...(process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) || []),
-  ].filter((origin): origin is string => typeof origin === 'string'),
+  secret: effectiveAuthSecret(),
+  trustedOrigins: allowedBrowserOrigins(),
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  // Without this, better-auth's own default (`dist/cookies/index.mjs`) derives `secure` from whether
-  // `baseURL` (i.e. `APP_URL`) STARTS WITH `https://` — not from `NODE_ENV`. A deployment that
-  // terminates TLS somewhere other than this container's own bundled nginx (another reverse proxy in
-  // front of it) and leaves `APP_URL` on an internal `http://` address would then mint session cookies
-  // with no `Secure` attribute at all: they would be sent over any accidental plain-HTTP hop. Tying it
-  // to `NODE_ENV === 'production'` instead makes the decision explicit and independent of how `APP_URL`
-  // happens to be spelled. This line — `sameSite: 'lax'`, the default `emit` also documents explicitly
-  // here rather than leaving it an unstated library default — is the ONLY thing standing between every
-  // Nest route (`/api/*` outside `/api/auth`, which better-auth's own origin check already covers) and
-  // CSRF: there is no separate application-level CSRF token anywhere in this codebase. `httpOnly: true`
-  // is better-auth's own default already; restated here so all three attributes this guarantee depends
-  // on are visible in one place instead of two of them being implicit.
+  // `sameSite: 'lax'` is the only CSRF defence of the Nest routes outside `/api/auth`: there is no
+  // application-level CSRF token. `Secure` follows APP_URL's scheme (`app-url-scheme.ts`).
   advanced: {
-    useSecureCookies: process.env.NODE_ENV === 'production',
+    useSecureCookies: servedOverHttps(appOrigin()),
     defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
     // Per-client rate limiting fix, proven live 2026-09-22 (150 concurrent `GET /api/auth/get-session`
     // from 150 distinct client addresses served/refused the exact same 100/50 split as the same 150
@@ -445,7 +473,7 @@ export const auth = betterAuth({
       // `userHookFunction` above reads it: bracket notation on the loosely-typed hook object, never a
       // cast to a concrete interface that does not actually declare this field.
       const language = (user as Record<string, unknown>)['locale'] as string | null | undefined;
-      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appUrl(), language });
+      await sendChangeEmailMail(mailService, { newEmail: user.email, url, appUrl: appOrigin(), language });
     },
   },
   account: {
@@ -476,31 +504,10 @@ export const auth = betterAuth({
           select: { userId: true },
         })) !== null,
     }),
-    additionalFields: {
-      firstname: {
-        type: 'string',
-        required: true,
-        input: true,
-      },
-      lastname: {
-        type: 'string',
-        required: true,
-        input: true,
-      },
-      // The "Mon compte" language preference (`schema.prisma`'s own comment on `User.locale` for the
-      // full rationale). `input: true` is what makes `signUp.email({ locale: ... })` land in `data`
-      // for `userHookFunction` to normalize below — WITHOUT this declaration, better-auth's own
-      // adapter would neither accept the field on write nor include it when building `session.user`,
-      // and `PATCH /api/auth-extended/preferences` (which writes the column directly through Prisma,
-      // bypassing better-auth entirely) would have no way to make its change visible in the session at
-      // all. `required: false`: unset is a legitimate state (falls back to `Company.language`, then
-      // 'en' — `resolve-user-language.ts`), not an error.
-      locale: {
-        type: 'string',
-        required: false,
-        input: true,
-      },
-    },
+    // Declared in `user-additional-fields.ts` so `sso-policy.spec.ts` asserts against the REAL
+    // definitions (including `required: true` on the two names better-auth checks before any
+    // database hook) instead of a copy that cannot fail when this changes.
+    additionalFields: USER_ADDITIONAL_FIELDS,
     changeEmail: {
       enabled: true,
       // `sendChangeEmailConfirmation` (sent to the OLD address, requiring a currently-verified
@@ -550,14 +557,7 @@ export const auth = betterAuth({
       },
       afterDelete: async (user) => {
         const memberships = await pendingSignupStore.takePendingMembershipsForDeletedUser(user.id);
-        await cleanupAfterUserDelete(memberships, {
-          id: user.id,
-          email: user.email,
-          // better-auth's own `user` object (its core shape, not our Prisma model) only carries a
-          // single `name` field here, not `firstname`/`lastname` — good enough for a Polar member's
-          // display name, which is all this is used for.
-          name: user.name || null,
-        });
+        await cleanupAfterUserDelete(memberships);
       },
     },
   },
@@ -579,20 +579,9 @@ export const auth = betterAuth({
         before: userHookFunction,
         after: userAfterCreateHook,
       },
-      // Fires after ANY user row update, including the one `updateUser` performs once a
-      // `changeEmail` confirmation link is actually opened (better-auth's own internal-adapter path,
-      // not the moment the link is merely SENT — `account-lifecycle.ts#sendChangeEmailMail`'s own
-      // header is that earlier step). `syncPolarMemberEmailForUser` itself is a cheap no-op for the
-      // overwhelming majority of these calls (billing disabled, or this user holds no OWNER/ADMIN
-      // membership anywhere) — see that module's own header for why running it unconditionally here,
-      // rather than trying to detect "was this SPECIFICALLY an email change" from this hook's own
-      // arguments (which carry no reliable before/after diff), is the pragmatic choice: a
-      // no-op-if-unchanged push to Polar costs nothing extra, and never firing is the one failure
-      // mode this hook must avoid.
       update: {
         after: async (user) => {
           await sessionCache.invalidateUsers([user.id]);
-          await syncPolarMemberEmailForUser(user.id, user.email, user.name || null);
         },
       },
       delete: {
@@ -648,16 +637,7 @@ export const auth = betterAuth({
     // registered — but it is now expressed ONCE, as the same fact the frontend reads, instead of
     // being re-derived here and again from `OIDC_NAME` in the browser.
     ...(envOidcProvider.registered ? [genericOAuth({ config: createOidcConfig() })] : []),
-    // Hosted billing (product decision 2026-09-15, moved to per-COMPANY Polar customers 2026-09-16 —
-    // option A) no longer mounts anything HERE at all: `@polar-sh/better-auth`'s own `checkout()`/
-    // `portal()` hard-code `externalCustomerId: session.user.id` with no way to override it, which is
-    // exactly wrong for a product that bills per company, not per user — see
-    // `modules/billing/checkout-session.ts`/`portal-session.ts`'s own headers. Both now live as plain
-    // Nest routes instead (`BillingController`'s `POST /billing/checkout`/`/billing/portal`), gated by
-    // `@ActiveCompany()` + `@BillingGateExempt()` the ordinary way, not by better-auth's own
-    // middleware. Boot-time credential validation (`assertPolarEnvConfiguredForBoot`, `main.ts`)
-    // still runs unconditionally — it gates `POLAR_ACCESS_TOKEN` etc. for those routes' own
-    // `getPolarClient()`, not for anything constructed at this module's load time any more.
+    ...(stripePlugin ? [stripePlugin] : []),
     // Enriches every session with the caller's company memberships and
     // resolves which one is active, so `AuthGuard` can thread a
     // companyId/role through every request without an extra query.

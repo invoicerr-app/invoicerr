@@ -105,13 +105,11 @@ function createClientThroughScreen(opts: {
 	} else {
 		cy.get('[name="name"]').clear().type(opts.name);
 	}
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.selectCountry("client-country-select", opts.countryLabel);
 	cy.get('[name="address"]').clear().type(opts.address);
 	cy.get('[name="postalCode"]').clear().type(opts.postalCode);
 	cy.get('[name="city"]').clear().type(opts.city);
-	cy.continueSteppedDialog("client-dialog");
 
 	if (opts.vat.kind === "not-offered") {
 		// No `country-identifiers/data/*.json` file for this country at all - the "unknown country"
@@ -132,10 +130,8 @@ function createClientThroughScreen(opts: {
 	cy.get('[data-cy="client-currency-select-options"]').should("be.visible");
 	cy.get('[data-cy="client-currency-select"] input').type("Euro");
 	cy.get('[data-cy="client-currency-select-option-euro-(€)"]').click();
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[name="contacts.0.email"]').clear().type(opts.email);
-	cy.continueSteppedDialog("client-dialog");
 
 	cy.get('[data-cy="client-submit"]').click();
 	cy.get('[data-cy="client-dialog"]').should("not.exist");

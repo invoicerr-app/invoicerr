@@ -1,3 +1,4 @@
+import { appOrigin } from '@/utils/app-origin';
 import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
@@ -459,18 +460,11 @@ export class SignaturesService {
     // propagates straight out of this method BEFORE `markSignatureSigned`/the webhook/the archive
     // write below ever run - the loser of the race leaves no side effect at all, never a signature
     // marked signed for a choice that was not the one actually persisted.
-    const updated = await updateDocumentStatus(
-      row.companyId,
-      row.typeId,
-      row.documentId,
-      'signed',
-      null,
-      undefined,
-      undefined,
-      ['sent'],
-      chosenOption,
-      current.updatedAt,
-    );
+    const updated = await updateDocumentStatus(row.companyId, row.typeId, row.documentId, 'signed', {
+      fromStatuses: ['sent'],
+      acceptedOption: chosenOption,
+      knownUpdatedAt: current.updatedAt,
+    });
     // The archive-side twin of the SAME fact - see `Signature.chosenOption`'s own schema comment.
     const signed = await markSignatureSigned(row.id, chosenOption);
     await this.archiveESignatureAcceptance(row, signed.signedAt ?? new Date(), boundData, chosenOption);
@@ -581,7 +575,7 @@ export class SignaturesService {
     displayNumber: string;
     language: RenderLanguage;
   }): Promise<void> {
-    const appUrl = process.env.APP_URL || '';
+    const appUrl = appOrigin();
     const template = await this.resolveSystemTemplate(
       MailTemplateType.SIGNATURE_REQUEST,
       input.companyId,
@@ -633,7 +627,7 @@ export class SignaturesService {
     );
 
     const parts = buildOtpEmailParts({
-      appUrl: process.env.APP_URL || '',
+      appUrl: appOrigin(),
       otpCode: `${code.slice(0, 4)}-${code.slice(4, 8)}`,
     });
     await this.sendTemplatedMail(

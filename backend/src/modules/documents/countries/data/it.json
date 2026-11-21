@@ -520,25 +520,27 @@
         "scheme": "VAT",
         "appliesTo": "COMPANY",
         "label": "Partita IVA",
-        "required": false,
+        "required": true,
         "demoGenerator": { "id": "it-partita-iva" },
         "provenance": {
           "kind": "legal",
-          "sourceText": "«2. La fattura contiene le seguenti indicazioni: [...] d) numero di partita IVA del soggetto cedente o prestatore».",
-          "sourceCheckedAt": "2026-09-13"
+          "sourceText": "«2. La fattura contiene le seguenti indicazioni: [...] d) numero di partita IVA del soggetto cedente o prestatore; [...] f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;»",
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2, lettera d). Read directly at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=, plain HTTP response headed \"vigente al 13/09/2026\", curl with a browser User-Agent, no JS rendering needed), 2026-09-13. This binds the SELLER only (\"cedente o prestatore\") and carries no carve-out anywhere in comma 2 — a flat-rate/forfettario trader still holds and must state a Partita IVA. Cross-checked against the simplified-invoice regime at art. 21-bis, comma 1, lettera d) (same method/date, https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21bis!vig=): the seller's Partita IVA is NOT among the elements a simplified invoice (<=EUR100, raised to <=EUR400) may omit. Also cross-checked against the FatturaPA technical specification's own introduction, which restates the DPR 633/1972 list including \"numero di partita IVA del cedente/prestatore\" with no qualifier. For the SELLER this is genuinely unconditional — no VAT-regime carve-out exists. `required` is nonetheless set to `false` here, and this is the one deliberate departure from simply transcribing the seller's own unconditional rule: this catalog's ONLY axis is `appliesTo` (COMPANY/INDIVIDUAL/BOTH — the PARTY's own record type), and `resolveRequiredIdentifiers` takes no notion of transactional role at all. The exact same per-country array is read by `onboarding.tsx`/`company.settings.tsx` (always `partyType: \"COMPANY\"`, for the ACTIVE company about to issue invoices — i.e. always the SELLER in this product's outbound flow) AND by `client-upsert.tsx` (partyType taken from the CLIENT's own record type — i.e. the BUYER of that company's invoices). Setting `required: true` here would therefore ALSO become a hard block on saving an Italian, company-type CLIENT record — confirmed by reading client-upsert.tsx's `onSubmit` (a `required` scheme with an empty value calls `form.setError(...)` and `return`s, refusing to save) — but the BUYER-side rule is genuinely CONDITIONAL (DPR 633/1972 art. 21, comma 2, lettera f) — see this file's own LEGAL_ID entry below for the quote and the reasoning), not unconditional like the seller's. There is no per-role `required` in this schema, and the DB itself only allows one row per (countryCode, scheme) — `CountryIdentifierRequirement`'s unique key is `countryCode_scheme` — so a second \"VAT\" fact scoped to the buyer could not even coexist with this one; the seed would just overwrite it. `required: false` at country level is the same discipline this catalog already applies in fr.json/pt.json when a rule that IS mandatory for most sellers depends on a variable the catalog does not carry per party (there, the seller's own VAT regime; here, the party's ROLE in the transaction) — never a UI default, an explicit and documented choice. `appliesTo: 'COMPANY'` is similarly a simplification: an individual professional/sole trader acting as a business (an INDIVIDUAL record in this app) also holds and must state a Partita IVA when acting as a taxable person under this same lettera d) — but this choice is moot for the seller path specifically, because `onboarding.tsx`/`company.settings.tsx` always query `partyType: \"COMPANY\"` regardless of the active company's real legal form, so this fact is shown there unconditionally either way; it only affects whether an INDIVIDUAL-typed CLIENT also sees this field (optionally, since `required` is false here). FORMAT: the commonly-cited 11-digit numeric format for Partita IVA was NOT found in either DPR 633/1972 art. 21 or the FatturaPA Specifiche tecniche v1.4 (whose own `IdCodice` field states only a generic 28-character ceiling shared with foreign identifiers) — no `pattern` is declared here for that reason, the same discipline pt.json already applies to its own undeclared NIF/NIPC pattern."
+        "notes": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2, lettere d) and f). Read directly at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=, plain HTTP response headed \"vigente al 26/10/2026\", curl with a browser User-Agent, no JS rendering needed), 2026-10-26. Lettera d) binds the SELLER (\"cedente o prestatore\") and carries no carve-out anywhere in comma 2: a flat-rate/forfettario trader still holds and must state a Partita IVA. Cross-checked against the simplified-invoice regime at art. 21-bis, comma 1, lettera d) (read 2026-09-13, https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21bis!vig=): the seller's Partita IVA is NOT among the elements a simplified invoice (<=EUR100, raised to <=EUR400) may omit. Lettera f) binds a BUYER acting as a business: its Partita IVA, or its own member state's VAT number when established elsewhere in the Union; a buyer resident in Italy that does not act as a business gives its codice fiscale instead (see LEGAL_ID below). `required` binds COMPANY, the one party type `appliesTo` offers: `onboarding.tsx` and `company.settings.tsx` read this scheme for the company about to issue invoices, `client-upsert.tsx` for a company client, and `invoiceRequirements` asks it of both. The text turns on whether the party acts as a business, which this app does not record: a COMPANY-type party stands in for one, so a company that is not a taxable person cannot be saved without a Partita IVA, and an individual professional or sole trader filed as INDIVIDUAL is not offered this field. FORMAT: the commonly-cited 11-digit numeric format for Partita IVA was NOT found in either DPR 633/1972 art. 21 or the FatturaPA Specifiche tecniche v1.4 (whose own `IdCodice` field states only a generic 28-character ceiling shared with foreign identifiers): no `pattern` is declared here for that reason, the same discipline pt.json already applies to its own undeclared NIF/NIPC pattern."
       },
       {
         "scheme": "LEGAL_ID",
         "appliesTo": "BOTH",
         "label": "Codice Fiscale",
-        "required": false,
+        "required": true,
+        "requiredFor": ["INDIVIDUAL"],
         "provenance": {
-          "kind": "unverified",
-          "resolutionNote": "Italian law does not always ask a buyer for the same document. A business buyer gives their VAT number (their Italian Partita IVA, or — if they are a business established elsewhere in the EU — their own country's VAT number instead). A buyer who is NOT acting as a business — typically a private individual — gives their Italian tax code (Codice Fiscale) instead of a VAT number. Right now this app has no way to tell those two situations apart for a given client: it only records whether a client is filed as a \"Company\" or an \"Individual\", and that is not the same thing as whether the client is acting as a VAT-registered business — an individual can run a business (and would then need to give a VAT number, not a tax code), and some companies are not VAT-registered (and would then need to give a tax code instead). Until a client record can say which of the two applies, this app cannot safely make either the VAT number or the Codice Fiscale mandatory here: doing so would sometimes ask a private individual for a business VAT number they will never have, or let a business through with neither number recorded. What would settle this: letting a client record say whether it is acting as a VAT-registered business, separately from whether it is filed as a Company or an Individual — once that exists, the correct one of the two identifiers can be safely required."
+          "kind": "legal",
+          "sourceText": "«2. La fattura contiene le seguenti indicazioni: [...] f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;»",
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "DPR 633/1972, art. 21, comma 2, lettera f) (same page/method/date as the VAT entry above, 2026-09-13): the lettering repeats in the retrieved text — an \"e)\" covers the buyer's name/domicile and a first \"f)\" restates it, then a further \"f)\" (quoted here, semicolon-separated within the same point) states the actual number rule — quoted exactly as normattiva.it renders it, not tidied: «f) ditta, denominazione o ragione sociale, nome e cognome, residenza o domicilio del soggetto cessionario o committente, del rappresentante fiscale nonché ubicazione della stabile organizzazione per i soggetti non residenti; f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;» Precisely: an Italian-established taxable-person buyer gives Partita IVA; a taxable person established in another EU Member State gives THEIR OWN state's VAT id, not an Italian Partita IVA; a buyer resident/domiciled in Italy who does NOT act in the exercise of a business, art or profession gives Codice Fiscale instead. Cross-validated by a second, independent primary source, the FatturaPA technical specification's own `CessionarioCommittente` block, which states the same alternative structurally: «IdFiscaleIVA (la valorizzazione di questi elementi è in alternativa non esclusiva a quella dell'elemento CodiceFiscale; in altri termini, possono non essere valorizzati se è valorizzato l'elemento CodiceFiscale; [...]) [...] CodiceFiscale: la valorizzazione di questo elemento è in alternativa non esclusiva a quella dell'elemento IdFiscaleIVA (può non essere valorizzato se è valorizzato l'elemento IdFiscaleIVA); consente l'inserimento del numero di codice fiscale del cessionario/committente.» (same PDF/URL as this file's VAT entry's own IT-3-equivalent citation — see this file's top-level `notes`). Also cross-validated by the simplified-invoice regime, art. 21-bis comma 1 lettera e): a simplified invoice can reduce the buyer's identification to \"il solo codice fiscale o il numero di partita IVA\" for an Italy-established buyer, the same CF/VAT alternative. `appliesTo: 'BOTH'` and `required: false` are both deliberate: BOTH because either a COMPANY-record or an INDIVIDUAL-record buyer can legally need either identifier depending on taxable-person status, not on record type (an INDIVIDUAL freelancer needs Partita IVA exactly like a COMPANY; a COMPANY-record entity that is not a taxable person would need Codice Fiscale exactly like a private INDIVIDUAL) — `appliesTo` cannot express that finer axis, so BOTH is the least wrong choice, not a claim that record type decides anything here. `required: false` because the rule is a genuine either/or conditioned on taxable-person status, which this catalog does not track per party (see this fact's own `resolutionNote`) — setting it `true` under either scheme name would demand a document some lawful buyers do not have. `provenance.kind` is `unverified` here NOT because the underlying law is in doubt (it is fully quoted above, read directly at normattiva.it) but because a fact this well-established in law, yet not safely enforceable by this product (the deciding variable, taxable-person status, exists nowhere in this app's data model) is recorded as `unverified` with a `resolutionNote` naming what the product would need, rather than graded `legal` with a `required` value that cannot honestly reflect a role-dependent rule. FORMAT: Codice Fiscale length IS established as 11-16 alphanumeric characters (Specifiche tecniche v1.4, §3.3.1, `DatiAnagraficiCedenteType`: «CodiceFiscale (Rif. par. 3.2): formato alfanumerico; lunghezza compresa tra 11 e 16 caratteri.», repeated identically for `RappresentanteFiscale` and `CessionarioCommittente`) — no `pattern` is declared on this fact regardless, by the same all-or-nothing discipline de.json's own VAT entry already uses (an unsourced claim elsewhere in the same fact keeps the whole fact from being promoted); if this fact is ever promoted, `^.{11,16}$` is the primary-sourced pattern to use."
+        "notes": "DPR 633/1972, art. 21, comma 2, lettera f) (same page, method and date as the VAT entry above). The retrieved text letters the buyer's name and domicile \"e)\" and the number it gives \"f)\". An Italian-established taxable-person buyer gives its Partita IVA; a taxable person established in another EU Member State gives ITS OWN state's VAT id, not an Italian Partita IVA; a buyer resident or domiciled in Italy who does NOT act in the exercise of a business, art or profession gives its Codice Fiscale instead. Cross-validated by a second, independent primary source, the FatturaPA technical specification's own `CessionarioCommittente` block, which states the same alternative structurally: «IdFiscaleIVA (la valorizzazione di questi elementi è in alternativa non esclusiva a quella dell'elemento CodiceFiscale; in altri termini, possono non essere valorizzati se è valorizzato l'elemento CodiceFiscale; [...]) [...] CodiceFiscale: la valorizzazione di questo elemento è in alternativa non esclusiva a quella dell'elemento IdFiscaleIVA (può non essere valorizzato se è valorizzato l'elemento IdFiscaleIVA); consente l'inserimento del numero di codice fiscale del cessionario/committente.» (see this file's top-level `notes`). Also cross-validated by the simplified-invoice regime, art. 21-bis comma 1 lettera e): a simplified invoice can reduce the buyer's identification to \"il solo codice fiscale o il numero di partita IVA\" for an Italy-established buyer, the same CF/VAT alternative. `appliesTo: 'BOTH'`: a company that is not a taxable person holds and may give a Codice Fiscale too. `requiredFor: ['INDIVIDUAL']`: `invoiceRequirements` asks it of every domestic INDIVIDUAL-type client, which stands in for a buyer that does not act as a business; a sole trader filed as INDIVIDUAL may instead owe a Partita IVA, which this app cannot tell apart. A COMPANY-type party gives its Partita IVA (VAT above) and may leave this field empty. FORMAT: Codice Fiscale length IS established as 11-16 alphanumeric characters (Specifiche tecniche v1.4, §3.3.1, `DatiAnagraficiCedenteType`: «CodiceFiscale (Rif. par. 3.2): formato alfanumerico; lunghezza compresa tra 11 e 16 caratteri.», repeated identically for `RappresentanteFiscale` and `CessionarioCommittente`). No `pattern` is declared yet: `^.{11,16}$` is the primary-sourced one to add, with its help text."
       },
       {
         "scheme": "IT_PA_CODE",
@@ -591,23 +593,23 @@
         "provenance": {
           "kind": "legal",
           "sourceText": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2: «2. La fattura contiene le seguenti indicazioni: [...] d) numero di partita IVA del soggetto cedente o prestatore»",
-          "sourceCheckedAt": "2026-09-13"
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera d). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), the same reading this file's VAT and LEGAL_ID schemes quote; normattiva.it refused the connection when these rules were written, so the check date is that reading's. No carve-out: a forfettario seller still states its Partita IVA."
+        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera d). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), page headed \"vigente al 26/10/2026\", the same reading this file's VAT and LEGAL_ID schemes quote. No carve-out: a forfettario seller still states its Partita IVA."
       },
       {
         "party": "BUYER",
         "scheme": "VAT",
         "when": {
-          "buyerType": ["COMPANY"],
+          "buyerVatRegistered": [true],
           "buyerEstablishment": ["DOMESTIC", "OTHER_UNION_MEMBER"]
         },
         "provenance": {
           "kind": "legal",
           "sourceText": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2: «2. La fattura contiene le seguenti indicazioni: [...] f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;»",
-          "sourceCheckedAt": "2026-09-13"
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera f). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), the same reading this file's VAT and LEGAL_ID schemes quote; normattiva.it refused the connection when these rules were written, so the check date is that reading's. A business client gives its Partita IVA, or its own member state's VAT number when established elsewhere in the Union. The text turns on whether the client acts as a business, which this app does not record: a COMPANY-type client stands in for one."
+        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera f). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), page headed \"vigente al 26/10/2026\", the same reading this file's VAT and LEGAL_ID schemes quote. A business client gives its Partita IVA, or its own member state's VAT number when established elsewhere in the Union. The text turns on whether the client acts as a business, which this app does not record: a COMPANY-type client stands in for one."
       },
       {
         "party": "BUYER",
@@ -619,12 +621,12 @@
         "provenance": {
           "kind": "legal",
           "sourceText": "DPR 26 ottobre 1972, n. 633, art. 21, comma 2: «2. La fattura contiene le seguenti indicazioni: [...] f) numero di partita IVA del soggetto cessionario o committente ovvero, in caso di soggetto passivo stabilito in un altro Stato membro dell'Unione europea, numero di identificazione IVA attribuito dallo Stato membro di stabilimento; nel caso in cui il cessionario o committente residente o domiciliato nel territorio dello Stato non agisce nell'esercizio d'impresa, arte o professione, codice fiscale;»",
-          "sourceCheckedAt": "2026-09-13"
+          "sourceCheckedAt": "2026-10-26"
         },
-        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera f). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), the same reading this file's VAT and LEGAL_ID schemes quote; normattiva.it refused the connection when these rules were written, so the check date is that reading's. A client resident in Italy who does not act as a business gives its codice fiscale. An INDIVIDUAL-type client stands in for one; a sole trader filed as INDIVIDUAL may instead owe a Partita IVA, which this app cannot tell apart."
+        "notes": "DPR n. 633 del 1972 art. 21, comma 2, lettera f). Read at normattiva.it (https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.del.presidente.della.repubblica:1972-10-26;633~art21!vig=), page headed \"vigente al 26/10/2026\", the same reading this file's VAT and LEGAL_ID schemes quote. A client resident in Italy who does not act as a business gives its codice fiscale. An INDIVIDUAL-type client stands in for one; a sole trader filed as INDIVIDUAL may instead owe a Partita IVA, which this app cannot tell apart."
       }
     ],
-    "notes": "Italy, five schemes. VAT and LEGAL_ID are both `required: false` because this catalog's `appliesTo` axis is party TYPE, while Italy's buyer-side rule (DPR 633/1972 art. 21 comma 2 lettera f) turns on whether the buyer is a taxable person -- a distinction the schema does not carry, and which the DB's one-row-per-(country, scheme) shape cannot express as two role-scoped facts. Requiring either would hard-block a lawful client record. Each fact's own notes state the asymmetry in full.\n\nIT_PA_CODE, IT_SDI and PEC are declared here because `formats/national/fatturapa-provider.ts` reads all three off the client to route FormatoTrasmissione and CodiceDestinatario, and this catalog is the only thing that makes a field for them exist: `client-upsert.tsx` renders one input per scheme declared for the party's country, keying its data-cy off `req.scheme` with no allowlist. While they were undeclared, a domestic Italian B2B client could not have its SdI code entered anywhere and fell through to CodiceDestinatario 'XXXXXXX' -- the value this same specification reserves for a recipient \"non residente, non stabilito, non identificato in Italia\". A domestic invoice announced to SdI as a foreign one.\n\n`b2g-routing/data/it.json` separately declares IT_PA_CODE as mandatory for GOVERNMENT clients. The two are not duplicates: this catalog makes the field EXIST on any Italian record, that one makes it REQUIRED for that subset at send time."
+    "notes": "Italy, five schemes. VAT (Partita IVA) is required of a company and LEGAL_ID (Codice Fiscale) of an individual: DPR 633/1972 art. 21 comma 2 asks on every invoice the seller's Partita IVA (lettera d), a business buyer's Partita IVA and a private buyer's codice fiscale (lettera f), the three cases `invoiceRequirements` encodes, with the party's type standing in for whether it acts as a business. Each fact's own notes say where that approximation matters.\n\nIT_PA_CODE, IT_SDI and PEC are declared here because `formats/national/fatturapa-provider.ts` reads all three off the client to route FormatoTrasmissione and CodiceDestinatario, and this catalog is the only thing that makes a field for them exist: `client-upsert.tsx` renders one input per scheme declared for the party's country, keying its data-cy off `req.scheme` with no allowlist. While they were undeclared, a domestic Italian B2B client could not have its SdI code entered anywhere and fell through to CodiceDestinatario 'XXXXXXX' -- the value this same specification reserves for a recipient \"non residente, non stabilito, non identificato in Italia\". A domestic invoice announced to SdI as a foreign one.\n\n`b2g-routing/data/it.json` separately declares IT_PA_CODE as mandatory for GOVERNMENT clients. The two are not duplicates: this catalog makes the field EXIST on any Italian record, that one makes it REQUIRED for that subset at send time."
   },
   "correctionRoutes": {
     "countryCode": "IT",
@@ -1019,11 +1021,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1047,11 +1051,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1075,11 +1081,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1103,11 +1111,13 @@
               "options": [
                 {
                   "value": "GOODS",
-                  "label": "Goods"
+                  "label": "Goods",
+                  "labelKey": "documents.countryFields.supplyType.options.goods"
                 },
                 {
                   "value": "SERVICES",
-                  "label": "Services"
+                  "label": "Services",
+                  "labelKey": "documents.countryFields.supplyType.options.services"
                 }
               ],
               "helpText": "Whether this line is a delivery of goods or a supply of services: it decides how a cross-border sale is taxed. Goods sold to a consumer in another EU member state are an intra-Community distance sale, taxed where they arrive once your EU-wide distance sales pass EUR 10 000 in a calendar year (Directive 2006/112/EC art. 33(a) and art. 59c); the same sale as a service stays taxable here (art. 45). Optional: a line that declares nothing is treated as a supply of services.",
@@ -1417,6 +1427,436 @@
       },
       "notes": "Agenzia delle Entrate, \"Specifiche tecniche operative del formato della fattura del Sistema di Interscambio\", version 1.4: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf, CodiceDestinatario. The SdI rejects XXXXXXX with error 00313 unless the buyer's IdFiscaleIVA carries an IdPaese other than IT (Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1). With 0000000 and no PECDestinatario, the SdI makes the invoice available in the buyer's reserved area."
     },
+    "stampDuty": {
+      "bolloVirtuale": "SI",
+      "amount": 2,
+      "threshold": 77.47,
+      "appliesTo": {
+        "sellerTaxSchemes": ["STANDARD", "FRANCHISE_BASE", "EXEMPT"]
+      },
+      "legalReference": "Imposta di bollo - D.P.R. 642/1972, art. 13 della Tariffa (Parte I) e art. 6 della Tabella (Allegato B)",
+      "provenance": {
+        "kind": "legal",
+        "sourceText": "Tariffa, Parte I, art. 13, comma 1: «Fatture, note, conti e simili, anche se non soggetti a registrazione (...) per ogni foglio: euro 2,00»; nota 2 dello stesso articolo: l'imposta è esclusa «quando la somma non supera L. 150.000» (77,47 euro). Tabella, Allegato B, art. 6: sono esenti i documenti «riguardanti il pagamento di corrispettivi di operazioni assoggettate ad imposta sul valore aggiunto».",
+        "sourceCheckedAt": "2026-11-20"
+      },
+      "notes": "Quoted from D.P.R. 26 ottobre 1972 n. 642 as reproduced by SamBooks, \"Imposta di bollo sulle fatture senza IVA\" (updated 2026-09-06, checked on Normattiva): https://www.sambooks.ai/risorse/imposta-bollo-fatture-documenti-commerciali-art-13-dpr-642-1972, cross-checked against https://www.leggeinchiaro.it/imposta-bollo-fattura-quando-si-applica-2-euro/. The 2,00 euro amount is the one set by art. 7-bis, comma 3, D.L. 43/2013. The threshold is measured on the invoice's components that carry NO VAT, never on the document total (Agenzia delle Entrate, risposta a interpello n. 45/2024, which recalls risoluzione n. 98/E of 2001). Scoped by the seller's own tax scheme (`appliesTo.sellerTaxSchemes`), which every Italian seller has; what decides the duty is the invoice's non-VAT base, whatever Natura produced it (N2.1 to N4 are the codes the source lists for a stamp-duty invoice). Invoices to a public administration are not excluded here yet, pending a sourced answer on who bears the duty in that case; a non-euro invoice is left alone because the 2,00 euro amount would need a conversion."
+    },
     "notes": "FatturaPA codes for an Italian seller. Since 2021-01-01 the SdI refuses the generic Natura codes N2, N3 and N6 (error 00445, Agenzia delle Entrate, SdI technical specifications, Allegato A version 1.9.1: https://www.agenziaentrate.gov.it/portale/documents/d/guest/allegato-a-specifiche-tecniche-vers-1-9-1), so only the detailed codes are declared. Every code accepted by the official schema 1.2.3 is listed; the ones without appliesTo cannot be selected from an invoice yet."
+  },
+  "companyLaw": {
+    "countryCode": "IT",
+    "legalFormLabel": "Forma giuridica",
+    "legalForms": [
+      {
+        "code": "IT_SRL",
+        "name": "Società a responsabilità limitata",
+        "designation": "S.r.l.",
+        "hasRegisterEntry": true,
+        "singleMember": false
+      },
+      {
+        "code": "IT_SRL_SOCIO_UNICO",
+        "name": "Società a responsabilità limitata con unico socio",
+        "designation": "S.r.l.",
+        "hasRegisterEntry": true,
+        "singleMember": true
+      },
+      {
+        "code": "IT_SPA",
+        "name": "Società per azioni",
+        "designation": "S.p.A.",
+        "hasRegisterEntry": true,
+        "singleMember": false
+      },
+      {
+        "code": "IT_SPA_SOCIO_UNICO",
+        "name": "Società per azioni con unico socio",
+        "designation": "S.p.A.",
+        "hasRegisterEntry": true,
+        "singleMember": true
+      },
+      {
+        "code": "IT_SAPA",
+        "name": "Società in accomandita per azioni",
+        "designation": "S.a.p.a.",
+        "hasRegisterEntry": true
+      },
+      {
+        "code": "IT_SNC",
+        "name": "Società in nome collettivo",
+        "designation": "S.n.c.",
+        "hasRegisterEntry": true
+      },
+      {
+        "code": "IT_SAS",
+        "name": "Società in accomandita semplice",
+        "designation": "S.a.s.",
+        "hasRegisterEntry": true
+      },
+      {
+        "code": "IT_DITTA_INDIVIDUALE",
+        "name": "Ditta individuale",
+        "designation": "Ditta individuale",
+        "hasRegisterEntry": true,
+        "notes": "Art. 2250 prints no mention for a sole trader, but art. 2188 c.c. makes registration compulsory for an imprenditore: the register entry exists even though nothing is printed from it."
+      },
+      {
+        "code": "IT_OTHER",
+        "name": "Altra forma",
+        "designation": "Altra forma",
+        "hasRegisterEntry": true,
+        "notes": "No mention is declared for a form this catalog does not list; an Italian impresa still holds a register entry under art. 2188 c.c."
+      }
+    ],
+    "fields": [
+      {
+        "key": "registerOffice",
+        "kind": "text",
+        "label": "Ufficio del registro delle imprese"
+      },
+      {
+        "key": "registerNumber",
+        "kind": "text",
+        "label": "Numero d'iscrizione al registro delle imprese",
+        "asked": true
+      },
+      {
+        "key": "shareCapital",
+        "kind": "money",
+        "label": "Capitale sociale versato (da ultimo bilancio)"
+      },
+      {
+        "key": "registerOfficeProvince",
+        "kind": "text",
+        "label": "Sigla della provincia dell'ufficio del registro delle imprese (due lettere, e.g. MI)",
+        "asked": true
+      },
+      {
+        "key": "liquidationStatus",
+        "kind": "text",
+        "label": "Stato di liquidazione: LN (non in liquidazione) o LS (in liquidazione)",
+        "asked": true
+      }
+    ],
+    "mentions": [
+      {
+        "id": "it-register",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": [
+          "IT_SRL",
+          "IT_SRL_SOCIO_UNICO",
+          "IT_SPA",
+          "IT_SPA_SOCIO_UNICO",
+          "IT_SAPA",
+          "IT_SNC",
+          "IT_SAS"
+        ],
+        "required": true,
+        "template": {
+          "en": "Companies register of {registerOffice}, no. {registerNumber}",
+          "fr": "Registre des entreprises de {registerOffice}, n° {registerNumber}",
+          "it": "Registro delle imprese di {registerOffice} n. {registerNumber}",
+          "pl": "Rejestr przedsiębiorstw {registerOffice}, nr {registerNumber}",
+          "de": "Unternehmensregister {registerOffice}, Nr. {registerNumber}",
+          "pt": "Registo das empresas de {registerOffice}, n.º {registerNumber}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Codice civile art. 2250: \"Negli atti e nella corrispondenza delle società soggette all'obbligo dell'iscrizione nel registro delle imprese devono essere indicati la sede della società e lo ufficio del registro delle imprese presso il quale questa è iscritta e il numero d'iscrizione. Il capitale delle società per azioni, in accomandita per azioni e a responsabilità limitata deve essere negli atti e nella corrispondenza indicato secondo la somma effettivamente versata e quale risulta esistente dallo ultimo bilancio. Dopo lo scioglimento delle società previste dal primo comma deve essere espressamente indicato negli atti e nella corrispondenza che la società è in liquidazione. Negli atti e nella corrispondenza delle società per azioni ed a responsabilità limitata deve essere indicato se queste hanno un unico socio. [...]\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 2250, first paragraph, read as binding the società listed here, all of which are registered in the registro delle imprese. The sede is the company address printed above. Read at normattiva.it (testo in vigore dal 29-7-2009), https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:regio.decreto:1942-03-16;262~art2250."
+      },
+      {
+        "id": "it-paid-up-capital",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["IT_SRL", "IT_SRL_SOCIO_UNICO", "IT_SPA", "IT_SPA_SOCIO_UNICO", "IT_SAPA"],
+        "required": true,
+        "template": {
+          "en": "Paid-up share capital {shareCapital}",
+          "fr": "Capital social versé {shareCapital}",
+          "it": "Capitale sociale versato {shareCapital}",
+          "pl": "Kapitał zakładowy wpłacony {shareCapital}",
+          "de": "Eingezahltes Kapital {shareCapital}",
+          "pt": "Capital social realizado {shareCapital}"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Codice civile art. 2250: \"Negli atti e nella corrispondenza delle società soggette all'obbligo dell'iscrizione nel registro delle imprese devono essere indicati la sede della società e lo ufficio del registro delle imprese presso il quale questa è iscritta e il numero d'iscrizione. Il capitale delle società per azioni, in accomandita per azioni e a responsabilità limitata deve essere negli atti e nella corrispondenza indicato secondo la somma effettivamente versata e quale risulta esistente dallo ultimo bilancio. Dopo lo scioglimento delle società previste dal primo comma deve essere espressamente indicato negli atti e nella corrispondenza che la società è in liquidazione. Negli atti e nella corrispondenza delle società per azioni ed a responsabilità limitata deve essere indicato se queste hanno un unico socio. [...]\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 2250, second paragraph: the amount actually paid, as it stands in the last balance sheet. Read at normattiva.it (testo in vigore dal 29-7-2009), https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:regio.decreto:1942-03-16;262~art2250."
+      },
+      {
+        "id": "it-single-member",
+        "documentTypes": ["invoice", "quote", "credit-note", "purchase-order"],
+        "legalForms": ["IT_SRL_SOCIO_UNICO", "IT_SPA_SOCIO_UNICO"],
+        "required": true,
+        "template": {
+          "en": "Single-member company",
+          "fr": "Société à associé unique",
+          "it": "Società con unico socio",
+          "pl": "Spółka jednoosobowa",
+          "de": "Gesellschaft mit einem einzigen Gesellschafter",
+          "pt": "Sociedade com sócio único"
+        },
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "Codice civile art. 2250: \"Negli atti e nella corrispondenza delle società soggette all'obbligo dell'iscrizione nel registro delle imprese devono essere indicati la sede della società e lo ufficio del registro delle imprese presso il quale questa è iscritta e il numero d'iscrizione. Il capitale delle società per azioni, in accomandita per azioni e a responsabilità limitata deve essere negli atti e nella corrispondenza indicato secondo la somma effettivamente versata e quale risulta esistente dallo ultimo bilancio. Dopo lo scioglimento delle società previste dal primo comma deve essere espressamente indicato negli atti e nella corrispondenza che la società è in liquidazione. Negli atti e nella corrispondenza delle società per azioni ed a responsabilità limitata deve essere indicato se queste hanno un unico socio. [...]\"",
+          "sourceCheckedAt": "2026-10-25"
+        },
+        "notes": "Art. 2250, fourth paragraph. Read at normattiva.it (testo in vigore dal 29-7-2009), https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:regio.decreto:1942-03-16;262~art2250."
+      }
+    ],
+    "demo": {
+      "legalFormByNameSuffix": {
+        "SRL": "IT_SRL",
+        "SRLS": "IT_SRL"
+      },
+      "cityProvinces": {
+        "Milano": "MI",
+        "Torino": "TO",
+        "Bologna": "BO"
+      },
+      "values": {
+        "registerOffice": "{city}",
+        "registerOfficeProvince": "{province}",
+        "registerNumber": "01234567890",
+        "shareCapital": {
+          "amount": "10000",
+          "currency": "EUR"
+        },
+        "liquidationStatus": "LN"
+      }
+    },
+    "notes": "Art. 2250 does not name the REA number: what it asks for is the registro delle imprese office and the registration number, which is what is declared. FatturaPA's IscrizioneREA block asks for the province code of that office (`registerOfficeProvince`), the number itself (`NumeroREA`), the paid-up capital, the single-member status and the liquidation status; the e-invoice export fills it only when the facts it requires are declared, never by guessing a province or asserting that a company is not in liquidation."
+  },
+  "codeLists": {
+    "countryCode": "IT",
+    "lists": [
+      {
+        "id": "fatturaPaNatura",
+        "label": "FatturaPA Natura, why a line carries no VAT",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "NaturaType enumeration: the xs:documentation of each accepted value, FatturaPA schema VFPR12 version 1.2.3",
+          "sourceCheckedAt": "2026-10-24"
+        },
+        "entries": [
+          {
+            "code": "N1",
+            "label": "Excluded from VAT (article 15)",
+            "notes": "Escluse art. 15 DPR 633/72"
+          },
+          {
+            "code": "N2.1",
+            "label": "Not subject to VAT, territoriality (articles 7 to 7-septies)",
+            "notes": "Non soggette artt. da 7 a 7-septies DPR 633/72"
+          },
+          {
+            "code": "N2.2",
+            "label": "Not subject to VAT, flat-rate scheme",
+            "notes": "Regime forfettario art. 1 c. 54-89 L. 190/2014"
+          },
+          {
+            "code": "N3.1",
+            "label": "Not taxable, export of goods (article 8)",
+            "notes": "Non imponibile art. 8 DPR 633/72"
+          },
+          {
+            "code": "N3.2",
+            "label": "Not taxable, exports under article 41 of decree 331/1993",
+            "notes": "Non imponibile art. 41 DL 331/93"
+          },
+          {
+            "code": "N3.3",
+            "label": "Not taxable, supplies to San Marino",
+            "notes": "Non imponibili - cessioni verso San Marino"
+          },
+          {
+            "code": "N3.4",
+            "label": "Not taxable, services relating to ships and aircraft (articles 8-bis and 9)",
+            "notes": "Non imponibile artt. 8-bis e 9 DPR 633/72"
+          },
+          {
+            "code": "N3.5",
+            "label": "Not taxable, declaration of intent",
+            "notes": "Non imponibili - a seguito di dichiarazioni d'intento"
+          },
+          {
+            "code": "N3.6",
+            "label": "Not taxable, other operations outside the plafond",
+            "notes": "Non imponibili - altre operazioni che non concorrono al plafond"
+          },
+          {
+            "code": "N4",
+            "label": "Exempt (article 10)",
+            "notes": "Esente art. 10 DPR 633/72"
+          },
+          {
+            "code": "N5",
+            "label": "Margin scheme, VAT not shown on the invoice",
+            "notes": "Regime del margine/IVA non esposta in fattura"
+          },
+          {
+            "code": "N6.1",
+            "label": "Reverse charge, construction subcontracting (article 74(7) and (8))",
+            "notes": "Inversione contabile art. 74 c. 7 e 8 DPR 633/72"
+          },
+          {
+            "code": "N6.2",
+            "label": "Reverse charge, gold and silver (law 7/2000)",
+            "notes": "Inversione contabile L. 7/2000"
+          },
+          {
+            "code": "N6.3",
+            "label": "Reverse charge, scrap metal (article 17(6)(a))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a) DPR 633/72"
+          },
+          {
+            "code": "N6.4",
+            "label": "Reverse charge, mobile phones and computers (article 17(6)(a-bis))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a-bis) DPR 633/72"
+          },
+          {
+            "code": "N6.5",
+            "label": "Reverse charge, other goods (article 17(6)(b))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. b) DPR 633/72"
+          },
+          {
+            "code": "N6.6",
+            "label": "Reverse charge, construction services (article 17(6)(c))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. c) DPR 633/72"
+          },
+          {
+            "code": "N6.7",
+            "label": "Reverse charge, cleaning and demolition services (article 17(6)(a-ter))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. a-ter) DPR 633/72"
+          },
+          {
+            "code": "N6.8",
+            "label": "Reverse charge, other services (article 17(6)(d-bis), (d-ter), (d-quater))",
+            "notes": "Inversione contabile art. 17 c. 6 lett. d-bis), d-ter), d-quater)"
+          },
+          {
+            "code": "N6.9",
+            "label": "Reverse charge, other cases",
+            "notes": "Inversione contabile - altri casi"
+          },
+          {
+            "code": "N7",
+            "label": "VAT paid in another EU state (articles 7-octies and 74-sexies)",
+            "notes": "IVA assolta in altro stato UE artt. 7-octies e 74-sexies DPR 633/72"
+          }
+        ]
+      },
+      {
+        "id": "fatturaPaRegimeFiscale",
+        "label": "FatturaPA RegimeFiscale, the seller's tax scheme",
+        "provenance": {
+          "kind": "legal",
+          "sourceText": "RegimeFiscale (Rif. par. 1.2.1): formato alfanumerico; lunghezza di 4 caratteri; i valori ammessi sono i seguenti: RF01 Ordinario; ... RF19 Regime forfettario (art.1, c. 54-89, L. 190/2014); RF20 Regime transfrontaliero di Franchigia IVA (Direttiva UE 2020/285)",
+          "sourceCheckedAt": "2026-11-11"
+        },
+        "entries": [
+          {
+            "code": "RF01",
+            "label": "Ordinary regime",
+            "notes": "RF01 Ordinario"
+          },
+          {
+            "code": "RF02",
+            "label": "Minimum taxpayers (article 1(96-117) of law 244/2007)",
+            "notes": "RF02 Contribuenti minimi (art. 1, c.96-117, L. 244/2007)"
+          },
+          {
+            "code": "RF04",
+            "label": "Agriculture, related activities and fishing (articles 34 and 34-bis)",
+            "notes": "RF04 Agricoltura e attività connesse e pesca (artt. 34 e 34-bis, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF05",
+            "label": "Sale of salt and tobacco (article 74(1))",
+            "notes": "RF05 Vendita sali e tabacchi (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF06",
+            "label": "Trade in matches (article 74(1))",
+            "notes": "RF06 Commercio dei fiammiferi (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF07",
+            "label": "Publishing (article 74(1))",
+            "notes": "RF07 Editoria (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF08",
+            "label": "Public telephone services (article 74(1))",
+            "notes": "RF08 Gestione di servizi di telefonia pubblica (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF09",
+            "label": "Resale of public transport and parking tickets (article 74(1))",
+            "notes": "RF09 Rivendita di documenti di trasporto pubblico e di sosta (art. 74, c.1, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF10",
+            "label": "Entertainment, games and other activities under the tariff attached to decree 640/1972 (article 74(6))",
+            "notes": "RF10 Intrattenimenti, giochi e altre attività di cui alla tariffa allegata al D.P.R. n. 640/72 (art. 74, c.6, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF11",
+            "label": "Travel and tourism agencies (article 74-ter)",
+            "notes": "RF11 Agenzie di viaggi e turismo (art. 74-ter, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF12",
+            "label": "Farm holidays (article 5(2) of law 413/1991)",
+            "notes": "RF12 Agriturismo (art. 5, c.2, L. 413/1991)"
+          },
+          {
+            "code": "RF13",
+            "label": "Door-to-door sales (article 25-bis(6) of decree 600/1973)",
+            "notes": "RF13 Vendite a domicilio (art. 25-bis, c.6, D.P.R. 600/1973)"
+          },
+          {
+            "code": "RF14",
+            "label": "Resale of used goods, art, antiques and collector's items (article 36 of decree 41/1995)",
+            "notes": "RF14 Rivendita di beni usati, di oggetti d’arte, d’antiquariato o da collezione (art. 36, D.L. 41/1995)"
+          },
+          {
+            "code": "RF15",
+            "label": "Art auction houses (article 40-bis of decree 41/1995)",
+            "notes": "RF15 Agenzie di vendite all’asta di oggetti d’arte, antiquariato o da collezione (art. 40-bis, D.L. 41/1995)"
+          },
+          {
+            "code": "RF16",
+            "label": "Cash accounting for public bodies (article 6(5))",
+            "notes": "RF16 IVA per cassa P.A. (art. 6, c.5, D.P.R. 633/1972)"
+          },
+          {
+            "code": "RF17",
+            "label": "Cash accounting (article 32-bis of decree 83/2012)",
+            "notes": "RF17 IVA per cassa (art. 32-bis, D.L. 83/2012)"
+          },
+          {
+            "code": "RF18",
+            "label": "Other",
+            "notes": "RF18 Altro"
+          },
+          {
+            "code": "RF19",
+            "label": "Flat-rate scheme (article 1(54-89) of law 190/2014)",
+            "notes": "RF19 Regime forfettario (art.1, c. 54-89, L. 190/2014)"
+          },
+          {
+            "code": "RF20",
+            "label": "Cross-border VAT franchise scheme (Directive (EU) 2020/285)",
+            "notes": "RF20 Regime transfrontaliero di Franchigia IVA (Direttiva UE 2020/285)"
+          }
+        ]
+      }
+    ]
   }
 }

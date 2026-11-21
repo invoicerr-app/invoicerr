@@ -29,7 +29,7 @@ const capturedCredentials: unknown[] = [];
 vi.mock('./billit/billit-client', () => ({
   // A `function` expression, NOT an arrow function - production code does `new BillitClient(...)`,
   // and Vitest's mocks really `[[Construct]]` their implementation, which an arrow function has no
-  // slot for (the same trap `pdp-transport.spec.ts` documents for `PdpClient`).
+  // slot for (the same trap `pdp-transport.spec.ts` documents for `SuperPdpClient`).
   // biome-ignore lint/complexity/useArrowFunction: must stay a function expression - an arrow function has no [[Construct]] and breaks `new BillitClient(...)` under Vitest, see above.
   BillitClient: vi.fn().mockImplementation(function (credentials: unknown) {
     capturedCredentials.push(credentials);

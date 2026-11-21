@@ -27,6 +27,13 @@ export function fromMinor(minor: number, currency: string): number {
   return minor / 10 ** decimalsFor(currency)
 }
 
+/** `1234.50 EUR`, the one money formatter every screen uses, so a minor-unit amount never rounds
+ *  differently from one view to the next. The currency is printed as given (callers that want a
+ *  placeholder for an empty one pass it themselves). */
+export function formatMinor(minor: number, currency: string): string {
+  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
+}
+
 /**
  * Whether a string looks like a number (for VAT-rate-field detection) — mirrors the backend's own
  * `compute-totals.ts#looksNumeric` EXACTLY: "20", "5.5", "0" all return true; "standard" returns

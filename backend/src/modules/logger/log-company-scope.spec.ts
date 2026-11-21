@@ -124,7 +124,7 @@ function lineOf(text: string, index: number): number {
  *  `logger.` call opened within the previous few lines, rather than a whole-file substring match that
  *  would also flag an unrelated `companyId: null` in, say, a plain data fixture. A window of 400
  *  characters comfortably covers this codebase's own longest `logger.*()` call bodies (checked by hand
- *  against the largest ones in `webhook-handlers.ts`/`customer-provisioning.ts`) without reaching into
+ *  against the largest ones) without reaching into
  *  the PREVIOUS unrelated statement. Takes `(relativePath, text)` rather than reading the filesystem
  *  itself, so the "deliberately introduce the defect" tests below can drive it against a synthetic
  *  string instead of a real file under `backend/src`. */

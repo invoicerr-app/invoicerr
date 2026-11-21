@@ -17,6 +17,8 @@ Login is handled via the BetterAuth library (`backend/src/lib/auth.ts`), which s
 
 On login, a session cookie is created. `AuthGuard` reads it via `auth.api.getSession()` and attaches the resolved user to `request.user`.
 
+The cookie is `Secure`, and named `__Secure-better-auth.session_token`, when `APP_URL` starts with `https://`; with an `http://` `APP_URL` it is a plain `better-auth.session_token`, so an instance served over HTTP on a local network can still sign in. `NODE_ENV` plays no part. The backend logs a warning at boot when `APP_URL` is `http://` on a host other than loopback, or unset.
+
 ### Session cache
 
 Resolving a session costs a few database queries (the session, its user, and every company membership the `customSession` plugin adds), on every request. `AuthGuard` therefore keeps the resolved session in memory for `SESSION_CACHE_TTL_MS` (10 seconds by default, `0` turns it off), keyed on the session cookie's value. Requests authenticated with an API key are never cached.
@@ -57,6 +59,15 @@ A user who signs up through a company's own per-company SSO provider (below) is 
 ### Setting a password for OIDC-only accounts
 
 Accounts created via OIDC have no local password by default. `POST /api/auth-extended/set-password` (8+ characters) lets such a user set one, enabling local login alongside OIDC.
+
+### Names on a first OIDC sign-in
+
+`User.firstname` and `User.lastname` are required, but an identity provider may send only `name`, or
+nothing nameable at all. Both OIDC configurations (the instance-wide one and each company's own) map the
+profile through `mapOidcProfileToUser()` (`backend/src/lib/sso-policy.ts`), which fills them from
+`given_name`/`family_name`, then a split of `name`, then the local part of the email, leaving the last
+name empty as a floor. The user can correct them in account settings. Email/password sign-up still
+requires both names.
 
 ## Instance-wide OIDC (environment variables)
 

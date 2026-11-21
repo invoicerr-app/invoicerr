@@ -24,6 +24,7 @@ export interface DocumentAuthorityEventResult {
   rawPayload: Prisma.JsonValue | null;
   observedAt: Date;
   createdAt: Date;
+  subjectKey: string;
 }
 
 /**
@@ -37,12 +38,16 @@ export interface DocumentAuthorityEventResult {
  * Returns how many rows were ACTUALLY newly created (Prisma's own `createMany` count already excludes
  * skipped duplicates) — what `conformity-sweep-runner.spec.ts`'s own dedup test asserts on directly,
  * rather than re-querying afterwards to find out.
+ *
+ * `subjectKey` is part of that unique key: a payment declaration passes its payment id, so a second
+ * payment's `SUBMITTED` is a new row rather than a skipped duplicate of the first.
  */
 export async function createAuthorityEvents(
   companyId: string,
   documentId: string,
   providerId: string,
   events: RawAuthorityEvent[],
+  subjectKey = '',
 ): Promise<number> {
   if (events.length === 0) return 0;
   const { count } = await prisma.documentAuthorityEvent.createMany({
@@ -55,6 +60,7 @@ export async function createAuthorityEvents(
       reason: event.reason ?? null,
       rawPayload: (event.rawPayload ?? undefined) as Prisma.InputJsonValue | undefined,
       observedAt: event.observedAt,
+      subjectKey,
     })),
     skipDuplicates: true,
   });
@@ -75,8 +81,38 @@ export async function journalSyntheticEvent(
   statusCode: string,
   reason: string,
   observedAt: Date = new Date(),
+  subjectKey = '',
 ): Promise<number> {
-  return createAuthorityEvents(companyId, documentId, providerId, [{ statusCode, reason, observedAt }]);
+  return createAuthorityEvents(
+    companyId,
+    documentId,
+    providerId,
+    [{ statusCode, reason, observedAt }],
+    subjectKey,
+  );
+}
+
+/**
+ * Whether a provider already answered a declaration of this document: any event under `providerId`
+ * other than the synthetic ones this codebase writes itself (`report:` and `poll:` codes). Read by
+ * `reporting-runner.ts` so that an invoice validated today and sent next week is declared once, even
+ * after BullMQ has dropped the first job from its history (issue #768).
+ */
+export async function hasDeclarationResult(
+  companyId: string,
+  documentId: string,
+  providerId: string,
+): Promise<boolean> {
+  const event = await prisma.documentAuthorityEvent.findFirst({
+    where: {
+      companyId,
+      documentId,
+      providerId,
+      NOT: [{ statusCode: { startsWith: 'report:' } }, { statusCode: { startsWith: 'poll:' } }],
+    },
+    select: { id: true },
+  });
+  return event !== null;
 }
 
 /** Every authority event journaled for this document, most recent (by `observedAt`) first — what the
@@ -231,4 +267,35 @@ export async function markConformityResolved(
     where: { id: documentId },
     data: { conformityResolvedAt: resolvedAt },
   });
+}
+
+/** Flags `documentId` as refused by its issuing platform, keeping the platform's own explanation. */
+export async function markConformityRejected(
+  companyId: string,
+  documentId: string,
+  rejectedAt: Date,
+  reason: string | null,
+): Promise<void> {
+  await prisma.documentInstance.updateMany({
+    where: { id: documentId, companyId },
+    data: { conformityRejectedAt: rejectedAt, conformityRejectedReason: reason },
+  });
+}
+
+/**
+ * Clears the rejection flag once the platform accepts `documentId`: on the document itself, and on the
+ * invoice it corrects (`data.invoice`), since an accepted correction is what settles a rejection.
+ */
+export async function clearConformityRejection(companyId: string, documentId: string): Promise<number> {
+  const accepted = await prisma.documentInstance.findFirst({
+    where: { id: documentId, companyId },
+    select: { data: true },
+  });
+  const corrected = (accepted?.data as Record<string, unknown> | null | undefined)?.invoice;
+  const ids = typeof corrected === 'string' && corrected ? [documentId, corrected] : [documentId];
+  const { count } = await prisma.documentInstance.updateMany({
+    where: { companyId, id: { in: ids }, conformityRejectedAt: { not: null } },
+    data: { conformityRejectedAt: null, conformityRejectedReason: null },
+  });
+  return count;
 }

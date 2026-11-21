@@ -90,74 +90,74 @@ describe('runAsyncSendAction', () => {
   });
 
   describe('phase 1 — the record is "draft" or "send_failed": number (if declared), THEN enqueue, deliver NOTHING yet', () => {
-    it.each([
-      'draft',
-      'send_failed',
-    ])('from "%s": takes the number ATOMICALLY with the "sending" write, BEFORE enqueueing, and never calls deliver', async (status) => {
-      mockFound({
-        status,
-      });
-      const callOrder: string[] = [];
-      const queueDispatcher = {
-        enqueueAction: vi.fn().mockImplementation(async () => {
-          callOrder.push('enqueue');
-        }),
-      };
-      // PR #473 review point 1: the status write and the number are now ONE atomic call - see
-      // `numbering/sequence.ts#takeDocumentNumberWithStatusTransition`'s own header for why.
-      (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(async () => {
-        callOrder.push('number-and-status');
-        return {
-          document: {
+    it.each(['draft', 'send_failed'])(
+      'from "%s": takes the number ATOMICALLY with the "sending" write, BEFORE enqueueing, and never calls deliver',
+      async (status) => {
+        mockFound({
+          status,
+        });
+        const callOrder: string[] = [];
+        const queueDispatcher = {
+          enqueueAction: vi.fn().mockImplementation(async () => {
+            callOrder.push('enqueue');
+          }),
+        };
+        // PR #473 review point 1: the status write and the number are now ONE atomic call - see
+        // `numbering/sequence.ts#takeDocumentNumberWithStatusTransition`'s own header for why.
+        (takeNumber.takeDocumentNumberForTransitionWithStatus as Mock).mockImplementation(async () => {
+          callOrder.push('number-and-status');
+          return {
+            document: {
+              id: 'doc-1',
+              typeId: 'quote',
+              status: 'sending',
+              data: baseInput.data,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              number: 3,
+              displayNumber: 'QUOTE-2026-0003',
+            },
+            numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
+          };
+        });
+        const deliver = vi.fn();
+
+        const result = await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
+
+        expect(deliver).not.toHaveBeenCalled();
+        expect(persistence.upsertDocument).not.toHaveBeenCalled();
+        expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
+          'company-1',
+          'quote',
+          'doc-1',
+          ['draft', 'send_failed'],
+          'sending',
+          baseInput.data,
+        );
+        // THE RACE THIS FIX CLOSES (see async-send.ts's own header): the number must exist BEFORE
+        // the job is enqueued, never after — a real worker can be faster than that.
+        expect(callOrder).toEqual(['number-and-status', 'enqueue']);
+        expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
+          companyId: 'company-1',
+          typeId: 'quote',
+          documentId: 'doc-1',
+          actionId: 'send',
+          payload: { data: baseInput.data, params: baseInput.params },
+        });
+        // The number is on the response too — a caller (documents.service.ts's runAction) reading
+        // this result sees it immediately, not only after its own (now merely defensive) hook.
+        expect(result).toEqual({
+          document: expect.objectContaining({
             id: 'doc-1',
-            typeId: 'quote',
             status: 'sending',
-            data: baseInput.data,
-            createdAt: new Date(),
-            updatedAt: new Date(),
             number: 3,
             displayNumber: 'QUOTE-2026-0003',
-          },
-          numbered: { number: 3, displayNumber: 'QUOTE-2026-0003' },
-        };
-      });
-      const deliver = vi.fn();
-
-      const result = await runAsyncSendAction({ ...baseInput, queueDispatcher, deliver });
-
-      expect(deliver).not.toHaveBeenCalled();
-      expect(persistence.upsertDocument).not.toHaveBeenCalled();
-      expect(takeNumber.takeDocumentNumberForTransitionWithStatus).toHaveBeenCalledWith(
-        'company-1',
-        'quote',
-        'doc-1',
-        ['draft', 'send_failed'],
-        'sending',
-        baseInput.data,
-      );
-      // THE RACE THIS FIX CLOSES (see async-send.ts's own header): the number must exist BEFORE
-      // the job is enqueued, never after — a real worker can be faster than that.
-      expect(callOrder).toEqual(['number-and-status', 'enqueue']);
-      expect(queueDispatcher.enqueueAction).toHaveBeenCalledWith({
-        companyId: 'company-1',
-        typeId: 'quote',
-        documentId: 'doc-1',
-        actionId: 'send',
-        payload: { data: baseInput.data, params: baseInput.params },
-      });
-      // The number is on the response too — a caller (documents.service.ts's runAction) reading
-      // this result sees it immediately, not only after its own (now merely defensive) hook.
-      expect(result).toEqual({
-        document: expect.objectContaining({
-          id: 'doc-1',
-          status: 'sending',
-          number: 3,
-          displayNumber: 'QUOTE-2026-0003',
-        }),
-        changed: true,
-        message: 'Sending…',
-      });
-    });
+          }),
+          changed: true,
+          message: 'Sending…',
+        });
+      },
+    );
 
     it('never numbers a type declaring `numberOnEnqueue: false` (expense: no `numbering` at all)', async () => {
       mockFound({
@@ -601,9 +601,7 @@ describe('runAsyncSendAction', () => {
         'quote',
         'doc-1',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
       expect(persistence.upsertDocument).not.toHaveBeenCalled();
       expect(takeNumber.takeDocumentNumberForTransition).not.toHaveBeenCalled();
@@ -619,7 +617,7 @@ describe('runAsyncSendAction', () => {
     // (the deposit id) AND a `providerId` alongside `message`; this proves BOTH reach
     // `updateDocumentStatus` as `transportRef`/`channelProviderId`, on the SAME write that records
     // "sent" — see `DocumentInstance.transportRef`/`.channelProviderId`'s own schema comments and
-    // `transports/pdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
+    // `transports/superpdp-transport.ts`'s own header. This is exactly what the post-deposit conformity
     // sweep (`conformity/`) later reads to know which channel this document actually went through.
     it('threads a deliver() `reference`/`providerId` through to updateDocumentStatus as `transportRef`/`channelProviderId`', async () => {
       mockFound({
@@ -644,15 +642,10 @@ describe('runAsyncSendAction', () => {
 
       await runAsyncSendAction({ ...baseInput, typeId: 'invoice', queueDispatcher, deliver });
 
-      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
-        'company-1',
-        'invoice',
-        'doc-1',
-        'sent',
-        null,
-        '375037',
-        'pdp',
-      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1', 'sent', {
+        transportRef: '375037',
+        channelProviderId: 'pdp',
+      });
     });
 
     // Legal archiving — archiving now runs BEFORE "sent" is persisted, fed EXACTLY
@@ -807,9 +800,7 @@ describe('runAsyncSendAction', () => {
         'invoice',
         'doc-1',
         'sent',
-        null,
-        undefined,
-        undefined,
+        {},
       );
     });
 
@@ -1153,9 +1144,7 @@ describe('runAsyncSendAction', () => {
         'invoice',
         documentId,
         'sent',
-        null,
-        'ref-1',
-        'pdp',
+        { transportRef: 'ref-1', channelProviderId: 'pdp' },
       );
       expect(result.document).toMatchObject({ status: 'sent' });
     });
@@ -1255,15 +1244,10 @@ describe('runAsyncSendAction', () => {
 
       expect(deliver).not.toHaveBeenCalled();
       expect(persistence.confirmDelivery).not.toHaveBeenCalled();
-      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
-        'company-1',
-        'invoice',
-        'doc-1',
-        'sent',
-        null,
-        'ref-old',
-        'pdp',
-      );
+      expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1', 'sent', {
+        transportRef: 'ref-old',
+        channelProviderId: 'pdp',
+      });
     });
   });
 

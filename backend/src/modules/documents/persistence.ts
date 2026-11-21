@@ -3,6 +3,7 @@ import { ConflictException, InternalServerErrorException, NotFoundException } fr
 import prisma from '@/prisma/prisma.service';
 
 import { DocumentInstanceResult } from './actions/action-registry';
+import { dateValueInRange, dayMs } from './date-params';
 
 /**
  * Shared, tenant-safe persistence for document instances — used by action handlers (e.g.
@@ -211,18 +212,25 @@ async function writeDocument(
  * silent accept against stale option data. `undefined` (every pre-existing caller) keeps this an
  * ordinary status-only CAS, unchanged.
  */
+export interface DocumentStatusWriteOptions {
+  /** Written on every call: `null` (the default) clears the previous failure. */
+  lastActionError?: string | null;
+  transportRef?: string;
+  channelProviderId?: string;
+  fromStatuses?: string[];
+  acceptedOption?: string;
+  knownUpdatedAt?: Date;
+}
+
 export async function updateDocumentStatus(
   companyId: string,
   typeId: string,
   id: string,
   status: string,
-  lastActionError: string | null = null,
-  transportRef?: string,
-  channelProviderId?: string,
-  fromStatuses?: string[],
-  acceptedOption?: string,
-  knownUpdatedAt?: Date,
+  opts: DocumentStatusWriteOptions = {},
 ): Promise<DocumentInstanceResult> {
+  const { transportRef, channelProviderId, fromStatuses, acceptedOption, knownUpdatedAt } = opts;
+  const lastActionError = opts.lastActionError ?? null;
   await findOwnedDocument(companyId, typeId, id);
   const data: Prisma.DocumentInstanceUpdateManyMutationInput = {
     status,
@@ -472,7 +480,7 @@ async function scanEveryMatchingDocument(
 }
 
 /** The real columns `GET /documents` may sort by — deliberately NOT `issueDate` or any other field
- *  living inside `data` (see `dateValueInRange` below for why a JSON path never gets a computed SQL
+ *  living inside `data` (see `date-params.ts#dateValueInRange` for why a JSON path never gets a computed SQL
  *  ORDER BY here). `number` sorts numbered instances by their take-a-number sequence; an
  *  un-numbered type's rows (all `number: null`) fall back to Postgres's own NULLS ordering, which is
  *  an honest "no ordering opinion" for a type this key means nothing for. */
@@ -502,7 +510,7 @@ export interface ListDocumentsPageOptions {
    *  (`list-filters.ts#resolveDateFieldKey`) — same "resolved by the caller" reasoning as
    *  `clientFieldKey`. `dateFrom`/`dateTo` are already-validated `YYYY-MM-DD` strings (the
    *  controller's own `parseListDocumentsQuery`), never a bare `Date` — this function is the one
-   *  place that turns them into UTC-day boundaries, right next to `dateValueInRange`, which compares
+   *  place that turns them into UTC-day boundaries, handed to `date-params.ts#dateValueInRange`, which compares
    *  against the exact same boundaries. */
   dateFieldKey?: string;
   dateFrom?: string;
@@ -531,44 +539,6 @@ export interface ListDocumentsPageResult {
   total: number;
   page: number;
   pageSize: number;
-}
-
-/** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — the exact same conversion
- *  `accounting-export.service.ts#dayMs` already holds for the identical param shape, duplicated
- *  rather than imported (a sibling, single-purpose concern; see `dateValueInRange`'s own header for
- *  why this whole file doesn't reuse that module instead). Exported (issue #418) so the dashboard's
- *  own period-scoped contributions (contributions/invoice-contributions.ts and friends) compute the
- *  SAME `[fromMs, toMs]` bounds `dateValueInRange` below compares against, rather than a second,
- *  possibly-drifting conversion of the same `YYYY-MM-DD` string - THE CONSISTENCY RULE a period tile
- *  and the list its `link` opens both depend on. */
-export function dayMs(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
-
-/** Whether `dateValue` (whatever `data[dateFieldKey]` currently holds — normally an ISO string, e.g.
- *  from a 'date' field's own `toISOString()`) falls within `[fromMs, toMs]`, each bound optional and
- *  inclusive, compared at UTC day boundaries — the exact same rule
- *  `accounting-export.service.ts#issueDateInRange` already applies to the SAME kind of field.
- *  Missing/unparseable -> excluded: a document with no readable date cannot honestly be placed in
- *  ANY range - an honest default, never a guess. Duplicated here rather than imported from that
- *  service (a sibling, single-purpose concern - persistence.ts owes accounting-export nothing, and a
- *  future change to one's own rounding must not silently reach into the other). Exported (issue
- *  #418) so a dashboard contribution restricting itself to the active period uses this EXACT
- *  predicate - never a re-implemented one that could silently disagree with what `GET /documents`'s
- *  own `dateFrom`/`dateTo` filter (just above) matches. */
-export function dateValueInRange(
-  dateValue: unknown,
-  fromMs: number | undefined,
-  toMs: number | undefined,
-): boolean {
-  if (typeof dateValue !== 'string') return false;
-  const parsed = new Date(dateValue);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const ms = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
-  if (fromMs !== undefined && ms < fromMs) return false;
-  if (toMs !== undefined && ms > toMs) return false;
-  return true;
 }
 
 /** Every already-DB-pushable OR term `q` resolves to — see `ListDocumentsPageOptions.q`'s own header
@@ -717,6 +687,30 @@ export async function findOwnedDocumentsByIds(
 ): Promise<DocumentInstanceResult[]> {
   if (ids.length === 0) return [];
   return prisma.documentInstance.findMany({ where: { companyId, id: { in: [...new Set(ids)] } } });
+}
+
+/**
+ * Every INVOICE already raised against one quote - the `origin` link the three quote->invoice actions
+ * write (`{ entity: 'quote', id }`), matched the same way the references field kind stores it. This
+ * is the whole basis of the double-invoicing guard (actions/quote-invoicing-guard.ts): a quote's own
+ * status never changes when one of these actions runs (quote.descriptor.ts), so "already invoiced?"
+ * can only ever be answered from these rows.
+ */
+export async function findInvoicesRaisedFromQuote(
+  companyId: string,
+  quoteId: string,
+): Promise<DocumentInstanceResult[]> {
+  return prisma.documentInstance.findMany({
+    where: {
+      companyId,
+      typeId: 'invoice',
+      AND: [
+        { data: { path: ['origin', 'entity'], equals: 'quote' } },
+        { data: { path: ['origin', 'id'], equals: quoteId } },
+      ],
+    },
+    orderBy: { createdAt: 'asc' },
+  });
 }
 
 /** Refuses (409) to remove a document something else still points at: a recurrence replaying it,

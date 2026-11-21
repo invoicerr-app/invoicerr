@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 
+import { isValidIsoDay } from '../date-params';
 import { DOCUMENT_LIST_SORT_FIELDS, DocumentListSortField } from '../persistence';
 
 /** `GET /documents`'s own defaults — the list screen's page-size budget, and the ceiling nobody may
@@ -7,12 +8,6 @@ import { DOCUMENT_LIST_SORT_FIELDS, DocumentListSortField } from '../persistence
  *  worst, a wasted-but-harmless ask, never a shape the API needs to reject outright). */
 export const DOCUMENT_LIST_DEFAULT_PAGE_SIZE = 25;
 export const DOCUMENT_LIST_MAX_PAGE_SIZE = 100;
-
-/** `YYYY-MM-DD`, nothing looser — the identical contract
- *  `accounting-export.service.ts#DATE_PARAM_PATTERN` already holds for the same shape of param, kept
- *  in sync deliberately rather than imported: these are two independent endpoints that only happen
- *  to agree on what a "calendar day" query param looks like. */
-const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** One raw query param exactly as Nest's `@Query()` hands it: absent, a single string, or — for a
  *  key repeated in the URL (`?status=draft&status=sent`) — an array of strings. */
@@ -51,7 +46,7 @@ function parsePositiveInt(name: string, value: RawQueryValue, fallback: number):
 function parseDateParam(name: string, value: RawQueryValue): string | undefined {
   const raw = firstValue(value);
   if (raw === undefined) return undefined;
-  if (!DATE_PARAM_PATTERN.test(raw) || Number.isNaN(new Date(`${raw}T00:00:00.000Z`).getTime())) {
+  if (!isValidIsoDay(raw)) {
     throw new BadRequestException(`"${name}" must be a valid date in YYYY-MM-DD format.`);
   }
   return raw;

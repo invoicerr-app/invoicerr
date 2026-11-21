@@ -72,6 +72,57 @@ function openTemplateEditor(typeId: string) {
 	cy.get(`[data-cy="email-template-subject-${typeId}"]`, { timeout: 10000 }).should("exist");
 }
 
+/** The TipTap contenteditable root of whichever template's editor is open. */
+const EDITOR = '[data-testid="rich-text-editor"] .ProseMirror';
+
+/** The slice of TipTap's editor that this spec reads; TipTap hangs the instance on its root node. */
+type EditorRoot = HTMLElement & {
+	editor: {
+		state: {
+			selection: { from: number; to: number; empty: boolean };
+			doc: { textBetween(from: number, to: number): string };
+		};
+	};
+};
+
+/** Selects the whole text of `label` as a DOM Range, which is what a user's drag builds. */
+function selectNodeText(label: HTMLElement) {
+	const range = label.ownerDocument.createRange();
+	range.selectNodeContents(label);
+	const selection = label.ownerDocument.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
+
+/**
+ * Turns the last paragraph of the open editor into a link, through the real toolbar.
+ *
+ * ProseMirror only adopts a selection made through the DOM on its own next pass, and the focus it
+ * has just received resyncs the DOM selection from its state 20 ms later, which can collapse a
+ * range it has not adopted yet. A toolbar click that wins either race runs the link command against
+ * the collapsed caret, so no anchor is ever rendered. The toolbar is therefore only touched once the
+ * editor's own state holds exactly the paragraph's text; the range is set again while it does not.
+ */
+function linkLastParagraph(href: string) {
+	cy.get(EDITOR).focus();
+	cy.get(`${EDITOR} p`)
+		.last()
+		.invoke("text")
+		.then((labelText) => {
+			cy.get(EDITOR).should(($root) => {
+				const root = $root[0] as EditorRoot;
+				const { selection, doc } = root.editor.state;
+				const adopted = !selection.empty && doc.textBetween(selection.from, selection.to) === labelText;
+				if (!adopted) selectNodeText(Cypress._.last(root.querySelectorAll("p")) as HTMLElement);
+				expect(adopted, "the editor holds the paragraph as its selection").to.equal(true);
+			});
+		});
+
+	cy.get('[data-cy="rich-text-editor-link"]').click();
+	cy.get('[data-cy="rich-text-editor-link-input"]').type(href, { parseSpecialCharSequences: false });
+	cy.get('[data-cy="rich-text-editor-link-apply"]').click();
+}
+
 describe("Settings — email templates per document type", () => {
 	// A single capture of "quote"'s DEFAULT template, taken before any test touches it —
 	// it is THIS template (not a hand-copied value, which would diverge the day the
@@ -199,8 +250,7 @@ describe("Settings — email templates per document type", () => {
 		// only "Edit"/"Close" sits directly on a template row, every other action is one level down) —
 		// it needs no open editor, since it operates on the STORED override, not on unsaved form state.
 		cy.get('[data-cy="email-template-menu-quote"]', { timeout: 15000 }).click();
-		cy.wait(50);
-		cy.get('[data-cy="email-template-reset-quote"]').click();
+		cy.get('[data-cy="email-template-reset-quote"]').should("be.visible").click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "reset to its default");
 
 		getDocumentEmailTemplate("quote").then((restored) => {
@@ -267,6 +317,12 @@ describe("Settings — email templates per document type", () => {
 				const invoiceKeys = Object.keys(invoiceTemplate.variables).sort();
 				const expenseKeys = Object.keys(expenseTemplate.variables).sort();
 
+				const newVariables = ["issueDate", "dueDate", "amountPaid", "amountDue", "viewUrl"];
+				expect(invoiceKeys).to.include.members(newVariables);
+				for (const key of newVariables) {
+					expect(expenseKeys).not.to.include(key);
+				}
+
 				expect(
 					invoiceKeys,
 					"invoice a un champ client ET des lignes chiffrées — les deux placeholders dérivés",
@@ -297,8 +353,32 @@ describe("Settings — email templates per document type", () => {
 		cy.get('[data-cy="email-template-subject-invoice"]')
 			.clear()
 			.type(distinctiveSubject, { parseSpecialCharSequences: false });
+		cy.get(EDITOR)
+			.clear()
+			.type("Issued {issueDate}. Due {dueDate}. Paid {amountPaid}. Balance {amountDue}.", {
+				parseSpecialCharSequences: false,
+				delay: 25,
+			});
+		cy.get(EDITOR).type("{enter}View invoice", { delay: 25 });
+		cy.get(`${EDITOR} p`).last().should("have.text", "View invoice");
+
+		linkLastParagraph("{viewUrl}");
+
+		// The mark must land on the paragraph in the EDITOR: if the selection was lost, this is where
+		// it shows, instead of three assertions later in a preview that renders the same body.
+		cy.get(`${EDITOR} a`).should("have.attr", "href", "{viewUrl}");
+		cy.get('[data-cy="email-template-variables"]').should("contain.text", "400.00 EUR");
+		cy.get('[data-cy="email-template-preview-body"]').should("contain.text", "Paid 400.00 EUR");
+		cy.get('[data-cy="email-template-preview-body"] a')
+			.should("have.attr", "href")
+			.and("match", /^https:\/\/example\.invalid\//);
 		cy.get('[data-cy="email-template-save-invoice"]').click();
 		cy.get('[data-sonner-toast]', { timeout: 10000 }).should("contain.text", "saved successfully");
+
+		getDocumentEmailTemplate("invoice").its("html").should("include", 'href="{viewUrl}"');
+		cy.reload();
+		openTemplateEditor("invoice");
+		cy.get(`${EDITOR} a`).should("have.attr", "href", "{viewUrl}");
 
 		cy.clearEmails();
 
@@ -380,6 +460,22 @@ describe("Settings — email templates per document type", () => {
 								message.Subject,
 								"le sujet du VRAI message porte à la fois le marqueur du gabarit et le displayNumber interpolé",
 							).to.eq(`${marker} ${doc.displayNumber}`);
+							const url = (message.Text as string).match(
+								/https?:\/\/[^\s)]+\/api\/public\/documents\/[a-f0-9]{64}\/pdf/,
+							)?.[0];
+							if (!url) throw new Error("The email has no public PDF URL");
+							expect(message.HTML).to.include(`href="${url}"`);
+							const pdfUrl = new URL(new URL(url).pathname, api).href;
+
+							cy.request(`${api}/api/documents/${invoiceId}/share-links?typeId=invoice`).then(({ body }) => {
+								expect(body).to.have.length(1);
+								expect(body[0].active).to.eq(true);
+								cy.clearAllCookies();
+								cy.request(pdfUrl).its("headers.content-type").should("include", "application/pdf");
+								cy.login();
+								cy.request("DELETE", `${api}/api/documents/${invoiceId}/share-link/${body[0].id}?typeId=invoice`);
+								cy.request({ url: pdfUrl, failOnStatusCode: false }).its("status").should("eq", 404);
+							});
 						});
 					});
 			});

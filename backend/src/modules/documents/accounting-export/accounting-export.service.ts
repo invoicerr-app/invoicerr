@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { decimalsFor, fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
+import { DATE_PARAM_PATTERN, dateValueInRange, dayMs, isValidIsoDay } from '../date-params';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocumentsByIds, listAllDocuments } from '../persistence';
 import { DocumentSettlement, computeSettlement } from '../settlement/compute-settlement';
@@ -47,10 +48,6 @@ import { resolveClientLabels } from './client-labels';
  *  import is fine here: this file only ever computes totals for "invoice" instances. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
-/** `YYYY-MM-DD`, nothing looser — this endpoint's own `from`/`to` query params name a CALENDAR DAY,
- *  never an instant; the controller's `Content-Disposition` filename reuses the same raw string. */
-const DATE_PARAM_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
 /** Parses+validates one `from`/`to` query param — a 400 naming which one and why, never a silent
  *  fallback (this module's own "never guess" discipline, same posture `resolveAgingBucket` holds for
  *  a document's own malformed date, just surfaced as a client error here instead of a silent
@@ -59,30 +56,10 @@ function parseDateParam(name: string, value: string | undefined): string {
   if (!value || !DATE_PARAM_PATTERN.test(value)) {
     throw new BadRequestException(`"${name}" must be a date in YYYY-MM-DD format.`);
   }
-  if (Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime())) {
+  if (!isValidIsoDay(value)) {
     throw new BadRequestException(`"${name}" is not a valid calendar date.`);
   }
   return value;
-}
-
-/** `"YYYY-MM-DD"` -> the UTC midnight of that day, in milliseconds — UTC DAY boundaries throughout,
- *  the identical discipline `client-statement.ts`'s own `resolveAgingBucket` already holds, so a
- *  document issued exactly "on" a boundary date behaves the same way here as it does there. */
-function dayMs(dateStr: string): number {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-}
-
-/** Whether a document's own `issueDate` (a JSON field — never an indexed column, see `persistence.ts`'s
- *  own header on why this is filtered in memory rather than in SQL) falls within `[fromMs, toMs]`,
- *  inclusive, compared at UTC day boundaries. Missing/unparseable -> excluded: a document with no
- *  readable issue date cannot honestly be placed in ANY period — an honest default, never a guess. */
-function issueDateInRange(issueDate: unknown, fromMs: number, toMs: number): boolean {
-  if (typeof issueDate !== 'string') return false;
-  const parsed = new Date(issueDate);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const ms = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
-  return ms >= fromMs && ms <= toMs;
 }
 
 /** The first 10 characters of an ISO date(-time) string, or `''` for anything else — every date this
@@ -179,7 +156,7 @@ export async function buildAccountingExport(
 
   // === Invoice rows: the INVOICE's own issueDate must fall in the period. ===
   for (const resolved of resolvedInvoices.values()) {
-    if (!issueDateInRange(resolved.data.issueDate, fromMs, toMs)) continue;
+    if (!dateValueInRange(resolved.data.issueDate, fromMs, toMs)) continue;
     const currency = typeof resolved.data.currency === 'string' ? resolved.data.currency : '';
     rows.push({
       type: 'invoice',
@@ -204,7 +181,7 @@ export async function buildAccountingExport(
   //     `settlement/credits.ts`'s own header already holds for a credit pointing nowhere. ===
   for (const note of creditNotes) {
     const noteData = (note.data ?? {}) as Record<string, unknown>;
-    if (!issueDateInRange(noteData.issueDate, fromMs, toMs)) continue;
+    if (!dateValueInRange(noteData.issueDate, fromMs, toMs)) continue;
     const invoiceId = typeof noteData.invoice === 'string' ? noteData.invoice : undefined;
     const resolved = invoiceId ? resolvedInvoices.get(invoiceId) : undefined;
     if (!resolved) continue;

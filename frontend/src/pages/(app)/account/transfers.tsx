@@ -1,3 +1,4 @@
+import { formatShortDate } from "@/lib/format"
 import { Building2, CheckCircle2, History } from "lucide-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -8,7 +9,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { useAcceptCompanyTransfer, useReceivedTransfers, type OwnershipTransferView } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import {
@@ -17,7 +18,7 @@ import {
   SettingsListRow,
   SettingsListSkeleton,
   SettingsSection,
-} from "../settings/_components/settings-section"
+} from "@/components/settings-section"
 
 /** Mirrors `backend/src/lib/legal-signup-policy.ts#LEGAL_ACCEPTANCE_REQUIRED_CODE` by name — the four
  *  projects in this repo share no package (CLAUDE.md), so this is the one place the frontend has to
@@ -25,10 +26,6 @@ import {
  *  backend error code gets. Refused by the GLOBAL `LegalAcceptanceGuard` (hosted-billing mode only)
  *  before `POST /account/transfers/:id/accept` ever runs — see that endpoint's own backend header. */
 const LEGAL_ACCEPTANCE_REQUIRED_CODE = "LEGAL_ACCEPTANCE_REQUIRED"
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-}
 
 function statusBadgeVariant(
   status: OwnershipTransferView["status"],
@@ -80,8 +77,7 @@ export default function AccountTransfersPage() {
         },
         onError: (error) => {
           setConfirmTransfer(null)
-          const code =
-            error instanceof ApiError ? (error.body as { code?: string } | undefined)?.code : undefined
+          const code = apiErrorCode(error)
           if (code === LEGAL_ACCEPTANCE_REQUIRED_CODE) {
             toast.info(t("account.transfers.messages.legalAcceptanceRequired"))
             void navigate("/legal/accept")
@@ -124,7 +120,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.expiresAt")}:{" "}
-                    <span className="font-mono tabular-nums">{formatDate(transfer.expiresAt)}</span>
+                    <span className="tabular-nums">{formatShortDate(transfer.expiresAt)}</span>
                   </>
                 }
                 primary={
@@ -169,7 +165,7 @@ export default function AccountTransfersPage() {
                     {t("account.transfers.list.from", { name: transfer.fromName, email: transfer.fromEmail })}
                     {" · "}
                     {t("account.transfers.list.createdAt")}:{" "}
-                    <span className="font-mono tabular-nums">{formatDate(transfer.createdAt)}</span>
+                    <span className="tabular-nums">{formatShortDate(transfer.createdAt)}</span>
                   </>
                 }
               />

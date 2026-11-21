@@ -171,6 +171,25 @@ async function xmlOf(
   return { result, xml: Buffer.from(result.bytes).toString('utf-8') };
 }
 
+/** A FREE credit note builds from its own descriptor and lines, with `creditNote` but no reference. */
+async function freeXmlOf(
+  provider: DocumentFormatProvider,
+  data: unknown,
+  seller: DocumentFormatParty,
+  buyer: DocumentFormatParty,
+  displayNumber = 'CREDIT-NOTE-2026-0001',
+) {
+  const result = await provider.build(
+    creditNoteDescriptor,
+    doc(data, displayNumber),
+    seller,
+    buyer,
+    'company-1',
+    { creditNote: {} },
+  );
+  return { result, xml: Buffer.from(result.bytes).toString('utf-8') };
+}
+
 describe('issue #472 - a credit note in every EN 16931 syntax, judged by the same Schematron gates', () => {
   it('UBL: a genuine <CreditNote> (381) referencing the corrected invoice (BG-3), 0 EN 16931 error', async () => {
     const { result, xml } = await xmlOf(ublFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
@@ -260,6 +279,44 @@ describe('issue #472 - a credit note in every EN 16931 syntax, judged by the sam
   }, 30_000);
 });
 
+describe('a FREE credit note is still a credit-note document, with no preceding-invoice reference', () => {
+  it('UBL: a <CreditNote> at 381 with no BillingReference', async () => {
+    const { result, xml } = await freeXmlOf(ublFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    expect(xml).toMatch(/<CreditNote[ >]/);
+    expect(xml).toContain('<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>');
+    expect(xml).not.toContain('<cac:BillingReference>');
+  }, 30_000);
+
+  it('CII: TypeCode 381 with no InvoiceReferencedDocument', async () => {
+    const { result, xml } = await freeXmlOf(ciiFormatProvider, FR_DATA, FR_SELLER, DE_BUYER);
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    expect(xml).toMatch(/<ram:TypeCode>381<\/ram:TypeCode>/);
+    expect(xml).not.toContain('<ram:InvoiceReferencedDocument>');
+  }, 30_000);
+
+  it('FatturaPA: TD04 with no DatiFattureCollegate and no payment instruction', async () => {
+    const { result, xml } = await freeXmlOf(
+      fatturapaFormatProvider,
+      IT_DATA,
+      IT_SELLER,
+      IT_BUYER,
+      'CN-2026-999999',
+    );
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    const flat = xml.replace(/>\s+</g, '><');
+    expect(flat).toContain('<TipoDocumento>TD04</TipoDocumento>');
+    expect(flat).not.toContain('<DatiFattureCollegate>');
+    expect(flat).not.toContain('<DatiPagamento>');
+  }, 30_000);
+});
+
 describe('issue #472 - FatturaPA TD04 (nota di credito), judged by the real Agenzia delle Entrate XSD', () => {
   it("TD04 + DatiFattureCollegate naming the corrected invoice, no payment instruction, XSD-valid, with the number Italy's DEFAULT format produces (issue #496)", async () => {
     // Issue #496: the credit-note number is rendered through the format numbering itself resolves for
@@ -335,10 +392,13 @@ describe('issue #472 - what is refused rather than built', () => {
     ['xrechnung', xrechnungFormatProvider, DE_DATA, DE_SELLER, DE_PUBLIC_BUYER],
     ['fatturapa', fatturapaFormatProvider, IT_DATA, IT_SELLER, IT_BUYER],
     ['fa3', fa3FormatProvider, FR_DATA, FR_SELLER, DE_BUYER],
-  ] as const)('%s: a document with no number produces no file at all - never a "DRAFT" placeholder', async (_id, provider, data, seller, buyer) => {
-    // An INVOICE build (no `options.creditNote`), so the only reason to refuse is the missing number.
-    await expect(
-      provider.build(invoiceDescriptor, doc(data, null), seller, buyer, 'company-1'),
-    ).rejects.toThrow(/no legal number/);
-  });
+  ] as const)(
+    '%s: a document with no number produces no file at all - never a "DRAFT" placeholder',
+    async (_id, provider, data, seller, buyer) => {
+      // An INVOICE build (no `options.creditNote`), so the only reason to refuse is the missing number.
+      await expect(
+        provider.build(invoiceDescriptor, doc(data, null), seller, buyer, 'company-1'),
+      ).rejects.toThrow(/no legal number/);
+    },
+  );
 });

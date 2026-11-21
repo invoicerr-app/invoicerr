@@ -1,13 +1,15 @@
 import type { TFunction } from "i18next"
 import { toast } from "sonner"
 
+import { type DocumentInstance, type DocumentTypeDescriptor, statusLabel } from "@/components/documents/types"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { downloadBlob } from "@/lib/download"
 
 /**
  * The two plain-GET downloads a document offers — its rendered PDF, and one of its normalized XML
  * syntaxes — shared by the list's row cluster (document-list.tsx) and the detail page's actions
  * menu (document-detail.tsx), so the exact same request, the same error surfacing and the same
- * "open the blob in a new tab" delivery run from both places.
+ * delivery (a new tab, or a saved file for a PDF download) run from both places.
  *
  * `authenticatedFetch`, NOT `fetch`: the frontend and the API live on different ports. A relative
  * fetch goes to the Vite dev server -- which has no API -- without a session cookie. The button was
@@ -30,30 +32,68 @@ function openBlob(blob: Blob) {
   window.open(url, "_blank")
 }
 
-export async function downloadDocumentPdf(typeId: string, documentId: string, t: TFunction) {
-  try {
-    const response = await authenticatedFetch(`/api/documents/${documentId}/pdf?typeId=${typeId}`)
-    if (!response.ok) {
-      // Issue #549 - the backend names the ONE refusal with a translated message worth surfacing:
-      // an imported document whose original isn't a PDF (`documents.service.ts#renderInstancePdf`'s
-      // own `code: "IMPORT_ORIGINAL_NOT_PDF"`). Every other refusal keeps the generic HTTP error -
-      // this route, unlike downloadDocumentXml below, otherwise has no per-cause messages to relay.
-      const body = await response.json().catch(() => null)
-      if (body?.code === "IMPORT_ORIGINAL_NOT_PDF") {
-        throw new Error(t("documents.list.downloadPdfNotPdfOriginal"))
-      }
-      throw new Error(`HTTP ${response.status}`)
+function saveBlob(blob: Blob, fileName: string) {
+  downloadBlob(blob, fileName)
+}
+
+const FILE_NAME_RESERVED = /[\\/:*?"<>|]+/g
+
+/** The document's own number, or "<type> <status> <short id>" while it has none (a draft, or a type
+ *  that is never numbered). */
+function documentPdfFileName(
+  descriptor: Pick<DocumentTypeDescriptor, "label" | "statuses">,
+  instance: Pick<DocumentInstance, "id" | "status" | "displayNumber">,
+): string {
+  const base =
+    instance.displayNumber ||
+    `${descriptor.label} ${statusLabel(descriptor, instance.status)} ${instance.id.slice(0, 8)}`
+  return `${base.replace(FILE_NAME_RESERVED, "-").trim()}.pdf`
+}
+
+async function fetchDocumentPdf(typeId: string, documentId: string, t: TFunction): Promise<Blob> {
+  const response = await authenticatedFetch(`/api/documents/${documentId}/pdf?typeId=${typeId}`)
+  if (!response.ok) {
+    // The backend names the ONE refusal with a translated message worth surfacing:
+    // an imported document whose original isn't a PDF (`documents.service.ts#renderInstancePdf`'s
+    // own `code: "IMPORT_ORIGINAL_NOT_PDF"`). Every other refusal keeps the generic HTTP error -
+    // this route, unlike downloadDocumentXml below, otherwise has no per-cause messages to relay.
+    const body = await response.json().catch(() => null)
+    if (body?.code === "IMPORT_ORIGINAL_NOT_PDF") {
+      throw new Error(t("documents.list.downloadPdfNotPdfOriginal"))
     }
-    openBlob(await response.blob())
+    throw new Error(`HTTP ${response.status}`)
+  }
+  return response.blob()
+}
+
+function toastPdfError(error: unknown, t: TFunction) {
+  // The backend's own message, not a generic one: "the PDF engine is unavailable" and "document
+  // not found" don't call for the same reaction.
+  toast.error(error instanceof Error ? error.message : t("documents.list.downloadPdfError"))
+}
+
+export async function previewDocumentPdf(typeId: string, documentId: string, t: TFunction) {
+  try {
+    openBlob(await fetchDocumentPdf(typeId, documentId, t))
   } catch (error) {
-    // The backend's own message, not a generic one: "the PDF engine is unavailable" and "document
-    // not found" don't call for the same reaction.
-    toast.error(error instanceof Error ? error.message : t("documents.list.downloadPdfError"))
+    toastPdfError(error, t)
+  }
+}
+
+export async function downloadDocumentPdf(
+  descriptor: Pick<DocumentTypeDescriptor, "id" | "label" | "statuses">,
+  instance: Pick<DocumentInstance, "id" | "status" | "displayNumber">,
+  t: TFunction,
+) {
+  try {
+    saveBlob(await fetchDocumentPdf(descriptor.id, instance.id, t), documentPdfFileName(descriptor, instance))
+  } catch (error) {
+    toastPdfError(error, t)
   }
 }
 
 /** Issue #549 - the archived original of an imported document, verbatim, whatever format it was
- *  issued in (PDF, structured XML, image). Same transport shape as `downloadDocumentPdf` above
+ *  issued in (PDF, structured XML, image). Same transport shape as `previewDocumentPdf` above
  *  (authenticated, blob-opened in a new tab) - the backend names the filename and content type, this
  *  never guesses either from the document's own data. */
 export async function downloadDocumentOriginal(typeId: string, documentId: string, t: TFunction) {
@@ -65,6 +105,27 @@ export async function downloadDocumentOriginal(typeId: string, documentId: strin
     openBlob(await response.blob())
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t("documents.list.downloadOriginalError"))
+  }
+}
+
+/** Issue #364 - the proof file attached to a manual acceptance, served from the archive row. */
+export async function downloadManualAcceptanceAttachment(
+  typeId: string,
+  documentId: string,
+  fileName: string,
+  t: TFunction,
+) {
+  try {
+    const response = await authenticatedFetch(
+      `/api/documents/${documentId}/manual-acceptance/attachment?typeId=${typeId}`,
+    )
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw new Error(body?.message || `HTTP ${response.status}`)
+    }
+    saveBlob(await response.blob(), fileName)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t("documents.acceptance.manualAttachmentDownload"))
   }
 }
 

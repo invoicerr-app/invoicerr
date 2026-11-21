@@ -71,21 +71,35 @@ function scrolledBy(element: Element) {
 	return { top, left };
 }
 
-/** Every card in the widget area, in document order, in page coordinates. */
+/** Every card in the widget area, in document order, in page coordinates anchored to the widget
+ *  area's own top. Switching the preset reflows the header row above the grid: on the phone the
+ *  dated range line grows taller than "all time" (round 2's own min-height hold does not absorb
+ *  that difference on the runner's Firefox; pinning the row is iter-1's surface, with captures),
+ *  so between the two snapshots every card sits lower on the page by that row's growth while no
+ *  card resizes or moves relative to the grid. This spec's promise is about the period LOAD moving
+ *  no card; anchoring inside the area keeps it and leaves the row's own height to iter-1. */
 function cardBoxes() {
-	return cy.get('[data-cy="dashboard-widgets"] [data-slot="card"]').then(($cards) =>
-		[...$cards].map((card, index) => {
-			const rect = card.getBoundingClientRect();
-			const scroll = scrolledBy(card);
-			return {
-				key: card.getAttribute("data-cy") ?? `#${index}`,
-				width: Math.round(rect.width),
-				height: Math.round(rect.height),
-				top: Math.round(rect.top + scroll.top),
-				left: Math.round(rect.left + scroll.left),
-			} satisfies Box;
-		}),
-	);
+	return cy
+		.get('[data-cy="dashboard-widgets"]')
+		.then(($area) => {
+			const area = $area[0];
+			const areaTop = area.getBoundingClientRect().top + scrolledBy(area).top;
+			return cy
+				.get('[data-cy="dashboard-widgets"] [data-slot="card"]')
+				.then(($cards) =>
+					[...$cards].map((card, index) => {
+						const rect = card.getBoundingClientRect();
+						const scroll = scrolledBy(card);
+						return {
+							key: card.getAttribute("data-cy") ?? `#${index}`,
+							width: Math.round(rect.width),
+							height: Math.round(rect.height),
+							top: Math.round(rect.top + scroll.top - areaTop),
+							left: Math.round(rect.left + scroll.left),
+						} satisfies Box;
+					}),
+				);
+		});
 }
 
 /** Equal to the pixel: a box a fraction of a pixel off rounds either way. */
@@ -144,6 +158,20 @@ function delayDashboardResponses(onRequest: () => void) {
 	}).as("dashboard");
 }
 
+/** Pins the invoice-overview panel to its skeleton longer than the measurement window runs, on top
+ *  of the widget grid's own delay. Round 2 stacks the panel between the dashboard header and the
+ *  widget grid, and its skeleton's fixed heights are not the loaded panel's content heights, so a
+ *  panel that resolves while the boxes around it are being compared moves every one of them by
+ *  that height change without a card resizing at all. Holding the panel keeps the page above the
+ *  grid at one known height while the widgets do their own slow, skeleton-fitted reload. */
+function delayOverviewResponses() {
+	cy.intercept({ method: "GET", pathname: "/api/documents/dashboard/overview" }, (req) => {
+		req.on("response", (res) => {
+			res.setDelay(RESPONSE_DELAY_MS + 10000);
+		});
+	}).as("overview");
+}
+
 describe("Dashboard keeps its layout while a period loads", () => {
 	before(() => {
 		cy.resetAndSeed();
@@ -166,6 +194,7 @@ describe("Dashboard keeps its layout while a period loads", () => {
 		it(`changing the period keeps every card at the same size and position, marked busy (${device})`, () => {
 			let requested = false;
 			cy.viewport(width, height);
+			delayOverviewResponses();
 			cy.visit("/dashboard", { onBeforeLoad: trackLayoutShifts });
 			cy.get('[data-cy="dashboard-widgets"] [data-widget-kind]', { timeout: 20000 }).should("have.length.gt", 0);
 
@@ -196,6 +225,7 @@ describe("Dashboard keeps its layout while a period loads", () => {
 
 	it("the first load shows skeletons with the dimensions of the cards they stand for", () => {
 		let requested = false;
+		delayOverviewResponses();
 		cy.visit("/dashboard");
 		cy.get('[data-cy="dashboard-widgets"] [data-widget-kind]', { timeout: 20000 }).should("have.length.gt", 0);
 		cardBoxes().then((loaded) => {

@@ -72,14 +72,16 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 (needs :4000/:6284/:5433/:6379/:8025 up, per the E2E section above).
 
 ### CI (`.github/workflows/`)
-- `cypress.yml` ("Tests", on PR) — eight jobs: `lint` (biome on both projects + frontend vitest),
+- `cypress.yml` ("Tests", on PR) -- nine jobs: `lint` (biome on both projects + frontend vitest),
   `i18n-check`, `e2e-typecheck` (`tsc --noEmit` over the Cypress specs), `backend-tests` (backend
   vitest against a real Postgres — 13+ spec files need one), a **queue-integration** job (real Redis +
   Postgres, runs `modules/documents/queue/__tests__` **and** `modules/webhooks/queue/__tests__`, plus
-  the migration-vs-schema enum tripwire), `cypress-run` (the numbered suites, 6-way sharded),
+  the migration-vs-schema enum tripwire), `cypress-run` (the numbered suites, 3-way sharded),
   `cypress-run-saas` (the hosted-billing-only specs, `WARNING__ENABLE_BILLING_FOR_USERS__WARNING=true`),
-  and `tests-green` — a fixed-name aggregator job branch protection targets instead of the six
-  `cypress-run` shard names, `needs` every other job and fails on any failure/cancellation/skip.
+  `cypress-run-demo` (`DEMO_MODE=true` and its own seeded dataset), `main-promotion-only` (refuses a
+  pull request into `main` whose source is not this repository's `dev`), and `tests-green`, a fixed-name
+  aggregator job branch protection targets instead of the six `cypress-run` shard names, `needs` every
+  other job and fails on any failure/cancellation/skip.
 - `scenarios.yml` ("Business Scenarios", on PR) — matrix `fr-pl de-fr it-it pt-de it-pt pl-de` (the
   5-country prune, 2026-09-10, re-pointed fr-be/es-pt/mx-us/us-us onto kept-country pairs — see
   `e2e/cypress/fixtures/scenarios.ts`'s own header for the mapping), each leg driving
@@ -92,6 +94,9 @@ own narration comments). Run one leg standalone with `CYPRESS_scenario=<pair> np
 - `compliance-live.yml` — real-API round-trips, `workflow_dispatch` **or** a nightly `schedule` cron
   (inert on any branch but the repository default, per the file's own comment). See
   `documentation/docs/developer-guide/live-testing.md`.
+- `company-lookup-live.yml`: the real company registers (backend live spec plus
+  `18-onboarding-wizard.cy.ts` with `COMPANY_LOOKUP_LIVE=1`), nightly or `workflow_dispatch`, outside
+  the merge queue; the required lane stubs the register search.
 
 ## Architecture
 
@@ -168,14 +173,14 @@ concern), its own loader, and mostly its own DB mirror + boot-reseed service:
   deliberately absent because DPR 600/1973 art. 22 makes the obligation run until tax assessments
   close, which has no computable terminus this schema can express.
 - `reporting/` — declarative post-send declaration obligations. Two data files, `pt.json` and
-  `fr.json`, but exactly ONE implemented `DeclarationProvider`: `pt-at`, the only one
-  `documents-core.module.ts` registers. The Hungarian (NAV) and Greek (myDATA) providers were deleted
-  with the five-country prune. France's three facts are all deliberately unexecutable here and say so
-  in their own `notes`: the B2B-domestic one is `dischargedBy: 'transport'` (CGI art. 289 E puts the
-  duty to transmit on the accredited platform itself, so the PDP transport discharges it and the
-  send-time hook skips it), and the two e-reporting ones (CGI art. 290, 290 A) name an UNREGISTERED
-  `providerId` placeholder — present as data so the obligation stays visible, not as something that
-  runs.
+  `fr.json`, and two implemented `DeclarationProvider`s: `pt-at`, and `fr-pa` (France's accredited
+  platform, CGI art. 290/290 A) which resolves the company's connected operator from `operators/` and
+  delegates to a per-transport `EReportingAdapter` (SuperPDP is the first). France's B2B-domestic fact
+  is `dischargedBy: 'transport'` (CGI art. 289 E puts the duty to transmit on the accredited platform
+  itself, so the PDP transport discharges it and no declaration job is enqueued); the two e-reporting
+  facts are scoped and classified against the operation (`classify.ts`, `operation-context.ts`), with
+  size-tiered start dates in `applicability`. A missing channel, adapter, credential or company
+  profile answer is journaled `report:blocked`, never declared on a guess.
 - `domestic-reverse-charge/` — the statutory categories in which the BUYER, not the seller, owes the
   VAT on a purely domestic supply (construction subcontracting, waste, scrap, greenhouse-gas
   allowances, gas and electricity to a reseller…). DE/FR/IT/PT, 32 sourced categories; Poland has none

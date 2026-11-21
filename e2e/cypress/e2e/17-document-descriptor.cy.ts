@@ -226,14 +226,12 @@ function fillRowFieldMinimal(arrayKey: string, rowField: Field) {
 }
 
 /**
- * Walks the wizard (stepped-dialog.tsx) from whichever step it opened on to its last one, checking
- * every field in `fields` that is CURRENTLY MOUNTED against `seen` (scrolled to, visible, no
- * "-unsupported" marker), filling any REQUIRED one so "Continue" stops blocking. Recurses through
- * `cy.get('body').then()` — a `cy.` command queued inside a `.then()` runs after everything already
- * queued, so this still executes strictly in order despite the recursion.
+ * Checks every field in `fields` that the one-page editor (form-page-dialog.tsx) renders against
+ * `seen` (scrolled to, visible, no "-unsupported" marker), filling any REQUIRED one so the save is
+ * not blocked. Every section is mounted at once, so one pass covers the whole form.
  */
 function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0, filled = new Set<string>()) {
-	if (guard > 6) return; // more steps than this wizard has ever had — a real bug, not a slow one.
+	if (guard > 6) return;
 	const clientKey = clientDrivingFieldKey(fields);
 	cy.get("body").then(($body) => {
 		for (const f of fields) {
@@ -260,20 +258,13 @@ function walkWizardCheckingFields(fields: Field[], seen: Set<string>, guard = 0,
 				fillFieldMinimal(f, drivesRefetch);
 			}
 		}
-		cy.get("body").then(($after) => {
-			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
-				cy.continueDocumentWizard();
-				walkWizardCheckingFields(fields, seen, guard + 1, filled);
-			}
-		});
 	});
 }
 
 /**
- * `walkWizardCheckingFields` without the coverage bookkeeping — for a caller that only needs to
- * REACH the wizard's last step ("Summary", where the type's own action buttons finally render —
- * see stepped-dialog.tsx: everywhere earlier, the primary button reads "Continue"), filling
- * whatever's required along the way with the same minimal, disabled-aware values.
+ * `walkWizardCheckingFields` without the coverage bookkeeping — for a caller that only needs the
+ * type's own action buttons to be usable, filling whatever's required with the same minimal,
+ * disabled-aware values.
  */
 function advanceWizardToLastStep(fields: Field[], guard = 0, filled = new Set<string>()) {
 	if (guard > 6) return;
@@ -289,12 +280,6 @@ function advanceWizardToLastStep(fields: Field[], guard = 0, filled = new Set<st
 			filled.add(f.key);
 			fillFieldMinimal(f, drivesRefetch);
 		}
-		cy.get("body").then(($after) => {
-			if ($after.find('[data-cy="document-create-dialog-continue"]').length > 0) {
-				cy.continueDocumentWizard();
-				advanceWizardToLastStep(fields, guard + 1, filled);
-			}
-		});
 	});
 }
 

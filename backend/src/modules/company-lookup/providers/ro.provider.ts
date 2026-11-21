@@ -1,18 +1,14 @@
 /**
  * Romania — ANAF public taxpayer register.
+ * Docs: https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt (no credentials).
  *
- * Endpoint : POST https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva
- *            body [{ cui, data }]
- * Docs     : https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt
- * Credentials: none.
- *
- * ANAF is also the authority on whether the company is registered for VAT and for
- * RO e-Factura, which the invoicing flow needs before it picks a channel.
+ * Also the authority on VAT and RO e-Factura registration, which the invoicing flow needs before it
+ * picks a channel.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { join, localDate } from './shared';
+import { credentialsPresent, join, localDate } from './shared';
 
 const ANAF_URL = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
 
@@ -24,10 +20,10 @@ export class RomaniaAnafProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://static.anaf.ro/static/10/Anaf/Informatii_R/Servicii_web/doc_WS_V9.txt';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

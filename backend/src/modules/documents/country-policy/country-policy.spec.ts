@@ -17,6 +17,7 @@ import {
   evaluateCountryPolicyForActions,
   resolveAvailableDocumentTypes,
   resolveCompanyCountryCode,
+  resolveCompanyProfile,
 } from './country-policy';
 
 vi.mock('@/prisma/prisma.service', () => ({
@@ -424,5 +425,23 @@ describe('resolveCompanyCountryCode', () => {
   it('returns undefined for a company that does not exist', async () => {
     findCompany.mockResolvedValue(null);
     expect(await resolveCompanyCountryCode('company-1')).toBeUndefined();
+  });
+});
+
+describe('resolveCompanyProfile', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reads the profile the mandate sees: derived value in, an answer no longer asked out', async () => {
+    findCompany.mockResolvedValue({
+      country: 'France',
+      countryCode: 'FR',
+      exemptVat: true,
+      reportingProfile: { sizeCategory: 'SMALL', vatDebitsOption: 'EXERCISED' },
+    });
+
+    expect(await resolveCompanyProfile('company-1')).toEqual({
+      sizeCategory: 'SMALL',
+      vatRegime: 'FRANCHISE',
+    });
   });
 });

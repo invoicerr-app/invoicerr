@@ -1,22 +1,17 @@
 /**
- * Colombia — RUES (Registro Único Empresarial y Social), published as the
- * Confecámaras open dataset on datos.gov.co.
- *
- * Endpoint : GET https://www.datos.gov.co/resource/c82u-588k.json?numero_identificacion={nit}
- * Docs     : https://www.datos.gov.co/d/c82u-588k  (Socrata SODA API, keyless)
- * Credentials: none.
- *
- * The dataset carries the legal name, the chamber of commerce, the registration date
- * and the standing of the registration — but no address, which stays manual.
+ * Colombia: RUES, published as the Confecámaras dataset on datos.gov.co (Socrata SODA, keyless).
+ * Docs: https://www.datos.gov.co/d/c82u-588k. Carries the legal name, chamber, registration date
+ * and status, but no address, which stays manual.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
+import { credentialsPresent } from './shared';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
 
 const RUES_URL = 'https://www.datos.gov.co/resource/c82u-588k.json';
 
 /** NIT: 9-10 digits, mod-11 verification digit (the last one, often written after a dash). */
-export function isValidNit(value: string): boolean {
+function isValidNit(value: string): boolean {
   const clean = digits(value);
   return clean.length >= 8 && clean.length <= 10;
 }
@@ -36,10 +31,10 @@ export class ColombiaRuesProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.datos.gov.co/d/c82u-588k';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

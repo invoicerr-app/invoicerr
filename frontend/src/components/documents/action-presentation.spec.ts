@@ -5,6 +5,7 @@ import {
   actionAssignsNumber,
   actionLocksDocument,
   canCreateDocument,
+  presentActions,
   saveDraftLockNotice,
 } from "./action-presentation"
 import type { DocumentActionDescriptor, DocumentTypeDescriptor } from "./types"
@@ -246,5 +247,47 @@ describe("canCreateDocument, evaluated like the create dialog (a record with no 
       actions: [{ id: "save-draft", label: "Save draft", availableWhen: "always" }],
     } as Pick<DocumentTypeDescriptor, "actions" | "initialStatus">
     expect(canCreateDocument(type)).toBe(true)
+  })
+})
+
+describe("presentActions", () => {
+  const recordPayment: DocumentActionDescriptor = {
+    id: "record-payment",
+    label: "Record payment",
+    availableWhen: ["sent"],
+  }
+  const exportAccounting: DocumentActionDescriptor = {
+    id: "export-accounting",
+    label: "Export to accounting",
+    availableWhen: ["sent"],
+  }
+  const ids = (actions: DocumentActionDescriptor[]) => actions.map((action) => action.id)
+
+  it("an unsettled balance keeps record-payment as the primary", () => {
+    const presented = presentActions([recordPayment, exportAccounting, cancel], "sent", false, false)
+    expect(presented.primary?.id).toBe("record-payment")
+    expect(ids(presented.secondary)).toEqual(["export-accounting", "cancel"])
+    expect(presented.settled).toBe(false)
+  })
+
+  it("a settled balance replaces a record-payment primary with the settled mark, never promoting the next action", () => {
+    const presented = presentActions([recordPayment, exportAccounting, cancel], "sent", false, true)
+    expect(presented.primary).toBeUndefined()
+    expect(presented.settled).toBe(true)
+    expect(ids(presented.secondary)).toEqual(["export-accounting", "cancel"])
+  })
+
+  it("a settled balance drops record-payment from the menu when another action is the primary", () => {
+    const presented = presentActions([exportAccounting, recordPayment, cancel], "sent", false, true)
+    expect(presented.primary?.id).toBe("export-accounting")
+    expect(presented.settled).toBe(false)
+    expect(ids(presented.secondary)).toEqual(["cancel"])
+  })
+
+  it("a settled balance with no record-payment offered changes nothing", () => {
+    const presented = presentActions([exportAccounting, cancel], "sent", false, true)
+    expect(presented.primary?.id).toBe("export-accounting")
+    expect(presented.settled).toBe(false)
+    expect(ids(presented.secondary)).toEqual(["cancel"])
   })
 })

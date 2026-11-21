@@ -115,14 +115,18 @@ const SEND_TRANSITIONS: DocumentActionTransition[] = [
   { from: ['draft', 'send_failed'], to: 'sending' },
   { from: ['sending'], to: ['sent', 'send_failed'] },
 ];
+/** Shared with the "cancel-order" handler's compare-and-swap (`actions/purchase-order-actions.ts`), so
+ *  the two cannot drift apart. */
+export const PURCHASE_ORDER_CANCELLABLE_FROM: string[] = ['sent', 'send_failed'];
 const CANCEL_ORDER_TRANSITIONS: DocumentActionTransition[] = [
-  { from: ['sent', 'send_failed'], to: 'cancelled' },
+  { from: PURCHASE_ORDER_CANCELLABLE_FROM, to: 'cancelled' },
 ];
 
 export function buildPurchaseOrderDescriptor(): DocumentTypeDescriptor {
   return {
     id: 'purchase-order',
     label: 'Purchase order',
+    icon: 'purchase-order',
     statuses: [
       { id: 'draft', label: 'Draft' },
       { id: 'sending', label: 'Sending' },

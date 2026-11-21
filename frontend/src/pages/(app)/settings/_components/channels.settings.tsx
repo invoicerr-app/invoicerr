@@ -6,13 +6,8 @@ import { type ReactNode, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import {
-  type ChannelProvenance,
-  ChannelBannerSource,
-  countryName,
-  formatMandateDate,
-  legalChannelLabel,
-} from "@/components/channel-banner"
+import { ChannelBannerSource, formatMandateDate, legalChannelLabel } from "@/components/channel-banner"
+import { countryName } from "@/lib/display-names"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,7 +24,19 @@ import {
 import { apiFetch } from "@/hooks/use-api-query"
 import { useGet } from "@/hooks/use-fetch"
 import { cn } from "@/lib/utils"
+import type {
+  ChannelPolicyBanner,
+  ChannelsResponse,
+  ConfiguredChannel,
+  LegalChannelStatus,
+} from "@/types/channels"
 import { ChannelConnectSheet } from "./channels.connect-sheet"
+import {
+  type DeclarationMoment,
+  type ReportableDocumentType,
+  type ReportingObligation,
+  summarizeDeclarations,
+} from "./channels.declarations"
 import {
   SettingsList,
   SettingsListRow,
@@ -37,58 +44,7 @@ import {
   SettingsPage,
   SettingsRowMenu,
   SettingsSection,
-} from "./settings-section"
-
-type ChannelEnvironment = "TEST" | "PROD"
-type ChannelRequirement = "suggested" | "mandated"
-
-interface ConfiguredChannel {
-  providerId: string
-  channel: string
-  environment: ChannelEnvironment
-  isActive: boolean
-  operatorId?: string | null
-  /** Issue #527 - this ACTIVE row would be refused by the send preflight for a domestic operation,
-   *  right now - see `channels.service.ts#ChannelConfigStatus.blockedBySend`'s own backend header. */
-  blockedBySend?: boolean
-}
-
-interface SuggestedChannel {
-  providerId: string
-  requirement?: ChannelRequirement
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  equivalentProviderIds?: string[]
-  provenance: ChannelProvenance
-}
-
-interface ReportingObligation {
-  providerId: string
-  appliesTo: "invoice" | "credit-note"
-  provenance: ChannelProvenance
-}
-
-/** Mirrors the backend's `LegalChannelStatus` (`channels.service.ts`) - see that interface's own
- *  header for what each field means and how it is computed. This is the settings screen's LEVEL-1
- *  nav, design C ("legal channel, then operator"). */
-interface LegalChannelStatus {
-  id: string
-  requirement?: ChannelRequirement
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  equivalentProviderIds?: string[]
-  provenance?: ChannelProvenance
-  automatic: boolean
-  lawful: boolean
-  mandatedElsewhere: { countryCode: string; requirement: ChannelRequirement }[]
-  /** Owner review of #527 - every OTHER country whose own B2G routing runs THROUGH this channel
-   *  automatically (e.g. "chorus-pro" names FR here, for every non-French company). Combined with
-   *  `mandatedElsewhere` above by `channelHasHomeElsewhere` below to tell "this is specifically
-   *  another country's own channel" (show "outside your invoicing country") apart from "this is a
-   *  homeless, genuinely cross-border network" (Peppol - show "not accepted for your domestic
-   *  invoices" instead). Mirrors the backend's `LegalChannelStatus.automaticElsewhere`. */
-  automaticElsewhere: string[]
-}
+} from "@/components/settings-section"
 
 /** Owner review of #527 - "this legal channel belongs to a specific country" (theirs, shown to you)
  *  versus "this is a network with no home anywhere, just not usable for YOUR domestic invoices" -
@@ -97,26 +53,9 @@ function channelHasHomeElsewhere(channel: LegalChannelStatus): boolean {
   return channel.mandatedElsewhere.length > 0 || channel.automaticElsewhere.length > 0
 }
 
-/** Mirrors the backend's `ChannelPolicyBanner` - design A's obligation banner, folded onto design C. */
-interface ChannelPolicyBanner {
-  countryCode?: string
-  tone: "mandated" | "suggested" | "none"
-  legalChannelId?: string
-  mandatedFrom?: string
-  effectiveNow?: boolean
-  provenance?: ChannelProvenance
-}
-
-interface ChannelsResponse {
-  configured: ConfiguredChannel[]
-  suggested: SuggestedChannel[]
-  reportingObligations: ReportingObligation[]
-  legalChannels: LegalChannelStatus[]
-  banner: ChannelPolicyBanner
-}
-
 const DECLARATION_LABEL_DEFAULTS: Record<string, string> = {
   "pt-at": "Portuguese Tax Authority (AT)",
+  "fr-pa": "French accredited platform (PA)",
 }
 
 /** One (operator, offering) pair for a given legal channel - the level-2 row. */
@@ -308,7 +247,7 @@ export default function ChannelsSettings() {
                     isSelected ? "border-primary bg-accent text-accent-foreground" : "hover:bg-muted/50",
                   )}
                 >
-                  <span className="flex items-center justify-between gap-2 font-heading text-sm font-semibold">
+                  <span className="flex items-center justify-between gap-2 font-sans text-sm font-semibold">
                     <span className="flex items-center gap-1.5">
                       {hasConnected && (
                         <CheckCircle2
@@ -346,7 +285,9 @@ export default function ChannelsSettings() {
         </div>
       )}
 
-      {reportingObligations.length > 0 && <DeclarationsSection obligations={reportingObligations} t={t} />}
+      {reportingObligations.length > 0 && (
+        <DeclarationsSection obligations={reportingObligations} t={t} language={i18n.language} />
+      )}
 
       {sheetProviderId &&
         (() => {
@@ -513,25 +454,81 @@ function ChannelBanner({
   )
 }
 
-function DeclarationsSection({ obligations, t }: { obligations: ReportingObligation[]; t: TFunction }) {
-  const byProvider = new Map<string, ReportingObligation>()
-  for (const obligation of obligations) {
-    if (!byProvider.has(obligation.providerId)) byProvider.set(obligation.providerId, obligation)
+function documentTypesLabel(t: TFunction, language: string, types: ReportableDocumentType[]): string {
+  const names = types.map((type) =>
+    type === "credit-note"
+      ? t("settings.channels.declarations.document.creditNote", "credit notes")
+      : t("settings.channels.declarations.document.invoice", "invoices"),
+  )
+  return new Intl.ListFormat(language, { style: "long", type: "conjunction" }).format(names)
+}
+
+/** One "when: what" line. Every key is written out so `i18n:check` sees it. */
+function momentLabel(t: TFunction, language: string, moment: DeclarationMoment): string {
+  const documents = documentTypesLabel(t, language, moment.documentTypes)
+  switch (moment.trigger) {
+    case "issued":
+      return t("settings.channels.declarations.when.issued", "When issued: {{documents}}", { documents })
+    case "sent":
+      return t("settings.channels.declarations.when.sent", "When sent: {{documents}}", { documents })
+    case "payment":
+      return t("settings.channels.declarations.when.payment", "When paid: {{documents}}", { documents })
+    case "period-end":
+      if (moment.period === "month")
+        return t(
+          "settings.channels.declarations.when.periodEndMonth",
+          "At the end of each month: {{documents}}",
+          {
+            documents,
+          },
+        )
+      if (moment.period === "quarter")
+        return t(
+          "settings.channels.declarations.when.periodEndQuarter",
+          "At the end of each quarter: {{documents}}",
+          { documents },
+        )
+      if (moment.period === "year")
+        return t(
+          "settings.channels.declarations.when.periodEndYear",
+          "At the end of each year: {{documents}}",
+          {
+            documents,
+          },
+        )
+      return t("settings.channels.declarations.when.periodEnd", "At the end of each period: {{documents}}", {
+        documents,
+      })
   }
+}
+
+function DeclarationsSection({
+  obligations,
+  t,
+  language,
+}: {
+  obligations: ReportingObligation[]
+  t: TFunction
+  language: string
+}) {
   return (
     <SettingsSection
       title={t("settings.channels.declarations.title", "Declarations")}
       description={t(
         "settings.channels.declarations.description",
-        "Not a delivery channel: your invoice still leaves by whatever transport you chose. This is a separate, post-issuance duty to declare invoice data to a tax authority.",
+        "Not a delivery channel: a separate duty to declare invoice data to a tax authority.",
+      )}
+      help={t(
+        "settings.channels.declarations.help",
+        "Your invoice still leaves by whatever transport you chose. The declaration is filed separately, at the point each country requires.",
       )}
       dataCy="channels-declarations"
     >
       <SettingsList>
-        {[...byProvider.values()].map((obligation) => (
+        {summarizeDeclarations(obligations).map((declaration) => (
           <SettingsListRow
-            key={obligation.providerId}
-            dataCy={`declaration-${obligation.providerId}`}
+            key={declaration.platformId}
+            dataCy={`declaration-${declaration.platformId}`}
             badge={
               <Badge variant="outline">
                 {t("settings.channels.status.declarative", "Declaration (not a delivery channel)")}
@@ -540,16 +537,37 @@ function DeclarationsSection({ obligations, t }: { obligations: ReportingObligat
             title={
               <ProseHelp
                 title={t(
-                  `settings.channels.declarations.${obligation.providerId}.label`,
-                  DECLARATION_LABEL_DEFAULTS[obligation.providerId] ?? obligation.providerId.toUpperCase(),
+                  `settings.channels.declarations.${declaration.platformId}.label`,
+                  DECLARATION_LABEL_DEFAULTS[declaration.platformId] ?? declaration.platformId.toUpperCase(),
                 )}
-                dataCy={`declaration-${obligation.providerId}-source`}
+                dataCy={`declaration-${declaration.platformId}-source`}
                 className="text-sm font-medium text-foreground"
               >
-                {obligation.provenance.kind === "legal"
-                  ? obligation.provenance.sourceText
-                  : obligation.provenance.resolutionNote}
+                {t(`settings.channels.declarations.${declaration.platformId}.explanation`, "")}
               </ProseHelp>
+            }
+            meta={
+              <ul className="flex flex-col gap-0.5" data-cy={`declaration-${declaration.platformId}-moments`}>
+                {declaration.moments.map((moment) => (
+                  <li key={`${moment.trigger}-${moment.period ?? ""}`}>{momentLabel(t, language, moment)}</li>
+                ))}
+                {declaration.deliveryDeclares === "all" && (
+                  <li data-cy={`declaration-${declaration.platformId}-by-transport`}>
+                    {t(
+                      "settings.channels.declarations.dischargedByTransport",
+                      "Declared by the delivery itself: nothing more to do.",
+                    )}
+                  </li>
+                )}
+                {declaration.deliveryDeclares === "some" && (
+                  <li data-cy={`declaration-${declaration.platformId}-by-transport`}>
+                    {t(
+                      "settings.channels.declarations.partlyByTransport",
+                      "Invoices it delivers are declared with the delivery itself.",
+                    )}
+                  </li>
+                )}
+              </ul>
             }
           />
         ))}

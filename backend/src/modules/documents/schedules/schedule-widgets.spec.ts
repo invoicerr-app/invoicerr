@@ -72,6 +72,6 @@ describe('buildUpcomingSchedulesWidget', () => {
 
     expect(withPeriod.items).toEqual(withoutPeriod.items);
     expect(withoutPeriod.warnings).toBeUndefined();
-    expect(withPeriod.warnings).toEqual([expect.stringContaining('does not apply')]);
+    expect(withPeriod.warnings).toEqual([{ key: 'documents.messages.widgets.schedulesPeriodIgnored' }]);
   });
 });

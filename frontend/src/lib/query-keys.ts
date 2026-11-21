@@ -8,36 +8,6 @@ export const queryKeys = {
       ["clients", "duplicates", email ?? "", name ?? "", country ?? "", excludeId ?? ""] as const,
     byId: (clientId: string) => ["clients", "byId", clientId] as const,
   },
-  invoices: {
-    list: (page: number) => ["invoices", "list", page] as const,
-    listsAll: () => ["invoices", "list"] as const,
-    search: (query: string) => ["invoices", "search", query] as const,
-    table: (filters: { clientId?: string; year?: number; month?: number; sort: "asc" | "desc" }) =>
-      ["invoices", "table", filters] as const,
-  },
-  recurringInvoices: {
-    list: (page: number) => ["recurringInvoices", "list", page] as const,
-    listsAll: () => ["recurringInvoices", "list"] as const,
-  },
-  quotes: {
-    list: (page: number) => ["quotes", "list", page] as const,
-    listsAll: () => ["quotes", "list"] as const,
-    search: (query: string) => ["quotes", "search", query] as const,
-    table: (filters: { clientId?: string; year?: number; month?: number; sort: "asc" | "desc" }) =>
-      ["quotes", "table", filters] as const,
-  },
-  payments: {
-    list: (page: number) => ["payments", "list", page] as const,
-    listsAll: () => ["payments", "list"] as const,
-    search: (query: string) => ["payments", "search", query] as const,
-    table: (filters: {
-      invoiceId?: string
-      clientId?: string
-      year?: number
-      month?: number
-      sort: "asc" | "desc"
-    }) => ["payments", "table", filters] as const,
-  },
   paymentMethods: {
     list: () => ["paymentMethods", "list"] as const,
     // Issue #416 - one client's own restriction.
@@ -49,26 +19,31 @@ export const queryKeys = {
   projects: {
     list: (filters: { clientId?: string; includeArchived?: boolean } = {}) =>
       ["projects", "list", filters] as const,
+    listsAll: () => ["projects", "list"] as const,
   },
   timeEntries: {
     list: (filters: { projectId?: string; clientId?: string; unbilledOnly?: boolean } = {}) =>
       ["timeEntries", "list", filters] as const,
+    listsAll: () => ["timeEntries", "list"] as const,
+  },
+  documentReferences: {
+    entity: (entity: string) => ["document-references", entity] as const,
   },
   bankStatements: {
     list: () => ["bankStatements", "list"] as const,
     lines: (statementId: string) => ["bankStatements", "lines", statementId] as const,
   },
-  dashboard: {
-    summary: () => ["dashboard", "summary"] as const,
-  },
   company: {
     info: () => ["company", "info"] as const,
+    // The editable form avoids cached snapshots and other info observers' background refetches.
+    settings: () => ["company-settings"] as const,
     paymentTerms: () => ["company", "paymentTerms"] as const,
   },
   billing: {
+    all: () => ["billing"] as const,
     status: () => ["billing", "status"] as const,
-    email: () => ["billing", "email"] as const,
     seats: () => ["billing", "seats"] as const,
+    stripeSubscription: (companyId: string | null) => ["billing", "stripe-subscription", companyId] as const,
   },
   declarations: {
     list: (page: number, status?: string) => ["declarations", "list", page, status] as const,

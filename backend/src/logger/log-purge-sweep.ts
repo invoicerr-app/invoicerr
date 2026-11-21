@@ -40,13 +40,13 @@
  * already touched correctly purged and every company it had not yet reached untouched — exactly as if
  * it had simply not run that tick.
  */
+import { readIntEnv } from '@/utils/read-int-env';
 
 /** How many rows ONE company's own batch deletes AT MOST, per sweep pass — never the whole backlog in
  *  one statement (locks and bloats the table, see this file's own header) and never so small that a
  *  company with a large one-time backlog (e.g. this feature's own first rollout onto a long-unpruned
- *  instance) takes an impractical number of passes to catch up. Same "a plain, exported, non-env
- *  constant" shape `billing/customer-provisioning.ts`'s own `CUSTOMER_PROVISIONING_BATCH_SIZE` already
- *  holds for an identical "bounded round-trip, not a tunable knob" reason. */
+ *  instance) takes an impractical number of passes to catch up. A plain, exported, non-env constant:
+ *  a bounded round-trip, not a tunable knob. */
 export const LOG_PURGE_BATCH_SIZE = 1000;
 
 export const LOG_PURGE_SWEEP_JOB_NAME = 'log-purge-sweep';
@@ -59,7 +59,7 @@ export const LOG_PURGE_SWEEP_JOB_ID = 'log-purge-sweep-singleton';
  *  worth of newly-expired rows, not for how quickly a single row disappears once it crosses the
  *  cutoff. */
 export function readLogPurgeSweepIntervalMs(): number {
-  return parseInt(process.env.LOG_PURGE_SWEEP_INTERVAL_MS ?? `${60 * 60 * 1000}`, 10);
+  return readIntEnv('LOG_PURGE_SWEEP_INTERVAL_MS', 60 * 60 * 1000);
 }
 
 /** `LOG_RETENTION_DAYS` — how many days of `Log` history a company keeps before this sweep purges the
@@ -68,13 +68,21 @@ export function readLogPurgeSweepIntervalMs(): number {
  *  privacy policy already commits NOT to do (see this file's own header). `0` or a negative value
  *  disables the sweep entirely — the explicit "keep everything" escape hatch a self-hosted operator who
  *  wants no automatic deletion at all can reach for, checked by `isLogPurgeEnabled` below rather than
- *  by every call site re-deriving the same `<= 0` test. */
+ *  by every call site re-deriving the same `<= 0` test. Unlike every interval knob, zero and negative
+ *  values are meaningful here, so this reader cannot use `readIntEnv` (which only accepts positive
+ *  integers): a value that is not an integer stays `NaN`, which `isLogPurgeEnabled` reads as "never
+ *  purge" rather than silently re-enabling the default retention. */
 export function readLogRetentionDays(): number {
-  return parseInt(process.env.LOG_RETENTION_DAYS ?? '90', 10);
+  const raw = process.env.LOG_RETENTION_DAYS;
+  if (raw === undefined) return 90;
+
+  const trimmed = raw.trim();
+  const parsed = /^-?\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  return Number.isSafeInteger(parsed) ? parsed : Number.NaN;
 }
 
 /** `false` for `0`, a negative value, or anything `readLogRetentionDays` failed to parse into a
- *  positive number (`parseInt` itself returns `NaN` for a non-numeric value, and `NaN > 0` is always
+ *  positive number (that reader returns `NaN` for a non-numeric value, and `NaN > 0` is always
  *  `false`) — every one of those reads as "never purge", never as "purge everything immediately" or
  *  a crash. */
 export function isLogPurgeEnabled(retentionDays: number): boolean {

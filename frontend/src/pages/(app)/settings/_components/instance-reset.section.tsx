@@ -1,3 +1,5 @@
+import { formatOtp } from "@/lib/format"
+import { isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ServerCrash } from "lucide-react"
 import type React from "react"
 import { useState } from "react"
@@ -19,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useInstancePreflight, useRequestInstanceResetOtp, useConfirmInstanceReset } from "@/hooks/queries"
 import type { ApiError } from "@/hooks/use-api-query"
-import { SettingsSection } from "./settings-section"
+import { SettingsSection } from "@/components/settings-section"
 
 /** A fixed keyword typed exactly, untranslated on purpose — see `danger.settings.tsx`'s own
  *  `RESET_APP_KEYWORD` header for why (it is a literal string the user re-types, matched
@@ -28,13 +30,6 @@ import { SettingsSection } from "./settings-section"
  *  instead (there is no single company — that is the whole point), so a longer fixed phrase is the
  *  only extra friction available. */
 const RESET_INSTANCE_KEYWORD = "RESET INSTANCE"
-
-/** Same generic-failure detection `danger.settings.tsx#isOtpLockedError` uses — the backend folds
- *  every OTP failure into one message except the permanent lockout, matched on that one stable
- *  substring since it carries no separate error code. */
-function isOtpLockedError(error: unknown): boolean {
-  return error instanceof Error && /locked/i.test(error.message)
-}
 
 /**
  * Settings > Danger Zone's instance-wide reset card — mounted ONLY when `useInstancePreflight()`
@@ -97,15 +92,9 @@ export default function InstanceResetSection() {
     )
   }
 
-  const formatOtp = (value: string) => {
-    const cleaned = value.replace(/\D/g, "").slice(0, 8)
-    if (cleaned.length <= 4) return cleaned
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
-  }
-
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => setOtp(formatOtp(e.target.value))
 
-  const canConfirm = otp.length === 9 && confirmText === RESET_INSTANCE_KEYWORD
+  const canConfirm = isOtpComplete(otp) && confirmText === RESET_INSTANCE_KEYWORD
 
   return (
     <>
@@ -176,7 +165,7 @@ export default function InstanceResetSection() {
                 onChange={handleOtpChange}
                 placeholder={t("settings.instanceReset.modal.otpPlaceholder")}
                 className="text-center text-lg font-mono tracking-wider"
-                maxLength={9}
+                maxLength={OTP_DISPLAY_LENGTH}
                 data-cy="instance-reset-otp-input"
               />
             </div>

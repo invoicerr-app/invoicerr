@@ -78,9 +78,8 @@ describe('source constants', () => {
   });
 });
 
-// Issue #574 - "refresh the pairs a company actually uses". Every case here is pure, hand-built
-// fixtures: no Prisma, no HTTP - `currency-rate-sweep-runner.spec.ts`'s own "scope (b)" tests prove
-// the SAME rules through the runner's mocked grouped queries instead.
+// The derivation is pure: hand-built fixtures, no Prisma and no HTTP. The runner spec proves the same
+// rules through its mocked grouped queries.
 describe('deriveNeededCurrencyPairs', () => {
   const QUOTABLE = new Set(['EUR', 'USD', 'GBP']);
 

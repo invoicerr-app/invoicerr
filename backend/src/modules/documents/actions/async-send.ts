@@ -34,7 +34,7 @@
  * remaining risk window — see `confirmDeliveryWithRetry`'s own header for exactly how narrow that is
  * and why it is accepted rather than hidden.
  *
- * None of the transports wired today (`transports/email-transport.ts`, `pdp-transport.ts`,
+ * None of the transports wired today (`transports/email-transport.ts`, `superpdp-transport.ts`,
  * `ksef-transport.ts`, `sdi-transport.ts`, `chorus-pro-transport.ts`) accept a caller-supplied
  * idempotency key that the RECEIVING system could use to recognize and collapse a genuine duplicate
  * submission on its own side — every reference `deliver()` gets back (a PDP deposit id, a KSeF session
@@ -113,6 +113,7 @@ import { DocumentEventPublisher } from '../queue/document-events';
 import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnSendIfObligated } from '../reporting/report-on-send';
+import { sleep } from '@/lib/sleep';
 
 /**
  * The IN-PROCESS fast path for the double-delivery guard below — a `Set` of
@@ -174,7 +175,7 @@ async function confirmDeliveryWithRetry(
           message: error instanceof Error ? error.message : String(error),
         },
       });
-      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      await sleep(200 * attempt);
     }
   }
 }
@@ -567,7 +568,10 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     const { message, reference, providerId } = delivered;
     let sent: DocumentInstanceResult;
     try {
-      sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', null, reference, providerId);
+      sent = await updateDocumentStatus(companyId, typeId, documentId, 'sent', {
+        transportRef: reference,
+        channelProviderId: providerId,
+      });
     } finally {
       // Safe to release UNCONDITIONALLY here, success or failure: by this point `deliveryConfirmedAt`
       // is already durably set (either just now, above, or by an earlier attempt this very call

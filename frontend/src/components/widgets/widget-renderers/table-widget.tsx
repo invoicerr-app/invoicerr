@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next"
+import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -56,7 +57,10 @@ export function TableWidgetRenderer({ widget }: WidgetRendererProps) {
   return (
     <Card className="col-span-full gap-0" data-cy={`widget-${table.id}`} data-widget-kind="table">
       <CardHeader className="border-b">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{table.label}</CardTitle>
+        <CardTitle className="font-heading text-xl font-normal text-foreground">
+          <DocumentTypeIcon icon={table.icon} className="me-2 inline align-[-1px] text-muted-foreground" />
+          {table.label}
+        </CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         {table.rows.length === 0 ? (

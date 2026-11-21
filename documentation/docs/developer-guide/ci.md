@@ -35,6 +35,15 @@ SonarCloud's automatic analysis only analyzes pull requests and the default bran
 reports on a queue branch. Its result gates the pull request itself, before it is queued.
 :::
 
+## Promotion to main
+
+`main` only receives `dev`: a pull request targeting `main` has to come from this repository's `dev`
+branch. The `main-promotion-only` job in `cypress.yml` fails every other pull request into `main`, and
+`tests-green` depends on it, so the rule is enforced through the check `main` already requires instead
+of a branch protection rule kept somewhere out of sight. The promotion itself, `merge_group` runs and
+pushes to `main` all pass: the job only judges a `pull_request` whose base is `main`. A fork naming its
+own branch `dev` is refused too, since the head repository must be this one.
+
 ## Workflow rules
 
 SonarCloud analyzes `.github/workflows/` too. A step added to a workflow follows the same rules as
@@ -67,6 +76,12 @@ the existing ones:
   an empty country catalogue and fails specs far from the cause. The country loader refuses an empty
   catalogue directory, so if the files are ever missing the backend exits at boot instead of
   reseeding every country away.
+- **A new commit cancels the earlier runs of its pull request.** Every workflow triggered by
+  `pull_request` declares a `concurrency` group keyed on the workflow and the pull request number,
+  with `cancel-in-progress` true only for `pull_request` events. Runs for `push`, `merge_group`,
+  `schedule` and `workflow_dispatch` get a group of their own and are never cancelled, so the merge
+  queue and `dev` are not affected. A workflow added later with a `pull_request` trigger copies the
+  same block.
 - **CI Postgres runs with trust auth.** Service containers set `POSTGRES_HOST_AUTH_METHOD: trust`
   and connection strings carry no password. The database is reachable only from the runner and is
   thrown away with the job.
@@ -88,8 +103,13 @@ started from `e2e/cypress.config.ts` instead:
   before its company step, is answered in the browser: a spec that drives the wizard with a country
   that has a register calls `cy.stubCompanyLookup()` before it. Without it, a register that hangs
   holds the wizard for up to eight seconds per provider in the chain, longer than the spec waits.
-  `18-onboarding-wizard.cy.ts` is the one exception: its France case tests the lookup itself and
-  reaches the real chain on purpose.
+  `18-onboarding-wizard.cy.ts`, which tests the lookup itself, is stubbed the same way by default.
+
+The real registers are checked by `company-lookup-live.yml`, every night and from the "Run workflow"
+button, never on a pull request or in the merge queue. It runs
+`backend/src/modules/company-lookup/company-lookup.live.spec.ts` and `18-onboarding-wizard.cy.ts`
+with `COMPANY_LOOKUP_LIVE=1`, which turns the stub off and opens the spec's live-only test. A red run
+there means a register changed or is down; it blocks no merge.
 
 The KSeF and Chorus Pro variables only repoint the test or sandbox environment: a channel connected
 in production always talks to the real authority, and a unit test next to each client guards that.
@@ -110,6 +130,35 @@ above (or leave it unlabeled for "Other") before it merges if you want it to sho
 right heading in the next release's notes.
 :::
 
+A published **pre-release** is announced on Discord by the `announce` job of `docker-publish.yml`,
+through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret. That job declares
+`needs: [prepare, merge]`, so it starts only once the release's manifest list exists at ghcr.io.
+Three things suppress it: a platform build that fails, a manifest list that cannot be created, and
+the Trivy gate that closes `merge` (`exit-code: 1` on a fixable CRITICAL finding), which fails the
+job after the image is already published. An announcement therefore never points at a tag that
+answers "manifest unknown"; the price is that a CRITICAL finding also silences the announcement for
+an image a reader can already pull. Nothing about the `:latest` decision moves: `prepare` still
+makes it, and a full release (the pre-release checkbox left unticked) is never announced.
+
+The message itself is built by `.github/scripts/announce-prerelease.sh`. Run it with `DRY_RUN=1` and
+the `RELEASE_*` variables to print the exact payload without posting anything:
+
+```bash
+DRY_RUN=1 \
+  RELEASE_TAG=26.11.0-beta.1 \
+  RELEASE_URL="$(gh release view 26.11.0-beta.1 --json url --jq .url)" \
+  RELEASE_BODY="$(gh release view 26.11.0-beta.1 --json body --jq .body)" \
+  .github/scripts/announce-prerelease.sh
+```
+
+`RELEASE_BODY` is the body GitHub generated, which opens with an HTML comment naming
+`.github/release.yml`. GitHub hides that comment, Discord would print it, so the script drops HTML
+comments and the blank lines they leave at the top before cutting to 1500 characters: the printed
+description starts at the first heading (`## What's Changed`), never at the comment.
+
+Without the secret configured, the job logs a notice and skips cleanly rather than failing the
+release.
+
 ## Documentation build
 
 The changelog at `/changelog` is generated at build time: `documentation/scripts/fetch-changelog.mjs`
@@ -126,25 +175,65 @@ shows up first on the next deploy or the next documentation pull request.
 ## DCO check
 
 `dco.yml` runs on every pull request targeting `dev` or `main`. It reads the pull request's commits
-through the GitHub API and fails if one of them (other than a merge commit or a bot commit) has no
-`Signed-off-by` line matching its author, as required by
-[`CONTRIBUTING.md`](https://github.com/invoicerr-app/invoicerr/blob/dev/CONTRIBUTING.md).
-The failing run names each offending commit; fix it with `git rebase --signoff <base-branch>` and a
-force-push.
+through the GitHub API and fails if one of them has no `Signed-off-by` line matching its author, as
+required by [`CONTRIBUTING.md`](https://github.com/invoicerr-app/invoicerr/blob/dev/CONTRIBUTING.md).
+Merge commits, bot commits and the commits Hosted Weblate makes for translators are skipped, since
+none of them can run `git commit -s`. The failing run names each offending commit; fix it with
+`git rebase --signoff <base-branch>` and a force-push.
 
 It also runs on every merge queue entry, reading the pull request number from the queue branch
 name, so it can be a required check of the queue.
 
-`release-discord.yml` posts a short summary of every published **pre-release** to the Discord
-announcements channel, through a webhook kept as the `DISCORD_RELEASES_WEBHOOK` repository secret.
-A full release (the pre-release checkbox left unticked) never posts here; see
-`docker-publish.yml` for why only an unchecked pre-release box is what ships an image to
-`:latest`, which this workflow does not touch.
+## Backend dependency updates
 
-Without the secret configured, the workflow logs a notice and skips cleanly rather than failing
-the run. `workflow_dispatch` can simulate a pre-release publish (with made-up release details) to
-exercise that skip path, or the real posting once the secret is set, without waiting for an actual
-release.
+Two rules for anyone, Renovate included, who changes `backend/package.json` or its lockfile:
+
+- **The NestJS framework packages move together.** `@nestjs/common`, `@nestjs/core`,
+  `@nestjs/platform-express` and `@nestjs/testing` are released together and stay on one version.
+  `@nestjs/platform-express` imports internals of `@nestjs/core` from the same release, so a lockfile
+  that moves it alone breaks every spec that loads an upload controller, and the backend never boots:
+  `The requested module '@nestjs/core/internal' does not provide an export named ...`.
+- **`multer` is overridden.** `@nestjs/platform-express` pins an exact `multer`, and
+  `FileInterceptor` parses uploads with that copy, not with the backend's own dependency. The
+  `overrides` entry `"multer": "$multer"` makes both the version `backend/package.json` names. After a
+  `multer` update, `npm ls multer` shows a single version, `deduped` under `@nestjs/platform-express`.
+
+## Preview images
+
+To deploy a pull request somewhere and test it, add the `preview` label to it. `docker-pr.yml` then
+builds the pull request (amd64 and arm64) and publishes `ghcr.io/invoicerr-app/invoicerr:pr-<number>`.
+Every later push to the pull request rebuilds the same tag while the label stays, and a new push
+cancels the build still running for the previous one. The run summary gives the `docker pull`
+command and the digest.
+
+- Without the label, nothing is built. Removing the label stops later rebuilds and leaves the last
+  image in place.
+- A pull request from a fork never publishes: its token cannot write packages, so the build is
+  skipped rather than failed. A maintainer who wants an image of it pushes the branch to this
+  repository first.
+- A branch with no pull request open gets an image from **Actions** > **Verify Docker Build (PR)** >
+  **Run workflow**, tagged with the branch name or with the tag typed in the form.
+
+:::info[The image is the merge result]
+Like every `pull_request` run, the build checks out the pull request merged into its base branch, not
+the branch alone. A pull request with merge conflicts gets no run at all until they are resolved.
+:::
+
+Old `pr-*` tags are not deleted automatically.
+
+## nginx config smoke test
+
+`nginx-smoke.yml` runs on a pull request that touches `nginx.conf`. It serves a stand-in web root
+through `nginx.conf` on `nginx:bookworm`, the base of `server-image`, and checks that `/`, a bundle
+under `/assets/` and `/config.json` answer 200 from `/usr/share/nginx/html`, and that a missing bundle
+stays a 404. On this base a `location` without a `root` looks under `/etc/nginx/html`, so a file that
+exists answers 404, and the browser shows a blank page.
+
+It also starts a stand-in backend on port 3000 and checks compression: a bundle with a `.gz` next to
+it is answered from that file (`gzip_static`), a CSS file and a JSON response over 1 KB come back with
+`Content-Encoding: gzip`, and the decompressed JSON is byte-for-byte what the backend sent. A PDF, an
+SSE stream, an `/api/auth` response, a body under 1 KB and a request without `Accept-Encoding` must
+come back uncompressed.
 
 ## Docker image vulnerability scanning (Trivy)
 
@@ -170,6 +259,22 @@ run forever with nothing anyone could do about it, so it is reported but not gat
 gate to HIGH, or dropping `ignore-unfixed`, is a deliberate follow-up once the current baseline of
 findings is known and triaged, not something to do by just editing the `severity` input.
 :::
+
+## Docker smoke test (non-root image)
+
+`docker-smoke.yml` runs on a pull request that touches the Dockerfile, `entrypoint.sh`, `nginx.conf`,
+the backend's dependencies, the PDF renderer or the Helm chart. It builds the image (never pushed),
+starts it with Postgres, Redis and a fresh volume on `/data` the way `docker-compose.yml` does, and
+fails if:
+
+- any process in the container runs as root, or the container's user is not uid `10001`;
+- `/api/health` or the frontend on port 80 does not answer;
+- a PDF does not render through the image's own `render-pdf.js`, once with the default settings and
+  once with `CHROMIUM_SANDBOX=on` under `seccomp=unconfined`, the setting the docs give for the
+  Chromium sandbox. A notice on the run says whether the default settings used the sandbox.
+
+A second job renders the Helm chart and checks the api and worker pods keep `runAsNonRoot`, uid
+`10001`, `allowPrivilegeEscalation: false` and every capability dropped.
 
 ## API latency
 

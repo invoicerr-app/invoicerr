@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentArchives, useVerifyDocumentArchive } from "@/hooks/queries"
+import { formatServerMessage } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
@@ -79,7 +80,9 @@ function DocumentArchiveRow({ typeId, documentId, archive }: DocumentArchiveRowP
         }
         dataCy="document-archive-retention"
       >
-        {archive.retentionBasis}
+        {archive.retentionBasisMessage
+          ? formatServerMessage(t, archive.retentionBasisMessage)
+          : archive.retentionBasis}
       </ProseHelp>
 
       {isRetentionCalcStale(archive) && (

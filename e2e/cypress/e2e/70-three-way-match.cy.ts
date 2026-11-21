@@ -12,8 +12,10 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * state-changing ACTION goes through a real click on the screen; every `cy.intercept`+`cy.wait` is
  * followed by an HTTP status assertion BEFORE anything else (no toast is ever asserted here at all);
  * the FACTS that matter (verdict, acceptance trace) are re-read via `cy.request`, never trusted from
- * the screen alone. The document dialog is never asserted closed anywhere in this file — it stays
- * open by design (document-upsert-dialog.tsx) and no step here needs it shut.
+ * the screen alone. A create dialog does NOT stay open: a successful first save closes it and
+ * navigates to the new record (document-create-dialog.tsx). Each one is therefore asserted closed,
+ * never dismissed with Escape, which can land on the still focused, still disabled submit button
+ * while the mutation is settling (same trap as 66-purchase-orders.cy.ts).
  *
  * DATES: `[data-cy="document-field-*Date-input"]` is a calendar POPOVER with no typable text input at
  * all (frontend/src/components/date-picker.tsx — a button that opens a `<Calendar>`, nothing else) —
@@ -50,13 +52,12 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 
 		cy.pickToday('[data-cy="document-field-issueDate-input"]');
 
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
 		// "supplier"/"issueDate"/"currency" (all `required`) are the wizard's own "Details" step —
 		// see document-create-dialog.tsx's `buildFieldGroups`.
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
 		cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
@@ -65,8 +66,6 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("25", { force: true });
 
 		// "expectedDeliveryDate"/"reference"/"notes" (all optional) are the "Options" step.
-		cy.continueDocumentWizard(); // Lines -> Options
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.intercept("POST", `${api}/api/documents/types/purchase-order/actions/save-draft`).as(
 			"savePurchaseOrderDraft",
@@ -118,7 +117,7 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.intercept("GET", `${api}/api/documents/references/purchase-order/*/fields`).as(
 			"getPurchaseOrderFields",
 		);
-		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
@@ -135,7 +134,6 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		// prefill effect below already fired while still on it (it lives in use-document-form.ts,
 		// mount-independent — see that file's own "isGoodsReceipt" comment), so the row is ready the
 		// moment "Lines" mounts.
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// The line is PRE-FILLED from the purchase order's own lines the moment "purchaseOrder"
 		// resolves (document-form.tsx's own narrow, named exception — see goods-receipt.descriptor.ts's
@@ -154,8 +152,6 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 			.type("{selectall}6", { force: true });
 
 		// "notes" (optional) is the "Options" step, nothing to fill to pass through it.
-		cy.continueDocumentWizard(); // Lines -> Options
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.intercept("POST", `${api}/api/documents/types/goods-receipt/actions/save-draft`).as(
 			"saveGoodsReceiptDraft",
@@ -170,7 +166,12 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 				"6 unités reçues, telles que saisies à l'écran",
 			).to.eq(6);
 
-			cy.get("body").type("{esc}");
+			// A successful first save already closes this create dialog and navigates to the new
+			// record (document-create-dialog.tsx). Wait for that teardown rather than typing
+			// Escape, which would land on the still focused, still disabled save button while the
+			// mutation is settling (same trap as 66-purchase-orders.cy.ts).
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("not.exist");
+			cy.location("pathname").should("eq", `/documents/goods-receipt/${goodsReceiptId}`);
 		});
 	});
 
@@ -213,14 +214,12 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 		cy.get('input[name="lines.0.description"]').type("Widgets", { force: true });
 		cy.get('input[name="lines.0.quantity"]').clear({ force: true }).type("10", { force: true });
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("25", { force: true });
-		cy.continueDocumentWizard(); // Lines -> Options
 
-		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-purchaseOrder-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"]', { timeout: 10000 }).should(
 			"be.visible",
 		);
 		cy.get('[data-cy="document-field-purchaseOrder-input-options"] button').first().click();
-		cy.continueDocumentWizard(); // Options -> Summary
 
 		cy.intercept("POST", `${api}/api/documents/types/received-invoice/actions/receive`).as(
 			"receiveInvoice",
@@ -234,7 +233,11 @@ describe("Three-way match — purchase order × goods receipt × received invoic
 				purchaseOrderId,
 			);
 
-			cy.get("body").type("{esc}");
+			// Same teardown as the goods-receipt save above: the receive action closes the create
+			// dialog and navigates to the new record, so wait for it instead of typing Escape at
+			// the focused, disabled submit button.
+			cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("not.exist");
+			cy.location("pathname").should("eq", `/documents/received-invoice/${receivedInvoiceId}`);
 		});
 	});
 

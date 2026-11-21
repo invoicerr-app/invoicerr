@@ -8,8 +8,9 @@
 import { vi, type Mock } from 'vitest';
 
 import * as countryPolicy from '../country-policy/country-policy';
+import { CountryReportingObligationFileV2 } from './obligation-v2';
 import { CountryReportingObligationFile } from './schema';
-import { ReportingObligationCatalog } from './registry';
+import { ReportingObligationCatalogV2 } from './obligation-catalog';
 import prisma from '@/prisma/prisma.service';
 import { declarationProviderIds, listDeclarations } from './list-declarations';
 
@@ -61,26 +62,53 @@ const transportShapedFiles: CountryReportingObligationFile[] = [
   },
 ];
 
-const fixtureCatalog = new ReportingObligationCatalog(fixtureFiles);
+const fixtureCatalog = new ReportingObligationCatalogV2(fixtureFiles);
+const catalogOf = (files: CountryReportingObligationFileV2[] | CountryReportingObligationFile[]) =>
+  new ReportingObligationCatalogV2(files);
+
+// A v2-only section (issue #767): one obligation, several channels. Only its provider channel names a
+// declaration provider; an export file id or a manual step never reaches the declarations list.
+const v2File: CountryReportingObligationFileV2 = {
+  countryCode: 'ZZ',
+  obligations: [
+    {
+      id: 'zz-data',
+      authority: { countryCode: 'ZZ' },
+      kind: 'data',
+      trigger: 'sent',
+      scope: { documentTypes: ['invoice'] },
+      legalBasis: { provenance: { kind: 'unverified', resolutionNote: 'fixture' } },
+      channels: [
+        { dischargedBy: 'export', id: 'zz-file', unit: 'document' },
+        { dischargedBy: 'manual', id: 'zz-portal', unit: 'document' },
+        { dischargedBy: 'provider', id: 'zz-api', unit: 'document' },
+      ],
+    },
+  ],
+};
 
 describe('declarationProviderIds', () => {
   it('collects every providerId across every country file, deduped', () => {
-    expect(declarationProviderIds(fixtureFiles)).toEqual(['pt-at']);
+    expect(declarationProviderIds(catalogOf(fixtureFiles))).toEqual(['pt-at']);
   });
 
   it('returns an empty list for zero country files — never a hand-maintained fallback', () => {
-    expect(declarationProviderIds([])).toEqual([]);
+    expect(declarationProviderIds(catalogOf([]))).toEqual([]);
   });
 
   // THE MUTATION TARGET: a version of this function that collected EVERY fact's `providerId`
   // regardless of `dischargedBy` would include "pdp" here — conflating a transport's own
   // conformity-poll id with a genuine tax-authority declaration (see this file's own header).
   it('excludes a "transport"-discharged fact\'s own providerId — it is not a declaration provider', () => {
-    expect(declarationProviderIds(transportShapedFiles)).toEqual([]);
+    expect(declarationProviderIds(catalogOf(transportShapedFiles))).toEqual([]);
   });
 
   it('a mix of "provider" and "transport" facts keeps only the provider-discharged id', () => {
-    expect(declarationProviderIds([...fixtureFiles, ...transportShapedFiles])).toEqual(['pt-at']);
+    expect(declarationProviderIds(catalogOf([...fixtureFiles, ...transportShapedFiles]))).toEqual(['pt-at']);
+  });
+
+  it('keeps only the provider channel of a v2 obligation, never its export or manual channel', () => {
+    expect(declarationProviderIds(catalogOf([v2File]))).toEqual(['zz-api']);
   });
 });
 
@@ -111,13 +139,13 @@ describe('listDeclarations', () => {
       // `listDeclarations` computes its OWN `providerIds` from the real, shipped catalog
       // (`declarationProviderIds()`, no `files` argument — see that function's own header), never
       // from the `catalog` injected below (that one only drives `hasObligation`) — so this reflects
-      // the REAL `reporting/data/*.json` set: PT's "pt-at" AND France's own "fr-ereporting"
+      // the REAL `reporting/data/*.json` set: PT's "pt-at" AND France's own "fr-pa"
       // (`dischargedBy: 'provider'`), but pointedly NOT France's "pdp" fact — that one is
       // `dischargedBy: 'transport'`, the exact "pdp"/"ksef" conflation this test's own title names.
       await listDeclarations('company-A', 1, undefined, fixtureCatalog);
 
       const findManyArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[0][0];
-      expect(findManyArgs.where.providerId).toEqual({ in: ['fr-ereporting', 'pt-at'] });
+      expect(findManyArgs.where.providerId).toEqual({ in: ['fr-pa', 'pt-at'] });
       expect(findManyArgs.where.providerId.in).not.toContain('pdp');
     },
   );
@@ -243,7 +271,7 @@ describe('listDeclarations', () => {
     const distinctCallArgs = mockedPrisma.documentAuthorityEvent.findMany.mock.calls[1][0];
     expect(distinctCallArgs.where).toEqual({
       companyId: 'company-A',
-      providerId: { in: ['fr-ereporting', 'pt-at'] },
+      providerId: { in: ['fr-pa', 'pt-at'] },
     });
     expect(distinctCallArgs.distinct).toEqual(['statusCode']);
   });
@@ -296,5 +324,16 @@ describe('listDeclarations', () => {
 
     const result = await listDeclarations('company-A', 1, undefined, fixtureCatalog);
     expect(result.hasObligation).toBeUndefined();
+  });
+
+  // The listed provider ids and their country still come from the shipped catalog (the test above on
+  // "fr-pa"/"pt-at" pins that); the injected catalog only answers whether the company has an obligation.
+  it('hasObligation is true for a country whose section is v2-only', async () => {
+    mockedPrisma.documentAuthorityEvent.findMany.mockResolvedValue([]);
+    mockedPrisma.documentAuthorityEvent.count.mockResolvedValue(0);
+    mockedResolveCountry.mockResolvedValue('ZZ');
+
+    const result = await listDeclarations('company-A', 1, undefined, catalogOf([v2File]));
+    expect(result.hasObligation).toBe(true);
   });
 });

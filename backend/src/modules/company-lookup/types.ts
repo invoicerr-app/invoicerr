@@ -1,14 +1,7 @@
 /**
- * Country-aware company lookup — shared types.
- *
- * One port, many national registries. Each country's official business register
- * (or the EU-wide VIES service) is wrapped in a `CompanyRegistryProvider` that
- * turns a national identifier into the same normalized `CompanyLookupCompany`,
- * so the onboarding / client forms never learn a country-specific shape.
- *
- * Identifier schemes match the ones the compliance profiles declare in
- * `requiredIdentifiers` (compliance/profiles/schema.ts): LEGAL_ID (the national
- * registration number — SIRET, IČO, NIP, CVR, CNPJ…) and VAT.
+ * Every national register is wrapped in a `CompanyRegistryProvider` returning the same normalized
+ * shape, so the forms never learn a country-specific structure. Schemes match the compliance
+ * profiles' `requiredIdentifiers`: LEGAL_ID (SIRET, IČO, NIP, CVR, CNPJ…) and VAT.
  */
 
 export type LookupScheme = 'LEGAL_ID' | 'VAT';
@@ -42,10 +35,7 @@ export interface CompanyLookupCompany {
   foundedAt?: Date;
   /** Registry status when published: is the entity still trading? */
   status?: 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
-  /**
-   * VAT registration as reported by the registry (VIES `isValid`, PL statusVat…).
-   * null = the source could not tell.
-   */
+  /** VAT registration as reported by the registry; null = the source could not tell. */
   vatRegistered?: boolean | null;
 }
 
@@ -83,11 +73,7 @@ export class ProviderLookupError extends Error {
   }
 }
 
-/**
- * How much of a country's business population a provider can answer for.
- *   REGISTER — the official register: every registered company is in it.
- *   PARTIAL  — a global directory (LEI, Peppol): only entities that opted in are there.
- */
+/** What a provider can answer for: the official register (every company) or a directory (opted in only). */
 export type ProviderCoverage = 'REGISTER' | 'PARTIAL';
 
 export interface CompanyRegistryProvider {
@@ -139,8 +125,8 @@ export interface CountryLookupCapability {
   countryCode: string;
   status: CountryLookupStatus;
   /**
-   * REGISTER when the country's own register answers, PARTIAL when only the worldwide
-   * directories do — the button still works, but most small businesses are not in them.
+   * REGISTER when the country's own register answers, PARTIAL when only the worldwide directories
+   * do: the button still works, but most small businesses are not in them.
    */
   coverage: ProviderCoverage;
   /** Ordered as they will be tried. */

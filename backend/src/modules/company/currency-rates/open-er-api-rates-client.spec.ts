@@ -2,9 +2,8 @@ import { vi } from 'vitest';
 
 import { fetchOpenErApiRates } from './open-er-api-rates-client';
 
-/** A trimmed but structurally real fixture — the SAME top-level shape a real
- *  `GET https://open.er-api.com/v6/latest/EUR` returns (verified live, 2026-09-14), just with three
- *  currencies instead of the ~160 the live feed carries. */
+/** A trimmed but structurally real fixture: the top-level shape the live endpoint returns, with three
+ *  currencies instead of ~160. */
 const FIXTURE_BODY = {
   result: 'success',
   provider: 'https://www.exchangerate-api.com',

@@ -1,0 +1,135 @@
+name: Company lookup live
+
+# The real company registers, checked outside the merge queue. The required e2e lane stubs the
+# register search (`cy.stubCompanyLookup()`), so a slow or unavailable register never blocks a merge;
+# this workflow is where a register that changed or went down shows up, as a red scheduled run that
+# blocks nobody. Not on pull_request or merge_group on purpose.
+#
+# `schedule` only fires from the default branch (`dev`); elsewhere use the "Run workflow" button.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  backend-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        env:
+          DATABASE_URL: postgresql://unused@localhost:5432/unused
+        run: |
+          cd backend
+          npm ci --ignore-scripts
+          ./node_modules/.bin/prisma generate
+
+      - name: Run the live register spec
+        env:
+          COMPANY_LOOKUP_LIVE: '1'
+        run: cd backend && ./node_modules/.bin/vitest run src/modules/company-lookup/company-lookup.live.spec.ts
+
+  onboarding-wizard-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # backend/.env.test points Redis at the local dev container's port; the service below is on 6379.
+      REDIS_URL: redis://localhost:6379
+    services:
+      postgres-test:
+        image: postgres:16@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
+        env:
+          POSTGRES_USER: invoicerr
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: invoicerr_db
+        ports:
+          - "5433:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+      mailpit:
+        image: axllent/mailpit@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+        ports:
+          - "8025:8025"
+          - "1025:1025"
+      redis:
+        image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install backend dependencies
+        env:
+          DATABASE_URL: postgresql://invoicerr@localhost:5433/invoicerr_db
+        run: |
+          cd backend
+          npm ci --ignore-scripts
+          ./node_modules/.bin/prisma generate
+          ./node_modules/.bin/prisma migrate deploy
+          # `migrate deploy` does not seed, and an empty country-policy table blocks every document action.
+          PATH="$PWD/node_modules/.bin:$PATH" ./node_modules/.bin/prisma db seed
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci --ignore-scripts
+
+      - name: Install e2e dependencies
+        run: |
+          cd e2e
+          npm ci --ignore-scripts
+          ./node_modules/.bin/cypress install
+
+      - name: Wait for services
+        run: e2e/node_modules/.bin/wait-on tcp:5433 tcp:8025 tcp:1025 tcp:6379 --timeout 60000
+
+      - name: Run the onboarding wizard against the real registers
+        env:
+          CYPRESS_BIN: ./node_modules/.bin/cypress
+          CYPRESS_COMPANY_LOOKUP_LIVE: '1'
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/logs"
+          (cd "$GITHUB_WORKSPACE/backend" && npm run build)
+          (cd "$GITHUB_WORKSPACE/backend" && npm run start:test:built > "$GITHUB_WORKSPACE/logs/backend.log" 2>&1 &)
+          (cd "$GITHUB_WORKSPACE/frontend" && npm run start:test > "$GITHUB_WORKSPACE/logs/frontend.log" 2>&1 &)
+          "$GITHUB_WORKSPACE/e2e/node_modules/.bin/wait-on" http-get://localhost:4000/api/health --timeout 120000
+          cd "$GITHUB_WORKSPACE/e2e"
+          scripts/run-specs.sh cypress/e2e/18-onboarding-wizard.cy.ts --browser firefox
+
+      - name: Upload logs
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: company-lookup-live-logs
+          path: |
+            ${{ github.workspace }}/logs
+            ${{ github.workspace }}/e2e/cypress/videos
+            ${{ github.workspace }}/e2e/cypress/screenshots

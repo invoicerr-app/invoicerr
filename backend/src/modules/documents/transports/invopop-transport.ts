@@ -1,6 +1,6 @@
 /**
  * The "invopop" transport - Invopop (`invopop.com`), a transmission platform registered by the DGFiP
- * and self-serve in sandbox. Same `DocumentTransport` interface `pdp-transport.ts` implements and
+ * and self-serve in sandbox. Same `DocumentTransport` interface `superpdp-transport.ts` implements and
  * registered the same way (`TransportRegistry.register` - see that file's own header on why a company
  * opts in via `Company.invoiceTransportId` and why nothing here is special-cased).
  *
@@ -17,7 +17,7 @@
  * which is why `workflowId` is a REQUIRED credential below, next to the API key: without it there is
  * nothing to run, and an entry sitting in the silo has been transmitted nowhere.
  *
- * Two distinct failure shapes, both loud, neither silent - the same contract `pdp-transport.ts`
+ * Two distinct failure shapes, both loud, neither silent - the same contract `superpdp-transport.ts`
  * documents:
  *  - `preflight()` - no Invopop channel connected for this company, or a config missing the API key
  *    or the workflow id - thrown BEFORE anything is persisted or queued.
@@ -40,8 +40,9 @@
  *  - A job still RUNNING when the wait elapses is NOT a failure: it is the deposit accepted and the
  *    verdict not yet in (Italy's SdI can take days). Following that verdict needs a poller
  *    (`conformity/pollers/`), which is separate work and is deliberately not guessed at here - the
- *    same named remainder `pdp-transport.ts`'s own header records for superpdp.
+ *    same named remainder `superpdp-transport.ts`'s own header records for superpdp.
  */
+import { INVOPOP_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -49,10 +50,12 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { GOBL_MIME, GoblLineInput, buildGoblInvoice } from './invopop/gobl-invoice';
@@ -94,9 +97,9 @@ export const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   },
 ];
 
-const PROVIDER_ID = 'invopop';
+const PROVIDER_ID = INVOPOP_PROVIDER_ID;
 
-/** Same "the invoice's OWN base descriptor, module-level constant" choice `pdp-transport.ts` makes,
+/** Same "the invoice's OWN base descriptor, module-level constant" choice `superpdp-transport.ts` makes,
  *  for the identical reason: this transport is reached ONLY through `invoiceTransportId`, so it is
  *  always an invoice it builds a payload for, never another document type. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
@@ -137,8 +140,12 @@ async function requireConnectedInvopop(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<InvopopCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, PROVIDER_ID);
-  const credentials = resolved && extractInvopopCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    PROVIDER_ID,
+    extractInvopopCredentials,
+  );
   if (!credentials) {
     logger.warn('Invopop transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -186,7 +193,7 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
     async send(ctx: DocumentTransportContext): Promise<DocumentTransportResult> {
       // Re-resolved rather than trusting the preflight's own result - the company's configuration
       // could have changed in the (possibly long, retried) time between the two calls. Same reasoning
-      // `pdp-transport.ts` already documents.
+      // `superpdp-transport.ts` already documents.
       const credentials = await requireConnectedInvopop(deps.channelCredentials, ctx.companyId);
 
       const data = (ctx.document.data ?? {}) as Record<string, unknown>;
@@ -195,7 +202,7 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
         prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
         // Scoped by companyId - `clientId` comes straight off the document's own `data.client` and is
         // never checked for existence at write time, so a bare `findUnique` would happily hand back
-        // another tenant's client. Same guard, same reasoning, as `pdp-transport.ts`.
+        // another tenant's client. Same guard, same reasoning, as `superpdp-transport.ts`.
         clientId
           ? prisma.client.findFirst({
               where: { id: clientId, companyId: ctx.companyId },
@@ -250,7 +257,7 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
         dueDate: typeof data.dueDate === 'string' ? data.dueDate : null,
         currency,
         seller: companyToFormatParty(company),
-        buyer: clientToFormatParty(client),
+        buyer: clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         lines,
         notes: typeof data.notes === 'string' ? data.notes : null,
       });

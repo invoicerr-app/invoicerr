@@ -1,4 +1,5 @@
 import { defaultComposedCountryCatalog } from '../countries/registry';
+import { isV2ReportingSource, ReportingObligationSource } from './obligation-v2';
 import { CountryReportingObligationFile, ReportableDocumentType, ReportingObligationFact } from './schema';
 
 function buildIndex(files: CountryReportingObligationFile[]): Record<string, CountryReportingObligationFile> {
@@ -18,8 +19,8 @@ function buildIndex(files: CountryReportingObligationFile[]): Record<string, Cou
  * left out here, the same "no permissive fallback" this catalog already held when it read
  * `ALL_REPORTING_OBLIGATION_FILES` directly.
  */
-function reportingObligationsFromComposedCatalog(): CountryReportingObligationFile[] {
-  const files: CountryReportingObligationFile[] = [];
+export function reportingObligationsFromComposedCatalog(): ReportingObligationSource[] {
+  const files: ReportingObligationSource[] = [];
   for (const countryCode of defaultComposedCountryCatalog.countries()) {
     const reporting = defaultComposedCountryCatalog.get(countryCode)?.reporting;
     if (reporting) files.push(reporting);
@@ -45,7 +46,16 @@ function reportingObligationsFromComposedCatalog(): CountryReportingObligationFi
 export class ReportingObligationCatalog {
   private readonly files: Record<string, CountryReportingObligationFile>;
 
-  constructor(files: CountryReportingObligationFile[] = reportingObligationsFromComposedCatalog()) {
+  /**
+   * Since #768 nothing in production reads this legacy view: every consumer reads
+   * `ReportingObligationCatalogV2`, and every shipped country file is v2. The default therefore only
+   * keeps the sections still written in legacy `facts` (none shipped), and #769 deletes the class.
+   */
+  constructor(
+    files: CountryReportingObligationFile[] = reportingObligationsFromComposedCatalog().filter(
+      (file): file is CountryReportingObligationFile => !isV2ReportingSource(file),
+    ),
+  ) {
     this.files = buildIndex(files);
   }
 
@@ -67,12 +77,10 @@ export class ReportingObligationCatalog {
    *     already carries the data. Enqueuing a report job under the transport's own id would also
    *     wrongly conflate it with a genuine declaration provider — see `schema.ts`'s own
    *     `providerId` doc for why that distinction matters to `list-declarations.ts`.
-   *   - a fact carrying a `scope` restriction (France's B2C/export/intra-EU/payments facts, CGI
-   *     art. 290/290 A): this codebase has no per-invoice classifier for "is this buyer domestic or
-   *     foreign, B2B or B2C" at send time — firing on EVERY invoice would over-report (a
-   *     B2B-domestic invoice is already covered by the transport row above), so until that
-   *     classifier exists this returns nothing rather than guess, the same "read by nothing yet,
-   *     deliberately" posture `domestic-reverse-charge/DESIGN.md` documents for its own catalog.
+   *   - a fact carrying a `scope` restriction (France's B2C and payments facts, CGI art. 290/290 A):
+   *     it is matched per operation by `classify.ts` through `providerFactsFor`, so this method
+   *     (the narrower "one fact I may fire blind with" question) returns nothing for it rather than
+   *     guess.
    *
    * Only an UNSCOPED, `dischargedBy: 'provider'` fact (Portugal today) is safe to fire
    * unconditionally on every document of `appliesTo`'s type — the shape this catalog held before
@@ -81,6 +89,41 @@ export class ReportingObligationCatalog {
    * same "first match wins, never merged" convention `channel-policy/mandate.ts`'s own
    * `activeChannelMandateFor` already holds for its own lookup.
    */
+  /**
+   * Every fact of `appliesTo`'s type this mechanism could DECLARE (provider-discharged, scoped or
+   * not), in file order. `report-on-send.ts` and `report-payment.ts` run each through
+   * `classify.ts` and enqueue the first one that covers the operation; an unscoped fact (Portugal)
+   * still classifies as `in` for every document, so its behaviour is unchanged.
+   *
+   * `obligationFor` below keeps its narrower pre-classifier contract: the answer to "is there one
+   * fact I may fire blind with", which is what the settings screen and the historical tests read.
+   */
+  /**
+   * Every fact carrying `providerId` for this document type, across every country file  -  what the
+   * report job uses to re-classify at run time without re-resolving the seller country (the job was
+   * enqueued under a fact that already named this provider, and an id shared by two countries would
+   * otherwise need the country again). Order follows the catalog's own file index.
+   */
+  factsForProvider(providerId: string, typeId: ReportableDocumentType | string): ReportingObligationFact[] {
+    const facts: ReportingObligationFact[] = [];
+    for (const file of Object.values(this.files)) {
+      for (const fact of file.facts) {
+        if (fact.providerId === providerId && fact.appliesTo === typeId) facts.push(fact);
+      }
+    }
+    return facts;
+  }
+
+  providerFactsFor(
+    countryCode: string | undefined,
+    typeId: ReportableDocumentType | string,
+  ): ReportingObligationFact[] {
+    if (!countryCode) return [];
+    return this.factsFor(countryCode).filter(
+      (fact) => fact.appliesTo === typeId && fact.dischargedBy === 'provider',
+    );
+  }
+
   obligationFor(
     countryCode: string | undefined,
     typeId: ReportableDocumentType | string,

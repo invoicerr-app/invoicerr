@@ -2,6 +2,7 @@ import { format } from "date-fns"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router"
 
+import { InvoiceOverviewPanel } from "@/components/dashboard/invoice-overview"
 import { DatePicker } from "@/components/date-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { WidgetGrid } from "@/components/widgets/widget-grid"
@@ -15,6 +16,7 @@ import {
   parseDashboardPeriodParams,
   resolveDashboardPeriod,
 } from "@/lib/dashboard-period"
+import { authClient } from "@/lib/auth"
 import { languageToLocale } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -147,18 +149,31 @@ export default function Dashboard() {
   const range = resolveDashboardPeriod(parseDashboardPeriodParams(searchParams))
   const { data: widgets = [], isLoading, isPlaceholderData } = useDashboardWidgets(range)
 
-  usePageHeader(t("dashboard.title"))
+  const { data: session } = authClient.useSession()
+  const firstname = (session?.user as { firstname?: string } | undefined)?.firstname
+  usePageHeader(firstname ? t("dashboard.hello", { name: firstname }) : t("dashboard.title"))
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 p-6">
-      <DashboardPeriodSelector />
-      <WidgetGrid
-        widgets={widgets}
-        isLoading={isLoading}
-        isRefreshing={isPlaceholderData}
-        location="dashboard"
-        emptyDataCy="dashboard-empty"
-      />
+    <div className="page-content space-y-6">
+      <p className="-mt-1 text-[15px] text-ink-2" data-cy="dashboard-greeting">
+        {t("dashboard.subtitle")}
+      </p>
+      <InvoiceOverviewPanel />
+      <section className="space-y-4 pt-4" aria-labelledby="dashboard-all-figures">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="dashboard-all-figures" className="text-xl">
+            {t("dashboard.allFigures")}
+          </h2>
+          <DashboardPeriodSelector />
+        </div>
+        <WidgetGrid
+          widgets={widgets}
+          isLoading={isLoading}
+          isRefreshing={isPlaceholderData}
+          location="dashboard"
+          emptyDataCy="dashboard-empty"
+        />
+      </section>
     </div>
   )
 }

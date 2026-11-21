@@ -5,7 +5,7 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PanelSection } from "../../_shared/data-list"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -64,11 +64,8 @@ export function StatementLines({ statementId }: StatementLinesProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{statement.fileName}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <PanelSection title={statement.fileName}>
+      <div className="px-4 py-2">
         {lines.length === 0 ? (
           <EmptyState
             icon={ListX}
@@ -100,7 +97,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                   <TableCell
                     dir="ltr"
                     className={cn(
-                      "text-right font-mono tabular-nums whitespace-nowrap",
+                      "amount text-right whitespace-nowrap",
                       line.amountMinor < 0 && "text-destructive",
                     )}
                   >
@@ -140,6 +137,14 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                                     {t("bankReconciliation.lines.reasonReference")}
                                   </Badge>
                                 )}
+                                {suggestion.conformityRejected && (
+                                  <Badge
+                                    variant="destructive"
+                                    data-cy={`bank-reconciliation-suggestion-rejected-${suggestion.documentId}`}
+                                  >
+                                    {t("documents.rejection.badge")}
+                                  </Badge>
+                                )}
                               </Button>
                             ))}
                           </div>
@@ -163,6 +168,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
                                 <SelectItem key={candidate.documentId} value={candidate.documentId}>
                                   {candidate.displayNumber ?? candidate.documentId}
                                   {candidate.clientLabel ? ` — ${candidate.clientLabel}` : ""}
+                                  {candidate.conformityRejected ? ` (${t("documents.rejection.badge")})` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -186,7 +192,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
             </TableBody>
           </Table>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </PanelSection>
   )
 }

@@ -34,11 +34,11 @@ import { CountryPolicyBootReseedService } from './country-policy/boot-reseed.ser
 import { ConformitySweepRunner } from './conformity/conformity-sweep-runner';
 import { buildChorusProStatusPoller } from './conformity/pollers/chorus-pro-status-poller';
 import { buildKsefStatusPoller } from './conformity/pollers/ksef-status-poller';
-import { buildPdpStatusPoller } from './conformity/pollers/pdp-status-poller';
-import { PdpReceptionSweepRunner } from './conformity/reception-sweep-runner';
+import { buildSuperPdpStatusPoller } from './conformity/pollers/superpdp-status-poller';
+import { SuperPdpReceptionSweepRunner } from './conformity/reception-sweep-runner';
 import { ContributionRegistry } from './contributions/contribution-registry';
 import { DeclarationProviderRegistry } from './reporting/declaration-provider';
-import { buildPtAtDeclarationProvider } from './reporting/providers/pt-declaration-provider';
+import { buildDeclarationProviderRegistry } from './reporting/providers/build-registry';
 import { ReportingRunner } from './reporting/reporting-runner';
 import { registerCreditNoteContributions } from './contributions/credit-note-contributions';
 import { registerExpenseContributions } from './contributions/expense-contributions';
@@ -82,8 +82,8 @@ import { buildEmailTransport } from './transports/email-transport';
 import { buildInvopopTransport } from './transports/invopop-transport';
 import { buildIopoleTransport } from './transports/iopole-transport';
 import { buildKsefTransport } from './transports/ksef-transport';
-import { buildPdpTransport } from './transports/pdp-transport';
-import { buildPdpReceptionStatusPusher } from './transports/pdp/pdp-reception';
+import { buildSuperPdpTransport } from './transports/superpdp-transport';
+import { buildSuperPdpReceptionStatusPusher } from './transports/superpdp/superpdp-reception';
 import { buildSdiTransport } from './transports/sdi-transport';
 import { buildSdiPecTransport } from './transports/sdi-pec-transport';
 import { PecInboxPollerService } from './transports/sdi-pec/pec-inbox-poller.service';
@@ -182,7 +182,7 @@ function buildFormatProviderRegistry(referenceRegistry: EntityReferenceRegistry)
  * buildActionRegistry below, for the quote's OWN send) never creates a circular dependency, even
  * though ACTION_REGISTRY is where the send actions that call into this machinery are registered.
  *
- * "pdp" (`transports/pdp-transport.ts`) is the SECOND. It gets its own
+ * "pdp" (`transports/superpdp-transport.ts`) is the SECOND. It gets its own
  * `buildFacturxFormatProvider({ referenceRegistry })` instance rather than sharing the one
  * `FORMAT_PROVIDER_REGISTRY` already builds below: both are stateless closures over the exact same
  * pure function, so a second instance costs nothing and avoids making TRANSPORT_REGISTRY's own
@@ -251,7 +251,7 @@ function buildTransportRegistry(
   registry.register(
     'pdp',
     'PDP (France)',
-    buildPdpTransport({
+    buildSuperPdpTransport({
       channelCredentials,
       facturxFormatProvider: buildFacturxFormatProvider({ referenceRegistry }),
     }),
@@ -383,7 +383,7 @@ function buildAuthorityStatusPollerRegistry(
   channelCredentials: ChannelCredentialsService,
 ): AuthorityStatusPollerRegistry {
   const registry = new AuthorityStatusPollerRegistry();
-  registry.register(buildPdpStatusPoller({ channelCredentials }));
+  registry.register(buildSuperPdpStatusPoller({ channelCredentials }));
   registry.register(buildKsefStatusPoller({ channelCredentials }));
   // "chorus-pro" — `consulterCr`, the ONE status-consultation endpoint the removed compliance
   // engine's own client carried (`chorus-pro/choruspro-client.ts`) — see
@@ -444,30 +444,6 @@ function buildPaymentProviderRegistry(): PaymentProviderRegistry {
 }
 
 /**
- * Declarative reporting (`reporting/`): a NEW concept, never a transport (see
- * `reporting/report-on-send.ts`'s own header). Same "a provider registers itself under an id" shape
- * as `buildAuthorityStatusPollerRegistry` just above. "nav" (Hungary, NAV Online Számla 3.0) and
- * "mydata" (Greece, AADE myDATA) were the first two shipped providers, but both HU and GR fell outside
- * the five-country scope decided 2026-09-10 — unlike the transports/formats deleted for the same
- * reason, their underlying `reporting/data/*.json` obligation files had ALREADY been removed by that
- * prune, so the providers were unreachable dead code even before this pass deleted them outright (see
- * `documentation/docs/developer-guide/live-testing.md` for what that gave up). "pt-at" (Portugal, AT "comunicação de
- * faturas") is the only provider left, implemented-to-contract-but-credential-gated, the exact same
- * "awaiting accreditation" posture `transports/sdi/` already carries — see
- * `reporting/providers/pt-at-client.ts`'s own header. It is gated by the exact same
- * `ChannelCredentialsService` every transport/poller already shares (credentials are generic,
- * per-`providerId`, reusable for a declarative channel with zero changes — see
- * `modules/company/channels/channels.service.ts`'s own header).
- */
-function buildDeclarationProviderRegistry(
-  channelCredentials: ChannelCredentialsService,
-): DeclarationProviderRegistry {
-  const registry = new DeclarationProviderRegistry();
-  registry.register(buildPtAtDeclarationProvider({ channelCredentials }));
-  return registry;
-}
-
-/**
  * `queueDispatcher` (DocumentQueueDispatcher, queue/document-queue.dispatcher.ts) is what turns
  * "send" asynchronous for every type that has one — see actions/async-send.ts for
  * the shared two-phase engine every one of these registrations now goes through. Injecting the
@@ -509,11 +485,11 @@ function buildActionRegistry(
   eventsPublisher: DocumentEventsPublisher,
   webhookDispatcher: WebhookDispatcherService,
   signaturesService: SignaturesService,
-  // PDP reception — see `registerReceivedInvoiceActions`'s own new, optional `pdpStatusPusher`
+  // PDP reception - see `registerReceivedInvoiceActions`'s own new, optional `superPdpStatusPusher`
   // parameter: "approve"/"reject"/"record-payment" push the buyer-side lifecycle status back to PDP
   // ONLY for a received-invoice that actually carries `data.pdpInboundId` (an import created by the
   // reception sweep, `conformity/reception-sweep-runner.ts`) — a manually-uploaded one has none, and
-  // the pusher itself already no-ops on a non-numeric id (`transports/pdp/pdp-reception.ts`).
+  // the pusher itself already no-ops on a non-numeric id (`transports/superpdp/superpdp-reception.ts`).
   channelCredentials: ChannelCredentialsService,
 ): ActionRegistry {
   const registry = new ActionRegistry();
@@ -564,7 +540,7 @@ function buildActionRegistry(
   registerReceivedInvoiceActions(
     registry,
     webhookDispatcher,
-    buildPdpReceptionStatusPusher(channelCredentials),
+    buildSuperPdpReceptionStatusPusher(channelCredentials),
   );
   // Purchase orders & goods receipts — see purchase-order-actions.ts's own header. Same dependency shape as
   // "quote" above (unconditional email send), never the invoice's transport-registry one.
@@ -746,7 +722,7 @@ function buildEntityReferenceRegistry(
     // Exported below so `DocumentActionProcessor` (a provider of `DocumentsQueueWorkerModule`, which
     // imports this Core module) can `@Optional()`-inject the concrete class, the identical wiring
     // `ConformitySweepRunner` itself already has.
-    PdpReceptionSweepRunner,
+    SuperPdpReceptionSweepRunner,
     // Declarative reporting (`reporting/`): same split as `AuthorityStatusPollerRegistry`/
     // `ConformitySweepRunner` just above — the registry (a provider registers itself under an id) and
     // the runtime half the queue's own processor calls (`queue/processors/document-action.processor.ts`).
@@ -861,7 +837,7 @@ function buildEntityReferenceRegistry(
     PaymentSessionsService,
     AuthorityStatusPollerRegistry,
     ConformitySweepRunner,
-    PdpReceptionSweepRunner,
+    SuperPdpReceptionSweepRunner,
     DeclarationProviderRegistry,
     ReportingRunner,
     DOCUMENT_TYPE_REGISTRY,

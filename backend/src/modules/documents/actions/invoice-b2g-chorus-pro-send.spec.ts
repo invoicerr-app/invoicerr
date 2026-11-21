@@ -263,8 +263,14 @@ describe('B2G FR, end to end at the service level — government client + connec
     });
     (persistence.findOwnedDocument as Mock).mockResolvedValue(sendingDocument());
     (persistence.updateDocumentStatus as Mock).mockImplementation(
-      (_companyId, _typeId, _documentId, status, _err, reference, providerId) =>
-        Promise.resolve(sendingDocument({ status, transportRef: reference, channelProviderId: providerId })),
+      (_companyId, _typeId, _documentId, status, opts) =>
+        Promise.resolve(
+          sendingDocument({
+            status,
+            transportRef: opts?.transportRef,
+            channelProviderId: opts?.channelProviderId,
+          }),
+        ),
     );
     const handler = buildRegistry().resolve('invoice', 'send');
 
@@ -288,15 +294,10 @@ describe('B2G FR, end to end at the service level — government client + connec
       // Swagger's own `DeposerFluxFactureParam.syntaxeFlux` enum.
       'IN_DP_E2_CII_FACTURX',
     );
-    expect(persistence.updateDocumentStatus).toHaveBeenCalledWith(
-      'company-1',
-      'invoice',
-      'doc-1',
-      'sent',
-      null,
-      '375037',
-      'chorus-pro',
-    );
+    expect(persistence.updateDocumentStatus).toHaveBeenCalledWith('company-1', 'invoice', 'doc-1', 'sent', {
+      transportRef: '375037',
+      channelProviderId: 'chorus-pro',
+    });
     expect(result.changed).toBe(true);
     expect(result.document).toMatchObject({ status: 'sent', transportRef: '375037' });
   });

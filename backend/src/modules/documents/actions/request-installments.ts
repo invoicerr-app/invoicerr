@@ -7,6 +7,7 @@ import { deriveQuoteOptions } from '../options/quote-options';
 import { findOwnedDocument, upsertDocument } from '../persistence';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { ActionRegistry, DocumentInstanceResult } from './action-registry';
+import { assertOnlyDepositRaised, invoicesRaisedFromQuote } from './quote-invoicing-guard';
 
 /**
  * The quote's OWN base descriptor — see request-deposit.ts's identical constant for why this is
@@ -132,6 +133,11 @@ function absorbUnreachableLastGross(
  * milestones, in MINOR units, so that what the client is asked to PAY — the sum of the generated
  * invoices' own GROSS totals — comes back to the quote's own gross total, to the cent.
  *
+ * `alreadyInvoicedGrossMinor` (issue #953) is what this quote's DEPOSIT already asked the client to
+ * pay: the milestones then split what the quote still OWES, so the deposit plus the plan comes back
+ * to the quote's own gross total instead of exceeding it. Defaults to 0 - nothing invoiced yet - and
+ * every caller that does not deduct a deposit simply omits it.
+ *
  * Validates FIRST, before any arithmetic, and throws rather than silently coping:
  *  - fewer than two milestones — one milestone would just be the whole quote, not an installment plan;
  *  - a percent that is not strictly positive — a 0% "milestone" is not an installment, it is a
@@ -182,6 +188,7 @@ export function computeMilestoneSplit(
   quoteGrossMinor: number,
   singleVatRatePercent: number,
   milestones: MilestoneInput[],
+  alreadyInvoicedGrossMinor = 0,
 ): MilestoneSplitEntry[] {
   if (milestones.length < 2) {
     throw new BadRequestException('At least two milestones are required to split a quote into installments.');
@@ -211,16 +218,28 @@ export function computeMilestoneSplit(
     );
   }
 
+  // What the milestones actually have to add up to: the quote's own gross MINUS whatever its deposit
+  // already invoiced (0 when there is none, which is every call before issue #953's deduction was
+  // introduced). The invariant just above stays a check on the QUOTE's own net/gross pair - it is the
+  // quote that must be reproducible at a single rate - while the split targets what it still owes.
+  const remainingGrossMinor = quoteGrossMinor - alreadyInvoicedGrossMinor;
+  if (remainingGrossMinor <= 0) {
+    throw new BadRequestException(
+      'Nothing is left to invoice in installments: what is already invoiced against this quote ' +
+        `(${alreadyInvoicedGrossMinor} minor units) covers its whole total (${quoteGrossMinor}).`,
+    );
+  }
+
   const entries: MilestoneSplitEntry[] = [];
   let allocatedGrossMinor = 0;
   milestones.forEach((milestone, index) => {
     const isLast = index === milestones.length - 1;
 
-    // The last milestone is handed the REST, not a percentage of its own — see this function's own
+    // The last milestone is handed the REST, not a percentage of its own - see this function's own
     // header, "Who carries the remainder".
     const targetGrossMinor = isLast
-      ? quoteGrossMinor - allocatedGrossMinor
-      : Math.round((quoteGrossMinor * milestone.percent) / 100);
+      ? remainingGrossMinor - allocatedGrossMinor
+      : Math.round((remainingGrossMinor * milestone.percent) / 100);
 
     // The net is derived FROM that gross, and the gross is then read back off it, so these three
     // numbers are what this milestone's own invoice will independently recompute — never a promise
@@ -238,16 +257,16 @@ export function computeMilestoneSplit(
     });
   });
 
-  if (allocatedGrossMinor !== quoteGrossMinor) {
-    absorbUnreachableLastGross(entries, quoteGrossMinor, singleVatRatePercent);
+  if (allocatedGrossMinor !== remainingGrossMinor) {
+    absorbUnreachableLastGross(entries, remainingGrossMinor, singleVatRatePercent);
   }
 
   const combinedGrossMinor = entries.reduce((sum, entry) => sum + entry.grossMinor, 0);
-  if (combinedGrossMinor !== quoteGrossMinor) {
+  if (combinedGrossMinor !== remainingGrossMinor) {
     throw new BadRequestException(
       `These milestones cannot be billed as whole cents at ${singleVatRatePercent}% VAT: their ` +
-        `invoices would total ${combinedGrossMinor} against the quote's own ${quoteGrossMinor} ` +
-        '(minor units). Change one percentage, or the number of milestones.',
+        `invoices would total ${combinedGrossMinor} against the ${remainingGrossMinor} this quote ` +
+        'still owes (minor units). Change one percentage, or the number of milestones.',
     );
   }
 
@@ -303,6 +322,14 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
 
     const quote = await findOwnedDocument(companyId, 'quote', documentId);
     const quoteData = (quote.data ?? {}) as Record<string, unknown>;
+    const quoteLabel = quote.displayNumber ?? quote.id;
+
+    // Issue #953 - the double-invoicing guard, in its ONE flexible form
+    // (actions/quote-invoicing-guard.ts): an installment plan is the single action allowed on a
+    // quote whose deposit has already been invoiced, and it must then DEDUCT it below. Anything else
+    // already billed this quote (a conversion, another installment plan) is refused here.
+    const raised = await invoicesRaisedFromQuote(companyId, quote.id);
+    assertOnlyDepositRaised(raised, quoteLabel);
 
     // Issue #373 ("quotes with options") - same refusal, same reasoning as request-deposit.ts's own:
     // this action is only `availableWhen: ['sent']` (quote.descriptor.ts), a status neither
@@ -350,8 +377,8 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
       quoteTotals.grossMinor,
       vatRatePercent,
       milestones,
+      raised.depositGrossMinor,
     );
-    const quoteLabel = quote.displayNumber ?? quote.id;
 
     let firstInvoice: DocumentInstanceResult | undefined;
     for (let index = 0; index < split.length; index++) {
@@ -365,7 +392,13 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
         origin: { entity: 'quote', id: quote.id },
         lines: [
           {
-            description: `Échéance ${index + 1}/${split.length} (${entry.percent}% de ${quoteLabel})`,
+            // A milestone's percentage is a share of what the quote still OWES, so the label says
+            // "of the remainder" whenever a deposit was deducted from the plan (issue #953) rather
+            // than claiming a share of the quote's own total.
+            description:
+              raised.depositGrossMinor > 0
+                ? `Échéance ${index + 1}/${split.length} (${entry.percent}% du solde de ${quoteLabel})`
+                : `Échéance ${index + 1}/${split.length} (${entry.percent}% de ${quoteLabel})`,
             quantity: 1,
             unit: 'unit',
             unitPrice: fromMinor(entry.netMinor, currency),
@@ -379,15 +412,21 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
       if (!firstInvoice) firstInvoice = invoice;
     }
 
-    // Read off the INVOICES (each entry's `grossMinor` is what its own invoice recomputes — see
+    // Read off the INVOICES (each entry's `grossMinor` is what its own invoice recomputes - see
     // `MilestoneSplitEntry`), never off the quote: the figure announced to whoever ran this action is
-    // the one their client will be asked for. It equals the quote's own gross because
-    // `computeMilestoneSplit` refuses to return a split where it would not, so the sentence below
-    // states a checked fact rather than an assumption about how the division fell.
+    // the one their client will be asked for. It equals what the quote still owes - its own gross
+    // total, minus the deposit already invoiced when there is one - because `computeMilestoneSplit`
+    // refuses to return a split where it would not, so the sentence below states a checked fact
+    // rather than an assumption about how the division fell.
     const combinedGrossDisplay = fromMinor(
       split.reduce((sum, entry) => sum + entry.grossMinor, 0),
       currency,
     );
+    const totalClaim =
+      raised.depositGrossMinor > 0
+        ? `the quote's own gross total minus the ${fromMinor(raised.depositGrossMinor, currency)} ` +
+          `${currency} deposit already invoiced`
+        : "the quote's own gross total";
 
     return {
       // The QUOTE itself never changes (this action's entire effect is N brand-new invoices
@@ -399,7 +438,7 @@ export function registerRequestInstallmentsAction(registry: ActionRegistry): voi
       // exactly the useful behavior here too (landing on the invoices list, where all N now show up).
       document: firstInvoice,
       changed: true,
-      message: `${split.length} draft invoices created from quote ${quoteLabel} — they total ${combinedGrossDisplay} ${currency} to pay, the quote's own gross total, to the cent.`,
+      message: `${split.length} draft invoices created from quote ${quoteLabel} - they total ${combinedGrossDisplay} ${currency} to pay, ${totalClaim}, to the cent.`,
     };
   });
 }

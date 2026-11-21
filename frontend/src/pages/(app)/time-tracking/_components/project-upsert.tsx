@@ -15,20 +15,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useClientSearch, useCompany, useCreateProject, useUpdateProject } from "@/hooks/queries"
-import { currencies } from "@/lib/constants/currencies"
+import {
+  useClientSearch,
+  useCompanyCurrencySymbol,
+  useCreateProject,
+  useUpdateProject,
+} from "@/hooks/queries"
+import { typeErrors } from "@/lib/zod-messages"
 import type { Project } from "@/types"
 
 export const buildProjectSchema = (t: TFunction) =>
   z.object({
-    clientId: z.string().min(1, { message: t("timeTracking.projects.errors.clientRequired") }),
-    name: z.string().min(1, { message: t("timeTracking.projects.errors.nameRequired") }),
+    clientId: z.string().min(1, { error: t("timeTracking.projects.errors.clientRequired") }),
+    name: z.string().min(1, { error: t("timeTracking.projects.errors.nameRequired") }),
     description: z.string().optional(),
     // `null` (never `undefined`) when emptied — same "explicit null clears it" convention
     // articles.service.ts's own quantity/lowStockThreshold fields hold (see ArticleUpsert).
     hourlyRate: z
-      .number({ invalid_type_error: t("timeTracking.projects.errors.hourlyRateMin") })
-      .min(0, { message: t("timeTracking.projects.errors.hourlyRateMin") })
+      .number({ error: typeErrors({ invalid: t("timeTracking.projects.errors.hourlyRateMin") }) })
+      .min(0, { error: t("timeTracking.projects.errors.hourlyRateMin") })
       .nullable(),
   })
 
@@ -47,8 +52,7 @@ export function ProjectUpsert({ project, defaultClientId, open, onOpenChange }: 
   const { t } = useTranslation()
   const projectSchema = useMemo(() => buildProjectSchema(t), [t])
   const isEdit = !!project
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const [clientSearch, setClientSearch] = useState("")
   const { data: clients = [] } = useClientSearch(clientSearch)

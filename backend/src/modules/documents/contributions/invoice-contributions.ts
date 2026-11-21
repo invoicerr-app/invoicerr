@@ -3,15 +3,11 @@ import { fromMinor, toMinor } from '@/utils/financial';
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DashboardPeriod } from '../dto/dashboard-query.dto';
+import { serverMessage } from '../messages/server-message';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { resolveDateFieldKey } from '../list-filters';
-import {
-  countDocuments,
-  dateValueInRange,
-  dayMs,
-  listAllDocuments,
-  listRecentDocuments,
-} from '../persistence';
+import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
+import { dateValueInRange, dayMs } from '../date-params';
 import { listPaymentsInRange } from '../settlement/payments';
 import {
   isIssuedInvoice,
@@ -149,7 +145,7 @@ function monthsSpanning(dateFrom: string, dateTo: string): { key: string; label:
 
 /**
  * Every invoice from `all` whose own `INVOICE_DATE_FIELD_KEY` value falls within `period`'s inclusive
- * range - THE CONSISTENCY RULE (issue #418): reuses `persistence.ts`'s own `dateValueInRange`/`dayMs`
+ * range - THE CONSISTENCY RULE (issue #418): reuses `date-params.ts`'s own `dateValueInRange`/`dayMs`
  * pair, the EXACT predicate `GET /documents`'s own `dateFrom`/`dateTo` filter applies, against the
  * EXACT field `list-filters.ts#resolveDateFieldKey` names for this type - so a period-scoped tile and
  * the list its `link` opens can never independently drift on which invoices are "in" the period.
@@ -743,8 +739,10 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
     warnings:
       invoiceCount > rows.length
         ? [
-            `Showing the ${rows.length} most recently updated invoices of ${invoiceCount}. ` +
-              `Use the accounting export for a complete period.`,
+            serverMessage('documents.messages.widgets.invoicesCapped', {
+              shown: rows.length,
+              total: invoiceCount,
+            }),
           ]
         : undefined,
     columns: [

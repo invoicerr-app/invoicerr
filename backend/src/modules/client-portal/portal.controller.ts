@@ -4,6 +4,8 @@ import { Response } from 'express';
 
 import { Public } from '@thallesp/nestjs-better-auth';
 
+import { sendInlinePdf } from '@/modules/documents/attachments/content-disposition';
+
 import { ActivePortalClient } from './active-portal-client.decorator';
 import { PortalAuthGuard, PortalIdentity } from './portal-auth.guard';
 import { PortalProfile, PortalQuoteRow, PortalService } from './portal.service';
@@ -118,8 +120,6 @@ export class PortalController {
     @Res() res: Response,
   ): Promise<void> {
     const pdf = await this.portalService.getDocumentPdf(companyId, clientId, typeId, documentId);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${typeId}-${documentId}.pdf"`);
-    res.send(pdf);
+    sendInlinePdf(res, typeId, documentId, pdf);
   }
 }

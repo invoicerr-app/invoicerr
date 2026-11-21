@@ -32,16 +32,13 @@ describe('readDatabasePoolMax', () => {
   // truthy, so it reaches `_isFull()` (`this._clients.length >= this.options.max`) intact and makes it
   // true before a single connection is opened — every query queues against a pool that never fills.
   // See `readDatabasePoolMax`'s own header.
-  it.each([
-    '-1',
-    '-20',
-    'not-a-number',
-    '0',
-    '',
-  ])('refuses %p and falls back to a pool of 10 rather than handing it to pg', (value) => {
-    process.env.DATABASE_POOL_MAX = value;
-    expect(readDatabasePoolMax()).toBe(10);
-  });
+  it.each(['-1', '-20', 'not-a-number', '0', ''])(
+    'refuses %p and falls back to a pool of 10 rather than handing it to pg',
+    (value) => {
+      process.env.DATABASE_POOL_MAX = value;
+      expect(readDatabasePoolMax()).toBe(10);
+    },
+  );
 });
 
 describe('readDatabasePoolConnectTimeoutMs', () => {

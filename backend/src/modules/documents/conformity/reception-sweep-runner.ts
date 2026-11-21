@@ -1,5 +1,5 @@
 /**
- * The Prisma/`DocumentsService`/BullMQ-touching half of the PDP RECEPTION sweep —
+ * SuperPDP reception sweep - the Prisma/`DocumentsService`/BullMQ-touching half.
  * `reception-sweep.ts` holds the pure job-name/interval facts; this class is what actually lists
  * every company with PDP connected, asks the poller what is currently sitting in each one's inbound
  * queue, and turns anything not already imported into a `received-invoice` — the same "pure core,
@@ -49,8 +49,11 @@ import { persistInboundFile } from '../received-invoices/storage';
 import { reconcileSupplierClient } from '../received-invoices/supplier-reconciliation';
 import { DocumentsService } from '../documents.service';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
-import { buildPdpReceptionPoller, ReceptionPoller } from './pollers/pdp-reception-poller';
-import { buildPdpReceptionStatusPusher, PdpReceptionStatusPusher } from '../transports/pdp/pdp-reception';
+import { buildSuperPdpReceptionPoller, ReceptionPoller } from './pollers/superpdp-reception-poller';
+import {
+  buildSuperPdpReceptionStatusPusher,
+  SuperPdpReceptionStatusPusher,
+} from '../transports/superpdp/superpdp-reception';
 
 const TYPE_ID = 'received-invoice';
 
@@ -86,10 +89,10 @@ export interface RunReceptionSweepResult {
 }
 
 @Injectable()
-export class PdpReceptionSweepRunner {
-  private readonly logger = new Logger(PdpReceptionSweepRunner.name);
+export class SuperPdpReceptionSweepRunner {
+  private readonly logger = new Logger(SuperPdpReceptionSweepRunner.name);
   private readonly poller: ReceptionPoller;
-  private readonly statusPusher: PdpReceptionStatusPusher;
+  private readonly statusPusher: SuperPdpReceptionStatusPusher;
 
   constructor(
     private readonly channelCredentials: ChannelCredentialsService,
@@ -98,8 +101,8 @@ export class PdpReceptionSweepRunner {
     // posture `ConformitySweepRunner`'s own constructor already documents for the identical parameter.
     @Optional() private readonly eventsPublisher?: DocumentEventsPublisher,
   ) {
-    this.poller = buildPdpReceptionPoller({ channelCredentials });
-    this.statusPusher = buildPdpReceptionStatusPusher(channelCredentials);
+    this.poller = buildSuperPdpReceptionPoller({ channelCredentials });
+    this.statusPusher = buildSuperPdpReceptionStatusPusher(channelCredentials);
   }
 
   async runSweep(): Promise<RunReceptionSweepResult> {
@@ -149,14 +152,14 @@ export class PdpReceptionSweepRunner {
         // pass for every OTHER company — the same "an event handler never kills the process" posture
         // `authority-status-poller.ts`'s own header holds for a single document's poll failure.
         this.logger.warn(
-          `PDP reception sweep failed for company ${config.companyId}: ` +
+          `SuperPDP reception sweep failed for company ${config.companyId}: ` +
             `${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
 
     this.logger.log(
-      `PDP reception sweep: ${activeConfigs.length} compan${activeConfigs.length === 1 ? 'y' : 'ies'} ` +
+      `SuperPDP reception sweep: ${activeConfigs.length} compan${activeConfigs.length === 1 ? 'y' : 'ies'} ` +
         `connected, ${imported} imported, ${skipped} already known, ${failed} failed.`,
     );
     return { companies: activeConfigs.length, imported, skipped, failed };
@@ -254,9 +257,9 @@ export class PdpReceptionSweepRunner {
 
     // Automatic "reçue / prise en charge" push-back (task requirement) — "reçue" (fr:202) is already
     // emitted by the platform itself the instant the deposit reaches this account (proven live, see
-    // `pdp-reception.ts`'s own header), so the ONE thing THIS codebase pushes automatically is "prise
+    // `superpdp-reception.ts`'s own header), so the ONE thing THIS codebase pushes automatically is "prise
     // en charge": this company's own software has now processed the deposit into a bookkeeping
-    // record. Never fatal — see `pushReceptionStatus`'s own header in `pdp-reception.ts`.
+    // record. Never fatal - see `pushReceptionStatus`'s own header in `superpdp-reception.ts`.
     await this.statusPusher.pushTakenInCharge(companyId, pdpInboundId);
   }
 }

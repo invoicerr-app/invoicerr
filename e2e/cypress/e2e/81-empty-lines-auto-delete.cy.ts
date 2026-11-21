@@ -35,11 +35,10 @@ describe("Empty line items are dropped on save, a half-filled one is not", () =>
 		// A fixed, far-future, mid-month day — never "today" no matter when this runs, and never
 		// ambiguous with an outside-month leading/trailing grid cell (see `pickDate`'s own header).
 		cy.pickDate('[data-cy="document-field-dueDate-input"]', "2030-06-15");
-		cy.get('[data-cy="document-field-currency-input"] button').first().click({ force: true });
+		cy.get('[data-cy="document-field-currency-input"] button').first().scrollIntoView().click({ force: true });
 		cy.get('[data-cy="document-field-currency-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.get('[data-cy^="document-field-currency-input-option-eur"]').first().click();
 
-		cy.continueDocumentWizard(); // Details -> Lines
 
 		// ---- Lines step: one REAL line, one left FULLY empty, one HALF-FILLED (price only) ----
 		cy.get('[data-cy="document-field-lines-add-row"]').click();
@@ -50,6 +49,7 @@ describe("Empty line items are dropped on save, a half-filled one is not", () =>
 		cy.get('input[name="lines.0.unitPrice"]').clear({ force: true }).type("100", { force: true });
 		cy.get('[data-cy="document-field-lines-row-0"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
@@ -67,15 +67,15 @@ describe("Empty line items are dropped on save, a half-filled one is not", () =>
 		cy.get('[data-cy="document-field-lines-row-2"]').should("exist");
 		cy.get('input[name="lines.2.unitPrice"]').clear({ force: true }).type("55", { force: true });
 
-		// ---- First "Continue": the empty row (1) disappears BEFORE validation ever runs; the
+		// ---- First save attempt: the empty row (1) disappears BEFORE validation ever runs; the
 		// half-filled row (originally 2, now reindexed to 1) survives but is still missing required
-		// fields, so the wizard refuses to advance past "Lines" — proving both halves of the fix at
-		// once, on screen, before anything is saved. ----
-		cy.get('[data-cy="document-create-dialog-continue"]').click();
+		// fields, so the editor refuses to save — proving both halves of the fix at once, on screen,
+		// before anything is saved. ----
+		cy.get('[data-cy="document-action-save-draft"]').click();
 
-		// Still on the Lines step: the per-step gate refused to advance.
-		cy.get('[data-cy="document-create-dialog-step-body-lines"]', { timeout: 10000 }).should("exist");
-		cy.get('[data-cy="document-create-dialog-step-body-options"]').should("not.exist");
+		// Still in the editor: validation refused the save.
+		cy.get('[data-cy="document-create-dialog"]', { timeout: 10000 }).should("be.visible");
+		cy.get('[data-cy="document-create-dialog-step-body-lines"]').should("exist");
 
 		// Only TWO rows remain — the fully-empty one is gone, not merely invisible-but-still-counted.
 		cy.get('[data-cy="document-field-lines-row-2"]').should("not.exist");
@@ -93,16 +93,13 @@ describe("Empty line items are dropped on save, a half-filled one is not", () =>
 		cy.get('input[name="lines.1.unit"]').type("unit", { force: true });
 		cy.get('[data-cy="document-field-lines-row-1"] [data-cy="document-field-vatRate-input"] button')
 			.first()
+			.scrollIntoView()
 			.click({ force: true });
 		cy.get('[data-cy="document-field-vatRate-input-options"]', { timeout: 10000 }).should("be.visible");
 		cy.contains('[data-cy="document-field-vatRate-input-options"] [data-cy*="-option-"]', /20\s?%/)
 			.first()
 			.click();
 
-		cy.get('[data-cy="document-create-dialog-continue"]').click();
-		cy.get('[data-cy="document-create-dialog-step-body-options"]', { timeout: 10000 }).should("exist");
-
-		cy.continueDocumentWizard(); // Options -> Recap
 
 		// The recap's own line count already reflects exactly two lines, never three — the
 		// screen's own account of what is about to be saved.

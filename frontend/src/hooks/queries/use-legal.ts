@@ -17,6 +17,13 @@ export interface LegalDocumentView {
   availableLanguages: string[]
 }
 
+/** What a visitor is told about a demo instance before signing in (backend `modules/demo/demo-instance.ts`). */
+export interface DemoInstanceView {
+  email: string
+  password: string
+  resetIntervalHours: number
+}
+
 export interface LegalDocumentsView {
   /** Mirrors `WARNING__ENABLE_BILLING_FOR_USERS__WARNING` (backend's own `billing-flag.ts`) — the
    *  sign-up screen's only signal for whether the acceptance checkbox must be shown at all. */
@@ -27,6 +34,8 @@ export interface LegalDocumentsView {
    *  server-side (`guards/demo-restricted.guard.ts`, `lib/auth.ts`, `lib/registration-policy.ts`), so
    *  a stale cached `false` here never lets a demo visitor actually do something the backend refuses. */
   demoMode: boolean
+  /** Null whenever `demoMode` is false. */
+  demo: DemoInstanceView | null
   documents: LegalDocumentView[]
 }
 
@@ -47,9 +56,9 @@ export function useLegalDocuments(lang?: string) {
  *  and every settings screen that disables a takeover-shaped action. `demoMode` defaults to `false`
  *  while the query is still loading/erroring, the same "fail open on the UI, closed on the server"
  *  posture `LegalDocumentsView.demoMode`'s own doc comment describes: nothing here is the real gate. */
-export function useDemoMode(): { demoMode: boolean; isLoading: boolean } {
+export function useDemoMode(): { demoMode: boolean; demo: DemoInstanceView | null; isLoading: boolean } {
   const { data, isLoading } = useLegalDocuments()
-  return { demoMode: data?.demoMode ?? false, isLoading }
+  return { demoMode: data?.demoMode ?? false, demo: data?.demo ?? null, isLoading }
 }
 
 export interface LegalStatusView {

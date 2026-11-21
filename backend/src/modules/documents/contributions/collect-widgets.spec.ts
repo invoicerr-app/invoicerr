@@ -45,6 +45,27 @@ describe('collectWidgets', () => {
     expect(widgets).toEqual([{ id: 'acme:pending', kind: 'metric', label: 'Pending', value: 4 }]);
   });
 
+  it("labels each contributed widget with its type's icon, unless the widget names its own", async () => {
+    const typeRegistry = new DocumentTypeRegistry();
+    typeRegistry.register(
+      descriptor({ id: 'invoice', label: 'Invoice', icon: 'invoice', contributions: ['dashboard'] }),
+    );
+    const contributionRegistry = new ContributionRegistry();
+    contributionRegistry.register('invoice', 'dashboard', async () => [
+      { id: 'a', kind: 'metric', label: 'A', value: 1 },
+      { id: 'b', kind: 'metric', label: 'B', value: 2, icon: 'expense' },
+    ]);
+
+    const widgets = await collectWidgets({
+      companyId: 'c1',
+      location: 'dashboard',
+      typeRegistry,
+      contributionRegistry,
+    });
+
+    expect(widgets.map((widget) => widget.icon)).toEqual(['invoice', 'expense']);
+  });
+
   // THE mutation target: a document type promises a contribution (`contributions: ['dashboard']`)
   // but nothing was ever registered for it. This must be VISIBLE — an explicit "unimplemented"
   // widget — never silently absent from the response, which would look exactly like "this type has

@@ -1,6 +1,7 @@
 import { TriangleAlert } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Navigate, Outlet, useLocation } from "react-router"
+import { OfflineBanner } from "@/components/offline-banner"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
@@ -8,28 +9,31 @@ import { DemoBanner } from "@/components/demo-banner"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
+import { isNewDocumentPath, MobileTabBar } from "@/components/mobile-tab-bar"
 import { OnboardingDialogHost, OnboardingDialogProvider } from "@/components/onboarding"
 import { PageHeaderProvider, usePageHeaderContext } from "@/components/page-header-provider"
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt"
 import { Sidebar } from "@/components/sidebar"
-import { WaitingForSeatScreen } from "@/components/waiting-for-seat-screen"
+import { NotEnoughSeatsScreen } from "@/components/not-enough-seats-screen"
 import { useDocumentEventsSse } from "@/hooks/use-document-events-sse"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useRoutePrefetch } from "@/hooks/use-route-prefetch"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
 import { useCompanies, useLegalStatus, useSeats } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
+import { cn } from "@/lib/utils"
 
 const ALLOWED_PATHS = ["/signature/[^/]+"]
 
 const PageHeaderTitle = () => {
-  const { title } = usePageHeaderContext()
+  const { title, icon } = usePageHeaderContext()
 
   if (!title) return null
 
   return (
-    <div className="flex items-center gap-2">
-      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+    <div className="flex min-w-0 items-center gap-2.5">
+      {icon && <span className="text-muted-foreground [&>svg]:size-5 md:[&>svg]:size-6">{icon}</span>}
+      <h1 className="truncate text-[26px] leading-tight text-foreground md:text-[30px]">{title}</h1>
     </div>
   )
 }
@@ -110,6 +114,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
 
   // Signed-in only: on a public page it would pull the whole app for an anonymous visitor.
   useRoutePrefetch()
+  const { pathname } = useLocation()
 
   // Decides whether the footer strip below even exists — see that element's own comment for why a
   // `<footer>` wrapper can't just contain `<LegalLinks/>` and rely on it rendering `null`.
@@ -123,14 +128,20 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             <main className="flex flex-1 h-full w-full max-w-screen overflow-y-auto overflow-x-hidden">
               <Sidebar />
               <section className="flex flex-col flex-1 h-full w-full max-w-screen overflow-hidden">
+                <OfflineBanner />
                 <DemoBanner />
                 <BillingBanner />
-                <header className="p-4 bg-header border-b flex items-center gap-4">
-                  <SidebarTrigger />
+                <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">
+                  <SidebarTrigger className="-ms-1.5 hidden text-muted-foreground md:inline-flex" />
                   <PageHeaderTitle />
                   <PageHeaderActions />
                 </header>
-                <section className="h-full overflow-y-auto overflow-x-hidden">
+                <section
+                  className={cn(
+                    "h-full overflow-y-auto overflow-x-hidden md:pb-0",
+                    !isNewDocumentPath(pathname) && "pb-20",
+                  )}
+                >
                   <Outlet />
                 </section>
                 {/* Signed-in users had no route back to the terms they accepted (or any other legal
@@ -164,6 +175,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
             inside any scrolling section, purely for readability; its positioning doesn't depend on
             where in the tree it sits. */}
         <PwaInstallPrompt />
+        <MobileTabBar />
         {/* A sibling of Sidebar, not a child of it — see useOnboardingDialog's own comment: Sidebar's
             root unmounts entirely while its mobile Sheet is closed, which used to make this dialog
             unreachable on mobile no matter how it was triggered. */}
@@ -313,21 +325,35 @@ const Layout = () => {
   // TanStack Query never settles) and block the shell forever instead of letting a company-less user
   // reach `AuthenticatedLayout` below, where the onboarding dialog can actually run.
   const seatsRouteMissing = seatsErrored && seatsError instanceof ApiError && seatsError.status === 404
+  // A member with no seat cannot read anything on the company (product decision 2026-11-13), the
+  // seats view included: `billing/seat-gate.ts` answers `403 { code: SEAT_REQUIRED }` to that very
+  // request, and that answer IS the signal for the full-screen "not enough seats" takeover. Never the
+  // retry screen: retrying cannot help until an owner or admin buys or frees a seat, and a focus
+  // refetch picks that up on its own.
+  const seatRequired =
+    seatsErrored &&
+    seatsError instanceof ApiError &&
+    seatsError.status === 403 &&
+    apiErrorCode(seatsError) === "SEAT_REQUIRED"
   if (hasActiveCompany) {
     if (seatsPending) {
       return null
+    }
+    if (seatRequired) {
+      return <NotEnoughSeatsScreen />
     }
     if (seatsErrored && !seatsRouteMissing) {
       return <SeatCheckErrorScreen onRetry={() => refetchSeats()} />
     }
   }
 
+  // Defensive second signal: a backend that still answers the seats view to a member with no seat
+  // (an older build than the read gate above) lists that member under `waiting`.
   const currentUserId = (session as { user?: { id?: string } } | null)?.user?.id
   const isWaitingForSeat =
     !!currentUserId && !!seatsView?.waiting.some((member) => member.userId === currentUserId)
   if (isWaitingForSeat) {
-    const owner = seatsView?.members.find((member) => member.role === "OWNER")
-    return <WaitingForSeatScreen ownerName={owner ? `${owner.firstname} ${owner.lastname}` : null} />
+    return <NotEnoughSeatsScreen />
   }
 
   const accountLocale = (session as { user?: { locale?: string | null } } | null)?.user?.locale

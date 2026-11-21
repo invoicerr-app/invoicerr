@@ -87,8 +87,16 @@ describe('resolveOutstandingInvoices', () => {
         outstandingMinor: 12000,
         issueDate: '2026-08-01',
         dueDate: '2026-08-31',
+        conformityRejected: false,
       },
     ]);
+  });
+
+  it('an invoice rejected by the e-invoicing platform stays a candidate, flagged as rejected', async () => {
+    seedDocuments([invoice({ data: invoiceData(), conformityRejectedAt: new Date('2026-08-05') })]);
+    const candidates = await resolveOutstandingInvoices('company-1');
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].conformityRejected).toBe(true);
   });
 
   it('a draft invoice is never a candidate — nothing owed on record yet', async () => {

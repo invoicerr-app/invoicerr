@@ -12,10 +12,11 @@ import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { typeErrors } from "@/lib/zod-messages"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
-import { useNavigate } from "react-router"
 import { usePost } from "@/hooks/use-fetch"
+import { useSwitchCompany } from "@/hooks/use-switch-company"
 import { createContext, useContext, useEffect, useState } from "react"
 import type React from "react"
 import { useTranslation } from "react-i18next"
@@ -54,14 +55,11 @@ export function useOnboardingDialog() {
 }
 
 interface OnBoardingProps {
-  isLoading?: boolean
-  isOpen?: boolean
-  onOpenChange?: (open: boolean) => void
-  // Reused both for first-run onboarding (POST /api/company/info, the
-  // singleton "no company yet" flow) and for creating an additional company
-  // from the switcher (POST /api/companies) — same form, different target.
-  endpoint?: string
-  onSuccess?: (company: Company) => void
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  // Called once the wizard is finished with the company it created. `destination` is set only when
+  // the person picked a specific page to land on ("Connect channels"); "Finish" leaves it undefined.
+  onSuccess: (company: Company, destination?: string) => void
 }
 
 // Four-step wizard:
@@ -81,25 +79,18 @@ type WizardStep = "country" | "identifier" | "company" | "channels"
 
 const STEP_ORDER: WizardStep[] = ["country", "identifier", "company", "channels"]
 
-export default function OnBoarding({
-  isLoading: externalLoading,
-  isOpen = true,
-  onOpenChange,
-  endpoint = "/api/company/info",
-  onSuccess,
-}: OnBoardingProps) {
+function OnBoarding({ isOpen, onOpenChange, onSuccess }: OnBoardingProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<WizardStep>("country")
   const [createdCompany, setCreatedCompany] = useState<Company | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const { trigger } = usePost<Company>(endpoint)
+  const { trigger } = usePost<Company>("/api/companies")
 
   const companySchema = z.object({
     name: z
-      .string({ required_error: t("settings.company.form.company.errors.required") })
+      .string({ error: typeErrors({ required: t("settings.company.form.company.errors.required") }) })
       .min(1, t("settings.company.form.company.errors.empty"))
       .max(100, t("settings.company.form.company.errors.maxLength")),
     country: z.string().min(1, t("settings.company.form.country.errors.empty")),
@@ -130,8 +121,6 @@ export default function OnBoarding({
       identifiers: [{ scheme: "LEGAL_ID", value: "" }],
     },
   })
-
-  const loading = isLoading || externalLoading
 
   const countryCodeValue = form.watch("countryCode")
   const { data: requiredIdentifiersResult } = useRequiredIdentifiers(countryCodeValue || undefined, "COMPANY")
@@ -233,16 +222,12 @@ export default function OnBoarding({
 
   // The former single-step completion logic — now triggered from the final
   // step ("Finish" or "Connect channels") instead of the company step's success.
-  function completeOnboarding(destination: string) {
+  function completeOnboarding(destination?: string) {
     const company = createdCompany
     resetWizard()
-    onOpenChange?.(false)
+    onOpenChange(false)
     if (!company) return
-    if (onSuccess) {
-      onSuccess(company)
-    } else {
-      void navigate(destination)
-    }
+    onSuccess(company, destination)
   }
 
   async function goToIdentifierStep() {
@@ -302,7 +287,7 @@ export default function OnBoarding({
       }
       toast.success(t("settings.company.messages.updateSuccess"))
       // Company is created now (same as before) — only the dialog close +
-      // onSuccess/navigate moves to the final step's Finish button.
+      // onSuccess moves to the final step's buttons.
       setCreatedCompany(created)
       setStep("channels")
     } catch (error) {
@@ -693,8 +678,8 @@ export default function OnBoarding({
                 >
                   {t("common.previous")}
                 </Button>
-                <Button type="submit" disabled={loading} data-cy="onboarding-submit-btn">
-                  {loading
+                <Button type="submit" disabled={isLoading} data-cy="onboarding-submit-btn">
+                  {isLoading
                     ? t("common.loading")
                     : submitError
                       ? t("settings.company.onboarding.retry", "Retry")
@@ -748,11 +733,7 @@ export default function OnBoarding({
               >
                 {t("settings.company.onboarding.connectChannels", "Connect channels")}
               </Button>
-              <Button
-                type="button"
-                data-cy="onboarding-finish-btn"
-                onClick={() => completeOnboarding("/settings/company")}
-              >
+              <Button type="button" data-cy="onboarding-finish-btn" onClick={() => completeOnboarding()}>
                 {t("common.finish")}
               </Button>
             </div>
@@ -764,30 +745,21 @@ export default function OnBoarding({
 }
 
 /**
- * Mounts the actual dialog for `useOnboardingDialog`'s shared state — rendered once, at the layout
- * level (a sibling of `Sidebar`, not a child), so it stays reachable on mobile. `endpoint`/`onSuccess`
- * are fixed to "create a new company" (see this component's own header on why: both the sidebar's
- * first-run auto-open and its "create new company" menu item drive the exact same flow, just from
- * different triggers).
+ * Mounts the actual dialog for `useOnboardingDialog`'s shared state, rendered once, at the layout
+ * level (a sibling of `Sidebar`, not a child), so it stays reachable on mobile. Both the sidebar's
+ * first-run auto-open and its "create new company" menu item drive this same flow: create the company
+ * (`POST /api/companies`), make it the active one, then load the page the person picked ("Connect
+ * channels" → `/settings/channels`) or reload the current one ("Finish").
  */
 export function OnboardingDialogHost() {
   const { open, setOpen } = useOnboardingDialog()
-  const { trigger: switchCompanyApi } = usePost<{ success: boolean }>("/api/companies/switch")
+  const { switchCompany } = useSwitchCompany()
 
-  const handleCompanyCreated = async (created: Company) => {
-    await switchCompanyApi({ companyId: created.id })
-    // Same full-reload rationale as Sidebar's own switchCompany: company-scoped data is split across
-    // TanStack Query and the older use-fetch.ts hooks, and only a reload guarantees both re-fetch
-    // under the newly active company.
-    window.location.reload()
+  const handleCompanyCreated = async (created: Company, destination?: string) => {
+    // Full page load either way (see useSwitchCompany for why). A refused switch still reloads, as
+    // before: the company now exists and the sidebar's list must show it.
+    if (!(await switchCompany(created.id, destination))) window.location.reload()
   }
 
-  return (
-    <OnBoarding
-      isOpen={open}
-      onOpenChange={setOpen}
-      endpoint="/api/companies"
-      onSuccess={handleCompanyCreated}
-    />
-  )
+  return <OnBoarding isOpen={open} onOpenChange={setOpen} onSuccess={handleCompanyCreated} />
 }

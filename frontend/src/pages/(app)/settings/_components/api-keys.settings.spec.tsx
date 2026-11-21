@@ -37,11 +37,12 @@ function installFetchMock(handlers: Record<string, FetchHandler>) {
   return fn
 }
 
-async function renderWithCreatedKey() {
+/** Renders the screen with a chosen outcome for the create call; every other endpoint is fixed. */
+function renderSettings(createHandler: FetchHandler) {
   installFetchMock({
     "GET /api/api-keys": () => ({ body: [] }),
     "GET /api/api-keys/options": () => ({ body: { scopes: [] } }),
-    "POST /api/api-keys": () => ({ body: { key: "ivr_live_abcdef123456" } }),
+    "POST /api/api-keys": createHandler,
     // `useDemoMode` (issue #533) goes through `useLegalDocuments`, which needs a QueryClientProvider
     // ancestor (below) plus this endpoint mocked, same as every other fetch this component makes.
     "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
@@ -55,15 +56,23 @@ async function renderWithCreatedKey() {
       <ApiKeysSettings />
     </QueryClientProvider>,
   )
-  fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "CLI on my laptop" } })
+}
+
+async function submitCreate(name: string) {
+  fireEvent.change(await screen.findByLabelText("Name"), { target: { value: name } })
   fireEvent.click(screen.getByRole("button", { name: "Create API Key" }))
+}
+
+async function renderWithCreatedKey() {
+  renderSettings(() => ({ body: { key: "ivr_live_abcdef123456" } }))
+  await submitCreate("CLI on my laptop")
 
   // The created-key panel only exists once the create call resolves — its own Copy button is the
   // one and only "Copy" control on screen at that point.
   return screen.findByLabelText("Copy")
 }
 
-describe("<ApiKeysSettings> — copy outcome", () => {
+describe("<ApiKeysSettings> — create and copy outcomes", () => {
   const originalClipboard = navigator.clipboard
   const originalExecCommand = document.execCommand
 
@@ -106,5 +115,63 @@ describe("<ApiKeysSettings> — copy outcome", () => {
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Copied to clipboard"))
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  // Issue #708: creation used to fail into `console.error` only, with no visible feedback.
+  it("shows an error toast when creating a key fails", async () => {
+    renderSettings(() => ({ status: 500, body: { message: "Internal server error" } }))
+    await submitCreate("CLI on my laptop")
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Failed to create API key"))
+    expect(screen.queryByLabelText("Copy")).not.toBeInTheDocument()
+  })
+})
+
+describe("<ApiKeysSettings>: list load failure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // Before: a failed read left the list on its skeleton forever, with no way to tell it apart from a
+  // slow one and nothing to click.
+  it("shows a load error with a retry that reloads the list", async () => {
+    let listCalls = 0
+    installFetchMock({
+      "GET /api/api-keys": () => {
+        listCalls++
+        return listCalls === 1
+          ? { status: 500, body: { message: "boom" } }
+          : {
+              body: [
+                {
+                  id: "k1",
+                  name: "CI key",
+                  keyPrefix: "ivr_ab",
+                  scopes: [],
+                  lastUsedAt: null,
+                  createdAt: "2026-11-01T00:00:00.000Z",
+                },
+              ],
+            }
+      },
+      "GET /api/api-keys/options": () => ({ body: { scopes: [] } }),
+      "GET /api/legal/documents": () => ({ body: { saasMode: false, demoMode: false, documents: [] } }),
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApiKeysSettings />
+      </QueryClientProvider>,
+    )
+
+    const title = await screen.findByText("This list could not be loaded.")
+    expect(title.closest('[role="alert"]')).not.toBeNull()
+    expect(screen.queryByText("No API key created yet.")).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(await screen.findByText("CI key")).toBeInTheDocument()
+    expect(screen.queryByText("This list could not be loaded.")).toBeNull()
+    expect(listCalls).toBe(2)
   })
 })

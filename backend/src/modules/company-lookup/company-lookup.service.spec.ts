@@ -1,4 +1,4 @@
-import { CompanyLookupService } from './company-lookup.service';
+import { budgetFromEnv, CompanyLookupService, DEFAULT_LOOKUP_BUDGET_MS } from './company-lookup.service';
 import { CompanyLookupCoverage } from './coverage/registry';
 import { CompanyLookupRegistry } from './registry';
 import {
@@ -22,6 +22,10 @@ class FakeProvider implements CompanyRegistryProvider {
       answer?: CompanyLookupCompany | null;
       throws?: Error;
       credentialEnvVars?: string[];
+      /** Never settles: a register that accepted the connection and then went silent. */
+      hangs?: boolean;
+      /** Answers after this many milliseconds. */
+      delayMs?: number;
     },
   ) {}
 
@@ -46,6 +50,8 @@ class FakeProvider implements CompanyRegistryProvider {
   }
   async lookup(): Promise<CompanyLookupCompany | null> {
     this.lookupCalls++;
+    if (this.opts.hangs) return new Promise<never>(() => undefined);
+    if (this.opts.delayMs) await new Promise((resolve) => setTimeout(resolve, this.opts.delayMs));
     if (this.opts.throws) throw this.opts.throws;
     return this.opts.answer ?? null;
   }
@@ -71,8 +77,12 @@ function coverageOf(providers: FakeProvider[]): CompanyLookupCoverage {
   return new CompanyLookupCoverage(facts);
 }
 
-function serviceWith(providers: FakeProvider[], ttlMs = 60_000) {
-  return new CompanyLookupService(new CompanyLookupRegistry(providers, coverageOf(providers)), ttlMs);
+function serviceWith(providers: FakeProvider[], ttlMs = 60_000, budgetMs?: number) {
+  return new CompanyLookupService(
+    new CompanyLookupRegistry(providers, coverageOf(providers)),
+    ttlMs,
+    budgetMs,
+  );
 }
 
 describe('CompanyLookupService', () => {
@@ -191,5 +201,76 @@ describe('CompanyLookupService', () => {
     await service.lookup({ countryCode: 'CZ', value: '45274649' });
     await service.lookup({ countryCode: 'CZ', value: '45274649' });
     expect(provider.lookupCalls).toBe(2);
+  });
+});
+
+describe('CompanyLookupService: total budget across the provider chain (#786)', () => {
+  it('defaults to about five seconds', () => {
+    expect(DEFAULT_LOOKUP_BUDGET_MS).toBe(5000);
+  });
+
+  it('gives up on a hanging register within the budget, with nothing pre-filled and no later provider asked', async () => {
+    const hanging = new FakeProvider('fr', { countries: ['FR'], hangs: true });
+    const next = new FakeProvider('gleif', { countries: ['FR'], answer: acme, delayMs: 500 });
+    const service = serviceWith([hanging, next], 60_000, 100);
+
+    const started = Date.now();
+    const result = await service.lookup({ countryCode: 'FR', value: '55208131766522', scheme: 'LEGAL_ID' });
+    const elapsed = Date.now() - started;
+
+    expect(result).toMatchObject({ found: false, company: null, error: 'PROVIDER_ERROR', source: 'fr' });
+    expect(result.message).toContain('100ms');
+    expect(elapsed).toBeLessThan(1000);
+    expect(next.lookupCalls).toBe(0);
+  });
+
+  it('shares one budget across providers instead of granting each its own', async () => {
+    const slow = new FakeProvider('a', { countries: ['FR'], answer: null, delayMs: 80 });
+    const hanging = new FakeProvider('b', { countries: ['FR'], hangs: true });
+    const service = serviceWith([slow, hanging], 60_000, 150);
+
+    const started = Date.now();
+    const result = await service.lookup({ countryCode: 'FR', value: '1', scheme: 'LEGAL_ID' });
+
+    expect(result).toMatchObject({ error: 'PROVIDER_ERROR', source: 'b' });
+    expect(Date.now() - started).toBeLessThan(600);
+  });
+
+  it('still pre-fills from a fast register', async () => {
+    const fast = new FakeProvider('fr', { countries: ['FR'], answer: acme, delayMs: 5 });
+    const result = await serviceWith([fast], 60_000, 1000).lookup({ countryCode: 'FR', value: '1' });
+    expect(result).toMatchObject({ found: true, source: 'fr' });
+    expect(result.company).toMatchObject({ legalName: 'ACME s.r.o.', city: 'Praha' });
+  });
+
+  it('keeps what an earlier source found when the budget runs out on the next one', async () => {
+    const partial = new FakeProvider('vies', { countries: ['FR'], answer: { name: 'ACME', VAT: 'FR1' } });
+    const hanging = new FakeProvider('gleif', { countries: ['FR'], hangs: true });
+    const result = await serviceWith([partial, hanging], 60_000, 100).lookup({
+      countryCode: 'FR',
+      value: '1',
+      scheme: 'LEGAL_ID',
+    });
+    expect(result).toMatchObject({ found: true, source: 'vies' });
+  });
+
+  it('never caches a budget cut, so the next try asks the registers again', async () => {
+    const hanging = new FakeProvider('fr', { countries: ['FR'], hangs: true });
+    const service = serviceWith([hanging], 60_000, 50);
+    await service.lookup({ countryCode: 'FR', value: '1', scheme: 'LEGAL_ID' });
+    await service.lookup({ countryCode: 'FR', value: '1', scheme: 'LEGAL_ID' });
+    expect(hanging.lookupCalls).toBe(2);
+  });
+
+  it('reads COMPANY_LOOKUP_BUDGET_MS as a positive integer and refuses anything else', () => {
+    const warn = vi.fn();
+    expect(budgetFromEnv(undefined, { warn })).toBeUndefined();
+    expect(budgetFromEnv('', { warn })).toBeUndefined();
+    expect(budgetFromEnv('3000', { warn })).toBe(3000);
+    expect(budgetFromEnv('0', { warn })).toBeUndefined();
+    expect(budgetFromEnv('-5', { warn })).toBeUndefined();
+    expect(budgetFromEnv('2.5', { warn })).toBeUndefined();
+    expect(budgetFromEnv('soon', { warn })).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(4);
   });
 });

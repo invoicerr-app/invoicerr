@@ -1,15 +1,7 @@
 /**
- * Catch-up migration — upgrades every `Webhook.secret` still sitting in the clear (any row
- * written before this module started encrypting secrets at rest, or written while
- * `CREDENTIALS_ENCRYPTION_KEY` was unset — see `webhooks.service.ts#encryptSecretForStorage`'s own
- * header) to the same AES-256-GCM blob every other integration credential in this codebase already
- * uses (`utils/secret-crypto.ts#encryptJson`).
- *
- * Idempotent by construction, the same "detect-first" discipline `country-policy/boot-reseed.ts`
- * already established for a different table: `isEncryptedWebhookSecret` recognizes a row already in
- * the new format (migrated on a previous boot, or written post-fix by `WebhooksService` itself) and
- * skips it untouched — safe to run on EVERY boot, forever, at the cost of one read when there is
- * nothing left to do.
+ * Boot catch-up: encrypts every `Webhook.secret` still in the clear with the same AES-256-GCM blob as
+ * the other integration credentials. Idempotent: rows already in the new format are recognised and
+ * skipped, so it is safe on every boot.
  */
 import { encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 
@@ -29,8 +21,7 @@ interface WebhookSecretRow {
   secret: string | null;
 }
 
-/** The only two Prisma calls this migration needs — kept minimal so a unit test can supply an
- *  in-memory fake instead of pulling in the whole generated client. */
+/** The only two Prisma calls this needs, so a unit test can supply an in-memory fake. */
 export interface WebhookSecretMigrationPrisma {
   webhook: {
     findMany(args: {
@@ -52,10 +43,8 @@ export async function migratePlaintextWebhookSecrets(
   const summary: WebhookSecretMigrationSummary = { scanned: 0, migrated: 0, skippedNoKey: 0 };
 
   for (const row of rows) {
-    // An empty string is Prisma's own "not null" for a webhook created with no secret at all
-    // (`WebhooksService.create`'s `body.secret ?? ''`) — nothing to encrypt, and encrypting it anyway
-    // would turn every secret-less webhook into an unnecessary write on every boot until the key
-    // exists, for a value that carries no confidentiality to begin with.
+    // Empty string is how a secret-less webhook is stored: nothing to encrypt, and rewriting it would
+    // cost a write on every boot.
     if (!row.secret) continue;
     summary.scanned++;
 

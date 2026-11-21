@@ -1,18 +1,11 @@
 /**
- * Product/legal decision, 2026-09-20 (Terms of Service Section 20.2): a change to the Terms takes
- * effect immediately (`write-gate.ts`/`legal-acceptance.guard.ts`'s own pending-acceptance write
- * lockout applies as soon as the content hash changes) EXCEPT for a Company with a subscription period
- * already in progress — one that already paid for a stretch of time under the version of the Terms in
- * force when it paid keeps full use of the Service, writes included, for the whole of that period. A
- * unilateral later change cannot retroactively shorten what was already bought.
+ * Terms of Service Section 20.2: a Terms change binds immediately, except that a Company with a paid
+ * period in progress keeps full use until the later of (a) the first of the month after publication
+ * and (b) its own renewal date. The later, so the calendar floor never cuts an annual period short.
  *
- * The exception ends on the LATER of two dates, both stated in Section 20.2:
- *  (a) the first day of the calendar month following the change's publication — a single, predictable
- *      date every Company can be told and supported around, independent of when any one subscription
- *      happens to renew;
- *  (b) the paid period's own renewal date — so a period that runs past the calendar floor (an annual
- *      plan, or a monthly one that happens to renew late in the following month) is never cut short by
- *      the calendar date alone.
+ * `status === 'ACTIVE'` is required so this never reopens writes for BLOCKED/ZIPPED/PAST_DUE/TRIAL.
+ * The `PAST_DUE` suspension rule in `lifecycle.ts` reads the bottom two functions instead, since for
+ * it a `PAST_DUE` Company with a still-paid period is exactly the case in question.
  *
  * Taking the LATER of the two, never the earlier: the point of both dates is to protect a period
  * actually paid for, so whichever protects it longer wins. This is deliberately never a shorter,
@@ -42,42 +35,29 @@
  *
  * Re-derived fresh on every check from the CURRENT `status`/`currentPeriodEnd` (never a single grace
  * end date computed once and cached): a paid period that in fact ends EARLIER than the later of (a)/(b)
- * above (a cancellation lands, a renewal payment fails) loses ACTIVE status the moment Polar reports it
- * (`webhook-handlers.ts#applySubscriptionWebhook`), which immediately narrows this exception back down
+ * above (a cancellation lands, a renewal payment fails) loses ACTIVE status the moment the payment provider
+ * reports it, which immediately narrows this exception back down
  * to nothing for that Company — the computed date is only ever an upper bound on how long the paid
  * period can protect the Company, never a promise independent of the subscription actually staying paid
  * that long.
  */
 import { CompanySubscriptionStatus } from '../../../prisma/generated/prisma/client';
 
-/** The narrow slice of `CompanySubscription` this module needs — never the whole Prisma row, the same
- *  "pure function, plain projection" split `lifecycle.ts`'s own facts interfaces hold. */
 export interface CompanySubscriptionPeriodFacts {
   status: CompanySubscriptionStatus;
-  /** Polar's own `Subscription.currentPeriodEnd`, mirrored verbatim — `null` for a Company with no
-   *  Polar subscription fact recorded yet (still `TRIAL`, or an `ACTIVE` row from before this column
-   *  existed and no webhook has landed since). See `schema.prisma`'s own comment on this column for
+  /** The subscription's own current period end, mirrored verbatim - `null` for a Company with no
+   *  subscription fact recorded yet (still `TRIAL`, or an `ACTIVE` row from before this column
+   *  existed and no provider event has landed since). See `schema.prisma`'s own comment on this column for
    *  where it is written from. */
   currentPeriodEnd: Date | null;
 }
 
-/**
- * Midnight UTC on the first day of the calendar month AFTER `publishedAt` — UTC, not server-local time,
- * so this never depends on the deployment's own timezone (every other day-boundary computation in this
- * module, `lifecycle.ts`'s own `addDays` included, is similarly timezone-independent by construction).
- */
+/** UTC, so the result never depends on the server's timezone. */
 export function firstOfMonthFollowing(publishedAt: Date): Date {
   return new Date(Date.UTC(publishedAt.getUTCFullYear(), publishedAt.getUTCMonth() + 1, 1, 0, 0, 0, 0));
 }
 
-/**
- * The instant a change PUBLISHED at `publishedAt` starts binding this Company, per Section 20.2 — or
- * `null` when this Company has no subscription period in progress for that Section to protect at all
- * (see this file's own header on why `status !== 'ACTIVE'` alone covers every such case). Never reads
- * the clock itself — `publishedAt` is always the caller's own fact (`LegalDocumentRelease.publishedAt`,
- * `legal-release-lookup.ts`), the same "pure, caller-supplied time" discipline `lifecycle.ts`'s own
- * `computeLifecycleTransition` holds for `now`.
- */
+/** When a change published at `publishedAt` starts binding; `null` if no paid period is in progress. */
 export function paidPeriodBindingDate(sub: CompanySubscriptionPeriodFacts, publishedAt: Date): Date | null {
   if (sub.status !== 'ACTIVE' || sub.currentPeriodEnd === null) return null;
 
@@ -91,7 +71,7 @@ export function paidPeriodBindingDate(sub: CompanySubscriptionPeriodFacts, publi
  * `false` (never exempted) for a Company with no protectable period at all, or once its own binding
  * date has passed — at which point the ordinary pending-acceptance gate resumes with no code of its own
  * needed here (Section 20.2's own "the subscription does not continue on the new Terms" is the existing
- * Section 13 non-renewal machinery observing whatever Polar reports next, not a transition this module
+ * Section 13 non-renewal machinery observing whatever the payment provider reports next, not a transition this module
  * drives).
  */
 export function isWithinPaidPeriodGrace(
@@ -106,7 +86,7 @@ export function isWithinPaidPeriodGrace(
 /**
  * The first instant NO LONGER covered by what a Company has already paid for: midnight UTC opening the
  * day AFTER the one `currentPeriodEnd` falls in. `null` when no period end is on file at all (a
- * Company still in its free trial, or one no Polar fact has ever carried one for — nothing paid for,
+ * Company still in its free trial, or one no provider fact has ever carried one for - nothing paid for,
  * so nothing to protect).
  *
  * A whole DAY, not the raw renewal instant, because of what reads this: losing the Service is a
@@ -121,8 +101,7 @@ export function isWithinPaidPeriodGrace(
  * day overflow into the next month/year on its own, so 31 December needs no special case.
  */
 export function paidThroughEndOfDay(currentPeriodEnd: Date | null | undefined): Date | null {
-  // Accepts `undefined` as well as `null` on purpose: callers hand this whatever their own facts
-  // projection carries, and a row read before this column existed reads as neither a date nor `null`.
+  // `undefined` too: a row read before this column existed carries neither a date nor `null`.
   if (!currentPeriodEnd) return null;
 
   return new Date(
@@ -138,9 +117,6 @@ export function paidThroughEndOfDay(currentPeriodEnd: Date | null | undefined): 
   );
 }
 
-/** True while `now` is still inside a period the Company has already paid for — the one question
- *  `lifecycle.ts`'s own `PAST_DUE` branch asks before suspending anyone (see this file's header).
- *  `false`, never a throw, when no period end is on file: no claim of having paid for anything. */
 export function isPaidPeriodStillRunning(currentPeriodEnd: Date | null | undefined, now: Date): boolean {
   const paidThrough = paidThroughEndOfDay(currentPeriodEnd);
   return paidThrough !== null && now.getTime() < paidThrough.getTime();

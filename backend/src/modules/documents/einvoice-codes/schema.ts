@@ -48,12 +48,38 @@ export interface RecipientCodesFact {
   notes?: string;
 }
 
+/** Which sellers a stamp-duty rule binds. Same selector shape as an exemption code's `appliesTo`. */
+export interface StampDutySelector {
+  sellerTaxSchemes?: TaxScheme[];
+}
+
+/**
+ * A fixed stamp duty declared in the invoice's own XML because the document carries no VAT
+ * (FatturaPA's `DatiBollo`). Every number the builder needs (the amount, the threshold it applies
+ * from, and the sellers it binds) is declared here, never in a country branch (issue #774).
+ */
+export interface StampDutyFact {
+  /** The `BolloVirtuale` value the format requires when the duty is due. */
+  bolloVirtuale: 'SI';
+  /** The duty, in the document currency, for one document. */
+  amount: number;
+  /** Due only when the part of the invoice that carries no VAT EXCEEDS this amount. */
+  threshold: number;
+  appliesTo: StampDutySelector;
+  /** The legal basis printed next to the declaration. */
+  legalReference: string;
+  provenance: PolicyProvenance;
+  notes?: string;
+}
+
 export interface CountryEinvoiceCodesFile {
   /** ISO 3166-1 alpha-2, uppercase, must match the file's own name (`countries/data/all.ts` checks it). */
   countryCode: string;
   exemptionCodes: ExemptionCodeFact[];
   taxRegimeCodes: TaxRegimeCodeFact[];
   recipientCodes: RecipientCodesFact;
+  /** Absent when the country's format declares no stamp duty at all. */
+  stampDuty?: StampDutyFact;
   notes?: string;
 }
 
@@ -145,4 +171,27 @@ export function assertValidEinvoiceCodes(file: CountryEinvoiceCodesFile, context
   assertCode(recipient.withoutCode, 'recipientCodes.withoutCode', context);
   assertCode(recipient.establishedAbroad, 'recipientCodes.establishedAbroad', context);
   assertValidPolicyProvenance(recipient.provenance, `${context} recipientCodes`, 'a recipient code');
+
+  const stampDuty = file.stampDuty;
+  if (stampDuty) {
+    if (stampDuty.bolloVirtuale !== 'SI')
+      throw new InvalidEinvoiceCodesError(
+        `${context}: stampDuty.bolloVirtuale must be "SI", the format declares no other value.`,
+      );
+    if (!Number.isFinite(stampDuty.amount) || stampDuty.amount <= 0)
+      throw new InvalidEinvoiceCodesError(`${context}: stampDuty.amount must be a positive number.`);
+    if (!Number.isFinite(stampDuty.threshold) || stampDuty.threshold < 0)
+      throw new InvalidEinvoiceCodesError(
+        `${context}: stampDuty.threshold must be zero or a positive number.`,
+      );
+    assertCode(stampDuty.legalReference, 'stampDuty.legalReference', context);
+    const schemes = stampDuty.appliesTo?.sellerTaxSchemes ?? [];
+    if (schemes.length === 0)
+      throw new InvalidEinvoiceCodesError(
+        `${context}: stampDuty.appliesTo.sellerTaxSchemes must name at least one scheme.`,
+      );
+    for (const scheme of schemes) assertTaxScheme(scheme, `${context} stampDuty`);
+    assertUnique(schemes, 'stampDuty.appliesTo.sellerTaxSchemes value', context);
+    assertValidPolicyProvenance(stampDuty.provenance, `${context} stampDuty`, 'a stamp duty');
+  }
 }

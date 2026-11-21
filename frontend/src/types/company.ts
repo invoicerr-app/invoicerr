@@ -1,3 +1,4 @@
+import type { DueDateTerm } from "@/lib/due-date"
 import type { PartyIdentifier } from "./client"
 
 export type CompanyRole = "OWNER" | "ADMIN" | "MEMBER"
@@ -19,6 +20,8 @@ export interface CompanyMember {
 
 export interface Company {
   id: string
+  /** Legal form and company-law values, see `lib/company-law.ts`. */
+  companyLaw?: unknown
   description?: string | null
   foundedAt: Date | string
   name: string
@@ -97,15 +100,36 @@ export interface Company {
    *  (backend's `country-policy/schema.ts`), never decided here from `country`/`countryCode`. Null
    *  for a country with no such scheme declared (every shipped country but Portugal today). */
   documentValidationCode?: { scheme: string } | null
+  /** The values this company declared for the attributes its country asks for, by attribute key. */
+  reportingProfile?: Record<string, string> | null
+  /** The attributes this company's country asks it to declare (its `companyProfile` section). */
+  companyProfileAttributes?: CompanyProfileAttribute[]
+  /** Every profile value the company currently carries, the derived ones included. */
+  companyProfileValues?: Record<string, string>
+}
+
+export interface CompanyProfileAttribute {
+  key: string
+  label: string
+  /** i18n key for `label`; the raw label is the fallback. */
+  labelKey?: string
+  help?: string
+  /** i18n key for `help`; the raw text is the fallback. */
+  helpTextKey?: string
+  values: { value: string; label: string; labelKey?: string }[]
+  /** Asked only when the company's own declared values satisfy every entry; absent means always. */
+  askedWhen?: Record<string, string[]>
+  /** Set when the company does not answer: the value follows from a setting it already made. */
+  derived?: { source: "exemptVat"; whenTrue: string; whenFalse?: string }
 }
 
 /** `GET /api/company/payment-terms`. Mirrors the backend's
  *  `payment-terms/resolve-payment-terms.ts#ResolvedPaymentTerms`. */
 export interface ResolvedPaymentTerms {
-  quote: { days: number; mode: "net" | "endOfMonth" } | null
-  invoice: { days: number; mode: "net" | "endOfMonth" } | null
+  quote: DueDateTerm | null
+  invoice: DueDateTerm | null
   cap: { maxNetDays: number; maxEndOfMonthDays: number } | null
-  countryInvoiceFallback: { days: number; mode: "net" | "endOfMonth" } | null
+  countryInvoiceFallback: DueDateTerm | null
   exceedsCap: { quote: boolean; invoice: boolean }
 }
 

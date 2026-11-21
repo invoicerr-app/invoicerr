@@ -51,7 +51,9 @@ Bug fixes and features agreed in an issue or discussion. See the setup and conve
 ## Development setup
 
 Invoicerr is four independent npm projects — there is no workspace root, each has its own
-`package.json` and `node_modules`. All commands below run from inside the relevant directory.
+`package.json` and `node_modules`. All commands below run from inside the relevant directory. All four
+run Node 26: `.nvmrc` pins the major, every CI job reads that file, so `nvm use` in the repository
+root is enough locally.
 
 ### Backend
 
@@ -215,6 +217,41 @@ nothing stood between writing it into a file and pushing it.
    `dev` before merging.
 7. Once a review has started, don't force-push over it — push new commits instead, so the reviewer
    can see what changed since their last pass. Rebase and force-push are fine before review begins.
+
+## Releases and versioning
+
+Releases use CalVer, not SemVer: `AA.M.N`, where `AA` is the two-digit year, `M` the month without a
+leading zero, and `N` a counter that restarts at zero every month. `26.11.0` is the November 2026
+release; `26.11.1` is its first hotfix. Pre-releases are `26.11.0-beta.1` and `26.11.0-rc.1`.
+
+Branches and tags:
+
+- `dev` is the default branch and carries everything in progress.
+- `main` only contains stable releases: every commit tagged there is a release.
+- Beta and rc tags are cut on `dev`; the stable tag is cut on `main`. A stable tag on a commit that
+  is not contained in `main` is refused by `.github/workflows/release.yml`.
+- The tag format is enforced by a regex, and a SemVer tag (such as `v2.0.0-alpha.8`) fails the
+  workflow on purpose.
+
+Monthly cycle, at the end of the month:
+
+1. Tag a beta or an rc on `dev`: `git tag 26.11.0-beta.1 && git push origin 26.11.0-beta.1`. The tag
+   creates the GitHub release and publishes the image to the `beta` channel.
+2. Open the `dev` to `main` pull request, let the required checks pass, and merge it.
+3. Tag the stable on `main`: `git tag 26.11.0 && git push origin 26.11.0`. This creates the release
+   and publishes the image to its versioned tag and to `latest`.
+
+Docker channels: `latest` follows stable tags, `beta` follows tagged beta/rc, and `nightly` is built
+from every commit merged into `dev`, with no GitHub release. Never pin `nightly`.
+
+Hotfix:
+
+1. Branch from `main`, fix, and open the pull request against `main`.
+2. After the merge, tag the patch on `main` (`26.11.1`): the release and the `latest` image follow.
+3. Merge `main` back into `dev`, so the fix is not lost by the next monthly release.
+
+Only the newest release is supported. Migrations are cumulative, so an instance can skip versions
+when upgrading; every pending migration runs in order at boot.
 
 ## Licensing of contributions
 

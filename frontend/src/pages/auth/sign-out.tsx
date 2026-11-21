@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
 
 import { Navigate } from "react-router"
-import { authClient } from "@/lib/auth"
+import { signOut } from "@/lib/sign-out"
 
 export default function LogoutPage() {
   const [isLoggedOut, setIsLoggedOut] = useState(false)
 
   useEffect(() => {
-    authClient.signOut().then(() => {
+    void signOut().then(() => {
       setIsLoggedOut(true)
     })
   }, [])

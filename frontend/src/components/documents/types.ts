@@ -3,9 +3,14 @@
 // DocumentKindRule already did for the — now removed — compliance engine): this is a wire shape,
 // not code.
 
+import type { ServerMessage } from "@/lib/server-message"
+
 export interface DocumentFieldOption {
   value: string
   label: string
+  /** Translation key for `label`, for an option whose text comes from a country file. Without it
+   *  lib/descriptor-i18n.ts derives the key from the type id, the field path and the value. */
+  labelKey?: string
 }
 
 export interface DocumentFieldDescriptor {
@@ -50,8 +55,9 @@ export interface DocumentFieldDescriptor {
   suggestSiblingValues?: true
   /** Mirrors the backend's `DocumentFieldDescriptor.suggestedValues` (descriptors/types.ts) - 'text'
    *  only: a fixed list offered through the same `<datalist>`, any other text staying valid. `value`
-   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. */
-  suggestedValues?: DocumentFieldOption[]
+   *  is what is stored; `label` is already translated by `lib/descriptor-i18n.ts`. No `labelKey`:
+   *  the backend's mirror has none, and this module always derives the key from the field path. */
+  suggestedValues?: { value: string; label: string }[]
   /** 'select': the choices offered. */
   options?: DocumentFieldOption[]
   /** 'select' only: additional values the backend's validator (field-kinds.ts) still accepts, but
@@ -225,6 +231,8 @@ export interface DocumentStatusDescriptor {
 export interface DocumentTypeDescriptor {
   id: string
   label: string
+  /** Icon key, drawn through `documentTypeIcon` (document-type-icon.tsx). */
+  icon?: string
   fields: DocumentFieldDescriptor[]
   actions: DocumentActionDescriptor[]
   listItem?: DocumentListItemHint
@@ -306,13 +314,14 @@ export function numberingDisplayState(
 /** `statuses[].label` for `statusId`, falling back to the raw id when the descriptor names no
  *  lifecycle at all or this particular status isn't in it — the same "degrade honestly, never
  *  crash" rule the rest of this generic model already holds for a descriptor/data mismatch. */
-export function statusLabel(descriptor: DocumentTypeDescriptor, statusId: string): string {
+export function statusLabel(descriptor: Pick<DocumentTypeDescriptor, "statuses">, statusId: string): string {
   return descriptor.statuses?.find((s) => s.id === statusId)?.label ?? statusId
 }
 
 export interface DocumentTypeSummary {
   id: string
   label: string
+  icon?: string
 }
 
 /** The backend's `DocumentTotals` as the API serializes it - see `DocumentInstance.derivedTotals`. */
@@ -322,7 +331,7 @@ export interface DerivedDocumentTotals {
   vatMinor: number
   grossMinor: number
   vatBreakdown: { ratePercent: number; baseMinor: number; vatMinor: number }[]
-  warnings: string[]
+  warnings: ServerMessage[]
   showVat?: boolean
 }
 
@@ -356,6 +365,12 @@ export interface DocumentInstance {
    *  is the preservation that has a gap. Shown verbatim, like `lastActionError` — the backend rewrites
    *  it from a bare driver message into a full sentence once automatic retries stop explaining it. */
   lastArchiveError?: string | null
+  /** Mirrors the backend's `DocumentInstance.conformityRejectedAt`: set while the e-invoicing
+   *  platform's latest verdict on this document is a rejection, cleared once it (or a document
+   *  correcting it) is accepted. The lifecycle status stays "sent" meanwhile. */
+  conformityRejectedAt?: string | null
+  /** The platform's own rejection reason, shown verbatim. */
+  conformityRejectedReason?: string | null
   /** Issue #373 ("quotes with options") - mirrors the backend's `DocumentInstance.acceptedOption`:
    *  the option name the client chose when accepting a quote offering 2+ of them, written only by the
    *  OTP signature or the manual acceptance, never editable. Null/absent for every quote with fewer
@@ -447,7 +462,7 @@ export interface DocumentSettlementResult {
   totals: { currency: string | null; grossMinor: number }
   payments: DocumentPayment[]
   credits: DocumentCredit[]
-  warnings: string[]
+  warnings: ServerMessage[]
   settlement: DocumentSettlement
 }
 
@@ -455,10 +470,10 @@ export interface DocumentSettlementResult {
  *  Non-fatal caveats the cross-border tax resolution recorded about THIS document's own amounts (a
  *  buyer VAT number it could not confirm, a destination whose reduced rates it cannot reach). Always
  *  present, empty for a domestic invoice, for a blocked one, and for every type but the invoice — so
- *  the screen reads `.warnings.length` and never has to guard a missing key. English prose formed by
- *  the server, shown verbatim: see `document-tax-warnings.tsx` for why there is no key to translate. */
+ *  the screen reads `.warnings.length` and never has to guard a missing key. Each warning is a
+ *  `ServerMessage` the screen renders through `t()` (`lib/server-message.ts`). */
 export interface DocumentTaxWarningsResult {
-  warnings: string[]
+  warnings: ServerMessage[]
 }
 
 /** Mirrors the backend's `ActionTransmissionPreview` (actions/action-registry.ts) - issue #581's own
@@ -495,6 +510,9 @@ export interface DocumentArchive {
   archivedAt: string
   retentionUntil: string | null
   retentionBasis: string | null
+  /** The same citation as a translatable message; null on rows written before that column existed,
+   *  which the screen renders from `retentionBasis` instead. */
+  retentionBasisMessage: ServerMessage | null
   /** Mirrors the backend's `retentionCalcVersion` column (see `schema.prisma`'s own comment and the
    *  backend's `archive/retention/calc-version.ts`). NULL for a row written before that column
    *  existed — which includes every row computed by the pre-`cf2e7323` bug that counted every
@@ -518,6 +536,8 @@ export interface ManualAcceptance {
   actorEmail: string
   note: string
   acceptedAt: string
+  /** Issue #364 - the proof file attached at acceptance, archived in the same row. */
+  attachment?: { fileName: string; mime: string; byteLength: number; sha256: string }
 }
 
 /** What `POST /documents/:id/archives/:archiveId/verify` returns — mirrors the backend's

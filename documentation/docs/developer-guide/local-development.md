@@ -86,16 +86,28 @@ Cypress has no per-test timeout of its own, so the suite adds two:
 ## Date formats per language
 
 Dates formatted with date-fns (the date picker's trigger, the dashboard's period) take their locale
-from `languageToLocale()` in `frontend/src/lib/i18n.ts`. It looks `i18n.language` up in an explicit
-map, `DATE_FNS_LOCALES`, and falls back to `en-US`. Only the locales in that map are bundled, so
+from `languageToLocale()` in `frontend/src/lib/i18n.ts`. It normalises the tag first
+(`normalizeLanguageTag()` drops a POSIX modifier or codeset, accepts `_` as a separator, and keeps
+only what `Intl.getCanonicalLocales` accepts), then looks the exact code up in `DATE_FNS_LOCALES`,
+then its base language, then falls back to `en-US`. Only the locales in that map are bundled, so
 adding a language to `SUPPORTED_LANGUAGES` also means importing its date-fns locale, plus the
 regional variants date-fns ships for it (`fr-CA`, `de-AT`...), into that map.
 `frontend/src/lib/i18n.spec.ts` fails until a supported language resolves to a locale of its own.
 
-`i18n.language` is the detected code, not the catalog it matched: a browser sending `de-AT` keeps
-`de-AT`, and an exact code missing from the map (`fr-FR`, say) gets `en-US` dates. A code whose
-folder exists under `frontend/src/locales/` is adopted as is even when it is not in
-`SUPPORTED_LANGUAGES`, which is why the map also lists those catalogs.
+The detector hands i18next a valid tag with its regional subtag intact, so `i18n.language` keeps
+`de-AT` and `en-GB`, and each gets its own date-fns locale, while a regional code the map lacks
+(`fr-FR`, `es-MX`) falls back to its base language's dates. It never rewrites a code to its base
+language or to `en`: an exact code would lose the regional date format, and an injected `en` would
+win i18next's match before a later entry in `navigator.languages`. A language outside
+`SUPPORTED_LANGUAGES` (`ja`, `ko`, `pt-BR`) is dropped to an empty entry instead of becoming `en`,
+so a later supported language can still win and i18next never adopts a stub catalog whose interface
+is English; when no entry remains, `fallbackLng` resolves the interface to `en` and the dates switch
+to English with it. A catalog folder under `frontend/src/locales/` alone does not make a
+language selectable: `SUPPORTED_LANGUAGES` decides. The map also lists every stub catalog kept under
+`frontend/src/locales/` that date-fns has a locale for (`da`, `he`, `ja`, `ko`, `pt-BR`, `ru`, `sv`,
+`uk`). `zh-Hans` is a stub folder too (73 keys, the same shape as `da` and `ja`) but has no entry in
+the map; `kab` is not supported either, so a detected `kab` resolves to English before date
+formatting ever sees it.
 
 ## Right-to-left (RTL) layout
 

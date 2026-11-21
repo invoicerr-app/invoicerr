@@ -69,17 +69,23 @@
  * page), byte for byte identical: its `FormatoTrasmissioneType` enumerates both values and its
  * `CodiceDestinatarioType` is `[A-Z0-9]{6,7}`.
  */
-import { guessCountryCode } from '@/utils/country-name-to-iso';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import { fromMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
+import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
-import { einvoiceCodesFor, exemptionCodeFor, taxRegimeCodeFor } from '../../einvoice-codes/registry';
+import {
+  einvoiceCodesFor,
+  exemptionCodeFor,
+  stampDutyFor,
+  taxRegimeCodeFor,
+} from '../../einvoice-codes/registry';
 import { CountryEinvoiceCodesFile, ExemptionCodeFact } from '../../einvoice-codes/schema';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
+import { resolvePartyCountryCode } from '../semantic/build-semantic-invoice';
 import {
   DocumentFormatBuildOptions,
   DocumentFormatBuildResult,
@@ -105,6 +111,88 @@ function fmtAmount(n: number, decimals = 2): string {
 /** Format AliquotaIVA as /^[-]?\d{1,3}(\.\d{2,2})$/ */
 function fmtRate(n: number): string {
   return n.toFixed(2);
+}
+
+/**
+ * `CedentePrestatore/IscrizioneREA`: the company-law facts the Italian catalog already declares,
+ * mapped onto FatturaPA's own block. Every required element must be declared for the block to be
+ * emitted (`Ufficio`, `NumeroREA`, `StatoLiquidazione`); a missing one omits the whole block
+ * (`IscrizioneREAType` is `minOccurs="0"`) rather than inventing a province or asserting that the
+ * company is not in liquidation. A value that IS declared but cannot be carried by the block is a
+ * different matter: it refuses the export with an error naming the field, never dropping the block
+ * in silence. Whether a legal form holds a register entry is declared by the country file itself
+ * (`hasRegisterEntry`), not inferred from a printed mention: a ditta individuale is registered under
+ * art. 2188 c.c. even though art. 2250 prints nothing for it.
+ *
+ * The `NumeroREA` question the issue left open is settled by the specification itself: Specifiche
+ * tecniche del formato della FatturaPA v1.4 §3.3.4 defines it as « il numero di repertorio con il
+ * quale la società è iscritta nel Registro delle Imprese », i.e. the registration number codice
+ * civile art. 2250 already requires and this catalog already stores as `registerNumber`. It is not a
+ * second, distinct number.
+ */
+interface IscrizioneRea {
+  block?: Record<string, string>;
+  errors: string[];
+}
+
+function iscrizioneReaFor(company: DocumentFormatParty): IscrizioneRea {
+  const file = defaultCompanyLawCatalog.fileFor(resolvePartyCountryCode(company) ?? '');
+  if (!file) return { errors: [] };
+  const details = readCompanyLawDetails(company.companyLaw);
+  const form = file.legalForms.find((candidate) => candidate.code === details.legalForm);
+  if (!form?.hasRegisterEntry) return { errors: [] };
+
+  const stringValue = (key: string): string => {
+    const value = details.values?.[key];
+    return typeof value === 'string' ? value.trim() : '';
+  };
+  const province = stringValue('registerOfficeProvince').toUpperCase();
+  const number = stringValue('registerNumber');
+  const liquidation = stringValue('liquidationStatus').toUpperCase();
+
+  const errors: string[] = [];
+  if (province && !/^[A-Z]{2}$/.test(province))
+    errors.push(
+      'The company register office ("registerOfficeProvince") must be a two-letter province code, ' +
+        'for example MI: IscrizioneREA was not emitted.',
+    );
+  if (number.length > 20)
+    errors.push(
+      'The company register number ("registerNumber") must be at most 20 characters: ' +
+        'IscrizioneREA was not emitted.',
+    );
+  if (liquidation && liquidation !== 'LN' && liquidation !== 'LS')
+    errors.push(
+      'The liquidation status ("liquidationStatus") must be LN or LS: IscrizioneREA was not emitted.',
+    );
+  if (errors.length > 0) return { errors };
+
+  if (!/^[A-Z]{2}$/.test(province) || !number) return { errors: [] };
+  if (liquidation !== 'LN' && liquidation !== 'LS') return { errors: [] };
+
+  const capital = details.values?.shareCapital;
+  const capitalAmountText =
+    capital && typeof capital === 'object' && capital.currency.toUpperCase() === 'EUR'
+      ? capital.amount.trim()
+      : '';
+  const capitalAmount = capitalAmountText ? Number(capitalAmountText) : undefined;
+
+  return {
+    errors: [],
+    block: {
+      Ufficio: province,
+      NumeroREA: number,
+      ...(capitalAmount !== undefined && Number.isFinite(capitalAmount)
+        ? { CapitaleSociale: fmtAmount(capitalAmount, 2) }
+        : {}),
+      ...(form?.singleMember === true
+        ? { SocioUnico: 'SU' }
+        : form?.singleMember === false
+          ? { SocioUnico: 'SM' }
+          : {}),
+      StatoLiquidazione: liquidation,
+    },
+  };
 }
 
 /** The Natura of an untaxed line, read from the country data; `undefined` for a taxed line. */
@@ -139,6 +227,41 @@ function buildDettaglioLinea(line: NationalLine, currency: string, natura: Exemp
   };
 }
 
+/**
+ * `DatiBollo`, issue #774. A fixed stamp duty the country's format declares on a document that
+ * carries no VAT, above a threshold. Every figure comes from the country data's own `stampDuty`
+ * (amount, threshold, and the sellers it binds), never from a country branch here.
+ *
+ * The threshold is measured on the invoice's OWN non-VAT base, never on `ImportoTotaleDocumento`:
+ * on a mixed invoice the sum that counts is the one made of the components carrying no VAT
+ * (Agenzia delle Entrate, risposta a interpello n. 45/2024, recalling risoluzione n. 98/E of 2001).
+ *
+ * A non-euro document is left alone on purpose: the declared amount is a euro figure, and carrying
+ * it into another currency would need the ECB rate frozen at issue (`seller-currency.ts` already
+ * resolves that rate for the VAT statement), not plumbed here, and counting the euro amount as if
+ * it were the document's own currency would be worse than omitting the block.
+ */
+function datiBolloFor(
+  codes: CountryEinvoiceCodesFile,
+  sellerTaxScheme: TaxScheme | undefined,
+  totals: ReturnType<typeof computeDocumentTotals>,
+  currency: string,
+  sellerCountry: string,
+  formatCountry: string,
+): { BolloVirtuale: 'SI'; ImportoBollo: string } | undefined {
+  const fact = stampDutyFor(codes, sellerTaxScheme);
+  // The rule read above is the FORMAT's own country's (Italy's), so it only binds a seller that
+  // country actually taxes: a FatturaPA built for a seller established elsewhere declares no duty.
+  if (!fact || currency !== 'EUR' || sellerCountry !== formatCountry) return undefined;
+
+  const nonVatBaseMinor = totals.vatBreakdown
+    .filter((entry) => entry.ratePercent <= 0)
+    .reduce((sum, entry) => sum + entry.baseMinor, 0);
+  if (nonVatBaseMinor <= Math.round(fact.threshold * 100)) return undefined;
+
+  return { BolloVirtuale: fact.bolloVirtuale, ImportoBollo: fmtAmount(fact.amount, 2) };
+}
+
 async function build(
   descriptor: DocumentTypeDescriptor,
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
@@ -157,17 +280,19 @@ async function build(
   const issueDate = toDateOnly(data.issueDate);
   // Never a `'DRAFT'` placeholder - see `shared-build.ts#requireDisplayNumber`'s own header.
   const invoiceNumber = requireDisplayNumber(document);
+  const isCreditNote = !!options?.creditNote;
   const correctedInvoice = options?.creditNote?.correctedInvoice;
 
   // ── identifiers ──────────────────────────────────────────────────
   const vatId = getIdentifier(company, 'VAT') || '';
   const formatCountry = nationalFormatCountry(fatturapaFormatId);
   const codes = einvoiceCodesFor(formatCountry);
-  const vatCountry = guessCountryCode(company.country) ?? formatCountry;
+  const vatCountry = resolvePartyCountryCode(company) ?? formatCountry;
   const cf = getIdentifier(company, 'LEGAL_ID') || '';
+  const iscrizioneRea = iscrizioneReaFor(company);
 
   const clienteVatId = getIdentifier(client, 'VAT') || '';
-  const clienteVatCountry = guessCountryCode(client.country) ?? '';
+  const clienteVatCountry = resolvePartyCountryCode(client) ?? '';
   const clienteCf = getIdentifier(client, 'LEGAL_ID') || '';
 
   // ── ProgressivoInvio: unique per invoice ─────────────────────────
@@ -249,6 +374,18 @@ async function build(
   if (company.email) contatti.Email = company.email;
 
   const totaleDocumento = fromMinor(totals.grossMinor, currency);
+  // A credit note (TD04) never declares the duty: it corrects an invoice that already carried it,
+  // and its own amounts are positive by construction (see this file's header, "TD04").
+  const datiBollo = isCreditNote
+    ? undefined
+    : datiBolloFor(
+        codes,
+        company.taxScheme,
+        totals,
+        currency,
+        resolvePartyCountryCode(company) ?? '',
+        formatCountry,
+      );
 
   const fattura = {
     'p:FatturaElettronica': {
@@ -282,6 +419,7 @@ async function build(
             Comune: company.city || 'N/A',
             Nazione: vatCountry,
           },
+          ...(iscrizioneRea.block ? { IscrizioneREA: iscrizioneRea.block } : {}),
           ...(Object.keys(contatti).length > 0 ? { Contatti: contatti } : {}),
         },
         CessionarioCommittente: {
@@ -311,11 +449,14 @@ async function build(
       FatturaElettronicaBody: {
         DatiGenerali: {
           DatiGeneraliDocumento: {
-            // TD04 "Nota di credito" for a credit note - see this file's own header, "TD04".
-            TipoDocumento: correctedInvoice ? 'TD04' : 'TD01',
+            // TD04 "Nota di credito" for a credit note, including a free one with no reference.
+            TipoDocumento: isCreditNote ? 'TD04' : 'TD01',
             Divisa: currency,
             Data: issueDate,
             Numero: invoiceNumber,
+            // `DatiBollo` sits right after `Numero` in `DatiGeneraliDocumentoType`'s own sequence
+            // (the vendored XSD), before `DatiCassaPrevidenziale` and `ImportoTotaleDocumento`.
+            ...(datiBollo ? { DatiBollo: datiBollo } : {}),
             ImportoTotaleDocumento: fmtAmount(totaleDocumento, 2),
           },
           ...(correctedInvoice
@@ -331,7 +472,7 @@ async function build(
           DatiRiepilogo: riepilogoList,
         },
         // Omitted for TD04 - see this file's own header, "TD04".
-        ...(correctedInvoice
+        ...(isCreditNote
           ? {}
           : {
               DatiPagamento: {
@@ -354,7 +495,7 @@ async function build(
   const xml: string = await fpa2xml(escapeXmlTree(fattura) as Record<string, unknown>);
 
   const xsd = await validateXsd(xml, FATTURAPA_XSD);
-  const errors = [...naturaErrors, ...xsd.errors];
+  const errors = [...naturaErrors, ...iscrizioneRea.errors, ...xsd.errors];
   return { bytes: new TextEncoder().encode(xml), validation: { valid: errors.length === 0, errors } };
 }
 

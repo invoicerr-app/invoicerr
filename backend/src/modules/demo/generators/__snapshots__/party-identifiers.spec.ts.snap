@@ -3,24 +3,36 @@
 exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed 42 1`] = `
 {
   "DE": {
-    "nextDraw": 0.2669559868518263,
+    "nextDraw": 0.20951048866845667,
     "parties": [
       [
         {
           "scheme": "VAT",
           "value": "DE648615263",
         },
-      ],
-      [
         {
-          "scheme": "VAT",
-          "value": "DE842873154",
+          "scheme": "LEGAL_ID",
+          "value": "HRB 842873",
         },
       ],
       [
         {
           "scheme": "VAT",
-          "value": "DE660480507",
+          "value": "DE156604801",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 502017",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE501848343",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 005526",
         },
       ],
     ],
@@ -206,24 +218,36 @@ exports[`generatePartyIdentifiers > produces a stable identifier set for every d
 exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed a-very-different-seed 1`] = `
 {
   "DE": {
-    "nextDraw": 0.7340478585101664,
+    "nextDraw": 0.9202133307699114,
     "parties": [
       [
         {
           "scheme": "VAT",
           "value": "DE714696046",
         },
-      ],
-      [
         {
-          "scheme": "VAT",
-          "value": "DE507277695",
+          "scheme": "LEGAL_ID",
+          "value": "HRB 507277",
         },
       ],
       [
         {
           "scheme": "VAT",
-          "value": "DE122879826",
+          "value": "DE691228793",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 827751",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE980564565",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 895676",
         },
       ],
     ],
@@ -409,24 +433,36 @@ exports[`generatePartyIdentifiers > produces a stable identifier set for every d
 exports[`generatePartyIdentifiers > produces a stable identifier set for every demo country with seed demo-seed-1 1`] = `
 {
   "DE": {
-    "nextDraw": 0.9541775558609515,
+    "nextDraw": 0.936793067259714,
     "parties": [
       [
         {
           "scheme": "VAT",
           "value": "DE042920208",
         },
-      ],
-      [
         {
-          "scheme": "VAT",
-          "value": "DE337606360",
+          "scheme": "LEGAL_ID",
+          "value": "HRB 337606",
         },
       ],
       [
         {
           "scheme": "VAT",
-          "value": "DE810820477",
+          "value": "DE368108202",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 479582",
+        },
+      ],
+      [
+        {
+          "scheme": "VAT",
+          "value": "DE011504941",
+        },
+        {
+          "scheme": "LEGAL_ID",
+          "value": "HRB 433607",
         },
       ],
     ],

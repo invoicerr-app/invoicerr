@@ -14,7 +14,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `articles` | Catalogue of sellable items/services with stock counts, reused as invoice/quote line templates. |
 | `auth-extended` | Extends the better-auth library: local password management for OIDC-only accounts, user preferences, signup locale. |
 | `backup` | Encrypted, scheduled backups of the legal archive and uploaded files to a separate bucket. |
-| `billing` | Hosted billing only (Polar) — checkout, customer portal, seats, webhooks; inert unless the instance opts in, see [Hosted billing](./hosted-billing.md). |
+| `billing` | Hosted billing only (Stripe through Better Auth): subscription status, lifecycle, seats; inert unless the instance opts in, see [Hosted billing](./hosted-billing.md). |
 | `client-portal` | The client-facing portal: a client's own documents, balance, PDFs, payment and quote decisions. |
 | `clients` | Customer records, account statements, aged balance. |
 | `companies` | Company creation and membership (invitations, roles) — as opposed to `company`'s own settings. |
@@ -23,7 +23,7 @@ The backend (`backend/`) is a NestJS application organized into feature modules 
 | `country-readiness` | Computes and surfaces how complete a country's data coverage is across the documents catalogues. |
 | `danger` | Sensitive operations requiring OTP verification (e.g. account deletion). |
 | `documents` | The document engine — every document type (quote, invoice, credit note, expense, received invoice, purchase order, goods receipt) is one `DocumentTypeDescriptor` sharing one lifecycle, plus the per-country compliance catalogues and transmission channels. The core of this repository; see the root `CLAUDE.md`'s own "documents module" section for the full breakdown. |
-| `health` | `/api/health` readiness endpoint: Postgres and Redis pings with their latency, running version, server time, uptime. |
+| `health` | `/api/health` readiness endpoint: Postgres and Redis pings with their latency, running version, server time, uptime, and the log-persistence signal (`status: degraded` after repeated failed `Log` writes). |
 | `instance` | Instance-wide settings, first-boot preflight checks, the SaaS instance-reset flow. |
 | `invitations` | Creates and validates invitation codes for multi-user signup. |
 | `logger` | Server-sent event stream of real-time logs, filterable by category/level/user. |

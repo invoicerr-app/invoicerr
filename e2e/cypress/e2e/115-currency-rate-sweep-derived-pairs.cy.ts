@@ -13,7 +13,7 @@ export {}; // makes this spec a module, not a global script -- see tsconfig.json
  * - this spec never lowers it): that task enqueues ONE real job on the SAME BullMQ queue the
  * repeatable uses, and the backend under test's own, already-running worker picks it up and runs the
  * REAL `CurrencyRateSweepRunner.runSweep()` within moments - the same "fresh one-off job, not a
- * shortened interval" discipline `triggerPdpReceptionSweep` (cypress.config.ts) already holds for its
+ * shortened interval" discipline `triggerSuperPdpReceptionSweep` (cypress.config.ts) already holds for its
  * own sweep, and for an EXTRA reason here: this sweep scans EVERY company's data at once, so a short
  * interval applied to the whole numbered suite (the way `DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS` is)
  * would risk mutating some OTHER spec's own company mid-run.

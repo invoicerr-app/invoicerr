@@ -1,15 +1,15 @@
 import { Receipt } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { settlementBadgeInfo, TONE_CLASSES } from "@/components/documents/document-settlement"
-import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
-import { Badge } from "@/components/ui/badge"
+import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
+import { statusPresentation } from "@/components/documents/status-presentation"
+import { StatusMark } from "@/components/ui/status-mark"
+import { formatMinor } from "@/components/documents/totals-calculator"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useClientStatement } from "@/hooks/queries"
-import { cn } from "@/lib/utils"
 import type { Client, ClientStatementCurrencyTotals, ClientStatementDocumentRow } from "@/types"
 
 import { clientDisplayName } from "./client-display"
@@ -24,10 +24,6 @@ import { clientDisplayName } from "./client-display"
 interface ClientStatementDialogProps {
   client: Client | null
   onOpenChange: (open: boolean) => void
-}
-
-export function formatMinor(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
 }
 
 /** A client billed in ONLY one currency (the overwhelming common case) keeps the bare `data-cy`
@@ -45,19 +41,25 @@ function currencySuffix(currency: string, totals: ClientStatementCurrencyTotals[
  *  yields the identical tone/label a document's own settlement section would show. */
 export function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
-  const { tone, labelKey } = settlementBadgeInfo({
-    totalGrossMinor: row.amountMinor,
-    paidMinor: row.paidMinor,
-    creditedMinor: 0,
-    outstandingMinor: row.outstandingMinor,
-    excessMinor: 0,
-    settled: row.settled,
-  })
-  return (
-    <Badge variant="outline" className={cn("border-transparent font-semibold", TONE_CLASSES[tone])}>
-      {t(labelKey)}
-    </Badge>
+  if (row.conformityRejected) {
+    return (
+      <StatusMark {...statusPresentation("rejected")} data-cy={`client-statement-rejected-${row.id}`}>
+        {t("documents.rejection.badge")}
+      </StatusMark>
+    )
+  }
+  const { labelKey } = settlementBadgeInfo(
+    {
+      totalGrossMinor: row.amountMinor,
+      paidMinor: row.paidMinor,
+      creditedMinor: 0,
+      outstandingMinor: row.outstandingMinor,
+      excessMinor: 0,
+      settled: row.settled,
+    },
+    { dueDate: row.dueDate, today: localIsoDate() },
   )
+  return <StatusMark {...statusPresentation(labelKey.split(".").pop() ?? "")}>{t(labelKey)}</StatusMark>
 }
 
 function CurrencyStatementCard({
@@ -83,7 +85,7 @@ function CurrencyStatementCard({
   return (
     <div className="rounded-lg border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-sm font-semibold text-foreground">
           {t("clients.statement.totalOutstanding")}
           {allTotals.length > 1 && ` · ${totals.currency}`}
         </span>
@@ -162,7 +164,7 @@ export function ClientStatementDialog({ client, onOpenChange }: ClientStatementD
                             : "clients.statement.type.creditNote",
                         )}
                       </TableCell>
-                      <TableCell dir="ltr" className="font-mono text-xs">
+                      <TableCell dir="ltr" className="text-xs tabular-nums">
                         {row.displayNumber ?? row.id.slice(0, 8)}
                       </TableCell>
                       <TableCell dir="ltr" className="tabular-nums">

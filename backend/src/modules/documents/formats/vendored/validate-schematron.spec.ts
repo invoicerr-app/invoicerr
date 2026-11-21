@@ -21,7 +21,13 @@
  * Greek AFM respectively), an independent cross-check that the port matches the real algorithm, not
  * merely a self-consistent one.
  */
-import { PEPPOL_BIS_UBL_SCH, validateSchematron } from './validate-schematron';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+import { EN16931_CII_SCH, PEPPOL_BIS_UBL_SCH, validateSchematron } from './validate-schematron';
+
+const { Schema } = require('node-schematron');
 
 function xmlWithEndpoint(schemeID: string, value: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -157,5 +163,175 @@ describe('validate-schematron.ts — the six newly-registered Italian identifier
     expect(() => assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toThrow();
     expect(assertIds(xmlWithEndpoint('0211', 'IT01234567897'))).not.toContain('PEPPOL-COMMON-R047');
     expect(assertIds(xmlWithEndpoint('0211', 'IT01234567898'))).toContain('PEPPOL-COMMON-R047');
+  });
+});
+
+/**
+ * `validateSchematron` walks node-schematron's parsed schema itself instead of calling the library's
+ * `validateString` (see that file's own header: the library re-evaluates every rule context once per
+ * node, which made the CII export slow). The traversal is a copy of the library's algorithm, so this
+ * guards it against drift: it must report exactly the assertion ids `validateString` reports.
+ */
+function libraryAssertionIds(xml: string, schFile: string): string[] {
+  const schema = Schema.fromString(readFileSync(resolve(__dirname, schFile), 'utf-8'));
+  return schema
+    .validateString(xml)
+    .filter((result: { isReport: boolean }) => !result.isReport)
+    .map((result: { assertId: string }) => result.assertId)
+    .sort();
+}
+
+function ownAssertionIds(xml: string, schRelPath: string): string[] {
+  const result = validateSchematron(xml, schRelPath);
+  return [...result.errors, ...result.warnings].map((error) => error.id).sort();
+}
+
+/** A CII invoice with one deliberate violation (BT-115 does not match BT-112 + BT-110). */
+function ciiInvoice(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice
+    xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+    xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+    xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocumentContext>
+    <ram:GuidelineSpecifiedDocumentContextParameter>
+      <ram:ID>urn:cen.eu:en16931:2017</ram:ID>
+    </ram:GuidelineSpecifiedDocumentContextParameter>
+  </rsm:ExchangedDocumentContext>
+  <rsm:ExchangedDocument>
+    <ram:ID>TEST-CII-1</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+    <ram:IssueDateTime><udt:DateTimeString format="102">20260101</udt:DateTimeString></ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+    <ram:IncludedSupplyChainTradeLineItem>
+      <ram:AssociatedDocumentLineDocument><ram:LineID>1</ram:LineID></ram:AssociatedDocumentLineDocument>
+      <ram:SpecifiedTradeProduct><ram:Name>Service</ram:Name></ram:SpecifiedTradeProduct>
+      <ram:SpecifiedLineTradeAgreement>
+        <ram:NetPriceProductTradePrice><ram:ChargeAmount>100.00</ram:ChargeAmount></ram:NetPriceProductTradePrice>
+      </ram:SpecifiedLineTradeAgreement>
+      <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="C62">2</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>
+      <ram:SpecifiedLineTradeSettlement>
+        <ram:ApplicableTradeTax>
+          <ram:TypeCode>VAT</ram:TypeCode>
+          <ram:CategoryCode>S</ram:CategoryCode>
+          <ram:RateApplicablePercent>20</ram:RateApplicablePercent>
+        </ram:ApplicableTradeTax>
+        <ram:SpecifiedTradeSettlementLineMonetarySummation><ram:LineTotalAmount>200.00</ram:LineTotalAmount></ram:SpecifiedTradeSettlementLineMonetarySummation>
+      </ram:SpecifiedLineTradeSettlement>
+    </ram:IncludedSupplyChainTradeLineItem>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:SellerTradeParty>
+        <ram:Name>Seller</ram:Name>
+        <ram:PostalTradeAddress>
+          <ram:PostcodeCode>75001</ram:PostcodeCode><ram:LineOne>1 rue</ram:LineOne><ram:CityName>Paris</ram:CityName><ram:CountryID>FR</ram:CountryID>
+        </ram:PostalTradeAddress>
+        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">FR12345678901</ram:ID></ram:SpecifiedTaxRegistration>
+      </ram:SellerTradeParty>
+      <ram:BuyerTradeParty>
+        <ram:Name>Buyer</ram:Name>
+        <ram:PostalTradeAddress>
+          <ram:PostcodeCode>10117</ram:PostcodeCode><ram:LineOne>Strasse 1</ram:LineOne><ram:CityName>Berlin</ram:CityName><ram:CountryID>DE</ram:CountryID>
+        </ram:PostalTradeAddress>
+      </ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+    <ram:ApplicableHeaderTradeDelivery/>
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>40.00</ram:CalculatedAmount>
+        <ram:TypeCode>VAT</ram:TypeCode>
+        <ram:BasisAmount>200.00</ram:BasisAmount>
+        <ram:CategoryCode>S</ram:CategoryCode>
+        <ram:RateApplicablePercent>20</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:LineTotalAmount>200.00</ram:LineTotalAmount>
+        <ram:TaxBasisTotalAmount>200.00</ram:TaxBasisTotalAmount>
+        <ram:TaxTotalAmount currencyID="EUR">40.00</ram:TaxTotalAmount>
+        <ram:GrandTotalAmount>240.00</ram:GrandTotalAmount>
+        <ram:DuePayableAmount>239.00</ram:DuePayableAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </ram:ApplicableHeaderTradeSettlement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+}
+
+describe('validate-schematron.ts: its own traversal reports what node-schematron reports', () => {
+  it('matches Schema#validateString on a Peppol document with a real violation', { timeout: 30000 }, () => {
+    const xml = xmlWithEndpoint('0088', '5412345678909');
+    expect(ownAssertionIds(xml, PEPPOL_BIS_UBL_SCH)).toEqual(
+      libraryAssertionIds(xml, 'peppol/PEPPOL-EN16931-UBL.sch'),
+    );
+  });
+
+  it('matches Schema#validateString on an EN 16931 CII invoice', { timeout: 60000 }, () => {
+    const xml = ciiInvoice();
+    const expected = libraryAssertionIds(xml, 'en16931/EN16931-CII-validation-preprocessed.sch');
+
+    // The fixture must actually exercise the rules, otherwise parity is vacuous.
+    expect(expected.length).toBeGreaterThan(0);
+    expect(ownAssertionIds(xml, EN16931_CII_SCH)).toEqual(expected);
+  });
+
+  it('runs no pattern when defaultPhase names a phase the schema does not declare', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'schematron-phase-'));
+    const schPath = join(directory, 'missing-phase.sch');
+    const sch = `<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://purl.oclc.org/dsdl/schematron" defaultPhase="absent">
+  <ns prefix="rsm" uri="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100" />
+  <pattern id="p1">
+    <rule context="//rsm:CrossIndustryInvoice">
+      <assert id="TEST-PHASE-1" test="false()">must not run</assert>
+    </rule>
+  </pattern>
+</schema>`;
+    writeFileSync(schPath, sch);
+    try {
+      const library = Schema.fromString(sch).validateString(ciiInvoice());
+      expect(library.filter((result: { isReport: boolean }) => !result.isReport)).toEqual([]);
+
+      const result = validateSchematron(ciiInvoice(), schPath);
+      expect(result).toEqual({ valid: true, errorCount: 0, errors: [], warnings: [] });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('validateSchematron: malformed XML', () => {
+  it('returns one fatal malformed-xml error instead of throwing', () => {
+    const result = validateSchematron('<Invoice><unclosed></Invoice>', PEPPOL_BIS_UBL_SCH);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warnings).toEqual([]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].id).toBe('malformed-xml');
+    expect(result.errors[0].flag).toBe('fatal');
+    expect(result.errors[0].message).toContain('Malformed XML');
+  });
+
+  it('rejects a raw ampersand, which xmldom would otherwise parse and hand to the rules', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ubl-invoice:Invoice
+    xmlns:ubl-invoice="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+    xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:Note>A & B</cbc:Note>
+</ubl-invoice:Invoice>`;
+    const result = validateSchematron(xml, PEPPOL_BIS_UBL_SCH);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCount).toBe(1);
+    expect(result.warnings).toEqual([]);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].id).toBe('malformed-xml');
+    expect(result.errors[0].flag).toBe('fatal');
+    expect(result.errors[0].message).toContain("unescaped '&'");
+
+    // The same document with the ampersand escaped is well-formed: the guard must not reject it,
+    // and only the ordinary Schematron violations (if any) remain.
+    const escaped = validateSchematron(xml.replace('A & B', 'A &amp; B'), PEPPOL_BIS_UBL_SCH);
+    expect(escaped.errors.map((error) => error.id)).not.toContain('malformed-xml');
   });
 });

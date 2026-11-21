@@ -60,6 +60,7 @@ const OPEN_PREFLIGHT = {
   blocked: false,
   retainedDocuments: 0,
   retentionUntil: null,
+  paymentRecords: 0,
   counts: {
     documents: 3,
     clients: 2,
@@ -75,6 +76,7 @@ const BLOCKED_PREFLIGHT = {
   blocked: true,
   retainedDocuments: 2,
   retentionUntil: "2030-01-01T00:00:00.000Z",
+  paymentRecords: 0,
   counts: {
     documents: 5,
     clients: 2,
@@ -84,6 +86,12 @@ const BLOCKED_PREFLIGHT = {
     bankStatements: 0,
     archives: 5,
   },
+}
+
+const PAYMENT_BLOCKED_PREFLIGHT = {
+  ...OPEN_PREFLIGHT,
+  blocked: true,
+  paymentRecords: 4,
 }
 
 const SESSION = {
@@ -199,6 +207,20 @@ describe("<DangerZoneSettings> — company-data reset preflight", () => {
     const button = await screen.findByTestId("danger-reset-company-data-button")
     await waitFor(() => expect(button).toBeDisabled())
     expect(await screen.findByTestId("danger-retention-blocked-alert")).toHaveTextContent("2")
+    expect(screen.queryByTestId("danger-payment-ledger-blocked-alert")).not.toBeInTheDocument()
+  })
+
+  it("explains a refusal caused by recorded payments, not by retention", async () => {
+    installFetchMock({
+      "GET /api/danger/reset/company-data/preflight": () => ({ body: PAYMENT_BLOCKED_PREFLIGHT }),
+    })
+
+    renderScreen()
+
+    const button = await screen.findByTestId("danger-reset-company-data-button")
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(await screen.findByTestId("danger-payment-ledger-blocked-alert")).toHaveTextContent("4")
+    expect(screen.queryByTestId("danger-retention-blocked-alert")).not.toBeInTheDocument()
   })
 })
 

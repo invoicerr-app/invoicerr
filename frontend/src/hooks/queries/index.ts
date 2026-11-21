@@ -48,6 +48,7 @@ export {
   useLegalStatus,
   useAcceptLegal,
   useDemoMode,
+  type DemoInstanceView,
   type LegalDocumentView,
   type LegalDocumentsView,
   type LegalStatusView,
@@ -63,6 +64,7 @@ export {
 export {
   useDocumentTypesList,
   useAvailableDocumentTypes,
+  useDocumentTypeSummary,
   useDocumentType,
   useDocumentInstances,
   useDocumentInstance,
@@ -93,7 +95,8 @@ export {
   type DocumentOperator,
   type DocumentOperatorOffering,
 } from "./use-document-types"
-export { useDashboardWidgets, useStatisticsWidgets } from "./use-widgets"
+export { useDashboardWidgets, useInvoiceOverview, useStatisticsWidgets } from "./use-widgets"
+export type { InvoiceOverview } from "./use-widgets"
 export { useVersionInfo, type VersionInfo } from "./use-version"
 export {
   useUploadReceivedInvoice,
@@ -204,17 +207,12 @@ export {
 } from "./use-reconciliation"
 export {
   useBillingStatus,
-  useStartCheckout,
-  useOpenCustomerPortal,
-  useOpenLegacyCustomerPortal,
-  useBillingEmail,
-  useSetBillingEmail,
   type BillingStatusView,
   type CompanySubscriptionStatus,
-  type StartCheckoutBody,
-  type BillingEmailView,
+  type PriceGrid,
 } from "./use-billing"
 export {
+  seatHeadcount,
   useSeats,
   useMoveSeat,
   type SeatsView,
@@ -232,3 +230,23 @@ export {
   type OwnershipTransferView,
   type InitiateTransferInput,
 } from "./use-company-transfer"
+export { usePaymentTerms, useSavePaymentTerms, type SavePaymentTermsInput } from "./use-payment-terms"
+export {
+  useImportDocument,
+  usePrefillImportDocument,
+  useImportDocumentsCsvPreview,
+  useImportDocumentsCsvConfirm,
+  type ImportOriginalFileRef,
+  type ImportTransmissionEvidence,
+  type ImportDocumentVariables,
+  type ImportDocumentResult,
+  type ImportClientProposal,
+  type ImportClientMatch,
+  type ImportPrefillResult,
+  type DocumentImportCsvRow,
+  type DocumentImportCsvRowResultWire,
+  type DocumentImportCsvPreviewResult,
+  type DocumentImportCsvConfirmResult,
+  type DocumentImportCsvVariables,
+} from "./use-document-import"
+export { useCompanyCurrencySymbol } from "./use-company"

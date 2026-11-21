@@ -1,6 +1,6 @@
 /**
  * `assertPublicOutboundUrl` — the shared decision function `webhook-url-guard.ts` (webhooks),
- * `sso.service.ts`/`sso-registrar.service.ts` (company OIDC endpoints) and `pdp-client.ts`/
+ * `sso.service.ts`/`sso-registrar.service.ts` (company OIDC endpoints) and `superpdp-client.ts`/
  * `sdicoop-client.ts` (national e-invoicing transports) all delegate to. `webhook-url-guard.spec.ts`
  * already covers the private/loopback/link-local/DNS logic exhaustively through the webhook policy
  * (both schemes, no port restriction); this file instead proves the two knobs that policy never

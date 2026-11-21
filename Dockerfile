@@ -1,12 +1,13 @@
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS backend-builder
+FROM --platform=$BUILDPLATFORM node:26.13.1-bookworm AS backend-builder
 # PDF rendering uses `playwright-core` (not the full `playwright` package), which — unlike the
 # `puppeteer` it replaced — bundles no browser at all and downloads nothing on `npm ci`, so there is
 # no equivalent of puppeteer's old ~750MB postinstall fetch to skip here. The runtime stage still
 # points the app at the Chromium already present in the base image (CHROMIUM_EXECUTABLE_PATH below).
 #
 # bookworm, not bullseye: matches the runtime stage's own Debian release (server-image is
-# nginx:bookworm). 24, not 22: matches the runtime's Node, so native deps never cross a Node-ABI
-# boundary between builder and runtime.
+# nginx:bookworm). 26, not 24: matches the runtime's Node, so native deps never cross a Node-ABI
+# boundary between builder and runtime. `.nvmrc` is the source of truth for every other tool; this
+# tag and the guard at the bottom of this file are the two places Docker has to state it again.
 
 WORKDIR /app
 
@@ -24,7 +25,7 @@ RUN npm run build
 # and its native canvas binaries (about 100 MB), have no use there.
 RUN rm -rf node_modules/pdfjs-dist node_modules/@napi-rs/canvas*
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:26.13.1-bookworm AS frontend-builder
 # Matches backend-builder's version for consistency only; this stage has no native deps.
 
 WORKDIR /app
@@ -37,6 +38,11 @@ COPY frontend/. .
 RUN npm run build
 
 FROM ghcr.io/invoicerr-app/server-image:latest
+
+# The runtime Node comes from that base image, not from this file: if it is still on Node 24 while
+# the builders above are on 26, every native module installed here was built for another ABI. Fail
+# the image build instead of shipping it. Fix: publish invoicerr-app/server-image with Node 26.
+RUN node -e "const major = process.versions.node.split('.')[0]; if (major !== '26') { console.error('server-image runs Node ' + process.versions.node + ', this image is built for Node 26: publish invoicerr-app/server-image with Node 26 first'); process.exit(1); }"
 
 # `playwright-core` ships no browser of its own — this points it at the Chromium already baked into
 # the base image (`ghcr.io/invoicerr-app/server-image`), the same binary the old PUPPETEER_EXECUTABLE_PATH
@@ -68,9 +74,39 @@ COPY --from=backend-builder /app/prisma.config.ts /usr/share/nginx/backend/src
 COPY entrypoint.sh /usr/share/nginx/entrypoint.sh
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
-
 RUN chmod +x /usr/share/nginx/entrypoint.sh
+
+# Run as an unprivileged user (uid/gid 10001), never root. A remote code execution in the backend, in
+# nginx or in the Chromium that renders PDFs (it parses HTML built from invoice data, and public share
+# links can trigger a render) must not be root in the container.
+#  - nginx: the `user` directive only means something to a root master process, and the pid file
+#    moves to /tmp; only the paths it writes at runtime are handed to the user (temp files in
+#    /var/cache/nginx, logs, and conf.d, where entrypoint.sh's ENABLE_HSTS edit rewrites
+#    default.conf in place).
+#  - port 80 stays: Docker (20.10+) sets net.ipv4.ip_unprivileged_port_start=0 in every container,
+#    so a non-root process may bind it without any capability. The Helm chart sets the same sysctl.
+#  - /data is the documents volume of docker-compose.yml and of the Helm chart: a NEW named volume
+#    copies this directory's owner, so it starts out writable. A volume created by an older, root
+#    image stays root-owned; entrypoint.sh detects that and prints the one-line fix.
+#  - the two .documents-* directories are the archive and inbound defaults when DOCUMENTS_ARCHIVE_DIR
+#    and DOCUMENTS_INBOUND_DIR are not set (relative to the backend's working directory).
+# Escape hatch for an operator who cannot fix volume ownership yet: run the container as root
+# (`user: "0:0"` in compose), which behaves exactly like the images before this change.
+RUN groupadd --system --gid 10001 invoicerr \
+ && useradd --system --uid 10001 --gid 10001 --create-home --home-dir /home/invoicerr \
+      --shell /usr/sbin/nologin invoicerr \
+ && sed -i -e '/^user /d' -e 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
+ && mkdir -p /data /var/cache/nginx /var/log/nginx \
+      /usr/share/nginx/backend/src/.documents-archive /usr/share/nginx/backend/src/.documents-inbound \
+ && touch /usr/share/nginx/html/config.json \
+ && chown -R 10001:10001 /data /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+      /usr/share/nginx/html/config.json \
+      /usr/share/nginx/backend/src/.documents-archive /usr/share/nginx/backend/src/.documents-inbound \
+ && grep -q '^pid /tmp/nginx.pid;' /etc/nginx/nginx.conf
+
+USER 10001:10001
+
+EXPOSE 80
 
 # Which commit this image was built from — deliberately the LAST thing in the file.
 # `GIT_REVISION` changes on every build, so anything placed after an instruction that consumes it is

@@ -35,6 +35,7 @@ interface Seller {
 interface Buyer {
   country: string;
   type?: 'COMPANY' | 'INDIVIDUAL';
+  vatRegistered?: boolean;
   identifiers?: Identifier[];
 }
 
@@ -44,7 +45,7 @@ const BUYER_NAME = 'Buyer Corp';
 async function renderInvoice(
   seller: Seller,
   buyer: Buyer,
-  options: { status?: string; purpose?: RenderPurpose } = {},
+  options: { status?: string; purpose?: RenderPurpose; buyerIdentifiers?: unknown } = {},
 ): Promise<{ seller: string; buyer: string }> {
   (prisma.company.findUnique as Mock).mockResolvedValue({
     name: SELLER_NAME,
@@ -71,6 +72,7 @@ async function renderInvoice(
     country: buyer.country,
     countryCode: null,
     type: buyer.type ?? 'COMPANY',
+    vatRegistered: buyer.vatRegistered ?? true,
     partyIdentifiers: buyer.identifiers ?? [],
   });
   const referenceRegistry = new EntityReferenceRegistry();
@@ -89,6 +91,7 @@ async function renderInvoice(
       displayNumber: null,
       atcud: null,
       acceptedOption: null,
+      buyerIdentifiers: options.buyerIdentifiers ?? null,
     },
     options.purpose ?? 'on-demand',
   );
@@ -101,7 +104,7 @@ async function renderInvoice(
       .replaceAll('&#039;', "'")
       .replaceAll(/\s+/g, ' ');
   return {
-    seller: textBetween('class="company-info"', 'class="recipient-info"'),
+    seller: textBetween('class="company-address"', 'class="recipient-info"'),
     buyer: textBetween('class="recipient-info"', 'class="meta-grid"'),
   };
 }
@@ -141,6 +144,28 @@ describe('the invoice PDF prints the parties identifiers', () => {
     expect(buyer).not.toContain('732829320');
   });
 
+  it("prints the buyer's identifiers as they were when the document was numbered, not the client's current ones", async () => {
+    const { buyer } = await renderInvoice(
+      { country: 'France', identifiers: [{ scheme: 'LEGAL_ID', value: '732829320' }] },
+      { country: 'Germany', identifiers: [{ scheme: 'VAT', value: 'DE999999999' }] },
+      {
+        status: 'sent',
+        buyerIdentifiers: [
+          {
+            scheme: 'VAT',
+            value: 'DE123456789',
+            validationStatus: 'VALID',
+            validatedAt: '2026-09-30T08:00:00.000Z',
+            validationSource: 'VIES',
+          },
+        ],
+      },
+    );
+
+    expect(buyer).toContain('DE123456789');
+    expect(buyer).not.toContain('DE999999999');
+  });
+
   it('flags the VAT number of a VAT-registered French seller as missing on the working copy', async () => {
     const { seller } = await renderInvoice(
       { country: 'France', identifiers: [{ scheme: 'LEGAL_ID', value: '732829320' }] },
@@ -173,11 +198,27 @@ describe('the invoice PDF prints the parties identifiers', () => {
       expect(buyer).not.toContain('SIREN');
     });
 
-    it('a domestic business buyer is asked for its SIREN, not its VAT number', async () => {
-      const { buyer } = await renderInvoice(frenchSeller, { country: 'France', type: 'COMPANY' });
+    it('an intra-EU business buyer that is not VAT-registered is asked for no VAT number, nor is the seller', async () => {
+      const { seller, buyer } = await renderInvoice(
+        { ...frenchSeller, exemptVat: true },
+        { country: 'Germany', type: 'COMPANY', vatRegistered: false },
+      );
 
-      expect(buyer).toContain('SIREN / SIRET: missing');
-      expect(buyer).not.toContain('TVA');
+      expect(buyer).not.toContain('Umsatzsteuer');
+      expect(seller).not.toContain('N° TVA intracommunautaire');
+    });
+
+    it('a domestic business buyer is asked for its SIREN, not its VAT number, whether registered or not', async () => {
+      for (const vatRegistered of [true, false]) {
+        const { buyer } = await renderInvoice(frenchSeller, {
+          country: 'France',
+          type: 'COMPANY',
+          vatRegistered,
+        });
+
+        expect(buyer).toContain('SIREN / SIRET: missing');
+        expect(buyer).not.toContain('TVA');
+      }
     });
 
     it('a private buyer is asked for neither', async () => {

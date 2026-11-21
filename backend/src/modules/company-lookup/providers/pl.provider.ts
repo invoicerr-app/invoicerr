@@ -1,17 +1,13 @@
 /**
  * Poland — Wykaz podatników VAT ("biała lista", Ministerstwo Finansów).
+ * Docs: https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/ (no credentials).
  *
- * Endpoint : GET https://wl-api.mf.gov.pl/api/search/nip/{nip}?date=YYYY-MM-DD
- * Docs     : https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/
- * Credentials: none.
- *
- * The `date` is mandatory and must not be in the future in Polish local time — the
- * register answers "as of" that day, which is also how it reports VAT status.
+ * The mandatory `date` answers "as of" that day and must not be in the future in Polish local time.
  */
 import { defaultLookupCoverage } from '../coverage/registry';
-import { digits, fetchJson, stripVatPrefix, toDate } from '../http';
+import { DEFAULT_TIMEOUT_MS, digits, fetchJson, stripVatPrefix, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { localDate } from './shared';
+import { credentialsPresent, localDate } from './shared';
 
 const WL_URL = 'https://wl-api.mf.gov.pl/api/search/nip';
 
@@ -51,10 +47,10 @@ export class PolandWykazProvider implements CompanyRegistryProvider {
   readonly docsUrl = 'https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka/api/';
   readonly credentialEnvVars = [] as const;
 
-  constructor(private readonly timeoutMs = 8000) {}
+  constructor(private readonly timeoutMs = DEFAULT_TIMEOUT_MS) {}
 
-  isConfigured() {
-    return true;
+  isConfigured(): boolean {
+    return credentialsPresent(this.credentialEnvVars);
   }
 
   supports(query: CompanyLookupQuery): boolean {

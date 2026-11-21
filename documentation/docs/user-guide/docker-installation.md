@@ -16,15 +16,52 @@ The fastest way to run Invoicerr is using Docker Compose. A prebuilt image is av
 
 :::warning[32-bit ARM is no longer supported]
 `linux/arm/v7` was dropped from the image's multi-arch manifest. Node.js stopped publishing
-`linux-armv7l` binaries starting with Node 24, which both this image and its base image
-(`server-image`) now run on. If you were running Invoicerr on a 32-bit ARM board (Raspberry Pi
+`linux-armv7l` binaries starting with Node 24, and both this image and its base image
+(`server-image`) run Node 26 today. If you were running Invoicerr on a 32-bit ARM board (Raspberry Pi
 2/3/Zero on the 32-bit OS), install a 64-bit OS on the same board and pull the image again: any
 board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image unchanged.
 :::
 
+## Image tags
+
+Every image is tagged with a CalVer release: `AA.M.N`, where `AA` is the two-digit year, `M` the
+month without a leading zero, and `N` a counter that restarts at zero every month. The first
+stable release is `26.11.0`; a pre-release of it is `26.11.0-beta.1` or `26.11.0-rc.1`.
+
+Three moving tags exist, one per channel:
+
+| Tag | Follows | GitHub release |
+| --- | --- | --- |
+| `latest` | the newest stable release | yes |
+| `beta` | the newest tagged beta/rc | yes, as a pre-release |
+| `nightly` | every commit merged into `dev` | no |
+
+A pre-release is never published as `latest`: to run one, write its exact tag in `image:`, such as
+`ghcr.io/invoicerr-app/invoicerr:26.11.0-beta.1`. The
+[releases page](https://github.com/invoicerr-app/invoicerr/releases) lists every tag, pre-releases
+included. Only the newest release is supported, and migrations are cumulative, so an instance can
+skip versions when upgrading: pull the new image and restart.
+
 ## Quick start
 
-1. Create a `docker-compose.yml` file with the following content, then adjust the environment variables to your setup:
+:::danger[The latest tag still points at 1.x for now]
+Until the first CalVer stable release (`26.11.0`) is published, `:latest` is still `v1.4.5c`, and so
+is the release GitHub marks as "Latest". The 1.x line has three published security advisories that
+are not patched there and never will be, listed in the project's
+[security policy](https://github.com/invoicerr-app/invoicerr/blob/dev/SECURITY.md#known-unpatched-issues-on-the-current-release-line).
+The compose file below also expects the v2 line. Until then, replace `:latest` with the newest v2
+tag from the [releases page](https://github.com/invoicerr-app/invoicerr/releases).
+:::
+
+1. Create a `.env` file next to where `docker-compose.yml` will live, holding the two secrets the
+   compose file below reads:
+
+   ```bash title=".env"
+   POSTGRES_PASSWORD=<output of: openssl rand -hex 24>
+   BETTER_AUTH_SECRET=<output of: openssl rand -hex 32>
+   ```
+
+2. Create a `docker-compose.yml` file with the following content, then adjust the environment variables to your setup:
 
    ```yaml title="docker-compose.yml"
    services:
@@ -32,6 +69,8 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
        image: ghcr.io/invoicerr-app/invoicerr:latest
        ports:
          - "80:80"
+       volumes:
+         - documents_data:/data
        environment:
          - DATABASE_URL=postgresql://invoicerr:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to this one}@invoicerr_db:5432/invoicerr_db
          - APP_URL=https://invoicerr.example.com
@@ -45,13 +84,17 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
          # Email delivery - see "Email delivery" below for the Resend alternative (Brevo's own SMTP
          # relay also works with the SMTP settings below)
          - SMTP_HOST=smtp-relay.example.com
-         - SMTP_USER="username@example.com"
-         - SMTP_FROM="user-from@example.com"
-         - SMTP_PASSWORD="your_smtp_password"
+         - SMTP_USER=username@example.com
+         - SMTP_FROM=user-from@example.com
+         - SMTP_PASSWORD=your_smtp_password
          - SMTP_PORT=587
          - SMTP_SECURE=false
 
-         - BETTER_AUTH_SECRET="your_better_auth_secret"
+         - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in a .env file next to this one}
+
+         # Generated PDFs, the legal archive, received invoices and logos: kept on the volume above.
+         - DOCUMENTS_ARCHIVE_DIR=/data/documents-archive
+         - DOCUMENTS_INBOUND_DIR=/data/documents-inbound
        depends_on:
          - invoicerr_db
          - redis
@@ -66,6 +109,38 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
        volumes:
          - db_data:/var/lib/postgresql/data
 
+     # Database dump on a schedule, kept in the db_backups volume: see the Backups page.
+     invoicerr_db_backup:
+       image: postgres:15
+       environment:
+         PGHOST: invoicerr_db
+         PGUSER: invoicerr
+         PGDATABASE: invoicerr_db
+         PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a .env file next to this one}
+         DB_BACKUP_INTERVAL_SECONDS: ${DB_BACKUP_INTERVAL_SECONDS:-86400}
+         DB_BACKUP_KEEP_DAYS: ${DB_BACKUP_KEEP_DAYS:-14}
+       entrypoint: ["/bin/sh", "-c"]
+       command:
+         - |
+           until pg_isready -q; do sleep 5; done
+           while true; do
+             file="/backups/invoicerr_db-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+             if pg_dump --format=custom --file="$$file.partial"; then
+               mv "$$file.partial" "$$file"
+               echo "Database backup written: $$file"
+             else
+               rm -f "$$file.partial"
+               echo "Database backup FAILED" >&2
+             fi
+             find /backups -name 'invoicerr_db-*.dump' -mtime +"$$DB_BACKUP_KEEP_DAYS" -delete
+             sleep "$$DB_BACKUP_INTERVAL_SECONDS"
+           done
+       volumes:
+         - db_backups:/backups
+       depends_on:
+         - invoicerr_db
+       restart: unless-stopped
+
      redis:
        image: bitnami/redis:latest
        environment:
@@ -76,20 +151,37 @@ board capable of 64-bit Debian (Pi 3 and newer) runs the `linux/arm64/v8` image 
    volumes:
      db_data:
        driver: local
+     db_backups:
+       driver: local
      redis_data:
+       driver: local
+     documents_data:
        driver: local
    ```
 
    The app will not boot at all without a reachable Redis — it is not optional, and there is no
    degraded fallback if it is missing.
 
-2. Run the app:
+   The `invoicerr_db_backup` service dumps the database once a day and keeps two weeks of dumps.
+   See [Database backups with Docker Compose](./backups.md#database-backups-with-docker-compose) to
+   change that, copy the dumps off the host and restore one.
+
+   :::warning[No quotes in list-style values]
+   In the `- KEY=value` form used above, Docker Compose keeps quotes as part of the value:
+   `- SMTP_USER="me@example.com"` sets the user to `"me@example.com"`, quotes included, and the SMTP
+   server refuses it. Write the value bare, even when it contains spaces. Quotes are only stripped in
+   the `KEY: "value"` map form and in a `.env` file.
+   :::
+
+3. Run the app:
 
    ```bash
    docker compose up -d
    ```
 
-3. Open your browser at `http://localhost`.
+4. Open your browser at the address set in `APP_URL`. To try it on your own machine first, set
+   `APP_URL=http://localhost` and open `http://localhost`; see [HTTP on a LAN or HTTPS behind a
+   reverse proxy](#http-on-a-lan-or-https-behind-a-reverse-proxy) for anything else.
 
 :::tip
 The repository's [`docker-compose.yml`](https://github.com/invoicerr-app/invoicerr/blob/main/docker-compose.yml) also includes an OIDC example (placeholder values, live rather than commented out — set `OIDC_CLIENT_ID` to actually register the provider, or remove the whole block if you don't want single sign-on).
@@ -115,6 +207,24 @@ Setting a `POSTGRES_PASSWORD` that does not match what is actually inside the da
 fail to connect; it does not reset anything inside Postgres by itself.
 :::
 
+:::warning[Upgrading to an image that runs as non-root]
+The image runs as the unprivileged user `invoicerr` (uid/gid `10001`), no longer as root. A volume
+created by an older image is still owned by root, and the container stops at boot with an error that
+names the directory it cannot write. Hand the volume to that user once, then start again:
+
+```bash
+docker compose down
+docker run --rm -u 0 -v <project>_documents_data:/data ghcr.io/invoicerr-app/invoicerr:latest \
+  chown -R 10001:10001 /data
+docker compose up -d
+```
+
+(`docker volume ls` shows the volume's real name.) A bind mount needs the same `chown` on the host
+directory. If you cannot change ownership right away, `user: "0:0"` under the `invoicerr` service runs
+the container as root, exactly like the older images, until you can. A volume created by the new
+image is owned by `10001` from the start and needs nothing.
+:::
+
 One thing that is **not** automatic: if a release actually **drops a country** from one of the
 document-action policy / identifier-requirements / B2G-routing catalogs, removing that country's
 database rows is a deliberate, separate step — every automatic boot path only ever adds/updates
@@ -138,16 +248,102 @@ These are set under the `invoicerr` service's `environment` key.
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string, built from `POSTGRES_PASSWORD` below, e.g. `postgresql://invoicerr:${POSTGRES_PASSWORD}@invoicerr_db:5432/invoicerr_db` |
 | `POSTGRES_PASSWORD` | Required. The `invoicerr_db` service's own password, generated with e.g. `openssl rand -hex 24`. Postgres sets it only once, the first time the database volume is initialised; see the upgrade warning below before changing it on an existing deployment. |
-| `APP_URL` | Full public URL of the frontend (e.g. `https://invoicerr.example.com`). Required for email templates and links, and used as better-auth's own base URL. |
+| `APP_URL` | The address users open in their browser, scheme and port included (e.g. `https://invoicerr.example.com` or `http://nas.local:8181`). Used for email links, as better-auth's own base URL, and to decide whether session cookies are `Secure`. Sign-in is refused from any other address unless it is listed in `CORS_ORIGINS`. |
+| `CORS_ORIGINS` | Optional. Comma-separated extra addresses users may open the app from besides `APP_URL` (e.g. `http://192.168.1.20:8181` when `APP_URL` uses a host name). |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Required — the app refuses to boot without a reachable Redis (BullMQ queues every document-send job). Defaults to `localhost:6379`, no password, if unset; `REDIS_URL` (e.g. `redis://:pass@redis:6379`) is accepted instead and wins when both are set. |
-| `BETTER_AUTH_SECRET` | The one that's actually documented and recommended — any random string, e.g. `openssl rand -hex 32`. Leaving it (and `JWT_SECRET` below) unset falls back to a known default, which the app flags as insecure. |
+| `BETTER_AUTH_SECRET` | Required. Signs every session; generate it with `openssl rand -hex 32`. The app refuses to boot when it is unset (and `JWT_SECRET` too) or still set to a placeholder such as `your_better_auth_secret`. |
 | `JWT_SECRET` | A **legacy fallback only** — better-auth reads `BETTER_AUTH_SECRET \|\| JWT_SECRET`. Set `BETTER_AUTH_SECRET` instead for anything new; this one exists so an older deployment that only ever set `JWT_SECRET` keeps working unchanged. |
+| `DOCUMENTS_ARCHIVE_DIR` | Where generated PDFs and the legal document archive are written. Point it inside a volume (`/data/documents-archive` in the example): left unset, files go to the container's own filesystem and are lost when the container is recreated, for example on every update. |
+| `DOCUMENTS_INBOUND_DIR` | Where received invoices, expense attachments and company logos are stored. Same rule: inside the volume (`/data/documents-inbound`). |
+| `DOCUMENTS_TEMP_DIR` | Optional. The one directory this process uses for short-lived files: today, the ZIP built for a company data export before it is streamed or mailed. Defaults to `<system temp>/invoicerr-temp`; point it at a tmpfs or a size-capped volume on a small host. Each unit of work gets its own `0700` subdirectory, deleted as soon as it is read back, and a directory left by a crash is deleted after 24 hours. The root must be a real directory, not a symlink, owned by the user the backend runs as and with mode `0700`; the sweep only removes directories the application created, so anything else under that root is left alone. |
 | `DEFAULT_LOCALE` | Optional. Instance-wide fallback language (`en`, `fr`, `it`, `pl`, `de`, or `pt`) for any document or system email whose client/company/user never set one of their own — see [Document Language](./document-language.md) for the full cascade. Left unset, everything renders in English exactly as before. |
+| `CHROMIUM_SANDBOX` | Optional, `auto` by default. Whether the Chromium that renders PDFs runs inside its own sandbox, an extra wall between a malicious document and the rest of the container. `auto` uses the sandbox when the kernel and the container runtime allow it, and otherwise renders without it and logs a warning once. `on` refuses to render without it; `off` never uses it. Docker's default seccomp profile blocks the user namespaces the sandbox needs, so `auto` falls back; see [Chromium sandbox](#chromium-sandbox) to turn it on. |
 | `PDF_RENDER_CONCURRENCY` | Optional, `4` by default. How many PDFs one process renders at once; further requests wait their turn. Up to this many Chromium pages stay open between renders so the next one starts faster, which costs memory even when idle. |
 | `SESSION_CACHE_TTL_MS` | Optional, `10000` (10 seconds) by default. How long the API keeps a signed-in session in memory instead of reading it from the database on every request. Sign-outs, company switches and membership or role changes are still seen by the very next request. `0` turns the cache off. |
 | `ADDRESS_AUTOCOMPLETE_URL` | Optional, empty by default. Turns on address suggestions (street, house number, postcode, city, country) while typing a client's or your company's address - see [Address autocomplete](#address-autocomplete) below. |
+| `CASH_RECORDING_PUBLISHER_NAME` / `CASH_RECORDING_PUBLISHER_REPRESENTATIVE` / `CASH_RECORDING_PUBLISHER_CITY` / `CASH_RECORDING_MARKETED_SINCE` | Optional. The publisher's details printed on the French payment-records attestation: company name, signatory, city of signature, first marketing date. Left unset, the line stays blank - see [Payment records](./billing/payment-records.md). |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
+
+## Chromium sandbox
+
+PDFs are rendered by a headless Chromium inside the container, which runs as a non-root user. On top of
+that, Chromium can isolate each page in its own sandbox, which needs Linux user namespaces. Docker's
+default seccomp profile blocks them, so with the default `CHROMIUM_SANDBOX=auto` the log says
+`Chromium sandbox unavailable, falling back to --no-sandbox` and PDFs render without it. To render
+inside the sandbox, relax seccomp for the `invoicerr` service and make the sandbox mandatory:
+
+```yaml
+services:
+  invoicerr:
+    security_opt:
+      - seccomp=unconfined # or seccomp=/path/to/profile.json allowing clone/unshare with CLONE_NEWUSER
+    environment:
+      - CHROMIUM_SANDBOX=on
+```
+
+No extra capability (`cap_add`) is needed. `seccomp=unconfined` lifts the system call filter for the
+whole container: a custom profile, Docker's default one plus `clone`, `unshare` and `setns`, is the
+narrower choice. CI renders a PDF both ways on every change to the image (`docker-smoke.yml`).
+
+## HTTP on a LAN or HTTPS behind a reverse proxy
+
+Session cookies follow the scheme of `APP_URL`: `Secure` for `https://`, plain for `http://`. A
+browser drops a `Secure` cookie received over plain HTTP, so `APP_URL` must be the exact address
+users type, scheme included.
+
+**Over plain HTTP on a local network.** Map a port and give that address:
+
+```yaml
+ports:
+  - "8181:80"
+environment:
+  - APP_URL=http://nas.local:8181
+```
+
+Sign-in works, and the backend logs one warning at boot: passwords and session cookies travel
+unencrypted, so anyone on the same network can read them. Keep this for a network you trust, never
+for an instance reachable from the internet.
+
+**Over HTTPS behind a reverse proxy** (Caddy, Traefik, nginx, a Cloudflare tunnel). The proxy
+terminates TLS and forwards to the container's port 80:
+
+```yaml
+environment:
+  - APP_URL=https://invoicerr.example.com
+  - TRUST_PROXY_HOPS=2
+```
+
+`APP_URL` is the public `https://` address, never the internal `http://` one the proxy forwards to.
+`TRUST_PROXY_HOPS` counts the HTTP proxies in front of the app, the container's own nginx included,
+so that rate limits apply per client rather than to the proxy's address.
+
+:::info[When sign-in fails]
+The sign-in page names the cause:
+
+- **This address cannot sign in**: the page was opened from an address that is neither `APP_URL`
+  nor listed in `CORS_ORIGINS` (for example by IP while `APP_URL` uses a host name). Open the
+  `APP_URL` address, or add the other one to `CORS_ORIGINS`.
+- **Signed in, but no session was kept**: the browser dropped the session cookie, usually because
+  `APP_URL` says `https://` while the page was opened over `http://`. Open the `https://` address,
+  or set `APP_URL` to the `http://` one.
+:::
+
+## Response compression
+
+The container's nginx compresses what it sends when the browser asks for it (`Accept-Encoding: gzip`),
+with nothing to configure:
+
+- The app's JavaScript, CSS and HTML are compressed once when the image is built, and nginx sends the
+  stored `.gz` file. The first page load drops from about 1.5 MB to about 420 KB.
+- API responses over 1 KB in JSON, XML, CSV or plain text are compressed on the fly, typically by 70
+  to 85 percent.
+- PDFs, zip archives, images and the live event streams are sent as they are, as are sign-in and
+  session responses (`/api/auth`).
+
+A reverse proxy in front (Caddy, Traefik, nginx, Cloudflare) passes these responses through unchanged:
+it does not compress them a second time. API clients that send no `Accept-Encoding` header, such as
+`curl` without `--compressed`, keep receiving uncompressed responses.
 
 ## Address autocomplete
 
@@ -194,9 +390,9 @@ Invoicerr needs to send emails (quote/invoice notifications, signature links). T
 ```yaml
 - MAIL_PROVIDER=smtp # can be omitted, this is the default
 - SMTP_HOST=smtp-relay.example.com
-- SMTP_USER="username@example.com"
-- SMTP_FROM="user-from@example.com" # optional, defaults to SMTP_USER
-- SMTP_PASSWORD="your_smtp_password"
+- SMTP_USER=username@example.com
+- SMTP_FROM=user-from@example.com # optional, defaults to SMTP_USER
+- SMTP_PASSWORD=your_smtp_password
 - SMTP_PORT=587 # default SMTP port for TLS
 - SMTP_SECURE=false # set to true if your SMTP server requires a secure connection
 ```
@@ -218,8 +414,8 @@ Brevo (formerly Sendinblue) has no dedicated provider any more — use its own S
 
 ```yaml
 - MAIL_PROVIDER=resend
-- RESEND_API_KEY="your_resend_api_key"
-- MAIL_FROM="user-from@example.com" # optional, falls back to SMTP_FROM/SMTP_USER
+- RESEND_API_KEY=your_resend_api_key
+- MAIL_FROM=user-from@example.com # optional, falls back to SMTP_FROM/SMTP_USER
 ```
 
 | Variable | Description |

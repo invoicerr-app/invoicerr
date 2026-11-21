@@ -10,6 +10,16 @@ function baseFact(overrides: Partial<B2gRoutingRuleFact> = {}): B2gRoutingRuleFa
   };
 }
 
+/** The shape every requiredDocumentFields test starts from; each test overrides one property. */
+const validDocumentField = {
+  field: 'buyerReference',
+  label: 'Leitweg-ID',
+  labelKey: 'documents.countryFields.buyerReference.leitwegId.label',
+  helpTextKey: 'documents.countryFields.buyerReference.leitwegId.helpText',
+  why: 'because',
+  required: true,
+};
+
 describe('assertValidB2gRoutingFact', () => {
   it('accepts a well-formed LEGAL fact', () => {
     expect(() => assertValidB2gRoutingFact(baseFact(), 'test')).not.toThrow();
@@ -62,16 +72,21 @@ describe('assertValidB2gRoutingFact', () => {
 
   it('rejects a requiredDocumentFields entry missing field/label/why', () => {
     const fact = baseFact({
-      requiredDocumentFields: [{ field: 'buyerReference', label: '', why: 'because', required: true }],
+      requiredDocumentFields: [{ ...validDocumentField, label: '' }],
+    });
+    expect(() => assertValidB2gRoutingFact(fact, 'test')).toThrow(/requiredDocumentFields/);
+  });
+
+  it('rejects a requiredDocumentFields entry without translation keys', () => {
+    const fact = baseFact({
+      requiredDocumentFields: [{ ...validDocumentField, labelKey: '', helpTextKey: '' }],
     });
     expect(() => assertValidB2gRoutingFact(fact, 'test')).toThrow(/requiredDocumentFields/);
   });
 
   it('rejects a requiredDocumentFields entry with a non-boolean "required"', () => {
     const fact = baseFact({
-      requiredDocumentFields: [
-        { field: 'buyerReference', label: 'Leitweg-ID', why: 'because', required: undefined as never },
-      ],
+      requiredDocumentFields: [{ ...validDocumentField, required: undefined as never }],
     });
     expect(() => assertValidB2gRoutingFact(fact, 'test')).toThrow(/"required"/);
   });
@@ -79,9 +94,7 @@ describe('assertValidB2gRoutingFact', () => {
   it('accepts well-formed requiredClientIdentifiers and requiredDocumentFields together', () => {
     const fact = baseFact({
       requiredClientIdentifiers: [{ scheme: 'LEGAL_ID', label: 'SIRET', why: 'because' }],
-      requiredDocumentFields: [
-        { field: 'buyerReference', label: 'Leitweg-ID', why: 'because', required: true },
-      ],
+      requiredDocumentFields: [validDocumentField],
     });
     expect(() => assertValidB2gRoutingFact(fact, 'test')).not.toThrow();
   });

@@ -186,7 +186,10 @@ export class ReminderSweepRunner {
     // to chase are by definition the ones NOT recently touched, which is exactly what a
     // `updatedAt`-ordered capped read dropped first (past the cap a company's oldest debts simply
     // stopped being reminded, and the sweep reported a clean pass while doing it).
-    const invoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent', 'imported'] });
+    // An invoice its e-invoicing platform rejected never reached the client: it is not chased.
+    const invoices = (
+      await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent', 'imported'] })
+    ).filter((invoice) => !invoice.conformityRejectedAt);
     if (invoices.length === 0) return { remindersSent: 0, skipped: 0 };
 
     const invoiceIds = invoices.map((invoice) => invoice.id);

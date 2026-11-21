@@ -44,6 +44,35 @@ validating a domestic Italian B2B invoice shows a dedicated alert naming SdI and
 cannot be undone, a separate block from the generic "numbering and locking are final" warning every
 other locking action already shows.
 
+The SdI mandate binds a private buyer too. D.Lgs. 127/2015 art. 1 comma 3 covers supplies « tra
+soggetti residenti o stabiliti nel territorio dello Stato », not only between taxable persons, and
+the same comma provides for e-invoices issued to final consumers. The `sdi` fact therefore carries
+no `scope.buyerType`: an Italian invoice to a client of type Individual still goes through SdI, and
+Validate still transmits it.
+
+## Partita IVA and codice fiscale
+
+DPR 633/1972 art. 21, comma 2 asks every invoice for the seller's Partita IVA (lettera d) and, for
+the buyer (lettera f), its Partita IVA, the VAT number of its own member state when it is established
+elsewhere in the Union, or its codice fiscale when it is resident in Italy and does not act as a
+business. The `identifiers` section of `countries/data/it.json` encodes it with the party's type
+standing in for "acts as a business", which the app does not record:
+
+| Party | Must be filled in to save | Scheme |
+| --- | --- | --- |
+| Your company (Settings, onboarding) | Partita IVA | `VAT`, `required: true` |
+| Company client | Partita IVA | `VAT`, `required: true` |
+| Individual client | Codice fiscale | `LEGAL_ID`, `requiredFor: ["INDIVIDUAL"]` |
+
+A company client may leave the codice fiscale empty, and an individual client is not offered a
+Partita IVA field. A sole trader entered as an individual is therefore asked for a codice fiscale,
+not a Partita IVA.
+
+:::info[Clients saved before]
+An Italian client saved without the number keeps its record. The client form asks for it at the next
+edit, and Validate and Send keep refusing an invoice to it until it is filled in.
+:::
+
 This page is a pointer by design. Everything Invoicerr knows about Italy lives in its own data
 files, and two pages already say it without anyone retyping it:
 
@@ -81,6 +110,11 @@ The other detailed codes the schema accepts (`N1`, `N3.3` to `N3.6`, `N5`, `N6.1
 listed with their source but carry no `appliesTo`: nothing on an invoice can select them yet. The N6
 codes in particular wait for the `domesticReverseCharge` categories to reach the tax engine.
 
+The same Natura codes, and the full `RegimeFiscale` list, are declared a second time under
+`codeLists` (`fatturaPaNatura`, `fatturaPaRegimeFiscale`) for the declarations model, which needs them
+without importing the invoice builder. `code-lists/country-data.spec.ts` fails when the Natura copy
+stops matching `exemptionCodes`.
+
 :::info[A 0 % line with no code is refused]
 A line without VAT that no entry matches (a bare legacy `0` rate, for instance) makes the build
 invalid with a message naming the line. The SdI has refused the generic codes `N2`, `N3` and `N6` since
@@ -100,6 +134,29 @@ filling in electronic invoices (version 1.10). No invoice built with them has be
 SdI yet, in test or production.
 :::
 
+## Stamp duty (`DatiBollo`)
+
+An invoice that carries **no VAT** above a threshold owes a fixed stamp duty, declared in the
+FatturaPA `DatiBollo` block. The builder reads every figure from the `stampDuty` entry of
+`einvoiceCodes` in `countries/data/it.json`: the amount (2,00 €), the threshold (77,47 €) and the
+seller schemes it binds (`STANDARD`, `FRANCHISE_BASE`, `EXEMPT`) - never from a country branch in the code:
+
+- **Who owes it**: the invoice carries no VAT on the part that matters, and that part exceeds 77,47 €.
+  A VAT-bearing invoice never owes it, at any amount (D.P.R. 642/1972, Tabella Allegato B, art. 6).
+- **What the threshold is measured on**: only the part of the invoice that carries no VAT, never
+  `ImportoTotaleDocumento`. On a mixed invoice, the taxed lines do not count towards the 77,47 €
+  (Agenzia delle Entrate, risposta a interpello n. 45/2024, recalling risoluzione n. 98/E of 2001).
+- **What is emitted**: `<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>`,
+  between `Numero` and `ImportoTotaleDocumento`, the position `DatiGeneraliDocumentoType` declares in
+  the vendored schema. The amount is **declared, not added** to the document totals: it is a tax the
+  seller pays through its quarterly F24, so no line and no total is invented for it.
+
+Two cases are deliberately left without the block, rather than guessed at: a document in a currency
+other than the euro (the 2,00 € would need the ECB rate frozen at issue) and an invoice to a public
+administration (who bears the duty there is not sourced in this repository yet). `fatturapa-provider.spec.ts`
+proves the block appears above the threshold, is absent at exactly 77,47 € and below, and that a
+threshold measured on a mixed invoice's exempt part alone does not fire.
+
 ## Fallback payment term
 
 The `paymentTerms.fallbackTerm` entry of `countries/data/it.json` is the 30 days an invoice's due
@@ -108,3 +165,61 @@ terms](../../user-guide/settings/payment-terms.md)). D.Lgs. 231/2002, art. 4, co
 caps the payment period at 30 days from the debtor's receipt of the invoice, unless the parties
 agree otherwise (`basis: "maximumWhenNotAgreed"`). The application counts the 30 days from the
 invoice date, not from receipt of the invoice.
+
+## Company-law mentions
+
+The `companyLaw` section of `countries/data/it.json` prints, under the seller's name on invoices,
+quotes, credit notes and purchase orders (atti e corrispondenza), from codice civile art. 2250:
+
+| Legal forms | Printed | Paragraph |
+| --- | --- | --- |
+| S.r.l., S.p.A., S.a.p.a., S.n.c., S.a.s. | "Registro delle imprese di Milano n. 01234567890" | first |
+| S.r.l., S.p.A., S.a.p.a. | "Capitale sociale versato 10000.00 EUR" | second |
+| S.r.l. and S.p.A. con unico socio | "Società con unico socio" | fourth |
+| Ditta individuale, other forms | nothing | art. 2250 binds società |
+
+The sede is the company address. Text read at normattiva.it on 2026-10-25 (in force since
+29-7-2009).
+
+Art. 2250 prints nothing for a sole trader or an unlisted form, but that says nothing about the
+registro delle imprese: art. 2188 c.c. makes registration compulsory for every imprenditore. The
+`hasRegisterEntry` flag on each legal form of `it.json` states that fact separately from the printed
+mentions, and is `true` for every Italian form.
+
+## FatturaPA `IscrizioneREA`
+
+The FatturaPA export fills `CedentePrestatore/IscrizioneREA` from the same `companyLaw` section. The
+block is emitted only when every element the format makes mandatory is declared; otherwise it is
+omitted (`IscrizioneREAType` is `minOccurs="0"`) rather than guessing a province or asserting that a
+company is not in liquidation.
+
+| Element | Source |
+| --- | --- |
+| `Ufficio` | `registerOfficeProvince`: the two-letter province of the registro delle imprese office |
+| `NumeroREA` | `registerNumber`: the registration number codice civile art. 2250 already asks for |
+| `CapitaleSociale` | `shareCapital`, when its currency is EUR |
+| `SocioUnico` | `SU` or `SM` from the legal form's `singleMember`; omitted for forms the field does not cover |
+| `StatoLiquidazione` | `liquidationStatus`, declared as `LN` or `LS` |
+
+`registerNumber`, `registerOfficeProvince` and `liquidationStatus` are marked `asked` in `it.json`,
+so the company settings collect them even when no printed mention quotes them. An `asked` field is
+collected for a legal form the section covers with a printed mention **or** one that declares
+`hasRegisterEntry`. A ditta individuale and an unlisted Italian form therefore collect the register
+number, the register office province and the liquidation status too, and `IscrizioneREA` is filled
+from them: the two questions are independent, since a form with no printed mention still has a
+register entry.
+
+The demo company's `registerOfficeProvince` follows the city it is seeded with (`cityProvinces` in
+`it.json`: Milano MI, Torino TO, Bologna BO). A declared value the block cannot carry (a province
+that is not two letters, a register number over 20 characters, a liquidation status other than LN or
+LS) refuses the export with an error naming the field, rather than dropping `IscrizioneREA` silently.
+
+**The `NumeroREA` decision.** The issue left open whether `NumeroREA` could carry the registro delle
+imprese registration number or needed a second field. The specification settles it: Specifiche
+tecniche del formato della FatturaPA v1.4 §3.3.4 defines `NumeroREA` as « il numero di repertorio con
+il quale la società è iscritta nel Registro delle Imprese », which is the registration number art. 2250
+names, not a distinct REA number. No second field is declared.
+
+Text read on 2026-10-31 at fatturapa.gov.it,
+https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Specifiche_tecniche_del_formato_FatturaPA_V1.4.pdf
+(§3.3.4, pages 42-43).

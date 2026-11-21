@@ -5,6 +5,7 @@ import { Link } from "react-router"
 import { useTranslation } from "react-i18next"
 
 import { useBillingStatus } from "@/hooks/queries"
+import { BILLING_BANNER_APPEARANCE } from "@/hooks/queries/billing-status-appearance"
 
 /**
  * Trial/blocked banner — mounted once, for the whole authenticated app (`(app)/_layout.tsx`), the
@@ -20,33 +21,7 @@ export function BillingBanner() {
 
   if (!isSuccess || !status || status.status === "ACTIVE") return null
 
-  const isDestructive = status.status === "BLOCKED" || status.status === "ZIPPED"
-
-  // A seat-specific card decline (`seat-sync.ts`'s own header, `billing-status-view.ts`'s
-  // `seatPaymentFailureExplainsStatus`) gets its OWN wording — "the payment for the seat you just
-  // added failed" is a more actionable, honest explanation than the generic "your last payment
-  // failed" when that really is the reason, and never shown once it is no longer the most likely one.
-  const isSeatPaymentFailure = status.status === "PAST_DUE" && status.seatPaymentFailureExplainsStatus
-
-  const titleKey = isSeatPaymentFailure
-    ? "billing.banner.pastDue.seatPaymentFailed.title"
-    : status.status === "TRIAL"
-      ? "billing.banner.trial.title"
-      : status.status === "BLOCKED"
-        ? "billing.banner.blocked.title"
-        : status.status === "ZIPPED"
-          ? "billing.banner.zipped.title"
-          : "billing.banner.pastDue.title"
-
-  const descriptionKey = isSeatPaymentFailure
-    ? "billing.banner.pastDue.seatPaymentFailed.description"
-    : status.status === "TRIAL"
-      ? "billing.banner.trial.description"
-      : status.status === "BLOCKED"
-        ? "billing.banner.blocked.description"
-        : status.status === "ZIPPED"
-          ? "billing.banner.zipped.description"
-          : "billing.banner.pastDue.description"
+  const { destructive: isDestructive, titleKey, descriptionKey } = BILLING_BANNER_APPEARANCE[status.status]
 
   return (
     <Alert

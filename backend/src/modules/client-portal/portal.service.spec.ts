@@ -210,6 +210,19 @@ describe('PortalService — the client-portal security boundary', () => {
       expect(renderSpy).toHaveBeenCalledWith(COMPANY, 'credit-note', 'cn-a');
     });
 
+    it('a database error while resolving the credit note’s invoice is not turned into a 404', async () => {
+      const { service } = buildService();
+      const failure = new Error('database unavailable');
+      (persistence.findOwnedDocument as Mock).mockImplementation(
+        async (_companyId: string, typeId: string) => {
+          if (typeId === 'credit-note') return CREDIT_NOTE_A;
+          throw failure;
+        },
+      );
+
+      await expect(service.getDocumentPdf(COMPANY, CLIENT_A, 'credit-note', 'cn-a')).rejects.toBe(failure);
+    });
+
     it('succeeds, and renders, for the RIGHT client on a clientVisible status', async () => {
       const { service, documentsService } = buildService();
       const renderSpy = vi.spyOn(documentsService, 'renderInstancePdf').mockResolvedValue(Buffer.from('pdf'));

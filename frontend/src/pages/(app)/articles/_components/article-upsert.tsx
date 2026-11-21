@@ -20,9 +20,8 @@ import {
   stepForField,
 } from "@/components/ui/stepped-dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { useCompany } from "@/hooks/queries"
+import { useCompanyCurrencySymbol } from "@/hooks/queries"
 import { usePatch, usePost } from "@/hooks/use-fetch"
-import { currencies } from "@/lib/constants/currencies"
 import { queryKeys } from "@/lib/query-keys"
 import type { Article } from "@/types"
 
@@ -36,7 +35,7 @@ import type { Article } from "@/types"
 // `null` is what EditArticleDto reads as "un-track stock" / "clear the alert threshold" — see
 // articles.service.ts's `update` and its own `!== undefined` comment. So leaving either input blank
 // on an EDIT is how a user turns stock tracking (or the alert) back off, not a no-op.
-const nullableNonNegativeInt = (message: string) => z.number().int().min(0, { message }).nullable()
+const nullableNonNegativeInt = (error: string) => z.number().int().min(0, { error }).nullable()
 
 /** `unitPrice`/`vatRate` are, unlike stock's `quantity`/`lowStockThreshold` above, genuinely REQUIRED
  *  on the `Article` model (`unitPrice Float @default(0)`, `vatRate Float @default(0)` —
@@ -46,16 +45,14 @@ const nullableNonNegativeInt = (message: string) => z.number().int().min(0, { me
  *  `Control<ArticleForm>`'s strictly-typed `onChange` without widening either field's inferred type to
  *  `number | undefined` (the generic document-field renderers can use `undefined` for exactly this
  *  reason instead — their `Control` is untyped `FieldValues`). `z.number()` treats `NaN` exactly like
- *  `undefined` (`received: "nan"`, the same `invalid_type` branch) — the reason this used to slip
+ *  `undefined` (the same `invalid_type` issue) — the reason this used to slip
  *  through was `z.coerce.number()`, which reads `Number("") === 0` as a perfectly valid price. */
 const requiredAmount = (requiredMessage: string, rangeMessage: string) =>
-  z.number({ required_error: requiredMessage, invalid_type_error: requiredMessage }).min(0, {
-    message: rangeMessage,
-  })
+  z.number({ error: requiredMessage }).min(0, { error: rangeMessage })
 
 const buildArticleSchema = (t: TFunction) =>
   z.object({
-    name: z.string().min(1, { message: t("articles.upsert.errors.nameRequired") }),
+    name: z.string().min(1, { error: t("articles.upsert.errors.nameRequired") }),
     description: z.string().optional(),
     type: z.enum(["HOUR", "DAY", "DEPOSIT", "SERVICE", "PRODUCT"]),
     unitPrice: requiredAmount(
@@ -297,8 +294,7 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
   const articleSchema = useMemo(() => buildArticleSchema(t), [t])
   const isEdit = !!article
   const queryClient = useQueryClient()
-  const { data: company } = useCompany()
-  const currencySymbol = company?.currency ? currencies[company.currency]?.symbol : undefined
+  const currencySymbol = useCompanyCurrencySymbol()
 
   const { trigger: createTrigger, loading: creating } = usePost("/api/articles")
   const { trigger: updateTrigger, loading: updating } = usePatch(`/api/articles/${article?.id || ""}`)

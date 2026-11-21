@@ -8,7 +8,7 @@
  * itself never changes, `resolveB2gInvoiceTransport` (`actions/invoice-actions.ts`) just stops hitting
  * `UnknownTransportError` the moment `documents-core.module.ts` registers this file's own export.
  *
- * Same `DocumentTransport` interface `pdp-transport.ts`/`sdi-transport.ts` implement, registered the
+ * Same `DocumentTransport` interface `superpdp-transport.ts`/`sdi-transport.ts` implement, registered the
  * same way (`TransportRegistry.register`) — nothing about B2G routing is
  * special-cased here: a company can ALSO choose "chorus-pro" as its own free `invoiceTransportId` for
  * an ordinary client, exactly like any other registered transport (see `transport-registry.ts`'s own
@@ -17,7 +17,7 @@
  * The client (`chorus-pro/choruspro-client.ts`) is REPRISED from git tag `avant-refonte-documents`
  * (`compliance/providers/transmission/choruspro-client.ts`) — see that file's own header for exactly
  * what was kept verbatim and the two deliberate adaptations. This transport's OWN job is the
- * orchestration around it, the same split `pdp-transport.ts`/`ksef-transport.ts` already hold between
+ * orchestration around it, the same split `superpdp-transport.ts`/`ksef-transport.ts` already hold between
  * "the client speaks the platform's wire protocol" and "the transport resolves credentials, builds the
  * payload, and enforces the hard-success contract".
  *
@@ -31,7 +31,7 @@
  * second, redundant `config.environment` field the way the reference's own `configSchema` had one.
  *
  * THE RECIPIENT GATE — the same shape every sibling transport's own receiver check holds (e.g.
- * `pdp-transport.ts`'s own missing-identifier refusal): Chorus Pro identifies every public-sector
+ * `superpdp-transport.ts`'s own missing-identifier refusal): Chorus Pro identifies every public-sector
  * recipient by its SIRET, the SAME `LEGAL_ID` scheme the B2G FR rule's own `requiredClientIdentifiers`
  * names (see `countries/data/fr.json (section "b2gRouting")`) — a B2G send already has this checked upstream
  * (`resolveClientB2gRouting` in `invoice-actions.ts`, re-checked on every `deliver()` replay too), but
@@ -95,8 +95,9 @@
  *
  * Post-deposit conformity: `consulterCr` is exactly the kind of pull endpoint
  * `conformity/authority-status-poller.ts` exists for — `conformity/pollers/chorus-pro-status-poller.ts`
- * registers one, the same shape `pdp-status-poller.ts`/`ksef-status-poller.ts` already hold.
+ * registers one, the same shape `superpdp-status-poller.ts`/`ksef-status-poller.ts` already hold.
  */
+import { CHORUS_PRO_PROVIDER_ID } from '@/modules/documents/transports/provider-ids';
 import { BadRequestException, NotImplementedException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
@@ -104,6 +105,7 @@ import {
   ChannelCredentialsService,
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
+import { resolveChannelCredentials } from './resolve-channel-credentials';
 import { getIdentifier } from '@/utils/entity-identifiers';
 import prisma from '@/prisma/prisma.service';
 
@@ -115,6 +117,7 @@ import {
 } from './chorus-pro/choruspro-client';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
+import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { listCompanyPaymentMethods } from '../payment-methods/persistence';
 import {
@@ -168,10 +171,10 @@ export interface ChorusProTransportDeps {
   facturxFormatProvider: DocumentFormatProvider;
 }
 
-export const CHORUS_PRO_PROVIDER_ID = 'chorus-pro';
+export { CHORUS_PRO_PROVIDER_ID };
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
- *  makes for the identical reason — see `pdp-transport.ts`'s own header. */
+ *  makes for the identical reason - see `superpdp-transport.ts`'s own header. */
 const INVOICE_DESCRIPTOR = buildInvoiceDescriptor();
 
 /**
@@ -291,8 +294,12 @@ async function requireConnectedChorusPro(
   channelCredentials: ChannelCredentialsService,
   companyId: string,
 ): Promise<ChorusProCredentials> {
-  const resolved = await channelCredentials.resolveActive(companyId, CHORUS_PRO_PROVIDER_ID);
-  const credentials = resolved && extractChorusProCredentials(resolved);
+  const credentials = await resolveChannelCredentials(
+    channelCredentials,
+    companyId,
+    CHORUS_PRO_PROVIDER_ID,
+    extractChorusProCredentials,
+  );
   if (!credentials) {
     logger.warn('Chorus Pro transport blocked: channel not connected (or incomplete config)', {
       category: 'documents',
@@ -310,8 +317,9 @@ async function requireConnectedChorusPro(
 
 /** Builds a REAL `ChorusProClient` for this company's connected credentials — one instance per call,
  *  same "no shared, cross-request state beyond the client's own short-lived token cache" choice every
- *  sibling transport's own client construction makes. */
-function buildClient(credentials: ChorusProCredentials): ChorusProClient {
+ *  sibling transport's own client construction makes. Also used by
+ *  `conformity/pollers/chorus-pro-status-poller.ts`, so the poller reaches the same endpoints. */
+export function buildChorusProClient(credentials: ChorusProCredentials): ChorusProClient {
   const urls = chorusProUrlsFor(credentials.environment);
   const config: ChorusProClientConfig = { ...urls, ...credentials };
   return new ChorusProClient(config, new FetchChorusProHttpPort());
@@ -431,12 +439,12 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         buildInput.descriptor,
         buildInput.document,
         companyToFormatParty(company),
-        clientToFormatParty(client),
+        clientToFormatParty(withIssuedBuyerIdentifiers(client, ctx.document)),
         ctx.companyId,
         buildInput.options,
       );
       if (!buildResult.validation.valid) {
-        // Same gate `pdp-transport.ts` enforces for its own build — an
+        // Same gate `superpdp-transport.ts` enforces for its own build - an
         // artifact that fails the EN 16931 Schematron is NEVER deposited, only refused, named.
         throw new BadRequestException({
           message:
@@ -463,7 +471,7 @@ export function buildChorusProTransport(deps: ChorusProTransportDeps): DocumentT
         },
       });
 
-      const chorusProClient = buildClient(credentials);
+      const chorusProClient = buildChorusProClient(credentials);
 
       let numeroFluxDepot: string;
       try {

@@ -90,7 +90,6 @@ function continueToLines() {
 	cy.pickDocumentClient();
 	cy.pickToday('[data-cy="document-field-issueDate-input"]');
 	cy.pickDocumentFieldOption("currency", "eur");
-	cy.continueDocumentWizard();
 	cy.get('[data-cy="document-field-lines-add-row"]').click();
 	cy.get('[data-cy="document-field-lines-row-0"]').should("exist");
 }
@@ -229,7 +228,7 @@ describe("Document line editor", () => {
 
 		it("opens on keyboard focus and closes on Escape without closing the dialog", () => {
 			startDocumentAtLines("invoice");
-			cy.get(unitInput).focus();
+			cy.get(unitInput).scrollIntoView().focus();
 			cy.get(options).should("be.visible");
 			cy.get(unitInput).type("{esc}");
 			cy.get(options).should("not.exist");
@@ -304,14 +303,14 @@ describe("Document line editor", () => {
 			cy.get('[data-cy="document-create-button"]', { timeout: 15000 }).click();
 		}
 
-		it("asks for the corrected invoice before the dates", () => {
+		it("asks for the corrected invoice and its client before the dates", () => {
 			openNewCreditNote();
 			cy.get('[data-cy="document-form"] [data-cy^="document-field-"]', { timeout: 15000 }).then(($els) => {
 				const keys = [...$els]
 					.map((el) => el.getAttribute("data-cy") ?? "")
 					.filter((cy) => /^document-field-[A-Za-z]+$/.test(cy))
 					.map((cy) => cy.replace("document-field-", ""));
-				expect(keys.slice(0, 3)).to.deep.eq(["invoice", "issueDate", "currency"]);
+				expect(keys.slice(0, 4)).to.deep.eq(["invoice", "client", "issueDate", "currency"]);
 			});
 		});
 
@@ -321,32 +320,27 @@ describe("Document line editor", () => {
 					openNewCreditNote();
 					pickInvoice("Avoir Premier SARL");
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard();
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 2).and("be.checked");
 					cy.get(corrected).first().uncheck();
 
-					cy.get('[data-cy="document-create-dialog-back"]').click();
 					pickInvoice("Avoir Second SARL");
-					cy.continueDocumentWizard();
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 3).and("be.checked");
 				});
 			});
 		});
 
-		it("saves the lines of the newly picked invoice after jumping back through the step chips", () => {
+		it("saves the lines of the newly picked invoice after picking another invoice", () => {
 			validatedInvoice("Avoir Chip Premier SARL", ["One", "Two"]).then(() => {
 				validatedInvoice("Avoir Chip Second SARL", ["Three", "Four", "Five"]).then((secondId) => {
 					openNewCreditNote();
 					pickInvoice("Avoir Chip Premier SARL");
 					cy.pickToday('[data-cy="document-field-issueDate-input"]');
-					cy.continueDocumentWizard(); // Details -> Lines
 					cy.get(corrected, { timeout: 10000 }).should("have.length", 2).and("be.checked");
-					cy.continueDocumentWizard(); // Lines -> Options
-					cy.continueDocumentWizard(); // Options -> Summary
 
-					cy.get('[data-cy="document-create-dialog-step-details"]').click();
+					// Checked, not just rendered: the save payload carries the form's selection, which the
+					// row fetch fills after the rows themselves appear.
 					pickInvoice("Avoir Chip Second SARL");
-					cy.get('[data-cy="document-create-dialog-step-recap"]').click();
+					cy.get(corrected, { timeout: 10000 }).should("have.length", 3).and("be.checked");
 
 					cy.intercept("POST", `${api}/api/documents/types/credit-note/actions/save-draft`).as("save");
 					cy.get('[data-cy="document-action-save-draft"]').scrollIntoView().click();

@@ -2,8 +2,8 @@ import { Controller, Query, Sse } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Observable, from, interval } from 'rxjs';
 import { startWith, switchMap, map } from 'rxjs/operators';
-import { logger } from '@/logger/logger.service';
-import { CompanyRole } from '../../../prisma/generated/prisma/client';
+import { LogFilters, logger } from '@/logger/logger.service';
+import { CompanyRole, LogLevel } from '../../../prisma/generated/prisma/client';
 import { Roles } from '@/decorators/roles.decorator';
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 
@@ -77,9 +77,9 @@ export class LoggerController {
       switchMap(() =>
         from(
           (async () => {
-            const filters: any = { companyId };
+            const filters: LogFilters = { companyId };
             if (category) filters.category = category;
-            if (level) filters.level = level;
+            if (level) filters.level = level as LogLevel;
             if (userId) filters.userId = userId;
 
             // Tenant scoping now happens IN the query itself (`companyId` — see this class's own

@@ -173,22 +173,25 @@ describe('PayPalProvider.parseWebhookEvent', () => {
     expect(client.captureOrder).not.toHaveBeenCalled();
   });
 
-  it.each([
-    'PAYMENT.CAPTURE.DENIED',
-    'PAYMENT.CAPTURE.DECLINED',
-  ])('%s maps to "checkout.failed"', async (eventType) => {
-    const client = fakeClient();
-    client.verifyWebhookSignature.mockResolvedValue(true);
-    const provider = new PayPalProvider(client);
+  it.each(['PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.DECLINED'])(
+    '%s maps to "checkout.failed"',
+    async (eventType) => {
+      const client = fakeClient();
+      client.verifyWebhookSignature.mockResolvedValue(true);
+      const provider = new PayPalProvider(client);
 
-    const event = await provider.parseWebhookEvent(
-      eventBody(eventType, { id: 'CAPTURE-1', supplementary_data: { related_ids: { order_id: 'order_1' } } }),
-      FULL_HEADERS,
-      CREDENTIALS,
-    );
+      const event = await provider.parseWebhookEvent(
+        eventBody(eventType, {
+          id: 'CAPTURE-1',
+          supplementary_data: { related_ids: { order_id: 'order_1' } },
+        }),
+        FULL_HEADERS,
+        CREDENTIALS,
+      );
 
-    expect(event).toEqual({ type: 'checkout.failed', providerSessionId: 'order_1' });
-  });
+      expect(event).toEqual({ type: 'checkout.failed', providerSessionId: 'order_1' });
+    },
+  );
 
   it('maps an unrelated event type to "ignored", never an error', async () => {
     const client = fakeClient();
