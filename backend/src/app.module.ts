@@ -1,5 +1,6 @@
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CompanyContextInterceptor } from '@/interceptors/company-context.interceptor';
+import { ErrorTrackingInterceptor } from './error-tracking/error-tracking.interceptor';
 import { AddressAutocompleteModule } from './modules/address-autocomplete/address-autocomplete.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
@@ -279,6 +280,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     {
       provide: APP_INTERCEPTOR,
       useClass: CompanyContextInterceptor,
+    },
+    // Reports 5xx errors to the error tracker; a pass-through when `SENTRY_DSN` is unset.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ErrorTrackingInterceptor,
     },
   ],
 })
