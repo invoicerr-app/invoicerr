@@ -77,7 +77,12 @@ import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-l
 import { DocumentTypeDescriptor } from '../../descriptors/types';
 import { TaxScheme } from '../../tax/types';
 import { computeDocumentTotals } from '../../totals/compute-totals';
-import { einvoiceCodesFor, exemptionCodeFor, taxRegimeCodeFor } from '../../einvoice-codes/registry';
+import {
+  einvoiceCodesFor,
+  exemptionCodeFor,
+  stampDutyFor,
+  taxRegimeCodeFor,
+} from '../../einvoice-codes/registry';
 import { CountryEinvoiceCodesFile, ExemptionCodeFact } from '../../einvoice-codes/schema';
 import { requireDisplayNumber, toDateOnly } from '../shared-build';
 import { resolvePartyCountryCode } from '../semantic/build-semantic-invoice';
@@ -222,6 +227,41 @@ function buildDettaglioLinea(line: NationalLine, currency: string, natura: Exemp
   };
 }
 
+/**
+ * `DatiBollo`, issue #774. A fixed stamp duty the country's format declares on a document that
+ * carries no VAT, above a threshold. Every figure comes from the country data's own `stampDuty`
+ * (amount, threshold, and the sellers it binds), never from a country branch here.
+ *
+ * The threshold is measured on the invoice's OWN non-VAT base, never on `ImportoTotaleDocumento`:
+ * on a mixed invoice the sum that counts is the one made of the components carrying no VAT
+ * (Agenzia delle Entrate, risposta a interpello n. 45/2024, recalling risoluzione n. 98/E of 2001).
+ *
+ * A non-euro document is left alone on purpose: the declared amount is a euro figure, and carrying
+ * it into another currency would need the ECB rate frozen at issue (`seller-currency.ts` already
+ * resolves that rate for the VAT statement), not plumbed here, and counting the euro amount as if
+ * it were the document's own currency would be worse than omitting the block.
+ */
+function datiBolloFor(
+  codes: CountryEinvoiceCodesFile,
+  sellerTaxScheme: TaxScheme | undefined,
+  totals: ReturnType<typeof computeDocumentTotals>,
+  currency: string,
+  sellerCountry: string,
+  formatCountry: string,
+): { BolloVirtuale: 'SI'; ImportoBollo: string } | undefined {
+  const fact = stampDutyFor(codes, sellerTaxScheme);
+  // The rule read above is the FORMAT's own country's (Italy's), so it only binds a seller that
+  // country actually taxes: a FatturaPA built for a seller established elsewhere declares no duty.
+  if (!fact || currency !== 'EUR' || sellerCountry !== formatCountry) return undefined;
+
+  const nonVatBaseMinor = totals.vatBreakdown
+    .filter((entry) => entry.ratePercent <= 0)
+    .reduce((sum, entry) => sum + entry.baseMinor, 0);
+  if (nonVatBaseMinor <= Math.round(fact.threshold * 100)) return undefined;
+
+  return { BolloVirtuale: fact.bolloVirtuale, ImportoBollo: fmtAmount(fact.amount, 2) };
+}
+
 async function build(
   descriptor: DocumentTypeDescriptor,
   document: Pick<DocumentInstanceResult, 'id' | 'data' | 'displayNumber' | 'status'>,
@@ -334,6 +374,18 @@ async function build(
   if (company.email) contatti.Email = company.email;
 
   const totaleDocumento = fromMinor(totals.grossMinor, currency);
+  // A credit note (TD04) never declares the duty: it corrects an invoice that already carried it,
+  // and its own amounts are positive by construction (see this file's header, "TD04").
+  const datiBollo = isCreditNote
+    ? undefined
+    : datiBolloFor(
+        codes,
+        company.taxScheme,
+        totals,
+        currency,
+        resolvePartyCountryCode(company) ?? '',
+        formatCountry,
+      );
 
   const fattura = {
     'p:FatturaElettronica': {
@@ -402,6 +454,9 @@ async function build(
             Divisa: currency,
             Data: issueDate,
             Numero: invoiceNumber,
+            // `DatiBollo` sits right after `Numero` in `DatiGeneraliDocumentoType`'s own sequence
+            // (the vendored XSD), before `DatiCassaPrevidenziale` and `ImportoTotaleDocumento`.
+            ...(datiBollo ? { DatiBollo: datiBollo } : {}),
             ImportoTotaleDocumento: fmtAmount(totaleDocumento, 2),
           },
           ...(correctedInvoice
