@@ -1,8 +1,13 @@
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DocumentTypeDescriptor } from '../descriptors/types';
-import { computeDocumentTotals } from '../totals/compute-totals';
+import { DocumentTotals, computeDocumentTotals } from '../totals/compute-totals';
 import { DocumentSettlement, computeSettlement } from './compute-settlement';
-import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from './credits';
+import {
+  DocumentCreditResult,
+  creditsForInvoiceFromNotes,
+  listCreditNotes,
+  toSettlementCreditInputs,
+} from './credits';
 import { sumPaidMinorByDocument } from './payments';
 
 /**
@@ -31,11 +36,14 @@ export async function filterUnsettledInvoices(
   return balances.map((balance) => balance.invoice);
 }
 
-/** One invoice's totals and settlement, the same figures its settlement screen shows. */
+/** One invoice's totals, credits and settlement, the same figures its settlement screen shows. */
 export interface InvoiceBalance {
   invoice: DocumentInstanceResult;
   netMinor: number;
   grossMinor: number;
+  totals: DocumentTotals;
+  /** The "sent" credit notes counted against this invoice (`creditsForInvoiceFromNotes`). */
+  credits: DocumentCreditResult[];
   settlement: DocumentSettlement;
 }
 
@@ -50,29 +58,37 @@ export async function resolveUnsettledInvoiceBalances(
   return balances.filter((balance) => !balance.settlement.settled);
 }
 
-/** Payments and credit notes are read once for the whole batch, never once per invoice. */
+/**
+ * Payments and credit notes are read once for the whole batch, never once per invoice. The ONE place
+ * an invoice's "still owed" is computed: reminders, bank matching, the accounting export and the
+ * client statement all read it here, so they can never disagree on it.
+ *
+ * `creditNotes` lets a caller that also needs the company's credit notes for itself pass the list it
+ * already read (`listCreditNotes`), instead of this function reading it a second time.
+ */
 export async function resolveInvoiceBalances(
   companyId: string,
   invoiceDescriptor: DocumentTypeDescriptor,
   invoices: readonly DocumentInstanceResult[],
+  creditNotes?: readonly DocumentInstanceResult[],
 ): Promise<InvoiceBalance[]> {
   const paidMinorByDocument = await sumPaidMinorByDocument(
     companyId,
     invoices.map((invoice) => invoice.id),
   );
-  const creditNotes = await listCreditNotes(companyId);
+  const notes = creditNotes ?? (await listCreditNotes(companyId));
 
   return invoices.map((invoice) => {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
-    const { netMinor, grossMinor } = computeDocumentTotals(invoiceDescriptor, data);
+    const totals = computeDocumentTotals(invoiceDescriptor, data);
     const paidMinor = paidMinorByDocument.get(invoice.id) ?? 0;
-    const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, invoiceDescriptor, data);
+    const { credits } = creditsForInvoiceFromNotes(notes, invoice.id, invoiceDescriptor, data);
     const settlement = computeSettlement(
-      grossMinor,
+      totals.grossMinor,
       [{ amountMinor: paidMinor }],
       toSettlementCreditInputs(credits),
     );
-    return { invoice, netMinor, grossMinor, settlement };
+    return { invoice, netMinor: totals.netMinor, grossMinor: totals.grossMinor, totals, credits, settlement };
   });
 }
 
@@ -82,7 +98,7 @@ export function isIssuedInvoice(invoice: DocumentInstanceResult): boolean {
 
 /**
  * `dueDate < today` (UTC, compared as `YYYY-MM-DD` strings, same clock convention as
- * invoice-contributions.ts's own `monthKey`) on an ALREADY-unsettled invoice: the "overdue" half of
+ * `contributions/period.ts`'s `monthKey`) on an ALREADY-unsettled invoice: the "overdue" half of
  * `filterUnsettledInvoices` above, shared because the "Overdue invoices" tile and `settlement=overdue`
  * must apply exactly the same rule. Takes `todayIso` rather than reading the clock itself so a caller
  * filtering many invoices computes "today" once, not once per row.

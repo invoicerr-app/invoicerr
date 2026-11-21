@@ -1,4 +1,4 @@
-import { useApiQuery } from "./use-api-query"
+import { useCountryScopedQuery } from "./use-country-scoped-query"
 
 export interface IdentifierRequirement {
   scheme: string
@@ -24,13 +24,11 @@ export function useRequiredIdentifiers(
   countryCode: string | undefined | null,
   partyType: "COMPANY" | "INDIVIDUAL",
 ) {
-  const url = countryCode
-    ? `/api/documents/required-identifiers?countryCode=${encodeURIComponent(countryCode)}&partyType=${partyType}`
-    : null
-
-  return useApiQuery<RequiredIdentifiersResult>(["required-identifiers", countryCode, partyType], url!, {
-    enabled: !!url,
-  })
+  return useCountryScopedQuery<RequiredIdentifiersResult>(
+    ["required-identifiers", countryCode, partyType],
+    countryCode,
+    (country) => `/api/documents/required-identifiers?countryCode=${country}&partyType=${partyType}`,
+  )
 }
 
 /**

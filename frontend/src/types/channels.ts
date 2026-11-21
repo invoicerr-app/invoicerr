@@ -1,6 +1,35 @@
 /** The `GET /api/company/channels` response, shared by every screen that reads it. */
-import type { ChannelProvenance } from "@/components/channel-banner"
-import type { ReportingObligation } from "@/pages/(app)/settings/_components/channels.declarations"
+
+/** Mirrors the backend's `ChannelProvenance` (`transports/channel-policy/schema.ts`) - a legal fact
+ *  quotes its exact source text, an unverified one carries a resolution note instead. Shared between
+ *  every screen that renders a channel obligation banner, so there is one definition of what
+ *  "provenance" means on the frontend, not one per caller. */
+export interface ChannelProvenance {
+  kind: "legal" | "unverified"
+  resolutionNote?: string
+  sourceText?: string
+  sourceCheckedAt?: string
+}
+
+export type ReportableDocumentType = "invoice" | "credit-note"
+export type ObligationTrigger = "issued" | "sent" | "payment" | "period-end"
+export type ObligationPeriod = "month" | "quarter" | "year"
+
+/** One row of `GET /channels`'s `reportingObligations`: one document type of one obligation's channel. */
+export interface ReportingObligation {
+  providerId: string
+  /** The platform this row is shown under: a transport and a declaration provider that are the same
+   *  legal entity share it (France's "pdp" transport rows carry "fr-pa"). */
+  platformId: string
+  appliesTo: ReportableDocumentType
+  provenance: ChannelProvenance
+  /** The v2 obligation this row comes from (issue #767). */
+  obligationId: string
+  kind: "data" | "summary" | "return"
+  trigger: ObligationTrigger
+  dischargedBy: "transport" | "provider" | "export" | "manual"
+  period?: ObligationPeriod
+}
 
 export type ChannelEnvironment = "TEST" | "PROD"
 export type ChannelRequirement = "suggested" | "mandated"

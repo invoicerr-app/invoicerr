@@ -36,7 +36,7 @@ import {
   readMaxPollAgeMs,
 } from './conformity-sweep';
 import { archiveTerminalAuthorityVerdictIfAny } from '../archive/archive-verdict-on-terminal';
-import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
+import { announceAuthorityEvent } from '../queue/document-authority-webhook';
 import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import { DocumentQueueDispatcher } from '../queue/document-queue.dispatcher';
@@ -164,21 +164,15 @@ export class ConformitySweepRunner {
           // SSE nudge — journaled just above (Postgres already holds
           // 'poll:gave-up', a genuinely new row): publishing lets the conformity panel refresh
           // without a reload the moment this pass decides to stop waiting.
-          await this.eventsPublisher?.publish(candidate.companyId, {
-            documentId: candidate.id,
-            typeId: candidate.typeId,
-            kind: 'authority-event',
-          });
           // Webhook — same "genuinely new row" gate, for the OTHER subscriber: a third
           // party watching `DOCUMENT_AUTHORITY_EVENT`.
-          await dispatchDocumentAuthorityEventWebhook(
-            this.webhookDispatcher,
-            candidate.companyId,
-            candidate.typeId,
-            candidate.id,
-            candidate.channelProviderId,
-            GAVE_UP_STATUS_CODE,
-          );
+          await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+            companyId: candidate.companyId,
+            typeId: candidate.typeId,
+            documentId: candidate.id,
+            providerId: candidate.channelProviderId,
+            statusCode: GAVE_UP_STATUS_CODE,
+          });
         }
         continue;
       }
@@ -313,22 +307,16 @@ export class ConformitySweepRunner {
       // specs construct this shape without one, and there is nothing to invalidate a query FOR
       // without it).
       if (journaled > 0 && data.typeId) {
-        await this.eventsPublisher?.publish(data.companyId, {
-          documentId: data.documentId,
-          typeId: data.typeId,
-          kind: 'authority-event',
-        });
         // Webhook — `statusCode` is the LAST observed event: `events` can carry more
         // than one newly-journaled status per poll (a platform reporting several steps at once), and
         // "the most recent fact" is the honest single value for a payload that names only ONE.
-        await dispatchDocumentAuthorityEventWebhook(
-          this.webhookDispatcher,
-          data.companyId,
-          data.typeId,
-          data.documentId,
-          data.providerId,
-          events[events.length - 1].statusCode,
-        );
+        await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+          companyId: data.companyId,
+          typeId: data.typeId,
+          documentId: data.documentId,
+          providerId: data.providerId,
+          statusCode: events[events.length - 1].statusCode,
+        });
       }
       return { journaled };
     } catch (error) {
@@ -355,19 +343,13 @@ export class ConformitySweepRunner {
         // Same "only on a genuinely new row, only with a typeId to invalidate" rule as the success
         // path above — a 'poll:blocked' verdict is exactly as conformity-panel-worthy as a real one.
         if (journaled > 0 && data.typeId) {
-          await this.eventsPublisher?.publish(data.companyId, {
-            documentId: data.documentId,
+          await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+            companyId: data.companyId,
             typeId: data.typeId,
-            kind: 'authority-event',
+            documentId: data.documentId,
+            providerId: data.providerId,
+            statusCode: BLOCKED_STATUS_CODE,
           });
-          await dispatchDocumentAuthorityEventWebhook(
-            this.webhookDispatcher,
-            data.companyId,
-            data.typeId,
-            data.documentId,
-            data.providerId,
-            BLOCKED_STATUS_CODE,
-          );
         }
         return { journaled };
       } catch (journalError) {

@@ -29,14 +29,11 @@ import type {
   ChannelsResponse,
   ConfiguredChannel,
   LegalChannelStatus,
+  ReportableDocumentType,
+  ReportingObligation,
 } from "@/types/channels"
 import { ChannelConnectSheet } from "./channels.connect-sheet"
-import {
-  type DeclarationMoment,
-  type ReportableDocumentType,
-  type ReportingObligation,
-  summarizeDeclarations,
-} from "./channels.declarations"
+import { type DeclarationMoment, summarizeDeclarations } from "./channels.declarations"
 import {
   SettingsList,
   SettingsListRow,

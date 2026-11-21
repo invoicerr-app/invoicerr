@@ -16,7 +16,7 @@ const lowerBound = (exact: boolean | undefined, inclusive: boolean | undefined, 
 const upperBound = (exact: boolean | undefined, inclusive: boolean | undefined, under: string) =>
   exact ? "exactly" : inclusive ? "at most" : under
 
-export const builtInMessage: z.core.$ZodErrorMap = (issue) => {
+const builtInMessage: z.core.$ZodErrorMap = (issue) => {
   switch (issue.code) {
     case "invalid_type":
       if (issue.input === undefined) return "Required"

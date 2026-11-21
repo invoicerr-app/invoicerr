@@ -2,6 +2,7 @@
 // esModuleInterop in this project's tsconfig, and sanitize-html is `export =`).
 import sanitizeHtml = require('sanitize-html');
 
+import { escapeHtml } from '@/mail/escape-html';
 import { mailT } from '@/mail/i18n';
 import { EMAIL_NON_TEXT_TAGS } from '@/mail/sanitize-email-html';
 import { decimalsFor, fromMinor } from '@/utils/financial';
@@ -48,20 +49,6 @@ function formatEmailDate(value: unknown, language: RenderLanguage): string {
   return Number.isFinite(time)
     ? new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeZone: 'UTC' }).format(time)
     : '';
-}
-
-/** Escapes a SUBSTITUTED VALUE on its way into the html part — never the template's own markup, which
- *  is filtered at write time instead (`mail/sanitize-email-html.ts`). Without this, a company name or
- *  a client name containing `<` would be interpreted as markup by the recipient's mail client: the
- *  template is trusted-and-filtered, the values interpolated into it are neither. The TEXT part is
- *  deliberately left unescaped — `&` is an ampersand there, not an entity. */
-function escapeHtmlValue(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -169,7 +156,7 @@ export function deriveTextFromHtml(html: string): string {
  * ## The two parts
  *
  * The text parts (`subject`, `body`) get the raw values; the `html` part gets HTML-ESCAPED values (see
- * `escapeHtmlValue`), so a value that happens to contain markup is read as the text it is. Warnings are
+ * `escapeHtml` below), so a value that happens to contain markup is read as the text it is. Warnings are
  * collected across all three and still reported once per DISTINCT unknown key, never once per part.
  *
  * A template with an `html` part and a blank `body` yields a DERIVED text part (`deriveTextFromHtml`,
@@ -195,7 +182,13 @@ export function renderEmailTemplate(
   const asIs = (value: string): string => value;
   const subject = interpolate(template.subject, asIs);
   const body = interpolate(template.body, asIs);
-  const html = template.html ? interpolate(template.html, escapeHtmlValue) : undefined;
+  // Escapes each SUBSTITUTED VALUE on its way into the html part (`mail/escape-html.ts`, the rule every
+  // sender shares) - never the template's own markup, which is filtered at write time instead
+  // (`mail/sanitize-email-html.ts`). Without this, a company name or a client name containing `<` would
+  // be interpreted as markup by the recipient's mail client: the template is trusted-and-filtered, the
+  // values interpolated into it are neither. The TEXT part is deliberately left unescaped - `&` is an
+  // ampersand there, not an entity.
+  const html = template.html ? interpolate(template.html, escapeHtml) : undefined;
   const warnings = [...unknown].map((key) => `Unknown email template placeholder "{${key}}" left as-is.`);
 
   const textPart = body.trim() === '' && html ? deriveTextFromHtml(html) : body;

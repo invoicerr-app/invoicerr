@@ -13,7 +13,8 @@ import * as archiveStorage from '../archive/storage';
 import * as persistence from '../persistence';
 import { createESignatureAcceptanceArchive } from '../archive/persistence';
 import { hashSignatureToken } from './signature-token';
-import { DOCUMENT_CHANGED_CODE, hashDocumentData } from './signed-version';
+import { hashDocumentData } from '../archive/document-data-hash';
+import { DOCUMENT_CHANGED_CODE } from './signed-version';
 import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 

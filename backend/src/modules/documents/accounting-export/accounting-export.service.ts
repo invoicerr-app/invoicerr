@@ -6,15 +6,11 @@ import { DocumentInstanceResult } from '../actions/action-registry';
 import { DATE_PARAM_PATTERN, dateValueInRange, dayMs, isValidIsoDay } from '../date-params';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { findOwnedDocumentsByIds, listAllDocuments } from '../persistence';
-import { DocumentSettlement, computeSettlement } from '../settlement/compute-settlement';
-import {
-  DocumentCreditResult,
-  creditsForInvoiceFromNotes,
-  listCreditNotes,
-  toSettlementCreditInputs,
-} from '../settlement/credits';
-import { listPaymentsInRange, sumPaidMinorByDocument } from '../settlement/payments';
-import { DocumentTotals, computeDocumentTotals } from '../totals/compute-totals';
+import { DocumentSettlement } from '../settlement/compute-settlement';
+import { DocumentCreditResult, listCreditNotes } from '../settlement/credits';
+import { listPaymentsInRange } from '../settlement/payments';
+import { resolveInvoiceBalances } from '../settlement/unsettled-invoices';
+import { DocumentTotals } from '../totals/compute-totals';
 import { AccountingLedgerRow, buildAccountingCsv } from './build-accounting-csv';
 import { resolveClientLabels } from './client-labels';
 
@@ -126,22 +122,11 @@ export async function buildAccountingExport(
   // unrelated ordering.
   const sentInvoices = await listAllDocuments(companyId, { typeId: 'invoice', status: ['sent'] });
   const creditNotes = await listCreditNotes(companyId);
-  const paidByDocument = await sumPaidMinorByDocument(
-    companyId,
-    sentInvoices.map((invoice) => invoice.id),
-  );
+  const balances = await resolveInvoiceBalances(companyId, INVOICE_DESCRIPTOR, sentInvoices, creditNotes);
 
   const resolvedInvoices = new Map<string, ResolvedInvoice>();
-  for (const invoice of sentInvoices) {
+  for (const { invoice, totals, credits, settlement } of balances) {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
-    const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
-    const paidMinor = paidByDocument.get(invoice.id) ?? 0;
-    const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
-    const settlement = computeSettlement(
-      totals.grossMinor,
-      [{ amountMinor: paidMinor }],
-      toSettlementCreditInputs(credits),
-    );
     resolvedInvoices.set(invoice.id, {
       invoice,
       data,

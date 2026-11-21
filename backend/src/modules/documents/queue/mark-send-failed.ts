@@ -28,7 +28,8 @@ import { checkTransitionResult } from '../descriptors/lifecycle';
 import { DocumentTypeDescriptor } from '../descriptors/types';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from './document-events';
-import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from './document-webhooks';
+import { DocumentWebhookEmitter } from './document-webhooks';
+import { dispatchDocumentWebhookSafely } from './dispatch-document-webhook';
 
 export interface MarkSendFailedInput {
   companyId: string;
@@ -169,24 +170,18 @@ export async function markSendFailed(
   // above all `return` before ever reaching here). Wrapped, never left to propagate: the identical
   // "the write already genuinely happened, a dead webhook endpoint must never undo or even surface
   // past it" discipline `async-send.ts`'s own `DOCUMENT_SENT` dispatch holds.
-  if (webhooks) {
-    try {
-      await webhooks.dispatch(
-        WebhookEvent.DOCUMENT_SEND_FAILED,
-        buildDocumentWebhookPayload(companyId, typeId, updated, { error: error.message }),
-      );
-    } catch (dispatchError) {
-      logger.error('Failed to dispatch a DOCUMENT_SEND_FAILED webhook — the failure was still recorded', {
-        category: 'documents',
-        details: {
-          companyId,
-          typeId,
-          documentId,
-          message: dispatchError instanceof Error ? dispatchError.message : String(dispatchError),
-        },
-      });
-    }
-  }
+  await dispatchDocumentWebhookSafely(
+    webhooks,
+    WebhookEvent.DOCUMENT_SEND_FAILED,
+    companyId,
+    typeId,
+    updated,
+    {
+      failureMessage: 'Failed to dispatch a DOCUMENT_SEND_FAILED webhook — the failure was still recorded',
+      documentId,
+      extra: { error: error.message },
+    },
+  );
 
   logger.warn('Document action failed after every retry — marked "send_failed"', {
     category: 'documents',

@@ -11,8 +11,7 @@ import {
   DocumentFormatParty,
   DocumentFormatProvider,
 } from './format-provider';
-import { applyFrenchBusinessProcess } from './semantic/business-process';
-import { applyCiiSellerLegalDescription, splitCiiIncludedNotes } from './semantic/cii-post-process';
+import { ciiPostProcessContext, postProcessCii } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -28,33 +27,13 @@ async function build(
   const euInvoice = buildEuInvoiceForDocument(descriptor, document, company, client, {
     creditNote: options?.creditNote,
   });
-  // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved a
-  // BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller, exactly
-  // the pre-existing behaviour.
-  const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
-
   const service = newEuInvoiceService();
   const raw = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
-  // `@e-invoice-eu/core` packs several `cbc:Note` entries into ONE `ram:IncludedNote` holding several
-  // `ram:Content` — invalid CII (`Content` occurs at most once per note). See
-  // `semantic/cii-post-process.ts`'s own header for the real rejection this fixes. A no-op when
-  // there is at most one note (the common case: this bridge emits at most one, from the document's
-  // own `notes` field — see `shared-build.ts`), so this is always safe to run.
-  let xml = splitCiiIncludedNotes(raw);
-  // BT-33: the CII mapping of `@e-invoice-eu/core` does not read `cbc:CompanyLegalForm`; the line
-  // is inserted by `applyCiiSellerLegalDescription` (see its own header). Read from the semantic
-  // object `shared-build.ts` already filled.
-  const sellerLegalInformation =
-    euInvoice['ubl:Invoice']['cac:AccountingSupplierParty']['cac:Party']['cac:PartyLegalEntity'][
-      'cbc:CompanyLegalForm'
-    ];
-  xml = applyCiiSellerLegalDescription(xml, sellerLegalInformation);
-  // Belt-and-suspenders reuse of the already-tested `applyFrenchBusinessProcess`: the object-level
-  // `cbc:ProfileID` set above already reaches this same rendered string (verified against the
-  // vendored dependency's own mapping — see `business-process.ts`'s header), but re-asserting it here
-  // costs nothing and survives even if that propagation ever stopped holding for a library-internal
-  // reason this codebase does not control.
-  if (businessProcessCode) xml = applyFrenchBusinessProcess(xml, businessProcessCode);
+  // `@e-invoice-eu/core` packs several `cbc:Note` entries into ONE `ram:IncludedNote` (invalid CII) and
+  // ignores BT-33 on its CII mapping; BT-23 is re-asserted on top. See `semantic/cii-post-process.ts`
+  // (`postProcessCii` and the helpers it chains) for each step and the real rejection behind it. Every
+  // step is a no-op when nothing applies, so this is always safe to run.
+  const xml = postProcessCii(raw, ciiPostProcessContext(euInvoice));
 
   const structural = validateStructural(xml, 'cii');
   if (!structural.valid) {

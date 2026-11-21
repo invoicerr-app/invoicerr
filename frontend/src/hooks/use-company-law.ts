@@ -1,4 +1,4 @@
-import { useApiQuery } from "./use-api-query"
+import { useCountryScopedQuery } from "./use-country-scoped-query"
 
 export interface CompanyLawFormField {
   key: string
@@ -21,6 +21,9 @@ export interface CompanyLawSettings {
 }
 
 export function useCompanyLawSettings(countryCode: string | undefined | null) {
-  const url = countryCode ? `/api/documents/company-law?countryCode=${encodeURIComponent(countryCode)}` : null
-  return useApiQuery<CompanyLawSettings>(["company-law", countryCode], url!, { enabled: !!url })
+  return useCountryScopedQuery<CompanyLawSettings>(
+    ["company-law", countryCode],
+    countryCode,
+    (country) => `/api/documents/company-law?countryCode=${country}`,
+  )
 }

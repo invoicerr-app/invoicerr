@@ -3,17 +3,7 @@
 import type { TFunction } from "i18next"
 
 import { ProseHelp } from "@/components/ui/prose-help"
-
-/** Mirrors the backend's `ChannelProvenance` (`transports/channel-policy/schema.ts`) - a legal fact
- *  quotes its exact source text, an unverified one carries a resolution note instead. Shared between
- *  every screen that renders a channel obligation banner, so there is one definition of what
- *  "provenance" means on the frontend, not one per caller. */
-export interface ChannelProvenance {
-  kind: "legal" | "unverified"
-  resolutionNote?: string
-  sourceText?: string
-  sourceCheckedAt?: string
-}
+import type { ChannelProvenance } from "@/types/channels"
 
 /** Display label DEFAULTS for a legal channel id (`documents/operators/schema.ts#OperatorOffering.
  *  legalChannel`) - every string still goes through `t()` (issue #527's own instruction), this is

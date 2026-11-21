@@ -54,7 +54,7 @@ import {
 } from '../../conformity/authority-events.persistence';
 import { RawAuthorityEvent } from '../../conformity/authority-status-poller';
 import { DocumentEventsPublisher } from '../../queue/document-events-publisher';
-import { dispatchDocumentAuthorityEventWebhook } from '../../queue/document-authority-webhook';
+import { announceAuthorityEvent } from '../../queue/document-authority-webhook';
 import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../../queue/document-webhooks';
 import { NOTIFICA_TYPE_LABELS, parseSdiNotifica, SdiNotificaType } from '../sdi/sdi-notifiche';
 import { SdiClient, SdiNotificaOutcome } from '../sdi/sdi-client';
@@ -186,19 +186,13 @@ export class PecNotificheService {
         { category: 'documents', details: { documentId: document.id, notificaType: parsed.notificaType } },
       );
       if (count > 0) {
-        await this.eventsPublisher?.publish(document.companyId, {
-          documentId: document.id,
+        await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+          companyId: document.companyId,
           typeId: document.typeId,
-          kind: 'authority-event',
+          documentId: document.id,
+          providerId: SDI_PEC_PROVIDER_ID,
+          statusCode: event.statusCode,
         });
-        await dispatchDocumentAuthorityEventWebhook(
-          this.webhookDispatcher,
-          document.companyId,
-          document.typeId,
-          document.id,
-          SDI_PEC_PROVIDER_ID,
-          event.statusCode,
-        );
       }
       return {
         handled: count > 0,

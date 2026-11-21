@@ -45,16 +45,12 @@
  * (both schemes, no port restriction), to `superpdp/superpdp-client.ts`'s own header: read that one for the
  * full argument rather than re-deriving it here.
  */
-import {
-  allowPrivateOutboundForTesting,
-  OutboundUrlValidationError,
-  ResolvedOutboundUrl,
-  assertPublicOutboundUrl,
-  pinnedDispatcher,
-} from '@/utils/outbound-url';
+import { pinnedDispatcher, ResolvedOutboundUrl } from '@/utils/outbound-url';
+
+import { resolvePublicProviderBaseUrl } from '../public-provider-base-url';
 
 /** Every workspace, sandbox or live, is served from this host - see this file's own header, point 1. */
-export const INVOPOP_DEFAULT_BASE_URL = 'https://api.invopop.com';
+const INVOPOP_DEFAULT_BASE_URL = 'https://api.invopop.com';
 
 /** See this file's own header, point 2: Cloudflare, not Invopop, is what this header is for. */
 export const INVOPOP_USER_AGENT = 'invoicerr/1.0 (+https://github.com/invoicerr-app/invoicerr)';
@@ -177,18 +173,10 @@ export class InvopopClient {
    * reason would turn this guard into a network-scanning oracle). See `superpdp/superpdp-client.ts`.
    */
   private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
-    try {
-      return await assertPublicOutboundUrl(this.baseUrl, {
-        allowedProtocols: ['http:', 'https:'],
-        allowedPorts: null,
-        allowPrivateForTesting: allowPrivateOutboundForTesting(),
-      });
-    } catch (err) {
-      if (err instanceof OutboundUrlValidationError) {
-        throw new InvopopApiError('Invopop baseUrl failed outbound-URL validation.', 0, null, this.baseUrl);
-      }
-      throw err;
-    }
+    return resolvePublicProviderBaseUrl(
+      this.baseUrl,
+      () => new InvopopApiError('Invopop baseUrl failed outbound-URL validation.', 0, null, this.baseUrl),
+    );
   }
 
   /**

@@ -50,13 +50,9 @@
  * the channel could make the backend POST invoice XML to an internal address and read the answer
  * back in the failure message.
  */
-import {
-  allowPrivateOutboundForTesting,
-  OutboundUrlValidationError,
-  type ResolvedOutboundUrl,
-  assertPublicOutboundUrl,
-  pinnedDispatcher,
-} from '@/utils/outbound-url';
+import { pinnedDispatcher, type ResolvedOutboundUrl } from '@/utils/outbound-url';
+
+import { resolvePublicProviderBaseUrl } from '../public-provider-base-url';
 
 export interface BillitCredentials {
   /** e.g. `https://api.sandbox.billit.be/v1` - sandbox and production are different hosts. */
@@ -176,18 +172,10 @@ export class BillitClient {
    *  purpose: it reaches the user, and naming the reason would make this guard a network-scanning
    *  oracle. */
   private async resolveBaseUrl(): Promise<ResolvedOutboundUrl | null> {
-    try {
-      return await assertPublicOutboundUrl(this.credentials.baseUrl, {
-        allowedProtocols: ['http:', 'https:'],
-        allowedPorts: null,
-        allowPrivateForTesting: allowPrivateOutboundForTesting(),
-      });
-    } catch (err) {
-      if (err instanceof OutboundUrlValidationError) {
-        throw new BillitApiError('Billit baseUrl failed outbound-URL validation.', 0);
-      }
-      throw err;
-    }
+    return resolvePublicProviderBaseUrl(
+      this.credentials.baseUrl,
+      () => new BillitApiError('Billit baseUrl failed outbound-URL validation.', 0),
+    );
   }
 
   private async request(path: string, init: RequestInit): Promise<Response> {

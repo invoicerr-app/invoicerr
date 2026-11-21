@@ -1,13 +1,10 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
-import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { serverMessage } from '../messages/server-message';
 import { computeDocumentTotals } from '../totals/compute-totals';
 import { resolveDateFieldKey } from '../list-filters';
 import { countDocuments, listAllDocuments, listRecentDocuments } from '../persistence';
-import { dateValueInRange, dayMs } from '../date-params';
 import { listPaymentsInRange } from '../settlement/payments';
 import {
   isIssuedInvoice,
@@ -21,6 +18,7 @@ import {
   loadCurrencyContext,
   resolveConsolidationInstant,
 } from './currency-consolidation';
+import { monthKey, monthRange, restrictToPeriod } from './period';
 import {
   MetricWidget,
   MetricWidgetLink,
@@ -81,27 +79,6 @@ function widgetAmount(minor: number, currency: string): number {
   return Number(fromMinor(minor, currency).toFixed(2));
 }
 
-/** "2026-08" for any parseable date-ish value, or null — used to bucket invoices by ISSUE month. */
-function monthKey(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  // UTC getters — same reasoning as expense-contributions.ts's own monthKey (see its comment: the
-  // stored date-only strings ARE UTC midnights; mixing local getters with UTC-keyed "now" made an
-  // issue dated "today" fall out of "this month" near a month boundary, caught by the battery).
-  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-/** `"2026-08"` -> `{ dateFrom: "2026-08-01", dateTo: "2026-08-31" }`: the exact UTC calendar-month
- *  boundaries `monthKey` itself buckets by, reused so the "Invoiced this month" tile's `link` filters
- *  the list to precisely the same month the figure sums, never a boundary independently recomputed
- *  (and therefore possibly disagreeing) elsewhere. */
-function monthRange(key: string): { dateFrom: string; dateTo: string } {
-  const [year, month] = key.split('-').map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { dateFrom: `${key}-01`, dateTo: `${key}-${String(lastDay).padStart(2, '0')}` };
-}
-
 /** The last `CURVE_MONTHS` calendar months, oldest first, each with its bucket key and a short
  *  display label — computed from `now` so a test can pass a fixed date instead of the real clock. */
 function recentMonths(now: Date): { key: string; label: string }[] {
@@ -127,7 +104,7 @@ function monthsSpanning(dateFrom: string, dateTo: string): { key: string; label:
   const [toYear, toMonth] = dateTo.split('-').map(Number);
   const months: { key: string; label: string }[] = [];
   let year = fromYear;
-  let month = fromMonth; // 1-indexed, matching monthKey's own %02d convention below.
+  let month = fromMonth; // 1-indexed, matching period.ts's `monthKey` %02d convention.
   while (year < toYear || (year === toYear && month <= toMonth)) {
     const d = new Date(Date.UTC(year, month - 1, 1));
     months.push({
@@ -141,34 +118,6 @@ function monthsSpanning(dateFrom: string, dateTo: string): { key: string; label:
     }
   }
   return months;
-}
-
-/**
- * Every invoice from `all` whose own `INVOICE_DATE_FIELD_KEY` value falls within `period`'s inclusive
- * range - THE CONSISTENCY RULE (issue #418): reuses `date-params.ts`'s own `dateValueInRange`/`dayMs`
- * pair, the EXACT predicate `GET /documents`'s own `dateFrom`/`dateTo` filter applies, against the
- * EXACT field `list-filters.ts#resolveDateFieldKey` names for this type - so a period-scoped tile and
- * the list its `link` opens can never independently drift on which invoices are "in" the period.
- *
- * `period` undefined -> returns `all`, the SAME array reference, unchanged: every period-aware figure
- * below stays byte-identical to its pre-#418 behavior whenever no period is set. `INVOICE_DATE_FIELD_KEY`
- * unresolved would mean the same (never reached in practice - the invoice descriptor always declares
- * `issueDate` - but a doubly-defensive `undefined` guard here costs nothing and never guesses).
- */
-function restrictToPeriod(
-  all: DocumentInstanceResult[],
-  period: DashboardPeriod | undefined,
-): DocumentInstanceResult[] {
-  if (!period || !INVOICE_DATE_FIELD_KEY) return all;
-  const fromMs = dayMs(period.dateFrom);
-  const toMs = dayMs(period.dateTo);
-  return all.filter((invoice) =>
-    dateValueInRange(
-      (invoice.data as Record<string, unknown> | null)?.[INVOICE_DATE_FIELD_KEY],
-      fromMs,
-      toMs,
-    ),
-  );
 }
 
 /**
@@ -195,7 +144,7 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // to this subset before applying their own status/settlement rule on top; "issued in period" and
   // the curve compute their own restriction separately below (a flow metric and a per-month curve
   // need different windows than a stock-like "pending" figure).
-  const periodInvoices = restrictToPeriod(invoices, period);
+  const periodInvoices = restrictToPeriod(invoices, period, INVOICE_DATE_FIELD_KEY);
 
   // A "draft" is not yet issued at all, so it is never "pending" in the sense a reader of this
   // widget means — that part is unchanged. What changed once payments (and now credits —
@@ -774,4 +723,4 @@ export function registerInvoiceContributions(registry: ContributionRegistry): vo
 // Re-exported for tests that want to prove the arithmetic directly, the same way
 // actions/email-template.ts exports its own pure pieces for email-template.spec.ts.
 export type { Widget };
-export { monthKey, monthRange, monthsSpanning, recentMonths };
+export { monthsSpanning, recentMonths };

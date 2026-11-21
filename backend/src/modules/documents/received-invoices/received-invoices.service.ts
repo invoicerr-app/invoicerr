@@ -33,6 +33,7 @@ import { ExtractionResult, extractReceivedInvoiceFields } from './extraction';
 import { applyOcrFallback, needsOcr, OcrOutcome } from './ocr/apply-ocr-fallback';
 import { receivedDocumentExtractorRegistry } from './ocr/extractor';
 import { persistInboundFile, readInboundFile } from './storage';
+import { withSupplierMatch } from './supplier-match-fields';
 import { reconcileSupplierClient, SupplierMatchResult } from './supplier-reconciliation';
 import { sanitizeFileName, validateInboundFile } from './upload-validation';
 
@@ -182,14 +183,7 @@ export class ReceivedInvoicesService {
     // re-runs this (see that action's own header on why). Reads `extractedFields`, NOT `structural.
     // fields` — an OCR-read supplier VAT/name is exactly as eligible for auto-reconciliation as a
     // structurally-read one (see `ocr/extractor.ts`'s own header: the proposal shape is IDENTICAL).
-    const supplierMatch = await reconcileSupplierClient(companyId, {
-      vatId: extractedFields.supplierVatId,
-      supplierName: extractedFields.supplier,
-    });
-    const fields: Record<string, unknown> = { ...extractedFields };
-    if (supplierMatch.outcome === 'matched') {
-      fields.supplierClient = supplierMatch.clientId;
-    }
+    const { fields, supplierMatch } = await withSupplierMatch(companyId, extractedFields);
     if (structural.syntax && structural.fields.lines?.length) {
       fields.linesFromSupplierXml = true;
     }

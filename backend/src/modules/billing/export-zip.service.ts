@@ -20,6 +20,18 @@ import JSZip = require('jszip');
 import { DocumentsService } from '../documents/documents.service';
 import { listAllDocuments } from '../documents/persistence';
 import { logger } from '@/logger/logger.service';
+import { MailAttachment } from '@/mail/types';
+
+/** The one name the company data export carries, whichever path hands it over: mailed on company
+ *  deletion (`danger.service.ts`), on request (`companies.service.ts`), by the `ZIPPED` sweep
+ *  (`billing-lifecycle-sweep-runner.ts`), or streamed as a download (`companies.controller.ts`). The
+ *  frontend's own copy (`data-export.settings.tsx`) and the specs keep the literal on purpose. */
+export const EXPORT_ZIP_FILENAME = 'invoicerr-export.zip';
+
+/** The mail attachment for a zip built by `BillingExportService.buildCompanyZip`. */
+export function exportZipAttachment(zip: Buffer): MailAttachment {
+  return { filename: EXPORT_ZIP_FILENAME, content: zip, contentType: 'application/zip' };
+}
 
 /** Well below the 10-25 MB attachment limit of ordinary SMTP servers. */
 const EXPORT_ZIP_MAX_BYTES = 20 * 1024 * 1024; // 20 MiB

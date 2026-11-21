@@ -51,10 +51,6 @@ export const DOCUMENT_CHANGED_MESSAGE =
 const DELIVERED_PDF_ROLE = 'pdf';
 const DELIVERED_PDF_MIME = 'application/pdf';
 
-/** The hash itself lives in `archive/document-data-hash.ts` since issue #490 reused it for the
- *  DELIVERY archive; re-exported here so every #477 caller keeps its import. */
-export { hashDocumentData };
-
 export interface DeliveredVersion {
   archiveId: string;
   contentHash: string;
@@ -124,10 +120,7 @@ export async function resolveCurrentDeliveredVersion(
 }
 
 /** The `contentHash` of this document's most recent DELIVERY archive, or null when it has none. */
-export async function latestDeliveryContentHash(
-  companyId: string,
-  documentId: string,
-): Promise<string | null> {
+async function latestDeliveryContentHash(companyId: string, documentId: string): Promise<string | null> {
   const archive = await prisma.documentArchive.findFirst({
     where: { companyId, documentId, kind: DocumentArchiveKind.DELIVERY },
     orderBy: { archivedAt: 'desc' },

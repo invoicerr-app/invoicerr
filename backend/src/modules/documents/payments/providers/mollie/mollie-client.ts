@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { fromMinor } from '@/utils/financial';
 
-import { CreateCheckoutSessionInput, CreateCheckoutSessionResult } from '../../provider';
+import {
+  CreateCheckoutSessionInput,
+  CreateCheckoutSessionResult,
+  PAYMENT_PROVIDER_HTTP_TIMEOUT_MS,
+} from '../../provider';
 
 /**
  * The two Mollie Payments API v2 calls this integration needs — kept behind this narrow interface for
@@ -85,7 +89,7 @@ export class RealMollieClient implements MollieClient {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as {
@@ -106,7 +110,7 @@ export class RealMollieClient implements MollieClient {
   async getPayment(apiKey: string, paymentId: string): Promise<MolliePaymentStatus> {
     const response = await fetch(`${MOLLIE_API_BASE}/payments/${encodeURIComponent(paymentId)}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as { status?: string; detail?: string } | null;

@@ -17,7 +17,7 @@ import { portalFetch } from "./use-portal-fetch"
  * the wrong pair by mistake would silently send the STAFF cookie (or nothing at all) instead of the
  * client's own bearer token. Two small, obviously-named files cost less than one that could be misused.
  */
-export async function portalApiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+async function portalApiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
   const res = await portalFetch(fullUrl, init)
   if (!res.ok) {

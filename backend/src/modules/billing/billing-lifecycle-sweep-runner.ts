@@ -6,7 +6,12 @@ import { runWithCompanyId } from '@/lib/request-context';
 import { CompanySubscription } from '../../../prisma/generated/prisma/client';
 import { buildBlockedZipWarningEmail, buildDeletionWarningEmail } from '@/mail/system-email-templates';
 import { mailT } from '@/mail/i18n';
-import { BillingExportService, ExportZipTimedOutError, ExportZipTooLargeError } from './export-zip.service';
+import {
+  BillingExportService,
+  ExportZipTimedOutError,
+  ExportZipTooLargeError,
+  exportZipAttachment,
+} from './export-zip.service';
 import { computeDueBillingWarnings, computeLifecycleTransition } from './lifecycle';
 import { listAdvanceableCompanySubscriptions } from './company-subscription.store';
 import { deleteCompanyPermanently } from './deletion';
@@ -176,7 +181,7 @@ export class BillingLifecycleSweepRunner {
         to: owner.email,
         subject: t('dataExport.subject'),
         text: t('billingZipExport.body'),
-        attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
+        attachments: [exportZipAttachment(zip)],
       });
       return true;
     } catch (error) {

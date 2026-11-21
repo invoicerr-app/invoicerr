@@ -49,8 +49,8 @@
  * and the 2026-09-14 rejection this closes. `buildEuInvoiceForDocument` writes it onto `euInvoice`
  * BEFORE either `service.generate()` call below runs, so both the plain-CII gate and the Factur-X
  * embed already see the OVERRIDDEN value — `applyFrenchBusinessProcess`/`applyFrenchBusinessProcessInObject`
- * read `businessProcessCode` off `euInvoice['ubl:Invoice']['cbc:ProfileID']` (below), never re-derive
- * it, so they stay correct, unmodified, for this case too.
+ * read `businessProcessCode` off `euInvoice['ubl:Invoice']['cbc:ProfileID']` (`ciiPostProcessContext`,
+ * below), never re-derive it, so they stay correct, unmodified, for this case too.
  *
  * `FacturxProviderDeps.legalIdOverride` — a FOURTH, unrelated concern (BT-29/BT-30/BT-46/BT-47), same
  * SAME Chorus Pro-only instance, same "replaces a derived value outright" shape: `build-semantic-
@@ -73,13 +73,7 @@ import {
   DocumentFormatParty,
   DocumentFormatProvider,
 } from './format-provider';
-import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './semantic/business-process';
-import {
-  applyCiiSellerLegalDescription,
-  applyCiiSellerLegalDescriptionInObject,
-  splitCiiIncludedNotes,
-  splitCiiIncludedNotesInObject,
-} from './semantic/cii-post-process';
+import { ciiPostProcessContext, postProcessCii, postProcessCiiInObject } from './semantic/cii-post-process';
 import { buildEuInvoiceForDocument, newEuInvoiceService } from './shared-build';
 import { validateStructural } from './structural-check';
 import { EN16931_CII_SCH, validateSchematron } from './vendored/validate-schematron';
@@ -141,22 +135,12 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       creditNote: options?.creditNote,
     });
     const service = newEuInvoiceService();
-    // Set by `build-semantic-invoice.ts` only when a country's content requirement actually resolved
-    // a BT-23 code (see `business-process.ts`'s own header) — `undefined` for every other seller.
-    const businessProcessCode = euInvoice['ubl:Invoice']['cbc:ProfileID'];
+    // BT-33 and BT-23 as the semantic object carries them - see `ciiPostProcessContext`'s own header.
+    const postProcessContext = ciiPostProcessContext(euInvoice);
 
     // 1) The SAME CII `cii-provider.ts` produces, gated the SAME way — see this file's own header.
     const rawCii = (await service.generate(euInvoice, { format: 'CII', lang: 'en' })) as string;
-    let cii = splitCiiIncludedNotes(rawCii);
-    const sellerLegalInformation =
-      euInvoice['ubl:Invoice']['cac:AccountingSupplierParty']['cac:Party']['cac:PartyLegalEntity'][
-        'cbc:CompanyLegalForm'
-      ];
-    cii = applyCiiSellerLegalDescription(cii, sellerLegalInformation);
-    // Belt-and-suspenders reuse of `applyFrenchBusinessProcess` — see `cii-provider.ts`'s own,
-    // identical comment for why this is safe to run even though the object-level `cbc:ProfileID`
-    // above already reaches this same rendered string.
-    if (businessProcessCode) cii = applyFrenchBusinessProcess(cii, businessProcessCode);
+    const cii = postProcessCii(rawCii, postProcessContext);
 
     const structural = validateStructural(cii, 'cii');
     if (!structural.valid) {
@@ -207,12 +191,8 @@ export function buildFacturxFormatProvider(deps: FacturxProviderDeps): DocumentF
       // internal CII regeneration would otherwise carry into the embedded copy: the plain CII gate
       // above already got its BT-23 fix from `applyFrenchBusinessProcess` on the STRING, which this
       // regeneration never sees (see `business-process.ts`'s own header).
-      postProcessor: async (data) => {
-        const cii = data as Record<string, unknown>;
-        splitCiiIncludedNotesInObject(cii);
-        applyCiiSellerLegalDescriptionInObject(cii, sellerLegalInformation);
-        if (businessProcessCode) applyFrenchBusinessProcessInObject(cii, businessProcessCode);
-      },
+      postProcessor: async (data) =>
+        postProcessCiiInObject(data as Record<string, unknown>, postProcessContext),
     })) as Uint8Array;
 
     return { bytes: embedded, validation: { valid: true, errors: [] } };

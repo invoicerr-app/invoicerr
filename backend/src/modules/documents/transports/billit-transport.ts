@@ -62,7 +62,7 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 import { resolveChannelCredentials } from './resolve-channel-credentials';
-import prisma from '@/prisma/prisma.service';
+import { loadSenderAndBuyer } from './load-sender-and-buyer';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { DocumentFormatProvider } from '../formats/format-provider';
@@ -182,29 +182,7 @@ export function buildBillitTransport(deps: BillitTransportDeps): DocumentTranspo
       // invoice it corrects), from the delivered invoice itself otherwise (`formatBuildInputOf`).
       const buildInput = formatBuildInputOf(ctx, INVOICE_DESCRIPTOR);
       const data = (buildInput.document.data ?? {}) as Record<string, unknown>;
-      const clientId = typeof data.client === 'string' ? data.client : undefined;
-      const [company, client] = await Promise.all([
-        prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
-        // Scoped by companyId for the reason `superpdp-transport.ts`'s own identical query documents:
-        // `clientId` comes straight off the document's own `data.client` and is never checked for
-        // existence at write time, so a bare `findUnique` would happily hand back another tenant's
-        // client. A `null` result lands on the same "no valid client on file" refusal below that a
-        // genuinely absent client already produces.
-        clientId
-          ? prisma.client.findFirst({
-              where: { id: clientId, companyId: ctx.companyId },
-              include: { partyIdentifiers: true, contacts: true },
-            })
-          : Promise.resolve(null),
-      ]);
-      if (!company) {
-        throw new BadRequestException(`Company "${ctx.companyId}" not found.`);
-      }
-      if (!client) {
-        throw new BadRequestException(
-          `Cannot deposit to Billit: the ${ctx.label.toLowerCase()} has no valid client on file.`,
-        );
-      }
+      const { company, client } = await loadSenderAndBuyer(ctx, data, 'Cannot deposit to Billit');
 
       const buildResult = await deps.peppolBisFormatProvider.build(
         buildInput.descriptor,
