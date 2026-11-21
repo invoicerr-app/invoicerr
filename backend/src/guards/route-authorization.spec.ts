@@ -133,6 +133,13 @@ const NO_SCOPE_IS_CORRECT: Record<string, string> = {
   'AuthExtendedController#updatePreferences':
     "Writes one field on the caller's own user row — the language they read the app in. Per-user, " +
     'not per-company, and it touches no company data.',
+  'ErrorTrackingConsentController#get':
+    "Reads the CALLER's own browser error-reporting decision - a row about the person, not the " +
+    'company (`error_tracking_consent.userId`). No company resource to name a scope for.',
+  'ErrorTrackingConsentController#decide':
+    "Appends the CALLER's own grant, refusal or withdrawal of browser error reporting - a row about " +
+    'the person, not the company. Like LegalController#accept it must stay reachable for a member ' +
+    'with no seat or a pending legal re-acceptance, so that consent can always be refused or withdrawn.',
 
   // --- The scope mechanism's own entry point.
   'McpController#handleMcp':

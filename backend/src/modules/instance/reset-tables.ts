@@ -41,6 +41,7 @@ export const INSTANCE_RESET_TABLES: readonly string[] = [
   'company_ownership_transfer',
   'user',
   'legal_acceptance',
+  'error_tracking_consent',
   'legal_document_release',
   'legal_document_release_notification',
   'api_key',
