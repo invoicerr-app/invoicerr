@@ -180,6 +180,72 @@ describe("Onboarding wizard — company-lookup drives the identifier step", () =
 		},
 	);
 
+	// Issue #786: when the registers do not answer, the backend cuts the whole provider chain at its
+	// total budget (COMPANY_LOOKUP_BUDGET_MS, 5 s by default) and answers PROVIDER_ERROR. This leg
+	// replays that answer, sent after a delay just under the budget, and proves the wizard moves on
+	// with nothing pre-filled. The budget itself is proven by company-lookup.service.spec.ts against
+	// a register that never answers; the required lane never reaches a real one.
+	(liveLookup ? it.skip : it)(
+		"registers that do not answer: Next advances within the budget with empty company fields",
+		() => {
+			cy.intercept(
+				{ method: "GET", pathname: "/api/company-lookup" },
+				{
+					statusCode: 200,
+					delay: 4500,
+					body: {
+						found: false,
+						company: null,
+						source: "fr-recherche-entreprises",
+						error: "PROVIDER_ERROR",
+						message: "Company registers did not answer within 5000ms",
+					},
+				},
+			).as("slowLookup");
+
+			openCreateCompanyDialog();
+			pickCountryAndAdvance("France");
+
+			cy.get('[data-cy="onboarding-legalid-input"]', { timeout: 10000 })
+				.clear({ force: true })
+				.type("55208131766522", { force: true });
+
+			// Every clock reading happens inside the command queue: a bare Date.now() in the test body
+			// runs while Cypress is still queueing commands, before the dialog even opens, and would
+			// count the page visit and the typing too (that is what made this leg flaky on Firefox).
+			let clickedAt = 0;
+			let answeredAt = 0;
+			cy.get('[data-cy="onboarding-identifier-next-btn"]')
+				.then(() => {
+					clickedAt = Date.now();
+				})
+				.click();
+			cy.wait("@slowLookup", { timeout: 10000 }).then(() => {
+				answeredAt = Date.now();
+				// The wizard really sat on the slow answer: Next did not skip the search.
+				expect(
+					answeredAt - clickedAt,
+					"Next waited for the budget-cut answer",
+				).to.be.at.least(4500);
+			});
+
+			cy.get('[data-cy="onboarding-company-name-input"]', { timeout: 10000 })
+				.should("be.visible")
+				.and("have.value", "")
+				.then(() => {
+					// Measured from the answer, not from the click: the 4.5 s the answer took is the
+					// stub's delay, and what this leg owns is that the wizard adds no wait of its own
+					// (no retry, no second timeout) once PROVIDER_ERROR lands. 3 s covers a cold render
+					// on headless Firefox in CI and stays far below the 8 s a single extra register
+					// timeout would add, which is the regression #786 removed.
+					expect(
+						Date.now() - answeredAt,
+						"the wizard moved on as soon as the budget-cut answer landed",
+					).to.be.lessThan(3000);
+				});
+		},
+	);
+
 	it("a country with only the worldwide fallbacks: no search fires, manual entry is preserved", () => {
 		// The real coverage classification, read from the same endpoint the wizard
 		// itself calls — this spec asserts against that fact, not a guess about which
