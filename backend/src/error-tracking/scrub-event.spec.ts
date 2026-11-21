@@ -1,6 +1,7 @@
 import type { ErrorEvent } from '@sentry/node';
 import { describe, expect, it } from 'vitest';
-import { scrubEvent, stripQuery } from './scrub-event';
+import { redactText, redactUrl } from '../logger/redaction-rules';
+import { scrubEvent } from './scrub-event';
 
 function event(overrides: Partial<ErrorEvent>): ErrorEvent {
   return { type: undefined, ...overrides } as ErrorEvent;
@@ -12,21 +13,21 @@ describe('scrubEvent', () => {
     expect(scrubEvent(event({ user: { ip_address: '{{auto}}' } })).user).toBeUndefined();
   });
 
-  it('keeps only method and path of the request', () => {
+  it('keeps only the method of the request: no URL, body, cookies, headers or query', () => {
     const scrubbed = scrubEvent(
       event({
         request: {
           method: 'POST',
-          url: 'https://app.example.test/api/documents?token=abc#frag',
+          url: 'https://app.example.test/api/clients/c123?token=abc#frag',
           data: '{"password":"hunter2"}',
           cookies: { session: 'secret' },
-          headers: { authorization: 'Bearer abc', 'x-forwarded-for': '203.0.113.7' },
+          headers: { authorization: 'Bearer abc', cookie: 'session=abc', 'x-forwarded-for': '203.0.113.7' },
           query_string: 'token=abc',
           env: { REMOTE_ADDR: '203.0.113.7' },
         },
       }),
     );
-    expect(scrubbed.request).toEqual({ method: 'POST', url: 'https://app.example.test/api/documents' });
+    expect(scrubbed.request).toEqual({ method: 'POST' });
   });
 
   it('drops breadcrumbs and the host name', () => {
@@ -37,28 +38,110 @@ describe('scrubEvent', () => {
     expect(scrubbed.server_name).toBeUndefined();
   });
 
-  it('redacts emails and secrets from messages, exception values and extra context', () => {
+  it('redacts emails, secrets and IP addresses from messages, exception values and extra', () => {
     const scrubbed = scrubEvent(
       event({
-        message: 'failed for someone@example.test',
-        exception: { values: [{ type: 'Error', value: 'Bearer abcdefghijklmnop rejected' }] },
-        extra: { email: 'someone@example.test', count: 3 },
-        contexts: { custom: { password: 'hunter2' }, runtime: { name: 'node' } },
+        message: 'failed for someone@example.test from 203.0.113.7',
+        exception: {
+          values: [{ type: 'Error', value: 'Bearer abcdefghijklmnop rejected from 2001:db8::1' }],
+        },
+        extra: { email: 'someone@example.test', note: 'call +33 6 12 34 56 78', count: 3 },
       }),
     );
-    expect(scrubbed.message).not.toContain('someone@example.test');
-    expect(scrubbed.exception?.values?.[0].value).not.toContain('abcdefghijklmnop');
-    expect(scrubbed.extra).toEqual({ email: '[redacted]', count: 3 });
-    expect(scrubbed.contexts?.custom).toEqual({ password: '[redacted]' });
-    expect(scrubbed.contexts?.runtime).toEqual({ name: 'node' });
+    expect(scrubbed.message).toBe('failed for [redacted-email] from [redacted-ip]');
+    expect(scrubbed.exception?.values?.[0].value).toBe(
+      'Bearer [redacted-secret] rejected from [redacted-ip]',
+    );
+    expect(scrubbed.extra).toEqual({ email: '[redacted]', note: 'call [redacted-phone]', count: 3 });
+  });
+
+  it('removes stack frame variables', () => {
+    const scrubbed = scrubEvent(
+      event({
+        exception: {
+          values: [{ type: 'Error', value: 'x', stacktrace: { frames: [{ vars: { iban: 'x' } }] } }],
+        },
+      }),
+    );
+    expect(scrubbed.exception?.values?.[0].stacktrace?.frames?.[0].vars).toBeUndefined();
+  });
+
+  it('keeps only the listed contexts, and drops every other one', () => {
+    const scrubbed = scrubEvent(
+      event({
+        contexts: {
+          custom: { password: 'hunter2' },
+          client: { name: 'Acme' },
+          culture: { timezone: 'Europe/Paris' },
+          runtime: { name: 'node' },
+          os: { name: 'linux' },
+        },
+      }),
+    );
+    expect(scrubbed.contexts).toEqual({ runtime: { name: 'node' }, os: { name: 'linux' } });
+  });
+
+  it('keeps only the name and code of a database error', () => {
+    const error = Object.assign(new Error('Unique constraint failed on (`email`) = (someone@example.test)'), {
+      name: 'PrismaClientKnownRequestError',
+      code: 'P2002',
+      meta: { target: ['email'] },
+    });
+    const scrubbed = scrubEvent(
+      event({ exception: { values: [{ type: 'PrismaClientKnownRequestError', value: error.message }] } }),
+      { originalException: error },
+    );
+    expect(scrubbed.exception?.values?.[0]).toEqual({
+      type: 'PrismaClientKnownRequestError',
+      value: 'code P2002',
+    });
+  });
+
+  it('drops the whole message of a database error without a code', () => {
+    const scrubbed = scrubEvent(
+      event({
+        exception: { values: [{ type: 'PrismaClientValidationError', value: 'Argument name: "Acme SAS"' }] },
+      }),
+    );
+    expect(scrubbed.exception?.values?.[0].value).toBe('[redacted]');
   });
 });
 
-describe('stripQuery', () => {
-  it('cuts at the first ? or #', () => {
-    expect(stripQuery('https://a.test/p?q=1')).toBe('https://a.test/p');
-    expect(stripQuery('https://a.test/p#x')).toBe('https://a.test/p');
-    expect(stripQuery('https://a.test/p')).toBe('https://a.test/p');
-    expect(stripQuery(undefined)).toBeUndefined();
+describe('shared text rules', () => {
+  it('redacts IBANs, grouped or not', () => {
+    expect(redactText('pay to FR76 3000 6000 0112 3456 7890 189 now')).toBe('pay to [redacted-iban] now');
+    expect(redactText('iban DE89370400440532013000.')).toBe('iban [redacted-iban].');
+  });
+
+  it('leaves an upper-case word followed by a number alone', () => {
+    expect(redactText('ID12 USER NAME failed')).toBe('ID12 USER NAME failed');
+  });
+
+  it('redacts SIREN and SIRET numbers', () => {
+    expect(redactText('company 732829320 not found')).toBe('company [redacted-company-id] not found');
+    expect(redactText('siret 732 829 320 00074 invalid')).toBe('siret [redacted-company-id] invalid');
+    expect(redactText('siret 73282932000074')).toBe('siret [redacted-company-id]');
+  });
+
+  it('redacts phone numbers in international and national form', () => {
+    expect(redactText('call +33 6 12 34 56 78')).toBe('call [redacted-phone]');
+    expect(redactText('call +44 (0)20 7946 0958')).toBe('call [redacted-phone]');
+    expect(redactText('call 06.12.34.56.78 or 0612345678')).toBe('call [redacted-phone] or [redacted-phone]');
+  });
+
+  it('leaves dates, amounts, timestamps and uuids alone', () => {
+    const text =
+      'at 2026-11-21T10:00:00Z total 1234.56 ts 1763719200000 id 3f2b8c1e-9a4d-4e2f-8b7a-1c2d3e4f5a6b';
+    expect(redactText(text)).toBe(text);
+  });
+
+  it('redacts capability tokens in a URL path and drops the query', () => {
+    expect(redactUrl('https://eu.invoicerr.app/portal/0123456789abcdef0123456789abcdef/invoices?x=1#y')).toBe(
+      'https://eu.invoicerr.app/portal/[redacted-secret]/invoices',
+    );
+    expect(redactUrl('/signature/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')).toBe(
+      '/signature/[redacted-secret]',
+    );
+    expect(redactUrl(undefined)).toBeUndefined();
   });
 });

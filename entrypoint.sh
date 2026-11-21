@@ -103,15 +103,14 @@ cat > /usr/share/nginx/html/config.json <<EOF
 {
   "VITE_OIDC_PROVIDER_ID": "${OIDC_PROVIDER_ID}",
   "VITE_OIDC_ONLY": "${OIDC_ONLY:-}",
-  "VITE_ENABLE_BETA_BANNER": "${ENABLE_BETA_BANNER:-}",
-  "VITE_SENTRY_DSN": "${SENTRY_FRONTEND_DSN:-}",
-  "VITE_SENTRY_ENVIRONMENT": "${SENTRY_ENVIRONMENT:-}",
-  "VITE_SENTRY_RELEASE": "${INVOICERR_REF_NAME:-}"
+  "VITE_ENABLE_BETA_BANNER": "${ENABLE_BETA_BANNER:-}"
 }
 EOF
 
-# Browser error tracking: SENTRY_FRONTEND_DSN (a DSN is public by design, the browser has to read it)
-# turns it on, and the tracker's origin is the one extra host the page may send requests to. The
+# Browser error tracking: SENTRY_FRONTEND_DSN is NOT published in /config.json (read by anyone, signed
+# in or not). The backend hands it only to a signed-in user who agreed to error reporting, through
+# GET /api/error-tracking/consent. The tracker's origin is still the one extra host the page may send
+# requests to, so the CSP below allows it. The
 # CSP rewrite is idempotent (it always starts back from `connect-src 'self'`), so a container restart
 # with a changed or removed DSN converges. An origin with anything but host characters is refused
 # rather than written into a response header.

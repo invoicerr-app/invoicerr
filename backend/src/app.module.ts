@@ -34,6 +34,7 @@ import { HealthModule } from './modules/health/health.module';
 import { InstanceModule } from './modules/instance/instance.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { LegalModule } from './legal/legal.module';
+import { ErrorTrackingConsentModule } from './error-tracking/consent/error-tracking-consent.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { TransferModule } from './modules/company/transfer/transfer.module';
@@ -256,6 +257,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // module's own header for why, unlike BillingModule right above, this one is never conditioned on
     // `billingEnabled`).
     LegalModule,
+    ErrorTrackingConsentModule,
     HealthModule,
     // `GET /api/version` — issue #371, installed version + update-availability check. Always
     // imported, no flag: see `version.module.ts`'s own header.

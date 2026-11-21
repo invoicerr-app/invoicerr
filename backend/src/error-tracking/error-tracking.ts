@@ -8,7 +8,13 @@ let sentry: typeof SentryNode | null = null;
  * Starts the Sentry-compatible SDK when `SENTRY_DSN` is set, and does nothing otherwise: the SDK is
  * only loaded in that case, so an instance without error tracking pays nothing for it.
  *
- * Errors only. Tracing, breadcrumbs and the auto-instrumentation integrations stay off: they would
+ * This is the operator's choice, made for the server under legitimate interest: no end-user consent
+ * is asked for it, so the events it sends must not identify anyone (see `scrub-event.ts`). It never
+ * reports anything from the routes that serve people outside the account (client portal, public
+ * signature and document links, sign-in, legal pages): see `error-tracking.interceptor.ts`.
+ *
+ * Errors only. Unhandled promise rejections are not reported: the ones that matter reach the
+ * interceptor or the uncaught-exception handler, and the others are mostly noise. Tracing, breadcrumbs and the auto-instrumentation integrations stay off: they would
  * duplicate what the metrics and logs already carry, and every one of them is another place a
  * request detail could leak from. `enableOpenTelemetrySetup` stays false so the SDK never registers
  * a tracer provider competing with an OpenTelemetry exporter.
@@ -41,7 +47,6 @@ export function initErrorTracking(role: ErrorTrackingRole): boolean {
     defaultIntegrations: false,
     integrations: [
       sdk.onUncaughtExceptionIntegration(),
-      sdk.onUnhandledRejectionIntegration(),
       sdk.linkedErrorsIntegration(),
       sdk.dedupeIntegration(),
       sdk.eventFiltersIntegration(),
@@ -51,16 +56,28 @@ export function initErrorTracking(role: ErrorTrackingRole): boolean {
     maxBreadcrumbs: 0,
     beforeBreadcrumb: () => null,
     beforeSendTransaction: () => null,
-    beforeSend: (event) => scrubEvent(event),
+    beforeSend: (event, hint) => scrubEvent(event, hint),
     initialScope: { tags: { role: config.role } },
   });
   sentry = sdk;
   return true;
 }
 
-/** Reports an error the application caught itself. No-op when error tracking is off. */
-export function captureServerError(error: unknown): void {
-  sentry?.captureException(error);
+/**
+ * Reports an error the application caught itself. No-op when error tracking is off. `route` is the
+ * route template (`/api/documents/:id`), never the concrete path, which would carry record ids.
+ */
+export function captureServerError(error: unknown, context: { route?: string } = {}): void {
+  if (!sentry) return;
+  if (!context.route) {
+    sentry.captureException(error);
+    return;
+  }
+  const route = context.route;
+  sentry.withScope((scope) => {
+    scope.setTag('route', route);
+    sentry?.captureException(error);
+  });
 }
 
 export function isErrorTrackingEnabled(): boolean {

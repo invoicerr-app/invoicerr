@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import i18n from "i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -28,13 +29,37 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type FetchHandler = (url: URL, init?: RequestInit) => { status?: number; body: unknown }
 
+/** The page also renders the error-report setting, which reads its own state; this instance collects none. */
+const DEFAULT_HANDLERS: Record<string, FetchHandler> = {
+  "GET /api/error-tracking/consent": () => ({
+    body: {
+      available: false,
+      granted: false,
+      decisionRequired: false,
+      textVersion: "test",
+      decision: null,
+      decidedAt: null,
+      browser: null,
+    },
+  }),
+}
+
+function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AccountPreferencesPage />
+    </QueryClientProvider>,
+  )
+}
+
 function installFetchMock(handlers: Record<string, FetchHandler>) {
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const raw = typeof input === "string" ? input : input.toString()
     const url = new URL(raw, "http://localhost")
     const method = (init?.method ?? "GET").toUpperCase()
     const key = `${method} ${url.pathname}`
-    const handler = handlers[key]
+    const handler = handlers[key] ?? DEFAULT_HANDLERS[key]
     if (!handler) throw new Error(`Unmocked fetch in test: ${key}`)
     const { status = 200, body } = handler(url, init)
     return jsonResponse(body, status)
@@ -80,7 +105,7 @@ describe("<AccountPreferencesPage> — server-side language persistence", () => 
     mockSession("fr")
     installFetchMock({})
 
-    render(<AccountPreferencesPage />)
+    renderPage()
 
     await waitFor(() => expect(i18n.resolvedLanguage).toBe("fr"))
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("fr")
@@ -98,7 +123,7 @@ describe("<AccountPreferencesPage> — server-side language persistence", () => 
       },
     })
 
-    render(<AccountPreferencesPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId("account-preferences-language-select"))
     fireEvent.click(await screen.findByTestId("account-preferences-language-option-fr"))
@@ -125,7 +150,7 @@ describe("<AccountPreferencesPage> — server-side language persistence", () => 
       }),
     })
 
-    render(<AccountPreferencesPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId("account-preferences-language-select"))
     fireEvent.click(await screen.findByTestId("account-preferences-language-option-ar"))
@@ -144,7 +169,7 @@ describe("<AccountPreferencesPage> — server-side language persistence", () => 
       }),
     })
 
-    render(<AccountPreferencesPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId("account-preferences-language-select"))
     fireEvent.click(await screen.findByTestId("account-preferences-language-option-fr"))
