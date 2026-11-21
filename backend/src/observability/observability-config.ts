@@ -8,6 +8,8 @@ export interface MetricsConfig {
   token: string | undefined;
   /** Set when `METRICS_ENABLED` was asked for but refused, so boot can say why. */
   refusal?: string;
+  /** Set when the endpoint is on without a token, so boot can say it is open to anyone. */
+  warning?: string;
 }
 
 export function resolveMetricsConfig(env: NodeJS.ProcessEnv = process.env): MetricsConfig {
@@ -20,6 +22,14 @@ export function resolveMetricsConfig(env: NodeJS.ProcessEnv = process.env): Metr
       enabled: false,
       token,
       refusal: 'METRICS_ENABLED=true is ignored in production without METRICS_TOKEN.',
+    };
+  }
+  if (!token) {
+    return {
+      enabled: true,
+      token,
+      warning:
+        'METRICS_ENABLED=true without METRICS_TOKEN: /api/metrics is readable by anyone who can reach it. Set METRICS_TOKEN before exposing this instance.',
     };
   }
   return { enabled: true, token };

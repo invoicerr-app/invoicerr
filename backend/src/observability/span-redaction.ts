@@ -10,6 +10,36 @@ const FULL_URL_ATTRIBUTES: ReadonlySet<string> = new Set(['url.full', 'http.url'
 
 const SERVER_KIND = 1;
 
+/**
+ * Attributes that identify the person behind a request: the client address and the browser user
+ * agent, under the current semantic conventions and the legacy names the HTTP instrumentation has
+ * used. They are removed, not masked, so no backend ever stores them.
+ */
+const CLIENT_IDENTITY_ATTRIBUTES: ReadonlySet<string> = new Set([
+  'client.address',
+  'client.port',
+  'http.client_ip',
+  'user_agent.original',
+  'http.user_agent',
+]);
+
+/**
+ * On an incoming request the peer is the client (or the reverse proxy in front of it). On an
+ * outgoing span (PostgreSQL, Redis, an external API) it is the remote server and stays.
+ */
+const PEER_ATTRIBUTES: ReadonlySet<string> = new Set([
+  'net.peer.ip',
+  'net.peer.name',
+  'net.peer.port',
+  'net.sock.peer.addr',
+  'net.sock.peer.port',
+  'network.peer.address',
+  'network.peer.port',
+]);
+
+/** Request and response headers (`X-Forwarded-For`, `User-Agent`, cookies...) are never exported. */
+const HEADER_ATTRIBUTE_PREFIXES = ['http.request.header.', 'http.response.header.'] as const;
+
 function originOf(value: string): string | undefined {
   try {
     return new URL(value).origin;
@@ -23,11 +53,21 @@ type MutableAttributes = Record<string, unknown>;
 /**
  * Applies the log redaction rules to a finished span before it is exported. Request paths and
  * query strings are dropped (public routes carry share tokens in the path; `http.route` keeps the
- * template), an outgoing URL keeps only its origin, and exception messages and SQL text go through
+ * template), an outgoing URL keeps only its origin, the client's IP address, port and user agent and
+ * any captured header are removed, and exception messages and SQL text go through
  * the same filter as a log line.
  */
 export function redactSpan(span: ReadableSpan): void {
   const attributes = span.attributes as MutableAttributes;
+  for (const key of Object.keys(attributes)) {
+    if (
+      CLIENT_IDENTITY_ATTRIBUTES.has(key) ||
+      (span.kind === SERVER_KIND && PEER_ATTRIBUTES.has(key)) ||
+      HEADER_ATTRIBUTE_PREFIXES.some((prefix) => key.startsWith(prefix))
+    ) {
+      delete attributes[key];
+    }
+  }
   for (const key of URL_ATTRIBUTES) {
     const value = attributes[key];
     if (typeof value !== 'string') continue;

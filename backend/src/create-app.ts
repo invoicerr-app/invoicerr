@@ -79,6 +79,7 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
 
   const metricsConfig = resolveMetricsConfig();
   if (metricsConfig.refusal) new Logger('Metrics').warn(metricsConfig.refusal);
+  if (metricsConfig.warning) new Logger('Metrics').warn(metricsConfig.warning);
   if (metricsConfig.enabled) {
     startDefaultMetrics('invoicerr-api');
     // First middleware, so the timing covers better-auth's raw routes as well as Nest's.

@@ -5,11 +5,11 @@ describe('resolveMetricsConfig', () => {
     expect(resolveMetricsConfig({})).toEqual({ enabled: false, token: undefined });
   });
 
-  it('turns on outside production without a token', () => {
-    expect(resolveMetricsConfig({ METRICS_ENABLED: 'true', NODE_ENV: 'development' })).toEqual({
-      enabled: true,
-      token: undefined,
-    });
+  it('turns on outside production without a token, with a boot warning', () => {
+    const config = resolveMetricsConfig({ METRICS_ENABLED: 'true', NODE_ENV: 'development' });
+    expect(config.enabled).toBe(true);
+    expect(config.token).toBeUndefined();
+    expect(config.warning).toContain('METRICS_TOKEN');
   });
 
   it('refuses to open the endpoint in production without a token', () => {

@@ -13,7 +13,7 @@ it at a collector you run yourself.
 | Variable | Description |
 | --- | --- |
 | `METRICS_ENABLED` | `true` turns on the endpoint. Any other value, or unset, keeps it off (it answers 404). |
-| `METRICS_TOKEN` | Bearer token the scraper must send. Required when `NODE_ENV=production`: without it the endpoint stays off and a warning is logged at boot. |
+| `METRICS_TOKEN` | Bearer token the scraper must send. Required when `NODE_ENV=production`: without it the endpoint stays off and a warning is logged at boot. In any other environment the endpoint opens without it, and boot logs a warning that it is readable by anyone who can reach it. |
 
 The API serves `GET /api/metrics`. A dedicated worker (`ROLE=worker`) serves the same format on its
 health port, `GET :3001/metrics`, with the same two variables.
@@ -60,6 +60,15 @@ like) also serves as error reporting.
 Spans go through the same redaction as the application logs. Incoming request URLs are dropped (the
 `http.route` template is kept), outgoing requests keep only the remote origin, SQL is sent without its bound
 values, Redis commands without their arguments, and exception messages are filtered for email
-addresses and secrets. Request and response bodies and headers are never recorded. Only metrics and
-traces are exported: logs stay in the database.
+addresses and secrets. The client's IP address and port and the user agent are removed from every
+span, and so is the peer address of an incoming request (on a PostgreSQL or Redis span it is your own
+server and stays). Request and response bodies and headers, `X-Forwarded-For` included, are never
+exported. Only metrics and traces are exported: logs stay in the database.
 :::
+
+### Retention
+
+Traces describe what your users did and when. Keep them only as long as you need them to debug: 30
+to 90 days is a sensible range. Set it on your tracing backend, for example
+`compactor.compaction.block_retention` in Grafana Tempo or the span TTL in Jaeger's storage. Prometheus metrics are aggregated and carry no
+personal data; their retention is your choice (`--storage.tsdb.retention.time`).

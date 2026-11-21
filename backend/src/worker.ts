@@ -39,6 +39,7 @@ async function bootstrap() {
 
   const metricsConfig = resolveMetricsConfig();
   if (metricsConfig.refusal) console.warn(`[worker] ${metricsConfig.refusal}`);
+  if (metricsConfig.warning) console.warn(`[worker] ${metricsConfig.warning}`);
   if (metricsConfig.enabled) startDefaultMetrics('invoicerr-worker');
 
   const port = 3001;
