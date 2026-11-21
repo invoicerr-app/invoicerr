@@ -329,6 +329,21 @@ export interface ManualAcceptanceManifest {
    * manifest says plainly that no archived version could be named.
    */
   deliveredVersion: AcceptedDeliveredVersion | null;
+  /**
+   * Issue #364 - the file the issuer attached as proof (a scan of the signed paper, say), stored as a
+   * second artifact of the SAME archive row under `MANUAL_ACCEPTANCE_ATTACHMENT_ROLE`, so one
+   * `contentHash` covers both. Absent when no file was attached.
+   */
+  attachment?: ManualAcceptanceAttachmentMeta;
+}
+
+/** Issue #364 - the attached file, named in the manifest's own bytes. */
+export interface ManualAcceptanceAttachmentMeta {
+  fileName: string;
+  mime: string;
+  byteLength: number;
+  /** SHA-256 (hex) of the attached bytes, the same value the uploaded file was addressed by. */
+  sha256: string;
 }
 
 /** Issue #373 - the accepted option, frozen with its own lines and totals. */
@@ -370,6 +385,10 @@ export interface ESignatureAcceptanceManifest {
  *  writer) and this file's own read side below agree on the exact same string without either one
  *  hand-typing it twice. */
 export const MANUAL_ACCEPTANCE_ROLE = 'manual-acceptance';
+
+/** Issue #364 - the artifact role of the file attached to a manual acceptance, stored in the same
+ *  ACCEPTANCE row as the manifest. */
+export const MANUAL_ACCEPTANCE_ATTACHMENT_ROLE = 'manual-acceptance-attachment';
 
 /** The artifact role an e-signature acceptance manifest is stored under (issue #477). Distinct from
  *  `MANUAL_ACCEPTANCE_ROLE` so `findManualAcceptanceArchive` never reads one as the other. */
@@ -415,8 +434,18 @@ export async function createManualAcceptanceArchive(input: {
    *  file never knows its shape, the same "content is the caller's business" discipline
    *  `createDocumentArchive` already holds for a DELIVERY's own artifacts). */
   manifest: Uint8Array;
+  /** Issue #364 - the attached proof file, written into the SAME row (one `persistArtifacts` call,
+   *  one `contentHash`), never added to an existing row afterwards. */
+  attachment?: { mime: string; bytes: Uint8Array };
 }): Promise<DocumentArchiveResult> {
-  return createAcceptanceArchive({ ...input, role: MANUAL_ACCEPTANCE_ROLE });
+  const { attachment, ...rest } = input;
+  return createAcceptanceArchive({
+    ...rest,
+    role: MANUAL_ACCEPTANCE_ROLE,
+    extraArtifacts: attachment
+      ? [{ role: MANUAL_ACCEPTANCE_ATTACHMENT_ROLE, mime: attachment.mime, bytes: attachment.bytes }]
+      : [],
+  });
 }
 
 /**
@@ -439,9 +468,13 @@ async function createAcceptanceArchive(input: {
   manifest: Uint8Array;
   role: string;
   parentArchiveId?: string;
+  extraArtifacts?: ArchivedArtifactInput[];
 }): Promise<DocumentArchiveResult> {
   const { companyId, documentId, manifest, role } = input;
-  const artifacts: ArchivedArtifactInput[] = [{ role, mime: 'application/json', bytes: manifest }];
+  const artifacts: ArchivedArtifactInput[] = [
+    { role, mime: 'application/json', bytes: manifest },
+    ...(input.extraArtifacts ?? []),
+  ];
   const { uri, contentHash } = await persistArtifacts(documentId, artifacts);
   const archivedAt = new Date();
 
@@ -532,6 +565,48 @@ export async function findManualAcceptanceArchive(
     // Corrupted/truncated bytes - same "cannot prove it, never throw" posture as a missing file.
     return null;
   }
+}
+
+/**
+ * Issue #364 - the file attached to the most recent manual acceptance, read back from the ARCHIVE row
+ * itself (never from the upload store), so what is downloaded is exactly what was hashed. `null` when
+ * the quote was never manually accepted, no file was attached, or the bytes are no longer readable.
+ */
+export async function findManualAcceptanceAttachment(
+  companyId: string,
+  documentId: string,
+): Promise<{ bytes: Buffer; mime: string; fileName: string } | null> {
+  const candidates = await prisma.documentArchive.findMany({
+    where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
+    orderBy: { archivedAt: 'desc' },
+  });
+  const archive = candidates.find((row) =>
+    ((row.artifacts ?? []) as unknown as StoredArtifactMeta[]).some(
+      (meta) => meta.role === MANUAL_ACCEPTANCE_ROLE,
+    ),
+  );
+  if (!archive) return null;
+  const meta = ((archive.artifacts ?? []) as unknown as StoredArtifactMeta[]).find(
+    (entry) => entry.role === MANUAL_ACCEPTANCE_ATTACHMENT_ROLE,
+  );
+  if (!meta) return null;
+
+  const [bytes, manifestBytes] = await Promise.all([
+    readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ATTACHMENT_ROLE, meta.mime),
+    readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json'),
+  ]);
+  if (!bytes) return null;
+
+  let fileName = 'attachment';
+  try {
+    const manifest = manifestBytes
+      ? (JSON.parse(manifestBytes.toString('utf8')) as ManualAcceptanceManifest)
+      : null;
+    if (manifest?.attachment?.fileName) fileName = manifest.attachment.fileName;
+  } catch {
+    // An unreadable manifest only loses the original file name, never the archived bytes.
+  }
+  return { bytes, mime: meta.mime, fileName };
 }
 
 /** Every archive for a document, most recent first — a re-send produces several of them (see the

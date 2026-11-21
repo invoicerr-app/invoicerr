@@ -536,6 +536,8 @@ export interface ManualAcceptance {
   actorEmail: string
   note: string
   acceptedAt: string
+  /** Issue #364 - the proof file attached at acceptance, archived in the same row. */
+  attachment?: { fileName: string; mime: string; byteLength: number; sha256: string }
 }
 
 /** What `POST /documents/:id/archives/:archiveId/verify` returns — mirrors the backend's

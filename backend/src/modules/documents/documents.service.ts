@@ -33,6 +33,7 @@ import {
   findArchivedPdfArtifact,
   findImportOriginalArtifact,
   findManualAcceptanceArchive,
+  findManualAcceptanceAttachment,
   listDocumentArchives,
   ManualAcceptanceManifest,
   verifyDocumentArchive,
@@ -2387,6 +2388,28 @@ export class DocumentsService implements OnModuleInit {
   ): Promise<ManualAcceptanceManifest | null> {
     await findOwnedDocument(companyId, typeId, id);
     return findManualAcceptanceArchive(companyId, id);
+  }
+
+  /**
+   * "GET .../manual-acceptance/attachment" - issue #364. The file attached to the manual acceptance,
+   * served from the ACCEPTANCE archive row (never the upload store), so the bytes are the ones the
+   * archive's `contentHash` covers. 404 when there is none.
+   */
+  async downloadManualAcceptanceAttachment(
+    companyId: string,
+    typeId: string,
+    id: string,
+  ): Promise<{ bytes: Buffer; mime: string; filename: string }> {
+    await findOwnedDocument(companyId, typeId, id);
+    const attachment = await findManualAcceptanceAttachment(companyId, id);
+    if (!attachment) {
+      throw new NotFoundException('This document has no file attached to a manual acceptance.');
+    }
+    return {
+      bytes: attachment.bytes,
+      mime: safeOriginalMime(attachment.mime),
+      filename: attachment.fileName,
+    };
   }
 
   /**
