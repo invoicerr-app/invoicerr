@@ -61,11 +61,30 @@ jobs:
         run: |
           # --verify-tag: the tag already exists (this workflow was triggered by it), so a typo can
           # never create a release on a branch HEAD. --generate-notes keeps the changelog automatic.
+          # "Latest" is set explicitly rather than left to GitHub's date-and-version heuristic: a stable
+          # tag must take it from the previous stable release, a pre-release must never hold it.
           args=(--verify-tag --generate-notes --title "$TAG")
           if [[ "$TAG" == *-beta.* || "$TAG" == *-rc.* ]]; then
-            args+=(--prerelease)
+            args+=(--prerelease --latest=false)
+          else
+            args+=(--latest)
           fi
           gh release create "$TAG" "${args[@]}"
+
+      - name: Check that a stable release is the one marked Latest
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # The release page badge and every "download the latest release" link follow this flag, so a
+          # stable release that left it on an older version would keep sending new users there.
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)
+          if [[ "$latest" != "$TAG" ]]; then
+            echo "::error::GitHub marks '${latest}' as the latest release, not '${TAG}'. Fix it with: gh release edit ${TAG} --latest"
+            exit 1
+          fi
+          echo "'${TAG}' is the release GitHub marks as Latest."
 
       # No Discord step here: the announcement is the `announce` job of docker-publish.yml, gated on
       # the manifest list existing at ghcr.io. Announcing from this job would fire minutes before the
