@@ -149,10 +149,42 @@ describe("Error tracking consent", () => {
             prScreenshot("4-preferences-after-withdrawal");
 
             // The client portal lives outside the signed-in layout: it never asks, even when the account
-            // would be asked.
+            // would be asked. The portal answers are stubbed so the real dashboard renders for this
+            // made-up token: the absence of the banner is only checked, and captured, once the portal
+            // content is on screen, never on a page that has not rendered yet.
             cy.intercept("GET", "**/api/error-tracking/consent", { body: ASKING }).as("portalConsent");
+            cy.intercept("GET", "**/api/portal/me", {
+                body: {
+                    clientId: "portal-client",
+                    clientName: "Acme Ltd",
+                    companyName: "Invoicerr Demo",
+                    companyLogo: null,
+                },
+            }).as("portalMe");
+            cy.intercept("GET", "**/api/portal/statement", {
+                body: { clientId: "portal-client", documents: [], totals: [] },
+            }).as("portalStatement");
+            cy.intercept("GET", "**/api/portal/quotes", {
+                body: [
+                    {
+                        id: "portal-quote",
+                        displayNumber: "Q-2026-0001",
+                        status: "sent",
+                        issueDate: "2026-11-02",
+                        currency: "EUR",
+                        amountMinor: 120000,
+                        optionCount: 0,
+                        canRespond: false,
+                    },
+                ],
+            }).as("portalQuotes");
             cy.visit(`/portal/${"0".repeat(64)}`);
-            cy.get("body").should("be.visible");
+            cy.location("pathname").should("eq", "/portal");
+            cy.wait(["@portalMe", "@portalStatement", "@portalQuotes"]);
+            cy.get('[data-cy="portal-dashboard"]', { timeout: 15000 }).should("be.visible");
+            cy.get('[data-cy="portal-header"]').should("contain.text", "Acme Ltd");
+            cy.get('[data-cy="portal-statement-empty"]').should("be.visible");
+            cy.get('[data-cy="portal-quote-row-portal-quote"]').should("be.visible");
             cy.get('[data-cy="error-tracking-consent-banner"]').should("not.exist");
             cy.get("@portalConsent.all").should("have.length", 0);
             prScreenshot("5-portal-without-banner");
