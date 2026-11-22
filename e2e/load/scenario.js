@@ -11,6 +11,8 @@ import { check, fail, sleep } from 'k6';
 import exec from 'k6/execution';
 import { Counter, Trend } from 'k6/metrics';
 
+import { k6Thresholds } from './targets.js';
+
 const BASE = __ENV.BASE;
 const users = JSON.parse(open(__ENV.USERS || 'users.json'));
 const scan = __ENV.SCAN ? open(__ENV.SCAN, 'b') : null;
@@ -23,26 +25,9 @@ export const options = {
       : { executor: 'constant-vus', vus: Number(__ENV.VUS || 1), duration: __ENV.DURATION || '5m', gracefulStop: '2m' },
   },
   summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)', 'max', 'count'],
-  // k6 only exports a tagged sub-metric that carries a threshold; these always pass and exist so
-  // --summary-export holds one latency line per step.
-  thresholds: Object.fromEntries(
-    [
-      'login',
-      'session',
-      'company_info',
-      'dashboard',
-      'list_quotes',
-      'list_invoices',
-      'list_clients',
-      'quote_create',
-      'quote_convert',
-      'invoice_pdf',
-      'invoice_send',
-      'poll_invoice',
-      'ocr_upload',
-      'poll_ocr',
-    ].map((n) => [`http_req_duration{name:${n}}`, ['max>=0']]),
-  ),
+  // One p95 and one p99 target per named request (targets.js). A breach fails the run (k6 exits
+  // non-zero) once the stage is over; it does not stop the stage early.
+  thresholds: k6Thresholds(),
 };
 
 // Time from the "send" call returning to the worker having rendered, archived and mailed the

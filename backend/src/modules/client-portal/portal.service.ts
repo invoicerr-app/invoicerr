@@ -351,8 +351,13 @@ export class PortalService {
     }
     const invoiceId = invoiceIdOfCreditNote(data);
     if (!invoiceId) return false;
-    const invoice = await findOwnedDocument(companyId, 'invoice', invoiceId).catch(() => null);
-    if (!invoice) return false;
+    let invoice: DocumentInstanceResult;
+    try {
+      invoice = await findOwnedDocument(companyId, 'invoice', invoiceId);
+    } catch (error) {
+      if (error instanceof NotFoundException) return false;
+      throw error;
+    }
     const invoiceData = (invoice.data ?? {}) as Record<string, unknown>;
     return directClientId(invoiceData) === clientId;
   }

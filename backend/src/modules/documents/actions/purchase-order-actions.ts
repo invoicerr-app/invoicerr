@@ -2,12 +2,12 @@ import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
-import { logger } from '@/logger/logger.service';
 
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { updateDocumentStatus } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
-import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { EntityReferenceRegistry } from '../references/reference-registry';
 import { SigningCredentialsPort } from '../signing/signing-credentials-port';
@@ -111,27 +111,18 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
       fromStatuses: PURCHASE_ORDER_CANCELLABLE_FROM,
     });
 
-    if (deps.webhooks) {
-      try {
-        await deps.webhooks.dispatch(
-          WebhookEvent.DOCUMENT_CANCELLED,
-          buildDocumentWebhookPayload(companyId, 'purchase-order', document),
-        );
-      } catch (error) {
-        logger.error(
+    await dispatchDocumentWebhookSafely(
+      deps.webhooks,
+      WebhookEvent.DOCUMENT_CANCELLED,
+      companyId,
+      'purchase-order',
+      document,
+      {
+        failureMessage:
           'Failed to dispatch a DOCUMENT_CANCELLED webhook — the purchase order was still cancelled',
-          {
-            category: 'documents',
-            details: {
-              companyId,
-              typeId: 'purchase-order',
-              documentId,
-              message: error instanceof Error ? error.message : String(error),
-            },
-          },
-        );
-      }
-    }
+        documentId,
+      },
+    );
 
     return { document, changed: true, message: 'Cancelled.' };
   });

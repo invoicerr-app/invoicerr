@@ -12,7 +12,7 @@
  * same exported signature, same return values, proven byte-for-byte unchanged over every ISO country
  * code.
  */
-import { ISO3166Alpha2, PartyRole, PartyTaxProfile, SupplyType } from './types';
+import { ISO3166Alpha2, PartyTaxProfile } from './types';
 import { defaultTaxUnionRegistry, TaxUnion } from './tax-unions/registry';
 
 export type { TaxUnion };
@@ -36,20 +36,4 @@ export class TrustFlagVatValidator implements VatValidator {
     const vat = party.identifiers.find((i) => i.scheme.toUpperCase() === 'VAT');
     return !!vat && vat.validated === true;
   }
-}
-
-export interface ClassificationSelector {
-  roles?: PartyRole[];
-  supply?: SupplyType[];
-}
-
-export function selectorMatches(
-  sel: ClassificationSelector | undefined,
-  buyerRole: PartyRole,
-  supplyTypes: SupplyType[],
-): boolean {
-  if (!sel) return true;
-  if (sel.roles && !sel.roles.includes(buyerRole)) return false;
-  if (sel.supply && !supplyTypes.some((s) => sel.supply!.includes(s))) return false;
-  return true;
 }

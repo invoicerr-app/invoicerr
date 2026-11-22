@@ -154,8 +154,10 @@ cut on `main`, never on `dev`.
    git push origin 26.11.0
    ```
 
-`release.yml` creates the stable release without `--prerelease`, and `docker-publish.yml` publishes
-the versioned tag and moves `:latest`. That is the step that ships to every self-hoster on `:latest`,
+`release.yml` creates the stable release without `--prerelease`, marks it "Latest" on GitHub
+explicitly, then reads the latest release back and fails the run if GitHub still points at an older
+one; the error gives the `gh release edit <tag> --latest` command that fixes it. Pre-releases are
+created with `--latest=false`. `docker-publish.yml` publishes the versioned tag and moves `:latest`. That is the step that ships to every self-hoster on `:latest`,
 so it only happens after the pre-release was verified. If the demo should track the stable release
 rather than the beta, bump it again with step 4, using `26.11.0` and its digest. A hotfix is a patch
 tag cut on `main` (`26.11.1`) with `main` merged back into `dev` afterwards, as described in

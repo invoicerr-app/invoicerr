@@ -9,6 +9,7 @@ import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 import { redactLogValue } from './logger/redaction';
 import { renderMetrics, startDefaultMetrics } from './observability/metrics';
 import { resolveMetricsConfig } from './observability/observability-config';
+import { initErrorTracking, reportBootFailure } from './error-tracking/error-tracking';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -31,6 +32,7 @@ import { resolveMetricsConfig } from './observability/observability-config';
  * unhandled promise rejection.
  */
 async function bootstrap() {
+  initErrorTracking('worker');
   const app = await NestFactory.createApplicationContext(WorkerModule);
   // Same redaction as the API process: the worker prints the same kind of provider/document payloads.
   app.useLogger(new RedactingConsoleLogger());
@@ -61,7 +63,8 @@ async function bootstrap() {
   console.log(`[worker] ready — health check listening on :${port}`);
 }
 
-bootstrap().catch((err) => {
+bootstrap().catch(async (err) => {
   console.error('Error during worker bootstrap:', redactLogValue(err));
+  await reportBootFailure(err);
   process.exit(1);
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { type ReportingObligation, summarizeDeclarations } from "./channels.declarations"
+import type { ReportingObligation } from "@/types/channels"
+
+import { summarizeDeclarations } from "./channels.declarations"
 
 const legal = { kind: "legal", sourceText: "Statute text" } as ReportingObligation["provenance"]
 

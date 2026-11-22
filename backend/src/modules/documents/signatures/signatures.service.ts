@@ -30,17 +30,14 @@ import {
   isQuoteWithOptions,
   resolveChosenOption,
 } from '../options/quote-options';
-import {
-  buildDocumentWebhookPayload,
-  DOCUMENT_WEBHOOK_EMITTER,
-  DocumentWebhookEmitter,
-} from '../queue/document-webhooks';
+import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
 import { generateOtpCode, hashOtpCode, otpCodeMatches } from './otp';
+import { hashDocumentData } from '../archive/document-data-hash';
 import { generateSignatureToken, hashSignatureToken } from './signature-token';
 import {
   DOCUMENT_CHANGED_CODE,
   DOCUMENT_CHANGED_MESSAGE,
-  hashDocumentData,
   isBoundVersionCurrent,
   resolveCurrentDeliveredVersion,
 } from './signed-version';
@@ -469,26 +466,21 @@ export class SignaturesService {
     const signed = await markSignatureSigned(row.id, chosenOption);
     await this.archiveESignatureAcceptance(row, signed.signedAt ?? new Date(), boundData, chosenOption);
 
-    try {
-      await this.webhooks.dispatch(
-        WebhookEvent.DOCUMENT_SIGNED,
-        buildDocumentWebhookPayload(row.companyId, row.typeId, updated),
-      );
-    } catch (error) {
-      logger.error('Failed to dispatch a DOCUMENT_SIGNED webhook — the document was still signed', {
-        category: 'documents',
+    await dispatchDocumentWebhookSafely(
+      this.webhooks,
+      WebhookEvent.DOCUMENT_SIGNED,
+      row.companyId,
+      row.typeId,
+      updated,
+      {
+        failureMessage: 'Failed to dispatch a DOCUMENT_SIGNED webhook — the document was still signed',
+        documentId: row.documentId,
         // Explicit, not left to the ambient context: signing happens on the `@Public()` signature
         // route (no session, no active company) — `row.companyId`, resolved from the signature token
         // itself, is the only company this request ever knows.
-        companyId: row.companyId,
-        details: {
-          companyId: row.companyId,
-          typeId: row.typeId,
-          documentId: row.documentId,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
+        logCompanyId: true,
+      },
+    );
     return signed.signedAt ?? new Date();
   }
 

@@ -46,6 +46,26 @@ stops working and the client sees a message saying the quote changed. To get it 
 A signature request is refused while the PDF of the quote's latest send is not archived yet
 (archiving is retried automatically); try again a moment later.
 
+## Marking a quote accepted manually
+
+When a client accepts a sent quote outside the signing link (on paper, by phone, by email), open the
+quote and choose **Mark as accepted** in its **Actions** menu. Type a note saying how the client
+accepted; it is required. The quote moves to **Accepted**, and its **Acceptance** section says
+"Accepted manually", never "Signed".
+
+You can also attach a proof file, for example a scan of the signed paper quote:
+
+- accepted types: PDF, JPEG, PNG or WEBP, up to 10 MiB;
+- the file is attached in the same dialog, at the moment you mark the quote accepted. It cannot be
+  added or replaced afterwards;
+- it is archived with the acceptance record, under the same fingerprint, and the **Download** button
+  in the **Acceptance** section serves it back from that archive.
+
+:::info[Not an electronic signature]
+A manual acceptance records what you state and the file you attach. It carries no signature
+evidence, unlike the signing flow above.
+:::
+
 ## First use
 
 The first time you send a quote for signature, make sure your client's email address is correct on their [client profile](../clients.md).

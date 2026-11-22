@@ -50,6 +50,31 @@ imposes no transmission channel, so `send` goes through the whole render path an
 A virtual user works without pauses, so it is worth many real customers: read the `sent/min` column
 rather than the VU count when comparing against real usage.
 
+## Latency targets
+
+Every named request is judged on its own, not only the overall latency: an overall p95 can sit well
+under target while a step that runs once per loop is far above it. The targets live in `targets.js`,
+which both the k6 thresholds and the report read:
+
+| Request | p95 | p99 |
+|---|---|---|
+| every named request except the PDF | < 500 ms | < 1 s |
+| `invoice_pdf` (synchronous Chromium render, tracked separately) | < 2 s | < 4 s |
+
+A breached target makes `k6 run scenario.js` exit with code 99 once the stage is over; the stage is
+not cut short. A step with no sample (the OCR steps when the run has no scan) is not judged.
+`loadtest.js` keeps running its remaining stages either way, so read the verdicts in the report.
+
+How to read a failure:
+
+- k6's own summary (`k6-<stage>.txt`) lists each threshold under its request, `✓` or `✗`, with the
+  measured value, e.g. `✗ 'p(95)<500' p(95)=613.85ms` under `http_req_duration{name:invoice_send}`.
+  In `k6-<stage>.json` the same breach shows as `"p(95)<500": true` (true means crossed).
+- `REPORT.md`'s per-step table carries the target and a `pass` / `fail` column per request.
+- A p95 breach means the request is slow for many users; a p99 breach with a good p95 usually means
+  stalls (a saturated pool, a queue, a garbage collection), so look at the CPU and queue columns of
+  the same stage before profiling the route itself.
+
 ## Options
 
 ```
@@ -101,7 +126,7 @@ directories keep their `kubeconfig` and `secrets.yaml` too. All three are git-ig
 | File | Content |
 |---|---|
 | `REPORT.md` | the summary tables |
-| `k6-<stage>.json` / `.txt` | k6's own summary, with one latency line per step |
+| `k6-<stage>.json` / `.txt` | k6's own summary, with one latency line and its threshold verdicts per step |
 | `pods.csv`, `nodes.csv` | `kubectl top` every 15 s |
 | `queue.csv` | `document-action` queue depth and Postgres connections every 15 s |
 | `stage-end.csv` | the queue when k6 stopped, and how long it took to drain |

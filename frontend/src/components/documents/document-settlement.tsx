@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toCalendarDate } from "@/lib/calendar-date"
 import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
+import type { ClientStatementDocumentRow } from "@/types"
 
 import { SectionCard } from "./section-card"
 import type { DocumentSettlement } from "./types"
@@ -30,15 +31,16 @@ import { formatMinor } from "./totals-calculator"
  * `computeSettlement` to this screen.
  */
 
-export type SettlementTone = "neutral" | "warning" | "success" | "destructive"
+type SettlementStatus = "settled" | "partiallyPaid" | "late" | "unpaid"
 
 interface SettlementBadgeInfo {
-  tone: SettlementTone
-  labelKey: string
+  /** The last segment of `labelKey`: what `statusPresentation` and `data-settlement` read. */
+  status: SettlementStatus
+  labelKey: `documents.settlement.badge.${SettlementStatus}`
 }
 
 /**
- * Pure: which tone/label a balance renders as — extracted so the list badge and the section's own
+ * Pure: which status/label a balance renders as - extracted so the list badge and the section's own
  * badge always agree, and so it's testable without mounting anything.
  *
  * ONE terminal state, "Settled", regardless of how the balance got to zero (paid, credited, or a mix
@@ -54,18 +56,36 @@ export function settlementBadgeInfo(
   due?: { dueDate?: unknown; today: string },
 ): SettlementBadgeInfo {
   if (settlement.settled) {
-    return { tone: "success", labelKey: "documents.settlement.badge.settled" }
+    return { status: "settled", labelKey: "documents.settlement.badge.settled" }
   }
   if (settlement.paidMinor > 0 || settlement.creditedMinor > 0) {
-    return { tone: "warning", labelKey: "documents.settlement.badge.partiallyPaid" }
+    return { status: "partiallyPaid", labelKey: "documents.settlement.badge.partiallyPaid" }
   }
   // Same rule as the backend's overdue filter: a due date strictly before today. A partly paid
   // record keeps its "Partially paid" mark; the amounts beside it say what is left.
   const dueDate = typeof due?.dueDate === "string" ? due.dueDate.slice(0, 10) : ""
   if (due && dueDate !== "" && dueDate < due.today) {
-    return { tone: "destructive", labelKey: "documents.settlement.badge.late" }
+    return { status: "late", labelKey: "documents.settlement.badge.late" }
   }
-  return { tone: "neutral", labelKey: "documents.settlement.badge.unpaid" }
+  return { status: "unpaid", labelKey: "documents.settlement.badge.unpaid" }
+}
+
+/**
+ * The synthetic settlement a client-statement row stands for - shared by the staff statement
+ * (clients/_components/client-statement.tsx) and the client portal (pages/portal/index.tsx) so both
+ * badge a row exactly like that document's own settlement section would. `creditedMinor` is always 0:
+ * the row's own amount already has any credit netted in (see the backend's
+ * settlement/client-statement.ts header).
+ */
+export function statementRowSettlement(row: ClientStatementDocumentRow): DocumentSettlement {
+  return {
+    totalGrossMinor: row.amountMinor,
+    paidMinor: row.paidMinor,
+    creditedMinor: 0,
+    outstandingMinor: row.outstandingMinor,
+    excessMinor: 0,
+    settled: row.settled,
+  }
 }
 
 /** Today as a bare "YYYY-MM-DD" calendar day in the user's own timezone (`lib/calendar-date.ts`). */
@@ -99,12 +119,12 @@ export function DocumentSettlementBadge({
   const { data } = useDocumentSettlement(typeId, documentId)
   if (!data) return null
 
-  const { labelKey } = settlementBadgeInfo(data.settlement, { dueDate, today: localIsoDate() })
+  const { status, labelKey } = settlementBadgeInfo(data.settlement, { dueDate, today: localIsoDate() })
   return (
     <StatusMark
-      {...statusPresentation(labelKey.split(".").pop() ?? "")}
+      {...statusPresentation(status)}
       className={className}
-      data-settlement={labelKey.split(".").pop()}
+      data-settlement={status}
       data-cy={dataCySuffix ? `document-settlement-badge-${dataCySuffix}` : "document-settlement-badge"}
     >
       {t(labelKey)}

@@ -55,6 +55,12 @@ export {
 } from "./use-legal"
 export { useRegistrationStatus, type RegistrationStatusView } from "./use-registration"
 export {
+  useErrorTrackingConsent,
+  useDecideErrorTrackingConsent,
+  type ErrorTrackingConsentView,
+  type ErrorTrackingConsentChannel,
+} from "./use-error-tracking-consent"
+export {
   useInstancePreflight,
   useRequestInstanceResetOtp,
   useConfirmInstanceReset,

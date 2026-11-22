@@ -52,6 +52,8 @@ import {
   DeclaredInvoice,
   DeclaredInvoiceLine,
 } from '../declaration-provider';
+import { lookupIn, UnmappedCodeError } from '../../code-lists/lookup';
+import { defaultComposedCountryCatalog } from '../../countries/registry';
 import { isAtcudTypeId, SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID } from '../../numbering/atcud';
 import {
   buildPtAtClient,
@@ -121,21 +123,39 @@ export function ptAtInvoiceTypeFor(typeId: string): string {
   return isAtcudTypeId(typeId) ? SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID[typeId] : 'FT';
 }
 
+/** The `codeLists` table (`countries/data/pt.json`) field 1.6.14.7.3 is read from. */
+export const PT_AT_TAX_CODE_LIST = 'ptAtTaxCode';
+
 /**
- * Field 1.6.14.7.3 (TaxCode) for one VAT-rate group — see `buildPtAtLineSummaries` below for why lines
- * are grouped by rate rather than declared one-for-one. This bridge does NOT have Portugal's own
- * reduced ("RED")/intermediate ("INT") rate-banding data threaded through `DeclaredInvoiceLine` (only
- * the bare percentage), so every genuinely resolved NON-ZERO rate falls back to "NOR" (taxa normal),
- * named here as a fallback rather than silently misclassified as reduced or intermediate. A `null`
- * rate (compute-totals.ts could not resolve one for this line — see `DeclaredInvoiceLine`'s own
- * header) is DIFFERENT from a genuinely resolved 0%: it uses "OUT" ("Outros, aplicável para regimes
- * especiais de IVA"), never "ISE" (isenta) — this bridge has no basis to claim the line was actually
- * EXEMPT, only that no rate could be determined for it.
+ * The rate class one VAT-rate group is looked up under. A stored document line carries its rate and
+ * no VAT category: the category of an ordinary domestic line is derived from its rate when an export
+ * is built (`formats/semantic/build-semantic-invoice.ts#vatCategoryFor`), and the tax engine's own
+ * category sidecar never reaches the stored data (`formats/shared-build.ts#extractLines`). So the
+ * lookup is keyed on what the line really holds. A `null` rate (compute-totals.ts could not resolve
+ * one, see `DeclaredInvoiceLine`'s own header) is its own class, never folded into "zero": nothing
+ * says such a line is exempt.
  */
-export function ptAtTaxCodeFor(vatRatePercent: number | null): string {
-  if (vatRatePercent === null) return 'OUT';
-  if (vatRatePercent === 0) return 'ISE';
-  return 'NOR';
+export function ptAtRateClassOf(vatRatePercent: number | null): 'positive' | 'zero' | 'unresolved' {
+  if (vatRatePercent === null) return 'unresolved';
+  return vatRatePercent === 0 ? 'zero' : 'positive';
+}
+
+/**
+ * Field 1.6.14.7.3 (TaxCode) for one VAT-rate group (see `buildPtAtLineSummaries` below for why lines
+ * are grouped by rate). The codes are country data, read through the one code-list lookup
+ * (`code-lists/lookup.ts`): first matching entry wins, and an unmatched rate class or a country
+ * declaring no such table throws `UnmappedCodeError` (journaled `report:failed`), never a default
+ * code. The table still holds the three codes this bridge has always sent; the reduced ("RED") and
+ * intermediate ("INT") classes are owed to issue #764, as the table's own provenance says.
+ */
+export function ptAtTaxCodeFor(vatRatePercent: number | null, countryCode: string): string {
+  const codeLists = defaultComposedCountryCatalog.get(countryCode)?.codeLists;
+  if (!codeLists) {
+    throw new UnmappedCodeError(
+      `No code lists are declared for ${countryCode}, so the e-Fatura TaxCode cannot be looked up.`,
+    );
+  }
+  return lookupIn(codeLists, PT_AT_TAX_CODE_LIST, { rate: ptAtRateClassOf(vatRatePercent) }).code;
 }
 
 interface PtAtLineSummaryGroup {
@@ -231,6 +251,7 @@ function ptAtCorrectedInvoiceReferenceFor(invoice: DeclaredInvoice): string {
 export function buildPtAtLineSummaries(invoice: DeclaredInvoice): Record<string, unknown>[] {
   const isCreditNote = invoice.typeId === 'credit-note';
   const reference = isCreditNote ? ptAtCorrectedInvoiceReferenceFor(invoice) : undefined;
+  const taxCountryRegion = invoice.seller.countryCode ?? 'PT';
   return groupPtAtLinesByVatRate(invoice.lines).map((group) => ({
     'doc:TaxPointDate': invoice.issueDate,
     ...(reference ? { 'doc:Reference': reference } : {}),
@@ -238,8 +259,8 @@ export function buildPtAtLineSummaries(invoice: DeclaredInvoice): Record<string,
     'doc:Amount': group.netAmount.toFixed(2),
     'doc:Tax': {
       'doc:TaxType': 'IVA',
-      'doc:TaxCountryRegion': invoice.seller.countryCode ?? 'PT',
-      'doc:TaxCode': ptAtTaxCodeFor(group.vatRatePercent),
+      'doc:TaxCountryRegion': taxCountryRegion,
+      'doc:TaxCode': ptAtTaxCodeFor(group.vatRatePercent, taxCountryRegion),
       'doc:TaxPercentage': (group.vatRatePercent ?? 0).toFixed(2),
     },
   }));

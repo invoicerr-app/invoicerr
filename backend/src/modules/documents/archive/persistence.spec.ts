@@ -13,6 +13,7 @@ import {
   createManualAcceptanceArchive,
   findArchivedPdfArtifact,
   findManualAcceptanceArchive,
+  findManualAcceptanceAttachment,
   findOwnedArchive,
   listDocumentArchives,
   verifyDocumentArchive,
@@ -430,6 +431,64 @@ describe('archive/persistence', () => {
         kind: 'manual-acceptance',
         actorName: 'Jane Doe',
       });
+    });
+
+    it('issue #364 - stores an attached file in the SAME row under one contentHash and reads it back from the archive', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-5', ...data }));
+      findFirstArchive.mockResolvedValueOnce(null);
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      const scan = Buffer.from('%PDF-1.7 signed paper scan');
+
+      const written = await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes({
+          attachment: {
+            fileName: 'signed-quote.pdf',
+            mime: 'application/pdf',
+            byteLength: scan.length,
+            sha256: 'a',
+          },
+        }),
+        attachment: { mime: 'application/pdf', bytes: scan },
+      });
+
+      expect(createArchive).toHaveBeenCalledTimes(1);
+      const createCall = createArchive.mock.calls[0][0].data;
+      expect(createCall.artifacts).toEqual([
+        expect.objectContaining({ role: 'manual-acceptance', mime: 'application/json' }),
+        expect.objectContaining({
+          role: 'manual-acceptance-attachment',
+          mime: 'application/pdf',
+          byteLength: scan.length,
+        }),
+      ]);
+      expect(typeof createCall.contentHash).toBe('string');
+
+      findManyArchives.mockResolvedValueOnce([
+        { id: 'archive-acc-5', uri: written.uri, artifacts: createCall.artifacts },
+      ]);
+      const attachment = await findManualAcceptanceAttachment('company-1', 'doc-1');
+      expect(attachment).not.toBeNull();
+      expect(Buffer.from(attachment!.bytes)).toEqual(scan);
+      expect(attachment!.mime).toBe('application/pdf');
+      expect(attachment!.fileName).toBe('signed-quote.pdf');
+    });
+
+    it('issue #364 - returns null when the manual acceptance carries no attached file', async () => {
+      createArchive.mockImplementation(({ data }) => Promise.resolve({ id: 'archive-acc-6', ...data }));
+      findFirstArchive.mockResolvedValueOnce(null);
+      findCompany.mockResolvedValue({ country: 'France', countryCode: 'FR' });
+      const written = await createManualAcceptanceArchive({
+        companyId: 'company-1',
+        documentId: 'doc-1',
+        manifest: manifestBytes(),
+      });
+
+      findManyArchives.mockResolvedValueOnce([
+        { id: 'archive-acc-6', uri: written.uri, artifacts: written.artifacts },
+      ]);
+      await expect(findManualAcceptanceAttachment('company-1', 'doc-1')).resolves.toBeNull();
     });
   });
 

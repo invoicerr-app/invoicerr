@@ -68,13 +68,21 @@ export function readLogPurgeSweepIntervalMs(): number {
  *  privacy policy already commits NOT to do (see this file's own header). `0` or a negative value
  *  disables the sweep entirely — the explicit "keep everything" escape hatch a self-hosted operator who
  *  wants no automatic deletion at all can reach for, checked by `isLogPurgeEnabled` below rather than
- *  by every call site re-deriving the same `<= 0` test. */
+ *  by every call site re-deriving the same `<= 0` test. Unlike every interval knob, zero and negative
+ *  values are meaningful here, so this reader cannot use `readIntEnv` (which only accepts positive
+ *  integers): a value that is not an integer stays `NaN`, which `isLogPurgeEnabled` reads as "never
+ *  purge" rather than silently re-enabling the default retention. */
 export function readLogRetentionDays(): number {
-  return readIntEnv('LOG_RETENTION_DAYS', 90);
+  const raw = process.env.LOG_RETENTION_DAYS;
+  if (raw === undefined) return 90;
+
+  const trimmed = raw.trim();
+  const parsed = /^-?\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+  return Number.isSafeInteger(parsed) ? parsed : Number.NaN;
 }
 
 /** `false` for `0`, a negative value, or anything `readLogRetentionDays` failed to parse into a
- *  positive number (`parseInt` itself returns `NaN` for a non-numeric value, and `NaN > 0` is always
+ *  positive number (that reader returns `NaN` for a non-numeric value, and `NaN > 0` is always
  *  `false`) — every one of those reads as "never purge", never as "purge everything immediately" or
  *  a crash. */
 export function isLogPurgeEnabled(retentionDays: number): boolean {

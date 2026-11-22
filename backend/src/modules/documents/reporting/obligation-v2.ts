@@ -23,7 +23,8 @@
  *     the seller must match for the obligation to bind at all;
  *   - applicability windows: dated windows, optionally conditioned on the company profile;
  *   - legal basis: where the duty comes from, with its own validity dates;
- *   - timing: a deadline after the trigger, or the period the declaration covers;
+ *   - timing: a deadline after the trigger (a number of days, or a day of a later month), or the
+ *     period the declaration covers; `periods.ts` turns a deadline into a due date;
  *   - channel: one way to discharge the obligation, and who discharges it.
  *
  * Every rule here refuses at load with a named error and a message naming the file and the
@@ -112,8 +113,18 @@ export interface ObligationLegalBasis {
   validUntil?: string;
 }
 
+/**
+ * A per-document deadline, counted from the trigger date: either a number of days after it, or a day
+ * of a later calendar month ("by the 5th of the month after the document is issued" is
+ * `{ monthsAfterTrigger: 1, dayOfMonth: 5 }`). `dayOfMonth` stops at 28 so every month has that day
+ * and no rule ever has to say what "the 31st of February" means.
+ */
+export type ObligationDeadline =
+  | { daysAfterTrigger: number }
+  | { monthsAfterTrigger: number; dayOfMonth: number };
+
 /** Exactly one of a deadline after the trigger, or the period a declaration covers. */
-export type ObligationTiming = { deadline: { daysAfterTrigger: number } } | { period: ObligationPeriod };
+export type ObligationTiming = { deadline: ObligationDeadline } | { period: ObligationPeriod };
 
 export interface ReportingObligation {
   id: string;
@@ -298,10 +309,7 @@ export function assertValidReportingObligation(obligation: ReportingObligation, 
       fail(`${where} declares "timing" that is not exactly one of "deadline" or "period".`);
     }
     if (keys[0] === 'deadline') {
-      const days = (timing.deadline as { daysAfterTrigger?: unknown } | undefined)?.daysAfterTrigger;
-      if (typeof days !== 'number' || !Number.isInteger(days) || days < 0) {
-        fail(`${where} declares a deadline whose "daysAfterTrigger" is not a non-negative integer.`);
-      }
+      assertValidDeadline(timing.deadline, where);
     } else if (!PERIODS.includes(timing.period as ObligationPeriod)) {
       fail(
         `${where} has an unknown "timing.period" "${String(timing.period)}" (must be one of ${PERIODS.join(', ')}).`,
@@ -351,6 +359,36 @@ export function assertValidReportingObligation(obligation: ReportingObligation, 
       );
     }
   }
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function assertValidDeadline(deadline: unknown, where: string): void {
+  const keys = Object.keys((deadline as Record<string, unknown> | null | undefined) ?? {}).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const value = deadline as Record<string, unknown>;
+  if (keys.length === 1 && keys[0] === 'daysAfterTrigger') {
+    if (!isNonNegativeInteger(value.daysAfterTrigger)) {
+      fail(`${where} declares a deadline whose "daysAfterTrigger" is not a non-negative integer.`);
+    }
+    return;
+  }
+  if (keys.length === 2 && keys[0] === 'dayOfMonth' && keys[1] === 'monthsAfterTrigger') {
+    if (!isNonNegativeInteger(value.monthsAfterTrigger)) {
+      fail(`${where} declares a deadline whose "monthsAfterTrigger" is not a non-negative integer.`);
+    }
+    const day = value.dayOfMonth;
+    if (!isNonNegativeInteger(day) || day < 1 || day > 28) {
+      fail(`${where} declares a deadline whose "dayOfMonth" is not an integer from 1 to 28.`);
+    }
+    return;
+  }
+  fail(
+    `${where} declares a deadline that is neither { "daysAfterTrigger" } nor { "monthsAfterTrigger", "dayOfMonth" }.`,
+  );
 }
 
 /** A whole v2 file: the country code, every obligation, and no id used twice. */

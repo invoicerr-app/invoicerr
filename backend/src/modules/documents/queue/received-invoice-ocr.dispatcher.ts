@@ -20,6 +20,7 @@ import {
 } from '../received-invoices/ocr/ocr-queue.constants';
 import { RunReceivedInvoiceOcrJobResult } from '../received-invoices/ocr/run-ocr-job';
 import { SupplierMatchResult } from '../received-invoices/supplier-reconciliation';
+import { clearTerminalJob } from './clear-terminal-job';
 
 /** `ocr-<companyId>-<fileRef>` — `-`, never `:` (BullMQ forbids a single `:` in a custom job id, the
  *  same reason `document-action-job.ts#buildDocumentActionJobId` documents). `companyId` embedded
@@ -95,17 +96,7 @@ export class ReceivedInvoiceOcrDispatcher {
   async enqueue(input: ReceivedInvoiceOcrJobData): Promise<void> {
     const jobId = buildReceivedInvoiceOcrJobId(input.companyId, input.fileRef);
 
-    const existing = await this.queue.getJob(jobId);
-    if (existing) {
-      const state = await existing.getState();
-      if (state === 'completed' || state === 'failed') {
-        await existing.remove();
-        this.logger.log(`Cleared ${state} OCR job ${jobId} so a fresh attempt can run.`);
-      } else {
-        this.logger.log(`OCR job ${jobId} is already ${state} — not enqueuing a duplicate.`);
-        return;
-      }
-    }
+    if (!(await clearTerminalJob(this.queue, jobId, this.logger, 'OCR job'))) return;
 
     await this.queue.add('run', input, {
       jobId,

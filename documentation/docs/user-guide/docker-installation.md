@@ -263,6 +263,7 @@ These are set under the `invoicerr` service's `environment` key.
 | `ADDRESS_AUTOCOMPLETE_URL` | Optional, empty by default. Turns on address suggestions (street, house number, postcode, city, country) while typing a client's or your company's address - see [Address autocomplete](#address-autocomplete) below. |
 | `CASH_RECORDING_PUBLISHER_NAME` / `CASH_RECORDING_PUBLISHER_REPRESENTATIVE` / `CASH_RECORDING_PUBLISHER_CITY` / `CASH_RECORDING_MARKETED_SINCE` | Optional. The publisher's details printed on the French payment-records attestation: company name, signatory, city of signature, first marketing date. Left unset, the line stays blank - see [Payment records](./billing/payment-records.md). |
 | `METRICS_ENABLED` / `METRICS_TOKEN` / `OTEL_EXPORTER_OTLP_ENDPOINT` | Optional, off by default. Prometheus metrics and OpenTelemetry traces for a monitoring stack you run yourself - see [Monitoring](./monitoring.md). |
+| `SENTRY_DSN` / `SENTRY_FRONTEND_DSN` / `SENTRY_ENVIRONMENT` | Optional, off by default. Report backend and browser errors to a Sentry-compatible server such as GlitchTip, with users, IP addresses, cookies, headers and request bodies removed - see [Error tracking](./error-tracking.md). |
 
 Make sure port 80 is available on your host machine, or change the port mapping.
 

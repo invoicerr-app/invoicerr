@@ -26,7 +26,7 @@ function optionOf(line: Record<string, unknown>): string {
 
 /** Mirrors the backend's `options/quote-options.ts#isCommonLine` exactly - a line left untagged, on
  *  a quote that genuinely has 2+ options, is COMMON to every one of them, never orphaned. */
-export function isCommonLine(line: Record<string, unknown>): boolean {
+function isCommonLine(line: Record<string, unknown>): boolean {
   return !optionOf(line)
 }
 

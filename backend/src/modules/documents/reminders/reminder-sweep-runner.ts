@@ -10,8 +10,9 @@
  * same queue (`Q_DOCUMENT_ACTION`), distinguished by `job.name`.
  *
  * ## Balance — NEVER recomputed here, always reused
- * `outstandingMinor` comes from the EXACT SAME pipeline `settlement/client-statement.ts#resolveClientStatement`
- * and `documents.service.ts#getSettlement` already use — `computeDocumentTotals` for the gross total,
+ * `outstandingMinor` comes from `settlement/unsettled-invoices.ts#resolveInvoiceBalances`, the EXACT SAME
+ * pipeline `settlement/client-statement.ts#resolveClientStatement` and `documents.service.ts#getSettlement`
+ * already use - `computeDocumentTotals` for the gross total,
  * `sumPaidMinorByDocument`/`listCreditNotes`+`creditsForInvoiceFromNotes` for what has already reduced
  * it, `computeSettlement` for the arithmetic. This file invents no balance logic of its own — see the
  * task's own explicit instruction: "reuse compute-settlement/compute-totals/payments/credits ... NEVER
@@ -71,10 +72,7 @@ import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listAllDocuments } from '../persistence';
 import { resolveRecipientLanguage } from '../rendering/language/resolve-recipient-language';
-import { computeSettlement } from '../settlement/compute-settlement';
-import { creditsForInvoiceFromNotes, listCreditNotes, toSettlementCreditInputs } from '../settlement/credits';
-import { sumPaidMinorByDocument } from '../settlement/payments';
-import { computeDocumentTotals } from '../totals/compute-totals';
+import { resolveInvoiceBalances } from '../settlement/unsettled-invoices';
 import { buildReminderEmail, daysOverdueOn, selectDueReminderTier } from './reminder-sweep';
 
 /** The invoice's own base descriptor — see `client-statement.ts`'s identical constant for why a
@@ -193,18 +191,17 @@ export class ReminderSweepRunner {
     if (invoices.length === 0) return { remindersSent: 0, skipped: 0 };
 
     const invoiceIds = invoices.map((invoice) => invoice.id);
-    // Three independent reads, all company-scoped, all reused verbatim (never recomputed) from the
-    // exact modules that already own this arithmetic — see this file's own header.
-    const [paidByDocument, creditNotes, sentTiersByDocument] = await Promise.all([
-      sumPaidMinorByDocument(companyId, invoiceIds),
-      listCreditNotes(companyId),
+    // Independent reads, all company-scoped, all reused verbatim (never recomputed) from the exact
+    // modules that already own this arithmetic - see this file's own header.
+    const [balances, sentTiersByDocument] = await Promise.all([
+      resolveInvoiceBalances(companyId, INVOICE_DESCRIPTOR, invoices),
       findSentTiersByDocument(invoiceIds),
     ]);
 
     let remindersSent = 0;
     let skipped = 0;
 
-    for (const invoice of invoices) {
+    for (const { invoice, settlement } of balances) {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const dueDate = typeof data.dueDate === 'string' ? data.dueDate : null;
       const daysOverdue = daysOverdueOn(dueDate, now);
@@ -215,15 +212,6 @@ export class ReminderSweepRunner {
         skipped++;
         continue;
       }
-
-      const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
-      const paidMinor = paidByDocument.get(invoice.id) ?? 0;
-      const { credits } = creditsForInvoiceFromNotes(creditNotes, invoice.id, INVOICE_DESCRIPTOR, data);
-      const settlement = computeSettlement(
-        totals.grossMinor,
-        [{ amountMinor: paidMinor }],
-        toSettlementCreditInputs(credits),
-      );
 
       if (settlement.outstandingMinor <= 0) {
         // Fully settled — not a candidate at all, and not counted as "skipped" either: there was

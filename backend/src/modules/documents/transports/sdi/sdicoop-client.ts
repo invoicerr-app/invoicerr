@@ -84,7 +84,7 @@ import {
 
 const TRASMISSIONE_TYPES_NS = 'http://www.fatturapa.gov.it/sdi/ws/trasmissione/v1.0/types';
 const SOAP_ENVELOPE_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
-export const RICEVI_FILE_SOAP_ACTION = 'http://www.fatturapa.it/SdIRiceviFile/RiceviFile';
+const RICEVI_FILE_SOAP_ACTION = 'http://www.fatturapa.it/SdIRiceviFile/RiceviFile';
 
 /** `nomeFile_Type` (`TrasmissioneTypes_v1.0.xsd`/`v1.1.xsd`, identical in both) — read verbatim. */
 export const NOMEFILE_PATTERN = /^[a-zA-Z0-9_.]{9,50}$/;

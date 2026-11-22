@@ -1,5 +1,6 @@
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CompanyContextInterceptor } from '@/interceptors/company-context.interceptor';
+import { ErrorTrackingInterceptor } from './error-tracking/error-tracking.interceptor';
 import { AddressAutocompleteModule } from './modules/address-autocomplete/address-autocomplete.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { ArticlesModule } from './modules/articles/articles.module';
@@ -34,6 +35,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { InstanceModule } from './modules/instance/instance.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { LegalModule } from './legal/legal.module';
+import { ErrorTrackingConsentModule } from './error-tracking/consent/error-tracking-consent.module';
 import { MailService } from './mail/mail.service';
 import { McpModule } from './modules/mcp/mcp.module';
 import { TransferModule } from './modules/company/transfer/transfer.module';
@@ -256,6 +258,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     // module's own header for why, unlike BillingModule right above, this one is never conditioned on
     // `billingEnabled`).
     LegalModule,
+    ErrorTrackingConsentModule,
     HealthModule,
     ObservabilityModule,
     // `GET /api/version` — issue #371, installed version + update-availability check. Always
@@ -281,6 +284,11 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
     {
       provide: APP_INTERCEPTOR,
       useClass: CompanyContextInterceptor,
+    },
+    // Reports 5xx errors to the error tracker; a pass-through when `SENTRY_DSN` is unset.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ErrorTrackingInterceptor,
     },
   ],
 })

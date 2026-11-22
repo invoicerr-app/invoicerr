@@ -3,9 +3,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
-import { fromMinor, toMinor } from '@/utils/financial';
 
-import { resolveCompanyCurrency } from './resolve-company-currency';
+import { minorToRate, patchRateMinor, rateToMinor, resolveCompanyCurrency } from './resolve-company-currency';
 
 export interface CreateProjectDto {
   clientId: string;
@@ -46,7 +45,7 @@ type RawProject = Project & { client: ProjectClientSummary };
  *  call sites (the same discipline articles.service.ts's own `withStockFlag` holds for `isLowStock`). */
 function withRate(project: RawProject, currency: string): ProjectWithRate {
   const { hourlyRateMinor, ...rest } = project;
-  return { ...rest, hourlyRate: hourlyRateMinor !== null ? fromMinor(hourlyRateMinor, currency) : null };
+  return { ...rest, hourlyRate: minorToRate(hourlyRateMinor, currency) };
 }
 
 /**
@@ -78,7 +77,7 @@ export class ProjectsService {
         clientId: dto.clientId,
         name: dto.name.trim(),
         description: dto.description ?? null,
-        hourlyRateMinor: dto.hourlyRate != null ? toMinor(dto.hourlyRate, currency) : null,
+        hourlyRateMinor: rateToMinor(dto.hourlyRate, currency),
       },
       include: { client: { select: CLIENT_SELECT } },
     });
@@ -132,12 +131,7 @@ export class ProjectsService {
         // `!== undefined` (never `??`), same convention articles.service.ts's own `update` holds for
         // `quantity`/`lowStockThreshold`: it is what lets a caller explicitly send `null` to clear the
         // default rate rather than that being indistinguishable from "field omitted, keep the current one".
-        hourlyRateMinor:
-          dto.hourlyRate !== undefined
-            ? dto.hourlyRate !== null
-              ? toMinor(dto.hourlyRate, currency)
-              : null
-            : existing.hourlyRateMinor,
+        hourlyRateMinor: patchRateMinor(dto.hourlyRate, existing.hourlyRateMinor, currency),
         isArchived: dto.isArchived ?? existing.isArchived,
       },
       include: { client: { select: CLIENT_SELECT } },

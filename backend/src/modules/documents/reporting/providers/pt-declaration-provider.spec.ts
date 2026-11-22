@@ -31,10 +31,14 @@ import { ChannelNotConnectedError, DeclaredInvoice } from '../declaration-provid
 import {
   buildPtAtDeclarationProvider,
   buildPtAtInvoiceRequestFields,
+  buildPtAtLineSummaries,
   PT_AT_PROVIDER_ID,
   ptAtInvoiceTypeFor,
+  ptAtRateClassOf,
+  ptAtTaxCodeFor,
   PtAtUndeclarableDocumentError,
 } from './pt-declaration-provider';
+import { UnmappedCodeError } from '../../code-lists/lookup';
 import { PtAtApiError } from './pt-at-client';
 import { buildClientPfx, generateSelfSignedCert } from './mtls-test-fixtures';
 import { firstByLocalName, parseXml, textOf } from '../../transports/sdi/xml-helpers';
@@ -513,5 +517,42 @@ describe('the declared payload (issue #501): the real ATCUD, and credit notes', 
       PtAtUndeclarableDocumentError,
     );
     expect(resolveActive).not.toHaveBeenCalled();
+  });
+});
+
+describe('ptAtTaxCodeFor (issue #768): field 1.6.14.7.3 read from the country code list', () => {
+  it('answers the codes this bridge has always sent, now from countries/data/pt.json#codeLists', () => {
+    expect(ptAtTaxCodeFor(23, 'PT')).toBe('NOR');
+    expect(ptAtTaxCodeFor(6, 'PT')).toBe('NOR');
+    expect(ptAtTaxCodeFor(0, 'PT')).toBe('ISE');
+    expect(ptAtTaxCodeFor(null, 'PT')).toBe('OUT');
+  });
+
+  it('keys the lookup on the rate a stored line holds, an unresolved rate never folded into zero', () => {
+    expect(ptAtRateClassOf(23)).toBe('positive');
+    expect(ptAtRateClassOf(0)).toBe('zero');
+    expect(ptAtRateClassOf(null)).toBe('unresolved');
+  });
+
+  it('refuses, never defaults, for a country that declares no such table', () => {
+    expect(() => ptAtTaxCodeFor(23, 'FR')).toThrow(UnmappedCodeError);
+  });
+
+  it('a plain domestic standard-rate invoice declares NOR from its stored rate alone', () => {
+    const [summary] = buildPtAtLineSummaries({
+      ...FIXTURE_INVOICE,
+      lines: [
+        {
+          description: 'Consulting',
+          quantity: 1,
+          unitPrice: 100,
+          vatRatePercent: 23,
+          netAmount: 100,
+          vatAmount: 23,
+          grossAmount: 123,
+        },
+      ],
+    });
+    expect((summary['doc:Tax'] as Record<string, unknown>)['doc:TaxCode']).toBe('NOR');
   });
 });

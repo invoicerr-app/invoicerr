@@ -684,3 +684,85 @@ describe('fatturapa-provider - accepted by the SdI, not only by the XSD', () => 
     });
   });
 });
+
+describe('fatturapa-provider - DatiBollo, the stamp duty declared by the country data (issue #774)', () => {
+  const FORFETTARIO: DocumentFormatParty = { ...SELLER, taxScheme: 'FRANCHISE_BASE' };
+  const ITALIAN_BUYER: DocumentFormatParty = {
+    ...BUYER,
+    partyIdentifiers: [...BUYER.partyIdentifiers, { scheme: 'IT_SDI', value: 'ABCDEFG' }],
+  };
+
+  /** A single line the tax engine leaves UNTAXED, priced so the non-VAT base is exactly `unitPrice`. */
+  function exemptData(unitPrice: number, sellerTaxScheme?: TaxScheme, vatRate = 'it-standard') {
+    return sentData(
+      { description: 'Prestazione', quantity: 1, unit: 'unit', unitPrice, vatRate },
+      { taxScheme: sellerTaxScheme },
+      { country: 'Italy' },
+    );
+  }
+
+  it('a forfettario invoice whose non-VAT base is above the threshold carries DatiBollo', async () => {
+    const { result, xml } = await buildSent(exemptData(500, 'FRANCHISE_BASE'), FORFETTARIO, ITALIAN_BUYER);
+
+    expect(result.validation.errors).toEqual([]);
+    expect(result.validation.valid).toBe(true);
+    // Element order matters: the vendored XSD puts DatiBollo between Numero and ImportoTotaleDocumento.
+    expect(xml).toContain(
+      '<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>',
+    );
+    expect(extractTag(xml, 'BolloVirtuale')).toBe('SI');
+    expect(extractTag(xml, 'ImportoBollo')).toBe('2.00');
+  }, 30_000);
+
+  it('at or below 77,47 euro the duty is not due', async () => {
+    const atThreshold = await buildSent(exemptData(77.47, 'FRANCHISE_BASE'), FORFETTARIO, ITALIAN_BUYER);
+    const below = await buildSent(exemptData(50, 'FRANCHISE_BASE'), FORFETTARIO, ITALIAN_BUYER);
+
+    expect(atThreshold.result.validation.valid).toBe(true);
+    expect(atThreshold.xml).not.toContain('<DatiBollo>');
+    expect(below.result.validation.valid).toBe(true);
+    expect(below.xml).not.toContain('<DatiBollo>');
+  }, 30_000);
+
+  it('an ordinary seller owes it too on an exempt invoice above the threshold', async () => {
+    const { result, xml } = await buildSent(exemptData(500, undefined, 'it-esente'), SELLER, ITALIAN_BUYER);
+
+    expect(extractTag(xml, 'Natura')).toBe('N4');
+    expect(result.validation.valid).toBe(true);
+    expect(extractTag(xml, 'ImportoBollo')).toBe('2.00');
+  }, 30_000);
+
+  it('a VAT-bearing invoice above the threshold carries no duty', async () => {
+    const { result, xml } = await buildSent(VALID_DATA, SELLER, ITALIAN_BUYER);
+
+    expect(result.validation.valid).toBe(true);
+    expect(xml).not.toContain('<DatiBollo>');
+  }, 30_000);
+
+  it('measures the threshold on the non-VAT part of a MIXED invoice, never on its total', async () => {
+    // 1 000,00 taxed at 22% and 50,00 exempt: the total is far above 77,47, the non-VAT part is not.
+    const mixed = (exemptPrice: number) => ({
+      client: 'client-1',
+      issueDate: '2026-10-24',
+      currency: 'EUR',
+      lines: [
+        {
+          description: 'Prestazione esente',
+          quantity: 1,
+          unit: 'unit',
+          unitPrice: exemptPrice,
+          vatRate: 'it-esente',
+        },
+        { description: 'Consulenza', quantity: 1, unit: 'unit', unitPrice: 1000, vatRate: '22' },
+      ],
+    });
+
+    const below = await buildSent(mixed(50), SELLER, ITALIAN_BUYER);
+    const above = await buildSent(mixed(100), SELLER, ITALIAN_BUYER);
+
+    expect(below.result.validation.valid).toBe(true);
+    expect(below.xml).not.toContain('<DatiBollo>');
+    expect(above.result.validation.valid).toBe(true);
+    expect(extractTag(above.xml, 'ImportoBollo')).toBe('2.00');
+  }, 30_000);
+});

@@ -28,7 +28,7 @@ import { SigningArtifact } from './signing-types';
 import { SigningCredentialsMaterial, SigningCredentialsPort } from './signing-credentials-port';
 import { XadesSigningProvider } from './providers';
 import { HttpTsaClient } from './tsa-client';
-import { SigningProviderRegistry } from './registry';
+import { resolveTimestampOptions } from './timestamp-options';
 
 // ---------------------------------------------------------------------------
 // Gate — entire suite is skipped unless TSA_LIVE=1 + TSA_URL are set
@@ -173,13 +173,14 @@ describeLive('TSA live round-trip against real TSA_URL', () => {
     expect(parsed.offset).not.toBe(-1);
   }, 60_000);
 
-  it('SigningProviderRegistry built from TSA_URL env produces XAdES-T with real TSA', async () => {
+  it('XAdES provider built from TSA_URL env options produces XAdES-T with real TSA', async () => {
     // Full wiring path: env override → HttpTsaClient → -T provider → real TSA call.
-    const registry = new SigningProviderRegistry(undefined, fixedCredentials(bundle.material), {
-      TSA_URL: tsaUrl,
-    });
+    const provider = new XadesSigningProvider(
+      fixedCredentials(bundle.material),
+      resolveTimestampOptions({ TSA_URL: tsaUrl }),
+    );
     const log = new RecordingSigningLogger();
-    const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
+    const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
     const xml = Buffer.from(signed.bytes).toString('utf-8');
     expect(xml).toContain('SignatureTimeStamp');

@@ -1230,6 +1230,35 @@ export class DocumentsController {
     return this.documentsService.getManualAcceptance(companyId, typeId, id);
   }
 
+  @Get(':id/manual-acceptance/attachment')
+  @RequiresDocumentTypeScope('read')
+  @ApiOperation({
+    summary: 'Download the file attached to a manual acceptance',
+    description:
+      'Issue #364 - the proof file the issuer attached when marking the quote accepted manually, ' +
+      'read back from the ACCEPTANCE archive row, so the bytes are exactly the ones that were hashed.',
+  })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({ name: 'typeId', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Attachment retrieved',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 404, description: 'No such document, or no attachment on its manual acceptance' })
+  async downloadManualAcceptanceAttachment(
+    @ActiveCompany() companyId: string,
+    @Param('id') id: string,
+    @Query('typeId') typeId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.documentsService.downloadManualAcceptanceAttachment(companyId, typeId, id);
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader('Content-Disposition', buildOriginalContentDisposition(file.filename));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(Buffer.from(file.bytes));
+  }
+
   @Post(':id/archives/:archiveId/verify')
   @RequiresDocumentTypeScope('write')
   @ApiOperation({

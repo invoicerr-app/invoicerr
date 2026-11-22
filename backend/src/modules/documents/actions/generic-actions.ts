@@ -1,10 +1,10 @@
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
 import { ClientsService } from '@/modules/clients/clients.service';
-import { logger } from '@/logger/logger.service';
 
 import { deleteDocument, upsertDocument } from '../persistence';
-import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
 import { ActionRegistry } from './action-registry';
 
 /**
@@ -52,23 +52,18 @@ export async function performSaveDraft(
         referencedDocumentIds,
       })
     : await upsertDocument(companyId, typeId, documentId, 'draft', data, fromStatuses);
-  if (creating && webhooks) {
-    try {
-      await webhooks.dispatch(
-        WebhookEvent.DOCUMENT_CREATED,
-        buildDocumentWebhookPayload(companyId, typeId, document),
-      );
-    } catch (error) {
-      logger.error('Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created', {
-        category: 'documents',
-        details: {
-          companyId,
-          typeId,
-          documentId: document.id,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
+  if (creating) {
+    await dispatchDocumentWebhookSafely(
+      webhooks,
+      WebhookEvent.DOCUMENT_CREATED,
+      companyId,
+      typeId,
+      document,
+      {
+        failureMessage: 'Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created',
+        documentId: document.id,
+      },
+    );
   }
   return { document, changed: true };
 }
@@ -137,24 +132,17 @@ export function registerDeleteAction(
     }
 
     const document = await deleteDocument(companyId, typeId, documentId, currentStatus);
-    if (webhooks) {
-      try {
-        await webhooks.dispatch(
-          WebhookEvent.DOCUMENT_DELETED,
-          buildDocumentWebhookPayload(companyId, typeId, document),
-        );
-      } catch (error) {
-        logger.error('Failed to dispatch a DOCUMENT_DELETED webhook — the document was still deleted', {
-          category: 'documents',
-          details: {
-            companyId,
-            typeId,
-            documentId,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    }
+    await dispatchDocumentWebhookSafely(
+      webhooks,
+      WebhookEvent.DOCUMENT_DELETED,
+      companyId,
+      typeId,
+      document,
+      {
+        failureMessage: 'Failed to dispatch a DOCUMENT_DELETED webhook — the document was still deleted',
+        documentId,
+      },
+    );
     return { changed: true, message: 'Deleted.' };
   });
 }

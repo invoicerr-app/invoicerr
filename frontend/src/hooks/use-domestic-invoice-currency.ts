@@ -1,4 +1,4 @@
-import { useApiQuery } from "./use-api-query"
+import { useCountryScopedQuery } from "./use-country-scoped-query"
 
 // Mirrors backend/src/modules/documents/country-policy/schema.ts's DomesticInvoiceCurrencyFact.
 // `null` (not an empty object) means no domestic-invoicing-currency rule is declared for this
@@ -20,12 +20,10 @@ export interface DomesticInvoiceCurrencyRule {
  * itself (document-create-dialog.tsx) by also comparing the resolved client's own country.
  */
 export function useDomesticInvoiceCurrencyRule(countryCode: string | undefined | null, enabled: boolean) {
-  const url =
-    enabled && countryCode
-      ? `/api/documents/domestic-invoice-currency?countryCode=${encodeURIComponent(countryCode)}`
-      : null
-
-  return useApiQuery<DomesticInvoiceCurrencyRule | null>(["domestic-invoice-currency", countryCode], url!, {
-    enabled: !!url,
-  })
+  return useCountryScopedQuery<DomesticInvoiceCurrencyRule | null>(
+    ["domestic-invoice-currency", countryCode],
+    countryCode,
+    (country) => `/api/documents/domestic-invoice-currency?countryCode=${country}`,
+    enabled,
+  )
 }

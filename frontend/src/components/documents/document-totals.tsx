@@ -293,7 +293,7 @@ export function commonLineDescriptions(
 }
 
 /** The LIVE mirror of `commonLineDescriptions` above, for the form currently mounted. */
-export function useCommonLineDescriptions(descriptor: DocumentTypeDescriptor): string[] | null {
+function useCommonLineDescriptions(descriptor: DocumentTypeDescriptor): string[] | null {
   const formValues = useWatch()
   return useMemo(() => commonLineDescriptions(descriptor, formValues), [descriptor, formValues])
 }
