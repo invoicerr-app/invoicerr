@@ -8,12 +8,11 @@
  */
 import { logger } from '@/logger/logger.service';
 import { MailService } from '@/mail/mail.service';
-import { buildOwnershipTransferEndedEmail } from '@/mail/system-email-templates';
-import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import prisma from '@/prisma/prisma.service';
 
 import { CompanyOwnershipTransfer } from '../../../../prisma/generated/prisma/client';
 import { appOrigin } from '@/utils/app-origin';
+import { notifyTransferEnded } from './notify-transfer-ended';
 
 /**
  * Guarded on `status: 'PENDING'` — a concurrent accept or cancel may have already moved this exact
@@ -33,31 +32,7 @@ export async function expireOwnershipTransfer(
   if (count === 0) return false;
 
   try {
-    const company = await prisma.company.findUnique({
-      where: { id: transfer.companyId },
-      select: { name: true, language: true },
-    });
-    const fromUser = await prisma.user.findUnique({
-      where: { id: transfer.fromUserId },
-      select: { email: true, locale: true },
-    });
-    if (company && fromUser) {
-      const email = buildOwnershipTransferEndedEmail({
-        appUrl,
-        companyName: company.name,
-        toEmail: transfer.toEmail,
-        reason: 'expired',
-        // The initiating owner's own preference, falling back to their company's — same chain every
-        // other mail in this module resolves through, see `transfer.service.ts`'s own comments.
-        language: resolveUserLanguage(fromUser.locale, company.language),
-      });
-      await mailService.sendForCompany(transfer.companyId, {
-        to: fromUser.email,
-        subject: email.subject,
-        text: email.text,
-        html: email.html,
-      });
-    }
+    await notifyTransferEnded(mailService, transfer, 'expired', appUrl);
   } catch (error) {
     // Never lets a mail-send hiccup undo (or retry-loop) the transition itself — the row is already
     // EXPIRED, same "the state change is the source of truth, a failed notice is merely logged" posture

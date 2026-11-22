@@ -17,7 +17,7 @@ export interface SigningLogger {
   error(scope: string, message: string): void;
 }
 
-export class ConsoleSigningLogger implements SigningLogger {
+class ConsoleSigningLogger implements SigningLogger {
   info(scope: string, message: string): void {
     console.debug(`[signing] ${scope}: ${message}`);
   }

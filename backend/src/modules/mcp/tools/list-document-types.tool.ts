@@ -1,6 +1,6 @@
 import { hasAnyScope } from '@/utils/scope-check';
 
-import { canReadDocumentType, DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES } from './scope-mapping';
+import { ANY_DOCUMENT_SCOPE, canReadDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {};
@@ -30,7 +30,7 @@ export const listDocumentTypesTool: ToolDescriptor<typeof inputSchema> = {
     "action this company's country currently allows for a type (and, for one it blocks, WHY, via " +
     'policyBlockedReason) and every field a document of that type accepts. Only types this API key ' +
     'holds a scope for are returned.',
-  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, ANY_DOCUMENT_SCOPE),
   inputSchema,
   handler: async (ctx) => {
     const { types, reason } = await ctx.services.documentsService.listAvailableTypes(ctx.companyId);

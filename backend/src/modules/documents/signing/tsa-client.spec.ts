@@ -33,7 +33,7 @@ import {
   buildTsq,
   extractTokenFromTsr,
 } from './tsa-client';
-import { SigningProviderRegistry } from './registry';
+import { resolveTimestampOptions } from './timestamp-options';
 
 // ---------------------------------------------------------------------------
 // Engine setup (mirrors providers.spec.ts)
@@ -478,9 +478,9 @@ describe('CadesSigningProvider with signatureLevel=T', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Registry env-wiring — no network: mocked fetch returns a valid TSR
+// TSA_URL env-wiring - no network: mocked fetch returns a valid TSR
 // ---------------------------------------------------------------------------
-describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no network)', () => {
+describe('resolveTimestampOptions - TSA_URL env wiring into XAdES (mocked fetch, no network)', () => {
   let bundle: TestCertBundle;
   const originalFetch = globalThis.fetch;
 
@@ -491,7 +491,7 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
     globalThis.fetch = originalFetch;
   });
 
-  it('XAdES provider embeds SignatureTimeStamp when registry built with TSA_URL env', async () => {
+  it('XAdES provider embeds SignatureTimeStamp when built with TSA_URL env', async () => {
     // Wire fetch to return a valid TSR so the HttpTsaClient succeeds.
     globalThis.fetch = async (_url, _init) => {
       const digest = Buffer.alloc(32, 0xab);
@@ -500,12 +500,13 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
       return new Response(new Uint8Array(tsr));
     };
 
-    // Create registry via the env override — this wires HttpTsaClient internally.
-    const registry = new SigningProviderRegistry(undefined, fixedCredentials(bundle.material), {
-      TSA_URL: 'http://fake-tsa.invalid',
-    });
+    // Options from the env override - this wires HttpTsaClient internally.
+    const provider = new XadesSigningProvider(
+      fixedCredentials(bundle.material),
+      resolveTimestampOptions({ TSA_URL: 'http://fake-tsa.invalid' }),
+    );
     const log = new RecordingSigningLogger();
-    const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
+    const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
     const xml = Buffer.from(signed.bytes).toString('utf-8');
     expect(xml).toContain('SignatureTimeStamp');
@@ -515,15 +516,14 @@ describe('SigningProviderRegistry — TSA_URL env wiring (mocked fetch, no netwo
     expect(infoEntry?.message).toContain('-T');
   }, 30_000);
 
-  it('XAdES provider produces BES (no SignatureTimeStamp) when registry built without TSA_URL', async () => {
+  it('XAdES provider produces BES (no SignatureTimeStamp) when built without TSA_URL', async () => {
     // No fetch mock — any accidental network call would be caught by the absence of TSA_URL.
-    const registry = new SigningProviderRegistry(
-      undefined,
+    const provider = new XadesSigningProvider(
       fixedCredentials(bundle.material),
-      {}, // no TSA_URL
+      resolveTimestampOptions({}), // no TSA_URL
     );
     const log = new RecordingSigningLogger();
-    const signed = await registry.get('XAdES').sign(xmlArtifact, 'test-cert', log);
+    const signed = await provider.sign(xmlArtifact, 'test-cert', log);
 
     const xml = Buffer.from(signed.bytes).toString('utf-8');
     expect(xml).toContain('ds:Signature');

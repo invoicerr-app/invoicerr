@@ -16,6 +16,8 @@ import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/for
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type SteppedDialogStep, SteppedDialog } from "@/components/ui/stepped-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { detectDelimiter } from "@/lib/csv-parse"
+import { fileToBase64 } from "@/lib/file-to-base64"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/hooks/use-api-query"
 import { useCompany, useImportBankStatement } from "@/hooks/queries"
@@ -25,28 +27,11 @@ import type {
   ImportBankStatementResult,
 } from "@/types/bank-reconciliation"
 
-/** Same technique `received-invoice-upload-button.tsx`/`signing-certificates.settings.tsx` already use
- *  for their own binary uploads — no shared util exists for this yet, so this is the third, identical
- *  copy rather than inventing a new shared helper for a one-liner. */
-async function fileToBase64(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer()
-  let binary = ""
-  const bytes = new Uint8Array(arrayBuffer)
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
-
 /** Client-side mirror of the backend's own `detectCsvDelimiter`/header split/row split
  *  (`parse-csv.ts`) — used ONLY to drive this dialog's own screens (the mapping form's dropdowns, the
  *  "first rows" preview, and the full "lines to import" table); the backend re-parses the full file
  *  authoritatively once submitted, so a mismatch here costs nothing beyond a confusing preview, never
- *  a wrong import. */
-function detectCsvDelimiter(headerLine: string): "," | ";" {
-  const commas = (headerLine.match(/,/g) ?? []).length
-  const semicolons = (headerLine.match(/;/g) ?? []).length
-  return semicolons > commas ? ";" : ","
-}
-
+ *  a wrong import. The delimiter rule itself is `lib/csv-parse.ts#detectDelimiter`. */
 function splitHeaderRow(line: string): string[] {
   const commas = (line.match(/,/g) ?? []).length
   const semicolons = (line.match(/;/g) ?? []).length
@@ -207,7 +192,7 @@ function buildCsvPreview(
 ): PreviewResult {
   const rawLines = text.split(/\r\n|\r|\n/).filter((line) => line.length > 0)
   if (rawLines.length === 0) return EMPTY_PREVIEW
-  const delimiter = detectCsvDelimiter(rawLines[0])
+  const delimiter = detectDelimiter(rawLines[0])
   const headers = splitHeaderRow(rawLines[0])
   const requiredColumns = [mapping.dateColumn, mapping.amountColumn, mapping.labelColumn]
   if (!requiredColumns.every((column) => headers.includes(column))) return EMPTY_PREVIEW
@@ -464,7 +449,7 @@ function ColumnsStep({ headers, parsedText }: { headers: string[]; parsedText: s
   const { t } = useTranslation()
   const { control } = useFormContext<ImportFormValues>()
 
-  const delimiter = useMemo(() => detectCsvDelimiter(parsedText.split(/\r\n|\r|\n/)[0] ?? ""), [parsedText])
+  const delimiter = useMemo(() => detectDelimiter(parsedText.split(/\r\n|\r|\n/)[0] ?? ""), [parsedText])
   const previewRows = useMemo(
     () => csvDataRows(parsedText, delimiter, headers).slice(0, 3),
     [parsedText, delimiter, headers],

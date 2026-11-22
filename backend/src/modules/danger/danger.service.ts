@@ -17,7 +17,7 @@ import {
   drainStorageErasureJournal,
   journalCompanyStorageObjects,
 } from '@/modules/documents/archive/company-storage-erasure';
-import { BillingExportService } from '@/modules/billing/export-zip.service';
+import { BillingExportService, exportZipAttachment } from '@/modules/billing/export-zip.service';
 import { deleteCompanyPermanentlyNow } from '@/modules/billing/deletion';
 import {
   clearDangerOtp,
@@ -424,7 +424,7 @@ export class DangerService {
           companyName: company.name,
           interpolation: { escapeValue: false },
         }),
-        attachments: [{ filename: 'invoicerr-export.zip', content: zip, contentType: 'application/zip' }],
+        attachments: [exportZipAttachment(zip)],
       });
     } catch (error) {
       if (error instanceof HttpException) throw error; // e.g. NO_MAIL_SERVER_CONFIGURED_MESSAGE, already named

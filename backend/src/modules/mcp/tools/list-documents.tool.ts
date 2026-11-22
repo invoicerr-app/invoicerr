@@ -2,12 +2,7 @@ import { z } from 'zod';
 
 import { hasAnyScope } from '@/utils/scope-check';
 
-import {
-  canReadDocumentType,
-  DOCUMENT_READ_SCOPES,
-  DOCUMENT_WRITE_SCOPES,
-  scopeForDocumentType,
-} from './scope-mapping';
+import { ANY_DOCUMENT_SCOPE, assertCanReadDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {
@@ -35,16 +30,10 @@ export const listDocumentsTool: ToolDescriptor<typeof inputSchema> = {
     'List saved document instances of one type for the active company, most recently updated ' +
     'first — status, number, and stored field data for each. Call list_document_types first if you ' +
     'do not already know a valid typeId.',
-  isRegistered: (scopes) => hasAnyScope({ scopes }, [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES]),
+  isRegistered: (scopes) => hasAnyScope({ scopes }, ANY_DOCUMENT_SCOPE),
   inputSchema,
   handler: async (ctx, input) => {
-    if (!canReadDocumentType(ctx.scopes, input.typeId)) {
-      const required = scopeForDocumentType(input.typeId, 'read') ?? `${input.typeId}s:read`;
-      throw new Error(
-        `This API key's scopes do not cover document type "${input.typeId}" — grant "${required}" ` +
-          '(or its write equivalent) to list its documents.',
-      );
-    }
+    assertCanReadDocumentType(ctx.scopes, input.typeId, 'list its documents');
 
     const take = input.limit ?? 20;
     const { items } = await ctx.services.documentsService.listDocuments(ctx.companyId, input.typeId, {

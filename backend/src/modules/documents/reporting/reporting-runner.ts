@@ -43,7 +43,7 @@ import { resolveCreditNoteFormatSource } from '../formats/credit-note-source';
 import { withIssuedBuyerIdentifiers } from '../buyer-identifiers/frozen-buyer-identifiers';
 import { clientToFormatParty, companyToFormatParty } from '../formats/party-snapshot';
 import { findOwnedDocument } from '../persistence';
-import { dispatchDocumentAuthorityEventWebhook } from '../queue/document-authority-webhook';
+import { announceAuthorityEvent } from '../queue/document-authority-webhook';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { DocumentEventsPublisher } from '../queue/document-events-publisher';
 import {
@@ -346,19 +346,13 @@ export class ReportingRunner {
     }
     // Same "only on a genuinely new row" rule as the "blocked" branch above.
     if (journaled > 0) {
-      await this.eventsPublisher?.publish(data.companyId, {
-        documentId: data.documentId,
+      await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+        companyId: data.companyId,
         typeId: data.typeId,
-        kind: 'authority-event',
+        documentId: data.documentId,
+        providerId: data.providerId,
+        statusCode: result.statusCode,
       });
-      await dispatchDocumentAuthorityEventWebhook(
-        this.webhookDispatcher,
-        data.companyId,
-        data.typeId,
-        data.documentId,
-        data.providerId,
-        result.statusCode,
-      );
     }
     return { journaled };
   }
@@ -379,19 +373,13 @@ export class ReportingRunner {
       declarationSubjectKey(data.paymentId),
     );
     if (journaled > 0) {
-      await this.eventsPublisher?.publish(data.companyId, {
-        documentId: data.documentId,
+      await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+        companyId: data.companyId,
         typeId: data.typeId,
-        kind: 'authority-event',
+        documentId: data.documentId,
+        providerId: data.providerId,
+        statusCode: REPORT_BLOCKED_STATUS_CODE,
       });
-      await dispatchDocumentAuthorityEventWebhook(
-        this.webhookDispatcher,
-        data.companyId,
-        data.typeId,
-        data.documentId,
-        data.providerId,
-        REPORT_BLOCKED_STATUS_CODE,
-      );
     }
     return journaled;
   }
@@ -505,19 +493,13 @@ export class ReportingRunner {
       // Same "only on a genuinely new row" rule as `runReport`'s own
       // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.
       if (journaled > 0) {
-        await this.eventsPublisher?.publish(data.companyId, {
-          documentId: data.documentId,
+        await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
+          companyId: data.companyId,
           typeId: data.typeId,
-          kind: 'authority-event',
+          documentId: data.documentId,
+          providerId: data.providerId,
+          statusCode: REPORT_FAILED_STATUS_CODE,
         });
-        await dispatchDocumentAuthorityEventWebhook(
-          this.webhookDispatcher,
-          data.companyId,
-          data.typeId,
-          data.documentId,
-          data.providerId,
-          REPORT_FAILED_STATUS_CODE,
-        );
       }
       this.logger.error(
         `Declaration for document ${data.documentId} ("${data.providerId}") failed permanently after ` +

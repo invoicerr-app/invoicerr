@@ -41,7 +41,13 @@
  * per-typeId computation this MCP layer pioneered, and a REST controller has no business importing
  * from the `mcp/` module to get it (the dependency belongs the other way around).
  */
-import { hasScope, scopeForDocumentType } from '@/utils/scope-check';
+import { ApiKeyScope } from '@/modules/api-keys/scopes';
+import {
+  DOCUMENT_READ_SCOPES,
+  DOCUMENT_WRITE_SCOPES,
+  hasScope,
+  scopeForDocumentType,
+} from '@/utils/scope-check';
 
 export { DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from '@/utils/scope-check';
 
@@ -52,6 +58,25 @@ export function canReadDocumentType(scopes: string[] | null, typeId: string): bo
   const read = scopeForDocumentType(typeId, 'read');
   const write = scopeForDocumentType(typeId, 'write');
   return (!!read && hasScope({ scopes }, read)) || (!!write && hasScope({ scopes }, write));
+}
+
+/** Step 1's coarse gate for the read tools (`list_document_types`, `list_documents`, `get_document`,
+ *  `get_document_pdf_link`): any document-domain scope at all, read or write. */
+export const ANY_DOCUMENT_SCOPE: readonly ApiKeyScope[] = [...DOCUMENT_READ_SCOPES, ...DOCUMENT_WRITE_SCOPES];
+
+/**
+ * Step 2 for a READ tool: throws unless `canReadDocumentType` grants `typeId`. The message names the
+ * read scope to grant (falling back to the pluralised id for a type `API_KEY_SCOPES` does not declare)
+ * and ends with `purpose`, the one part each tool words for itself ("read it", "list its documents",
+ * "create a share link for it").
+ */
+export function assertCanReadDocumentType(scopes: string[] | null, typeId: string, purpose: string): void {
+  if (canReadDocumentType(scopes, typeId)) return;
+  const required = scopeForDocumentType(typeId, 'read') ?? `${typeId}s:read`;
+  throw new Error(
+    `This API key's scopes do not cover document type "${typeId}" — grant "${required}" ` +
+      `(or its write equivalent) to ${purpose}.`,
+  );
 }
 
 /** Call-time predicate for a WRITE operation on `typeId` — used by `run_document_action`, which

@@ -51,7 +51,7 @@ import {
   ResolvedChannelConfig,
 } from '@/modules/company/channels/channels.service';
 import { resolveChannelCredentials } from './resolve-channel-credentials';
-import prisma from '@/prisma/prisma.service';
+import { loadSenderAndBuyer } from './load-sender-and-buyer';
 import { fromMinor } from '@/utils/financial';
 
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
@@ -197,27 +197,7 @@ export function buildInvopopTransport(deps: InvopopTransportDeps): DocumentTrans
       const credentials = await requireConnectedInvopop(deps.channelCredentials, ctx.companyId);
 
       const data = (ctx.document.data ?? {}) as Record<string, unknown>;
-      const clientId = typeof data.client === 'string' ? data.client : undefined;
-      const [company, client] = await Promise.all([
-        prisma.company.findUnique({ where: { id: ctx.companyId }, include: { partyIdentifiers: true } }),
-        // Scoped by companyId - `clientId` comes straight off the document's own `data.client` and is
-        // never checked for existence at write time, so a bare `findUnique` would happily hand back
-        // another tenant's client. Same guard, same reasoning, as `superpdp-transport.ts`.
-        clientId
-          ? prisma.client.findFirst({
-              where: { id: clientId, companyId: ctx.companyId },
-              include: { partyIdentifiers: true, contacts: true },
-            })
-          : Promise.resolve(null),
-      ]);
-      if (!company) {
-        throw new BadRequestException(`Company "${ctx.companyId}" not found.`);
-      }
-      if (!client) {
-        throw new BadRequestException(
-          `Cannot deposit to Invopop: the ${ctx.label.toLowerCase()} has no valid client on file.`,
-        );
-      }
+      const { company, client } = await loadSenderAndBuyer(ctx, data, 'Cannot deposit to Invopop');
 
       const totals = computeDocumentTotals(INVOICE_DESCRIPTOR, data);
       // No default. A currency this transport picked for the document would reach the platform as a

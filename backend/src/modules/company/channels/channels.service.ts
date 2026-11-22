@@ -246,42 +246,27 @@ export class ChannelCredentialsService {
     return this.decryptRow(active[0], 'RESOLVE_ACTIVE');
   }
 
-  /** Every active config of a provider across all companies. Unused today; a future inbound poller
-   *  needs exactly this shape. */
+  /** Every active config of a provider across all companies, for an inbound poller sweeping every
+   *  company at once (`documents/conformity/reception-sweep-runner.ts`). */
   async listActiveByProvider(providerId: string): Promise<ActiveChannelConfig[]> {
     if (!isEncryptionAvailable()) return [];
 
     const rows = await prisma.companyChannelConfig.findMany({ where: { providerId, isActive: true } });
     const results: ActiveChannelConfig[] = [];
     for (const row of rows) {
-      try {
-        const config = decryptJson<Record<string, unknown>>(row.config);
-        credentialAudit.emit({
-          companyId: row.companyId,
-          credentialRef: `${providerId}:${row.environment}`,
-          action: 'RESOLVE_ACTIVE',
-          outcome: 'HIT',
-          timestamp: new Date().toISOString(),
-          context: { reason: 'listActiveByProvider' },
-        });
-        results.push({
-          companyId: row.companyId,
-          providerId: row.providerId,
-          channel: row.channel,
-          environment: row.environment,
-          config,
-          isActive: row.isActive,
-        });
-      } catch {
-        credentialAudit.emit({
-          companyId: row.companyId,
-          credentialRef: `${providerId}:${row.environment}`,
-          action: 'RESOLVE_ACTIVE',
-          outcome: 'ERROR',
-          timestamp: new Date().toISOString(),
-          context: { reason: 'decrypt_failed_listActiveByProvider' },
-        });
-      }
+      const decrypted = this.decryptConfig(row, 'RESOLVE_ACTIVE', {
+        hit: 'listActiveByProvider',
+        error: 'decrypt_failed_listActiveByProvider',
+      });
+      if (!decrypted) continue;
+      results.push({
+        companyId: row.companyId,
+        providerId: row.providerId,
+        channel: row.channel,
+        environment: row.environment,
+        config: decrypted.config,
+        isActive: row.isActive,
+      });
     }
     return results;
   }
@@ -401,28 +386,14 @@ export class ChannelCredentialsService {
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return candidates[0].operator.id;
 
-    try {
-      const config = decryptJson<Record<string, unknown>>(row.config);
-      credentialAudit.emit({
-        companyId: row.companyId,
-        credentialRef: `${row.providerId}:${row.environment}`,
-        action: 'RESOLVE',
-        outcome: 'HIT',
-        timestamp: new Date().toISOString(),
-        context: { reason: 'resolveOperatorId' },
-      });
-      return defaultOperatorCatalog.resolveForTransportConfig(row.providerId, config)?.operator.id ?? null;
-    } catch {
-      credentialAudit.emit({
-        companyId: row.companyId,
-        credentialRef: `${row.providerId}:${row.environment}`,
-        action: 'RESOLVE',
-        outcome: 'ERROR',
-        timestamp: new Date().toISOString(),
-        context: { reason: 'resolveOperatorId_decrypt_failed' },
-      });
-      return null;
-    }
+    const decrypted = this.decryptConfig(row, 'RESOLVE', {
+      hit: 'resolveOperatorId',
+      error: 'resolveOperatorId_decrypt_failed',
+    });
+    if (!decrypted) return null;
+    return (
+      defaultOperatorCatalog.resolveForTransportConfig(row.providerId, decrypted.config)?.operator.id ?? null
+    );
   }
 
   /**
@@ -689,32 +660,50 @@ export class ChannelCredentialsService {
     row: CompanyChannelConfig,
     action: 'RESOLVE' | 'RESOLVE_ACTIVE',
   ): ResolvedChannelConfig | null {
+    // Corrupted blob or wrong key: treat as unconfigured rather than crash, the same "not connected"
+    // outcome a transport's preflight expects for a missing row.
+    const decrypted = this.decryptConfig(row, action, { error: 'decrypt_failed' });
+    if (!decrypted) return null;
+    return {
+      providerId: row.providerId,
+      channel: row.channel,
+      environment: row.environment,
+      config: decrypted.config,
+      isActive: row.isActive,
+    };
+  }
+
+  /**
+   * Decrypts one row's config and records the access: a HIT (carrying `reasons.hit` as its context
+   * reason when given, no context otherwise) or, on any failure, an ERROR carrying `reasons.error`.
+   * The reasons are audit strings read downstream: each caller passes its own, unchanged. Returns the
+   * config wrapped, so a stored JSON `null` stays distinguishable from a failed decrypt.
+   */
+  private decryptConfig(
+    row: CompanyChannelConfig,
+    action: 'RESOLVE' | 'RESOLVE_ACTIVE',
+    reasons: { hit?: string; error: string },
+  ): { config: Record<string, unknown> } | null {
+    const credentialRef = `${row.providerId}:${row.environment}`;
     try {
       const config = decryptJson<Record<string, unknown>>(row.config);
       credentialAudit.emit({
         companyId: row.companyId,
-        credentialRef: `${row.providerId}:${row.environment}`,
+        credentialRef,
         action,
         outcome: 'HIT',
         timestamp: new Date().toISOString(),
+        ...(reasons.hit ? { context: { reason: reasons.hit } } : {}),
       });
-      return {
-        providerId: row.providerId,
-        channel: row.channel,
-        environment: row.environment,
-        config,
-        isActive: row.isActive,
-      };
+      return { config };
     } catch {
-      // Corrupted blob or wrong key: treat as unconfigured rather than crash, the same "not connected"
-      // outcome a transport's preflight expects for a missing row.
       credentialAudit.emit({
         companyId: row.companyId,
-        credentialRef: `${row.providerId}:${row.environment}`,
+        credentialRef,
         action,
         outcome: 'ERROR',
         timestamp: new Date().toISOString(),
-        context: { reason: 'decrypt_failed' },
+        context: { reason: reasons.error },
       });
       return null;
     }

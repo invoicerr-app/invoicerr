@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { apiFetch, useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 import { computeConformityVerdict } from "@/components/documents/conformity-verdict"
 import { translateDocumentTypeDescriptor, translateDocumentTypeSummary } from "@/lib/descriptor-i18n"
+import { queryKeys } from "@/lib/query-keys"
 
 import type {
   ActionResult,
@@ -174,7 +175,7 @@ function buildDocumentListParams(typeId: string, filters: DocumentInstancesFilte
 
 export function useDocumentInstances(typeId: string | undefined, filters: DocumentInstancesFilters = {}) {
   return useApiQuery<DocumentInstancesPage>(
-    ["documents", typeId, filters],
+    queryKeys.documents.list(typeId, filters),
     `/api/documents?${typeId ? buildDocumentListParams(typeId, filters) : ""}`,
     {
       enabled: !!typeId,
@@ -189,9 +190,13 @@ export function useDocumentInstances(typeId: string | undefined, filters: Docume
 }
 
 export function useDocumentInstance(typeId: string | undefined, id: string | undefined) {
-  return useApiQuery<DocumentInstance>(["documents", typeId, id], `/api/documents/${id}?typeId=${typeId}`, {
-    enabled: !!typeId && !!id,
-  })
+  return useApiQuery<DocumentInstance>(
+    queryKeys.documents.instance(typeId, id),
+    `/api/documents/${id}?typeId=${typeId}`,
+    {
+      enabled: !!typeId && !!id,
+    },
+  )
 }
 
 /**
@@ -202,7 +207,7 @@ export function useDocumentInstance(typeId: string | undefined, id: string | und
  */
 export function useDocumentSettlement(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<DocumentSettlementResult>(
-    ["documents", typeId, id, "settlement"],
+    queryKeys.documents.instanceSub(typeId, id, "settlement"),
     `/api/documents/${id}/settlement?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
@@ -219,7 +224,7 @@ export function useDocumentSettlement(typeId: string | undefined, id: string | u
  */
 export function useDocumentTaxWarnings(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<DocumentTaxWarningsResult>(
-    ["documents", typeId, id, "tax-warnings"],
+    queryKeys.documents.instanceSub(typeId, id, "tax-warnings"),
     `/api/documents/${id}/tax-warnings?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
@@ -242,7 +247,7 @@ export function useActionTransmissionPreview(
   enabled: boolean,
 ) {
   return useApiQuery<ActionTransmissionPreview>(
-    ["documents", typeId, id, "actions", actionId, "transmission-preview"],
+    queryKeys.documents.transmissionPreview(typeId, id, actionId),
     `/api/documents/${id}/actions/${actionId}/transmission-preview?typeId=${typeId}`,
     { enabled: enabled && !!typeId && !!id && !!actionId },
   )
@@ -257,7 +262,7 @@ export function useActionTransmissionPreview(
  */
 export function useDocumentArchives(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<DocumentArchive[]>(
-    ["documents", typeId, id, "archives"],
+    queryKeys.documents.instanceSub(typeId, id, "archives"),
     `/api/documents/${id}/archives?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
@@ -272,7 +277,7 @@ export function useDocumentArchives(typeId: string | undefined, id: string | und
  */
 export function useDocumentManualAcceptance(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<ManualAcceptance | null>(
-    ["documents", typeId, id, "manual-acceptance"],
+    queryKeys.documents.instanceSub(typeId, id, "manual-acceptance"),
     `/api/documents/${id}/manual-acceptance?typeId=${typeId}`,
     { enabled: !!typeId && !!id },
   )
@@ -295,7 +300,7 @@ export function useCorrectionRoutes(
   options?: { enabled?: boolean },
 ) {
   return useApiQuery<CorrectionRoutesDecision>(
-    ["documents", typeId, id, "correction-routes"],
+    queryKeys.documents.instanceSub(typeId, id, "correction-routes"),
     `/api/documents/${id}/correction-routes?typeId=${typeId}`,
     { enabled: !!typeId && !!id && (options?.enabled ?? true), retry: false },
   )
@@ -337,7 +342,7 @@ export function useVerifyDocumentArchive() {
  */
 export function useDocumentAuthorityEvents(typeId: string | undefined, id: string | undefined) {
   return useApiQuery<DocumentAuthorityEvent[]>(
-    ["documents", typeId, id, "authority-events"],
+    queryKeys.documents.instanceSub(typeId, id, "authority-events"),
     `/api/documents/${id}/authority-events?typeId=${typeId}`,
     {
       enabled: !!typeId && !!id,
@@ -366,7 +371,7 @@ export function useRunDocumentAction() {
   return useApiMutation<RunActionVariables, ActionResult>(
     "POST",
     (vars) => `/api/documents/types/${vars.typeId}/actions/${vars.actionId}`,
-    { invalidateKeys: [["documents"]] },
+    { invalidateKeys: [queryKeys.documents.all()] },
   )
 }
 
@@ -391,7 +396,7 @@ export function useResolveActionParamsDefaults() {
 /** Generic search behind a 'reference' field, regardless of which entity it targets. */
 export function useReferenceSearch(entity: string | undefined, query: string) {
   return useApiQuery<EntityReferenceOption[]>(
-    ["document-references", entity, "search", query],
+    queryKeys.documentReferences.search(entity, query),
     `/api/documents/references/${entity}/search?q=${encodeURIComponent(query)}`,
     { enabled: !!entity },
   )
@@ -400,7 +405,7 @@ export function useReferenceSearch(entity: string | undefined, query: string) {
 /** Resolves a single already-set reference value to its display label. */
 export function useReferenceResolve(entity: string | undefined, id: string | undefined) {
   return useApiQuery<EntityReferenceOption | null>(
-    ["document-references", entity, id],
+    queryKeys.documentReferences.byId(entity, id),
     `/api/documents/references/${entity}/${id}`,
     { enabled: !!entity && !!id },
   )
@@ -433,7 +438,7 @@ export async function fetchPrefillFields(
  */
 export function useReferenceFields(entity: string | undefined, id: string | undefined) {
   return useApiQuery<Record<string, unknown> | null>(
-    ["document-references", entity, id, "fields"],
+    queryKeys.documentReferences.fields(entity, id),
     `/api/documents/references/${entity}/${id}/fields`,
     { enabled: !!entity && !!id },
   )
@@ -456,7 +461,7 @@ export interface EntityReferenceSearchHit extends EntityReferenceOption {
 export function useMultiEntityReferenceSearch(entities: string[], query: string) {
   return useQueries({
     queries: entities.map((entity) => ({
-      queryKey: ["document-references", entity, "search", query],
+      queryKey: queryKeys.documentReferences.search(entity, query),
       queryFn: () =>
         apiFetch<EntityReferenceOption[]>(
           `/api/documents/references/${entity}/search?q=${encodeURIComponent(query)}`,

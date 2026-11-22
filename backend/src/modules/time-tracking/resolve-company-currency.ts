@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 
 import prisma from '@/prisma/prisma.service';
+import { fromMinor, toMinor } from '@/utils/financial';
 
 /**
  * The company's own currency — used to convert every rate this module stores (Project's default
@@ -17,4 +18,25 @@ export async function resolveCompanyCurrency(companyId: string): Promise<string>
     throw new NotFoundException('Company not found');
   }
   return company.currency;
+}
+
+/** A rate as typed (MAJOR units) to its stored minor-unit integer. Both `null` and an omitted rate
+ *  store `null`: what a create wants, where there is no current value to keep. */
+export function rateToMinor(rate: number | null | undefined, currency: string): number | null {
+  return rate != null ? toMinor(rate, currency) : null;
+}
+
+/** The stored rate after a PATCH. `!== undefined` (never `??`): an explicit `null` clears the rate,
+ *  an omitted field keeps `currentMinor`. */
+export function patchRateMinor(
+  rate: number | null | undefined,
+  currentMinor: number | null,
+  currency: string,
+): number | null {
+  return rate !== undefined ? rateToMinor(rate, currency) : currentMinor;
+}
+
+/** A stored minor-unit rate back to the MAJOR units every caller is handed; `null` stays `null`. */
+export function minorToRate(minor: number | null, currency: string): number | null {
+  return minor !== null ? fromMinor(minor, currency) : null;
 }

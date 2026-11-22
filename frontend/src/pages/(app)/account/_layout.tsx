@@ -4,15 +4,9 @@ import { Outlet, useLocation, useNavigate } from "react-router"
 import { Avatar, AvatarFallback, getInitials } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { authClient } from "@/lib/auth"
 import { usePageHeader } from "@/hooks/use-page-header"
+import { useSessionUser } from "@/hooks/use-session-user"
 import { useTranslation } from "react-i18next"
-
-interface SessionUser {
-  firstname?: string
-  lastname?: string
-  email?: string
-}
 
 const NAV_ITEMS = [
   { path: "/account", labelKey: "account.nav.profile", icon: User },
@@ -36,10 +30,7 @@ export default function AccountLayout() {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
-  const { data: session, isPending } = authClient.useSession()
-  // additionalFields (firstname/lastname) aren't reflected in the client's session type —
-  // `use-companies.ts` widens the same way for the same reason.
-  const user = (session as unknown as { user?: SessionUser } | null)?.user
+  const { user, isPending } = useSessionUser()
 
   usePageHeader(t("account.pageTitle"))
 
