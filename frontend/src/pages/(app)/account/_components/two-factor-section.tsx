@@ -184,12 +184,7 @@ export function TwoFactorSection({
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              loading={busy}
-              disabled={code.length < 6}
-              data-cy="two-factor-confirm"
-            >
+            <Button type="submit" loading={busy} disabled={code.length < 6} data-cy="two-factor-confirm">
               {t("account.security.twoFactor.confirm")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep({ kind: "idle" })}>
