@@ -1307,10 +1307,13 @@ model User {
   // value outright is the preferences endpoint itself, precisely because that one is a deliberate
   // choice from a fixed dropdown rather than raw storage.
   locale        String?
+  // Set by better-auth's two-factor plugin once an authenticator app is verified (`lib/auth.ts`).
+  twoFactorEnabled Boolean?   @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   sessions      Session[]
   accounts      Account[]
+  twoFactors    TwoFactor[]
   apiKeys       ApiKey[]
   companies     UserCompany[]
 
@@ -1489,6 +1492,23 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Authenticator-app (TOTP) secret and backup codes of a user, owned by better-auth's two-factor
+// plugin. Both secret and backupCodes are stored encrypted with the auth secret by the plugin.
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("two_factor")
 }
 
 // ======= END OF BETTER AUTH INTEGRATION ======= //

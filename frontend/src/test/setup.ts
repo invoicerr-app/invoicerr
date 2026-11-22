@@ -20,3 +20,16 @@ await i18n.changeLanguage("en")
 // the same attribute means unit and e2e tests break together when a hook is renamed, instead of
 // the unit test silently passing on an attribute nobody else uses.
 configure({ testIdAttribute: "data-cy" })
+
+// input-otp (the six-box code field) measures itself with a ResizeObserver and probes for
+// password-manager badges with elementFromPoint; jsdom implements neither.
+if (typeof globalThis.ResizeObserver !== "function") {
+  globalThis.ResizeObserver = class {
+    observe = () => undefined
+    unobserve = () => undefined
+    disconnect = () => undefined
+  } as unknown as typeof ResizeObserver
+}
+if (typeof document.elementFromPoint !== "function") {
+  document.elementFromPoint = () => null
+}
