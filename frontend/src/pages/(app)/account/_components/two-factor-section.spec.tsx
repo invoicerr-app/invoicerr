@@ -72,10 +72,11 @@ describe("<TwoFactorSection>", () => {
     await waitFor(() => expect(byCy("two-factor-secret")).toHaveTextContent("JBSWY3DPEHPK3PXP"))
     expect(authClient.twoFactor.enable).toHaveBeenCalledWith({ password: "correct horse" })
 
-    fireEvent.change(byCy("two-factor-setup-code-input"), { target: { value: " 123456 " } })
-    fireEvent.click(byCy("two-factor-confirm"))
+    // The sixth digit submits on its own: no click on the confirm button.
+    fireEvent.change(byCy("two-factor-setup-code-input"), { target: { value: "123456" } })
 
     await waitFor(() => expect(byCy("two-factor-backup-codes")).toBeInTheDocument())
+    expect(authClient.twoFactor.verifyTotp).toHaveBeenCalledTimes(1)
     expect(authClient.twoFactor.verifyTotp).toHaveBeenCalledWith({ code: "123456" })
     expect(document.querySelectorAll('[data-cy="two-factor-backup-code"]')).toHaveLength(2)
     expect(toast.success).toHaveBeenCalled()
@@ -98,11 +99,32 @@ describe("<TwoFactorSection>", () => {
     fireEvent.click(byCy("two-factor-enable"))
     await waitFor(() => expect(byCy("two-factor-setup-code-input")).toBeInTheDocument())
     fireEvent.change(byCy("two-factor-setup-code-input"), { target: { value: "000000" } })
-    fireEvent.click(byCy("two-factor-confirm"))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Invalid code"))
     expect(byCy("two-factor-setup-code-input")).toBeInTheDocument()
+    // Emptied for the next try, which submits on its sixth digit again.
+    await waitFor(() => expect(byCy("two-factor-setup-code-input")).toHaveValue(""))
     expect(refetch).not.toHaveBeenCalled()
+  })
+
+  it("keeps the confirm button for a code typed without the auto-submit, and takes digits only", async () => {
+    mockSession(false)
+    vi.mocked(authClient.twoFactor.enable).mockResolvedValue({
+      data: { totpURI: TOTP_URI, backupCodes: [] },
+      error: null,
+    } as never)
+    vi.mocked(authClient.twoFactor.verifyTotp).mockResolvedValue({ data: {}, error: null } as never)
+    render(<TwoFactorSection hasCredentialAccount demoMode={false} />)
+
+    typePassword()
+    fireEvent.click(byCy("two-factor-enable"))
+    await waitFor(() => expect(byCy("two-factor-setup-code-input")).toBeInTheDocument())
+
+    fireEvent.change(byCy("two-factor-setup-code-input"), { target: { value: "12ab" } })
+    expect(byCy("two-factor-setup-code-input")).toHaveValue("")
+    fireEvent.change(byCy("two-factor-setup-code-input"), { target: { value: "12345" } })
+    expect(byCy("two-factor-confirm")).toBeDisabled()
+    expect(authClient.twoFactor.verifyTotp).not.toHaveBeenCalled()
   })
 
   it("disables the second factor with the password", async () => {

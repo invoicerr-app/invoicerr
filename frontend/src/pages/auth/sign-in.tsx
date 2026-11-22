@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { LegalLinks } from "@/components/legal-links"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
+import { TotpCodeInput } from "@/components/totp-code-input"
 import { authClient } from "@/lib/auth"
 import { copyToClipboard } from "@/lib/clipboard"
 import { hasSignedOutInThisTab } from "@/lib/sign-out"
@@ -330,16 +331,30 @@ export default function LoginPage() {
             <Label htmlFor="code">
               {useBackupCode ? t("auth.login.twoFactor.backupLabel") : t("auth.login.twoFactor.label")}
             </Label>
-            <Input
-              key={useBackupCode ? "backup" : "totp"}
-              id="code"
-              name="code"
-              autoFocus
-              autoComplete="one-time-code"
-              inputMode={useBackupCode ? "text" : "numeric"}
-              disabled={loading}
-              data-cy="auth-two-factor-code-input"
-            />
+            {/* Backup codes are letters and a dash, not six digits: they keep a plain text field. The
+                app code gets the six boxes, and the button stays so "trust this device" can be ticked
+                after typing it. */}
+            {useBackupCode ? (
+              <Input
+                key="backup"
+                id="code"
+                name="code"
+                autoFocus
+                autoComplete="one-time-code"
+                inputMode="text"
+                disabled={loading}
+                data-cy="auth-two-factor-code-input"
+              />
+            ) : (
+              <TotpCodeInput
+                key="totp"
+                id="code"
+                name="code"
+                autoFocus
+                disabled={loading}
+                data-cy="auth-two-factor-code-input"
+              />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Checkbox

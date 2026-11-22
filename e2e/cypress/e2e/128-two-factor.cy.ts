@@ -64,13 +64,19 @@ describe("Two-factor authentication (authenticator app)", () => {
 		cy.get('[data-cy="two-factor-card"]').scrollIntoView();
 		screen("02-setup-qr-code");
 
+		// The sixth digit submits on its own (no click on the confirm button). The answer is held back
+		// for a moment so the screenshot shows the six filled boxes rather than the next step.
+		cy.intercept("POST", `${api}/api/auth/two-factor/verify-totp`, (req) => {
+			req.on("response", (res) => {
+				res.setDelay(1500);
+			});
+		}).as("verify");
 		cy.then(() => cy.task<string>("totpCode", { secret })).then((code) => {
-			cy.get('[data-cy="two-factor-setup-code-input"]').type(code);
+			// The six boxes are drawn over one real input, as on the signature page (45-signature).
+			cy.get('[data-cy="two-factor-setup-code-input"]').type(code, { force: true });
+			cy.get('[data-cy="two-factor-setup-code-input"]').should("have.value", code);
 		});
 		screen("03-setup-code-typed");
-
-		cy.intercept("POST", `${api}/api/auth/two-factor/verify-totp`).as("verify");
-		cy.get('[data-cy="two-factor-confirm"]').click();
 		cy.wait("@verify", { timeout: 10000 }).its("response.statusCode").should("eq", 200);
 
 		cy.get('[data-cy="two-factor-backup-code"]', { timeout: 10000 }).should("have.length.greaterThan", 0);
@@ -100,7 +106,8 @@ describe("Two-factor authentication (authenticator app)", () => {
 		screen("06-sign-in-asks-code");
 
 		cy.task<string>("totpCode", { secret }).then((code) => {
-			cy.get('[data-cy="auth-two-factor-code-input"]').type(code);
+			cy.get('[data-cy="auth-two-factor-code-input"]').type(code, { force: true });
+			cy.get('[data-cy="auth-two-factor-code-input"]').should("have.value", code);
 		});
 		screen("07-sign-in-code-typed");
 		cy.get('[data-cy="auth-two-factor-submit"]').click();

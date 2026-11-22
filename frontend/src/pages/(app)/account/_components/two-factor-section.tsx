@@ -1,10 +1,11 @@
 import { QRCodeSVG } from "qrcode.react"
 import type React from "react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { SettingsSection } from "@/components/settings-section"
+import { TotpCodeInput } from "@/components/totp-code-input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,20 +67,34 @@ export function TwoFactorSection({
     })
   }
 
+  // The sixth digit submits on its own, and the button stays for anyone who prefers it: this guard
+  // keeps the two from sending the same code twice.
+  const verifying = useRef(false)
+  const verifyCode = (value: string) => {
+    if (step.kind !== "scan" || verifying.current) return
+    verifying.current = true
+    void run(async () => {
+      try {
+        const { error } = await authClient.twoFactor.verifyTotp({ code: value })
+        if (error) {
+          // Emptied so the next six digits submit again.
+          setCode("")
+          toast.error(error.message || t("account.security.twoFactor.messages.invalidCode"))
+          return
+        }
+        setCode("")
+        setStep({ kind: "codes", backupCodes: step.backupCodes })
+        toast.success(t("account.security.twoFactor.messages.enabled"))
+        await refetch()
+      } finally {
+        verifying.current = false
+      }
+    })
+  }
+
   const confirm = (event: React.FormEvent) => {
     event.preventDefault()
-    if (step.kind !== "scan") return
-    void run(async () => {
-      const { error } = await authClient.twoFactor.verifyTotp({ code: code.trim() })
-      if (error) {
-        toast.error(error.message || t("account.security.twoFactor.messages.invalidCode"))
-        return
-      }
-      setCode("")
-      setStep({ kind: "codes", backupCodes: step.backupCodes })
-      toast.success(t("account.security.twoFactor.messages.enabled"))
-      await refetch()
-    })
+    verifyCode(code)
   }
 
   const disable = () =>
@@ -160,12 +175,11 @@ export function TwoFactorSection({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="two-factor-code">{t("account.security.twoFactor.code")}</Label>
-            <Input
+            <TotpCodeInput
               id="two-factor-code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
               value={code}
-              onChange={(event) => setCode(event.target.value)}
+              onChange={setCode}
+              onComplete={verifyCode}
               data-cy="two-factor-setup-code-input"
             />
           </div>
@@ -173,7 +187,7 @@ export function TwoFactorSection({
             <Button
               type="submit"
               loading={busy}
-              disabled={code.trim().length === 0}
+              disabled={code.length < 6}
               data-cy="two-factor-confirm"
             >
               {t("account.security.twoFactor.confirm")}

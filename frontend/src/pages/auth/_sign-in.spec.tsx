@@ -318,7 +318,7 @@ describe("<LoginPage> second factor", () => {
     await passPassword()
     verifyTotp.mockResolvedValue({ data: { token: "t" }, error: null } as never)
 
-    fireEvent.change(screen.getByTestId("auth-two-factor-code-input"), { target: { value: " 123456 " } })
+    fireEvent.change(screen.getByTestId("auth-two-factor-code-input"), { target: { value: "123456" } })
     fireEvent.click(screen.getByTestId("auth-two-factor-submit"))
 
     await waitFor(() => expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false }))
