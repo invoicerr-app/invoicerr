@@ -1,3 +1,4 @@
+import './observability/register-tracing';
 import { Logger } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
 
