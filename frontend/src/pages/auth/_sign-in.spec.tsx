@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { authClient } from "@/lib/auth"
 import { signOut } from "@/lib/sign-out"
@@ -13,6 +13,7 @@ vi.mock("@/lib/auth", () => ({
     signIn: { email: vi.fn(), social: vi.fn() },
     signOut: vi.fn(async () => ({ data: null })),
     getSession: vi.fn(),
+    twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
   },
 }))
 
@@ -263,5 +264,95 @@ describe("<LoginPage> failed sign-in", () => {
     submit()
 
     expect(await screen.findByTestId("auth-signin-error")).toHaveTextContent("Invalid email or password")
+  })
+})
+
+describe("<LoginPage> second factor", () => {
+  const signInEmail = vi.mocked(authClient.signIn.email)
+  const getSession = vi.mocked(authClient.getSession)
+  const verifyTotp = vi.mocked(authClient.twoFactor.verifyTotp)
+  const verifyBackupCode = vi.mocked(authClient.twoFactor.verifyBackupCode)
+
+  beforeEach(() => {
+    // The "trust this device" Radix checkbox measures itself with `ResizeObserver`, absent from jsdom.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+  })
+
+  async function passPassword() {
+    installFetchMock({ allowed: true, requiresCode: false })
+    signInEmail.mockResolvedValue({
+      data: { twoFactorRedirect: true, twoFactorMethods: ["totp"] },
+      error: null,
+    } as never)
+    // No stored session at the end keeps the page in place instead of navigating away.
+    getSession.mockResolvedValue({ data: null, error: null } as never)
+    renderSignIn()
+    fireEvent.change(screen.getByTestId("auth-email-input"), { target: { value: "owner@example.test" } })
+    fireEvent.change(screen.getByTestId("auth-password-input"), { target: { value: "Password-1!" } })
+    fireEvent.click(screen.getByTestId("auth-submit-btn"))
+    return screen.findByTestId("auth-two-factor-form")
+  }
+
+  afterEach(() => {
+    signInEmail.mockReset()
+    getSession.mockReset()
+    verifyTotp.mockReset()
+    verifyBackupCode.mockReset()
+  })
+
+  it("asks for the authenticator code after a correct password, without treating it as signed in", async () => {
+    await passPassword()
+
+    expect(screen.queryByTestId("auth-password-input")).not.toBeInTheDocument()
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it("verifies the authenticator code, then checks the session like a password sign-in", async () => {
+    await passPassword()
+    verifyTotp.mockResolvedValue({ data: { token: "t" }, error: null } as never)
+
+    fireEvent.change(screen.getByTestId("auth-two-factor-code-input"), { target: { value: "123456" } })
+    fireEvent.click(screen.getByTestId("auth-two-factor-submit"))
+
+    await waitFor(() => expect(verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false }))
+    await waitFor(() => expect(getSession).toHaveBeenCalledTimes(1))
+    expect(verifyBackupCode).not.toHaveBeenCalled()
+  })
+
+  it("accepts a backup code instead, and remembers the device when asked", async () => {
+    await passPassword()
+    verifyBackupCode.mockResolvedValue({ data: { token: "t" }, error: null } as never)
+
+    fireEvent.click(screen.getByTestId("auth-two-factor-toggle"))
+    fireEvent.click(screen.getByTestId("auth-two-factor-trust"))
+    fireEvent.change(screen.getByTestId("auth-two-factor-code-input"), { target: { value: "abcde-fghij" } })
+    fireEvent.click(screen.getByTestId("auth-two-factor-submit"))
+
+    await waitFor(() =>
+      expect(verifyBackupCode).toHaveBeenCalledWith({ code: "abcde-fghij", trustDevice: true }),
+    )
+    expect(verifyTotp).not.toHaveBeenCalled()
+  })
+
+  it("keeps the code form and shows the error when the code is refused", async () => {
+    await passPassword()
+    verifyTotp.mockResolvedValue({
+      data: null,
+      error: { status: 401, statusText: "Unauthorized", code: "INVALID_CODE", message: "Invalid code" },
+    } as never)
+
+    fireEvent.change(screen.getByTestId("auth-two-factor-code-input"), { target: { value: "000000" } })
+    fireEvent.click(screen.getByTestId("auth-two-factor-submit"))
+
+    expect(await screen.findByTestId("auth-signin-error")).toHaveTextContent("Invalid code")
+    expect(screen.getByTestId("auth-two-factor-form")).toBeInTheDocument()
+    expect(getSession).not.toHaveBeenCalled()
   })
 })

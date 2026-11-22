@@ -11,7 +11,7 @@ import { activeCauseDay } from "@/brand/cause-days"
  * render an SVG favicon at all (see index.html's own comment), and a cause day is a nice-to-have,
  * not worth a 16-variant PNG set for that narrower audience.
  */
-export function useCauseDayFavicon() {
+function useCauseDayFavicon() {
   useEffect(() => {
     const cause = activeCauseDay(new Date())
     if (!cause) return

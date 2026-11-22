@@ -126,3 +126,7 @@ export interface PaymentProvider {
     credentials: Record<string, unknown>,
   ): Promise<PaymentProviderEvent>;
 }
+
+/** How long one HTTP call to a payment provider's API may take before it is aborted. Shared by the
+ *  Stripe, Mollie and PayPal clients under `providers/` so their calls all give up after the same delay. */
+export const PAYMENT_PROVIDER_HTTP_TIMEOUT_MS = 15_000;

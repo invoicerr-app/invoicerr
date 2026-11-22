@@ -1,5 +1,5 @@
-import { formatOtp, formatShortDate } from "@/lib/format"
-import { isOtpComplete, OTP_DISPLAY_LENGTH } from "@/lib/otp"
+import { formatShortDate } from "@/lib/format"
+import { formatOtp, isOtpComplete, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ArrowRightLeft } from "lucide-react"
 import type React from "react"
 import { useState } from "react"

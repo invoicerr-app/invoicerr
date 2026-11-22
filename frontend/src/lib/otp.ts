@@ -1,3 +1,11 @@
+/** Six/eight-digit one-time codes are shown grouped (`1234-5678`) everywhere they are typed or
+ *  displayed; non-digits are dropped so a pasted code works too. */
+export function formatOtp(value: string): string {
+  const cleaned = value.replace(/\D/g, "").slice(0, 8)
+  if (cleaned.length <= 4) return cleaned
+  return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
+}
+
 /** `formatOtp`'s output length for a complete code: 8 digits and one dash ("1234-5678"). */
 export const OTP_DISPLAY_LENGTH = 9
 

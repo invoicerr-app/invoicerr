@@ -12,7 +12,7 @@ const SAMPLE_KEYS = new Set([
 ])
 
 // Kept visible on purpose, as `file|hit`: a one-line status that is the information itself, or the text
-// a user must read before an irreversible action.
+// a user must read before an irreversible action, or before giving consent (which must be informed).
 const KEPT_VISIBLE = new Set([
   "components/documents/document-totals.tsx|totals.warnings.map(",
   "components/widgets/widget-renderers/metric-widget.tsx|metric.warnings.map(",
@@ -27,6 +27,7 @@ const KEPT_VISIBLE = new Set([
   "pages/legal/accept.tsx|legal.accept.languageNoticeFr",
   "pages/auth/sign-up.tsx|legal.accept.languageNotice",
   "pages/auth/sign-up.tsx|legal.accept.languageNoticeFr",
+  "components/error-tracking-consent.tsx|errorTracking.consent.description",
 ])
 
 function sourceFiles(dir: string): string[] {

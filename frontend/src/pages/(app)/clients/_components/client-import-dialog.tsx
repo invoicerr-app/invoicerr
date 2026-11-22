@@ -39,7 +39,7 @@ import {
   useImportClientsConfirm,
   useImportClientsPreview,
 } from "@/hooks/queries"
-import { decodeCsvBytes, detectDelimiter, parseCsv } from "@/lib/csv-parse"
+import { decodeCsvBytes, parseCsv } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
 import {
   fetchRequiredIdentifiers,
@@ -142,8 +142,7 @@ export function ClientImportDialog() {
     try {
       const buffer = await file.arrayBuffer()
       const text = decodeCsvBytes(buffer)
-      const delimiter = detectDelimiter(text.split(/\r\n|\r|\n/)[0] ?? "")
-      const { headers, rows: dataRows } = parseCsv(text, delimiter)
+      const { headers, rows: dataRows } = parseCsv(text)
 
       if (dataRows.length === 0) {
         toast.error(t("clients.import.errors.empty"))

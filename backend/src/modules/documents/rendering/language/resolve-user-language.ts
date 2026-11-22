@@ -1,10 +1,5 @@
-import { resolveDefaultLocale } from './default-locale';
-import { DEFAULT_RENDER_LANGUAGE, isSupportedRenderLanguage, RenderLanguage } from './supported-languages';
-
-function normalize(value: string | null | undefined): string | undefined {
-  const trimmed = value?.trim().toLowerCase();
-  return trimmed ? trimmed : undefined;
-}
+import { resolveRecipientLanguage } from './resolve-recipient-language';
+import { RenderLanguage } from './supported-languages';
 
 /**
  * The language a PERSON (not a document recipient — see `resolveRecipientLanguage` for that one)
@@ -26,16 +21,13 @@ function normalize(value: string | null | undefined): string | undefined {
  *
  * Case-insensitive and whitespace-tolerant on the way in, same as `resolveRecipientLanguage` — the
  * return value is always one of the six canonical lowercase codes `supported-languages.ts` names.
+ *
+ * The chain is literally the recipient's one, with the person's own locale in the client's seat, so
+ * this delegates to it: a second copy of the same three steps could only ever drift.
  */
 export function resolveUserLanguage(
   userLocale: string | null | undefined,
   companyLanguage: string | null | undefined,
 ): RenderLanguage {
-  const user = normalize(userLocale);
-  if (isSupportedRenderLanguage(user)) return user;
-
-  const company = normalize(companyLanguage);
-  if (isSupportedRenderLanguage(company)) return company;
-
-  return resolveDefaultLocale() ?? DEFAULT_RENDER_LANGUAGE;
+  return resolveRecipientLanguage(userLocale, companyLanguage);
 }

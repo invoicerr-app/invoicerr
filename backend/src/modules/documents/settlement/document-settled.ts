@@ -1,9 +1,9 @@
-import { logger } from '@/logger/logger.service';
 import { runWithCompanyId } from '@/lib/request-context';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
 import { DocumentInstanceResult } from '../actions/action-registry';
-import { buildDocumentWebhookPayload, DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { DocumentWebhookEmitter } from '../queue/document-webhooks';
+import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
 import { DocumentSettlement } from './compute-settlement';
 
 /**
@@ -31,8 +31,8 @@ export function crossedIntoSettled(before: DocumentSettlement, after: DocumentSe
 
 /**
  * Dispatches `DOCUMENT_SETTLED` — the exact same "never propagate, log loudly instead" discipline
- * every other `DOCUMENT_*` dispatch in this module already holds (async-send.ts's own `DOCUMENT_SENT`
- * block is the model this is copied from): a third party's webhook endpoint being unreachable must
+ * every other `DOCUMENT_*` dispatch in this module already holds (all of them go through
+ * `dispatchDocumentWebhookSafely`, queue/document-webhooks.ts): a third party's webhook endpoint being unreachable must
  * never undo, or even be visible from, the write that just made this document settled. `webhooks`
  * absent means "no capability wired for this deployment" — the same "no capability, no effect"
  * posture every other `DocumentWebhookEmitter` call site already holds, never a special case here.
@@ -48,22 +48,11 @@ export async function emitDocumentSettled(
   // Wrapped in `runWithCompanyId` — reached from an invoice's "record-payment" and a credit note's
   // "send", both of which can run from the async-send queue's worker (no request context of its own);
   // self-scoping here keeps this function's own `Log` write correct regardless of the caller.
-  return runWithCompanyId(companyId, async () => {
-    try {
-      await webhooks.dispatch(
-        WebhookEvent.DOCUMENT_SETTLED,
-        buildDocumentWebhookPayload(companyId, typeId, document, { settlement }),
-      );
-    } catch (error) {
-      logger.error('Failed to dispatch a DOCUMENT_SETTLED webhook — the document was still settled', {
-        category: 'documents',
-        details: {
-          companyId,
-          typeId,
-          documentId: document.id,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
-  });
+  return runWithCompanyId(companyId, () =>
+    dispatchDocumentWebhookSafely(webhooks, WebhookEvent.DOCUMENT_SETTLED, companyId, typeId, document, {
+      failureMessage: 'Failed to dispatch a DOCUMENT_SETTLED webhook — the document was still settled',
+      documentId: document.id,
+      extra: { settlement },
+    }),
+  );
 }

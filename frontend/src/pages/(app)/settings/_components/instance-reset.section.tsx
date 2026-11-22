@@ -1,5 +1,4 @@
-import { formatOtp } from "@/lib/format"
-import { isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
+import { formatOtp, isOtpComplete, isOtpLockedError, OTP_DISPLAY_LENGTH } from "@/lib/otp"
 import { AlertTriangle, ServerCrash } from "lucide-react"
 import type React from "react"
 import { useState } from "react"

@@ -31,7 +31,7 @@ import { EN16931_UBL_SCH, validateSchematron } from './vendored/validate-schemat
  * the hard way that the library's OWN thrown exception message is a bare "validation failed" and the
  * actual diagnosis only ever reaches `logger.error`.
  */
-export const EU_LOGGER = {
+const EU_LOGGER = {
   log: () => {},
   warn: () => {},
   error: (message: unknown) => {
@@ -271,14 +271,15 @@ export function buildEuInvoiceForDocument(
 }
 
 /**
- * The `build()` `xrechnung-provider.ts` and `peppol-bis-provider.ts` share: UBL generation, the
- * structural check, then the base EN 16931 Schematron PLUS (when given) a delta Schematron, BOTH
- * blocking, their errors merged as `${id}: ${message}`. The two providers only differ by their
- * `customizationId`/`businessProcessCodeOverride` literals, their delta, and Peppol's note
- * post-processing (`postProcess`, handed to `@e-invoice-eu/core` as its `postProcessor`).
+ * The `build()` `ubl-provider.ts`, `xrechnung-provider.ts` and `peppol-bis-provider.ts` share: UBL
+ * generation, the structural check, then the base EN 16931 Schematron PLUS (when given) a delta
+ * Schematron, BOTH blocking, their errors merged as `${id}: ${message}`. XRechnung and Peppol only
+ * differ by their `customizationId`/`businessProcessCodeOverride` literals, their delta, and Peppol's
+ * note post-processing (`postProcess`, handed to `@e-invoice-eu/core` as its `postProcessor`); the
+ * plain EN 16931 UBL passes none of them.
  */
 export function buildValidatedUbl(config: {
-  customizationId: string;
+  customizationId?: string;
   businessProcessCodeOverride?: string;
   deltaSch?: string;
   postProcess?: (data: Record<string, unknown>) => void;

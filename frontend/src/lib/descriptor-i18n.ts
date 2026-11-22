@@ -129,7 +129,7 @@ export function descriptorFieldOptionLabel(
 }
 
 /** One 'text' field's own `suggestedValues[].label`, for the entry whose `value` is `suggestedValue`. */
-export function descriptorFieldSuggestedValueLabel(
+function descriptorFieldSuggestedValueLabel(
   t: DescriptorTranslator,
   typeId: string,
   fieldPath: string[],
@@ -170,7 +170,7 @@ export function descriptorActionParamLabel(
 }
 
 /** One action param's own `helpText`. */
-export function descriptorActionParamHelpText(
+function descriptorActionParamHelpText(
   t: DescriptorTranslator,
   typeId: string,
   actionId: string,

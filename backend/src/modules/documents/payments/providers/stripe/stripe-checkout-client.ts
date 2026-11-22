@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
-import { CreateCheckoutSessionInput, CreateCheckoutSessionResult } from '../../provider';
+import {
+  CreateCheckoutSessionInput,
+  CreateCheckoutSessionResult,
+  PAYMENT_PROVIDER_HTTP_TIMEOUT_MS,
+} from '../../provider';
 
 /**
  * The ONE network-calling piece of this integration — everything else in `providers/stripe/` (the
@@ -57,7 +61,7 @@ export class RealStripeCheckoutClient implements StripeCheckoutClient {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: body.toString(),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(PAYMENT_PROVIDER_HTTP_TIMEOUT_MS),
     });
 
     const payload = (await response.json().catch(() => null)) as {

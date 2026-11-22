@@ -107,6 +107,28 @@ cat > /usr/share/nginx/html/config.json <<EOF
 }
 EOF
 
+# Browser error tracking: SENTRY_FRONTEND_DSN is NOT published in /config.json (read by anyone, signed
+# in or not). The backend hands it only to a signed-in user who agreed to error reporting, through
+# GET /api/error-tracking/consent. The tracker's origin is still the one extra host the page may send
+# requests to, so the CSP below allows it. The
+# CSP rewrite is idempotent (it always starts back from `connect-src 'self'`), so a container restart
+# with a changed or removed DSN converges. An origin with anything but host characters is refused
+# rather than written into a response header.
+SENTRY_CONNECT_ORIGIN=""
+if [ -n "${SENTRY_FRONTEND_DSN:-}" ]; then
+  sentry_scheme="${SENTRY_FRONTEND_DSN%%://*}"
+  sentry_rest="${SENTRY_FRONTEND_DSN#*://}"
+  sentry_rest="${sentry_rest#*@}"
+  sentry_host="${sentry_rest%%/*}"
+  if { [ "$sentry_scheme" = "https" ] || [ "$sentry_scheme" = "http" ]; } \
+    && printf '%s' "$sentry_host" | grep -Eq '^[A-Za-z0-9.-]+(:[0-9]+)?$'; then
+    SENTRY_CONNECT_ORIGIN=" ${sentry_scheme}://${sentry_host}"
+  else
+    echo "[WARN] - SENTRY_FRONTEND_DSN is not a valid DSN, browser error reports will be blocked by the CSP"
+  fi
+fi
+sed -i "s|connect-src 'self'[^;]*;|connect-src 'self'${SENTRY_CONNECT_ORIGIN};|" /etc/nginx/conf.d/default.conf
+
 # HSTS opt-in (nginx.conf's own `__HSTS_HEADER__` marker, and the header's own comment there, explain
 # why this is never sent unconditionally): only an operator who has confirmed THIS instance is reached
 # exclusively over HTTPS should set ENABLE_HSTS=true. `includeSubDomains` is part of that same explicit

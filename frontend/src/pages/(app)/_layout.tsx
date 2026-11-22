@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 import { BillingBanner } from "@/components/billing-banner"
 import { DemoBanner } from "@/components/demo-banner"
+import { ErrorTrackingConsentController } from "@/components/error-tracking-consent"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { LegalLinks, useLegalLinks } from "@/components/legal-links"
@@ -131,6 +132,7 @@ const AuthenticatedLayout = ({ accountLocale }: { accountLocale?: string | null 
                 <OfflineBanner />
                 <DemoBanner />
                 <BillingBanner />
+                <ErrorTrackingConsentController />
                 <header className="flex min-h-16 items-center gap-3 px-4 pt-4 pb-1 md:px-6 md:pt-6">
                   <SidebarTrigger className="-ms-1.5 hidden text-muted-foreground md:inline-flex" />
                   <PageHeaderTitle />

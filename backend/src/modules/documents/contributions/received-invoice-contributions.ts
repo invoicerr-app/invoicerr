@@ -1,10 +1,7 @@
 import { fromMinor, toMinor } from '@/utils/financial';
 
-import { DocumentInstanceResult } from '../actions/action-registry';
 import { buildReceivedInvoiceDescriptor } from '../descriptors/received-invoice.descriptor';
-import { DashboardPeriod } from '../dto/dashboard-query.dto';
 import { resolveDateFieldKey } from '../list-filters';
-import { dateValueInRange, dayMs } from '../date-params';
 import { listAllDocuments } from '../persistence';
 import { ContributionHandler, ContributionRegistry } from './contribution-registry';
 import {
@@ -12,6 +9,7 @@ import {
   loadCurrencyContext,
   resolveConsolidationInstant,
 } from './currency-consolidation';
+import { restrictToPeriod } from './period';
 import { MetricWidget, MetricWidgetLink, Widget } from './widgets';
 
 /** `data.grossAmount` if it is actually a number, 0 otherwise — the same "a still-being-filled
@@ -30,26 +28,6 @@ function grossAmount(data: Record<string, unknown>): number {
  *  `date-params.ts#dateValueInRange` already applies for `GET /documents`'s own filter - never
  *  guessed into either side of the boundary. */
 const RECEIVED_INVOICE_DATE_FIELD_KEY = resolveDateFieldKey(buildReceivedInvoiceDescriptor());
-
-/** Every received invoice from `all` whose own `RECEIVED_INVOICE_DATE_FIELD_KEY` value falls within
- *  `period`'s inclusive range - see invoice-contributions.ts's own identical `restrictToPeriod` for
- *  the full reasoning, duplicated per file rather than shared. `period` undefined -> `all`, the SAME
- *  reference, unchanged. */
-function restrictToPeriod(
-  all: DocumentInstanceResult[],
-  period: DashboardPeriod | undefined,
-): DocumentInstanceResult[] {
-  if (!period || !RECEIVED_INVOICE_DATE_FIELD_KEY) return all;
-  const fromMs = dayMs(period.dateFrom);
-  const toMs = dayMs(period.dateTo);
-  return all.filter((invoice) =>
-    dateValueInRange(
-      (invoice.data as Record<string, unknown> | null)?.[RECEIVED_INVOICE_DATE_FIELD_KEY],
-      fromMs,
-      toMs,
-    ),
-  );
-}
 
 /**
  * DASHBOARD: "received invoices pending" — a COUNT of every instance still at "received" (i.e., not
@@ -70,7 +48,7 @@ export const buildReceivedInvoiceDashboardWidgets: ContributionHandler = async (
   });
   // Restricted by the type's own resolved date field once a period is set (issue #418) - `allPending`
   // itself, unchanged, whenever no period is set (`restrictToPeriod`'s own header).
-  const pending = restrictToPeriod(allPending, period);
+  const pending = restrictToPeriod(allPending, period, RECEIVED_INVOICE_DATE_FIELD_KEY);
 
   const pendingLink: MetricWidgetLink = { typeId: 'received-invoice', status: ['received'], ...period };
   const countMetric: MetricWidget = {

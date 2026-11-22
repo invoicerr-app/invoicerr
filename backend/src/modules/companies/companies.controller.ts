@@ -13,6 +13,7 @@ import { Roles } from '@/decorators/roles.decorator';
 import { User } from '@/decorators/user.decorator';
 import { RequiresScope } from '@/utils/scope-check';
 import { SeatGateExempt } from '@/modules/billing/seat-gate-exempt.decorator';
+import { EXPORT_ZIP_FILENAME } from '@/modules/billing/export-zip.service';
 
 @ApiTags('companies')
 @Controller('companies')
@@ -135,7 +136,7 @@ export class CompaniesController {
     const result = await this.companiesService.exportCompanyData(companyId, user.email);
     if (result.mode === 'stream') {
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="invoicerr-export.zip"');
+      res.setHeader('Content-Disposition', `attachment; filename="${EXPORT_ZIP_FILENAME}"`);
       res.status(200).send(result.zip);
       return;
     }

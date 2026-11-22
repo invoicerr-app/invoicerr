@@ -1,4 +1,5 @@
 import { stripeClient } from "@better-auth/stripe/client"
+import { twoFactorClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 
 // No genericOAuthClient plugin: since better-auth 1.7 the generic-OAuth plugin registers no
@@ -18,5 +19,7 @@ export const authClient = createAuthClient({
   // the company as `referenceId`; the backend's `authorizeReference` lets any member list and only an
   // OWNER or ADMIN start a checkout, open the portal or cancel. On a self-hosted instance the
   // endpoints do not exist and nothing in the app calls them (the Subscription tab is hidden).
-  plugins: [stripeClient({ subscription: true })],
+  // Second factor: `/sign-in/email` answers `twoFactorRedirect` for an account that turned it on, and
+  // the sign-in page then asks for the authenticator code itself (no redirect callback here).
+  plugins: [stripeClient({ subscription: true }), twoFactorClient()],
 })

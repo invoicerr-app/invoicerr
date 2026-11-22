@@ -34,6 +34,10 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/. .
+# The redaction rules shared with the backend (`frontend/src/lib/error-tracking-scrub.ts` imports them
+# by relative path): copied to the same place relative to /app/src/lib as in the repository, so the
+# one file serves both builds.
+COPY backend/src/logger/redaction-rules.ts /backend/src/logger/redaction-rules.ts
 
 RUN npm run build
 

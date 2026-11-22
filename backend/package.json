@@ -53,6 +53,7 @@
     "@nestjs/throttler": "^6.7.1",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "@sentry/node": "^11.16.0",
     "@signpdf/placeholder-pdf-lib": "^3.4.0",
     "@signpdf/signer-p12": "^3.4.0",
     "@signpdf/signpdf": "^3.4.0",

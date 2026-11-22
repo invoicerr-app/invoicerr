@@ -94,6 +94,23 @@ describe('createAuthRateLimitMiddleware', () => {
     expect(blockedRes.status).toHaveBeenCalledWith(429);
   });
 
+  it('bounds guessing a second-factor code: backup codes share the OTP budget with TOTP codes', async () => {
+    const rule = AUTH_RATE_LIMIT_RULES.find((r) => r.name === 'password-reset-and-otp')!;
+    const middleware = createAuthRateLimitMiddleware('/api/auth', { isEnabledByDefault: () => true });
+
+    for (let i = 0; i < rule.max; i++) {
+      const path =
+        i % 2 === 0 ? '/api/auth/two-factor/verify-totp' : '/api/auth/two-factor/verify-backup-code';
+      const res = fakeRes();
+      await middleware(fakeReq(path), res, next);
+      expect(res.status).not.toHaveBeenCalled();
+    }
+
+    const blockedRes = fakeRes();
+    await middleware(fakeReq('/api/auth/two-factor/verify-backup-code'), blockedRes, next);
+    expect(blockedRes.status).toHaveBeenCalledWith(429);
+  });
+
   it("keeps separate budgets per IP — one abusive client cannot exhaust another's", async () => {
     const rule = AUTH_RATE_LIMIT_RULES.find((r) => r.name === 'credentials')!;
     const middleware = createAuthRateLimitMiddleware('/api/auth', { isEnabledByDefault: () => true });

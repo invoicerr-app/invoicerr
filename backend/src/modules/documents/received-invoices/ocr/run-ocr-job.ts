@@ -28,7 +28,8 @@ import { DocumentEventPublisher } from '../../queue/document-events';
 import { listAllDocuments, upsertDocument } from '../../persistence';
 import { applyOcrFallback, OcrOutcome } from './apply-ocr-fallback';
 import { readInboundFile } from '../storage';
-import { reconcileSupplierClient, SupplierMatchResult } from '../supplier-reconciliation';
+import { withSupplierMatch } from '../supplier-match-fields';
+import { SupplierMatchResult } from '../supplier-reconciliation';
 
 const TYPE_ID = 'received-invoice';
 
@@ -143,14 +144,7 @@ export async function runReceivedInvoiceOcrJob(
     ocr,
   } = await applyOcrFallback({ syntax: null, fields: {} }, bytes, input.mime, input.fileName);
 
-  const supplierMatch = await reconcileSupplierClient(input.companyId, {
-    vatId: extractedFields.supplierVatId,
-    supplierName: extractedFields.supplier,
-  });
-  const fields: Record<string, unknown> = { ...extractedFields };
-  if (supplierMatch.outcome === 'matched') {
-    fields.supplierClient = supplierMatch.clientId;
-  }
+  const { fields, supplierMatch } = await withSupplierMatch(input.companyId, extractedFields);
 
   await backfillReceivedInvoice(input.companyId, input.fileRef, fields, input.events);
 

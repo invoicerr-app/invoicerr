@@ -10,7 +10,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatMinor } from "@/components/documents/totals-calculator"
-import { localIsoDate, settlementBadgeInfo } from "@/components/documents/document-settlement"
+import {
+  localIsoDate,
+  settlementBadgeInfo,
+  statementRowSettlement,
+} from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
@@ -89,22 +93,12 @@ function PaymentReturnBanner({ kind, onDismiss }: { kind: PaymentReturn; onDismi
 
 function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
-  const { labelKey } = settlementBadgeInfo(
-    {
-      totalGrossMinor: row.amountMinor,
-      paidMinor: row.paidMinor,
-      creditedMinor: 0,
-      outstandingMinor: row.outstandingMinor,
-      excessMinor: 0,
-      settled: row.settled,
-    },
-    { dueDate: row.dueDate, today: localIsoDate() },
-  )
+  const { status, labelKey } = settlementBadgeInfo(statementRowSettlement(row), {
+    dueDate: row.dueDate,
+    today: localIsoDate(),
+  })
   return (
-    <StatusMark
-      {...statusPresentation(labelKey.split(".").pop() ?? "")}
-      data-cy={`portal-document-status-${row.id}`}
-    >
+    <StatusMark {...statusPresentation(status)} data-cy={`portal-document-status-${row.id}`}>
       {t(labelKey)}
     </StatusMark>
   )

@@ -19,12 +19,15 @@ import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "@/lib/calen
 import { typeErrors } from "@/lib/zod-messages"
 import type { TimeEntry } from "@/types"
 
-export const buildTimeEntrySchema = (t: TFunction) =>
-  z.object({
+export const buildTimeEntrySchema = (t: TFunction) => {
+  const durationPositive = t("timeTracking.entries.errors.durationPositive")
+  return z.object({
     date: z.string().min(1, { error: t("timeTracking.entries.errors.dateRequired") }),
     // Hours, not minutes — the unit a person actually thinks in; converted at the submit boundary
     // (onSubmit below) the same way ArticleUpsert converts a typed price into minor units server-side.
-    hours: z.number().gt(0, { error: t("timeTracking.entries.errors.durationPositive") }),
+    // An emptied box reaches the schema as `undefined`: without its own message, zod would show its
+    // built-in English "Required" whatever the language.
+    hours: z.number({ error: durationPositive }).gt(0, { error: durationPositive }),
     description: z.string().optional(),
     billable: z.boolean(),
     hourlyRate: z
@@ -32,6 +35,7 @@ export const buildTimeEntrySchema = (t: TFunction) =>
       .min(0, { error: t("timeTracking.entries.errors.hourlyRateMin") })
       .nullable(),
   })
+}
 
 type TimeEntryForm = z.infer<ReturnType<typeof buildTimeEntrySchema>>
 

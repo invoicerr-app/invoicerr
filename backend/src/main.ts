@@ -9,8 +9,10 @@ import { buildSwaggerDocument } from './swagger-document';
 import { createApp } from './create-app';
 import { insecureAppUrlWarning } from './lib/app-url-scheme';
 import { redactLogValue } from './logger/redaction';
+import { initErrorTracking, reportBootFailure } from './error-tracking/error-tracking';
 
 async function bootstrap() {
+  initErrorTracking('api');
   // Refuse to boot on a known-placeholder or empty auth secret: docker-compose.yml's example
   // `JWT_SECRET`/`BETTER_AUTH_SECRET` values are public and committed, so a copy-pasted, unmodified
   // compose file would otherwise boot silently with a session/cookie-signing secret anyone can read
@@ -68,7 +70,8 @@ async function bootstrap() {
 // listening — which is exactly why nothing that only needs `createApp()` (like `src/openapi-dump.ts`)
 // ever imports it from here: `./create-app` carries the function alone, with no such side effect. See
 // that file's own header for the incident that made this distinction matter.
-bootstrap().catch((err) => {
+bootstrap().catch(async (err) => {
   console.error('Error during backend bootstrap:', redactLogValue(err));
+  await reportBootFailure(err);
   process.exit(1);
 });

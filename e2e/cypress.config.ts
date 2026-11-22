@@ -822,6 +822,30 @@ export default defineConfig({
           return `t=${timestampSeconds},v1=${hmac}`;
         },
 
+        /**
+         * Two-factor authentication (`128-two-factor.cy.ts`): the 6-digit code an authenticator app
+         * would show right now for a base32 secret, per RFC 6238 with better-auth's defaults
+         * (HMAC-SHA1, 30-second period, 6 digits). Node-side for the same reason as
+         * `stripeWebhookSignature` above: the browser has no `node:crypto`. The backend still runs its
+         * own verification against whatever this produces.
+         */
+        totpCode({ secret }: { secret: string }) {
+          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+          let bits = "";
+          for (const char of secret.replace(/=+$/, "").toUpperCase()) {
+            const value = alphabet.indexOf(char);
+            if (value < 0) throw new Error(`totpCode: "${char}" is not a base32 character`);
+            bits += value.toString(2).padStart(5, "0");
+          }
+          const key = Buffer.from((bits.match(/.{8}/g) ?? []).map((byte) => Number.parseInt(byte, 2)));
+          const counter = Buffer.alloc(8);
+          counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000 / 30)));
+          const digest = createHmac("sha1", key).update(counter).digest();
+          const offset = digest[digest.length - 1] & 0x0f;
+          const binary = digest.readUInt32BE(offset) & 0x7fffffff;
+          return String(binary % 1_000_000).padStart(6, "0");
+        },
+
         // See this file's own header just above for why a real
         // `node:http` server, not a `cy.intercept`, is what a server-to-server webhook needs.
         startWebhookReceiver() {

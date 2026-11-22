@@ -1,4 +1,5 @@
 import { useApiMutation } from "@/hooks/use-api-query"
+import { queryKeys } from "@/lib/query-keys"
 
 /**
  * Importing a document issued by a previous tool (issue #340) - the single-document endpoint and the
@@ -41,7 +42,7 @@ export function useImportDocument() {
   return useApiMutation<ImportDocumentVariables, ImportDocumentResult>(
     "POST",
     (vars) => `/api/documents/types/${vars.typeId}/import`,
-    { invalidateKeys: [["documents"]] },
+    { invalidateKeys: [queryKeys.documents.all()] },
   )
 }
 
@@ -142,6 +143,6 @@ export function useImportDocumentsCsvConfirm() {
   return useApiMutation<DocumentImportCsvVariables, DocumentImportCsvConfirmResult>(
     "POST",
     (vars) => `/api/documents/types/${vars.typeId}/import/csv/confirm`,
-    { invalidateKeys: [["documents"]] },
+    { invalidateKeys: [queryKeys.documents.all()] },
   )
 }

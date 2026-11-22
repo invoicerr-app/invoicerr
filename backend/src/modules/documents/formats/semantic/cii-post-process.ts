@@ -9,6 +9,10 @@
  * reprise, not to this one.
  */
 
+import type { Invoice as EuInvoice } from '@e-invoice-eu/core';
+
+import { applyFrenchBusinessProcess, applyFrenchBusinessProcessInObject } from './business-process';
+
 /**
  * Split the one-note-many-contents block the generator emits into one note per mention.
  *
@@ -153,4 +157,52 @@ export function applyCiiSellerLegalDescriptionInObject(
   if (!('ram:Description' in rebuilt)) rebuilt['ram:Description'] = description;
   for (const key of Object.keys(seller)) delete seller[key];
   Object.assign(seller, rebuilt);
+}
+
+/**
+ * The two values the CII post-processing chain reads off the semantic `EuInvoice`: the seller's BT-33
+ * company-law line (the CII mapping of `@e-invoice-eu/core` ignores `cbc:CompanyLegalForm`, see
+ * `applyCiiSellerLegalDescription`) and the BT-23 code `build-semantic-invoice.ts` sets only when a
+ * country's content requirement resolved one (see `business-process.ts`'s own header) - `undefined`
+ * for every other seller.
+ */
+export interface CiiPostProcessContext {
+  sellerLegalInformation: string | undefined;
+  businessProcessCode: string | undefined;
+}
+
+export function ciiPostProcessContext(euInvoice: EuInvoice): CiiPostProcessContext {
+  return {
+    sellerLegalInformation:
+      euInvoice['ubl:Invoice']['cac:AccountingSupplierParty']['cac:Party']['cac:PartyLegalEntity'][
+        'cbc:CompanyLegalForm'
+      ],
+    businessProcessCode: euInvoice['ubl:Invoice']['cbc:ProfileID'],
+  };
+}
+
+/**
+ * The full post-processing of a CII string rendered by `@e-invoice-eu/core`, shared by
+ * `cii-provider.ts` and the plain-CII gate of `facturx-provider.ts`: note split (and BT-21), then
+ * BT-33, then BT-23. The BT-23 step is belt-and-suspenders: the object-level `cbc:ProfileID` already
+ * reaches the rendered string (verified against the vendored dependency's own mapping, see
+ * `business-process.ts`'s header), but re-asserting it costs nothing and survives even if that
+ * propagation ever stopped holding for a library-internal reason this codebase does not control.
+ */
+export function postProcessCii(ciiXml: string, context: CiiPostProcessContext): string {
+  let xml = splitCiiIncludedNotes(ciiXml);
+  xml = applyCiiSellerLegalDescription(xml, context.sellerLegalInformation);
+  if (context.businessProcessCode) xml = applyFrenchBusinessProcess(xml, context.businessProcessCode);
+  return xml;
+}
+
+/**
+ * The same chain on the library's intermediate CII object, for the `postProcessor` of the Factur-X
+ * embed call, whose internal CII regeneration never sees the string `postProcessCii` fixes (see
+ * `facturx-provider.ts`'s own header).
+ */
+export function postProcessCiiInObject(cii: Record<string, unknown>, context: CiiPostProcessContext): void {
+  splitCiiIncludedNotesInObject(cii);
+  applyCiiSellerLegalDescriptionInObject(cii, context.sellerLegalInformation);
+  if (context.businessProcessCode) applyFrenchBusinessProcessInObject(cii, context.businessProcessCode);
 }
