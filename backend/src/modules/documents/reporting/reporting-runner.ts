@@ -290,10 +290,15 @@ export class ReportingRunner {
         })
       : undefined;
     if (operation?.lineNatures) declaredInvoice.lineNatures = operation.lineNatures;
+    // The rates are only known once the invoice is priced, so the exempt-operation check runs here
+    // and never at enqueue time.
+    const pricedOperation = operation
+      ? { ...operation, lineVatRatePercents: declaredInvoice.lines.map((line) => line.vatRatePercent) }
+      : undefined;
 
     const verdicts = ownObligations.map((obligation) => ({
       obligation,
-      verdict: classifyObligation(obligation, operation),
+      verdict: classifyObligation(obligation, pricedOperation),
     }));
     if (ownObligations.length > 0 && !verdicts.some(({ verdict }) => verdict.status === 'in')) {
       const undetermined = verdicts.find(({ verdict }) => verdict.status === 'undetermined');

@@ -95,7 +95,7 @@ const VALID_PARTY_TYPES: PartyType[] = ['COMPANY', 'INDIVIDUAL'];
  * mandate, so a country file says "private buyer" the same way in both catalogs.
  *
  * Every field is optional and absent means "no restriction on this axis". This is deliberately not a
- * second, richer classifier: the seller's own signalling status (an exempt operation, an option for
+ * second, richer classifier: the seller's own signalling status (an option for
  * VAT on debits, a company size category) lives in `ReportingApplicabilityWindow` and in the
  * classifier's own inputs, never duplicated per scope entry.
  */
@@ -111,6 +111,15 @@ export interface ReportingScopeEntry {
    * legal text draws no condition on this axis.
    */
   vatOnCollection?: boolean;
+  /**
+   * `true` means operations exempt from VAT are outside the entry, as when a law carves exempt
+   * operations out of a declaration. An invoice whose every rated line is at 0% is such an operation,
+   * unless the seller is under the VAT franchise (a franchise is not an exemption of the operation,
+   * see `classify.ts`). An invoice that mixes 0% and positive rates cannot be told apart from a
+   * taxed sale with an out-of-scope disbursement, so it is never declared on a guess: the classifier
+   * answers `undetermined`. Absent means the legal text draws no condition on this axis.
+   */
+  excludesExemptOperations?: boolean;
 }
 
 /**
@@ -294,6 +303,11 @@ export function assertValidReportingScopeEntry(
   if (entry.vatOnCollection !== undefined && typeof entry.vatOnCollection !== 'boolean') {
     throw new InvalidReportingObligationProvenanceError(
       `${context}: ${label} declares a non-boolean "scope.vatOnCollection".`,
+    );
+  }
+  if (entry.excludesExemptOperations !== undefined && typeof entry.excludesExemptOperations !== 'boolean') {
+    throw new InvalidReportingObligationProvenanceError(
+      `${context}: ${label} declares a non-boolean "scope.excludesExemptOperations".`,
     );
   }
 }

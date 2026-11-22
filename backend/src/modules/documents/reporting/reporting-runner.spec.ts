@@ -776,3 +776,79 @@ describe('ReportingRunner.runReport: payment declarations', () => {
     log.mockRestore();
   });
 });
+
+// Issue #761: CGI art. 290 leaves the operations exempt under art. 261 to 261 E outside French
+// e-reporting. The rates are only known once the job prices the invoice, so the job is where an
+// exempt invoice is dropped, and where an invoice mixing 0% and taxed lines is blocked, not guessed.
+describe('ReportingRunner.runReport: French exempt operations', () => {
+  const FR_JOB: ReportJobData = { ...JOB_DATA, providerId: 'fr-pa' };
+  const withRates = (...rates: number[]) => ({
+    ...FIXTURE_DOCUMENT,
+    data: {
+      ...FIXTURE_DOCUMENT.data,
+      currency: 'EUR',
+      lines: rates.map((vatRate, index) => ({
+        description: `Service ${index + 1}`,
+        quantity: 1,
+        unit: 'h',
+        unitPrice: 100,
+        vatRate,
+      })),
+    },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedPrisma.company.findUniqueOrThrow.mockResolvedValue(FIXTURE_COMPANY);
+    mockedPrisma.client.findFirstOrThrow.mockResolvedValue(FIXTURE_CLIENT);
+    mockedLoadOperation.mockResolvedValue({
+      kind: 'invoice',
+      sellerCountryCode: 'FR',
+      buyerType: 'INDIVIDUAL',
+      buyerCountryCode: 'FR',
+      documentIssueDate: '2026-09-02',
+      companyProfile: { sizeCategory: 'LARGE', vatRegime: 'REAL_MONTHLY' },
+      vatOnCollection: true,
+      lineNatures: ['service', 'service'],
+    });
+    mockedCreateAuthorityEvents.mockResolvedValue(1);
+    mockedJournalSynthetic.mockResolvedValue(1);
+  });
+
+  it('declares a B2C invoice whose lines are all taxed', async () => {
+    mockedFindOwnedDocument.mockResolvedValue(withRates(20, 10));
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'fr-pa', declare });
+
+    expect(await runner.runReport(FR_JOB)).toEqual({ journaled: 1 });
+    expect(declare).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends nothing and journals nothing for an invoice whose every line is at 0%', async () => {
+    mockedFindOwnedDocument.mockResolvedValue(withRates(0, 0));
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'fr-pa', declare });
+
+    expect(await runner.runReport(FR_JOB)).toEqual({ journaled: 0 });
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedJournalSynthetic).not.toHaveBeenCalled();
+  });
+
+  it('journals report:blocked, and sends nothing, for an invoice mixing 0% and taxed lines', async () => {
+    mockedFindOwnedDocument.mockResolvedValue(withRates(20, 0));
+    const declare = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    const runner = buildRunner({ providerId: 'fr-pa', declare });
+
+    expect(await runner.runReport(FR_JOB)).toEqual({ journaled: 1 });
+    expect(declare).not.toHaveBeenCalled();
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'fr-pa',
+      REPORT_BLOCKED_STATUS_CODE,
+      expect.stringContaining('mixes lines at 0% VAT'),
+      undefined,
+      '',
+    );
+  });
+});

@@ -171,6 +171,64 @@ describe('classifyObligation  -  payment data (CGI art. 290 A)', () => {
   });
 });
 
+describe('classifyObligation  -  exempt operations (CGI art. 290 excludes art. 261 to 261 E)', () => {
+  const sale = (overrides: Partial<DeclarationOperation>) =>
+    classifyObligation(b2cObligation, operation(overrides));
+  const paid = (overrides: Partial<DeclarationOperation>) =>
+    classifyObligation(
+      paymentObligation,
+      operation({ kind: 'payment', payment: { amountMinor: 12000, paidAt: '2027-10-05' }, ...overrides }),
+    );
+  const franchise = { sizeCategory: 'LARGE', vatRegime: 'FRANCHISE' };
+
+  it('both French facts exclude exempt operations in the country data, not in code', () => {
+    for (const obligation of [b2cObligation, paymentObligation]) {
+      const entries = obligation.scope.transactions ?? [];
+      expect(entries.length).toBeGreaterThan(0);
+      expect(entries.every((entry) => entry.excludesExemptOperations === true)).toBe(true);
+    }
+  });
+
+  it('is in for a sale whose lines are all taxed', () => {
+    expect(sale({ lineVatRatePercents: [20, 5.5] }).status).toBe('in');
+  });
+
+  it('is out for a sale whose every line is at 0% from a seller outside the franchise', () => {
+    const verdict = sale({ lineVatRatePercents: [0, 0] });
+    expect(verdict.status).toBe('out');
+    expect(verdict.status === 'out' ? verdict.reason : '').toContain('exempt operation');
+  });
+
+  it('is undetermined for a sale mixing 0% and taxed lines, never declared on a guess', () => {
+    expect(sale({ lineVatRatePercents: [20, 0] }).status).toBe('undetermined');
+  });
+
+  it('is in for a seller under the franchise en base, whose lines are all at 0%', () => {
+    const verdict = sale({ companyProfile: franchise, vatOnCollection: false, lineVatRatePercents: [0] });
+    expect(verdict.status).toBe('in');
+  });
+
+  it('leaves the check to the declaration job while the rates are unknown', () => {
+    expect(sale({ lineVatRatePercents: undefined }).status).toBe('in');
+  });
+
+  it('ignores lines with no usable rate when judging the others', () => {
+    expect(sale({ lineVatRatePercents: [null, 20] }).status).toBe('in');
+  });
+
+  it('is out for the payment of an exempt service invoice', () => {
+    expect(paid({ lineVatRatePercents: [0] }).status).toBe('out');
+  });
+
+  it('stays out, not blocked, for a mixed invoice issued before the company start date', () => {
+    expect(sale({ documentIssueDate: '2027-08-31', lineVatRatePercents: [20, 0] }).status).toBe('out');
+  });
+
+  it('stays out, not blocked, for a mixed invoice to a business buyer', () => {
+    expect(sale({ buyerType: 'COMPANY', lineVatRatePercents: [20, 0] }).status).toBe('out');
+  });
+});
+
 /**
  * The v2 entry point (issue #767), pinned against the legacy one: for every shipped fact, its upgraded
  * obligation gets the same verdict, reason included, on every operation of a grid that crosses each

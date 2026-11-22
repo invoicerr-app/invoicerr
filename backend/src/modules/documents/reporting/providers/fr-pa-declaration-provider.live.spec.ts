@@ -12,7 +12,7 @@
 import { expect, it } from 'vitest';
 
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
-import { DeclaredInvoice } from '../declaration-provider';
+import { DeclaredInvoice, DeclaredPayment } from '../declaration-provider';
 import { SuperPdpClient } from '../../transports/superpdp/superpdp-client';
 import { SUPERPDP_BASE_URL } from '../../transports/superpdp/superpdp-live-parties';
 import { liveDescribe } from '../../transports/live-gate';
@@ -80,6 +80,22 @@ function invoice(): DeclaredInvoice {
   };
 }
 
+function liveClient(): SuperPdpClient {
+  return new SuperPdpClient({
+    baseUrl: SUPERPDP_BASE_URL,
+    clientId: process.env.SUPERPDP_CLIENT_ID as string,
+    clientSecret: process.env.SUPERPDP_CLIENT_SECRET as string,
+  });
+}
+
+interface ListedTransaction {
+  id: number;
+  category_code?: string;
+  tax_exclusive_amount?: string;
+  tax_total?: string;
+  tax_subtotals?: { tax_percent?: string; taxable_amount?: string; tax_total?: string }[];
+}
+
 describeLive('SuperPDP e-reporting live round-trip', () => {
   it('creates a B2C transaction the platform lists back', async () => {
     const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
@@ -92,28 +108,65 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
     expect(result.authorityId).toBeTruthy();
     expect(result.statusCode).toBe('SUBMITTED');
 
-    const client = new SuperPdpClient({
-      baseUrl: SUPERPDP_BASE_URL,
-      clientId: process.env.SUPERPDP_CLIENT_ID as string,
-      clientSecret: process.env.SUPERPDP_CLIENT_SECRET as string,
-    });
-    const listed = await client.request<{ data: { id: number }[] }>(
+    const listed = await liveClient().request<{ data: ListedTransaction[] }>(
       'GET',
       '/v1.beta/b2c_transactions?limit=100&order=desc',
     );
-    expect(listed.data.some((row) => String(row.id) === result.authorityId)).toBe(true);
+    const row = listed.data.find((candidate) => String(candidate.id) === result.authorityId);
+    expect(row).toBeDefined();
+  });
+
+  it('lists the B2C transaction back with its category, rate and amounts', async () => {
+    const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
+    await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
+    const result = await adapter.declareTransaction('live-company', invoice());
+
+    const listed = await liveClient().request<{ data: ListedTransaction[] }>(
+      'GET',
+      '/v1.beta/b2c_transactions?limit=100&order=desc',
+    );
+    const row = listed.data.find((candidate) => String(candidate.id) === result.authorityId);
+    // A service-only invoice is category TPS1; one 20% subtotal of 100.00 taxable and 20.00 tax.
+    expect(row?.category_code).toBe('TPS1');
+    expect(row?.tax_exclusive_amount).toBe('100.00');
+    expect(row?.tax_total).toBe('20.00');
+    expect(row?.tax_subtotals).toEqual([
+      expect.objectContaining({ tax_percent: '20.00', taxable_amount: '100.00', tax_total: '20.00' }),
+    ]);
+  });
+
+  it('answers the e-reporting preview the platform aggregates declarations into', async () => {
+    // The preview's body is the platform's own aggregate; the acceptance only asks that it is reachable
+    // with the declared data, so this test pins that the route answers for the connected company.
+    const preview = await liveClient().request<unknown>('GET', '/v1.beta/ereportings/preview');
+    expect(preview).toBeDefined();
+  });
+
+  it('creates a B2C payment for a service invoice taxed on collection', async () => {
+    const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
+    await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
+    const declared = invoice();
+    const payment: DeclaredPayment = {
+      documentId: declared.documentId,
+      paymentId: `live-payment-${Date.now()}`,
+      paidAt: declared.issueDate,
+      currency: 'EUR',
+      amount: 120,
+      invoice: declared,
+      subtotals: [{ vatRatePercent: 20, taxableAmount: 100, vatAmount: 20 }],
+    };
+    const result = await adapter.declarePayment('live-company', payment);
+
+    expect(result.authorityId).toBeTruthy();
+    expect(result.statusCode).toBe('SUBMITTED');
+    expect(result.referenceKind).toBe('platform');
   });
 
   it('syncs the VAT regime and reads it back from the platform company record', async () => {
     const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
     await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
 
-    const client = new SuperPdpClient({
-      baseUrl: SUPERPDP_BASE_URL,
-      clientId: process.env.SUPERPDP_CLIENT_ID as string,
-      clientSecret: process.env.SUPERPDP_CLIENT_SECRET as string,
-    });
-    const company = await client.getCompany();
+    const company = await liveClient().getCompany();
     expect((company as Record<string, unknown>).vat_regime).toBe('monthly');
     expect((company as Record<string, unknown>).has_vat_on_debits).toBe(false);
   });

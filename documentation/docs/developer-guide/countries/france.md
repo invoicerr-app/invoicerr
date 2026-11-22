@@ -75,7 +75,12 @@ never an operator name:
   `buyerType: ["INDIVIDUAL"]`, `buyerEstablishment: "domestic"`). The international B2B flows the
   article also lists (10.1 and 10.2) are a follow-up slice and stay out of this fact, so they are
   never pushed through the B2C transaction route. Operations exempt under CGI art. 261 to 261 E
-  are outside the fact. A seller under the franchise en base (art. 293 B) is not one of those
+  are outside the fact (`scope.excludesExemptOperations: true`, on both facts): an invoice whose
+  every line is at 0% VAT, from a seller outside the franchise en base, is not declared, and neither
+  is its payment. An invoice mixing 0% and taxed lines is journaled `report:blocked`, because a 0%
+  line may be an exempt operation or an out-of-scope disbursement and the data cannot tell them
+  apart. The rates are read when the declaration job prices the invoice, never at enqueue time. A
+  seller under the franchise en base (art. 293 B) is not one of those
   exemptions and declares its B2C sales, at its own frequency (CGI ann. II art. 242 nonies O).
 - **Payment data** (CGI art. 290 A): `transactions: "payments"`, `vatOnCollection: true`. Only a
   domestic B2C service invoice whose VAT is due on collection is declared. The option for VAT on

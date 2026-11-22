@@ -93,6 +93,11 @@ describe('v2 reporting obligation validator', () => {
       /unknown "scope\.buyerEstablishment"/,
     ],
     [
+      'a non-boolean exempt-operation exclusion',
+      (o) => (o.scope.transactions = [{ transactions: 'b2c', excludesExemptOperations: 'yes' }]),
+      /non-boolean "scope\.excludesExemptOperations"/,
+    ],
+    [
       'empty seller conditions',
       (o) => (o.sellerConditions = { companyProfile: {} }),
       /"sellerConditions\.companyProfile" must be a non-empty object/,
@@ -316,11 +321,38 @@ describe('upgradeLegacyFacts', () => {
   // Issue #768 rewrote the country files through this very upgrade. The only hand edit is Portugal's
   // trigger: the AT communication is due once the document is issued, not when it is sent, so both
   // its obligations moved to "issued" with a timing note saying so; the remainder of #768 then gave
-  // them the deadline that note states (the 5th of the following month, `periods.ts`). Anything else
-  // drifting fails here.
-  it('the shipped v2 files are the upgrade of the legacy facts, but for the Portuguese trigger and deadline', () => {
+  // them the deadline that note states (the 5th of the following month, `periods.ts`). Issue #761 then
+  // edited France by hand twice: both accredited-platform facts exclude exempt operations, and the
+  // payment timing note names every réel regime. Anything else drifting fails here.
+  it('the shipped v2 files are the upgrade of the legacy facts, but for the PT and FR hand edits', () => {
     const shipped = Object.fromEntries(ALL_REPORTING_OBLIGATION_FILES.map((f) => [f.countryCode, f]));
-    expect(shipped.FR).toEqual(upgradeLegacyFacts(byCountry.FR));
+    const upgradedFr = upgradeLegacyFacts(byCountry.FR);
+    const frEdits = shipped.FR.obligations.map((o) => [
+      o.id,
+      o.scope.transactions?.map((entry) => entry.excludesExemptOperations),
+    ]);
+    expect(frEdits).toEqual([
+      ['pdp:invoice:b2b-domestic', [undefined]],
+      ['fr-pa:invoice:b2c', [true]],
+      ['fr-pa:invoice:payments', [true]],
+    ]);
+    const payments = shipped.FR.obligations.find((o) => o.id === 'fr-pa:invoice:payments');
+    expect(payments?.timingNote).toMatch(/^One payment declaration per month under every réel regime/);
+    expect(
+      shipped.FR.obligations.map(({ timingNote, scope, ...rest }) => ({
+        ...rest,
+        scope: {
+          ...scope,
+          transactions: scope.transactions?.map(({ excludesExemptOperations, ...entry }) => entry),
+        },
+        timingNote: rest.id === 'fr-pa:invoice:payments' ? undefined : timingNote,
+      })),
+    ).toEqual(
+      upgradedFr.obligations.map((o) => ({
+        ...o,
+        timingNote: o.id === 'fr-pa:invoice:payments' ? undefined : o.timingNote,
+      })),
+    );
     const upgradedPt = upgradeLegacyFacts(byCountry.PT);
     expect(shipped.PT.obligations.map((o) => [o.trigger, o.timingNote, o.timing])).toEqual(
       upgradedPt.obligations.map(() => [
