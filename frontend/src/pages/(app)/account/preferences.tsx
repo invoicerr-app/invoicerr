@@ -10,6 +10,7 @@ import { usePatch } from "@/hooks/use-fetch"
 import { useApplyAccountLocale } from "@/hooks/use-apply-account-locale"
 import { useTheme } from "@/components/theme-provider"
 import { SettingsSection } from "@/components/settings-section"
+import { ErrorTrackingConsentSetting } from "@/components/error-tracking-consent"
 
 const THEME_OPTIONS = [
   { value: "light", icon: Sun, labelKey: "sidebar.theme.light" },
@@ -113,6 +114,8 @@ export default function AccountPreferencesPage() {
           })}
         </div>
       </SettingsSection>
+
+      <ErrorTrackingConsentSetting />
     </div>
   )
 }

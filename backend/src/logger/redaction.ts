@@ -14,15 +14,15 @@
  * ## What is redacted, and what is deliberately kept
  * Kept, because they are what makes a log line usable during an incident: request path, status code,
  * category, level, user id, company id, provider/transport names, error names, counts, ids (uuid).
- * Redacted: email addresses anywhere in a string, bearer/basic credentials, tokens and query-string
- * secrets, invitation codes, and any value under a key that names one of those (deeply).
+ * Redacted: email addresses, IBANs, phone numbers and SIREN/SIRET numbers anywhere in a string,
+ * bearer/basic credentials, tokens and query-string secrets, invitation codes, and any value under a
+ * key that names one of those (deeply). The rules themselves live in `redaction-rules.ts`, shared with
+ * the error-tracking filters of the server and the browser.
  */
-export const REDACTED = '[redacted]';
-export const REDACTED_EMAIL = '[redacted-email]';
-export const REDACTED_SECRET = '[redacted-secret]';
+import { isSensitiveKey, REDACTED, redactText } from './redaction-rules';
 
-/** Values longer than this are truncated — a log line is not a place to dump a document. */
-const MAX_STRING_LENGTH = 2_000;
+export { REDACTED, REDACTED_EMAIL, REDACTED_SECRET } from './redaction-rules';
+
 /** Depth beyond which a nested object is summarised rather than walked. */
 const MAX_DEPTH = 6;
 /** Arrays are capped so a 10 000-row payload cannot turn one log write into a megabyte. */
@@ -30,149 +30,9 @@ const MAX_ARRAY_ITEMS = 50;
 /** Objects are capped for the same reason. */
 const MAX_OBJECT_KEYS = 50;
 
-/**
- * Exact key matches, normalized (`lowercased`, non-alphanumerics stripped): `new_email`, `newEmail`
- * and `NEW-EMAIL` all collapse to `newemail`.
- *
- * Exact rather than "contains" for the short ones on purpose — a `contains('code')` rule would eat
- * `countryCode`, `statusCode`, `postalCode` and `errorCode`, all of which are exactly the context a
- * log line needs. A bare `code` key is left alone for the same reason: it carries a named refusal
- * (`NO_FREE_SEAT`, a provider status) far more often than a credential, and a real invitation code
- * is still caught by the 32-hex rule below when it appears as a VALUE under any key. The
- * unambiguous fragments are handled by `SENSITIVE_KEY_FRAGMENTS`.
- */
-const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
-  'email',
-  'newemail',
-  'oldemail',
-  'emailaddress',
-  'billingemail',
-  'contactemail',
-  'recipient',
-  'recipientemail',
-  'codehash',
-  'invitationcode',
-  'invitationcodehash',
-  'otp',
-  'otpcode',
-  'verificationcode',
-  'recoverycode',
-  'resetcode',
-  'couponcode',
-  'password',
-  'passwd',
-  'pwd',
-  'newpassword',
-  'oldpassword',
-  'currentpassword',
-  'token',
-  'accesstoken',
-  'refreshtoken',
-  'sessiontoken',
-  'idtoken',
-  'bearertoken',
-  'apitoken',
-  'csrftoken',
-  'sessionid',
-  'apikey',
-  'api_key',
-  'privatekey',
-  'secret',
-  'jwtsecret',
-  'secretkey',
-  'encryptionkey',
-  'clientsecret',
-  'webhooksecret',
-  'authorization',
-  'cookie',
-  'setcookie',
-  'iban',
-  'bic',
-  'phone',
-  'phonenumber',
-  'mobile',
-  'body',
-  'rawbody',
-  'payload',
-  'requestbody',
-]);
-
-/** Unambiguous substrings: `companyWebhookSecret`, `stripeApiKey`, `X-Api-Key`… */
-const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
-  'password',
-  'passwd',
-  'apikey',
-  'accesstoken',
-  'refreshtoken',
-  'sessiontoken',
-  'sessionid',
-  'token',
-  'secret',
-  'invitationcode',
-  'encryptionkey',
-  'authorization',
-  'cookie',
-  'creditcard',
-  'cardnumber',
-];
-
-function normalizeKey(key: string): string {
-  return key.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function isSensitiveKey(key: string): boolean {
-  const normalized = normalizeKey(key);
-  if (SENSITIVE_KEYS.has(normalized)) return true;
-  return SENSITIVE_KEY_FRAGMENTS.some((fragment) => normalized.includes(fragment));
-}
-
-/**
- * Patterns that identify a secret inside free text — a message, an error message, a stack trace. The
- * email rule is what keeps the common case (`... for user@example.com`) out of both sinks even when a
- * call site interpolates it into the sentence instead of passing it in `details`.
- */
-const TEXT_PATTERNS: readonly { pattern: RegExp; replacement: string }[] = [
-  // RFC-5322-ish, deliberately conservative: needs a dot in the domain so file paths and versions
-  // are left alone.
-  { pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, replacement: REDACTED_EMAIL },
-  // JSON Web Tokens — header.payload.signature, base64url.
-  {
-    pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
-    replacement: REDACTED_SECRET,
-  },
-  // "Bearer <token>" / "Basic <base64>" in a header dump, a URL, an error message.
-  { pattern: /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, replacement: `$1 ${REDACTED_SECRET}` },
-  // Secrets passed as query parameters (?token=…, ?code=…, ?api_key=…).
-  {
-    pattern:
-      /([?&](?:token|access_token|refresh_token|id_token|code|api_key|apikey|secret|password)=)[^&\s#]+/gi,
-    replacement: `$1${REDACTED_SECRET}`,
-  },
-  // key=value pairs in a body-ish string (form-encoded, .env dump, connection string).
-  {
-    pattern: /\b(password|passwd|pwd|token|api[_-]?key|secret|client_secret)=([^&\s,;"']+)/gi,
-    replacement: `$1=${REDACTED_SECRET}`,
-  },
-  // Provider keys that a thrown error or a debug line can carry verbatim. Their prefixes are unique
-  // enough that no ordinary word collides, unlike a bare "32 random characters" rule.
-  {
-    pattern:
-      /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{8,}|\bwhsec_[A-Za-z0-9]{8,}|\b(?:ghp|gho|ghs)_[A-Za-z0-9]{8,}|\bxox[baprs]-[A-Za-z0-9-]{8,}|\bAKIA[0-9A-Z]{12,}\b/g,
-    replacement: REDACTED_SECRET,
-  },
-  // Invitation codes are 32 hex characters. 32+ also covers a raw SHA-256/MD5 digest that a call
-  // site might have interpolated; uuids carry dashes and are left intact (they are the ids a support
-  // request needs).
-  { pattern: /\b[0-9a-f]{32,}\b/gi, replacement: REDACTED_SECRET },
-];
-
 /** Free text → redacted free text. Never throws, never returns something longer than the cap. */
 export function redactLogText(value: string): string {
-  let redacted = value;
-  for (const { pattern, replacement } of TEXT_PATTERNS) {
-    redacted = redacted.replace(pattern, replacement);
-  }
-  return redacted.length > MAX_STRING_LENGTH ? `${redacted.slice(0, MAX_STRING_LENGTH)}…` : redacted;
+  return redactText(value);
 }
 
 function redactError(error: Error): Record<string, unknown> {

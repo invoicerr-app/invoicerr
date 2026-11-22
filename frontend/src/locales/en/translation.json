@@ -6205,5 +6205,20 @@
       "VN": "Vietnam publishes no direct API: the lookup goes through a third-party mirror of the tax register, so the tax code leaves this instance.",
       "ZA": "CIPC enterprise enquiries require a paid customer account."
     }
+  },
+  "errorTracking": {
+    "consent": {
+      "description": "If you allow it, technical error reports from your browser are sent to the team running this Invoicerr instance so they can fix bugs. They never include your name, email address, IP address, or any client or invoice data. You can change your answer at any time in Account > Preferences.",
+      "saveError": "Your answer couldn't be saved. Please try again.",
+      "banner": {
+        "title": "Send error reports?",
+        "accept": "Allow",
+        "refuse": "Don't allow"
+      },
+      "setting": {
+        "title": "Error reports",
+        "label": "Send technical error reports from this browser"
+      }
+    }
   }
 }

@@ -1333,6 +1333,9 @@ model User {
   // `LegalDocumentReleaseNotification`'s own comment. SaaS mode only, same as the acceptances above.
   legalDocumentReleaseNotifications LegalDocumentReleaseNotification[]
 
+  // One row per error-reporting decision this user made (`error-tracking/consent/`), history kept.
+  errorTrackingConsents ErrorTrackingConsent[]
+
   @@unique([email])
   stripeCustomerId String?
 
@@ -3809,4 +3812,34 @@ model PaymentLedgerArchive {
   createdAt   DateTime @default(now())
 
   @@index([companyId, createdAt])
+}
+
+enum ErrorTrackingConsentChannel {
+  banner
+  settings
+}
+
+enum ErrorTrackingConsentDecision {
+  granted
+  refused
+  withdrawn
+}
+
+/// One row per decision a user made about browser error reporting (`backend/src/error-tracking/consent/`).
+/// Append-only: rows are only ever inserted, never updated, so the full history of grants, refusals and
+/// withdrawals is kept. The latest row is the current answer. `withdrawn` is a "no" that ends an earlier
+/// grant; its `decidedAt` is the withdrawal date. No IP address or user agent is stored: the decision, its
+/// date, the text version and where it was made are enough to show what the user agreed to, and storing
+/// more would itself be the kind of data this feature promises not to collect.
+model ErrorTrackingConsent {
+  id          String                       @id @default(cuid())
+  userId      String
+  user        User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decision    ErrorTrackingConsentDecision
+  textVersion String
+  channel     ErrorTrackingConsentChannel
+  decidedAt   DateTime                     @default(now())
+
+  @@index([userId, decidedAt])
+  @@map("error_tracking_consent")
 }

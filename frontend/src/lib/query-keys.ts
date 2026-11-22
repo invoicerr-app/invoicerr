@@ -78,6 +78,9 @@ export const queryKeys = {
   registration: {
     status: () => ["registration", "status"] as const,
   },
+  errorTracking: {
+    consent: () => ["errorTracking", "consent"] as const,
+  },
   instance: {
     preflight: () => ["instance", "preflight"] as const,
   },

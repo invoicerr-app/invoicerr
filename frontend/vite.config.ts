@@ -1,5 +1,6 @@
 // `defineConfig` comes from vitest/config rather than vite so the `test` block below is typed.
 // It is a superset of vite's own — `vite build` and `vite dev` behave exactly as before.
+import { searchForWorkspaceRoot } from "vite"
 import { defineConfig } from "vitest/config"
 import generouted from "@generouted/react-router/plugin"
 import react from "@vitejs/plugin-react"
@@ -140,6 +141,9 @@ export default defineConfig({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 5173,
     // Lazy pages are otherwise transformed on first visit, inside the e2e specs' timeouts.
     warmup: { clientFiles: ["./src/pages/**/*.tsx", "!./src/**/*.spec.tsx"] },
+    // The redaction rules shared with the backend live outside this project (see
+    // `src/lib/error-tracking-scrub.ts`): the dev server may read that one file and nothing else there.
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), "../backend/src/logger/redaction-rules.ts"] },
   },
   // Lazy pages are invisible to the dev dependency scan, which then reloads the page on first visit.
   optimizeDeps: {
