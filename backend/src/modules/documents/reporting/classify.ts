@@ -43,6 +43,12 @@ export interface DeclarationOperation {
    * undetermined rather than treating a possibly-service line as goods.
    */
   lineNatures?: LineNature[];
+  /**
+   * The VAT rate of each invoice line, in percent, `null` for a line with no usable rate. Known only
+   * once the declaration job has priced the invoice (`reporting-runner.ts`); `undefined` at enqueue
+   * time, when the exempt-operation check is left to the job.
+   */
+  lineVatRatePercents?: (number | null)[];
   /** Present only for a payment declaration. */
   payment?: { amountMinor: number; paidAt: string };
 }
@@ -103,6 +109,39 @@ function outBecauseOfSellerRegime(
     }
   }
   return undefined;
+}
+
+/**
+ * Whether a matched scope entry that excludes exempt operations still covers this invoice. Judged
+ * last, after the windows, so an operation that is out for another reason (a business buyer, a date
+ * before the company's start) never journals a blocked declaration for its rates.
+ */
+function exemptOperationVerdict(
+  entry: ReportingScopeEntry,
+  operation: DeclarationOperation,
+): DeclarationVerdict | undefined {
+  if (entry.excludesExemptOperations !== true) return undefined;
+  // A seller under the franchise en base invoices every line at 0% without the operation being
+  // exempt: the franchise (art. 293 B) is not one of the art. 261 to 261 E exemptions (#1035).
+  if (operation.companyProfile?.vatRegime === 'FRANCHISE') return undefined;
+  const rates = (operation.lineVatRatePercents ?? []).filter((rate): rate is number => rate !== null);
+  if (rates.length === 0) return undefined;
+  const zeroRated = rates.filter((rate) => rate === 0).length;
+  if (zeroRated === 0) return undefined;
+  if (zeroRated === rates.length) {
+    return {
+      status: 'out',
+      reason:
+        'Every line of this invoice is at 0% VAT and the company is not under the VAT franchise: it is ' +
+        'an exempt operation, which this declaration does not cover.',
+    };
+  }
+  return {
+    status: 'undetermined',
+    reason:
+      'This invoice mixes lines at 0% VAT with taxed lines. Invoicerr cannot tell an exempt operation ' +
+      'from an out-of-scope disbursement, so it does not declare the invoice on a guess.',
+  };
 }
 
 function scopeMatches(entry: ReportingScopeEntry, operation: DeclarationOperation): DeclarationVerdict {
@@ -345,6 +384,11 @@ function classifyRule(
         reason: `This obligation ended on ${matchingWindow.until} for this company.`,
       };
     }
+  }
+
+  if (scope !== 'all') {
+    const exempt = exemptOperationVerdict(scope, operation);
+    if (exempt) return exempt;
   }
 
   return { status: 'in', scope };

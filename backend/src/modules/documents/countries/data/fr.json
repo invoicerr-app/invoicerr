@@ -1056,7 +1056,8 @@
             {
               "transactions": "b2c",
               "buyerType": ["INDIVIDUAL"],
-              "buyerEstablishment": "domestic"
+              "buyerEstablishment": "domestic",
+              "excludesExemptOperations": true
             }
           ]
         },
@@ -1132,7 +1133,8 @@
             {
               "transactions": "payments",
               "buyerType": ["INDIVIDUAL"],
-              "vatOnCollection": true
+              "vatOnCollection": true,
+              "excludesExemptOperations": true
             }
           ]
         },
@@ -1192,7 +1194,7 @@
             }
           }
         ],
-        "timingNote": "One payment declaration per month under the réel normal mensuel regime, and one per two calendar months under the franchise en base: CGI ann. II art. 242 nonies P (payment fields and frequency), created by décret n° 2026-677 du 27 juillet 2026, and CGI ann. IV art. 41 septies P (payment XML and deadlines), arrêté du 27 juillet 2026.",
+        "timingNote": "One payment declaration per month under every réel regime (normal mensuel, normal trimestriel and simplifié), and one per two calendar months under the franchise en base: CGI ann. II art. 242 nonies P (payment fields and frequency), created by décret n° 2026-677 du 27 juillet 2026, and CGI ann. IV art. 41 septies P (payment XML and deadlines), arrêté du 27 juillet 2026.",
         "notes": "Payment data is only due when VAT is exigible on collection: the classifier answers out when the company exercised the option for VAT on debits, and out for a goods-only invoice. Slice 1 declares domestic B2C service payments; the domestic B2B service payment slice art. 290 A also covers is deliberately left to its own ticket. A company under the franchise en base is not declared before legal counsel answers whether art. 290 A reaches it (open question on the issue), and its obligation starts 2027-09-01 anyway. The amount is split by VAT rate from the invoice's own lines, never recomputed."
       }
     ]
