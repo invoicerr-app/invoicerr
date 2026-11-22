@@ -22,6 +22,15 @@ const ASKING = {
     browser: null,
 };
 
+/**
+ * Screenshots for the pull request, written under `cypress/screenshots/<spec>/pr-screens/` and uploaded by
+ * the cypress-run job as the `pr-screenshots-shard-<n>` artifact. Viewport only, so each one shows what a
+ * user sees at that step.
+ */
+function prScreenshot(name: string) {
+    cy.screenshot(`pr-screens/${name}`, { capture: "viewport", overwrite: true });
+}
+
 function decide(granted: boolean, channel = "settings") {
     return cy.request({ method: "PUT", url: CONSENT_URL, body: { granted, channel } });
 }
@@ -101,6 +110,52 @@ describe("Error tracking consent", () => {
                 expect(request.body).to.deep.eq({ granted: false, channel: "settings" });
                 expect(response?.body.decision).to.eq("withdrawn");
             });
+        });
+
+        it("shows the consent screens as a user sees them", () => {
+            // Every answer is stubbed here: this test records what each state looks like, the ones above
+            // check what is stored.
+            const settled = { ...ASKING, decisionRequired: false };
+            cy.intercept("GET", "**/api/error-tracking/consent", { body: ASKING }).as("asking");
+            cy.visit("/dashboard");
+            cy.wait("@asking");
+            cy.get('[data-cy="error-tracking-consent-banner"]').should("be.visible");
+            cy.get('[data-cy="error-tracking-consent-accept"]').should("be.visible");
+            cy.get('[data-cy="error-tracking-consent-refuse"]').should("be.visible");
+            prScreenshot("1-banner-after-sign-in");
+
+            cy.intercept("GET", "**/api/error-tracking/consent", { body: settled }).as("settled");
+            cy.visit("/account/preferences");
+            cy.wait("@settled");
+            cy.get('[data-cy="error-tracking-consent-banner"]').should("not.exist");
+            cy.get('[data-cy="account-preferences-error-tracking-card"]').scrollIntoView();
+            cy.get('[data-cy="error-tracking-consent-switch"]').should("have.attr", "aria-checked", "false");
+            prScreenshot("2-preferences-off-by-default");
+
+            cy.intercept("PUT", "**/api/error-tracking/consent", {
+                body: { ...settled, granted: true, decision: "granted", decidedAt: new Date().toISOString() },
+            }).as("grant");
+            cy.get('[data-cy="error-tracking-consent-switch"]').click();
+            cy.wait("@grant");
+            cy.get('[data-cy="error-tracking-consent-switch"]').should("have.attr", "aria-checked", "true");
+            prScreenshot("3-preferences-on-after-consent");
+
+            cy.intercept("PUT", "**/api/error-tracking/consent", {
+                body: { ...settled, decision: "withdrawn", decidedAt: new Date().toISOString() },
+            }).as("withdraw");
+            cy.get('[data-cy="error-tracking-consent-switch"]').click();
+            cy.wait("@withdraw");
+            cy.get('[data-cy="error-tracking-consent-switch"]').should("have.attr", "aria-checked", "false");
+            prScreenshot("4-preferences-after-withdrawal");
+
+            // The client portal lives outside the signed-in layout: it never asks, even when the account
+            // would be asked.
+            cy.intercept("GET", "**/api/error-tracking/consent", { body: ASKING }).as("portalConsent");
+            cy.visit(`/portal/${"0".repeat(64)}`);
+            cy.get("body").should("be.visible");
+            cy.get('[data-cy="error-tracking-consent-banner"]').should("not.exist");
+            cy.get("@portalConsent.all").should("have.length", 0);
+            prScreenshot("5-portal-without-banner");
         });
     });
 });
