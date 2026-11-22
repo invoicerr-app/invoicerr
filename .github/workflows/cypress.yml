@@ -658,7 +658,11 @@ jobs:
           # One Cypress process per spec, each under a wall-clock limit (e2e/scripts/run-specs.sh): a
           # hung browser is killed and reported red after minutes instead of holding the shard until the
           # merge queue gives up on it.
-          (cd "$GITHUB_WORKSPACE/e2e" && scripts/run-specs.sh "$SPECS" --browser firefox)
+          #
+          # `trashAssetsBeforeRuns=false`: each spec is its own `cypress run`, and Cypress empties the
+          # screenshots folder at the start of every run, so a spec's screenshots (failure ones, and
+          # the `pr-screens/` ones uploaded below) would be deleted by the next spec of the shard.
+          (cd "$GITHUB_WORKSPACE/e2e" && scripts/run-specs.sh "$SPECS" --browser firefox --config trashAssetsBeforeRuns=false)
 
       # Artifact names carry the shard: `actions/upload-artifact@v4` REFUSES a name another job in the
       # same run already uploaded (v3 merged them silently), so three shards uploading `backend-logs`
@@ -691,6 +695,17 @@ jobs:
           path: |
             ${{ github.workspace }}/e2e/cypress/videos
             ${{ github.workspace }}/e2e/cypress/screenshots
+
+      # Screenshots a spec takes on purpose for a pull request (`cy.screenshot('pr-screens/<name>')`),
+      # kept on success too so a reviewer can see the UI a change produces without running anything.
+      - name: Upload pull request screenshots
+        if: always() && steps.scope.outputs.needed == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pr-screenshots-shard-${{ matrix.shard }}
+          path: ${{ github.workspace }}/e2e/cypress/screenshots/**/pr-screens/**
+          if-no-files-found: ignore
 
   # The hosted-billing seat model (76-seats.cy.ts) and the SaaS-mode legal-acceptance flow
   # (75-legal-acceptance.cy.ts) both self-detect `saasMode` and skip their own SaaS-only tests when
