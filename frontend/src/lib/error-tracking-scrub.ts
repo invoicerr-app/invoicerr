@@ -1,7 +1,13 @@
 import type { ErrorEvent, EventHint } from "@sentry/react"
 // The same rules as the server and the logs, read from the one file both builds share (the Dockerfile's
 // frontend stage copies it to the same relative path).
-import { redactErrorReportValue, redactUrl } from "../../../backend/src/logger/redaction-rules"
+import {
+  causeChain,
+  redactErrorReportValue,
+  redactUrl,
+  safeErrorCode,
+  summarizeError,
+} from "../../../backend/src/logger/redaction-rules"
 
 /**
  * Pages that never report, and on which the SDK is never started: they serve people outside the
@@ -70,31 +76,12 @@ export function scrubBrowserEvent(event: ErrorEvent, hint?: EventHint): ErrorEve
   return event
 }
 
-/** `Type code`, `Type` without a code, `[redacted]` when even the type is unknown. */
-export function summarizeError(type: string | undefined, code: string | undefined): string {
-  if (!type) return code ? `code ${code}` : "[redacted]"
-  return code ? `${type} ${code}` : type
-}
-
-const SAFE_CODE = /^[A-Za-z0-9_.-]{1,64}$/
-
 /** A `code` that reads as an identifier (`COMPANY_BLOCKED`), else the reply's HTTP `status`. */
 function errorCode(error: unknown): string | undefined {
   if (!error || typeof error !== "object") return undefined
   const { code, status } = error as { code?: unknown; status?: unknown }
-  if ((typeof code === "string" || typeof code === "number") && SAFE_CODE.test(String(code))) {
-    return String(code)
-  }
+  const safe = safeErrorCode(code)
+  if (safe) return safe
   if (typeof status === "number") return String(status)
   return undefined
-}
-
-function causeChain(error: unknown): unknown[] {
-  const chain: unknown[] = []
-  let current = error
-  while (current && chain.length < 10 && !chain.includes(current)) {
-    chain.push(current)
-    current = (current as { cause?: unknown }).cause
-  }
-  return chain
 }
