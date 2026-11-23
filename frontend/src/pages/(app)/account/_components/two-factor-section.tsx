@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { SettingsSection } from "@/components/settings-section"
-import { TotpCodeInput } from "@/components/totp-code-input"
+import { TOTP_LENGTH, TotpCodeInput } from "@/components/totp-code-input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -184,7 +184,12 @@ export function TwoFactorSection({
             />
           </div>
           <div className="flex gap-2">
-            <Button type="submit" loading={busy} disabled={code.length < 6} data-cy="two-factor-confirm">
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={code.length < TOTP_LENGTH}
+              data-cy="two-factor-confirm"
+            >
               {t("account.security.twoFactor.confirm")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep({ kind: "idle" })}>
