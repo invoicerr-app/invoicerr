@@ -77,6 +77,11 @@ function establishmentOf(operation: DeclarationOperation): 'domestic' | 'foreign
     : 'foreign';
 }
 
+/** The seller is under the VAT franchise en base (art. 293 B): the one reading of its profile for it. */
+export function isFranchiseSeller(companyProfile: Record<string, string> | undefined): boolean {
+  return companyProfile?.vatRegime === 'FRANCHISE';
+}
+
 /**
  * Why a payment fact cannot fire because of the seller's VAT regime. Only payment data depends on it:
  * art. 290 A targets VAT exigible on collection, so the option for VAT on debits is out, and a seller
@@ -94,7 +99,7 @@ function outBecauseOfSellerRegime(
 ): string | undefined {
   for (const entry of scopeEntries ?? []) {
     if (entry.transactions !== 'payments' || entry.vatOnCollection !== true) continue;
-    if (operation.companyProfile?.vatRegime === 'FRANCHISE') {
+    if (isFranchiseSeller(operation.companyProfile)) {
       return (
         'The company is under the VAT franchise (franchise en base): its payment data is not ' +
         'declared until the open question on CGI art. 290 A (recodified in the CIBS from 2027-01-01) ' +
@@ -123,7 +128,7 @@ function exemptOperationVerdict(
   if (entry.excludesExemptOperations !== true) return undefined;
   // A seller under the franchise en base invoices every line at 0% without the operation being
   // exempt: the franchise (art. 293 B) is not one of the art. 261 to 261 E exemptions (#1035).
-  if (operation.companyProfile?.vatRegime === 'FRANCHISE') return undefined;
+  if (isFranchiseSeller(operation.companyProfile)) return undefined;
   const rates = (operation.lineVatRatePercents ?? []).filter((rate): rate is number => rate !== null);
   if (rates.length === 0) return undefined;
   const zeroRated = rates.filter((rate) => rate === 0).length;
@@ -206,9 +211,6 @@ function scopeMatches(entry: ReportingScopeEntry, operation: DeclarationOperatio
       }
       if (operation.buyerType !== 'INDIVIDUAL') {
         return { status: 'out', reason: 'This payment fact covers private buyers only.' };
-      }
-      if (entry.vatOnCollection === true && !operation.vatOnCollection) {
-        return { status: 'out', reason: 'VAT is not due on collection for this company.' };
       }
       if (operation.lineNatures === undefined) {
         return {
