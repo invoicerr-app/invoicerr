@@ -24,19 +24,13 @@ import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
+import { isContentHash } from '../archive/hashing';
 import { ReceivedInvoiceOcrResult } from '../queue/received-invoice-ocr.dispatcher';
 import { DEFAULT_TOLERANCE_PERCENT, ReconciliationService } from '../reconciliation/reconciliation.service';
 import { ReconciliationSettings } from '../reconciliation/reconciliation-settings';
 import { ReceivedInvoiceReconciliationResult } from '../reconciliation/resolve-received-invoice-reconciliation';
 import { ReceivedInvoicesService, UploadReceivedInvoicePreview } from './received-invoices.service';
 import { MAX_RECEIVED_INVOICE_BYTES } from './upload-validation';
-
-/** What `fileRef` route params in this controller must look like — `computeArtifactHash`'s own SHA-256
- *  hex output (`archive/hashing.ts`), the exact same pattern `storage.ts#assertValidContentHash`
- *  enforces before it ever becomes a filesystem path/S3 key. Checked HERE, at the HTTP boundary,
- *  before a malformed value ever reaches `ReceivedInvoiceOcrDispatcher`/BullMQ — a 400, never a
- *  confusing 404 for "this isn't shaped like a fileRef at all". */
-const FILE_REF_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
  * Two bespoke routes — everything else about "received-invoice" (listing,
@@ -150,7 +144,10 @@ export class ReceivedInvoicesController {
     @ActiveCompany() companyId: string,
     @Param('fileRef') fileRef: string,
   ): Promise<ReceivedInvoiceOcrResult> {
-    if (!FILE_REF_PATTERN.test(fileRef)) {
+    // `fileRef` is `computeArtifactHash`'s own output, the same check `storage.ts#assertValidContentHash`
+    // makes before it becomes a filesystem path/S3 key. Checked HERE, at the HTTP boundary, before a
+    // malformed value reaches `ReceivedInvoiceOcrDispatcher`/BullMQ: a 400, never a confusing 404.
+    if (!isContentHash(fileRef)) {
       throw new BadRequestException('fileRef must be a 64-character lowercase hex SHA-256.');
     }
     const result = await this.receivedInvoices.getOcrStatus(companyId, fileRef);

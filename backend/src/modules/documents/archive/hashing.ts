@@ -34,6 +34,12 @@ export interface ArchivedArtifactInput {
   bytes: Uint8Array;
 }
 
+/** True when `value` has the shape `computeArtifactHash` produces: exactly 64 lowercase hex characters.
+ *  The one check every route param or stored reference that names a content hash goes through. */
+export function isContentHash(value: string): boolean {
+  return /^[0-9a-f]{64}$/.test(value);
+}
+
 /** The PLAIN (unframed) hash of A SINGLE artifact — what `verify` names "expected" for THIS specific
  *  artifact when it reports CORRUPTED. Distinct from `computeContentHash` (which hashes the FRAMED,
  *  ordered WHOLE set): this one is used to know WHICH of an archive's artifacts was tampered with. */
