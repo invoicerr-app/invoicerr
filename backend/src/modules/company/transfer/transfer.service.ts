@@ -32,7 +32,7 @@ import { CurrentUser } from '@/types/user';
 import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prisma/generated/prisma/client';
 import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
-import { notifyTransferEnded } from './notify-transfer-ended';
+import { loadMailTargets, notifyTransferEnded, sendTransferMail } from './notify-transfer-ended';
 import { appOrigin } from '@/utils/app-origin';
 
 // RFC 5321 caps a whole address at 254 octets — longer input is rejected before any parsing.
@@ -267,7 +267,7 @@ export class TransferService {
     }
 
     try {
-      await notifyTransferEnded(this.mailService, transfer, 'canceled', appOrigin());
+      await notifyTransferEnded(this.mailService, transfer, 'canceled');
     } catch (error) {
       logger.warn('Ownership transfer cancellation mail failed to send', {
         category: 'company-transfer',
@@ -315,7 +315,7 @@ export class TransferService {
     }
 
     if (transfer.expiresAt.getTime() <= Date.now()) {
-      await expireOwnershipTransfer(transfer, this.mailService, appOrigin());
+      await expireOwnershipTransfer(transfer, this.mailService);
       throw new GoneException('This transfer request has expired');
     }
 
@@ -375,45 +375,26 @@ export class TransferService {
     await sessionCache.invalidateUsers([transfer.toUserId, transfer.fromUserId]);
 
     try {
-      const company = await prisma.company.findUnique({
-        where: { id: transfer.companyId },
-        select: { name: true, language: true },
-      });
-      const fromUser = await prisma.user.findUnique({
-        where: { id: transfer.fromUserId },
-        select: { email: true, locale: true },
-      });
-      const toUser = await prisma.user.findUnique({
-        where: { id: transfer.toUserId },
-        select: { email: true, locale: true },
-      });
-      if (company && fromUser && toUser) {
+      // All or nothing: no mail at all when the company or either party no longer exists.
+      const targets = await loadMailTargets(transfer.companyId, [transfer.fromUserId, transfer.toUserId]);
+      if (targets) {
+        const [fromUser, toUser] = targets.recipients;
         const forNewOwner = buildOwnershipTransferFinalizedEmail({
           appUrl: appOrigin(),
-          companyName: company.name,
+          companyName: targets.companyName,
           forNewOwner: true,
           // Each party reads this in THEIR OWN language, never the other's — the new owner's mail is
           // never gated on what language the former owner happens to prefer, and vice versa below.
-          language: resolveUserLanguage(toUser.locale, company.language),
+          language: toUser.language,
         });
         const forFormerOwner = buildOwnershipTransferFinalizedEmail({
           appUrl: appOrigin(),
-          companyName: company.name,
+          companyName: targets.companyName,
           forNewOwner: false,
-          language: resolveUserLanguage(fromUser.locale, company.language),
+          language: fromUser.language,
         });
-        await this.mailService.sendForCompany(transfer.companyId, {
-          to: toUser.email,
-          subject: forNewOwner.subject,
-          text: forNewOwner.text,
-          html: forNewOwner.html,
-        });
-        await this.mailService.sendForCompany(transfer.companyId, {
-          to: fromUser.email,
-          subject: forFormerOwner.subject,
-          text: forFormerOwner.text,
-          html: forFormerOwner.html,
-        });
+        await sendTransferMail(this.mailService, transfer.companyId, toUser.email, forNewOwner);
+        await sendTransferMail(this.mailService, transfer.companyId, fromUser.email, forFormerOwner);
       }
     } catch (error) {
       logger.warn('Ownership transfer finalize mail failed to send', {
