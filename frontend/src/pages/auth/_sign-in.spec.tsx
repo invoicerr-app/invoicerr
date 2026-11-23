@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { authClient } from "@/lib/auth"
 import { signOut } from "@/lib/sign-out"
+import { settleInputOtpTimers } from "@/test/settle-input-otp"
 import LoginPage from "./sign-in"
 import LogoutPage from "./sign-out"
 
@@ -69,7 +70,8 @@ function renderSignIn() {
 const registrationSettled = (client: QueryClient) =>
   waitFor(() => expect(client.getQueryState(["registration", "status"])?.status).not.toBe("pending"))
 
-afterEach(() => {
+afterEach(async () => {
+  await settleInputOtpTimers()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
   sessionStorage.clear()

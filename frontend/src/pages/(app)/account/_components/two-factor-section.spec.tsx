@@ -1,5 +1,5 @@
 import { fireEvent, render, waitFor } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
@@ -16,6 +16,8 @@ vi.mock("@/lib/auth", () => ({
   },
 }))
 import { authClient } from "@/lib/auth"
+
+import { settleInputOtpTimers } from "@/test/settle-input-otp"
 
 import { secretFromTotpUri, TwoFactorSection } from "./two-factor-section"
 
@@ -55,6 +57,8 @@ describe("<TwoFactorSection>", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
+
+  afterEach(settleInputOtpTimers)
 
   it("enables the second factor: password, scan, code, then backup codes", async () => {
     mockSession(false)
