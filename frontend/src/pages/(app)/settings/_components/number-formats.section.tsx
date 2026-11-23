@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useGet } from "@/hooks/use-fetch"
+import { countryName } from "@/lib/display-names"
 import type { CompanyNumberFormat, CompanyNumberFormats } from "@/types"
 
 import { SettingsSection } from "@/components/settings-section"
@@ -61,15 +62,6 @@ export function NumberFormatsSection() {
     "goods-receipt": t("settings.company.numberFormats.types.goodsReceipt"),
   }
 
-  const countryName = (code: string | null) => {
-    if (!code) return ""
-    try {
-      return new Intl.DisplayNames([i18n.language || "en"], { type: "region" }).of(code) ?? code
-    } catch {
-      return code
-    }
-  }
-
   return (
     <SettingsSection
       title={t("settings.company.numberFormats.title")}
@@ -91,7 +83,7 @@ export function NumberFormatsSection() {
                 key={format.typeId}
                 format={format}
                 label={typeLabel[format.typeId] ?? format.typeId}
-                country={countryName(data.countryCode)}
+                country={countryName(i18n.language || "en", data.countryCode ?? undefined)}
               />
             ))}
           </ul>
