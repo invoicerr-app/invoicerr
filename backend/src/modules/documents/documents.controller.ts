@@ -37,11 +37,8 @@ import { CurrentUser } from '@/types/user';
 import { RequiresDocumentTypeScope } from '@/utils/scope-check';
 
 import { AttachmentRef, AttachmentsService, MAX_ATTACHMENT_BYTES } from './attachments/attachments.service';
-import {
-  buildOriginalContentDisposition,
-  safeOriginalMime,
-  sendInlinePdf,
-} from './attachments/content-disposition';
+import { sendInlinePdf } from './attachments/content-disposition';
+import { sendInertFile } from './attachments/send-inert-file';
 import { DocumentsService } from './documents.service';
 import { parseDashboardQuery, RawDashboardQuery } from './dto/dashboard-query.dto';
 import { RunActionDto, UpdateDocumentEmailTemplateDto } from './dto/documents.dto';
@@ -784,11 +781,8 @@ export class DocumentsController {
     // what the BROWSER is told they are changes. `Content-Disposition: attachment` and `nosniff` are
     // kept regardless, as defense in depth: even a mime this app trusts should not execute in a page
     // navigated to directly, and `nosniff` stops the browser from ever second-guessing either header.
-    const safeMime = safeOriginalMime(resolvedMime);
-    res.setHeader('Content-Type', safeMime);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Disposition', 'attachment');
-    res.send(bytes);
+    // All three are written by `sendInertFile` (`safeOriginalMime`, bare `attachment`, `nosniff`).
+    sendInertFile(res, { mime: resolvedMime, bytes });
   }
 
   @Post('types/:typeId/actions/:actionId')
@@ -1112,15 +1106,16 @@ export class DocumentsController {
     @Res() res: Response,
   ): Promise<void> {
     const original = await this.documentsService.downloadImportOriginal(companyId, typeId, id);
-    res.setHeader('Content-Type', original.mime);
-    res.setHeader('Content-Disposition', buildOriginalContentDisposition(original.filename));
     // The stored mime came from whatever the original upload declared (attachments.service.ts),
     // never re-verified against the bytes themselves - `safeOriginalMime` already narrows it to a
     // known allow-list, and `nosniff` stops a browser from second-guessing it against the bytes on
     // its own, which is exactly how a stray `text/html` mime on an old row could have become a
-    // reflected-content risk otherwise.
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(Buffer.from(original.bytes));
+    // reflected-content risk otherwise. `sendInertFile` writes both headers.
+    sendInertFile(res, {
+      mime: original.mime,
+      filename: original.filename,
+      bytes: Buffer.from(original.bytes),
+    });
   }
 
   @Get(':id/formats/:syntax')
@@ -1253,10 +1248,7 @@ export class DocumentsController {
     @Res() res: Response,
   ): Promise<void> {
     const file = await this.documentsService.downloadManualAcceptanceAttachment(companyId, typeId, id);
-    res.setHeader('Content-Type', file.mime);
-    res.setHeader('Content-Disposition', buildOriginalContentDisposition(file.filename));
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.send(Buffer.from(file.bytes));
+    sendInertFile(res, { mime: file.mime, filename: file.filename, bytes: Buffer.from(file.bytes) });
   }
 
   @Post(':id/archives/:archiveId/verify')
