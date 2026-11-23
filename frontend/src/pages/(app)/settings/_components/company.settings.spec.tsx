@@ -6,6 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
 
+// The real session atom delays its unmount cleanup by a second, which can then run against a
+// closed jsdom window once this file's environment is torn down.
+vi.mock("@/lib/auth", () => ({
+  authClient: { useSession: () => ({ data: null, isPending: false, refetch: vi.fn() }) },
+}))
+
 import CompanySettings from "./company.settings"
 
 const originalScrollIntoView = Element.prototype.scrollIntoView
