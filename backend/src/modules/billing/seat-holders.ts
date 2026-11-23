@@ -51,3 +51,11 @@ export function memberHoldsSeat<T extends SeatMember>(
 ): boolean {
   return seatHolders(members, seats).seated.some((m) => m.userId === userId);
 }
+
+/** The lowest desk number (starting at 1) not in `usedIndexes`; the cosmetic desk position only. */
+export function firstFreeIndex(usedIndexes: Iterable<number>): number {
+  const used = new Set(usedIndexes);
+  let index = 1;
+  while (used.has(index)) index++;
+  return index;
+}

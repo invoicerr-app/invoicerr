@@ -5,7 +5,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { CompanyRole, Prisma } from '../../../prisma/generated/prisma/client';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
-import { seatHolders } from './seat-holders';
+import { firstFreeIndex, seatHolders } from './seat-holders';
 
 export interface SeatMemberView {
   userId: string;
@@ -43,13 +43,6 @@ async function loadMembers(client: Prisma.TransactionClient, companyId: string):
     orderBy: { createdAt: 'asc' },
     include: { user: { select: { email: true, firstname: true, lastname: true } } },
   });
-}
-
-/** Desk numbering starts at 1. */
-function firstFreeIndex(used: Set<number>): number {
-  let index = 1;
-  while (used.has(index)) index++;
-  return index;
 }
 
 /**
