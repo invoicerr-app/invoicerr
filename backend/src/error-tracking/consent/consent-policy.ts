@@ -1,4 +1,4 @@
-import { getInstalledVersion } from '../../lib/app-version';
+import { sentryEnvironment, sentryRelease } from '../error-tracking-config';
 
 /**
  * Version of the text a user is shown when asked about browser error reporting (the banner and the
@@ -69,8 +69,8 @@ function readBrowserErrorTrackingConfig(
   if (!dsn) return null;
   return {
     dsn,
-    environment: env.SENTRY_ENVIRONMENT?.trim() || 'production',
-    release: getInstalledVersion().version,
+    environment: sentryEnvironment(env, 'production'),
+    release: sentryRelease(),
   };
 }
 
