@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { Browser, chromium, Page } from 'playwright-core';
 
 import { logger } from '@/logger/logger.service';
+import { readIntEnv } from '@/utils/read-int-env';
 
 import { escapeHtmlNode } from './render-html';
 
@@ -212,13 +213,7 @@ function resolvePlaywrightManagedExecutablePath(): string | null {
  * and none would ever run: a misconfiguration must degrade to "the default limit", never to a silent
  * full deadlock of PDF rendering.
  */
-function readMaxConcurrentRenders(): number {
-  const DEFAULT_MAX_CONCURRENT_RENDERS = 4;
-  const parsed = parseInt(process.env.PDF_RENDER_CONCURRENCY ?? '', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_CONCURRENT_RENDERS;
-}
-
-const MAX_CONCURRENT_RENDERS = readMaxConcurrentRenders();
+const MAX_CONCURRENT_RENDERS = readIntEnv('PDF_RENDER_CONCURRENCY', 4);
 
 /** How many renders currently hold a slot (i.e. hold a page until their PDF is written). */
 let activeRenders = 0;
