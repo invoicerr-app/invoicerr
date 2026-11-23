@@ -22,7 +22,7 @@ import { WebhookDispatcherService } from '../../webhooks/webhook-dispatcher.serv
 import { assertClientCreatable } from '../client-validation';
 import {
   DUPLICATE_CANDIDATE_SELECT,
-  duplicateCandidateOr,
+  duplicateCandidateWhere,
   duplicateIdentityKey,
   NameCountryPair,
 } from '../duplicate-match';
@@ -90,6 +90,22 @@ function duplicateIdentityName(row: {
   return (row.name ?? '').trim();
 }
 
+/** A row's duplicate identity, computed once for the file-wide query and once per row verdict: the
+ *  trimmed, lower-cased contact email, and the name + country pair with its case-folded key
+ *  (`duplicateIdentityKey` folds the case; the query compares case-insensitively). */
+function rowIdentity(row: ClientImportRow): {
+  email?: string;
+  nameCountry?: NameCountryPair & { key: string };
+} {
+  const email = row.contactEmail?.trim().toLowerCase() || undefined;
+  const name = duplicateIdentityName(row);
+  const country = row.country?.trim();
+  return {
+    email,
+    nameCountry: name && country ? { name, country, key: duplicateIdentityKey(name, country) } : undefined,
+  };
+}
+
 interface RowVerdict {
   result: ClientImportRowResult;
   row: ClientImportRow;
@@ -110,11 +126,11 @@ export class ClientImportService {
     const emails = new Set<string>();
     const nameCountryPairs = new Map<string, NameCountryPair>();
     for (const row of rows) {
-      const email = row.contactEmail?.trim().toLowerCase();
+      const { email, nameCountry } = rowIdentity(row);
       if (email) emails.add(email);
-      const name = duplicateIdentityName(row).toLowerCase();
-      const country = row.country?.trim().toLowerCase();
-      if (name && country) nameCountryPairs.set(duplicateIdentityKey(name, country), { name, country });
+      if (nameCountry) {
+        nameCountryPairs.set(nameCountry.key, { name: nameCountry.name, country: nameCountry.country });
+      }
     }
 
     const existingByEmail = new Map<string, { id: string; name: string; contactEmail: string | null }>();
@@ -124,12 +140,11 @@ export class ClientImportService {
     >();
     if (emails.size > 0 || nameCountryPairs.size > 0) {
       // One clause per name + country pair: the row cap bounds how many this adds.
-      const or = duplicateCandidateOr({
-        primaryEmail: emails.size > 0 ? { in: Array.from(emails) } : undefined,
-        nameCountryPairs: Array.from(nameCountryPairs.values()),
-      });
       const existing = await prisma.client.findMany({
-        where: { companyId, isActive: true, OR: or },
+        where: duplicateCandidateWhere(companyId, {
+          primaryEmail: emails.size > 0 ? { in: Array.from(emails) } : undefined,
+          nameCountryPairs: Array.from(nameCountryPairs.values()),
+        }),
         select: DUPLICATE_CANDIDATE_SELECT,
       });
       for (const row of existing) {
@@ -222,11 +237,8 @@ export class ClientImportService {
         continue;
       }
 
-      const email = row.contactEmail?.trim().toLowerCase();
-      const identityName = duplicateIdentityName(row).toLowerCase();
-      const country = row.country?.trim().toLowerCase();
-      const nameCountryKey =
-        identityName && country ? duplicateIdentityKey(identityName, country) : undefined;
+      const { email, nameCountry } = rowIdentity(row);
+      const nameCountryKey = nameCountry?.key;
 
       // Email first, matching `ClientsService.findDuplicates`'s priority.
       const existingByEmailMatch = email ? existingByEmail.get(email) : undefined;

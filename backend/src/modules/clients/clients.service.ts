@@ -41,7 +41,7 @@ import { assertIdentifierValueMatchesPattern } from '../documents/country-identi
 import { assertClientCustomFieldValuesValid } from '../documents/company-custom-fields/persistence';
 import { ClientStatement, resolveClientStatement } from '../documents/settlement/client-statement';
 import { assertClientCreatable, assertIndividualIdentity } from './client-validation';
-import { DUPLICATE_CANDIDATE_SELECT, duplicateCandidateOr, duplicateIdentityKey } from './duplicate-match';
+import { DUPLICATE_CANDIDATE_SELECT, duplicateCandidateWhere, duplicateIdentityKey } from './duplicate-match';
 import { writeClientContacts } from './contacts/client-contacts';
 import { withDerivedContactFields } from './primary-contact';
 
@@ -164,17 +164,13 @@ export class ClientsService {
     const hasNameCountry = !!name && !!country;
     if (!email && !hasNameCountry) return [];
 
-    const or = duplicateCandidateOr({
-      primaryEmail: email ? { equals: email } : undefined,
-      nameCountryPairs: hasNameCountry ? [{ name: name!, country: country! }] : [],
-    });
-
     const rows = await prisma.client.findMany({
       where: {
-        companyId,
-        isActive: true,
+        ...duplicateCandidateWhere(companyId, {
+          primaryEmail: email ? { equals: email } : undefined,
+          nameCountryPairs: hasNameCountry ? [{ name: name!, country: country! }] : [],
+        }),
         ...(excludeId ? { id: { not: excludeId } } : {}),
-        OR: or,
       },
       select: DUPLICATE_CANDIDATE_SELECT,
       take: 10,
