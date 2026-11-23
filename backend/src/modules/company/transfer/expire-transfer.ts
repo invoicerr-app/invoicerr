@@ -11,7 +11,6 @@ import { MailService } from '@/mail/mail.service';
 import prisma from '@/prisma/prisma.service';
 
 import { CompanyOwnershipTransfer } from '../../../../prisma/generated/prisma/client';
-import { appOrigin } from '@/utils/app-origin';
 import { notifyTransferEnded } from './notify-transfer-ended';
 
 /**
@@ -23,7 +22,6 @@ import { notifyTransferEnded } from './notify-transfer-ended';
 export async function expireOwnershipTransfer(
   transfer: Pick<CompanyOwnershipTransfer, 'id' | 'companyId' | 'fromUserId' | 'toEmail'>,
   mailService: MailService,
-  appUrl: string = appOrigin(),
 ): Promise<boolean> {
   const { count } = await prisma.companyOwnershipTransfer.updateMany({
     where: { id: transfer.id, status: 'PENDING' },
@@ -32,7 +30,7 @@ export async function expireOwnershipTransfer(
   if (count === 0) return false;
 
   try {
-    await notifyTransferEnded(mailService, transfer, 'expired', appUrl);
+    await notifyTransferEnded(mailService, transfer, 'expired');
   } catch (error) {
     // Never lets a mail-send hiccup undo (or retry-loop) the transition itself — the row is already
     // EXPIRED, same "the state change is the source of truth, a failed notice is merely logged" posture

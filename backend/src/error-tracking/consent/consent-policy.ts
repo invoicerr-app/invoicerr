@@ -1,4 +1,4 @@
-import { getInstalledVersion } from '../../lib/app-version';
+import { sentryEnvironment, sentryRelease } from '../error-tracking-config';
 
 /**
  * Version of the text a user is shown when asked about browser error reporting (the banner and the
@@ -11,7 +11,7 @@ export const ERROR_TRACKING_CONSENT_TEXT_VERSION = '2026-11-21';
  * A decision, granted or refused, is asked again after six months. Legal advice on this feature: a
  * refusal must not be re-asked sooner, and a grant should not be presumed to last indefinitely.
  */
-export const ERROR_TRACKING_CONSENT_REASK_MONTHS = 6;
+const ERROR_TRACKING_CONSENT_REASK_MONTHS = 6;
 
 export type ErrorTrackingConsentChannel = 'banner' | 'settings';
 
@@ -49,7 +49,7 @@ export interface ErrorTrackingConsentView {
   browser: BrowserErrorTrackingConfig | null;
 }
 
-export function addMonths(date: Date, months: number): Date {
+function addMonths(date: Date, months: number): Date {
   const result = new Date(date.getTime());
   result.setUTCMonth(result.getUTCMonth() + months);
   return result;
@@ -62,15 +62,15 @@ export function isDecisionCurrent(decision: StoredConsentDecision | null, now: D
   return addMonths(decision.decidedAt, ERROR_TRACKING_CONSENT_REASK_MONTHS) > now;
 }
 
-export function readBrowserErrorTrackingConfig(
+function readBrowserErrorTrackingConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BrowserErrorTrackingConfig | null {
   const dsn = env.SENTRY_FRONTEND_DSN?.trim();
   if (!dsn) return null;
   return {
     dsn,
-    environment: env.SENTRY_ENVIRONMENT?.trim() || 'production',
-    release: getInstalledVersion().version,
+    environment: sentryEnvironment(env, 'production'),
+    release: sentryRelease(),
   };
 }
 

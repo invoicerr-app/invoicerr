@@ -4,6 +4,7 @@
  * temporary outage does not stick.
  */
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { readIntEnv } from '@/utils/read-int-env';
 import { CompanyLookupRegistry } from './registry';
 import {
   CompanyLookupCompany,
@@ -31,18 +32,7 @@ const COMPANY_LOOKUP_TTL_MS = 'COMPANY_LOOKUP_TTL_MS';
 export const DEFAULT_LOOKUP_BUDGET_MS = 5000;
 
 /** Optional DI token for the budget (tests); otherwise the env var `COMPANY_LOOKUP_BUDGET_MS`, then the default. */
-export const COMPANY_LOOKUP_BUDGET_MS = 'COMPANY_LOOKUP_BUDGET_MS';
-
-/** A positive integer from the env, or `undefined` (logged) so the default applies. */
-export function budgetFromEnv(raw: string | undefined, logger?: Pick<Logger, 'warn'>): number | undefined {
-  if (raw === undefined || raw.trim() === '') return undefined;
-  const value = Number(raw);
-  if (Number.isInteger(value) && value > 0) return value;
-  logger?.warn(
-    `COMPANY_LOOKUP_BUDGET_MS="${raw}" is not a positive integer; using ${DEFAULT_LOOKUP_BUDGET_MS}ms.`,
-  );
-  return undefined;
-}
+const COMPANY_LOOKUP_BUDGET_MS = 'COMPANY_LOOKUP_BUDGET_MS';
 
 /** Thrown internally when the chain's budget runs out before a provider answers. */
 class LookupBudgetExhausted extends Error {}
@@ -75,10 +65,7 @@ export class CompanyLookupService {
     @Optional() @Inject(COMPANY_LOOKUP_BUDGET_MS) budgetMs?: number,
   ) {
     this.ttlMs = ttlMs ?? DEFAULT_TTL_MS;
-    this.budgetMs =
-      budgetMs ??
-      budgetFromEnv(process.env.COMPANY_LOOKUP_BUDGET_MS, this.logger) ??
-      DEFAULT_LOOKUP_BUDGET_MS;
+    this.budgetMs = budgetMs ?? readIntEnv('COMPANY_LOOKUP_BUDGET_MS', DEFAULT_LOOKUP_BUDGET_MS);
   }
 
   capabilities(): CountryLookupCapability[] {

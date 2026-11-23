@@ -1,5 +1,5 @@
 import type { ErrorEvent, EventHint } from '@sentry/node';
-import { redactErrorReportValue } from '../logger/redaction-rules';
+import { causeChain, redactErrorReportValue, safeErrorCode, summarizeError } from '../logger/redaction-rules';
 
 /**
  * Contexts an event may keep, all filled in by the SDK and describing the process, never the request
@@ -62,34 +62,15 @@ export function scrubEvent(event: ErrorEvent, hint?: EventHint): ErrorEvent {
   return event;
 }
 
-/** `Type code`, `Type` without a code, `[redacted]` when even the type is unknown. */
-export function summarizeError(type: string | undefined, code: string | undefined): string {
-  if (!type) return code ? `code ${code}` : '[redacted]';
-  return code ? `${type} ${code}` : type;
-}
-
-const SAFE_CODE = /^[A-Za-z0-9_.-]{1,64}$/;
-
 /** An HTTP exception's status, or a `code` that reads as an identifier (`P2002`, `COMPANY_BLOCKED`). */
 function errorCode(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') return undefined;
   const { code, getStatus } = error as { code?: unknown; getStatus?: unknown };
-  if ((typeof code === 'string' || typeof code === 'number') && SAFE_CODE.test(String(code))) {
-    return String(code);
-  }
+  const safe = safeErrorCode(code);
+  if (safe) return safe;
   if (typeof getStatus === 'function') {
     const status: unknown = getStatus.call(error);
     if (typeof status === 'number') return String(status);
   }
   return undefined;
-}
-
-function causeChain(error: unknown): unknown[] {
-  const chain: unknown[] = [];
-  let current = error;
-  while (current && chain.length < 10 && !chain.includes(current)) {
-    chain.push(current);
-    current = (current as { cause?: unknown }).cause;
-  }
-  return chain;
 }

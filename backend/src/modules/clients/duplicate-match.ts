@@ -4,7 +4,7 @@
  * query): an ACTIVE client of the same company whose PRIMARY contact has the same email, or whose
  * name AND country are the same, all case-insensitively. Only the WHERE clauses, the select and the
  * case-folded key live here; each caller keeps its own email operator (one `equals` versus a file's
- * `in`), its own limits and its own matching of the rows that come back.
+ * `in`), its own exclusions and limits, and its own matching of the rows that come back.
  */
 import { Prisma } from '../../../prisma/generated/prisma/client';
 
@@ -31,16 +31,31 @@ export function duplicateIdentityKey(name: string, country: string): string {
   return `${name.toLowerCase()}\u0000${country.toLowerCase()}`;
 }
 
+/** What a caller wants matched: a primary email filter and/or name + country pairs. */
+export interface DuplicateMatchInput {
+  primaryEmail?: PrimaryEmailFilter;
+  nameCountryPairs: readonly NameCountryPair[];
+}
+
+/**
+ * The whole duplicate rule as one WHERE: an ACTIVE client of `companyId` matching any of the OR
+ * branches below. The caller must not query at all when it has nothing to match (an empty OR
+ * matches nothing), and adds its own exclusions (an id to skip) on top.
+ */
+export function duplicateCandidateWhere(
+  companyId: string,
+  match: DuplicateMatchInput,
+): Prisma.ClientWhereInput {
+  return { companyId, isActive: true, OR: duplicateCandidateOr(match) };
+}
+
 /**
  * The OR branches of the duplicate rule: one for the primary email when given (only the primary
  * contact's email counts: that is the address delivery actually uses), then one per name + country
  * pair (Prisma has no IN over a composite pair). Empty when there is nothing to match: the caller
  * must not query at all then, an empty OR matching nothing.
  */
-export function duplicateCandidateOr(match: {
-  primaryEmail?: PrimaryEmailFilter;
-  nameCountryPairs: readonly NameCountryPair[];
-}): Prisma.ClientWhereInput[] {
+function duplicateCandidateOr(match: DuplicateMatchInput): Prisma.ClientWhereInput[] {
   const or: Prisma.ClientWhereInput[] = [];
   if (match.primaryEmail) {
     or.push({

@@ -244,3 +244,33 @@ export function redactErrorReportValue(value: unknown, depth = 0): unknown {
   }
   return '[unserializable]';
 }
+
+/**
+ * What an exception becomes in an error report, backend and browser alike: `Type code`, `Type`
+ * without a code, `[redacted]` when even the type is unknown. The error's own text never leaves.
+ */
+export function summarizeError(type: string | undefined, code: string | undefined): string {
+  if (!type) return code ? `code ${code}` : REDACTED;
+  return code ? `${type} ${code}` : type;
+}
+
+const SAFE_CODE = /^[A-Za-z0-9_.-]{1,64}$/;
+
+/** An error's `code` when it reads as an identifier (`P2002`, `COMPANY_BLOCKED`), else `undefined`. */
+export function safeErrorCode(code: unknown): string | undefined {
+  if ((typeof code === 'string' || typeof code === 'number') && SAFE_CODE.test(String(code))) {
+    return String(code);
+  }
+  return undefined;
+}
+
+/** The error and its `cause`s, outermost first, at most 10 deep and stopping on a loop. */
+export function causeChain(error: unknown): unknown[] {
+  const chain: unknown[] = [];
+  let current = error;
+  while (current && chain.length < 10 && !chain.includes(current)) {
+    chain.push(current);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return chain;
+}

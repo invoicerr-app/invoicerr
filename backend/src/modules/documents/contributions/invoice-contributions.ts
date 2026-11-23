@@ -174,11 +174,11 @@ export const buildInvoiceDashboardWidgets: ContributionHandler = async ({ compan
   // A row shows the invoice's total, the figure its list row shows; the tiles below total what is
   // still owed on it.
   const pendingItems: ShortListItem[] = pendingBalances
-    .map(({ invoice, grossMinor }) => {
+    .map(({ invoice, totals }) => {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const currency = typeof data.currency === 'string' ? data.currency : '';
       const dueDate = typeof data.dueDate === 'string' ? data.dueDate : undefined;
-      const total = fromMinor(grossMinor, currency);
+      const total = fromMinor(totals.grossMinor, currency);
       return {
         id: invoice.id,
         // The invoice's own number when it has one (a "sent" invoice normally does — numbering
@@ -665,7 +665,7 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
   ]);
 
   const balances = await resolveInvoiceBalances(companyId, INVOICE_DESCRIPTOR, invoices);
-  const rows = balances.map(({ invoice, grossMinor, settlement }) => {
+  const rows = balances.map(({ invoice, totals, settlement }) => {
     const data = (invoice.data ?? {}) as Record<string, unknown>;
     const currency = typeof data.currency === 'string' ? data.currency : '';
     return {
@@ -673,7 +673,7 @@ export const buildInvoiceStatisticsWidgets: ContributionHandler = async ({ compa
       dueDate: typeof data.dueDate === 'string' ? data.dueDate : '',
       status: invoice.status,
       currency,
-      total: widgetAmount(grossMinor, currency),
+      total: widgetAmount(totals.grossMinor, currency),
       // Nothing is owed on an invoice that was never issued, or was cancelled.
       outstanding: isIssuedInvoice(invoice) ? widgetAmount(settlement.outstandingMinor, currency) : '',
     };

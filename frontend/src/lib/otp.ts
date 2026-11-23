@@ -1,5 +1,6 @@
-/** Six/eight-digit one-time codes are shown grouped (`1234-5678`) everywhere they are typed or
- *  displayed; non-digits are dropped so a pasted code works too. */
+/** The eight-digit one-time codes sent by email are shown grouped (`1234-5678`) everywhere they are
+ *  typed or displayed; non-digits are dropped so a pasted code works too. The six-digit
+ *  authenticator-app code has its own input (`components/totp-code-input.tsx`). */
 export function formatOtp(value: string): string {
   const cleaned = value.replace(/\D/g, "").slice(0, 8)
   if (cleaned.length <= 4) return cleaned

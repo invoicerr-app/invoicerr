@@ -1,4 +1,4 @@
-import { budgetFromEnv, CompanyLookupService, DEFAULT_LOOKUP_BUDGET_MS } from './company-lookup.service';
+import { CompanyLookupService, DEFAULT_LOOKUP_BUDGET_MS } from './company-lookup.service';
 import { CompanyLookupCoverage } from './coverage/registry';
 import { CompanyLookupRegistry } from './registry';
 import {
@@ -260,17 +260,5 @@ describe('CompanyLookupService: total budget across the provider chain (#786)', 
     await service.lookup({ countryCode: 'FR', value: '1', scheme: 'LEGAL_ID' });
     await service.lookup({ countryCode: 'FR', value: '1', scheme: 'LEGAL_ID' });
     expect(hanging.lookupCalls).toBe(2);
-  });
-
-  it('reads COMPANY_LOOKUP_BUDGET_MS as a positive integer and refuses anything else', () => {
-    const warn = vi.fn();
-    expect(budgetFromEnv(undefined, { warn })).toBeUndefined();
-    expect(budgetFromEnv('', { warn })).toBeUndefined();
-    expect(budgetFromEnv('3000', { warn })).toBe(3000);
-    expect(budgetFromEnv('0', { warn })).toBeUndefined();
-    expect(budgetFromEnv('-5', { warn })).toBeUndefined();
-    expect(budgetFromEnv('2.5', { warn })).toBeUndefined();
-    expect(budgetFromEnv('soon', { warn })).toBeUndefined();
-    expect(warn).toHaveBeenCalledTimes(4);
   });
 });

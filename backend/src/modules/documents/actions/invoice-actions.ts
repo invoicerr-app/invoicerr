@@ -20,6 +20,7 @@ import { resolveInvoiceValidationTransmission } from '../country-policy/invoice-
 import { runDomesticInvoiceCurrencyPreflight } from '../country-policy/domestic-currency-issuance';
 import { buildInvoiceDescriptor, INVOICE_CANCELLABLE_FROM } from '../descriptors/invoice.descriptor';
 import { lockedStatusConflict } from '../descriptors/lifecycle';
+import { asyncSendNumbering } from '../descriptors/types';
 import { stripSidecarKeys } from '../descriptors/validate';
 import { takeDocumentNumberForTransitionWithStatus } from '../numbering/take-number';
 import { findOwnedDocument, updateDocumentStatus } from '../persistence';
@@ -733,7 +734,7 @@ async function performInvoiceSend(ctx: ActionContext, deps: InvoiceActionDeps): 
     // (`documents-core.module.ts`) always provides one.
     // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
     webhooks: deps.webhooks,
-    numberOnEnqueue: true, // invoice.descriptor.ts: numbering.onEnterStatus includes 'sending'
+    ...asyncSendNumbering(INVOICE_DESCRIPTOR),
     // Issue #581 - "send" also starts from "validated" now (invoice.descriptor.ts's own
     // SEND_TRANSITIONS header): a validated-but-unsent invoice is already numbered, so this never
     // re-numbers it (see async-send.ts's own `additionalFromStatuses` header for why only the plain
@@ -1002,7 +1003,6 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       document,
       {
         failureMessage: 'Failed to dispatch a DOCUMENT_CANCELLED webhook — the invoice was still cancelled',
-        documentId,
       },
     );
 

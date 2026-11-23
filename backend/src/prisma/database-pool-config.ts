@@ -34,6 +34,8 @@
 import { Logger } from '@nestjs/common';
 import { PoolConfig } from 'pg';
 
+import { readIntEnv } from '../utils/read-int-env';
+
 /** `@nestjs/common`'s own Logger, NEVER `@/logger/logger.service`: that one imports
  *  `prisma.service.ts`, which imports THIS file — a cycle, on the import path that constructs the
  *  database client. It is also the logger `logger.service.ts` itself writes through, so the console
@@ -113,9 +115,7 @@ export function readDatabasePoolMax(): number {
  * since that fallback is exactly the footgun this file exists to close.
  */
 export function readDatabasePoolConnectTimeoutMs(): number {
-  const DEFAULT_MS = 10_000;
-  const parsed = parseInt(process.env.DATABASE_POOL_CONNECT_TIMEOUT_MS ?? `${DEFAULT_MS}`, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MS;
+  return readIntEnv('DATABASE_POOL_CONNECT_TIMEOUT_MS', 10_000);
 }
 
 /** The full `pg.PoolConfig` `prisma.service.ts` hands to `PrismaPg` — connection string plus the two

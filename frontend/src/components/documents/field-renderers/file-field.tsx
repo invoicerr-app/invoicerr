@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useFormContext } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { toast } from "sonner"
 import { FileText, Paperclip, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useDocumentFormReadOnly } from "@/components/documents/document-form-readonly"
 import { FormField, FormGroup, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { ApiError } from "@/hooks/use-api-query"
 import { buildFileUploadForm, downloadAttachment, useUploadAttachment } from "@/hooks/queries"
+import { ATTACHMENT_MIMES, toastUploadError } from "@/lib/attachment-rules"
 
 import type { FieldRendererProps } from "./registry"
 
@@ -143,14 +142,7 @@ export function FileField({ field, name }: FieldRendererProps) {
       setLocalFile(file)
       setValue(name, result, { shouldValidate: true, shouldDirty: true })
     } catch (error) {
-      // A 413 is refused by multer at the multipart wire itself (limits.fileSize) — its own body
-      // carries the generic "File too large" rather than this app's own byte-counted message, so this
-      // is the one status worth a dedicated, translated string instead of echoing the raw backend text.
-      if (error instanceof ApiError && error.status === 413) {
-        toast.error(t("documents.form.file.tooLarge"))
-      } else {
-        toast.error(error instanceof ApiError ? error.message : t("documents.form.file.uploadError"))
-      }
+      toastUploadError(error, t, t("documents.form.file.uploadError"))
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
@@ -250,7 +242,7 @@ export function FileField({ field, name }: FieldRendererProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/pdf,image/jpeg,image/png,image/webp"
+              accept={ATTACHMENT_MIMES.join(",")}
               className="hidden"
               disabled={readOnly}
               data-cy={`document-field-${field.key}-file-input`}

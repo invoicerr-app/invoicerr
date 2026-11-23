@@ -39,8 +39,6 @@ export async function filterUnsettledInvoices(
 /** One invoice's totals, credits and settlement, the same figures its settlement screen shows. */
 export interface InvoiceBalance {
   invoice: DocumentInstanceResult;
-  netMinor: number;
-  grossMinor: number;
   totals: DocumentTotals;
   /** The "sent" credit notes counted against this invoice (`creditsForInvoiceFromNotes`). */
   credits: DocumentCreditResult[];
@@ -88,7 +86,7 @@ export async function resolveInvoiceBalances(
       [{ amountMinor: paidMinor }],
       toSettlementCreditInputs(credits),
     );
-    return { invoice, netMinor: totals.netMinor, grossMinor: totals.grossMinor, totals, credits, settlement };
+    return { invoice, totals, credits, settlement };
   });
 }
 

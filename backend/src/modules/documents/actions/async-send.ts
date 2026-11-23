@@ -606,7 +606,6 @@ export async function runAsyncSendAction(input: RunAsyncSendInput): Promise<Acti
     // (echoing `report-on-send.ts`'s header) means here.
     await dispatchDocumentWebhookSafely(webhooks, WebhookEvent.DOCUMENT_SENT, companyId, typeId, sent, {
       failureMessage: 'Failed to dispatch a DOCUMENT_SENT webhook — the document was still sent successfully',
-      documentId,
     });
 
     // Legal archiving now runs EARLIER — right after `confirmDeliveryWithRetry`, before the "sent"

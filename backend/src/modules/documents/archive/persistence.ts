@@ -87,6 +87,11 @@ async function resolveDocumentIssueDate(companyId: string, documentId: string): 
   return Number.isNaN(issueDate.getTime()) ? undefined : issueDate;
 }
 
+/** The artifact metadata a `DocumentArchive` row stores as JSON. */
+function artifactsOf(row: { artifacts: Prisma.JsonValue | null }): StoredArtifactMeta[] {
+  return (row.artifacts ?? []) as unknown as StoredArtifactMeta[];
+}
+
 function toResult(row: {
   id: string;
   companyId: string;
@@ -115,7 +120,7 @@ function toResult(row: {
     parentArchiveId: row.parentArchiveId ?? null,
     contentHash: row.contentHash,
     uri: row.uri,
-    artifacts: (row.artifacts ?? []) as unknown as StoredArtifactMeta[],
+    artifacts: artifactsOf(row),
     archivedAt: row.archivedAt,
     retentionUntil: row.retentionUntil,
     retentionBasis: row.retentionBasis,
@@ -527,6 +532,15 @@ async function createAcceptanceArchive(input: {
   return toResult(created);
 }
 
+/** The most recent ACCEPTANCE row holding a manual-acceptance manifest (see the #477 note below). */
+async function findLatestManualAcceptanceRow(companyId: string, documentId: string) {
+  const candidates = await prisma.documentArchive.findMany({
+    where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
+    orderBy: { archivedAt: 'desc' },
+  });
+  return candidates.find((row) => artifactsOf(row).some((meta) => meta.role === MANUAL_ACCEPTANCE_ROLE));
+}
+
 /**
  * The most recent manual-acceptance manifest actually archived for this document, read back off
  * storage (never off the `artifacts` metadata column alone, which never carries the note/actor text -
@@ -545,15 +559,7 @@ export async function findManualAcceptanceArchive(
   // Issue #477: an e-signature now writes an ACCEPTANCE row too (`ESIGNATURE_ACCEPTANCE_ROLE`), so
   // "the most recent ACCEPTANCE row" is no longer necessarily a manual one - picked by its artifact
   // role, never by kind alone.
-  const candidates = await prisma.documentArchive.findMany({
-    where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
-    orderBy: { archivedAt: 'desc' },
-  });
-  const archive = candidates.find((row) =>
-    ((row.artifacts ?? []) as unknown as StoredArtifactMeta[]).some(
-      (meta) => meta.role === MANUAL_ACCEPTANCE_ROLE,
-    ),
-  );
+  const archive = await findLatestManualAcceptanceRow(companyId, documentId);
   if (!archive) return null;
 
   const bytes = await readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json');
@@ -576,19 +582,9 @@ export async function findManualAcceptanceAttachment(
   companyId: string,
   documentId: string,
 ): Promise<{ bytes: Buffer; mime: string; fileName: string } | null> {
-  const candidates = await prisma.documentArchive.findMany({
-    where: { companyId, documentId, kind: DocumentArchiveKind.ACCEPTANCE },
-    orderBy: { archivedAt: 'desc' },
-  });
-  const archive = candidates.find((row) =>
-    ((row.artifacts ?? []) as unknown as StoredArtifactMeta[]).some(
-      (meta) => meta.role === MANUAL_ACCEPTANCE_ROLE,
-    ),
-  );
+  const archive = await findLatestManualAcceptanceRow(companyId, documentId);
   if (!archive) return null;
-  const meta = ((archive.artifacts ?? []) as unknown as StoredArtifactMeta[]).find(
-    (entry) => entry.role === MANUAL_ACCEPTANCE_ATTACHMENT_ROLE,
-  );
+  const meta = artifactsOf(archive).find((entry) => entry.role === MANUAL_ACCEPTANCE_ATTACHMENT_ROLE);
   if (!meta) return null;
 
   const [bytes, manifestBytes] = await Promise.all([
@@ -660,7 +656,7 @@ export async function findArchivedPdfArtifact(
   if (!archive) return null;
   if (isServable && !isServable(archive.documentDataHash ?? null)) return null;
 
-  const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
+  const metas = artifactsOf(archive);
   const pdfMeta = metas.find((meta) => meta.role === 'pdf' && meta.mime === 'application/pdf');
   if (!pdfMeta) return null;
 
@@ -689,7 +685,7 @@ export async function findImportOriginalArtifact(
   });
   if (!archive) return null;
 
-  const metas = (archive.artifacts ?? []) as unknown as StoredArtifactMeta[];
+  const metas = artifactsOf(archive);
   const originalMeta = metas.find((meta) => meta.role === 'import-original');
   if (!originalMeta) return null;
 

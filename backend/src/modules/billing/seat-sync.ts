@@ -42,6 +42,7 @@ import prisma from '@/prisma/prisma.service';
 import { Prisma } from '../../../prisma/generated/prisma/client';
 import { isBillingEnabled } from './billing-flag';
 import { getOrCreateCompanySubscription, lockCompanySubscriptionRow } from './company-subscription.store';
+import { firstFreeIndex } from './seat-holders';
 
 export const NO_FREE_SEAT_CODE = 'NO_FREE_SEAT';
 
@@ -54,14 +55,6 @@ export class NoFreeSeatError extends Error {
     super(`Company ${companyId} has no free seat - add one in the billing settings.`);
     this.name = 'NoFreeSeatError';
   }
-}
-
-/** Desk numbering starts at 1. */
-function firstFreeIndex(usedIndexes: Iterable<number>): number {
-  const used = new Set(usedIndexes);
-  let index = 1;
-  while (used.has(index)) index++;
-  return index;
 }
 
 /**

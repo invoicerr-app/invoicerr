@@ -2,11 +2,7 @@
  * Two-factor setup routes of better-auth's two-factor plugin. On a demo instance every visitor shares
  * one account, so whoever enabled a second factor there would lock every other visitor out.
  */
-const TWO_FACTOR_SETUP_PATHS = [
-  '/two-factor/enable',
-  '/two-factor/disable',
-  '/two-factor/generate-backup-codes',
-];
+const TWO_FACTOR_LABEL = 'Changing two-factor authentication';
 
 /**
  * Pure path-matching for `lib/auth.ts`'s own `hooks.before` demo-mode guard, pulled out into its own
@@ -17,15 +13,22 @@ const TWO_FACTOR_SETUP_PATHS = [
  *
  * Better-auth's own route path, with no `/api/auth` prefix, confirmed against the installed
  * better-auth 1.7.4 route source (`node_modules/better-auth/dist/api/routes/update-user.mjs`).
+ *
+ * Each blocked path carries its own label, so a path added here has to say what it blocks.
  */
-const DEMO_BLOCKED_AUTH_PATHS = new Set(['/change-email', '/change-password', ...TWO_FACTOR_SETUP_PATHS]);
+const DEMO_BLOCKED_AUTH_PATHS = new Map<string, string>([
+  ['/change-email', 'Changing the account email'],
+  ['/change-password', 'Changing the password'],
+  ['/two-factor/enable', TWO_FACTOR_LABEL],
+  ['/two-factor/disable', TWO_FACTOR_LABEL],
+  ['/two-factor/generate-backup-codes', TWO_FACTOR_LABEL],
+]);
 
 export function isDemoBlockedAuthPath(path: string): boolean {
   return DEMO_BLOCKED_AUTH_PATHS.has(path);
 }
 
+/** Only meaningful for a path `isDemoBlockedAuthPath` accepts, the one way `lib/auth.ts` calls it. */
 export function demoBlockedAuthActionLabel(path: string): string {
-  if (path === '/change-email') return 'Changing the account email';
-  if (path === '/change-password') return 'Changing the password';
-  return 'Changing two-factor authentication';
+  return DEMO_BLOCKED_AUTH_PATHS.get(path) ?? TWO_FACTOR_LABEL;
 }

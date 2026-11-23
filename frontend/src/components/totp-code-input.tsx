@@ -2,8 +2,14 @@ import { REGEXP_ONLY_DIGITS } from "input-otp"
 
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/components/ui/input-otp"
 
+/** How many digits an authenticator-app (TOTP) code has: the boxes below and the callers' complete checks. */
+export const TOTP_LENGTH = 6
+
+/** The boxes of each of the two groups the code is shown in, the way the apps display it. */
+const GROUP_SIZE = TOTP_LENGTH / 2
+
 /** Keeps the digits of a pasted code, so "123 456" or "123-456" from an authenticator app fills all six boxes. */
-export function digitsOnly(pasted: string): string {
+function digitsOnly(pasted: string): string {
   return pasted.replace(/\D/g, "")
 }
 
@@ -21,7 +27,6 @@ export function TotpCodeInput({
   name,
   disabled,
   autoFocus,
-  "aria-invalid": ariaInvalid,
   "data-cy": dataCy,
 }: Readonly<{
   value?: string
@@ -31,12 +36,11 @@ export function TotpCodeInput({
   name?: string
   disabled?: boolean
   autoFocus?: boolean
-  "aria-invalid"?: boolean
   "data-cy"?: string
 }>) {
   return (
     <InputOTP
-      maxLength={6}
+      maxLength={TOTP_LENGTH}
       pattern={REGEXP_ONLY_DIGITS}
       pasteTransformer={digitsOnly}
       inputMode="numeric"
@@ -48,20 +52,23 @@ export function TotpCodeInput({
       name={name}
       disabled={disabled}
       autoFocus={autoFocus}
-      aria-invalid={ariaInvalid}
       data-cy={dataCy}
     >
-      <InputOTPGroup>
-        <InputOTPSlot index={0} className="h-10 w-10 text-base" />
-        <InputOTPSlot index={1} className="h-10 w-10 text-base" />
-        <InputOTPSlot index={2} className="h-10 w-10 text-base" />
-      </InputOTPGroup>
+      <TotpSlotGroup from={0} />
       <InputOTPSeparator className="text-muted-foreground" />
-      <InputOTPGroup>
-        <InputOTPSlot index={3} className="h-10 w-10 text-base" />
-        <InputOTPSlot index={4} className="h-10 w-10 text-base" />
-        <InputOTPSlot index={5} className="h-10 w-10 text-base" />
-      </InputOTPGroup>
+      <TotpSlotGroup from={GROUP_SIZE} />
     </InputOTP>
+  )
+}
+
+/** One group of boxes, for the code positions `from` to `from + GROUP_SIZE - 1`. */
+function TotpSlotGroup({ from }: Readonly<{ from: number }>) {
+  const positions = Array.from({ length: GROUP_SIZE }, (_, offset) => from + offset)
+  return (
+    <InputOTPGroup>
+      {positions.map((position) => (
+        <InputOTPSlot key={position} index={position} className="h-10 w-10 text-base" />
+      ))}
+    </InputOTPGroup>
   )
 }

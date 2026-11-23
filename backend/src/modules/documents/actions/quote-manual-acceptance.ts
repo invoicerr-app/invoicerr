@@ -3,7 +3,8 @@ import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
 import { MAX_ATTACHMENT_BYTES } from '../attachments/attachments.service';
-import { computeArtifactHash } from '../archive/hashing';
+import { ALLOWED_ATTACHMENT_MIMES } from '../attachments/content-disposition';
+import { computeArtifactHash, isContentHash } from '../archive/hashing';
 import {
   createManualAcceptanceArchive,
   findCurrentDeliveredVersion,
@@ -61,17 +62,12 @@ import { ActionRegistry } from './action-registry';
 const MAX_NOTE_LENGTH = 2000;
 
 /**
- * Issue #364 - what a proof of acceptance may be: a scan or a photo of the signed paper. Narrower than
- * `ALLOWED_ATTACHMENT_MIMES`, which also admits XML for imported originals.
+ * Issue #364 - what a proof of acceptance may be: a scan or a photo of the signed paper.
+ * `ALLOWED_ATTACHMENT_MIMES` without the XML it also admits for imported originals (same entries, same
+ * order: the refusal message below lists them).
  */
-const ACCEPTANCE_ATTACHMENT_MIMES: readonly string[] = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-];
+const PROOF_FILE_MIMES: readonly string[] = ALLOWED_ATTACHMENT_MIMES.filter((mime) => !mime.endsWith('/xml'));
 const MAX_ATTACHMENT_FILE_NAME_LENGTH = 255;
-const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 interface ResolvedAttachment {
   meta: ManualAcceptanceAttachmentMeta;
@@ -86,12 +82,12 @@ interface ResolvedAttachment {
 async function resolveAttachment(companyId: string, raw: unknown): Promise<ResolvedAttachment | undefined> {
   if (raw === undefined || raw === null) return undefined;
   const { fileRef, fileName, mime } = (typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  if (typeof fileRef !== 'string' || !SHA256_HEX.test(fileRef)) {
+  if (typeof fileRef !== 'string' || !isContentHash(fileRef)) {
     throw new BadRequestException('The attachment must be a file reference returned by the upload endpoint.');
   }
-  if (typeof mime !== 'string' || !ACCEPTANCE_ATTACHMENT_MIMES.includes(mime)) {
+  if (typeof mime !== 'string' || !PROOF_FILE_MIMES.includes(mime)) {
     throw new BadRequestException(
-      `Unsupported attachment type "${String(mime)}" - allowed: ${ACCEPTANCE_ATTACHMENT_MIMES.join(', ')}.`,
+      `Unsupported attachment type "${String(mime)}" - allowed: ${PROOF_FILE_MIMES.join(', ')}.`,
     );
   }
   const name = typeof fileName === 'string' ? fileName.trim() : '';
@@ -267,7 +263,5 @@ export function registerAcceptManuallyAction(registry: ActionRegistry): void {
   });
 }
 
-// Re-exported so this feature's own unit/archive tests can build a manifest by hand without
-// re-deriving the shape from the handler's own closure - same convention
-// `contributions/quote-contributions.ts`'s own bottom export follows for `quoteGrossTotal`.
-export { ACCEPTANCE_ATTACHMENT_MIMES, MAX_NOTE_LENGTH };
+// Exported so this feature's own spec can build a note just past the limit.
+export { MAX_NOTE_LENGTH };

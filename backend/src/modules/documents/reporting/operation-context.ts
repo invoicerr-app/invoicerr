@@ -10,7 +10,7 @@ import { guessCountryCode } from '@/utils/country-name-to-iso';
 
 import { resolveCompanyCountryCode, resolveCompanyProfile } from '../country-policy/country-policy';
 import { findOwnedDocument } from '../persistence';
-import { DeclarationOperation, LineNature } from './classify';
+import { DeclarationOperation, isFranchiseSeller, LineNature } from './classify';
 
 /** `ItemType` is the articles module's own enum; read as strings here so this file never depends on
  *  the generated Prisma enum's spelling. */
@@ -99,8 +99,7 @@ export async function loadDeclarationOperation(input: OperationContextInput): Pr
     buyerCountryCode: buyerCountryCode?.toUpperCase(),
     documentIssueDate: issueDateOf(data),
     companyProfile: companyProfile as Record<string, string>,
-    vatOnCollection:
-      companyProfile.vatRegime !== 'FRANCHISE' && companyProfile.vatDebitsOption !== 'EXERCISED',
+    vatOnCollection: !isFranchiseSeller(companyProfile) && companyProfile.vatDebitsOption !== 'EXERCISED',
     lineNatures,
     payment: input.payment,
   };
