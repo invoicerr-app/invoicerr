@@ -20,11 +20,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { deriveQuoteOptions } from "@/components/documents/quote-options"
 import { buildFileUploadForm, useRunDocumentAction, useUploadAttachment } from "@/hooks/queries"
 import { ApiError } from "@/hooks/use-api-query"
+import { ACCEPTANCE_ATTACHMENT_MAX_BYTES, ATTACHMENT_MIMES, toastUploadError } from "@/lib/attachment-rules"
 
-/** Issue #364 - what the backend accepts as a proof of acceptance (`ACCEPTANCE_ATTACHMENT_MIMES` in
- *  `actions/quote-manual-acceptance.ts`), checked here only to refuse early; the backend re-checks. */
-const ACCEPTANCE_ATTACHMENT_MIMES = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 const ATTACHMENT_INPUT_ID = "mark-quote-accepted-attachment"
 
 interface MarkQuoteAcceptedDialogProps {
@@ -108,11 +105,11 @@ export function MarkQuoteAcceptedDialog({
   const handlePickAttachment = (file: File | undefined) => {
     if (fileInputRef.current) fileInputRef.current.value = ""
     if (!file) return
-    if (!ACCEPTANCE_ATTACHMENT_MIMES.includes(file.type)) {
+    if (!ATTACHMENT_MIMES.includes(file.type)) {
       toast.error(t("documents.acceptance.attachmentUnsupportedType"))
       return
     }
-    if (file.size > MAX_ATTACHMENT_BYTES) {
+    if (file.size > ACCEPTANCE_ATTACHMENT_MAX_BYTES) {
       toast.error(t("documents.form.file.tooLarge"))
       return
     }
@@ -126,13 +123,7 @@ export function MarkQuoteAcceptedDialog({
     try {
       return await upload.mutateAsync(buildFileUploadForm(attachment))
     } catch (error) {
-      if (error instanceof ApiError && error.status === 413) {
-        toast.error(t("documents.form.file.tooLarge"))
-      } else {
-        toast.error(
-          error instanceof ApiError ? error.message : t("documents.acceptance.attachmentUploadFailed"),
-        )
-      }
+      toastUploadError(error, t, t("documents.acceptance.attachmentUploadFailed"))
       return null
     }
   }
@@ -239,7 +230,7 @@ export function MarkQuoteAcceptedDialog({
             ref={fileInputRef}
             id={ATTACHMENT_INPUT_ID}
             type="file"
-            accept={ACCEPTANCE_ATTACHMENT_MIMES.join(",")}
+            accept={ATTACHMENT_MIMES.join(",")}
             className="sr-only"
             aria-describedby={fieldHelpId(ATTACHMENT_INPUT_ID)}
             onChange={(event) => handlePickAttachment(event.target.files?.[0])}
