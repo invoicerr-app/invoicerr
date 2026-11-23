@@ -614,6 +614,22 @@ export function onEnterStatuses(numbering: DocumentTypeDescriptor['numbering']):
   return Array.isArray(numbering.onEnterStatus) ? numbering.onEnterStatus : [numbering.onEnterStatus];
 }
 
+/**
+ * The numbering flags `actions/async-send.ts`'s `runAsyncSendAction` takes, derived from the type's
+ * own `numbering` declaration instead of being retyped at every "send" call site: `numberOnEnqueue`
+ * holds when the type numbers on entering "sending", and `numberingOnlyFrom` is the descriptor's own
+ * `onlyFrom` (left `undefined` for a type that declares none - async-send tests `=== undefined`).
+ */
+export function asyncSendNumbering(descriptor: DocumentTypeDescriptor): {
+  numberOnEnqueue: boolean;
+  numberingOnlyFrom: string[] | undefined;
+} {
+  return {
+    numberOnEnqueue: onEnterStatuses(descriptor.numbering).includes('sending'),
+    numberingOnlyFrom: descriptor.numbering?.onlyFrom,
+  };
+}
+
 export interface DocumentActionDescriptor {
   id: string;
   label: string;

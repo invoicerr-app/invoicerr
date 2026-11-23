@@ -2,6 +2,7 @@ import { ClientsService } from '@/modules/clients/clients.service';
 import { MailService } from '@/mail/mail.service';
 
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
+import { asyncSendNumbering } from '../descriptors/types';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { DocumentEventPublisher } from '../queue/document-events';
 import { DocumentWebhookEmitter } from '../queue/document-webhooks';
@@ -82,7 +83,7 @@ export function registerQuoteActions(registry: ActionRegistry, deps: QuoteAction
       events: deps.events,
       // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
-      numberOnEnqueue: true, // quote.descriptor.ts: numbering.onEnterStatus === 'sending'
+      ...asyncSendNumbering(QUOTE_DESCRIPTOR),
       decrementsStock: QUOTE_DECREMENTS_STOCK,
       deliver: async ({ companyId: c, document }) => {
         // `params.recipient` is already validated (required, non-empty text) by

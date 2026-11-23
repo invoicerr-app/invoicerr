@@ -7,6 +7,7 @@ import { resolveCorrectionRoutesForCountry } from '../correction-routes/correcti
 import { buildCreditNoteDescriptor } from '../descriptors/credit-note.descriptor';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { lockedStatusConflict } from '../descriptors/lifecycle';
+import { asyncSendNumbering } from '../descriptors/types';
 import { resolveCreditNoteDeliverySource } from '../formats/credit-note-source';
 import { findOwnedDocument } from '../persistence';
 import { DocumentEventPublisher } from '../queue/document-events';
@@ -553,12 +554,11 @@ export function registerCreditNoteActions(registry: ActionRegistry, deps: Credit
       events: deps.events,
       // See async-send.ts's own `RunAsyncSendInput.webhooks` header.
       webhooks: deps.webhooks,
-      // credit-note.descriptor.ts: numbering.onEnterStatus === 'sending' (issue #471).
-      numberOnEnqueue: true,
-      // credit-note.descriptor.ts: numbering.onlyFrom === ['draft'] - never renumber a legacy credit
-      // note that reached "sending" from "send_failed" while still unnumbered (issued before this
-      // feature existed). See that field's own header (descriptors/types.ts) for the full "why".
-      numberingOnlyFrom: ['draft'],
+      // credit-note.descriptor.ts: numbering.onEnterStatus === 'sending' (issue #471), and
+      // numbering.onlyFrom === ['draft'] - never renumber a legacy credit note that reached "sending"
+      // from "send_failed" while still unnumbered (issued before this feature existed). See that
+      // field's own header (descriptors/types.ts) for the full "why".
+      ...asyncSendNumbering(CREDIT_NOTE_DESCRIPTOR),
       decrementsStock: CREDIT_NOTE_DECREMENTS_STOCK,
       // "send" (unlike every OTHER action) persists whatever `data` THIS
       // call submits as the record's new "sending" state (async-send.ts's own phase-1 `upsertDocument`

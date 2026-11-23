@@ -19,7 +19,15 @@ import {
   registerSaveDraftAction,
 } from './generic-actions';
 import { sendDocumentInstanceEmail } from './send-document-email';
-import { PURCHASE_ORDER_CANCELLABLE_FROM } from '../descriptors/purchase-order.descriptor';
+import {
+  buildPurchaseOrderDescriptor,
+  PURCHASE_ORDER_CANCELLABLE_FROM,
+} from '../descriptors/purchase-order.descriptor';
+import { asyncSendNumbering } from '../descriptors/types';
+
+/** Same direct-import model as quote-actions.ts's own `QUOTE_DESCRIPTOR` constant: computed once, so
+ *  the "send" numbering flags below are read off purchase-order.descriptor.ts, never retyped. */
+const PURCHASE_ORDER_DESCRIPTOR = buildPurchaseOrderDescriptor();
 
 export interface PurchaseOrderActionDeps {
   clientsService: ClientsService;
@@ -72,7 +80,7 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
       queueDispatcher: deps.queueDispatcher,
       events: deps.events,
       webhooks: deps.webhooks,
-      numberOnEnqueue: true, // purchase-order.descriptor.ts: numbering.onEnterStatus === 'sending'
+      ...asyncSendNumbering(PURCHASE_ORDER_DESCRIPTOR),
       deliver: async ({ companyId: c, document }) => {
         // See quote-actions.ts's own identical comment: `params.recipient` is already validated
         // (required, non-empty text) by DocumentsService.runAction before this closure ever runs.
