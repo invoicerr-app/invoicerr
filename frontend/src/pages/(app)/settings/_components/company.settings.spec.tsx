@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from "sonner"
+// The real session atom defers its window-listener cleanup by 1 s, which can fire after jsdom teardown.
+vi.mock("@/lib/auth", () => ({
+  authClient: { useSession: () => ({ data: null, isPending: false, refetch: vi.fn() }) },
+}))
 
 import CompanySettings from "./company.settings"
 
