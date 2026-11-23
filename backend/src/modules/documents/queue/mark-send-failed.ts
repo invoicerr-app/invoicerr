@@ -178,7 +178,6 @@ export async function markSendFailed(
     updated,
     {
       failureMessage: 'Failed to dispatch a DOCUMENT_SEND_FAILED webhook — the failure was still recorded',
-      documentId,
       extra: { error: error.message },
     },
   );

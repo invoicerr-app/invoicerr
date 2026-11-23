@@ -474,11 +474,6 @@ export class SignaturesService {
       updated,
       {
         failureMessage: 'Failed to dispatch a DOCUMENT_SIGNED webhook — the document was still signed',
-        documentId: row.documentId,
-        // Explicit, not left to the ambient context: signing happens on the `@Public()` signature
-        // route (no session, no active company) — `row.companyId`, resolved from the signature token
-        // itself, is the only company this request ever knows.
-        logCompanyId: true,
       },
     );
     return signed.signedAt ?? new Date();

@@ -1003,7 +1003,6 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
       document,
       {
         failureMessage: 'Failed to dispatch a DOCUMENT_CANCELLED webhook — the invoice was still cancelled',
-        documentId,
       },
     );
 

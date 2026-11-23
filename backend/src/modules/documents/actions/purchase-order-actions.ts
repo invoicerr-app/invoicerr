@@ -128,7 +128,6 @@ export function registerPurchaseOrderActions(registry: ActionRegistry, deps: Pur
       {
         failureMessage:
           'Failed to dispatch a DOCUMENT_CANCELLED webhook — the purchase order was still cancelled',
-        documentId,
       },
     );
 

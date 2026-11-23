@@ -61,7 +61,6 @@ export async function performSaveDraft(
       document,
       {
         failureMessage: 'Failed to dispatch a DOCUMENT_CREATED webhook — the document was still created',
-        documentId: document.id,
       },
     );
   }
@@ -140,7 +139,6 @@ export function registerDeleteAction(
       document,
       {
         failureMessage: 'Failed to dispatch a DOCUMENT_DELETED webhook — the document was still deleted',
-        documentId,
       },
     );
     return { changed: true, message: 'Deleted.' };
