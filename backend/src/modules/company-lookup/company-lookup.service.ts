@@ -31,7 +31,7 @@ const COMPANY_LOOKUP_TTL_MS = 'COMPANY_LOOKUP_TTL_MS';
 export const DEFAULT_LOOKUP_BUDGET_MS = 5000;
 
 /** Optional DI token for the budget (tests); otherwise the env var `COMPANY_LOOKUP_BUDGET_MS`, then the default. */
-export const COMPANY_LOOKUP_BUDGET_MS = 'COMPANY_LOOKUP_BUDGET_MS';
+const COMPANY_LOOKUP_BUDGET_MS = 'COMPANY_LOOKUP_BUDGET_MS';
 
 /** A positive integer from the env, or `undefined` (logged) so the default applies. */
 export function budgetFromEnv(raw: string | undefined, logger?: Pick<Logger, 'warn'>): number | undefined {
