@@ -1,7 +1,7 @@
 import { formatServerMessage } from '../messages/server-message';
 import { DocumentTypeDescriptor, DocumentFieldDescriptor } from '../descriptors/types';
 import { numberingDisplayState } from '../numbering/display-state';
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { decimalsFor, formatMinor } from '@/utils/financial';
 import type { PaymentMethodPresentation } from '../payment-methods/types';
 import type { DocumentTotals } from '../totals/compute-totals';
 import type { CompanyLawLine } from '../company-law/company-law';
@@ -226,12 +226,11 @@ function renderTotalsRows(
   totalLabelIncludesCommon = false,
 ): string {
   const currency = totals.currency || '—';
-  const decimals = decimalsFor(currency);
   const showVat = totals.showVat !== false;
 
   let html = '';
   if (showVat) {
-    const netDisplay = `${fromMinor(totals.netMinor, currency).toFixed(decimals)} ${currency}`;
+    const netDisplay = formatMinor(totals.netMinor, currency);
     html += `
       <div class="totals-row">
         <span>${escapeHtmlSafe(strings.net)}</span>
@@ -239,8 +238,8 @@ function renderTotalsRows(
       </div>
 `;
     for (const entry of totals.vatBreakdown) {
-      const baseDisplay = `${fromMinor(entry.baseMinor, currency).toFixed(decimals)} ${currency}`;
-      const vatDisplay = `${fromMinor(entry.vatMinor, currency).toFixed(decimals)} ${currency}`;
+      const baseDisplay = formatMinor(entry.baseMinor, currency);
+      const vatDisplay = formatMinor(entry.vatMinor, currency);
       html += `
       <div class="totals-row">
         <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
@@ -250,7 +249,7 @@ function renderTotalsRows(
     }
   }
 
-  const grossDisplay = `${fromMinor(totals.grossMinor, currency).toFixed(decimals)} ${currency}`;
+  const grossDisplay = formatMinor(totals.grossMinor, currency);
   const grossLabel = totalLabelIncludesCommon ? strings.totalIncludingCommonLines : strings.total;
   html += `
       <div class="totals-row summary">
@@ -286,11 +285,10 @@ function renderVatNationalCurrencyRows(
   strings: PdfChromeStrings,
 ): string {
   const { currency, vatMinor, taxableMinor, rate, rateAsOf } = vatNationalCurrency;
-  const decimals = decimalsFor(currency);
   let html = '';
 
   if (taxableMinor !== null) {
-    const taxableDisplay = `${fromMinor(taxableMinor, currency).toFixed(decimals)} ${currency}`;
+    const taxableDisplay = formatMinor(taxableMinor, currency);
     html += `
       <div class="totals-row totals-converted">
         <span>${escapeHtmlSafe(strings.taxableInNationalCurrency(currency))}</span>
@@ -299,7 +297,7 @@ function renderVatNationalCurrencyRows(
 `;
   }
 
-  const vatDisplay = `${fromMinor(vatMinor, currency).toFixed(decimals)} ${currency}`;
+  const vatDisplay = formatMinor(vatMinor, currency);
   html += `
       <div class="totals-row totals-converted">
         <span>${escapeHtmlSafe(strings.vatInNationalCurrency(currency))}</span>

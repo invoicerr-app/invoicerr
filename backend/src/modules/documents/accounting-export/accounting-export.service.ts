@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinorFixed } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../actions/action-registry';
 import { DATE_PARAM_PATTERN, dateValueInRange, dayMs, isValidIsoDay } from '../date-params';
@@ -66,13 +66,6 @@ function isoDatePart(value: unknown): string {
   if (typeof value === 'string') return value.slice(0, 10);
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return '';
-}
-
-/** Renders a minor-unit amount in MAJOR units, fixed to the currency's own decimal count — the ONE
- *  place this file ever touches `@/utils/financial`, so every amount column goes through the exact
- *  same rounding/decimals rule `describeSettlement` (`compute-settlement.ts`) already uses. */
-function formatMinor(minor: number, currency: string): string {
-  return fromMinor(minor, currency).toFixed(decimalsFor(currency));
 }
 
 /**
@@ -149,9 +142,9 @@ export async function buildAccountingExport(
       date: isoDatePart(resolved.data.issueDate),
       client: resolved.clientId ?? '', // resolved to a real label below, once every id is known
       currency,
-      net: formatMinor(resolved.totals.netMinor, currency),
-      vat: formatMinor(resolved.totals.vatMinor, currency),
-      gross: formatMinor(resolved.totals.grossMinor, currency),
+      net: formatMinorFixed(resolved.totals.netMinor, currency),
+      vat: formatMinorFixed(resolved.totals.vatMinor, currency),
+      gross: formatMinorFixed(resolved.totals.grossMinor, currency),
       paid: '',
       method: '',
       status: resolved.settlement.settled ? 'settled' : 'outstanding',
@@ -184,7 +177,7 @@ export async function buildAccountingExport(
       // `computeCreditedAmountMinor` header explains why NET/VAT never appears here separately).
       net: '',
       vat: '',
-      gross: formatMinor(credit.amountMinor, credit.currency),
+      gross: formatMinorFixed(credit.amountMinor, credit.currency),
       paid: '',
       method: '',
       // Always "settled" — a SENT credit note carries no independent balance of its own; see
@@ -227,7 +220,7 @@ export async function buildAccountingExport(
       net: '',
       vat: '',
       gross: '',
-      paid: formatMinor(payment.documentAmountMinor, documentCurrency),
+      paid: formatMinorFixed(payment.documentAmountMinor, documentCurrency),
       method: payment.method ?? '',
       // Blank, not "paid" — a payment is (per `compute-settlement.ts`'s own header) "a single complete
       // act", never a state that can itself be "settled" or "outstanding".

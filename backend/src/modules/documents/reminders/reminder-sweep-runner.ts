@@ -66,7 +66,7 @@ import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
 import { runWithCompanyId } from '@/lib/request-context';
 import prisma from '@/prisma/prisma.service';
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinor } from '@/utils/financial';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 import { wholeUtcDaysSince } from '../date-params';
@@ -242,8 +242,7 @@ export class ReminderSweepRunner {
       const recipient = client.contactEmail;
 
       const currency = typeof data.currency === 'string' ? data.currency : '';
-      const decimals = decimalsFor(currency);
-      const amountOutstanding = `${fromMinor(settlement.outstandingMinor, currency).toFixed(decimals)} ${currency}`;
+      const amountOutstanding = formatMinor(settlement.outstandingMinor, currency);
       // Per-recipient document language — the SAME resolution order a document's own PDF/send-email
       // uses (`rendering/language/resolve-recipient-language.ts`): the client's own `Client.language`
       // wins when set, else this company's own `Company.language`, else the shared default. A dunning

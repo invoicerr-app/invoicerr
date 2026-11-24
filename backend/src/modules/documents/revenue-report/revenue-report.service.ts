@@ -11,7 +11,7 @@ import { loadCurrencyContext } from '../contributions/currency-consolidation';
 import { isValidIsoDay } from '../date-params';
 import { listAllDocuments } from '../persistence';
 import { listPaymentsInRange } from '../settlement/payments';
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinorFixed } from '@/utils/financial';
 import { toCsvLine } from '@/utils/csv';
 import { buildCashedRevenuePeriods, CashedPaymentLike, CashedRevenuePeriod } from './cashed-revenue';
 
@@ -197,7 +197,7 @@ export function buildCashedRevenueCsv(report: CashedRevenueReport): string {
           period.dateFrom,
           period.dateTo,
           amount.currency,
-          fromMinor(amount.totalMinor, amount.currency).toFixed(decimalsFor(amount.currency)),
+          formatMinorFixed(amount.totalMinor, amount.currency),
           '',
           '',
         ]),
@@ -211,7 +211,7 @@ export function buildCashedRevenueCsv(report: CashedRevenueReport): string {
           period.dateFrom,
           period.dateTo,
           currency,
-          fromMinor(totalMinor, currency).toFixed(decimalsFor(currency)),
+          formatMinorFixed(totalMinor, currency),
           'yes',
           notes.join(' '),
         ]),

@@ -23,3 +23,15 @@ export function toMinor(amount: number, currency: string): number {
 export function fromMinor(minor: number, currency: string): number {
   return minor / 10 ** decimalsFor(currency);
 }
+
+/** A minor-unit amount in MAJOR units, fixed to the currency's own decimal count: `1234` EUR ->
+ *  `"12.34"`, `1234` JPY -> `"1234"`. The one rounding rule every rendered amount goes through. */
+export function formatMinorFixed(minor: number, currency: string): string {
+  return fromMinor(minor, currency).toFixed(decimalsFor(currency));
+}
+
+/** `formatMinorFixed` followed by the currency code as given (`"12.34 EUR"`), the same shape as the
+ *  frontend's own `formatMinor` (`totals-calculator.ts`). */
+export function formatMinor(minor: number, currency: string): string {
+  return `${formatMinorFixed(minor, currency)} ${currency}`;
+}

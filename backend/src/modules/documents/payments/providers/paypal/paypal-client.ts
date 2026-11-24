@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinorFixed } from '@/utils/financial';
 
 import {
   CreateCheckoutSessionInput,
@@ -121,7 +121,7 @@ export class RealPayPalClient implements PayPalClient {
     // PayPal, unlike Mollie's own fixed-two-decimals quirk, genuinely requires the currency's OWN
     // decimal precision (0 for JPY/HUF-style currencies, 2 for most, 3 for a handful) — the same
     // `decimalsFor()` this codebase's own `paypal.descriptor.ts` classic-link builder already uses.
-    const value = fromMinor(input.amountMinor, input.currency).toFixed(decimalsFor(input.currency));
+    const value = formatMinorFixed(input.amountMinor, input.currency);
 
     const response = await fetch(`${base}/v2/checkout/orders`, {
       method: 'POST',

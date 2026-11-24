@@ -1,4 +1,4 @@
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinorFixed } from '@/utils/financial';
 
 import { PaymentMethodDescriptor, PaymentMethodRenderContext, presentFromFields } from './types';
 
@@ -30,7 +30,7 @@ function buildPayPalLink(email: string, ctx: PaymentMethodRenderContext): string
   if (ctx.amountMinor === undefined || ctx.currency === undefined) return undefined;
   if (!(ctx.amountMinor > 0)) return undefined;
 
-  const amount = fromMinor(ctx.amountMinor, ctx.currency).toFixed(decimalsFor(ctx.currency));
+  const amount = formatMinorFixed(ctx.amountMinor, ctx.currency);
   const params = new URLSearchParams({
     cmd: '_xclick',
     business: email,
