@@ -1,5 +1,6 @@
 import { useApiMutation } from "@/hooks/use-api-query"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { responseErrorMessage } from "@/lib/download"
 
 /**
  * Backs the 'file' field kind (field-renderers/file-field.tsx) — a company-scoped, content-addressed
@@ -48,8 +49,7 @@ export async function downloadAttachment(fileRef: string, mime: string): Promise
     `/api/documents/attachments/${fileRef}?mime=${encodeURIComponent(mime)}`,
   )
   if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    throw new Error(body?.message || `HTTP ${response.status}`)
+    throw new Error(await responseErrorMessage(response))
   }
   return response.blob()
 }

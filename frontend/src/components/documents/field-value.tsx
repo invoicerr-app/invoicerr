@@ -7,6 +7,7 @@ import {
   type MultiTargetReferenceValue,
 } from "@/components/documents/types"
 import { downloadAttachment, useReferenceResolve } from "@/hooks/queries"
+import { openBlob } from "@/lib/download"
 
 interface ReferenceValueProps {
   field: DocumentFieldDescriptor
@@ -48,7 +49,7 @@ function AttachmentValue({ value }: AttachmentValueProps) {
   const handleOpen = async () => {
     try {
       const blob = await downloadAttachment(fileRef, mime)
-      window.open(URL.createObjectURL(blob), "_blank")
+      openBlob(blob)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("documents.list.fieldValue.attachmentError"))
     }
