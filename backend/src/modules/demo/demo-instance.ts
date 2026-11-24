@@ -1,7 +1,7 @@
 import { DEMO_ACCOUNT_EMAIL, DEMO_ACCOUNT_PASSWORD, isDemoModeEnabled } from './demo-flag';
 
 /** Set by the deployment to match the schedule of its own reset job, which the product does not run. */
-export const DEMO_RESET_INTERVAL_FLAG_NAME = 'DEMO_RESET_INTERVAL_HOURS';
+const DEMO_RESET_INTERVAL_FLAG_NAME = 'DEMO_RESET_INTERVAL_HOURS';
 const DEFAULT_RESET_INTERVAL_HOURS = 4;
 
 /** What a visitor is told about a demo instance before signing in. The password is public by design. */

@@ -29,7 +29,6 @@ export async function listArchiveBackupSources(): Promise<BackupSourceFile[]> {
   return listLocalAndS3Sources({
     root: archiveRoot(),
     keyPrefix: 'archive',
-    bucket: process.env.ARCHIVE_S3_BUCKET,
     s3EnvPrefix: 'ARCHIVE_S3',
     // A witness file written by `archive/storage.ts#checkArchiveStorageSharing`: operational
     // bookkeeping, not a document artifact (a fresh one lands under a new name on every boot).

@@ -39,7 +39,7 @@ export function isDemoModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean
  * hand-rolled password hash, see that script's own header) without also having to disable demo
  * mode's own sign-up refusal for every OTHER caller while it does.
  */
-export const DEMO_SEED_BYPASS_FLAG_NAME = 'DEMO_SEED_RUN';
+const DEMO_SEED_BYPASS_FLAG_NAME = 'DEMO_SEED_RUN';
 
 export function isDemoSeedBypassActive(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = (env[DEMO_SEED_BYPASS_FLAG_NAME] ?? '').trim().toLowerCase();

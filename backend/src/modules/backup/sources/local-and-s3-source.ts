@@ -22,9 +22,8 @@ export interface LocalAndS3SourceConfig {
   root: string;
   /** First segment of every backup object key (`archive`, `inbound`). */
   keyPrefix: string;
-  /** The store's bucket, or undefined when no bucket is configured (the S3 half is then skipped). */
-  bucket: string | undefined;
-  /** The env-var family whose credentials READ the store's bucket. */
+  /** The env-var family whose credentials READ the store's bucket. Its `_BUCKET` var names the bucket;
+   *  unset means no bucket is configured and the S3 half is skipped. */
   s3EnvPrefix: 'ARCHIVE_S3' | 'INBOUND_S3';
   /** Local file names that are not store content and must not be backed up. */
   skipLocalFile?: (name: string) => boolean;
@@ -69,7 +68,8 @@ function listLocalSources(config: LocalAndS3SourceConfig): BackupSourceFile[] {
 }
 
 async function listS3Sources(config: LocalAndS3SourceConfig): Promise<BackupSourceFile[]> {
-  const { bucket } = config;
+  // Read at call time, never at module load, so a test or a reconfigured env is honoured per run.
+  const bucket = process.env[`${config.s3EnvPrefix}_BUCKET`];
   if (!bucket) return [];
 
   const client = buildS3ClientFromEnv(config.s3EnvPrefix);

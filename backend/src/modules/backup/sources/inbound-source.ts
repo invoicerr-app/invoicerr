@@ -27,7 +27,6 @@ export async function listInboundBackupSources(): Promise<BackupSourceFile[]> {
   return listLocalAndS3Sources({
     root: inboundRoot(),
     keyPrefix: 'inbound',
-    bucket: process.env.INBOUND_S3_BUCKET,
     s3EnvPrefix: 'INBOUND_S3',
   });
 }

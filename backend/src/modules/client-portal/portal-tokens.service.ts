@@ -172,13 +172,6 @@ export class PortalTokensService {
     return { revoked: true };
   }
 
-  /** The frontend's own origin, the same `appOrigin()` every emailed link uses (never the backend's
-   *  own port; see `utils/app-origin.ts`). */
-  private buildPortalUrl(path: string): string {
-    const appUrl = appOrigin();
-    return `${appUrl}${path}`;
-  }
-
   private async tryEmailInvite(
     companyId: string,
     contactEmail: string | null,
@@ -187,7 +180,9 @@ export class PortalTokensService {
     language: RenderLanguage,
   ): Promise<PortalInviteEmailStatus> {
     if (!contactEmail) return 'no_contact_email';
-    const parts = buildPortalInviteEmail({ companyName, portalUrl: this.buildPortalUrl(path), language });
+    // The frontend's own origin, the same `appOrigin()` every emailed link uses (never the backend's
+    // own port; see `utils/app-origin.ts`).
+    const parts = buildPortalInviteEmail({ companyName, portalUrl: `${appOrigin()}${path}`, language });
     try {
       // The company → instance → named refusal cascade (`MailService#sendForCompany`) — a company with
       // its own mail server sends its portal invites through it, never the instance's, exactly like a
