@@ -28,6 +28,10 @@ export const EXCHANGERATE_API_SOURCE = 'exchangerate-api';
  *  `listCurrencyRatePairsWithoutAutomaticRate`, surfaced by the settings screen). */
 export const AUTOMATIC_RATE_SOURCES: ReadonlySet<string> = new Set([ECB_SOURCE, EXCHANGERATE_API_SOURCE]);
 
+/** The base every rate feed is fetched in, and the leg `computeCrossRate` crosses through. Both feeds
+ *  (ECB, open.er-api.com) are EUR-based; the fallback client requests and checks this same value. */
+export const RATE_PIVOT_CURRENCY = 'EUR';
+
 /** Default 24h: the ECB publishes once a business day, so sweeping more often only re-observes the same
  *  reference date at the cost of an HTTP call. Env-overridable. */
 export function readCurrencyRateSweepIntervalMs(): number {
@@ -48,12 +52,12 @@ export function readCurrencyRateSweepIntervalMs(): number {
 export function computeCrossRate(from: string, to: string, ecbRates: Map<string, number>): string | null {
   if (from === to) return '1';
 
-  if (from === 'EUR') {
+  if (from === RATE_PIVOT_CURRENCY) {
     const toRate = ecbRates.get(to);
     return toRate === undefined ? null : new Prisma.Decimal(toRate).toString();
   }
 
-  if (to === 'EUR') {
+  if (to === RATE_PIVOT_CURRENCY) {
     const fromRate = ecbRates.get(from);
     return fromRate === undefined ? null : new Prisma.Decimal(1).dividedBy(fromRate).toString();
   }
