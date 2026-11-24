@@ -37,7 +37,7 @@
  * only `dischargedBy: 'provider'` (its pre-existing, only-ever behaviour) and no `scope` at all,
  * because DL 198/2012 draws no category distinction — see `data/pt.json`'s own facts.
  */
-import { PolicyProvenance } from '../country-policy/schema';
+import { PolicyProvenance, ProvenanceMessages, provenanceProblem } from '../country-policy/schema';
 import { PartyType } from '../country-identifiers/schema';
 
 /**
@@ -222,6 +222,17 @@ export interface CountryReportingObligationFile {
 
 export class InvalidReportingObligationProvenanceError extends Error {}
 
+const REPORTING_PROVENANCE_MESSAGES: ProvenanceMessages = {
+  'no-kind': (context, label) =>
+    `${context}: ${label} has no valid provenance (kind must be "legal" or "unverified") — a ` +
+    'reporting obligation may never exist without saying where it came from.',
+  'legal-incomplete': (context, label) =>
+    `${context}: ${label} claims "legal" provenance but is missing sourceText and/or sourceCheckedAt.`,
+  'unverified-no-note': (context, label) =>
+    `${context}: ${label} is "unverified" but has no resolutionNote — an unverified fact must ` +
+    'say what would settle it.',
+};
+
 /**
  * `PolicyProvenance`'s own two-shape discipline (`legal` needs a citation, `unverified` needs a
  * resolution note, nothing else is valid) — factored out so it can gate BOTH a fact's own
@@ -233,29 +244,11 @@ export function assertValidProvenance(
   context: string,
   label: string,
 ): void {
-  const p = provenance as { kind?: unknown } | null | undefined;
-  if (!p || (p.kind !== 'legal' && p.kind !== 'unverified')) {
+  const problem = provenanceProblem(provenance);
+  if (problem) {
     throw new InvalidReportingObligationProvenanceError(
-      `${context}: ${label} has no valid provenance (kind must be "legal" or "unverified") — a ` +
-        'reporting obligation may never exist without saying where it came from.',
+      REPORTING_PROVENANCE_MESSAGES[problem](context, label),
     );
-  }
-  if (p.kind === 'legal') {
-    const legal = provenance as Extract<PolicyProvenance, { kind: 'legal' }>;
-    if (!legal.sourceText?.trim() || !legal.sourceCheckedAt?.trim()) {
-      throw new InvalidReportingObligationProvenanceError(
-        `${context}: ${label} claims "legal" provenance but is missing sourceText and/or ` +
-          'sourceCheckedAt.',
-      );
-    }
-  } else {
-    const unverified = provenance as Extract<PolicyProvenance, { kind: 'unverified' }>;
-    if (!unverified.resolutionNote?.trim()) {
-      throw new InvalidReportingObligationProvenanceError(
-        `${context}: ${label} is "unverified" but has no resolutionNote — an unverified fact must ` +
-          'say what would settle it.',
-      );
-    }
   }
 }
 

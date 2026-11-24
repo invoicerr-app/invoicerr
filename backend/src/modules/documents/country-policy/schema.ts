@@ -462,6 +462,39 @@ export function assertValidDocumentValidationCodeFact(
   );
 }
 
+/** What is wrong with a provenance, or `null` when it is valid: `legal` needs a citation and the date
+ *  it was checked, `unverified` needs a resolution note, nothing else is valid. The ONE validity rule
+ *  every catalogue's provenance gate applies (`operators/schema.ts`, `reporting/schema.ts` and
+ *  `assertValidPolicyProvenance` below); each gate keeps its own error class and its own messages. */
+export type ProvenanceProblem = 'no-kind' | 'legal-incomplete' | 'unverified-no-note';
+
+export function provenanceProblem(provenance: PolicyProvenance | null | undefined): ProvenanceProblem | null {
+  const candidate = provenance as { kind?: unknown } | null | undefined;
+  if (!candidate || (candidate.kind !== 'legal' && candidate.kind !== 'unverified')) return 'no-kind';
+  if (candidate.kind === 'legal') {
+    const legal = provenance as LegalProvenance;
+    if (!legal.sourceText?.trim() || !legal.sourceCheckedAt?.trim()) return 'legal-incomplete';
+    return null;
+  }
+  const unverified = provenance as UnverifiedProvenance;
+  if (!unverified.resolutionNote?.trim()) return 'unverified-no-note';
+  return null;
+}
+
+/** One message per `ProvenanceProblem`, built from the gate's own two labels. */
+export type ProvenanceMessages = Record<ProvenanceProblem, (context: string, label: string) => string>;
+
+const POLICY_PROVENANCE_MESSAGES: ProvenanceMessages = {
+  'no-kind': (factLabel, kindLabel) =>
+    `${factLabel} has no valid provenance (kind must be "legal" or "unverified") - ${kindLabel} may ` +
+    'never exist without saying where it came from.',
+  'legal-incomplete': (factLabel) =>
+    `${factLabel} claims "legal" provenance but is missing sourceText and/or sourceCheckedAt.`,
+  'unverified-no-note': (factLabel) =>
+    `${factLabel} is "unverified" but has no resolutionNote - an unverified fact must say what ` +
+    'would settle it.',
+};
+
 /** The actual check, shared by both provenance gates above - see each one's own header for why there
  *  are two thin callers rather than one function with two possible input shapes. */
 export function assertValidPolicyProvenance(
@@ -469,30 +502,9 @@ export function assertValidPolicyProvenance(
   factLabel: string,
   kindLabel: string,
 ): void {
-  const candidate = provenance as { kind?: unknown } | null | undefined;
-  if (!candidate || (candidate.kind !== 'legal' && candidate.kind !== 'unverified')) {
-    throw new InvalidPolicyProvenanceError(
-      `${factLabel} has no valid provenance (kind must be "legal" or "unverified") - ${kindLabel} may ` +
-        'never exist without saying where it came from.',
-    );
-  }
-
-  if (candidate.kind === 'legal') {
-    const legal = provenance as LegalProvenance;
-    if (!legal.sourceText?.trim() || !legal.sourceCheckedAt?.trim()) {
-      throw new InvalidPolicyProvenanceError(
-        `${factLabel} claims "legal" provenance but is missing sourceText and/or sourceCheckedAt.`,
-      );
-    }
-    return;
-  }
-
-  const unverified = provenance as UnverifiedProvenance;
-  if (!unverified.resolutionNote?.trim()) {
-    throw new InvalidPolicyProvenanceError(
-      `${factLabel} is "unverified" but has no resolutionNote - an unverified fact must say what ` +
-        'would settle it.',
-    );
+  const problem = provenanceProblem(provenance);
+  if (problem) {
+    throw new InvalidPolicyProvenanceError(POLICY_PROVENANCE_MESSAGES[problem](factLabel, kindLabel));
   }
 }
 

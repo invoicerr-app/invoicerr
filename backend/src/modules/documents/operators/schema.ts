@@ -57,7 +57,7 @@
  * own ("this named entity exists, at this domain, as described"), not a summary or an average of its
  * offerings' provenance kinds.
  */
-import { PolicyProvenance } from '../country-policy/schema';
+import { PolicyProvenance, ProvenanceMessages, provenanceProblem } from '../country-policy/schema';
 
 /** What an operator can actually DO once connected, for ONE offering - read, not guessed, from this
  *  repository's own transport code where one exists (a `conformity/pollers/` entry for
@@ -156,34 +156,25 @@ export interface OperatorFact {
 
 export class InvalidOperatorProvenanceError extends Error {}
 
+const OPERATOR_PROVENANCE_MESSAGES: ProvenanceMessages = {
+  'no-kind': (context, subject) =>
+    `${context}: ${subject} has no valid provenance (kind must be "legal" or "unverified") - a fact ` +
+    'may never exist without saying where it was read and when.',
+  'legal-incomplete': (context, subject) =>
+    `${context}: ${subject} claims "legal" provenance but is missing sourceText and/or sourceCheckedAt.`,
+  'unverified-no-note': (context, subject) =>
+    `${context}: ${subject} is "unverified" but has no resolutionNote - an unverified fact must ` +
+    'say what would settle it.',
+};
+
 function assertValidProvenance(
   provenance: PolicyProvenance | null | undefined,
   context: string,
   subject: string,
 ): void {
-  const kind = (provenance as { kind?: unknown } | null | undefined)?.kind;
-  if (!provenance || (kind !== 'legal' && kind !== 'unverified')) {
-    throw new InvalidOperatorProvenanceError(
-      `${context}: ${subject} has no valid provenance (kind must be "legal" or "unverified") - a fact ` +
-        'may never exist without saying where it was read and when.',
-    );
-  }
-  if (kind === 'legal') {
-    const legal = provenance as Extract<PolicyProvenance, { kind: 'legal' }>;
-    if (!legal.sourceText?.trim() || !legal.sourceCheckedAt?.trim()) {
-      throw new InvalidOperatorProvenanceError(
-        `${context}: ${subject} claims "legal" provenance but is missing sourceText and/or ` +
-          'sourceCheckedAt.',
-      );
-    }
-  } else {
-    const unverified = provenance as Extract<PolicyProvenance, { kind: 'unverified' }>;
-    if (!unverified.resolutionNote?.trim()) {
-      throw new InvalidOperatorProvenanceError(
-        `${context}: ${subject} is "unverified" but has no resolutionNote - an unverified fact must ` +
-          'say what would settle it.',
-      );
-    }
+  const problem = provenanceProblem(provenance);
+  if (problem) {
+    throw new InvalidOperatorProvenanceError(OPERATOR_PROVENANCE_MESSAGES[problem](context, subject));
   }
 }
 
