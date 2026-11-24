@@ -77,7 +77,7 @@ export async function listSchedules(companyId: string, typeId?: string): Promise
 /** 404s (never returns null) for the same reason ../persistence.ts's `findOwnedDocument` does: "this
  *  id doesn't exist" and "this id belongs to another company" must be indistinguishable from the
  *  outside. */
-export async function findOwnedSchedule(companyId: string, id: string): Promise<DocumentScheduleRecord> {
+async function findOwnedSchedule(companyId: string, id: string): Promise<DocumentScheduleRecord> {
   const schedule = await prisma.documentSchedule.findFirst({ where: { id, companyId } });
   if (!schedule) {
     throw new NotFoundException(`Schedule "${id}" not found.`);

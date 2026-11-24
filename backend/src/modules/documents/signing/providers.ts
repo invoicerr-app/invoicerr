@@ -1,5 +1,5 @@
 /**
- * Real cryptographic signing providers for XAdES, CAdES, PAdES, and the none pass-through — reprised
+ * Real cryptographic signing providers for XAdES, CAdES and PAdES - reprised
  * from the reference (`avant-refonte-documents`, `compliance/providers/signing/providers.ts`) almost
  * verbatim: xadesjs, node-forge, @signpdf, pkijs are ALL already dependencies (see backend/package.json
  * — no new dependency was added), and the crypto itself (RSA import, XML/PKCS#7/PDF signing,
@@ -512,19 +512,5 @@ export class PadesSigningProvider implements SigningProvider {
     });
     const signPdf = new SignPdf();
     return signPdf.sign(pdfWithPlaceholder, signer);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// None / pass-through provider
-// ---------------------------------------------------------------------------
-
-/** No-op signer for a company with no signing capability configured: a first-class provider for
- *  the `none` algorithm, kept beside XAdES and CAdES. No live flow builds it today (`sign-instance-pdf.ts`
- *  builds PAdES directly). */
-export class NoSigningProvider implements SigningProvider {
-  readonly algo: SignAlgo = 'none';
-  async sign(artifact: SigningArtifact): Promise<SignedArtifact> {
-    return { ...artifact };
   }
 }

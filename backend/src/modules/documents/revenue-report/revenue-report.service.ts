@@ -31,7 +31,7 @@ import { buildCashedRevenuePeriods, CashedPaymentLike, CashedRevenuePeriod } fro
  * single number this product could compute is authoritative across five different countries' rules.
  */
 
-export const CASHED_REVENUE_DISCLAIMER =
+const CASHED_REVENUE_DISCLAIMER =
   'This is an aid to help prepare a revenue declaration, not the official declaration itself. ' +
   'Verify every figure against your own accounting records and your local tax authority’s rules ' +
   'before filing.';
@@ -50,7 +50,7 @@ function parseGranularity(value: string | undefined, fallback: RevenuePeriod): R
   throw new BadRequestException('"granularity" must be "monthly" or "quarterly".');
 }
 
-/** `YYYY-MM-DD` of the first day of the current UTC month - the default window's own end anchor. */
+/** Today's `YYYY-MM-DD` (UTC) - the default window's own end anchor. */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }

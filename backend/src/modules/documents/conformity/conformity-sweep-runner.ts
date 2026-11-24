@@ -372,6 +372,5 @@ function latestEvent(events: RawAuthorityEvent[]): RawAuthorityEvent | undefined
 }
 
 /** Re-exported so a caller needing only the job-name constant doesn't have to reach into
- *  conformity-sweep.ts directly for it — same convenience `schedule-sweep-runner.ts` offers for
- *  `DocumentScheduleRecord`. */
+ *  conformity-sweep.ts directly for it. */
 export { CONFORMITY_POLL_JOB_NAME };

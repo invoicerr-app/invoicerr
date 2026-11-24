@@ -46,7 +46,7 @@ import { declarationSubjectKey, REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS
 export type DocumentEvent = 'issued' | 'sent' | 'payment';
 
 /** Which obligation triggers each document event fires. */
-export const TRIGGERS_FIRED_BY: Record<DocumentEvent, readonly ObligationTrigger[]> = {
+const TRIGGERS_FIRED_BY: Record<DocumentEvent, readonly ObligationTrigger[]> = {
   issued: ['issued'],
   sent: ['issued', 'sent'],
   payment: ['payment'],
