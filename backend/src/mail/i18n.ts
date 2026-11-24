@@ -39,7 +39,7 @@ import {
  * That plugin exists to load translation files LAZILY, on first use, from disk on every request — the
  * dynamic per-country catalogs in this codebase already prove that pattern is right for hundreds of
  * KB of rarely-touched legal data, but a mail catalog is read on every single send. Loading all six
- * (tiny) files once, synchronously, at module import time (`initImmediate: false` makes `.init()`
+ * (tiny) files once, synchronously, at module import time (`initAsync: false` makes `.init()`
  * resolve before this module finishes evaluating, so `mailT` never has to await anything) means
  * sending a mail is zero extra I/O, ever.
  */
@@ -77,8 +77,7 @@ function getInstance(): I18nInstance {
     // `escapeValue: false` — the frontend disables it because React already escapes text nodes on its
     // own; a mail body built by string concatenation has no such second safety net,
     // so an interpolated value (a client's name, an invoice number) must be escaped exactly once, HERE.
-    initImmediate: false,
-    showSupportNotice: false,
+    initAsync: false,
   });
 
   instance = created;
