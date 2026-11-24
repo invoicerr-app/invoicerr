@@ -6,7 +6,7 @@ import { BankStatementFormat, CompanyRole } from '../../../../prisma/generated/p
 import { DocumentsService } from '../documents.service';
 import { findOwnedDocument, findOwnedDocumentsByIds } from '../persistence';
 import { resolveOutstandingInvoices } from './candidate-invoices';
-import { CsvColumnMapping } from './csv-mapping';
+import { CSV_DATE_FORMATS, CSV_DECIMAL_SEPARATORS, CsvColumnMapping } from './csv-mapping';
 import { MatchCandidateInvoice, MatchSuggestion, suggestMatches } from './matching';
 import { ParsedStatementLine, parseBankStatementCsv } from './parse-csv';
 import { parseBankStatementOfx } from './parse-ofx';
@@ -24,8 +24,8 @@ import {
   releaseLineClaim,
 } from './persistence';
 
-const VALID_DATE_FORMATS = new Set(['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY']);
-const VALID_DECIMAL_SEPARATORS = new Set(['.', ',']);
+const VALID_DATE_FORMATS = new Set<string>(CSV_DATE_FORMATS);
+const VALID_DECIMAL_SEPARATORS = new Set<string>(CSV_DECIMAL_SEPARATORS);
 
 /** Every field of `CsvColumnMapping` a scripted client could get wrong — checked EXPLICITLY, never
  *  left to fall through to a silent default: an unrecognized `dateFormat` must be a NAMED 400, not a

@@ -1,6 +1,6 @@
 import { toMinor } from '@/utils/financial';
 
-import { CsvColumnMapping, CsvDateFormat } from './csv-mapping';
+import { CsvColumnMapping, CsvDateFormat, CsvDecimalSeparator } from './csv-mapping';
 
 /**
  * Reads a CSV bank statement into plain, normalized lines — the READ-side counterpart to
@@ -133,7 +133,7 @@ export const MAX_STATEMENT_AMOUNT_MINOR = 2_147_483_647;
 export const MAX_STATEMENT_ROWS = 50_000;
 export const MAX_STATEMENT_LINE_LENGTH = 20_000;
 
-function parseCsvAmount(raw: string, decimalSeparator: '.' | ','): number {
+function parseCsvAmount(raw: string, decimalSeparator: CsvDecimalSeparator): number {
   const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
   const stripped = raw
     .trim()
