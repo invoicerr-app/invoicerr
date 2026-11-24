@@ -36,6 +36,7 @@
  * no invoice yet, are all real, permanently-unmatched rows — see this module's own
  * `BankStatementLineStatus.UNMATCHED` schema comment).
  */
+import { utcDayMs } from '../date-params';
 
 export type MatchReason = 'reference' | 'date-window';
 
@@ -88,19 +89,15 @@ function referenceAppears(candidate: MatchCandidateInvoice, line: BankLineForMat
   return [line.label, line.reference ?? ''].some((haystack) => normalize(haystack).includes(needle));
 }
 
-function toUtcDayMs(date: Date): number {
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-}
-
 function withinDateWindow(candidate: MatchCandidateInvoice, line: BankLineForMatching): boolean {
   const issue = candidate.issueDate ? new Date(candidate.issueDate) : null;
   const due = candidate.dueDate ? new Date(candidate.dueDate) : null;
   if (!issue && !due) return false; // an honest "cannot judge" — never a guessed window.
 
-  const lineDayMs = toUtcDayMs(line.date);
-  const earliestMs = issue ? toUtcDayMs(issue) - DAYS_BEFORE_ISSUE * MS_PER_DAY : -Infinity;
+  const lineDayMs = utcDayMs(line.date);
+  const earliestMs = issue ? utcDayMs(issue) - DAYS_BEFORE_ISSUE * MS_PER_DAY : -Infinity;
   const anchorForLatest = due ?? issue!;
-  const latestMs = toUtcDayMs(anchorForLatest) + DAYS_AFTER_DUE * MS_PER_DAY;
+  const latestMs = utcDayMs(anchorForLatest) + DAYS_AFTER_DUE * MS_PER_DAY;
   return lineDayMs >= earliestMs && lineDayMs <= latestMs;
 }
 

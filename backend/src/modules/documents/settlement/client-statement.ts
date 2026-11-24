@@ -1,3 +1,4 @@
+import { wholeUtcDaysSince } from '../date-params';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listAllDocuments } from '../persistence';
 import { listCreditNotes } from './credits';
@@ -127,14 +128,8 @@ function zeroTotals(currency: string): ClientStatementCurrencyTotals {
  *  - otherwise         -> '60+'       (more than 60 days late)
  */
 export function resolveAgingBucket(dueDate: string | null | undefined, asOf: Date): AgingBucketKey {
-  if (!dueDate) return 'current';
-  const due = new Date(dueDate);
-  if (Number.isNaN(due.getTime())) return 'current';
-
-  const dueUtcMs = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate());
-  const asOfUtcMs = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());
-  const daysOverdue = Math.floor((asOfUtcMs - dueUtcMs) / 86_400_000);
-
+  const daysOverdue = wholeUtcDaysSince(dueDate, asOf);
+  if (daysOverdue === null) return 'current';
   if (daysOverdue < 0) return 'current';
   if (daysOverdue <= 30) return '0-30';
   if (daysOverdue <= 60) return '31-60';
