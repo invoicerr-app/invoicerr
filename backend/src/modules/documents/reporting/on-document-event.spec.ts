@@ -12,7 +12,7 @@ import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } fro
 import { ObligationTrigger, ReportingObligation } from './obligation-v2';
 import { DocumentEvent, reportOnDocumentEvent } from './on-document-event';
 import * as operationContext from './operation-context';
-import { REPORT_BLOCKED_STATUS_CODE } from './report-job';
+import { REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS_CODE } from './report-job';
 
 vi.mock('../country-policy/country-policy');
 vi.mock('../conformity/authority-events.persistence');
@@ -136,6 +136,59 @@ describe('reportOnDocumentEvent', () => {
       ),
     ).resolves.toBeUndefined();
     expect(enqueueReport).not.toHaveBeenCalled();
+  });
+
+  // A later payment on the same invoice is another declaration: each journal entry is keyed by the
+  // payment's own id, never the invoice's.
+  it('a "payment" event whose enqueue fails journals report:failed under that payment', async () => {
+    mockedLoadOperation.mockResolvedValue({ ...invoiceOperation, kind: 'payment', payment });
+    const enqueueReport = vi.fn().mockRejectedValue(new Error('redis down'));
+    await reportOnDocumentEvent(
+      {
+        event: 'payment',
+        companyId: 'company-1',
+        typeId: 'invoice',
+        documentId: 'doc-1',
+        queueDispatcher: { enqueueAction: vi.fn(), enqueueReport },
+        payment,
+      },
+      catalogOf(obligation('payment')),
+    );
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'zz-payment-api',
+      REPORT_FAILED_STATUS_CODE,
+      expect.stringContaining('redis down'),
+      undefined,
+      'pay-1',
+    );
+  });
+
+  it('an undetermined "payment" obligation journals report:blocked under that payment', async () => {
+    mockedLoadOperation.mockResolvedValue({
+      ...invoiceOperation,
+      kind: 'payment',
+      payment,
+      buyerType: undefined,
+    });
+    const scoped = obligation('payment', {
+      scope: {
+        documentTypes: ['invoice'],
+        transactions: [{ transactions: 'payments', vatOnCollection: true }],
+      },
+    });
+    const enqueueReport = await fire('payment', catalogOf(scoped));
+    expect(enqueueReport).not.toHaveBeenCalled();
+    expect(mockedJournalSynthetic).toHaveBeenCalledWith(
+      'company-1',
+      'doc-1',
+      'zz-payment-api',
+      REPORT_BLOCKED_STATUS_CODE,
+      expect.any(String),
+      undefined,
+      'pay-1',
+    );
   });
 
   it('an "issued" event whose operation lacks the buyer type journals report:blocked, never a guess', async () => {

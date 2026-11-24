@@ -44,8 +44,8 @@ export type ObligationKind = 'data' | 'summary' | 'return';
 
 /**
  * What makes the obligation due. `sent` is the only trigger the legacy shape knew (every legacy
- * fact fired from `report-on-send.ts`), `payment` is the legacy `payments` scope
- * (`report-payment.ts`); `issued` is fired by the "validate" action and by every send
+ * fact fired from `report-on-send.ts`), `payment` is the legacy `payments` scope (the
+ * "record-payment" action); `issued` is fired by the "validate" action and by every send
  * (`on-document-event.ts`, #768); `period-end` is read by nothing yet (#770).
  */
 export type ObligationTrigger = 'issued' | 'sent' | 'payment' | 'period-end';

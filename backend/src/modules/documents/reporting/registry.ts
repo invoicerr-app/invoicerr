@@ -91,8 +91,8 @@ export class ReportingObligationCatalog {
    */
   /**
    * Every fact of `appliesTo`'s type this mechanism could DECLARE (provider-discharged, scoped or
-   * not), in file order. `report-on-send.ts` and `report-payment.ts` run each through
-   * `classify.ts` and enqueue the first one that covers the operation; an unscoped fact (Portugal)
+   * not), in file order. `on-document-event.ts` runs each through
+   * `classify.ts` and enqueues the first one that covers the operation; an unscoped fact (Portugal)
    * still classifies as `in` for every document, so its behaviour is unchanged.
    *
    * `obligationFor` below keeps its narrower pre-classifier contract: the answer to "is there one

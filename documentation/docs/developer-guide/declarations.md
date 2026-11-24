@@ -172,7 +172,7 @@ interface DeclarationProvider {
 ```
 
 - `DeclaredInvoice` and `DeclaredPayment` are built once (`build-declared-invoice.ts`,
-  `report-payment.ts`) from the computed totals. A provider never recomputes a figure.
+  `reporting-runner.ts`) from the computed totals. A provider never recomputes a figure.
 - `declarePayment` is optional. When a country asks for payment data and the provider cannot declare
   it, the runner journals `report:blocked`; it never treats the payment as declared.
 - `ChannelNotConnectedError` means no usable credentials: journaled `report:blocked`, never retried.
