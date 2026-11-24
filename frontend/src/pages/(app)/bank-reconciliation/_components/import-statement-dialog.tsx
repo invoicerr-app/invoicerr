@@ -33,9 +33,7 @@ import type {
  *  authoritatively once submitted, so a mismatch here costs nothing beyond a confusing preview, never
  *  a wrong import. The delimiter rule itself is `lib/csv-parse.ts#detectDelimiter`. */
 function splitHeaderRow(line: string): string[] {
-  const commas = (line.match(/,/g) ?? []).length
-  const semicolons = (line.match(/;/g) ?? []).length
-  const delimiter = semicolons > commas ? ";" : ","
+  const delimiter = detectDelimiter(line)
   return line.split(delimiter).map((header) => header.trim().replace(/^"|"$/g, ""))
 }
 
