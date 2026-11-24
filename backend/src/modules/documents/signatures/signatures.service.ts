@@ -1,5 +1,12 @@
 import { appOrigin } from '@/utils/app-origin';
-import { BadRequestException, ConflictException, HttpException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/prisma/client';
 
@@ -244,7 +251,11 @@ export class SignaturesService {
    *  invalid/locked/signed token refuses here exactly like it does everywhere else in this class. */
   async resolvePublicSignature(token: string): Promise<PublicSignatureView> {
     const row = await this.resolveActiveOrThrow(token);
-    const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch(() => null);
+    const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId).catch((error) => {
+      // Only a deleted document reads as changed; a failing database must surface as an error.
+      if (error instanceof NotFoundException) return null;
+      throw error;
+    });
     const changed = !document || !(await isBoundVersionCurrent(row, document.data));
     // Issue #477: the BOUND data, never `document.data` - see `PublicSignatureView.options`.
     const data = (row.documentData ?? {}) as Record<string, unknown>;
