@@ -1,10 +1,6 @@
-import {
-  canReadDocumentType,
-  canWriteDocumentType,
-  DOCUMENT_READ_SCOPES,
-  DOCUMENT_WRITE_SCOPES,
-  scopeForDocumentType,
-} from './scope-mapping';
+import { DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from '@/utils/scope-check';
+
+import { canReadDocumentType, canWriteDocumentType } from './scope-mapping';
 
 describe('scope-mapping', () => {
   it('computes the pluralised scope for every shipped document type', () => {

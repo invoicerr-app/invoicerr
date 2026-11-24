@@ -35,9 +35,9 @@
  * naming it there (a one-line, type-checked change) to extend both the registration gate and the
  * per-call gate to it; nothing in THIS file is ever edited by hand for a new document type.
  *
- * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`/`scopeForDocumentType` themselves now live in
- * `utils/scope-check.ts` (re-exported below, unchanged, for every existing import site in this
- * module) — `documents.controller.ts`'s own `@RequiresDocumentTypeScope` needs the EXACT same
+ * `DOCUMENT_READ_SCOPES`/`DOCUMENT_WRITE_SCOPES`/`scopeForDocumentType` themselves live in
+ * `utils/scope-check.ts`, imported from there by every caller, this module included:
+ * `documents.controller.ts`'s own `@RequiresDocumentTypeScope` needs the EXACT same
  * per-typeId computation this MCP layer pioneered, and a REST controller has no business importing
  * from the `mcp/` module to get it (the dependency belongs the other way around).
  */
@@ -45,11 +45,10 @@ import { ApiKeyScope } from '@/modules/api-keys/scopes';
 import {
   DOCUMENT_READ_SCOPES,
   DOCUMENT_WRITE_SCOPES,
+  documentTypeScopeName,
   hasScope,
   scopeForDocumentType,
 } from '@/utils/scope-check';
-
-export { DOCUMENT_READ_SCOPES, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from '@/utils/scope-check';
 
 /** Call-time predicate for a READ operation on `typeId` — granted by EITHER the read OR the write
  *  scope for that type (a key allowed to WRITE a document type can certainly read it back). Used by
@@ -66,13 +65,13 @@ export const ANY_DOCUMENT_SCOPE: readonly ApiKeyScope[] = [...DOCUMENT_READ_SCOP
 
 /**
  * Step 2 for a READ tool: throws unless `canReadDocumentType` grants `typeId`. The message names the
- * read scope to grant (falling back to the pluralised id for a type `API_KEY_SCOPES` does not declare)
- * and ends with `purpose`, the one part each tool words for itself ("read it", "list its documents",
- * "create a share link for it").
+ * read scope to grant (`documentTypeScopeName`, so the pluralised id even for a type `API_KEY_SCOPES`
+ * does not declare) and ends with `purpose`, the one part each tool words for itself ("read it",
+ * "list its documents", "create a share link for it").
  */
 export function assertCanReadDocumentType(scopes: string[] | null, typeId: string, purpose: string): void {
   if (canReadDocumentType(scopes, typeId)) return;
-  const required = scopeForDocumentType(typeId, 'read') ?? `${typeId}s:read`;
+  const required = documentTypeScopeName(typeId, 'read');
   throw new Error(
     `This API key's scopes do not cover document type "${typeId}" — grant "${required}" ` +
       `(or its write equivalent) to ${purpose}.`,
@@ -84,4 +83,16 @@ export function assertCanReadDocumentType(scopes: string[] | null, typeId: strin
 export function canWriteDocumentType(scopes: string[] | null, typeId: string): boolean {
   const write = scopeForDocumentType(typeId, 'write');
   return !!write && hasScope({ scopes }, write);
+}
+
+/** Step 2 for `run_document_action`: throws unless `canWriteDocumentType` grants `typeId`, naming the
+ *  write scope to grant (`documentTypeScopeName`, declared or not), the write counterpart of
+ *  `assertCanReadDocumentType` above. */
+export function assertCanWriteDocumentType(scopes: string[] | null, typeId: string): void {
+  if (canWriteDocumentType(scopes, typeId)) return;
+  const required = documentTypeScopeName(typeId, 'write');
+  throw new Error(
+    `This API key's scopes do not include "${required}" — required to run actions on document ` +
+      `type "${typeId}".`,
+  );
 }

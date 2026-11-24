@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import { hasAnyScope } from '@/utils/scope-check';
+import { DOCUMENT_WRITE_SCOPES, hasAnyScope } from '@/utils/scope-check';
 
-import { canWriteDocumentType, DOCUMENT_WRITE_SCOPES, scopeForDocumentType } from './scope-mapping';
+import { assertCanWriteDocumentType } from './scope-mapping';
 import { ToolDescriptor } from './types';
 
 const inputSchema = {
@@ -57,13 +57,7 @@ export const runDocumentActionTool: ToolDescriptor<typeof inputSchema> = {
   isRegistered: (scopes) => hasAnyScope({ scopes }, DOCUMENT_WRITE_SCOPES),
   inputSchema,
   handler: async (ctx, input) => {
-    if (!canWriteDocumentType(ctx.scopes, input.typeId)) {
-      const required = scopeForDocumentType(input.typeId, 'write') ?? `${input.typeId}s:write`;
-      throw new Error(
-        `This API key's scopes do not include "${required}" — required to run actions on document ` +
-          `type "${input.typeId}".`,
-      );
-    }
+    assertCanWriteDocumentType(ctx.scopes, input.typeId);
 
     const result = await ctx.services.documentsService.runAction(
       ctx.companyId,
