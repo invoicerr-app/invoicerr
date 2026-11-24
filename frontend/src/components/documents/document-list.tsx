@@ -31,6 +31,7 @@ import {
   createBlockedReasons,
   extraActionGates,
   isOfferedOnRecord,
+  isRowOrDetailAction,
   presentActions,
   RECORD_PAYMENT_ACTION_ID,
   transitionHint,
@@ -317,23 +318,15 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
   // quote.descriptor.ts's own comment on why) from also being a button a human could click a
   // second time mid-flight and race the queue.
   const isProcessing = instance.status === "sending"
-  // "cancel" — same reasoning as "download-xml"/"share-link" right above: declared on the descriptor
-  // purely for the backend's own country-policy/status gates (cancel-policy.ts,
-  // invoice.descriptor.ts), but its ONE entry point is the correction-routes dialog
-  // (custom/invoice-correction-routes-button.tsx) — never a second, generic "Cancel" entry next to
-  // it. An irreversible action gets ONE clearly-labelled door, not two.
+  // "cancel" and "accept-manually" join "download-xml"/"share-link" right above: each has its own
+  // dedicated entry (the correction-routes dialog, the detail page's confirmation dialog), never a
+  // second, generic row entry - see `isRowOrDetailAction` in action-presentation.ts for the reason
+  // behind each one, shared with `use-document-form.ts`'s own filter.
   const availableActions = isProcessing
     ? []
     : descriptor.actions.filter(
         (action) =>
-          action.id !== "download-xml" &&
-          action.id !== "share-link" &&
-          action.id !== "cancel" &&
-          // "accept-manually" (issue #421) - same reasoning `use-document-form.ts` spells out for the
-          // detail page: it needs its own dedicated confirmation dialog (required note, an explicit
-          // "not an electronic signature" warning), which the row cluster does not offer. Marking a
-          // quote accepted is a detail-page action, not a one-click row action.
-          action.id !== "accept-manually" &&
+          isRowOrDetailAction(action) &&
           isOfferedOnRecord(action, instance.displayNumber) &&
           isActionAvailable(action, instance.status),
       )
@@ -651,7 +644,7 @@ function DocumentListRow({ descriptor, instance, amount, onOpen, onActionSuccess
   const { t } = useTranslation()
   // Same generic gate use-document-form.ts's own settlement section uses: shown once "record-payment"
   // is actually OFFERED for this record's current status — never by naming a document type.
-  const recordPaymentAction = descriptor.actions.find((action) => action.id === "record-payment")
+  const recordPaymentAction = descriptor.actions.find((action) => action.id === RECORD_PAYMENT_ACTION_ID)
   const showSettlementBadge = !!recordPaymentAction && isActionAvailable(recordPaymentAction, instance.status)
 
   return (

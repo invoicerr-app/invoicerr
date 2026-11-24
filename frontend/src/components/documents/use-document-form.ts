@@ -6,7 +6,11 @@ import { dropEmptyRows } from "@/components/documents/empty-rows"
 import { buildZodSchema, defaultValuesFor } from "@/components/documents/schema"
 import type { DocumentInstance, DocumentTypeDescriptor } from "@/components/documents/types"
 import type { ServerMessage } from "@/lib/server-message"
-import { isOfferedOnRecord } from "@/components/documents/action-presentation"
+import {
+  isOfferedOnRecord,
+  isRowOrDetailAction,
+  RECORD_PAYMENT_ACTION_ID,
+} from "@/components/documents/action-presentation"
 import { isActionAvailable } from "@/components/documents/types"
 import { useDueDateDefault } from "@/components/documents/use-due-date-default"
 import { useDocumentActionRunner } from "@/components/documents/use-document-action-runner"
@@ -346,23 +350,13 @@ export function useDocumentForm({
   // carry a `policyBlockedReason` (see types.ts), in which case it stays ON SCREEN — rendered
   // disabled with the reason spelled out — rather than disappearing. A vanished button looks like a
   // missing feature; a disabled one with a reason looks like a rule, which is what it is.
-  // "cancel" is EXCLUDED here too, same reasoning as document-list.tsx's own
-  // row-level filter: its one entry point is the correction-routes dialog (custom/invoice-correction-
-  // routes-button.tsx, with its own irreversibility confirmation), never a second generic button.
-  // "download-xml" and "share-link" are excluded for the reason document-list.tsx spells out on its
-  // own row cluster: both are declared for the status/policy gates only, and neither is a POST
-  // through `runAction` (a plain GET, a REST resource) - the detail page offers them through their
-  // own dedicated entries instead (document-detail.tsx). "accept-manually" (issue #421) joins them
-  // for a DIFFERENT reason: it IS a POST through `runAction`, but the generic `ActionParamsDialog`
-  // cannot enforce a required, non-empty note or carry this action's own "this is not an electronic
-  // signature" warning (see `mark-quote-accepted-dialog.tsx`'s own header) - the detail page offers
-  // it through that dedicated dialog instead.
+  // "cancel", "download-xml", "share-link" and "accept-manually" are EXCLUDED here too: each has its
+  // own dedicated entry instead of a generic button - see `isRowOrDetailAction` in
+  // action-presentation.ts for the reason behind each one, shared with document-list.tsx's own
+  // row-level filter.
   const availableActions = descriptor.actions.filter(
     (action) =>
-      action.id !== "cancel" &&
-      action.id !== "download-xml" &&
-      action.id !== "share-link" &&
-      action.id !== "accept-manually" &&
+      isRowOrDetailAction(action) &&
       isOfferedOnRecord(action, currentDisplayNumber) &&
       isActionAvailable(action, currentStatus),
   )
@@ -372,7 +366,7 @@ export function useDocumentForm({
   // never by naming a type. A brand-new, never-saved record (no `currentDocumentId` yet) has nothing
   // to show here either way: there is no instance to fetch a settlement FOR.
   const showSettlement =
-    !!currentDocumentId && availableActions.some((action) => action.id === "record-payment")
+    !!currentDocumentId && availableActions.some((action) => action.id === RECORD_PAYMENT_ACTION_ID)
 
   return {
     form,
