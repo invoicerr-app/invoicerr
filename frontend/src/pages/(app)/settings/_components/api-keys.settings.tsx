@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { MultiSelect } from "@/components/ui/multi-select"
-import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
+import { apiUrl, authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useDemoMode } from "@/hooks/queries"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -78,8 +78,7 @@ export default function ApiKeysSettings() {
 
   const handleDelete = async (id: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/api-keys/${id}`, { method: "DELETE" })
+      const res = await authenticatedFetch(`/api/api-keys/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error(`DELETE /api/api-keys/${id} failed: ${res.status}`)
       mutate()
     } catch {
@@ -104,7 +103,7 @@ export default function ApiKeysSettings() {
       description={t("settings.apiKeys.description")}
       actions={
         <a
-          href={`${import.meta.env.VITE_BACKEND_URL || ""}/api/docs`}
+          href={apiUrl("/api/docs")}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

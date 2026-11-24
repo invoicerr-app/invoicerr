@@ -12,7 +12,7 @@ import { FieldLabel, fieldHelpId } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCompanies } from "@/hooks/queries"
-import { useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
+import { apiUrl, useGet, usePost, usePut, useDelete } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { copyToClipboard } from "@/lib/clipboard"
 import type { Company } from "@/types"
@@ -234,9 +234,8 @@ function PaymentProviderCard({
   const [environment, setEnvironment] = useState<ChannelEnvironment>("TEST")
   const [values, setValues] = useState<Record<string, string>>({})
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
   const webhookUrl = activeCompanyId
-    ? `${backendUrl}/api/public/payments/${provider.id}/${activeCompanyId}/webhook`
+    ? apiUrl(`/api/public/payments/${provider.id}/${activeCompanyId}/webhook`)
     : ""
 
   const { trigger: upsert, loading: connecting } = useMutationWithToast(

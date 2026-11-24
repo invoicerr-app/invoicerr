@@ -7,11 +7,19 @@ type UseGetResult<T> = {
   mutate: () => void
 }
 
+/**
+ * The backend URL for an API path: `VITE_BACKEND_URL` prepended unless `path` is already absolute.
+ * The one place that rule lives, so `authenticatedFetch` (and everything built on it, `apiFetch`
+ * included) prefixes exactly once and a caller passes the bare `/api/...` path. Reads
+ * `import.meta.env` (build time), not `getEnvVariable`, on purpose: that is what every copy this
+ * replaced read, and switching would change which value the app talks to.
+ */
+export function apiUrl(path: string): string {
+  return path.startsWith("http") ? path : `${import.meta.env.VITE_BACKEND_URL || ""}${path}`
+}
+
 export async function authenticatedFetch(input: RequestInfo, init: RequestInit = {}): Promise<Response> {
-  const fullUrl =
-    typeof input === "string" && !input.startsWith("http")
-      ? `${import.meta.env.VITE_BACKEND_URL || ""}${input}`
-      : input
+  const fullUrl = typeof input === "string" ? apiUrl(input) : input
 
   // A `FormData` body (a multipart file upload — see hooks/queries/use-attachments.ts and
   // use-received-invoices.ts) must never carry an explicit "Content-Type: application/json" header:
@@ -56,9 +64,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
       return
     }
 
-    const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
-
-    authenticatedFetch(fullUrl, {
+    authenticatedFetch(url, {
       ...options,
       method: "GET",
     })
@@ -128,7 +134,7 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
     function connect() {
       if (stoppedRef.current) return
 
-      const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
+      const fullUrl = apiUrl(url)
       // A manually re-created EventSource — unlike the browser's OWN internal auto-reconnect, which
       // this hook deliberately bypasses below — starts with no `Last-Event-ID` request header of its
       // own: a plain EventSource accepts no custom headers at all, so a query param is the only
@@ -263,8 +269,6 @@ function createMethodHook(method: string) {
       setError(null)
       lastError.current = null
 
-      const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
-
       try {
         const rawBody = body !== undefined ? body : options.body
         // Objects are serialized to JSON; a body already in a wire-ready shape (FormData, string,
@@ -279,7 +283,7 @@ function createMethodHook(method: string) {
         // until the first caller actually passed either, then a duplicate-key footgun with no error at
         // all: the LATER `...options`/`...extraOptions` spread simply overwrote the correct headers
         // and body with the raw, unmerged ones.
-        const res = await authenticatedFetch(fullUrl, {
+        const res = await authenticatedFetch(url, {
           ...options,
           ...extraOptions,
           method,

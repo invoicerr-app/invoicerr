@@ -30,8 +30,7 @@ export function apiErrorCode(error: unknown): string | undefined {
  *  'reference' field searching across every entity it allows — see useMultiEntityReferenceSearch)
  *  can build each one with `useQueries` instead of duplicating this fetch/error-shape logic. */
 export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
-  const res = await authenticatedFetch(fullUrl, init)
+  const res = await authenticatedFetch(url, init)
   if (!res.ok) {
     // Nest exceptions (NotFoundException, ConflictException, NotImplementedException, ...) reply
     // with a JSON body carrying a human-readable `message` — surfacing it is what turns "an action

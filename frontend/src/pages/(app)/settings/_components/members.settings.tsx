@@ -33,8 +33,7 @@ export default function MembersSettings() {
 
   const changeMemberRole = async (userId: string, role: CompanyRole) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/companies/members/${userId}`, {
+      const res = await authenticatedFetch(`/api/companies/members/${userId}`, {
         method: "PATCH",
         body: JSON.stringify({ role }),
       })
@@ -48,8 +47,7 @@ export default function MembersSettings() {
 
   const removeMember = async (userId: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/companies/members/${userId}`, {
+      const res = await authenticatedFetch(`/api/companies/members/${userId}`, {
         method: "DELETE",
       })
       if (!res.ok) throw new Error("failed")

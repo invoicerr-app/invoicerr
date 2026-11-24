@@ -254,8 +254,7 @@ export default function SsoSettings() {
   const handleVerifyDomain = async (id: string) => {
     setVerifyingId(id)
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/company/sso/domains/${id}/verify`, {
+      const res = await authenticatedFetch(`/api/company/sso/domains/${id}/verify`, {
         method: "POST",
       })
       if (res.ok) {
@@ -287,8 +286,7 @@ export default function SsoSettings() {
   const handleRemoveDomain = async (id: string) => {
     setRemovingDomainId(id)
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/company/sso/domains/${id}`, {
+      const res = await authenticatedFetch(`/api/company/sso/domains/${id}`, {
         method: "DELETE",
       })
       if (res.ok) {

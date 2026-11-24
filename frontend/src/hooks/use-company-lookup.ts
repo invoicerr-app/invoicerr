@@ -136,10 +136,9 @@ export function useCompanyLookup<T extends FieldValues>(
 
     setIsLoading(true)
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
       const params = new URLSearchParams({ country: cc, value })
       if (scheme) params.set("scheme", scheme)
-      const res = await authenticatedFetch(`${backendUrl}/api/company-lookup?${params.toString()}`)
+      const res = await authenticatedFetch(`/api/company-lookup?${params.toString()}`)
       if (!res.ok) throw new Error(`Company lookup failed with status ${res.status}`)
 
       const result = (await res.json()) as CompanyLookupResult

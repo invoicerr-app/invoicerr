@@ -14,6 +14,8 @@
  * `public-documents.controller.ts`'s own header holds for keeping the one unauthenticated backend
  * route in a file of its own.
  */
+import { apiUrl } from "@/hooks/use-fetch"
+
 const PORTAL_TOKEN_STORAGE_KEY = "invoicerr_portal_token"
 
 /** Every localStorage access is wrapped: a private window, cleared site data, or a browser that
@@ -45,7 +47,7 @@ export function clearPortalToken(): void {
 }
 
 export async function portalFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  const fullUrl = input.startsWith("http") ? input : `${import.meta.env.VITE_BACKEND_URL || ""}${input}`
+  const fullUrl = apiUrl(input)
   const token = getPortalToken()
 
   return fetch(fullUrl, {

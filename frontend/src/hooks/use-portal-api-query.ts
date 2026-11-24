@@ -18,8 +18,7 @@ import { portalFetch } from "./use-portal-fetch"
  * client's own bearer token. Two small, obviously-named files cost less than one that could be misused.
  */
 async function portalApiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const fullUrl = url.startsWith("http") ? url : `${import.meta.env.VITE_BACKEND_URL || ""}${url}`
-  const res = await portalFetch(fullUrl, init)
+  const res = await portalFetch(url, init)
   if (!res.ok) {
     const body = await res
       .clone()
