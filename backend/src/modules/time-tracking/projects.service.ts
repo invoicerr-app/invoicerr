@@ -2,9 +2,10 @@ import { Project } from '../../../prisma/generated/prisma/client';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
+import { resolveCompanyCurrency } from '@/modules/company/resolve-company-currency';
 import prisma from '@/prisma/prisma.service';
 
-import { minorToRate, patchRateMinor, rateToMinor, resolveCompanyCurrency } from './resolve-company-currency';
+import { minorToRate, patchRateMinor, rateToMinor } from './hourly-rate';
 
 export interface CreateProjectDto {
   clientId: string;
