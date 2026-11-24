@@ -136,10 +136,19 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
   });
 
   it('answers the e-reporting preview the platform aggregates declarations into', async () => {
-    // The preview's body is the platform's own aggregate; the acceptance only asks that it is reachable
-    // with the declared data, so this test pins that the route answers for the connected company.
-    const preview = await liveClient().request<unknown>('GET', '/v1.beta/ereportings/preview');
-    expect(preview).toBeDefined();
+    // The route requires `date` (any day of the period), `kind` and `role_code`. Aggregation is not
+    // guaranteed synchronous, so 204 (no body, `undefined` here) passes as well as the 200 XML aggregate.
+    const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
+    await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
+    const declared = invoice();
+    await adapter.declareTransaction('live-company', declared);
+
+    const query = new URLSearchParams({ date: declared.issueDate, kind: 'transaction', role_code: 'SE' });
+    const preview = await liveClient().request<unknown>('GET', `/v1.beta/ereportings/preview?${query}`);
+    if (preview !== undefined) {
+      expect(typeof preview).toBe('string');
+      expect((preview as string).trimStart().startsWith('<')).toBe(true);
+    }
   });
 
   it('creates a B2C payment for a service invoice taxed on collection', async () => {
