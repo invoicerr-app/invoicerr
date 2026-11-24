@@ -50,7 +50,7 @@
  * answers with an ARRAY of one metadata object where the OpenAPI document declares a single object.
  * See `getInvoice()`'s own comment.
  */
-import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
+import { backoffDelayMs, readResponseBody, sleep } from '@/modules/documents/transports/http-retry';
 
 /** Everything this client needs to talk to one Iopole account. `apiBaseUrl`/`tokenUrl` are fixed per
  *  environment by the transport, never company-supplied - see this file's own header on SSRF. */
@@ -293,14 +293,7 @@ export class IopoleClient {
 
       try {
         const res = await fetch(`${this.apiBaseUrl}${path}`, fetchOpts);
-        const contentType = res.headers.get('content-type') ?? '';
-        let respBody: unknown;
-        if (contentType.includes('application/json')) {
-          respBody = await res.json();
-        } else {
-          const text = await res.text();
-          respBody = text || undefined;
-        }
+        const respBody = await readResponseBody(res);
 
         if (res.status >= 500 && attempt < this.maxRetries) {
           lastError = new IopoleApiError(`Server error ${res.status}`, res.status, respBody, path);

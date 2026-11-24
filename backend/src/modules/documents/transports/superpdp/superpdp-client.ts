@@ -48,7 +48,7 @@
  * could still answer with a 30x pointing the SAME request at an internal one, which an auto-followed
  * redirect would silently complete.
  */
-import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
+import { backoffDelayMs, readResponseBody, sleep } from '@/modules/documents/transports/http-retry';
 import { pinnedDispatcher, ResolvedOutboundUrl } from '@/utils/outbound-url';
 
 import { resolvePublicProviderBaseUrl } from '../public-provider-base-url';
@@ -442,14 +442,7 @@ export class SuperPdpClient {
 
       try {
         const res = await fetch(`${this.baseUrl}${path}`, fetchOpts);
-        const ct = res.headers.get('content-type') ?? '';
-        let respBody: unknown;
-        if (ct.includes('application/json')) {
-          respBody = await res.json();
-        } else {
-          const text = await res.text();
-          respBody = text || undefined;
-        }
+        const respBody = await readResponseBody(res);
 
         if (res.status >= 500 && attempt < maxRetries) {
           lastError = new SuperPdpApiError(`Server error ${res.status}`, res.status, respBody, path);
@@ -531,8 +524,8 @@ export class SuperPdpClient {
 
   /**
    * Raw file bytes for one deposit — never JSON-parsed, unlike every other method on this class:
-   * `request<T>()` only ever branches on `content-type` between `res.json()` and `res.text()` (see
-   * that method's own body above), and `res.text()` decodes as UTF-8, which silently corrupts a
+   * `request<T>()` only ever branches on `content-type` between `res.json()` and `res.text()` (through
+   * `readResponseBody` from `http-retry.ts`), and `res.text()` decodes as UTF-8, which silently corrupts a
    * binary PDF the moment a byte sequence isn't valid UTF-8. Added for RECEPTION (a poller downloading
    * an INBOUND deposit's own original/Factur-X artifact to attach to a `received-invoice` — see
    * `superpdp-reception.ts`): `sendInvoice()`/`getInvoice()` above never needed this because outbound
