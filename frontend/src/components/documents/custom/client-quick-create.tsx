@@ -11,8 +11,9 @@ import type { Client } from "@/types"
 /**
  * Wires the "client" reference entity to the client form (client-upsert.tsx) in its quick mode
  * (name and country only, the full wizard one click away), reused and not re-implemented:
- * `onCreate` is the exact prop the standalone /clients screen already passes it, so a client made
- * from a document's own picker is saved through the identical mutation as one made from /clients.
+ * `ClientUpsert` saves through the identical mutation as on the standalone /clients screen, then calls
+ * its optional `onCreate` with the new client (/clients does not pass one; this picker does, to hand
+ * the new id back).
  *
  * Also invalidates the reference-search cache (`["document-references", "client", ...]`) — a
  * SEPARATE react-query namespace from `queryKeys.clients.listsAll()`, which is all `ClientUpsert`'s
