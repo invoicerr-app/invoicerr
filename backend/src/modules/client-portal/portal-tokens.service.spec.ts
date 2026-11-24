@@ -128,11 +128,6 @@ vi.mock('@/prisma/prisma.service', () => {
             .filter((r) => r.companyId === where.companyId && r.clientId === where.clientId)
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }),
-        findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
-          const row = rows.find((r) => r.id === where.id);
-          if (!row) throw new Error(`no ClientPortalToken "${where.id}"`);
-          return row;
-        }),
         update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
           const row = rows.find((r) => r.id === where.id);
           if (!row) throw new Error(`no ClientPortalToken "${where.id}"`);

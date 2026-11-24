@@ -6,7 +6,12 @@ import { PortalAuthGuard } from './portal-auth.guard';
 import * as persistence from './portal-token.persistence';
 import { hashPortalToken } from './portal-token';
 
-vi.mock('./portal-token.persistence');
+// Only the I/O is mocked: `isPortalTokenActive` stays the real rule, the one this guard enforces.
+vi.mock('./portal-token.persistence', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./portal-token.persistence')>()),
+  findPortalTokenByHash: vi.fn(),
+  touchPortalTokenLastUsed: vi.fn(),
+}));
 
 function contextWithAuthHeader(header: string | undefined): ExecutionContext {
   const request: { headers: Record<string, string | undefined>; portal?: unknown } = {

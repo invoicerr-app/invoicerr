@@ -13,6 +13,7 @@ import { generatePortalToken } from './portal-token';
 import {
   createPortalToken,
   findOwnedPortalToken,
+  isPortalTokenActive,
   listPortalTokens,
   PortalTokenRecord,
   revokeAllPortalTokens,
@@ -74,7 +75,7 @@ function toSummary(record: PortalTokenRecord, now: Date): PortalAccessSummary {
     expiresAt: record.expiresAt,
     revokedAt: record.revokedAt,
     lastUsedAt: record.lastUsedAt,
-    active: !record.revokedAt && record.expiresAt > now,
+    active: isPortalTokenActive(record, now),
   };
 }
 
@@ -159,7 +160,7 @@ export class PortalTokensService {
     if (!owned) {
       throw new NotFoundException(`Portal access "${tokenId}" not found for this client.`);
     }
-    await revokePortalToken(owned.id);
+    await revokePortalToken(owned);
     return { revoked: true };
   }
 
