@@ -76,7 +76,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "fontoxpath": "^3.34.0",
-    "i18next": "^25.10.10",
+    "i18next": "^26.0.0",
     "imapflow": "^2.12.1",
     "ioredis": "^5.11.1",
     "jszip": "^3.10.2",
