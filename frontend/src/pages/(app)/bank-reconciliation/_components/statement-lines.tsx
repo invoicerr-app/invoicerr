@@ -9,7 +9,7 @@ import { PanelSection } from "../../_shared/data-list"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { currencies } from "@/lib/constants/currencies"
+import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/hooks/use-api-query"
 import { useBankStatementLines, useReconcileBankStatementLine } from "@/hooks/queries"
@@ -44,8 +44,8 @@ export function StatementLines({ statementId }: StatementLinesProps) {
   }
 
   const { statement, candidates, lines } = data
-  const decimals = currencies[statement.currency]?.decimals ?? 2
-  const formatAmount = (minor: number) => (minor / 10 ** decimals).toFixed(decimals)
+  const decimals = decimalsFor(statement.currency)
+  const formatAmount = (minor: number) => fromMinor(minor, statement.currency).toFixed(decimals)
 
   const handleReconcile = async (lineId: string, documentId: string | undefined) => {
     if (!documentId) return
