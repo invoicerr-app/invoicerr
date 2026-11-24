@@ -3,7 +3,11 @@ import { useMemo } from "react"
 import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
-import type { DerivedDocumentTotals, DocumentTypeDescriptor } from "@/components/documents/types"
+import type {
+  DerivedDocumentTotals,
+  DocumentFieldDescriptor,
+  DocumentTypeDescriptor,
+} from "@/components/documents/types"
 import {
   type ClientDocumentTotals,
   type VatRateFieldOptions,
@@ -137,6 +141,26 @@ export interface DocumentOptionTotals {
   totals: ClientDocumentTotals
 }
 
+/** The shared first step of the three option-aware readers below: the type's first line array field
+ *  and that field's rows in `values`. Null when there are no values, no line array, or a line shape
+ *  with no `option` subfield (every type but "quote" today). */
+function optionLineRows(
+  descriptor: DocumentTypeDescriptor,
+  values: Record<string, unknown> | undefined,
+): { firstArrayField: DocumentFieldDescriptor; rows: Record<string, unknown>[] } | null {
+  const arrayFields = findLineArrayFields(descriptor)
+  if (!values || arrayFields.length === 0) return null
+
+  const firstArrayField = arrayFields[0]
+  const hasOptionSubfield = firstArrayField.fields?.some((f) => f.key === "option")
+  if (!hasOptionSubfield) return null
+
+  const rows = Array.isArray(values[firstArrayField.key])
+    ? (values[firstArrayField.key] as Record<string, unknown>[])
+    : []
+  return { firstArrayField, rows }
+}
+
 /**
  * The pure half of `useDocumentOptionTotals`: per-option totals for ANY `values` object shaped like
  * the quote's own data - the live form above, or a SAVED record's `instance.data` (the detail page's
@@ -158,16 +182,9 @@ export function computeDocumentOptionTotals(
   t?: TFunction,
   sellerExemptVat?: boolean,
 ): DocumentOptionTotals[] | null {
-  const arrayFields = findLineArrayFields(descriptor)
-  if (!values || arrayFields.length === 0) return null
-
-  const firstArrayField = arrayFields[0]
-  const hasOptionSubfield = firstArrayField.fields?.some((f) => f.key === "option")
-  if (!hasOptionSubfield) return null
-
-  const rows = Array.isArray(values[firstArrayField.key])
-    ? (values[firstArrayField.key] as Record<string, unknown>[])
-    : []
+  const lineRows = optionLineRows(descriptor, values)
+  if (!lineRows) return null
+  const { firstArrayField, rows } = lineRows
   const options = deriveQuoteOptions(rows)
   if (options.length < 2) return null
 
@@ -228,16 +245,9 @@ export function computeCommonLineTotals(
   t?: TFunction,
   sellerExemptVat?: boolean,
 ): ClientDocumentTotals | null {
-  const arrayFields = findLineArrayFields(descriptor)
-  if (!values || arrayFields.length === 0) return null
-
-  const firstArrayField = arrayFields[0]
-  const hasOptionSubfield = firstArrayField.fields?.some((f) => f.key === "option")
-  if (!hasOptionSubfield) return null
-
-  const rows = Array.isArray(values[firstArrayField.key])
-    ? (values[firstArrayField.key] as Record<string, unknown>[])
-    : []
+  const lineRows = optionLineRows(descriptor, values)
+  if (!lineRows) return null
+  const { firstArrayField, rows } = lineRows
   if (deriveQuoteOptions(rows).length < 2) return null
 
   const commonRows = commonLinesOf(rows)
@@ -267,16 +277,9 @@ export function commonLineDescriptions(
   descriptor: DocumentTypeDescriptor,
   values: Record<string, unknown> | undefined,
 ): string[] | null {
-  const arrayFields = findLineArrayFields(descriptor)
-  if (!values || arrayFields.length === 0) return null
-
-  const firstArrayField = arrayFields[0]
-  const hasOptionSubfield = firstArrayField.fields?.some((f) => f.key === "option")
-  if (!hasOptionSubfield) return null
-
-  const rows = Array.isArray(values[firstArrayField.key])
-    ? (values[firstArrayField.key] as Record<string, unknown>[])
-    : []
+  const lineRows = optionLineRows(descriptor, values)
+  if (!lineRows) return null
+  const { firstArrayField, rows } = lineRows
   if (deriveQuoteOptions(rows).length < 2) return null
 
   const commonRows = commonLinesOf(rows)
