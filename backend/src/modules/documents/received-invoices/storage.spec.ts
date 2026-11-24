@@ -7,12 +7,12 @@ import { vi, type Mock } from 'vitest';
 import * as s3Storage from './s3-storage';
 import {
   deleteInboundFilesForCompany,
-  extFor,
   inboundRoot,
   persistInboundFile,
   readInboundFile,
   wipeAllInboundFiles,
 } from './storage';
+import { extFor } from './storage-path';
 
 vi.mock('./s3-storage');
 
