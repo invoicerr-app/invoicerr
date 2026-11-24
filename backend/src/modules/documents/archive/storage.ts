@@ -226,6 +226,12 @@ function witnessFileName(role: string): string {
   return `${WITNESS_FILE_PREFIX}${role}.json`;
 }
 
+/** Whether `name` is a witness file of ANY role: operational bookkeeping, not an archived artifact. Exported
+ *  so the backup source (`backup/sources/archive-source.ts`) skips it by this prefix, never a copy of it. */
+export function isArchiveWitnessFile(name: string): boolean {
+  return name.startsWith(WITNESS_FILE_PREFIX);
+}
+
 export interface ArchiveStorageSharingCheck {
   /** `false` only when THIS process itself could not read or write `archiveRoot()` — never when the
    *  check is merely inconclusive (see `reason` for that case). */
@@ -281,7 +287,7 @@ export function checkArchiveStorageSharing(role: string): ArchiveStorageSharingC
   }
 
   const otherWitnesses = entries.filter(
-    (name) => name.startsWith(WITNESS_FILE_PREFIX) && name !== witnessFileName(role),
+    (name) => isArchiveWitnessFile(name) && name !== witnessFileName(role),
   );
   for (const name of otherWitnesses) {
     try {
