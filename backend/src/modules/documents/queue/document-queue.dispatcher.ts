@@ -71,6 +71,102 @@ import {
   readDocumentActionQueueAttempts,
 } from './queue.constants';
 
+/** One repeatable sweep on this queue: what `DocumentQueueDispatcher#registerRepeatable` registers. */
+interface SweepRepeatable {
+  name: string;
+  jobId: string;
+  /** Read at registration time, never at import, so a changed `*_SWEEP_INTERVAL_MS` env var counts. */
+  readEveryMs: () => number;
+  /** Names the sweep in the boot log: "Registered the <label> sweep repeatable (every <ms>ms)." */
+  label: string;
+}
+
+/**
+ * Every repeatable sweep this queue carries, in registration order. They differ only by name, jobId,
+ * interval and log label; the shared registration (idempotency, `attempts: 1`) and its reasons are on
+ * `registerRepeatable` below. What each sweep adds to that shared reasoning stays on its own entry.
+ * Adding an entry here is all it takes for `registerSweepRepeatables` to register it, and removing one
+ * is all it takes for that method to retire it.
+ */
+const SWEEP_REPEATABLES = {
+  schedule: {
+    name: SCHEDULE_SWEEP_JOB_NAME,
+    jobId: SCHEDULE_SWEEP_JOB_ID,
+    readEveryMs: readSweepIntervalMs,
+    label: 'document-schedule',
+  },
+  // The next tick, `readConformitySweepIntervalMs()` away, is the natural retry for "the sweep didn't
+  // run this time".
+  conformity: {
+    name: CONFORMITY_SWEEP_JOB_NAME,
+    jobId: CONFORMITY_SWEEP_JOB_ID,
+    readEveryMs: readConformitySweepIntervalMs,
+    label: 'document-conformity',
+  },
+  // Automatic ECB exchange rates. The next tick, `readCurrencyRateSweepIntervalMs()` (24h by default)
+  // away, is the natural retry. This job carries no payload of its own (`{}`), exactly like every
+  // other repeatable on this queue: `CurrencyRateSweepRunner.runSweep` takes no arguments, it always
+  // fetches the CURRENT ECB feed.
+  currencyRate: {
+    name: CURRENCY_RATE_SWEEP_JOB_NAME,
+    jobId: CURRENCY_RATE_SWEEP_JOB_ID,
+    readEveryMs: readCurrencyRateSweepIntervalMs,
+    label: 'currency-rate',
+  },
+  // Automatic escalating payment reminders. The next tick, `readReminderSweepIntervalMs()` (24h by
+  // default) away, is the natural retry. No payload either (`{}`): `ReminderSweepRunner.runSweep`
+  // takes no arguments beyond an optional clock, it always reads the CURRENT set of opted-in companies.
+  reminder: {
+    name: REMINDER_SWEEP_JOB_NAME,
+    jobId: REMINDER_SWEEP_JOB_ID,
+    readEveryMs: readReminderSweepIntervalMs,
+    label: 'dunning-reminder',
+  },
+  // The next tick, `readReceptionSweepIntervalMs()` away, is the natural retry. See
+  // `reception-sweep.ts`'s own header for why this is ONE repeatable, not one per company.
+  superPdpReception: {
+    name: RECEPTION_SWEEP_JOB_NAME,
+    jobId: RECEPTION_SWEEP_JOB_ID,
+    readEveryMs: readReceptionSweepIntervalMs,
+    label: 'PDP-reception',
+  },
+  // The next tick, `readLogPurgeSweepIntervalMs()` away, is the natural retry. `Log` is not a
+  // "documents" concept: this lives on the SAME queue as every other cross-cutting system sweep here
+  // (currency rates, dunning reminders) purely because it, too, is a zero-Nest-dependency leaf
+  // provider with nowhere more specific to live; see `document-queue-worker.module.ts`'s own header on
+  // that precedent.
+  logPurge: {
+    name: LOG_PURGE_SWEEP_JOB_NAME,
+    jobId: LOG_PURGE_SWEEP_JOB_ID,
+    readEveryMs: readLogPurgeSweepIntervalMs,
+    label: 'Log purge',
+  },
+  // The pass that erases bytes a deleted company's own statutory retention was still holding when it
+  // left (⚖ `archive/storage-erasure-sweep.ts`'s own header for why this sweep had to exist at all,
+  // and why a day is already generous for a boundary measured in years). Here the pass itself never
+  // throws in the first place (`drainStorageErasureJournal` records a failed object in its own row and
+  // moves on), so the next tick is the retry for the only thing that can go wrong: the sweep not
+  // having run.
+  storageErasure: {
+    name: STORAGE_ERASURE_SWEEP_JOB_NAME,
+    jobId: STORAGE_ERASURE_SWEEP_JOB_ID,
+    readEveryMs: readStorageErasureSweepIntervalMs,
+    label: 'storage-erasure',
+  },
+  // The pass that finally re-attempts the legal archiving of documents that were DELIVERED and could
+  // not be preserved (⚖ `archive/archive-retry-sweep.ts`'s own header for why nothing retried them
+  // before, and why the artifacts have to be journaled for this pass to have anything to work from).
+  // Like the storage-erasure sweep, the pass itself does not fail on a row that fails (it reschedules
+  // it in its own journal), so the next tick is the retry for the only thing that can go wrong: the
+  // sweep not having run.
+  archiveRetry: {
+    name: ARCHIVE_RETRY_SWEEP_JOB_NAME,
+    jobId: ARCHIVE_RETRY_SWEEP_JOB_ID,
+    readEveryMs: readArchiveRetrySweepIntervalMs,
+    label: 'archive-retry',
+  },
+} satisfies Record<string, SweepRepeatable>;
+
 @Injectable()
 export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
   private readonly logger = new Logger(DocumentQueueDispatcher.name);
@@ -109,37 +205,9 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(`Job ${jobId} enqueued (action="${input.actionId}", type="${input.typeId}").`);
   }
 
-  /**
-   * Registers the ONE repeatable sweep job — idempotent by design: BullMQ dedups a repeatable
-   * definition by its own repeat key (which folds in the fixed `jobId` below) across the WHOLE
-   * cluster, so calling this on every process boot (the API when `WORKER_INLINE` is true, or every
-   * scaled worker replica otherwise — document-queue-worker.module.ts's own `onApplicationBootstrap`)
-   * is safe, the same guarantee the pre-refonte compliance queue's own `registerRepeatables` documented
-   * (`avant-refonte-documents`, compliance-queue.dispatcher.ts) for its daily report/sweep jobs.
-   *
-   * `attempts: 1` (no backoff/retry at the BullMQ level): a sweep pass that itself throws should be
-   * loud (a real bug — a broken query, a bad env value), not silently retried moments later by BullMQ
-   * — the NEXT scheduled sweep tick, `readSweepIntervalMs()` away, is already the natural retry for
-   * "the sweep didn't run this time".
-   *
-   * Returns what it registered — every `register*Repeatable` on this class does, so
-   * `registerSweepRepeatables` below can hand the COMPLETE set to `retireSupersededRepeatables`
-   * without a second, hand-maintained list that could drift out of step with these methods.
-   */
+  /** Registers the ONE recurrence sweep repeatable. See `registerRepeatable` for the guarantees. */
   async registerScheduleSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: SCHEDULE_SWEEP_JOB_NAME,
-      repeat: { every: readSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: SCHEDULE_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(`Registered the document-schedule sweep repeatable (every ${readSweepIntervalMs()}ms).`);
-    return configured;
+    return this.registerRepeatable(SWEEP_REPEATABLES.schedule);
   }
 
   /**
@@ -187,223 +255,72 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     return true;
   }
 
-  /**
-   * Registers the ONE conformity-sweep repeatable — same idempotent-registration guarantee as
-   * `registerScheduleSweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
-   * across the whole cluster), same `attempts: 1` reasoning (a sweep pass that itself throws is a
-   * real bug, loud now rather than silently retried — the next tick, `readConformitySweepIntervalMs()`
-   * away, is already the natural retry for "the sweep didn't run this time").
-   */
-  async registerConformitySweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: CONFORMITY_SWEEP_JOB_NAME,
-      repeat: { every: readConformitySweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: CONFORMITY_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(
-      `Registered the document-conformity sweep repeatable (every ${readConformitySweepIntervalMs()}ms).`,
-    );
-    return configured;
-  }
-
-  /**
-   * Registers the ONE currency-rate sweep repeatable (automatic ECB
-   * exchange rates) — same idempotent-registration guarantee as `registerConformitySweepRepeatable`
-   * above (BullMQ dedups a repeatable definition by its own key across the whole cluster), same
-   * `attempts: 1` reasoning: a pass that itself throws is a real bug worth surfacing loudly now,
-   * never silently retried moments later — the next tick, `readCurrencyRateSweepIntervalMs()` (24h
-   * by default) away, is already the natural retry for "the sweep didn't run this time". Note this
-   * job carries no payload of its own (`{}`), exactly like the other two repeatables on this queue —
-   * `CurrencyRateSweepRunner.runSweep` takes no arguments, it always fetches the CURRENT ECB feed.
-   */
-  async registerCurrencyRateSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: CURRENCY_RATE_SWEEP_JOB_NAME,
-      repeat: { every: readCurrencyRateSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: CURRENCY_RATE_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(
-      `Registered the currency-rate sweep repeatable (every ${readCurrencyRateSweepIntervalMs()}ms).`,
-    );
-    return configured;
-  }
-
-  /**
-   * Registers the ONE dunning-reminder sweep repeatable (automatic
-   * escalating payment reminders) — same idempotent-registration guarantee as
-   * `registerCurrencyRateSweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
-   * across the whole cluster), same `attempts: 1` reasoning: a pass that itself throws is a real bug
-   * worth surfacing loudly now, never silently retried moments later — the next tick,
-   * `readReminderSweepIntervalMs()` (24h by default) away, is already the natural retry for "the sweep
-   * didn't run this time". No payload either (`{}`) — `ReminderSweepRunner.runSweep` takes no
-   * arguments beyond an optional clock, it always reads the CURRENT set of opted-in companies.
-   */
-  async registerReminderSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: REMINDER_SWEEP_JOB_NAME,
-      repeat: { every: readReminderSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: REMINDER_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(
-      `Registered the dunning-reminder sweep repeatable (every ${readReminderSweepIntervalMs()}ms).`,
-    );
-    return configured;
-  }
-
-  /**
-   * Registers the ONE PDP-reception sweep repeatable — same idempotent-registration guarantee as
-   * `registerConformitySweepRepeatable` above (BullMQ dedups a repeatable definition by its own key
-   * across the whole cluster), same `attempts: 1` reasoning (a sweep pass that itself throws is a real
-   * bug, loud now rather than silently retried — the next tick, `readReceptionSweepIntervalMs()` away,
-   * is already the natural retry for "the sweep didn't run this time"). See `reception-sweep.ts`'s own
-   * header for why this is ONE repeatable, not one per company.
-   */
-  async registerSuperPdpReceptionSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: RECEPTION_SWEEP_JOB_NAME,
-      repeat: { every: readReceptionSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: RECEPTION_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(
-      `Registered the PDP-reception sweep repeatable (every ${readReceptionSweepIntervalMs()}ms).`,
-    );
-    return configured;
-  }
-
-  /**
-   * Registers the ONE `Log`-table purge sweep repeatable — same idempotent-registration guarantee as
-   * every sibling repeatable above (BullMQ dedups a repeatable definition by its own key across the
-   * whole cluster), same `attempts: 1` reasoning (a pass that itself throws is a real bug worth
-   * surfacing loudly now, never silently retried moments later — the next tick,
-   * `readLogPurgeSweepIntervalMs()` away, is already the natural retry). `Log` is not a "documents"
-   * concept — this lives on the SAME queue as every other cross-cutting system sweep here (currency
-   * rates, dunning reminders) purely because it, too, is a zero-Nest-dependency leaf provider with
-   * nowhere more specific to live; see `document-queue-worker.module.ts`'s own header on that
-   * precedent.
-   */
+  /** Registers the ONE `Log`-table purge sweep repeatable (see its entry in `SWEEP_REPEATABLES`). */
   async registerLogPurgeSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: LOG_PURGE_SWEEP_JOB_NAME,
-      repeat: { every: readLogPurgeSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: LOG_PURGE_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(`Registered the Log purge sweep repeatable (every ${readLogPurgeSweepIntervalMs()}ms).`);
-    return configured;
+    return this.registerRepeatable(SWEEP_REPEATABLES.logPurge);
   }
 
-  /**
-   * Registers the ONE storage-erasure sweep repeatable — the pass that erases bytes a deleted
-   * company's own statutory retention was still holding when it left (⚖
-   * `archive/storage-erasure-sweep.ts`'s own header for why this sweep had to exist at all, and why a
-   * day is already generous for a boundary measured in years). Same idempotent-registration guarantee
-   * as every sibling repeatable above (BullMQ dedups a repeatable definition by its own key across the
-   * whole cluster), same `attempts: 1` reasoning — and here the pass itself never throws in the first
-   * place (`drainStorageErasureJournal` records a failed object in its own row and moves on), so the
-   * next tick is the retry for the only thing that can go wrong: the sweep not having run.
-   */
+  /** Registers the ONE storage-erasure sweep repeatable (see its entry in `SWEEP_REPEATABLES`). */
   async registerStorageErasureSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: STORAGE_ERASURE_SWEEP_JOB_NAME,
-      repeat: { every: readStorageErasureSweepIntervalMs() },
-    };
-    await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: STORAGE_ERASURE_SWEEP_JOB_ID,
-      repeat: configured.repeat,
-      attempts: 1,
-      removeOnComplete: true,
-      removeOnFail: true,
-    });
-    this.logger.log(
-      `Registered the storage-erasure sweep repeatable (every ${readStorageErasureSweepIntervalMs()}ms).`,
-    );
-    return configured;
+    return this.registerRepeatable(SWEEP_REPEATABLES.storageErasure);
   }
 
   /**
-   * Registers the ONE archive-retry sweep repeatable — the pass that finally re-attempts the legal
-   * archiving of documents that were DELIVERED and could not be preserved (⚖
-   * `archive/archive-retry-sweep.ts`'s own header for why nothing retried them before, and why the
-   * artifacts have to be journaled for this pass to have anything to work from). Same
-   * idempotent-registration guarantee as every sibling repeatable above (BullMQ dedups a repeatable
-   * definition by its own key across the whole cluster), same `attempts: 1` reasoning — and, like the
-   * storage-erasure sweep, the pass itself does not fail on a row that fails (it reschedules it in its
-   * own journal), so the next tick is the retry for the only thing that can go wrong: the sweep not
-   * having run.
+   * Registers ONE repeatable sweep job, idempotent by design: BullMQ dedups a repeatable definition by
+   * its own repeat key (which folds in the fixed `jobId`) across the WHOLE cluster, so calling this on
+   * every process boot (the API when `WORKER_INLINE` is true, or every scaled worker replica otherwise:
+   * document-queue-worker.module.ts's own `onApplicationBootstrap`) is safe, the same guarantee the
+   * pre-refonte compliance queue's own `registerRepeatables` documented (`avant-refonte-documents`,
+   * compliance-queue.dispatcher.ts) for its daily report/sweep jobs.
+   *
+   * `attempts: 1` (no backoff/retry at the BullMQ level): a sweep pass that itself throws should be
+   * loud (a real bug: a broken query, a bad env value), not silently retried moments later by BullMQ;
+   * the NEXT scheduled sweep tick, one interval away, is already the natural retry for "the sweep
+   * didn't run this time".
+   *
+   * Returns what it registered, so `registerSweepRepeatables` below can hand the COMPLETE set to
+   * `retireSupersededRepeatables` without a second, hand-maintained list that could drift out of step
+   * with `SWEEP_REPEATABLES`.
    */
-  async registerArchiveRetrySweepRepeatable(): Promise<ConfiguredRepeatable> {
-    const configured: ConfiguredRepeatable = {
-      name: ARCHIVE_RETRY_SWEEP_JOB_NAME,
-      repeat: { every: readArchiveRetrySweepIntervalMs() },
-    };
+  private async registerRepeatable({
+    name,
+    jobId,
+    readEveryMs,
+    label,
+  }: SweepRepeatable): Promise<ConfiguredRepeatable> {
+    const everyMs = readEveryMs();
+    const configured: ConfiguredRepeatable = { name, repeat: { every: everyMs } };
     await this.queue.add(configured.name, {} as unknown as DocumentActionJobData, {
-      jobId: ARCHIVE_RETRY_SWEEP_JOB_ID,
+      jobId,
       repeat: configured.repeat,
       attempts: 1,
       removeOnComplete: true,
       removeOnFail: true,
     });
-    this.logger.log(
-      `Registered the archive-retry sweep repeatable (every ${readArchiveRetrySweepIntervalMs()}ms).`,
-    );
+    this.logger.log(`Registered the ${label} sweep repeatable (every ${everyMs}ms).`);
     return configured;
   }
 
   /**
-   * Boot-time entry point for EVERY repeatable this queue carries — registers all eight, then retires
-   * any definition Redis still holds that the eight above do not name.
+   * Boot-time entry point for EVERY repeatable this queue carries: registers all eight of
+   * `SWEEP_REPEATABLES`, then retires any definition Redis still holds that the table does not name.
    *
    * That second half is not bookkeeping: a repeatable's key folds in its own schedule, so changing
    * one of the `*_SWEEP_INTERVAL_MS` env vars registers a SECOND definition beside the first rather
-   * than replacing it, and the superseded one goes on firing at its old cadence out of Redis — which
-   * outlives every pod — with nothing in the configuration left to explain it. Removing a sweep from
-   * this method entirely has to retire it too, which is why the wanted set is built from what these
-   * methods actually registered rather than from a list kept beside them. See
+   * than replacing it, and the superseded one goes on firing at its old cadence out of Redis (which
+   * outlives every pod) with nothing in the configuration left to explain it. Removing a sweep from
+   * the table entirely has to retire it too, which is why the wanted set is built from what was
+   * actually registered rather than from a list kept beside it. See
    * `lib/queue-repeatables.ts`'s own header for why this is safe when several replicas boot at once.
    *
-   * The registrations run BEFORE the retirement, in that order, so no sweep this method still names
-   * is ever momentarily absent from the queue.
+   * The registrations run BEFORE the retirement, one after the other in table order, so no sweep this
+   * method still names is ever momentarily absent from the queue.
    */
   async registerSweepRepeatables(): Promise<void> {
-    const configured = [
-      await this.registerScheduleSweepRepeatable(),
-      await this.registerConformitySweepRepeatable(),
-      await this.registerCurrencyRateSweepRepeatable(),
-      await this.registerReminderSweepRepeatable(),
-      await this.registerSuperPdpReceptionSweepRepeatable(),
-      await this.registerLogPurgeSweepRepeatable(),
-      await this.registerStorageErasureSweepRepeatable(),
-      await this.registerArchiveRetrySweepRepeatable(),
-    ];
+    const configured: ConfiguredRepeatable[] = [];
+    for (const sweep of Object.values(SWEEP_REPEATABLES)) {
+      configured.push(await this.registerRepeatable(sweep));
+    }
     await retireSupersededRepeatables(this.queue, configured);
   }
 

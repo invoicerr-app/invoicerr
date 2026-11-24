@@ -5,8 +5,8 @@
  *
  * These three specs all share the SAME `Q_DOCUMENT_ACTION` queue with a persistent `start:test`
  * backend (:4000, `WORKER_INLINE`) that may be running alongside them — the same queue that backend
- * registers its OWN two repeatables on at boot (`registerScheduleSweepRepeatable`,
- * `registerConformitySweepRepeatable`, both in document-queue.dispatcher.ts). `queue.obliterate()`
+ * registers its OWN repeatables on at boot (the schedule and conformity sweeps among them, through
+ * `registerSweepRepeatables` in document-queue.dispatcher.ts). `queue.obliterate()`
  * used to run here instead of this helper: it does not distinguish "this spec's own jobs" from
  * "everything else on the queue", so it silently deleted those two repeatable registrations too —
  * registered ONLY at process boot, never again, so once obliterated they stayed gone until the
@@ -25,7 +25,7 @@
  *
  * This is also why it is safe WITHOUT ever inspecting `job.name`: the two repeatables' own job
  * INSTANCES are added with a literal `{}` payload (`as unknown as DocumentActionJobData` —
- * document-queue.dispatcher.ts's `registerScheduleSweepRepeatable`/`registerConformitySweepRepeatable`),
+ * document-queue.dispatcher.ts's `registerRepeatable`),
  * so `job.data.companyId` on those is always `undefined` and never matches a real company id — they
  * are excluded by construction, not by an extra check that could later be forgotten. The repeatable
  * DEFINITIONS themselves (the `bull:document-action:repeat:*` scheduler entries BullMQ consults to

@@ -24,7 +24,7 @@ import { readIntEnv } from '@/utils/read-int-env';
  * ## ONE sweep, not one repeatable per company/invoice — same reasoning as the other three sweeps
  *
  * Exactly one repeatable job (`REMINDER_SWEEP_JOB_NAME`, registered by
- * `queue/document-queue.dispatcher.ts`'s own `registerReminderSweepRepeatable`, on
+ * `queue/document-queue.dispatcher.ts`'s own `reminder` entry in `SWEEP_REPEATABLES`, on
  * `readReminderSweepIntervalMs()`, default 24h) walks every OPTED-IN company's own overdue invoices
  * each pass. `DocumentReminder` rows (schema.prisma) are the only durable state the sweep needs — the
  * repeatable is just a metronome, the same division `conformity-sweep.ts`'s own header already

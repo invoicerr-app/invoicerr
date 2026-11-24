@@ -8,7 +8,7 @@
  * ## ONE sweep, not one repeatable per document — same reasoning as the recurrence sweep
  *
  * Exactly one repeatable job (`CONFORMITY_SWEEP_JOB_NAME`, registered by
- * `queue/document-queue.dispatcher.ts`'s own `registerConformitySweepRepeatable`, on
+ * `queue/document-queue.dispatcher.ts`'s own `SWEEP_REPEATABLES` table, on
  * `DOCUMENT_CONFORMITY_SWEEP_INTERVAL_MS`, default 60s) periodically asks "which SENT documents,
  * deposited on a pollable channel, have no terminal verdict yet" — `DocumentInstance` itself (plus
  * this document's own `DocumentAuthorityEvent` rows) is the only durable state; the repeatable is
