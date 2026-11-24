@@ -1,3 +1,5 @@
+import { isEnvFlagOn } from '@/utils/read-bool-env';
+
 /**
  * The escape hatch for the update-check feature (`GET /api/version` outbound call to GitHub — see
  * `version.service.ts`). The check itself is ALREADY safe for a self-hosted instance with no
@@ -14,6 +16,5 @@
 export const UPDATE_CHECK_DISABLE_FLAG_NAME = 'DISABLE_UPDATE_CHECK';
 
 export function isUpdateCheckDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = (env[UPDATE_CHECK_DISABLE_FLAG_NAME] ?? '').trim().toLowerCase();
-  return raw === 'true' || raw === '1';
+  return isEnvFlagOn(env, UPDATE_CHECK_DISABLE_FLAG_NAME);
 }

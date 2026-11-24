@@ -21,6 +21,7 @@
  * "unset".
  */
 import { isDemoModeEnabled } from '@/modules/demo/demo-flag';
+import { isEnvFlagOn } from '@/utils/read-bool-env';
 
 export const BILLING_FLAG_NAME = 'WARNING__ENABLE_BILLING_FOR_USERS__WARNING';
 
@@ -35,6 +36,5 @@ export const BILLING_FLAG_NAME = 'WARNING__ENABLE_BILLING_FOR_USERS__WARNING';
  */
 export function isBillingEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   if (isDemoModeEnabled(env)) return false;
-  const raw = (env[BILLING_FLAG_NAME] ?? '').trim().toLowerCase();
-  return raw === 'true' || raw === '1';
+  return isEnvFlagOn(env, BILLING_FLAG_NAME);
 }

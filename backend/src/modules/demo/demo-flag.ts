@@ -1,3 +1,5 @@
+import { isEnvFlagOn } from '@/utils/read-bool-env';
+
 /**
  * DEMO_MODE: the ONE switch that turns this instance into a public demo (issue #533). Off by
  * default, the same "pure, synchronous, env passed as a parameter" shape
@@ -25,8 +27,7 @@ export const DEMO_ACCOUNT_EMAIL = 'demo@invoicerr.app';
 export const DEMO_ACCOUNT_PASSWORD = 'demo';
 
 export function isDemoModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = (env[DEMO_MODE_FLAG_NAME] ?? '').trim().toLowerCase();
-  return raw === 'true' || raw === '1';
+  return isEnvFlagOn(env, DEMO_MODE_FLAG_NAME);
 }
 
 /**
@@ -42,6 +43,5 @@ export function isDemoModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean
 const DEMO_SEED_BYPASS_FLAG_NAME = 'DEMO_SEED_RUN';
 
 export function isDemoSeedBypassActive(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = (env[DEMO_SEED_BYPASS_FLAG_NAME] ?? '').trim().toLowerCase();
-  return raw === 'true' || raw === '1';
+  return isEnvFlagOn(env, DEMO_SEED_BYPASS_FLAG_NAME);
 }

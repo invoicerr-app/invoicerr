@@ -25,6 +25,8 @@ import type { GenericOAuthConfig } from 'better-auth/plugins';
 
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 
+import { isEnvFlagOn } from '@/utils/read-bool-env';
+
 // ---------------------------------------------------------------------------
 // The company lives IN the provider id
 // ---------------------------------------------------------------------------
@@ -230,13 +232,12 @@ export function createEnvOidcConfig(
  *
  * DEFAULT OFF, and that is load-bearing: the entire e2e suite bootstraps itself through
  * `POST /api/auth/sign-up/email`, so a flag that defaulted on would make the product untestable and
- * every fresh self-hosted instance unbootstrappable. Accepts "1"/"true", case-insensitively, with
- * surrounding whitespace tolerated — the same spelling `isSignupDisabledByEnv` already accepts for
- * `DISABLE_AUTH`, so an operator does not have to remember two conventions.
+ * every fresh self-hosted instance unbootstrappable. Read through `utils/read-bool-env.ts#isEnvFlagOn`,
+ * the one on/off rule every boolean operator flag shares, so an operator does not have to remember two
+ * conventions.
  */
 export function isOidcOnly(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = (env.OIDC_ONLY ?? '').trim().toLowerCase();
-  return raw === '1' || raw === 'true';
+  return isEnvFlagOn(env, 'OIDC_ONLY');
 }
 
 // ---------------------------------------------------------------------------
