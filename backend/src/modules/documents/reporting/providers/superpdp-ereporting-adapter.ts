@@ -172,7 +172,6 @@ export function buildSuperPdpEReportingAdapter(deps: SuperPdpEReportingAdapterDe
         baseUrl: credentials.baseUrl,
         clientId: credentials.clientId,
         clientSecret: credentials.clientSecret,
-        apiStyle: 'superpdp',
       }));
 
   async function clientFor(companyId: string): Promise<SuperPdpClient> {

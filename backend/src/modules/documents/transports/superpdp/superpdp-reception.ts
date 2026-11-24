@@ -99,7 +99,7 @@ export async function resolveClient(
     extractSuperPdpCredentials,
   );
   if (!credentials) return null;
-  return new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
+  return new SuperPdpClient(credentials);
 }
 
 /**
