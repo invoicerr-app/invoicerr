@@ -1,6 +1,6 @@
 import { vi, type Mock } from 'vitest';
 
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 import { WebhookEvent } from '../../../../prisma/generated/prisma/client';
@@ -381,6 +381,22 @@ describe('SignaturesService', () => {
         changed: false,
         version: { archiveId: DELIVERY_ARCHIVE.id, contentHash: DELIVERY_ARCHIVE.contentHash },
       });
+    });
+
+    it('a deleted document is reported as changed, never as an outage', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      (persistence.findOwnedDocument as Mock).mockRejectedValueOnce(new NotFoundException('gone'));
+
+      expect((await service.resolvePublicSignature(token)).changed).toBe(true);
+    });
+
+    it('a database failure propagates instead of reading as a changed document', async () => {
+      const { service, mailService } = buildService();
+      const token = await requestAndGetToken(service, mailService);
+      (persistence.findOwnedDocument as Mock).mockRejectedValueOnce(new Error('connection refused'));
+
+      await expect(service.resolvePublicSignature(token)).rejects.toThrow('connection refused');
     });
 
     it('an unknown token gives the SAME generic refusal everywhere', async () => {
