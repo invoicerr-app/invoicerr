@@ -70,8 +70,9 @@ function isPlausibleEmail(value: string): boolean {
   return labels.length >= 2 && labels.every((label) => label.length > 0)
 }
 
-/** Display label for a configured provider — the settings-screen equivalent of
- *  `channels.settings.tsx`'s own `PROVIDER_LABELS`. */
+/** Display label for a configured mail provider: product names, shown as-is rather than translated,
+ *  the same convention `components/channel-connect-prompt.tsx`'s own `PROVIDER_LABELS` holds for the
+ *  transport channels. */
 const PROVIDER_LABELS: Record<"smtp" | "resend", string> = {
   smtp: "SMTP",
   resend: "Resend",

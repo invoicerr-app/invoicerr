@@ -19,6 +19,8 @@ import { fromCalendarDate, toCalendarDate, todayCalendarDate } from "@/lib/calen
 import { typeErrors } from "@/lib/zod-messages"
 import type { TimeEntry } from "@/types"
 
+import { entryHours } from "./entry-amount"
+
 export const buildTimeEntrySchema = (t: TFunction) => {
   const durationPositive = t("timeTracking.entries.errors.durationPositive")
   return z.object({
@@ -238,7 +240,7 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
     if (entry) {
       form.reset({
         date: entry.date,
-        hours: entry.durationMinutes / 60,
+        hours: entryHours(entry),
         description: entry.description ?? "",
         billable: entry.billable,
         hourlyRate: entry.hourlyRate,

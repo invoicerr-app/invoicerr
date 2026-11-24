@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCompanyCurrencySymbol, useDeleteTimeEntry, useTimeEntries } from "@/hooks/queries"
 import type { GenerateInvoiceFromTimeEntriesResult, Project, TimeEntry } from "@/types"
 
-import { entryAmount } from "./entry-amount"
+import { entryAmount, entryHours } from "./entry-amount"
 import { GenerateInvoiceDialog } from "./generate-invoice-dialog"
 import { TimeEntryUpsert } from "./time-entry-upsert"
 
@@ -151,7 +151,7 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
                     </TableCell>
                     <TableCell>{entry.description || "—"}</TableCell>
                     <TableCell dir="ltr" className="amount text-right">
-                      {(entry.durationMinutes / 60).toFixed(2)}
+                      {entryHours(entry).toFixed(2)}
                     </TableCell>
                     <TableCell dir="ltr" className="amount text-right">
                       {entryAmount(entry).toFixed(2)}
