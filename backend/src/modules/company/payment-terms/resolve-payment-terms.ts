@@ -25,7 +25,7 @@ export interface ResolvedPaymentTerms {
   exceedsCap: { quote: boolean; invoice: boolean };
 }
 
-export const MAX_DUE_DAYS = 365;
+const MAX_DUE_DAYS = 365;
 
 function parseMode(value: string | null | undefined): DueDateMode {
   return value === 'endOfMonth' ? 'endOfMonth' : 'net';

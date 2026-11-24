@@ -17,7 +17,7 @@ import { ChannelCredentialsService } from '@/modules/company/channels/channels.s
 
 import { SuperPdpInvoice } from '../../transports/superpdp/superpdp-client';
 import { extractReceivedInvoiceFields, ExtractionResult } from '../../received-invoices/extraction';
-import { extFor } from '../../received-invoices/storage';
+import { extFor } from '../../received-invoices/storage-path';
 import { PDP_RECEPTION_PROVIDER_ID, resolveClient } from '../../transports/superpdp/superpdp-reception';
 
 export interface SuperPdpInboundFile {
@@ -39,7 +39,7 @@ export interface ReceptionPoller {
    *  never a second, PDP-specific field mapper: a PDP-sourced received-invoice and a manually-uploaded
    *  one both end up going through the identical CII/UBL/Factur-X reader, so they behave identically
    *  (same warnings, same supplier-VAT extraction) from this point on. A synthetic `fileName` is built
-   *  from the platform's own `content-type` (`extFor`, `received-invoices/storage.ts`) purely so
+   *  from the platform's own `content-type` (`extFor`, `received-invoices/storage-path.ts`) purely so
    *  `extractReceivedInvoiceFields`'s own filename-sniffing branch (`.xml`/`.pdf`) has something to
    *  read — the ACTUAL bytes/mime are what decide the outcome, never the synthetic name alone.
    */

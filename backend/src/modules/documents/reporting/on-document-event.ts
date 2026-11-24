@@ -6,7 +6,7 @@
  *     sent (`actions/invoice-actions.ts`);
  *   - `sent`: `actions/async-send.ts`, after the delivery and the "sent" write (`report-on-send.ts`);
  *   - `payment`: the invoice "record-payment" action, after the payment row is written
- *     (`report-payment.ts`).
+ *     (`actions/invoice-actions.ts`).
  *
  * Each event asks the v2 catalog for the provider obligations of the seller's country whose
  * `trigger` it fires, classifies each against the operation (`classify.ts`), and enqueues the first
@@ -46,7 +46,7 @@ import { declarationSubjectKey, REPORT_BLOCKED_STATUS_CODE, REPORT_FAILED_STATUS
 export type DocumentEvent = 'issued' | 'sent' | 'payment';
 
 /** Which obligation triggers each document event fires. */
-export const TRIGGERS_FIRED_BY: Record<DocumentEvent, readonly ObligationTrigger[]> = {
+const TRIGGERS_FIRED_BY: Record<DocumentEvent, readonly ObligationTrigger[]> = {
   issued: ['issued'],
   sent: ['issued', 'sent'],
   payment: ['payment'],

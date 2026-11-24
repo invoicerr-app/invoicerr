@@ -2,6 +2,8 @@ import type { Dispatcher } from 'undici';
 
 import { Logger } from '@nestjs/common';
 
+import { sleep } from '@/lib/sleep';
+
 import { describeEvent, instanceIcon, instanceUrl } from './event-message';
 import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
@@ -89,7 +91,7 @@ export class DiscordDriver implements WebhookDriver {
     if (res.status === 429 && !isRetry) {
       const waitMs = await this.readRetryAfterMs(res);
       if (waitMs !== undefined && waitMs <= MAX_RATE_LIMIT_WAIT_MS) {
-        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        await sleep(waitMs);
         return this.postToDiscord(url, body, dispatcher, true);
       }
       this.logger.warn(

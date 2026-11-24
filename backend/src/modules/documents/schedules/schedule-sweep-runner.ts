@@ -204,7 +204,3 @@ export class DocumentScheduleSweepRunner {
     }
   }
 }
-
-/** Re-exported so callers needing only the record shape don't have to reach into
- *  schedule.persistence.ts directly for it. */
-export type { DocumentScheduleRecord };

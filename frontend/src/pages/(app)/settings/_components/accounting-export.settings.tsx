@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { downloadBlob } from "@/lib/download"
+import { downloadBlob, responseErrorMessage } from "@/lib/download"
 
 import { SettingsFormFooter, SettingsPage, SettingsSection } from "@/components/settings-section"
 
@@ -49,8 +49,7 @@ export default function AccountingExportSettings() {
     try {
       const response = await authenticatedFetch(`/api/accounting-export?from=${fromParam}&to=${toParam}`)
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${response.status}`)
+        throw new Error(await responseErrorMessage(response))
       }
       const blob = await response.blob()
       downloadBlob(blob, `accounting-export-${fromParam}_${toParam}.csv`)

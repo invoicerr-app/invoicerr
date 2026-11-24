@@ -8,6 +8,7 @@ import {
 } from "@/components/documents/custom-slots"
 import { Button } from "@/components/ui/button"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { openBlob, responseErrorMessage } from "@/lib/download"
 
 /**
  * The "download the original file" button — registered at "list-row-extra"
@@ -26,12 +27,9 @@ function ReceivedInvoiceDownloadButton({ instance }: DocumentCustomSlotProps) {
       // document-downloads.ts's own header explains for the PDF download.
       const response = await authenticatedFetch(`/api/documents/received-invoices/${instance.id}/file`)
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${response.status}`)
+        throw new Error(await responseErrorMessage(response))
       }
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      window.open(url, "_blank")
+      openBlob(await response.blob())
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t("documents.custom.receivedInvoiceDownload.error"),

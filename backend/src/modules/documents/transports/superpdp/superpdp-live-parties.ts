@@ -19,7 +19,6 @@ export function superpdpLiveClient(): SuperPdpClient {
     baseUrl: SUPERPDP_BASE_URL,
     clientId: process.env.SUPERPDP_CLIENT_ID ?? '',
     clientSecret: process.env.SUPERPDP_CLIENT_SECRET ?? '',
-    apiStyle: 'superpdp',
   });
 }
 

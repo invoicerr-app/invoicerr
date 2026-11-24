@@ -5,7 +5,7 @@ import sanitizeHtml = require('sanitize-html');
 import { escapeHtml } from '@/mail/escape-html';
 import { mailT } from '@/mail/i18n';
 import { EMAIL_NON_TEXT_TAGS } from '@/mail/sanitize-email-html';
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinorFixed } from '@/utils/financial';
 
 import { DocumentEmailTemplate, DocumentTypeDescriptor, findShareLinkAction } from '../descriptors/types';
 import { DEFAULT_RENDER_LANGUAGE, RenderLanguage } from '../rendering/language/supported-languages';
@@ -310,7 +310,7 @@ function formatGrossTotal(totals: DocumentTotals): string {
 
 function formatEmailAmount(minor: number, currency: string | null): string {
   const code = currency ?? '';
-  const amount = fromMinor(minor, code).toFixed(decimalsFor(code));
+  const amount = formatMinorFixed(minor, code);
   return code ? `${amount} ${code}` : amount;
 }
 

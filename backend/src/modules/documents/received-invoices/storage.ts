@@ -72,8 +72,6 @@ export function inboundRoot(): string {
  *  `s3-storage.ts`'s own object-key derivation — imported from here, never duplicated. */
 import { assertValidContentHash, extFor } from './storage-path';
 
-export { assertValidContentHash, extFor };
-
 /** Which backend `INBOUND_STORAGE` currently names (`'s3'`, or local disk otherwise). Read FRESH on
  *  every call, never hoisted into a module-level constant (see `persistInboundFile`'s own header). */
 function inboundBackend(): 's3' | 'local' {

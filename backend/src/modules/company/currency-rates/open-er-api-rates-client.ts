@@ -12,7 +12,9 @@
  * is discarded.
  */
 
-export const OPEN_ER_API_BASE_CURRENCY = 'EUR';
+import { RATE_PIVOT_CURRENCY } from './currency-rate-sweep';
+
+const OPEN_ER_API_BASE_CURRENCY = RATE_PIVOT_CURRENCY;
 const OPEN_ER_API_RATES_URL = `https://open.er-api.com/v6/latest/${OPEN_ER_API_BASE_CURRENCY}`;
 
 /** Same bound and same reasoning as `ecb-rates-client.ts#FETCH_TIMEOUT_MS` — this call also happens

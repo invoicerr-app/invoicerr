@@ -42,7 +42,7 @@ vi.mock('./ksef/ksef-client', async () => {
   return {
     ...actual,
     // A `function` expression, NOT an arrow function — production code does `new KsefClient(...)`
-    // (`ksef-transport.ts`'s own client builder). Jest's mocks never really `[[Construct]]` their
+    // (`ksef/build-ksef-client.ts`). Jest's mocks never really `[[Construct]]` their
     // implementation (they call it plainly and use the return value), so an arrow function "worked"
     // there; Vitest's mocks DO construct it for real, and an arrow function has no `[[Construct]]` at
     // all — "TypeError: ... is not a constructor".

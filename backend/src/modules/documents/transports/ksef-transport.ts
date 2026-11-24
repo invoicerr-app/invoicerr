@@ -68,10 +68,9 @@ export const KSEF_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
     labelKey: 'settings.channels.fields.ksefToken',
   },
 ];
-import { FetchKsefHttpClient } from './ksef/fetch-http-client';
+import { buildKsefClient } from './ksef/build-ksef-client';
 import { KsefClient, KsefEnvironment } from './ksef/ksef-client';
 import { generateSessionKey } from './ksef/ksef-crypto';
-import { loadVendorizedKeys } from './ksef/ksef-public-keys';
 import { sleep } from '@/lib/sleep';
 
 export interface KsefTransportDeps {
@@ -229,15 +228,7 @@ export function buildKsefTransport(deps: KsefTransportDeps): DocumentTransport {
       }
       const xmlContent = new TextDecoder('utf-8').decode(buildResult.bytes);
 
-      const keys = loadVendorizedKeys(credentials.environment);
-      const http = new FetchKsefHttpClient();
-      const ksefClient = new KsefClient(http, {
-        environment: credentials.environment,
-        nip: credentials.nip,
-        ksefToken: credentials.ksefToken,
-        tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,
-        symmetricKeyPem: keys.symmetricKeyPem,
-      });
+      const ksefClient = buildKsefClient(credentials);
 
       let sessionRef = '';
       let invoiceRef = '';

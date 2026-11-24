@@ -2,6 +2,7 @@ import { Article, ItemType } from '../../../prisma/generated/prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { logger } from '@/logger/logger.service';
+import { resolveCompanyCurrency } from '@/modules/company/resolve-company-currency';
 import prisma from '@/prisma/prisma.service';
 import { toMinor } from '@/utils/financial';
 
@@ -70,20 +71,8 @@ function withStockFlag(article: Article): ArticleWithStock {
 
 @Injectable()
 export class ArticlesService {
-  private async getCompanyCurrency(companyId: string): Promise<string> {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { currency: true },
-    });
-    if (!company) {
-      logger.error('Company not found', { category: 'article', details: { companyId } });
-      throw new NotFoundException('Company not found');
-    }
-    return company.currency;
-  }
-
   async create(companyId: string, dto: CreateArticleDto): Promise<ArticleWithStock> {
-    const currency = await this.getCompanyCurrency(companyId);
+    const currency = await resolveCompanyCurrency(companyId);
     const article = await prisma.article.create({
       data: {
         companyId,
@@ -143,7 +132,7 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
-    const currency = await this.getCompanyCurrency(companyId);
+    const currency = await resolveCompanyCurrency(companyId);
     const updatedUnitPrice = dto.unitPrice ?? existing.unitPrice;
     const updated = await prisma.article.update({
       where: { id },

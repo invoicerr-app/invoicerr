@@ -39,6 +39,7 @@
  * caller's. `schedule-sweep-runner.ts`'s own header documents how this UTC-midnight value is then
  * turned into the actual `issueDate`/`dueDate` strings handed to "duplicate".
  */
+import { utcDayMs } from '../date-params';
 
 export const SCHEDULE_CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
 export type ScheduleCadence = (typeof SCHEDULE_CADENCES)[number];
@@ -76,7 +77,7 @@ export function deriveAnchorDay(firstOccurrence: Date): number {
  * that could push it across a day boundary depending on which timezone happens to read it back.
  */
 export function toUtcMidnight(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  return new Date(utcDayMs(date));
 }
 
 /**

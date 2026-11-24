@@ -60,6 +60,12 @@ export const DOCUMENT_WRITE_SCOPES: ApiKeyScope[] = DOCUMENT_TYPE_RESOURCES.map(
   (resource): ApiKeyScope => `${resource}:write`,
 );
 
+/** The scope NAME a `typeId` maps to for `mode` (`${typeId}s:${mode}`), declared or not: what a refusal
+ *  message tells the caller to grant. `scopeForDocumentType` below is the checked version. */
+export function documentTypeScopeName(typeId: string, mode: 'read' | 'write'): string {
+  return `${typeId}s:${mode}`;
+}
+
 /**
  * The scope a `typeId` needs for `mode` — `${typeId}s:${mode}` ("quote" -> "quotes:read",
  * "received-invoice" -> "received-invoices:write", ...), matching exactly how every shipped
@@ -70,7 +76,7 @@ export const DOCUMENT_WRITE_SCOPES: ApiKeyScope[] = DOCUMENT_TYPE_RESOURCES.map(
  * registration, precise at call time) story this same function backs on the MCP side.
  */
 export function scopeForDocumentType(typeId: string, mode: 'read' | 'write'): ApiKeyScope | undefined {
-  const candidate = `${typeId}s:${mode}`;
+  const candidate = documentTypeScopeName(typeId, mode);
   return isApiKeyScope(candidate) ? candidate : undefined;
 }
 

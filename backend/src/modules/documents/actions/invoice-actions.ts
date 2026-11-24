@@ -29,7 +29,6 @@ import { DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
 import { reportOnDocumentEvent } from '../reporting/on-document-event';
-import { reportPaymentIfObligated } from '../reporting/report-payment';
 import { computeSettlement, describeSettlement } from '../settlement/compute-settlement';
 import { resolvePaymentConversion } from '../settlement/convert-payment';
 import { resolveCreditsForDocument, toSettlementCreditInputs } from '../settlement/credits';
@@ -1172,13 +1171,17 @@ export function registerInvoiceActions(registry: ActionRegistry, deps: InvoiceAc
     // CGI art. 290 A (payment data) is a fact about the payment, not about delivery: a company may
     // record several payments against one invoice, each its own declaration. Never throws and never
     // makes recording money fail; a missing channel is journaled `report:blocked` by the trigger.
-    await reportPaymentIfObligated({
+    await reportOnDocumentEvent({
+      event: 'payment',
       companyId,
+      typeId: 'invoice',
       documentId,
-      paymentId: newPayment.id,
-      amountMinor: newPayment.documentAmountMinor,
-      paidAt: newPayment.paidAt.toISOString().slice(0, 10),
       queueDispatcher: deps.queueDispatcher,
+      payment: {
+        paymentId: newPayment.id,
+        amountMinor: newPayment.documentAmountMinor,
+        paidAt: newPayment.paidAt.toISOString().slice(0, 10),
+      },
     });
 
     return {

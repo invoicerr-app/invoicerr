@@ -113,7 +113,7 @@ export function buildSuperPdpStatusPoller(deps: SuperPdpStatusPollerDeps): Autho
     async poll(companyId: string, transportRef: string): Promise<RawAuthorityEvent[]> {
       const credentials = await resolveSuperPdpCredentials(deps.channelCredentials, companyId);
 
-      const client = new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
+      const client = new SuperPdpClient(credentials);
       const invoiceId = parseInvoiceId(transportRef);
       const invoice = await client.getInvoice(invoiceId);
 

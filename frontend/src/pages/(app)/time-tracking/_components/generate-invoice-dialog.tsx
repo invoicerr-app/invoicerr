@@ -8,7 +8,7 @@ import { ApiError } from "@/hooks/use-api-query"
 import { useCompanyCurrencySymbol, useGenerateInvoiceFromTimeEntries } from "@/hooks/queries"
 import type { GenerateInvoiceFromTimeEntriesResult, TimeEntry } from "@/types"
 
-import { entryAmount } from "./entry-amount"
+import { entryAmount, entryHours } from "./entry-amount"
 
 interface GenerateInvoiceDialogProps {
   clientId: string
@@ -76,7 +76,7 @@ export function GenerateInvoiceDialog({
                 <TableRow key={entry.id} data-cy={`generate-invoice-row-${entry.id}`}>
                   <TableCell>{entry.description || entry.project.name}</TableCell>
                   <TableCell dir="ltr" className="text-right tabular-nums">
-                    {(entry.durationMinutes / 60).toFixed(2)}
+                    {entryHours(entry).toFixed(2)}
                   </TableCell>
                   <TableCell dir="ltr" className="amount text-right">
                     {entryAmount(entry).toFixed(2)}

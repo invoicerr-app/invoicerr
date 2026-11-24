@@ -24,6 +24,7 @@
  *      sidebar.tsx's auto-open-when-companies.length===0 effect).
  */
 import { DEMO_ACCOUNT_EMAIL, isDemoModeEnabled, isDemoSeedBypassActive } from '@/modules/demo/demo-flag';
+import { isEnvFlagOn } from '@/utils/read-bool-env';
 
 export type InvitationLookupResult =
   | { found: false }
@@ -47,8 +48,7 @@ export type RegistrationDecision = { allowed: true } | { allowed: false; reason:
  * Accepts "1" / "true", case-insensitively, tolerating surrounding whitespace.
  */
 export function isSignupDisabledByEnv(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = (env.DISABLE_AUTH ?? '').trim().toLowerCase();
-  return raw === '1' || raw === 'true';
+  return isEnvFlagOn(env, 'DISABLE_AUTH');
 }
 
 export function decideRegistration(params: {

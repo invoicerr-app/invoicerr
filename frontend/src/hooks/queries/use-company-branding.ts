@@ -1,5 +1,6 @@
 import { useApiMutation, useApiQuery } from "@/hooks/use-api-query"
 import { authenticatedFetch } from "@/hooks/use-fetch"
+import { responseErrorMessage } from "@/lib/download"
 
 /**
  * Document branding (2026-09-15 product decision): a logo, one
@@ -81,8 +82,7 @@ export function useClearBrandingLogo() {
 export async function downloadBrandingLogo(): Promise<Blob> {
   const response = await authenticatedFetch("/api/company/branding/logo")
   if (!response.ok) {
-    const body = await response.json().catch(() => null)
-    throw new Error(body?.message || `HTTP ${response.status}`)
+    throw new Error(await responseErrorMessage(response))
   }
   return response.blob()
 }

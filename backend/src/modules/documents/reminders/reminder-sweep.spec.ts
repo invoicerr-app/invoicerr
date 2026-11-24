@@ -1,5 +1,6 @@
 import { RenderLanguage } from '../rendering/language/supported-languages';
-import { buildReminderEmail, daysOverdueOn, REMINDER_TIERS, selectDueReminderTier } from './reminder-sweep';
+import { wholeUtcDaysSince } from '../date-params';
+import { buildReminderEmail, REMINDER_TIERS, selectDueReminderTier } from './reminder-sweep';
 
 describe('selectDueReminderTier', () => {
   it('returns null when the invoice is not yet overdue at all', () => {
@@ -52,26 +53,26 @@ describe('selectDueReminderTier', () => {
   });
 });
 
-describe('daysOverdueOn', () => {
+describe('wholeUtcDaysSince', () => {
   it('returns 0 when due exactly on the as-of date', () => {
-    expect(daysOverdueOn('2026-06-01', new Date('2026-06-01T23:00:00Z'))).toBe(0);
+    expect(wholeUtcDaysSince('2026-06-01', new Date('2026-06-01T23:00:00Z'))).toBe(0);
   });
 
   it('returns a positive count for a past due date', () => {
-    expect(daysOverdueOn('2026-06-01', new Date('2026-06-08T00:00:00Z'))).toBe(7);
+    expect(wholeUtcDaysSince('2026-06-01', new Date('2026-06-08T00:00:00Z'))).toBe(7);
   });
 
   it('returns a negative count for a due date still in the future', () => {
-    expect(daysOverdueOn('2026-06-10', new Date('2026-06-01T00:00:00Z'))).toBe(-9);
+    expect(wholeUtcDaysSince('2026-06-10', new Date('2026-06-01T00:00:00Z'))).toBe(-9);
   });
 
   it('returns null for a missing due date', () => {
-    expect(daysOverdueOn(null, new Date())).toBeNull();
-    expect(daysOverdueOn(undefined, new Date())).toBeNull();
+    expect(wholeUtcDaysSince(null, new Date())).toBeNull();
+    expect(wholeUtcDaysSince(undefined, new Date())).toBeNull();
   });
 
   it('returns null for an unparseable due date, never a guessed number', () => {
-    expect(daysOverdueOn('not-a-date', new Date())).toBeNull();
+    expect(wholeUtcDaysSince('not-a-date', new Date())).toBeNull();
   });
 });
 

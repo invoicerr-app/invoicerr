@@ -24,12 +24,12 @@ import { readIntEnv } from '@/utils/read-int-env';
  * ## ONE sweep, not one repeatable per company/invoice — same reasoning as the other three sweeps
  *
  * Exactly one repeatable job (`REMINDER_SWEEP_JOB_NAME`, registered by
- * `queue/document-queue.dispatcher.ts`'s own `registerReminderSweepRepeatable`, on
+ * `queue/document-queue.dispatcher.ts`'s own `reminder` entry in `SWEEP_REPEATABLES`, on
  * `readReminderSweepIntervalMs()`, default 24h) walks every OPTED-IN company's own overdue invoices
  * each pass. `DocumentReminder` rows (schema.prisma) are the only durable state the sweep needs — the
  * repeatable is just a metronome, the same division `conformity-sweep.ts`'s own header already
  * documents at length for its own mechanism. A daily cadence, specifically: reminders escalate in
- * whole DAYS overdue (`daysOverdueOn` below), so sweeping more than once a day can never observe a
+ * whole DAYS overdue (`wholeUtcDaysSince`), so sweeping more than once a day can never observe a
  * different tier for the same invoice — the exact cadence argument `currency-rate-sweep.ts`'s own
  * header makes for the ECB feed's own once-a-business-day publication.
  *
@@ -75,28 +75,6 @@ export const REMINDER_TIERS: readonly ReminderTier[] = [
   { daysOverdue: 14 },
   { daysOverdue: 30 },
 ];
-
-/**
- * Whole UTC days between `dueDate` and `asOf` — the IDENTICAL arithmetic
- * `settlement/client-statement.ts#resolveAgingBucket` already uses (UTC-midnight both sides,
- * `Math.floor`), copied rather than imported: that function collapses the count into a coarse BUCKET
- * ('current'/'0-30'/…) for a statement screen, this one needs the exact day COUNT to compare against
- * a tier threshold — two different shapes over the same one fact, not worth forcing a shared return
- * type for. Returns `null`, never a guessed number, for a missing/unparseable `dueDate` — an invoice's
- * own `dueDate` field is required, so this should never actually happen in practice
- * (reminder-sweep-runner.ts's own candidate query only ever reads real invoice data), but a data
- * anomaly must still degrade rather than crash, the same "honest null, never a guess" rule
- * `resolveAgingBucket` itself already holds.
- */
-export function daysOverdueOn(dueDate: string | null | undefined, asOf: Date): number | null {
-  if (!dueDate) return null;
-  const due = new Date(dueDate);
-  if (Number.isNaN(due.getTime())) return null;
-
-  const dueUtcMs = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate());
-  const asOfUtcMs = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());
-  return Math.floor((asOfUtcMs - dueUtcMs) / 86_400_000);
-}
 
 /**
  * The lowest tier that is both DUE (`daysOverdue >= tier.daysOverdue`) and NOT already present in

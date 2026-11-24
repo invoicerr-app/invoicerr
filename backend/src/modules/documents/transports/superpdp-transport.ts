@@ -175,7 +175,7 @@ export function buildSuperPdpTransport(deps: SuperPdpTransportDeps): DocumentTra
         });
       }
 
-      const superPdpClient = new SuperPdpClient({ ...credentials, apiStyle: 'superpdp' });
+      const superPdpClient = new SuperPdpClient(credentials);
 
       let depositId: string;
       try {

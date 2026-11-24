@@ -1,7 +1,11 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 
-import { findPortalTokenByHash, touchPortalTokenLastUsed } from './portal-token.persistence';
+import {
+  findPortalTokenByHash,
+  isPortalTokenActive,
+  touchPortalTokenLastUsed,
+} from './portal-token.persistence';
 import { hashPortalToken } from './portal-token';
 
 /**
@@ -85,7 +89,7 @@ export class PortalAuthGuard implements CanActivate {
     // "never let a caller distinguish which of the three applies" discipline
     // `ShareLinksService.resolvePublicToken`/`SignaturesService.resolveActiveOrThrow` already hold for
     // their own bearer-token flows.
-    if (!record || record.revokedAt || record.expiresAt <= new Date()) {
+    if (!record || !isPortalTokenActive(record, new Date())) {
       throw new UnauthorizedException('This portal link is invalid, expired, or revoked.');
     }
 

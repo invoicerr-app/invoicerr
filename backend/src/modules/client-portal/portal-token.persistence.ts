@@ -16,6 +16,16 @@ export interface PortalTokenRecord {
   lastUsedAt: Date | null;
 }
 
+/** The one rule for "this token still opens the portal": not revoked and not yet expired (`expiresAt`
+ *  strictly after `now`). The settings screen's `active` flag and `PortalAuthGuard`'s refusal both read
+ *  it, so a token can never show as active while the guard turns it away. */
+export function isPortalTokenActive(
+  record: Pick<PortalTokenRecord, 'revokedAt' | 'expiresAt'>,
+  now: Date,
+): boolean {
+  return !record.revokedAt && record.expiresAt > now;
+}
+
 export async function createPortalToken(input: {
   companyId: string;
   clientId: string;
@@ -55,11 +65,11 @@ export async function findOwnedPortalToken(
 
 /** Soft-revokes — sets `revokedAt`, never deletes the row. Idempotent, same as
  *  `share-link.persistence.ts#revokeShareLinkToken`: revoking an already-revoked token is a no-op on
- *  the already-set timestamp. */
-export async function revokePortalToken(id: string): Promise<PortalTokenRecord> {
-  const existing = await prisma.clientPortalToken.findUniqueOrThrow({ where: { id } });
+ *  the already-set timestamp. Takes the row the caller already loaded (`findOwnedPortalToken`, which
+ *  also proved ownership) rather than reading it a second time. */
+export async function revokePortalToken(existing: PortalTokenRecord): Promise<PortalTokenRecord> {
   if (existing.revokedAt) return existing;
-  return prisma.clientPortalToken.update({ where: { id }, data: { revokedAt: new Date() } });
+  return prisma.clientPortalToken.update({ where: { id: existing.id }, data: { revokedAt: new Date() } });
 }
 
 /**

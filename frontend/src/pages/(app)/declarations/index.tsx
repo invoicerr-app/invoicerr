@@ -28,22 +28,21 @@ import { usePageHeader } from "@/hooks/use-page-header"
  * same convention `document-conformity-section.tsx` already holds for its own per-document timeline.
  */
 
-const STATUS_LABEL_KEY: Record<string, string> = {
-  ACCEPTED: "declarations.status.accepted",
-  SUBMITTED: "declarations.status.submitted",
-  REJECTED: "declarations.status.rejected",
-  [DECLARATION_ISSUE_CODES.blocked]: "declarations.status.blocked",
-  [DECLARATION_ISSUE_CODES.failed]: "declarations.status.failed",
+interface StatusAppearance {
+  labelKey: string
+  variant: "success" | "destructive" | "warning"
 }
 
-// Theme tokens only (index.css) — the same success/destructive/warning triad every other status
-// chip in the app already renders through (the `Badge` tone variants in components/ui/badge.tsx).
-const STATUS_VARIANT: Record<string, "success" | "destructive" | "warning"> = {
-  ACCEPTED: "success",
-  SUBMITTED: "success",
-  REJECTED: "destructive",
-  [DECLARATION_ISSUE_CODES.blocked]: "warning",
-  [DECLARATION_ISSUE_CODES.failed]: "warning",
+/** Each known status code's label key (kept as literal strings so the i18n check sees them) and chip
+ *  variant. Theme tokens only (index.css) for the variant: the same success/destructive/warning triad
+ *  every other status chip in the app already renders through (the `Badge` tone variants in
+ *  components/ui/badge.tsx). */
+const STATUS_APPEARANCE: Record<string, StatusAppearance> = {
+  ACCEPTED: { labelKey: "declarations.status.accepted", variant: "success" },
+  SUBMITTED: { labelKey: "declarations.status.submitted", variant: "success" },
+  REJECTED: { labelKey: "declarations.status.rejected", variant: "destructive" },
+  [DECLARATION_ISSUE_CODES.blocked]: { labelKey: "declarations.status.blocked", variant: "warning" },
+  [DECLARATION_ISSUE_CODES.failed]: { labelKey: "declarations.status.failed", variant: "warning" },
 }
 
 const ALL_STATUSES_VALUE = "all"
@@ -60,7 +59,7 @@ export default function DeclarationsPage() {
   const statusCodes = data?.statusCodes ?? []
 
   function statusLabel(code: string): string {
-    const key = STATUS_LABEL_KEY[code]
+    const key = STATUS_APPEARANCE[code]?.labelKey
     return key ? t(key) : code
   }
 
@@ -145,7 +144,7 @@ export default function DeclarationsPage() {
                   <TableCell className="font-mono text-xs">{declaration.providerId}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={STATUS_VARIANT[declaration.statusCode] ?? "secondary"}
+                      variant={STATUS_APPEARANCE[declaration.statusCode]?.variant ?? "secondary"}
                       data-cy="declaration-status-badge"
                     >
                       {statusLabel(declaration.statusCode)}

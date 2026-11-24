@@ -25,6 +25,30 @@ interface EncryptedBlob {
   ct: string; // base64
 }
 
+/**
+ * Whether `value` has the shape `encryptJson` writes in the CURRENT format (`{ v, iv, tag, ct }`, `v`
+ * equal to `FORMAT_VERSION`). A shape check rather than a decrypt attempt, so it works with no
+ * `CREDENTIALS_ENCRYPTION_KEY` and never conflates "wrong format" with "wrong key". Built on the same
+ * `FORMAT_VERSION` the writer stamps, so a caller telling ciphertext from legacy plaintext follows a
+ * format bump instead of mistaking a new blob for plaintext.
+ */
+export function isEncryptedBlob(value: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return false;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return false;
+  const blob = parsed as Record<string, unknown>;
+  return (
+    blob.v === FORMAT_VERSION &&
+    typeof blob.iv === 'string' &&
+    typeof blob.tag === 'string' &&
+    typeof blob.ct === 'string'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Key resolution
 // ---------------------------------------------------------------------------

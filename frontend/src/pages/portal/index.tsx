@@ -28,6 +28,7 @@ import {
   useRequestPortalQuoteSignature,
 } from "@/hooks/queries"
 import { clearPortalToken, getPortalToken, portalFetch } from "@/hooks/use-portal-fetch"
+import { openBlob } from "@/lib/download"
 import { cn } from "@/lib/utils"
 import type { ClientStatementCurrencyTotals, ClientStatementDocumentRow, PortalQuoteRow } from "@/types"
 
@@ -120,16 +121,14 @@ function CurrencyTotalsCard({ totals }: { totals: ClientStatementCurrencyTotals 
 }
 
 /** Downloads one document's PDF through the portal's own bearer-token transport, then opens it —
- *  identical `blob` + `URL.createObjectURL` + `window.open` mechanism `document-list.tsx`'s own
- *  authenticated download button already uses, since a plain `<a href>` cannot carry the
- *  `Authorization` header this route requires. */
+ *  the same `openBlob` (lib/download.ts) `document-list.tsx`'s own authenticated download button
+ *  already uses, since a plain `<a href>` cannot carry the `Authorization` header this route
+ *  requires. */
 async function downloadPortalPdf(typeId: string, id: string, errorMessage: string) {
   try {
     const response = await portalFetch(`/api/portal/documents/${typeId}/${id}/pdf`)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
-    window.open(url, "_blank")
+    openBlob(await response.blob())
   } catch (error) {
     toast.error(error instanceof Error ? error.message : errorMessage)
   }

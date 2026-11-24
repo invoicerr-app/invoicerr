@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useCompanies } from "@/hooks/queries"
 import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { downloadBlob } from "@/lib/download"
+import { downloadBlob, responseErrorMessage } from "@/lib/download"
 
 import { SettingsFormFooter, SettingsSection } from "@/components/settings-section"
 
@@ -43,8 +43,7 @@ export default function DataExportSettings() {
         return
       }
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${response.status}`)
+        throw new Error(await responseErrorMessage(response))
       }
 
       const blob = await response.blob()

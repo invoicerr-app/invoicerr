@@ -49,8 +49,8 @@ const FORMULA_LEAD = /^[=+\-@\t\r]/;
 
 /** A plain decimal number, and nothing looser — no exponent (`1e3`), no thousands separator, no
  *  trailing unit. Every amount this codebase renders into a CSV comes from `utils/financial.ts`'s
- *  own `fromMinor(...).toFixed(decimalsFor(...))`, which produces exactly this shape, so widening
- *  this pattern would only ever exempt values that are NOT amounts. */
+ *  own `formatMinorFixed`, which produces exactly this shape, so widening this pattern would only
+ *  ever exempt values that are NOT amounts. */
 const PLAIN_NUMBER = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/;
 
 /** Characters that force RFC 4180 quoting — the delimiter, the quote itself, and either half of a

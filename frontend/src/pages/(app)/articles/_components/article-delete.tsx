@@ -27,12 +27,9 @@ export function ArticleDeleteDialog({
     if (!article) return
     setLoading(true)
     try {
-      const res = await authenticatedFetch(
-        `${import.meta.env.VITE_BACKEND_URL || ""}/api/articles/${article.id}`,
-        {
-          method: "DELETE",
-        },
-      )
+      const res = await authenticatedFetch(`/api/articles/${article.id}`, {
+        method: "DELETE",
+      })
       if (!res.ok) throw new Error("Delete failed")
       queryClient.invalidateQueries({ queryKey: queryKeys.articles.list() })
       toast.success(t("articles.upsert.messages.deleteSuccess") || "Article deleted")

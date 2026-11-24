@@ -1,4 +1,4 @@
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinor } from '@/utils/financial';
 
 /**
  * What is still owed on a document, once PAYMENTS and CREDITS are counted — nothing else
@@ -129,8 +129,7 @@ export function computeSettlement(
  * say "Paid" for a document nothing was ever paid on — see document-settlement.tsx's own header.
  */
 export function describeSettlement(settlement: DocumentSettlement, currency: string): string {
-  const decimals = decimalsFor(currency);
-  const format = (minor: number) => `${fromMinor(minor, currency).toFixed(decimals)} ${currency}`;
+  const format = (minor: number) => formatMinor(minor, currency);
 
   if (settlement.settled) {
     return settlement.excessMinor > 0

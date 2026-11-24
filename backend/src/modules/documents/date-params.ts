@@ -22,6 +22,27 @@ export function dayMs(dateStr: string): number {
   return Date.UTC(year, month - 1, day);
 }
 
+/** The UTC midnight of `date`'s own UTC calendar day, in milliseconds. */
+export function utcDayMs(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+/**
+ * Whole UTC days between `dueIso` and `asOf` (UTC-midnight both sides, `Math.floor`): negative while
+ * `dueIso` is still in the future. Shared by `reminders/reminder-sweep-runner.ts`, which compares
+ * the exact count against a reminder tier threshold, and
+ * `settlement/client-statement.ts#resolveAgingBucket`, which collapses it into a coarse bucket for a
+ * statement screen. Returns `null`, never a guessed
+ * number, for a missing/unparseable `dueIso` - an invoice's own `dueDate` field is required, so this
+ * should never actually happen in practice, but a data anomaly must still degrade rather than crash.
+ */
+export function wholeUtcDaysSince(dueIso: string | null | undefined, asOf: Date): number | null {
+  if (!dueIso) return null;
+  const due = new Date(dueIso);
+  if (Number.isNaN(due.getTime())) return null;
+  return Math.floor((utcDayMs(asOf) - utcDayMs(due)) / 86_400_000);
+}
+
 /** Whether `dateValue` (whatever a document's date field currently holds, normally an ISO string,
  *  e.g. from a 'date' field's own `toISOString()`) falls within `[fromMs, toMs]`, each bound optional
  *  and inclusive, compared at UTC day boundaries. Missing/unparseable -> excluded: a document with no
@@ -37,7 +58,7 @@ export function dateValueInRange(
   if (typeof dateValue !== 'string') return false;
   const parsed = new Date(dateValue);
   if (Number.isNaN(parsed.getTime())) return false;
-  const ms = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  const ms = utcDayMs(parsed);
   if (fromMs !== undefined && ms < fromMs) return false;
   if (toMs !== undefined && ms > toMs) return false;
   return true;

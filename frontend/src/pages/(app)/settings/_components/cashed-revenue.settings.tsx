@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
-import { downloadBlob } from "@/lib/download"
+import { downloadBlob, responseErrorMessage } from "@/lib/download"
 import type { CashedRevenueReport } from "@/types"
 
 import { SettingsList, SettingsListRow, SettingsPage, SettingsSection } from "@/components/settings-section"
@@ -46,8 +46,7 @@ export default function CashedRevenueSettings() {
     try {
       const response = await authenticatedFetch(`/api/revenue/cashed/export${query}`)
       if (!response.ok) {
-        const body = await response.json().catch(() => null)
-        throw new Error(body?.message || `HTTP ${response.status}`)
+        throw new Error(await responseErrorMessage(response))
       }
       const blob = await response.blob()
       downloadBlob(blob, `cashed-revenue-${report?.granularity ?? "export"}.csv`)

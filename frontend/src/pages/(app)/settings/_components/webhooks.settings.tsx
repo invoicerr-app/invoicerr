@@ -88,8 +88,7 @@ export default function WebhooksSettings() {
   const handleDelete = async (id: string) => {
     setDeletingId(id)
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/webhooks/${id}`, { method: "DELETE" })
+      const res = await authenticatedFetch(`/api/webhooks/${id}`, { method: "DELETE" })
       const json = res.ok ? await res.json() : null
       if (json && json.success) {
         mutate()
@@ -108,8 +107,7 @@ export default function WebhooksSettings() {
     if (!newUrl) return
     setEditingId(id)
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const res = await authenticatedFetch(`${backendUrl}/api/webhooks/${id}`, {
+      const res = await authenticatedFetch(`/api/webhooks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: newUrl }),

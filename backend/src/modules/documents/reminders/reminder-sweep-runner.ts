@@ -1,6 +1,6 @@
 /**
  * The Prisma/mail-touching half of the dunning-reminder sweep — `reminder-sweep.ts` holds the pure
- * decisions (`selectDueReminderTier`, `daysOverdueOn`, `buildReminderEmail`, the job constants); this
+ * decisions (`selectDueReminderTier`, `buildReminderEmail`, the job constants); this
  * class is what actually reads `Company`/`DocumentInstance`/`DocumentPayment`/`Client`/
  * `DocumentReminder` rows, sends the email, and records the reminder — the same "pure core, thin
  * persistence shell" split `conformity-sweep-runner.ts`/`currency-rate-sweep-runner.ts` already hold
@@ -66,14 +66,15 @@ import { MailService } from '@/mail/mail.service';
 import { logger } from '@/logger/logger.service';
 import { runWithCompanyId } from '@/lib/request-context';
 import prisma from '@/prisma/prisma.service';
-import { decimalsFor, fromMinor } from '@/utils/financial';
+import { formatMinor } from '@/utils/financial';
 
 import { Prisma } from '../../../../prisma/generated/prisma/client';
+import { wholeUtcDaysSince } from '../date-params';
 import { buildInvoiceDescriptor } from '../descriptors/invoice.descriptor';
 import { listAllDocuments } from '../persistence';
 import { resolveRecipientLanguage } from '../rendering/language/resolve-recipient-language';
 import { resolveInvoiceBalances } from '../settlement/unsettled-invoices';
-import { buildReminderEmail, daysOverdueOn, selectDueReminderTier } from './reminder-sweep';
+import { buildReminderEmail, selectDueReminderTier } from './reminder-sweep';
 
 /** The invoice's own base descriptor — see `client-statement.ts`'s identical constant for why a
  *  direct import is fine here: this file only ever computes totals for "invoice" instances (this
@@ -204,11 +205,11 @@ export class ReminderSweepRunner {
     for (const { invoice, settlement } of balances) {
       const data = (invoice.data ?? {}) as Record<string, unknown>;
       const dueDate = typeof data.dueDate === 'string' ? data.dueDate : null;
-      const daysOverdue = daysOverdueOn(dueDate, now);
+      const daysOverdue = wholeUtcDaysSince(dueDate, now);
       if (daysOverdue === null) {
         // No usable due date — should not happen for an invoice (dueDate is a required field on
-        // its own descriptor), but an honest degrade beats a guess or a crash. See reminder-sweep.ts's
-        // own header on `daysOverdueOn`.
+        // its own descriptor), but an honest degrade beats a guess or a crash. See date-params.ts's
+        // own header on `wholeUtcDaysSince`.
         skipped++;
         continue;
       }
@@ -241,8 +242,7 @@ export class ReminderSweepRunner {
       const recipient = client.contactEmail;
 
       const currency = typeof data.currency === 'string' ? data.currency : '';
-      const decimals = decimalsFor(currency);
-      const amountOutstanding = `${fromMinor(settlement.outstandingMinor, currency).toFixed(decimals)} ${currency}`;
+      const amountOutstanding = formatMinor(settlement.outstandingMinor, currency);
       // Per-recipient document language — the SAME resolution order a document's own PDF/send-email
       // uses (`rendering/language/resolve-recipient-language.ts`): the client's own `Client.language`
       // wins when set, else this company's own `Company.language`, else the shared default. A dunning

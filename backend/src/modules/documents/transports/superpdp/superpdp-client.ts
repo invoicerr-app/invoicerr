@@ -3,17 +3,19 @@
  *   1. SuperPDP proprietary API (v1.beta) — rich lifecycle statuses (fr:200–fr:213)
  *   2. AFNOR Flow Service (XP Z12-013 standard) — portable across PDPs
  *
- * The client is parameterized by `baseUrl` and `apiStyle` so the same code works
- * against any PDP that exposes either API shape.
+ * The client is parameterized by `baseUrl` so the same code works against any PDP that exposes
+ * either API shape: the proprietary and AFNOR Flow methods sit side by side below, and each caller
+ * picks the methods it needs (no setting switches between the two).
  *
  * Auth: OAuth2 client_credentials (POST /oauth2/token).
  *
  * Source of truth: OpenAPI specs fetched from superpdp.tech/openapi on 2026-06-28.
  *
- * REPRISED VERBATIM (byte-for-byte, only this header changed) from git tag
- * `avant-refonte-documents` (`compliance/providers/transmission/pdp/pdp-client.ts`): this client is
- * dependency-free (bare `fetch`/`FormData`/`Blob`), so nothing about the document-engine rebuild
- * required touching it. `superpdp-transport.ts` only calls `authenticate()` + `sendInvoice()` - the AFNOR
+ * Reprised from git tag `avant-refonte-documents` (`compliance/providers/transmission/pdp/pdp-client.ts`).
+ * No longer byte-for-byte: the API-style setting it carried ('superpdp' | 'afnor') was removed, since
+ * every caller passed 'superpdp' and nothing ever read it. This client is dependency-free (bare
+ * `fetch`/`FormData`/`Blob`), so nothing about the document-engine rebuild required touching it.
+ * `superpdp-transport.ts` only calls `authenticate()` + `sendInvoice()` - the AFNOR
  * Flow / directory / lifecycle-push methods below are kept unused rather than trimmed: another
  * transport (KSeF/SdI reuse the same "one client per jurisdiction" shape) or a PDP polling follow-up
  * can reach for them without a second port of this file.
@@ -46,7 +48,7 @@
  * could still answer with a 30x pointing the SAME request at an internal one, which an auto-followed
  * redirect would silently complete.
  */
-import { backoffDelayMs, sleep } from '@/modules/documents/transports/http-retry';
+import { backoffDelayMs, readResponseBody, sleep } from '@/modules/documents/transports/http-retry';
 import { pinnedDispatcher, ResolvedOutboundUrl } from '@/utils/outbound-url';
 
 import { resolvePublicProviderBaseUrl } from '../public-provider-base-url';
@@ -61,11 +63,7 @@ export interface SuperPdpClientConfig {
   /** OAuth2 client credentials. */
   clientId: string;
   clientSecret: string;
-  /** Which API shape to use (default: "superpdp"). */
-  apiStyle?: 'superpdp' | 'afnor';
 }
-
-export type SuperPdpApiStyle = 'superpdp' | 'afnor';
 
 /**
  * The status codes SuperPDP accepts on `POST /v1.beta/invoice_events`, exactly as its published
@@ -282,7 +280,6 @@ export class SuperPdpClient {
   private readonly baseUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
-  private readonly apiStyle: SuperPdpApiStyle;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
@@ -292,7 +289,6 @@ export class SuperPdpClient {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
-    this.apiStyle = config.apiStyle ?? 'superpdp';
     this.timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT;
     this.maxRetries = opts?.maxRetries ?? DEFAULT_MAX_RETRIES;
   }
@@ -446,14 +442,7 @@ export class SuperPdpClient {
 
       try {
         const res = await fetch(`${this.baseUrl}${path}`, fetchOpts);
-        const ct = res.headers.get('content-type') ?? '';
-        let respBody: unknown;
-        if (ct.includes('application/json')) {
-          respBody = await res.json();
-        } else {
-          const text = await res.text();
-          respBody = text || undefined;
-        }
+        const respBody = await readResponseBody(res);
 
         if (res.status >= 500 && attempt < maxRetries) {
           lastError = new SuperPdpApiError(`Server error ${res.status}`, res.status, respBody, path);
@@ -535,8 +524,8 @@ export class SuperPdpClient {
 
   /**
    * Raw file bytes for one deposit — never JSON-parsed, unlike every other method on this class:
-   * `request<T>()` only ever branches on `content-type` between `res.json()` and `res.text()` (see
-   * that method's own body above), and `res.text()` decodes as UTF-8, which silently corrupts a
+   * `request<T>()` only ever branches on `content-type` between `res.json()` and `res.text()` (through
+   * `readResponseBody` from `http-retry.ts`), and `res.text()` decodes as UTF-8, which silently corrupts a
    * binary PDF the moment a byte sequence isn't valid UTF-8. Added for RECEPTION (a poller downloading
    * an INBOUND deposit's own original/Factur-X artifact to attach to a `received-invoice` — see
    * `superpdp-reception.ts`): `sendInvoice()`/`getInvoice()` above never needed this because outbound
@@ -797,14 +786,6 @@ export class SuperPdpClient {
         limit,
       },
     });
-  }
-
-  // -----------------------------------------------------------------------
-  // Helpers
-  // -----------------------------------------------------------------------
-
-  getApiStyle(): SuperPdpApiStyle {
-    return this.apiStyle;
   }
 }
 

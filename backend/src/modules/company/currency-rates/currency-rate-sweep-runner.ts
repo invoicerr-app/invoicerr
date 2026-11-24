@@ -26,6 +26,7 @@ import {
   ECB_SOURCE,
   EXCHANGERATE_API_SOURCE,
   NeededCurrencyPair,
+  RATE_PIVOT_CURRENCY,
   computeCrossRate,
   deriveNeededCurrencyPairs,
 } from './currency-rate-sweep';
@@ -227,7 +228,7 @@ export class CurrencyRateSweepRunner {
 
     // Which used currencies either source can quote. EUR is free, and the fallback is only fetched
     // when a used currency falls outside the ECB map, memoized across the pass.
-    const ecbCurrencies = new Set<string>([...ecbRates.keys(), 'EUR']);
+    const ecbCurrencies = new Set<string>([...ecbRates.keys(), RATE_PIVOT_CURRENCY]);
     const usageCurrencies = new Set<string>([
       ...usedCurrencies.map((u) => u.currency),
       ...paymentDocumentPairs.flatMap((p) => [p.paymentCurrency, p.documentCurrency]),

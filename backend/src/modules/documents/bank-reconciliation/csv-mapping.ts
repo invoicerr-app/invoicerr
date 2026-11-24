@@ -4,8 +4,10 @@
  * making the user save a named per-bank profile. One mapping serves exactly ONE import; nothing here
  * is persisted (see `bank-reconciliation.service.ts` — only the PARSED lines that result are saved).
  */
-export type CsvDateFormat = 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
-export type CsvDecimalSeparator = '.' | ',';
+export const CSV_DATE_FORMATS = ['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'] as const;
+export const CSV_DECIMAL_SEPARATORS = ['.', ','] as const;
+export type CsvDateFormat = (typeof CSV_DATE_FORMATS)[number];
+export type CsvDecimalSeparator = (typeof CSV_DECIMAL_SEPARATORS)[number];
 
 export interface CsvColumnMapping {
   /** Header names, matched against the file's own first row — case-sensitive, exact: the frontend

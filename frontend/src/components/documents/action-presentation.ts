@@ -159,15 +159,36 @@ export function presentActions(
   return { primary, secondary: secondaryActions(remaining, primary), settled: false }
 }
 
-/** Actions a create dialog never submits (see `use-document-form.ts`'s own `availableActions`
- *  filter: none of them is a create-time POST through `runAction`). */
-const NON_CREATE_ACTION_IDS = new Set(["cancel", "download-xml", "share-link", "accept-manually"])
+/**
+ * Actions declared on a descriptor that never get a GENERIC button: not in a create dialog, not in
+ * the detail page's cluster (`use-document-form.ts`'s `availableActions`), not in a list row
+ * (`document-list.tsx`). One list, so the three surfaces cannot drift apart:
+ *  - "cancel": declared purely for the backend's own country-policy/status gates (cancel-policy.ts,
+ *    invoice.descriptor.ts), but its ONE entry point is the correction-routes dialog
+ *    (custom/invoice-correction-routes-button.tsx, with its own irreversibility confirmation). An
+ *    irreversible action gets ONE clearly-labelled door, not two.
+ *  - "download-xml" and "share-link": declared for the status/policy gates only, and neither is a
+ *    POST through `runAction` (a plain GET, a REST resource) - the detail page offers them through
+ *    their own dedicated entries instead (document-detail.tsx).
+ *  - "accept-manually" (issue #421), for a DIFFERENT reason: it IS a POST through `runAction`, but
+ *    the generic `ActionParamsDialog` cannot enforce a required, non-empty note or carry this
+ *    action's own "this is not an electronic signature" warning (see `mark-quote-accepted-dialog.tsx`'s
+ *    own header) - the detail page offers it through that dedicated dialog instead. Marking a quote
+ *    accepted is a detail-page action, not a one-click row action.
+ */
+const DEDICATED_ENTRY_ACTION_IDS = new Set(["cancel", "download-xml", "share-link", "accept-manually"])
+
+/** Whether `action` may appear as a generic button (create dialog, detail page, list row): false for
+ *  every action listed in `DEDICATED_ENTRY_ACTION_IDS` above, which has its own dedicated entry. */
+export function isRowOrDetailAction(action: Pick<DocumentActionDescriptor, "id">): boolean {
+  return !DEDICATED_ENTRY_ACTION_IDS.has(action.id)
+}
 
 /** The actions a brand-new record of this type could run from its create dialog: the same set
  *  `use-document-form.ts` offers there (`availableActions`, read with no status yet). */
 function createTimeActions(descriptor: Pick<DocumentTypeDescriptor, "actions">): DocumentActionDescriptor[] {
   return descriptor.actions.filter(
-    (action) => !NON_CREATE_ACTION_IDS.has(action.id) && isActionAvailable(action, undefined),
+    (action) => isRowOrDetailAction(action) && isActionAvailable(action, undefined),
   )
 }
 

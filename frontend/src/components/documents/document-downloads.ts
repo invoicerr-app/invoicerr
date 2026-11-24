@@ -3,7 +3,7 @@ import { toast } from "sonner"
 
 import { type DocumentInstance, type DocumentTypeDescriptor, statusLabel } from "@/components/documents/types"
 import { authenticatedFetch } from "@/hooks/use-fetch"
-import { downloadBlob } from "@/lib/download"
+import { downloadBlob, openBlob, responseErrorMessage } from "@/lib/download"
 
 /**
  * The two plain-GET downloads a document offers — its rendered PDF, and one of its normalized XML
@@ -26,15 +26,6 @@ export const DOCUMENT_XML_SYNTAXES: { syntax: DocumentXmlSyntax; labelKey: strin
   { syntax: "peppol-bis", labelKey: "documents.list.downloadXmlPeppolBis" },
   { syntax: "xrechnung", labelKey: "documents.list.downloadXmlXrechnung" },
 ]
-
-function openBlob(blob: Blob) {
-  const url = URL.createObjectURL(blob)
-  window.open(url, "_blank")
-}
-
-function saveBlob(blob: Blob, fileName: string) {
-  downloadBlob(blob, fileName)
-}
 
 const FILE_NAME_RESERVED = /[\\/:*?"<>|]+/g
 
@@ -86,7 +77,10 @@ export async function downloadDocumentPdf(
   t: TFunction,
 ) {
   try {
-    saveBlob(await fetchDocumentPdf(descriptor.id, instance.id, t), documentPdfFileName(descriptor, instance))
+    downloadBlob(
+      await fetchDocumentPdf(descriptor.id, instance.id, t),
+      documentPdfFileName(descriptor, instance),
+    )
   } catch (error) {
     toastPdfError(error, t)
   }
@@ -120,10 +114,9 @@ export async function downloadManualAcceptanceAttachment(
       `/api/documents/${documentId}/manual-acceptance/attachment?typeId=${typeId}`,
     )
     if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.message || `HTTP ${response.status}`)
+      throw new Error(await responseErrorMessage(response))
     }
-    saveBlob(await response.blob(), fileName)
+    downloadBlob(await response.blob(), fileName)
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t("documents.acceptance.manualAttachmentDownload"))
   }

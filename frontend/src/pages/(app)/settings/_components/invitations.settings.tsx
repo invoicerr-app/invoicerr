@@ -72,8 +72,7 @@ export default function InvitationsSettings() {
 
   const deleteInvitation = async (id: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || ""
-      const response = await authenticatedFetch(`${backendUrl}/api/invitations/${id}`, {
+      const response = await authenticatedFetch(`/api/invitations/${id}`, {
         method: "DELETE",
       })
       if (response.ok) {
