@@ -60,9 +60,8 @@ import { createHash } from 'node:crypto';
 import { ChannelCredentialsService } from '@/modules/company/channels/channels.service';
 
 import { authenticate, extractKsefCredentials, KsefCredentials } from '../../transports/ksef-transport';
-import { FetchKsefHttpClient } from '../../transports/ksef/fetch-http-client';
+import { buildKsefClient } from '../../transports/ksef/build-ksef-client';
 import { InvoiceStatusResponse, KsefClient } from '../../transports/ksef/ksef-client';
-import { loadVendorizedKeys } from '../../transports/ksef/ksef-public-keys';
 import { resolveChannelCredentials } from '../../transports/resolve-channel-credentials';
 import {
   AuthorityStatusPoller,
@@ -103,6 +102,13 @@ function credentialFingerprint(credentials: KsefCredentials): string {
   return createHash('sha256').update(credentials.ksefToken).digest('hex').slice(0, 16);
 }
 
+/** The cache key of one `(companyId, environment, credentialFingerprint)` triple. Written once: the
+ *  lookup in `getSharedAccessToken` and the eviction in `poll()` must build the exact same string, or
+ *  a failed poll would evict nothing and the bad token would stay cached without anyone noticing. */
+function ksefTokenCacheKey(companyId: string, credentials: KsefCredentials): string {
+  return `${companyId}:${credentials.environment}:${credentialFingerprint(credentials)}`;
+}
+
 /** One access token per `(companyId, environment, credentialFingerprint)`, reused for every poll
  *  while it stays valid — see this file's own header, "Mutualized handshake". Evicted eagerly
  *  whenever using it fails (a 401 the cached token no longer satisfies, a network error mid-call): the
@@ -116,7 +122,7 @@ async function getSharedAccessToken(
   companyId: string,
   credentials: KsefCredentials,
 ): Promise<string> {
-  const cacheKey = `${companyId}:${credentials.environment}:${credentialFingerprint(credentials)}`;
+  const cacheKey = ksefTokenCacheKey(companyId, credentials);
   const cached = accessTokenCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt - ACCESS_TOKEN_REFRESH_MARGIN_MS) {
     return cached.accessToken;
@@ -199,22 +205,14 @@ export function buildKsefStatusPoller(deps: KsefStatusPollerDeps): AuthorityStat
       const { sessionRef, invoiceRef } = parseKsefTransportRef(transportRef);
       const credentials = await resolveKsefCredentials(deps.channelCredentials, companyId);
 
-      const keys = loadVendorizedKeys(credentials.environment);
-      const http = new FetchKsefHttpClient();
-      const client = new KsefClient(http, {
-        environment: credentials.environment,
-        nip: credentials.nip,
-        ksefToken: credentials.ksefToken,
-        tokenEncryptionKeyPem: keys.tokenEncryptionKeyPem,
-        symmetricKeyPem: keys.symmetricKeyPem,
-      });
+      const client = buildKsefClient(credentials);
 
       // Shared across every poll for this (company, environment, credential) triple while it stays
       // valid — see this file's own header, "Mutualized handshake". Whatever token `send()` used at
       // deposit time is long gone by the time a later sweep pass polls (that one was never cached to
       // begin with), so this still authenticates on the FIRST poll for a given triple; only the
       // REPEATED handshake per document, per pass, is what this cache removes.
-      const cacheKey = `${companyId}:${credentials.environment}:${credentialFingerprint(credentials)}`;
+      const cacheKey = ksefTokenCacheKey(companyId, credentials);
       const accessToken = await getSharedAccessToken(client, companyId, credentials);
       try {
         const status = await client.invoiceStatus(sessionRef, invoiceRef, accessToken);
