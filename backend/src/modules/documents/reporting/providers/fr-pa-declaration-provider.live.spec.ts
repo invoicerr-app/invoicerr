@@ -136,13 +136,8 @@ describeLive('SuperPDP e-reporting live round-trip', () => {
   });
 
   it('answers the e-reporting preview the platform aggregates declarations into', async () => {
-    // The published contract (api.superpdp.tech/openapi/superpdp.json, operation EreportingPreview)
-    // makes `date`, `kind` (`transaction` or `payment`) and `role_code` (`SE` or `BY`) required: a
-    // bare call is refused with 400 "invalid kind". A transaction is declared first and the preview
-    // asks for the period of that same `issueDate`. Nothing in the contract says the platform
-    // aggregates it synchronously, so the route may still answer 204 with no body (which the client
-    // returns as `undefined`); a 200 is the platform's own XML aggregate. The acceptance only asks
-    // that the route is reachable with the declared data, so either answer passes and any 4xx throws.
+    // The route requires `date` (any day of the period), `kind` and `role_code`. Aggregation is not
+    // guaranteed synchronous, so 204 (no body, `undefined` here) passes as well as the 200 XML aggregate.
     const adapter = buildSuperPdpEReportingAdapter({ channelCredentials: liveCredentials() });
     await adapter.syncCompanyProfile?.('live-company', { vatRegime: 'REAL_MONTHLY', vatOnDebits: false });
     const declared = invoice();
