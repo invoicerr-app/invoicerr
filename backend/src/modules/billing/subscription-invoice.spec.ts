@@ -181,15 +181,18 @@ describe('the issuer company setting', () => {
 describe('invoice lines from Stripe lines', () => {
   it('gives one line per Stripe line, at its amount, with the period in the text', () => {
     expect(
-      toInvoiceLines([
-        {
-          description: '3 x Standard (monthly)',
-          amount: 1850,
-          quantity: 3,
-          periodStart: JAN_1,
-          periodEnd: FEB_1,
-        },
-      ]),
+      toInvoiceLines(
+        [
+          {
+            description: '3 x Standard (monthly)',
+            amount: 1850,
+            quantity: 3,
+            periodStart: JAN_1,
+            periodEnd: FEB_1,
+          },
+        ],
+        'EUR',
+      ),
     ).toEqual([
       {
         description: '3 x Standard (monthly) (2027-01-01 to 2027-02-01)',
@@ -201,11 +204,21 @@ describe('invoice lines from Stripe lines', () => {
     ]);
   });
 
+  it('reads each amount in its own currency minor unit, so a yen amount is not divided by 100', () => {
+    expect(
+      toInvoiceLines(
+        [{ description: 'Standard', amount: 1234, quantity: 1, periodStart: null, periodEnd: null }],
+        'JPY',
+      )[0].unitPrice,
+    ).toBe(1234);
+  });
+
   it('names a line Stripe left without a description', () => {
     expect(
-      toInvoiceLines([
-        { description: '', amount: 100, quantity: null, periodStart: null, periodEnd: null },
-      ])[0].description,
+      toInvoiceLines(
+        [{ description: '', amount: 100, quantity: null, periodStart: null, periodEnd: null }],
+        'EUR',
+      )[0].description,
     ).toBe('Invoicerr subscription');
   });
 

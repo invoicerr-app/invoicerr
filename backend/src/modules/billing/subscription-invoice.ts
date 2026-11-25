@@ -23,6 +23,7 @@
  */
 import prisma from '@/prisma/prisma.service';
 import { logger } from '@/logger/logger.service';
+import { fromMinor } from '@/utils/financial';
 
 /** The webhook event that records a payment. */
 export const PAID_INVOICE_EVENT = 'invoice.paid';
@@ -169,7 +170,10 @@ const isoDay = (seconds: number): string => new Date(seconds * 1000).toISOString
 
 /** The Invoicerr invoice lines of a Stripe invoice: one line each, quantity 1, the Stripe amount as
  *  price. Graduated seat tiers make a per-seat price inexact, so the seat count stays in the text. */
-export function toInvoiceLines(lines: SubscriptionInvoiceLine[]): Array<Record<string, unknown>> {
+export function toInvoiceLines(
+  lines: SubscriptionInvoiceLine[],
+  currency: string,
+): Array<Record<string, unknown>> {
   return lines.map((line) => {
     const period =
       line.periodStart && line.periodEnd ? ` (${isoDay(line.periodStart)} to ${isoDay(line.periodEnd)})` : '';
@@ -177,7 +181,7 @@ export function toInvoiceLines(lines: SubscriptionInvoiceLine[]): Array<Record<s
       description: `${line.description || 'Invoicerr subscription'}${period}`,
       quantity: 1,
       unit: 'unit',
-      unitPrice: line.amount / 100,
+      unitPrice: fromMinor(line.amount, currency),
       vatRate: '20',
     };
   });
