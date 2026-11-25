@@ -56,8 +56,7 @@ export function envOidcProviderId(): string | undefined {
  * convenience, never the control.
  */
 export function isOidcOnly(): boolean {
-  const raw = (getEnvVariable("VITE_OIDC_ONLY") ?? "").trim().toLowerCase()
-  return raw === "1" || raw === "true"
+  return envFlag("VITE_OIDC_ONLY")
 }
 
 /**
@@ -71,6 +70,12 @@ export function isOidcOnly(): boolean {
  * this function to mirror; see `components/beta-banner.tsx` for what it turns on.
  */
 export function isBetaBannerEnabled(): boolean {
-  const raw = (getEnvVariable("VITE_ENABLE_BETA_BANNER") ?? "").trim().toLowerCase()
+  return envFlag("VITE_ENABLE_BETA_BANNER")
+}
+
+/** An instance-level on/off switch: "1" or "true", case-insensitive, surrounding whitespace tolerated.
+ *  The browser twin of `backend/src/utils/read-bool-env.ts#isEnvFlagOn`. */
+function envFlag(key: string): boolean {
+  const raw = (getEnvVariable(key) ?? "").trim().toLowerCase()
   return raw === "1" || raw === "true"
 }
