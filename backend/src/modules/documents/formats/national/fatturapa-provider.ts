@@ -70,7 +70,7 @@
  * `CodiceDestinatarioType` is `[A-Z0-9]{6,7}`.
  */
 import { getIdentifier } from '@/utils/entity-identifiers';
-import { fromMinor } from '@/utils/financial';
+import { fromMinor, toMinor } from '@/utils/financial';
 
 import { DocumentInstanceResult } from '../../actions/action-registry';
 import { defaultCompanyLawCatalog, readCompanyLawDetails } from '../../company-law/company-law';
@@ -257,7 +257,7 @@ function datiBolloFor(
   const nonVatBaseMinor = totals.vatBreakdown
     .filter((entry) => entry.ratePercent <= 0)
     .reduce((sum, entry) => sum + entry.baseMinor, 0);
-  if (nonVatBaseMinor <= Math.round(fact.threshold * 100)) return undefined;
+  if (nonVatBaseMinor <= toMinor(fact.threshold, 'EUR')) return undefined;
 
   return { BolloVirtuale: fact.bolloVirtuale, ImportoBollo: fmtAmount(fact.amount, 2) };
 }

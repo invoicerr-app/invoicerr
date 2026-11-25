@@ -130,7 +130,7 @@ export class SubscriptionInvoiceIssuer {
           issueDate: today,
           dueDate: today,
           currency: row.currency,
-          lines: toInvoiceLines(lines),
+          lines: toInvoiceLines(lines, row.currency),
         },
       });
       if (!draft.document) throw new Error('saving the draft returned no document');

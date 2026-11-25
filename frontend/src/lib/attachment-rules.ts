@@ -13,7 +13,8 @@ export const ATTACHMENT_MIMES: readonly string[] = [
   "image/webp",
 ]
 
-/** The size the manual-acceptance dialog refuses before uploading (10 MB). */
+/** The size the manual-acceptance dialog refuses before uploading (10 MB). Mirrors the backend upload
+ *  limit, `backend/src/modules/documents/attachments/attachments.service.ts#MAX_ATTACHMENT_BYTES`. */
 export const ACCEPTANCE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 
 /**

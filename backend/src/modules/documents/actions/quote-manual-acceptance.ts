@@ -3,7 +3,10 @@ import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import { logger } from '@/logger/logger.service';
 
 import { MAX_ATTACHMENT_BYTES } from '../attachments/attachments.service';
-import { ALLOWED_ATTACHMENT_MIMES } from '../attachments/content-disposition';
+import {
+  ALLOWED_ATTACHMENT_MIMES,
+  MAX_ATTACHMENT_FILE_NAME_LENGTH,
+} from '../attachments/content-disposition';
 import { computeArtifactHash, isContentHash } from '../archive/hashing';
 import {
   createManualAcceptanceArchive,
@@ -67,7 +70,6 @@ const MAX_NOTE_LENGTH = 2000;
  * order: the refusal message below lists them).
  */
 const PROOF_FILE_MIMES: readonly string[] = ALLOWED_ATTACHMENT_MIMES.filter((mime) => !mime.endsWith('/xml'));
-const MAX_ATTACHMENT_FILE_NAME_LENGTH = 255;
 
 interface ResolvedAttachment {
   meta: ManualAcceptanceAttachmentMeta;
@@ -96,6 +98,8 @@ async function resolveAttachment(companyId: string, raw: unknown): Promise<Resol
       `The attachment needs a file name of at most ${MAX_ATTACHMENT_FILE_NAME_LENGTH} characters.`,
     );
   }
+  // Read off the inbound store directly rather than through `AttachmentsService.download`: that one
+  // answers a missing file with a 404, while a proof that cannot be found is a 400 on this action.
   const bytes = await readInboundFile(companyId, fileRef, mime);
   if (!bytes) {
     throw new BadRequestException('The attached file was not found for this company - upload it again.');

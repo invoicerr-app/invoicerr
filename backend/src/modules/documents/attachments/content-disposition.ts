@@ -26,6 +26,14 @@ export const ALLOWED_ATTACHMENT_MIMES: readonly string[] = [
 ];
 
 /**
+ * The longest file name an uploaded file keeps (the common filesystem limit). A quote's proof of
+ * acceptance REFUSES a longer name (`actions/quote-manual-acceptance.ts`): the name is shown back as
+ * part of the evidence. A received invoice deposit TRUNCATES it instead
+ * (`received-invoices/upload-validation.ts#sanitizeFileName`): there the name is only a label.
+ */
+export const MAX_ATTACHMENT_FILE_NAME_LENGTH = 255;
+
+/**
  * The extension `DocumentsService#downloadImportOriginal` (issue #549) puts on the filename it
  * hands back - presentation only, deliberately separate from `archive/storage.ts#extFor`, which
  * names the file this same artifact is written to ON DISK. Changing THAT map would silently break

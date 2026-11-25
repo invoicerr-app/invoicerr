@@ -562,13 +562,19 @@ export async function findManualAcceptanceArchive(
   const archive = await findLatestManualAcceptanceRow(companyId, documentId);
   if (!archive) return null;
 
-  const bytes = await readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json');
-  if (!bytes) return null;
+  return readManualAcceptanceManifest(archive.uri);
+}
 
+/**
+ * The manual-acceptance manifest stored under this archive row's `uri`, or `null` when it is missing
+ * or its bytes are corrupted/truncated - the same "cannot prove it, never throw" posture for both.
+ */
+async function readManualAcceptanceManifest(uri: string): Promise<ManualAcceptanceManifest | null> {
+  const bytes = await readArchivedArtifact(uri, MANUAL_ACCEPTANCE_ROLE, 'application/json');
+  if (!bytes) return null;
   try {
     return JSON.parse(bytes.toString('utf8')) as ManualAcceptanceManifest;
   } catch {
-    // Corrupted/truncated bytes - same "cannot prove it, never throw" posture as a missing file.
     return null;
   }
 }
@@ -587,22 +593,14 @@ export async function findManualAcceptanceAttachment(
   const meta = artifactsOf(archive).find((entry) => entry.role === MANUAL_ACCEPTANCE_ATTACHMENT_ROLE);
   if (!meta) return null;
 
-  const [bytes, manifestBytes] = await Promise.all([
+  const [bytes, manifest] = await Promise.all([
     readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ATTACHMENT_ROLE, meta.mime),
-    readArchivedArtifact(archive.uri, MANUAL_ACCEPTANCE_ROLE, 'application/json'),
+    readManualAcceptanceManifest(archive.uri),
   ]);
   if (!bytes) return null;
 
-  let fileName = 'attachment';
-  try {
-    const manifest = manifestBytes
-      ? (JSON.parse(manifestBytes.toString('utf8')) as ManualAcceptanceManifest)
-      : null;
-    if (manifest?.attachment?.fileName) fileName = manifest.attachment.fileName;
-  } catch {
-    // An unreadable manifest only loses the original file name, never the archived bytes.
-  }
-  return { bytes, mime: meta.mime, fileName };
+  // An unreadable manifest only loses the original file name, never the archived bytes.
+  return { bytes, mime: meta.mime, fileName: manifest?.attachment?.fileName || 'attachment' };
 }
 
 /** Every archive for a document, most recent first — a re-send produces several of them (see the

@@ -8,7 +8,7 @@ import { APIError, betterAuth } from 'better-auth';
 import { createAuthMiddleware } from 'better-auth/api';
 import { DEMO_MODE_BLOCKED_CODE, demoModeBlockedMessage } from '../modules/demo/demo-blocked';
 import { DEMO_ACCOUNT_PASSWORD, isDemoModeEnabled } from '../modules/demo/demo-flag';
-import { demoBlockedAuthActionLabel, isDemoBlockedAuthPath } from './demo-auth-paths';
+import { demoBlockedAuthActionLabel } from './demo-auth-paths';
 import { InvitationLookupResult, decideRegistration, registrationDenialMessage } from './registration-policy';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import {
@@ -626,10 +626,12 @@ export const auth = betterAuth({
    */
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (!isDemoModeEnabled() || !isDemoBlockedAuthPath(ctx.path)) return;
+      if (!isDemoModeEnabled()) return;
+      const blockedAction = demoBlockedAuthActionLabel(ctx.path);
+      if (!blockedAction) return;
 
       throw new APIError('FORBIDDEN', {
-        message: demoModeBlockedMessage(demoBlockedAuthActionLabel(ctx.path)),
+        message: demoModeBlockedMessage(blockedAction),
         code: DEMO_MODE_BLOCKED_CODE,
       });
     }),

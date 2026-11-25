@@ -24,6 +24,8 @@
  */
 import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 
+import { MAX_ATTACHMENT_FILE_NAME_LENGTH } from '../attachments/content-disposition';
+
 /** What this upload accepts — see this file's own header for why images are deliberately NOT on this
  *  list, unlike `attachments/attachments.service.ts#ALLOWED_ATTACHMENT_MIMES`. */
 export const ALLOWED_RECEIVED_INVOICE_MIMES: readonly string[] = [
@@ -40,8 +42,6 @@ export const ALLOWED_RECEIVED_INVOICE_MIMES: readonly string[] = [
  * callers are independent concerns that only happen to share one physical constraint.
  */
 export const MAX_RECEIVED_INVOICE_BYTES = 10 * 1024 * 1024;
-
-const MAX_FILE_NAME_LENGTH = 255;
 
 /**
  * How far into a PDF deposit `%PDF-` is allowed to start — never required at byte 0. ISO 32000-1
@@ -99,7 +99,7 @@ export function sanitizeFileName(rawFileName: string): string {
   }
   cleaned = cleaned.trim();
   if (cleaned.length === 0) cleaned = 'file';
-  return cleaned.length > MAX_FILE_NAME_LENGTH ? cleaned.slice(0, MAX_FILE_NAME_LENGTH) : cleaned;
+  return cleaned.slice(0, MAX_ATTACHMENT_FILE_NAME_LENGTH);
 }
 
 /**

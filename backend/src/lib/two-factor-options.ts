@@ -13,4 +13,8 @@ export const TWO_FACTOR_OPTIONS = {
   // A password is required to enable or disable the second factor and to regenerate backup codes,
   // so a stolen session alone cannot turn it off or read new codes.
   allowPasswordless: false,
+  // Set explicitly rather than left to the library default: the six code boxes on the sign-in and
+  // account pages are drawn from `TOTP_LENGTH` (`frontend/src/components/totp-code-input.tsx`), and
+  // must stay equal to this.
+  totpOptions: { digits: 6 as const },
 } satisfies TwoFactorOptions;

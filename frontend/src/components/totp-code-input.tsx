@@ -2,7 +2,11 @@ import { REGEXP_ONLY_DIGITS } from "input-otp"
 
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@/components/ui/input-otp"
 
-/** How many digits an authenticator-app (TOTP) code has: the boxes below and the callers' complete checks. */
+/**
+ * How many digits an authenticator-app (TOTP) code has: the boxes below and the callers' complete checks.
+ * Must stay equal to `totpOptions.digits` in `backend/src/lib/two-factor-options.ts`, which makes the
+ * server issue and verify codes of this length.
+ */
 export const TOTP_LENGTH = 6
 
 /** The boxes of each of the two groups the code is shown in, the way the apps display it. */

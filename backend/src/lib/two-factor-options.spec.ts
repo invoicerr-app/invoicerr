@@ -13,6 +13,10 @@ describe('TWO_FACTOR_OPTIONS: the second factor wired into lib/auth.ts', () => {
     expect(TWO_FACTOR_OPTIONS.allowPasswordless).toBe(false);
   });
 
+  it('issues six-digit codes, the length of the code boxes in the frontend (TOTP_LENGTH)', () => {
+    expect(TWO_FACTOR_OPTIONS.totpOptions.digits).toBe(6);
+  });
+
   it('offers no email code as a second factor', () => {
     expect('otpOptions' in TWO_FACTOR_OPTIONS).toBe(false);
   });
