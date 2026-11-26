@@ -13,9 +13,9 @@ export const ERROR_TRACKING_CONSENT_TEXT_VERSION = '2026-11-21';
  */
 const ERROR_TRACKING_CONSENT_REASK_MONTHS = 6;
 
-export type ErrorTrackingConsentChannel = 'banner' | 'settings';
+export const ERROR_TRACKING_CONSENT_CHANNELS = ['banner', 'settings'] as const;
 
-export const ERROR_TRACKING_CONSENT_CHANNELS: readonly ErrorTrackingConsentChannel[] = ['banner', 'settings'];
+export type ErrorTrackingConsentChannel = (typeof ERROR_TRACKING_CONSENT_CHANNELS)[number];
 
 export type ErrorTrackingConsentDecision = 'granted' | 'refused' | 'withdrawn';
 

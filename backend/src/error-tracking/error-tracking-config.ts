@@ -1,6 +1,7 @@
 import { getInstalledVersion } from '../lib/app-version';
+import type { ProcessRole } from '../observability/service-name';
 
-export type ErrorTrackingRole = 'api' | 'worker';
+export type ErrorTrackingRole = ProcessRole;
 
 export interface ErrorTrackingConfig {
   dsn: string;

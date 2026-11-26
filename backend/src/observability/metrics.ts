@@ -4,8 +4,9 @@ import type { NextFunction, Request, Response } from 'express';
 import { collectDefaultMetrics, Counter, Histogram, Registry } from 'prom-client';
 
 import { type MetricsConfig, resolveMetricsConfig } from './observability-config';
+import { routeTemplateOf } from './route-template';
 
-export const metricsRegistry = new Registry();
+const metricsRegistry = new Registry();
 
 const httpRequestDuration = new Histogram({
   name: 'http_request_duration_seconds',
@@ -33,13 +34,11 @@ export function startDefaultMetrics(serviceName: string): void {
 }
 
 /**
- * The route TEMPLATE, never the raw path: a raw path carries ids and public share tokens, and one
- * label value per id would also grow the series count without bound.
+ * The route TEMPLATE, never the raw path: one label value per id would also grow the series count
+ * without bound.
  */
 export function routeLabel(req: Pick<Request, 'baseUrl' | 'route'>): string {
-  const routePath = req.route?.path;
-  if (typeof routePath !== 'string') return 'unmatched';
-  return `${req.baseUrl ?? ''}${routePath}`;
+  return routeTemplateOf(req) ?? 'unmatched';
 }
 
 export function recordHttpRequest(method: string, route: string, statusCode: number, seconds: number): void {

@@ -13,7 +13,7 @@ import { credentialsPresent, join } from './shared';
 const RPO_URL = 'https://api.statistics.sk/rpo/v1/search';
 
 /** Picks the still-open entry, or the most recent one when everything is closed. */
-export function currentEntry(list: any[] | undefined): any | undefined {
+function currentEntry(list: any[] | undefined): any | undefined {
   if (!Array.isArray(list) || list.length === 0) return undefined;
   const open = list.filter((e) => !e.validTo);
   const pool = open.length > 0 ? open : list;

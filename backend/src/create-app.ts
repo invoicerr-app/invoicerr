@@ -13,6 +13,7 @@ import { resolveTrustProxyHops } from './lib/trust-proxy';
 import { auth } from './lib/auth';
 import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 import { httpMetricsMiddleware, startDefaultMetrics } from './observability/metrics';
+import { SERVICE_NAME } from './observability/service-name';
 import { resolveMetricsConfig } from './observability/observability-config';
 
 /**
@@ -81,7 +82,7 @@ export async function createApp(module: Type<unknown> = AppModule): Promise<INes
   if (metricsConfig.refusal) new Logger('Metrics').warn(metricsConfig.refusal);
   if (metricsConfig.warning) new Logger('Metrics').warn(metricsConfig.warning);
   if (metricsConfig.enabled) {
-    startDefaultMetrics('invoicerr-api');
+    startDefaultMetrics(SERVICE_NAME.api);
     // First middleware, so the timing covers better-auth's raw routes as well as Nest's.
     app.use(httpMetricsMiddleware());
   }

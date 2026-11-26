@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { type Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { routeTemplateOf } from '../observability/route-template';
 import { captureServerError } from './error-tracking';
 
 /**
@@ -26,7 +27,7 @@ export function shouldReport(error: unknown): boolean {
  * Machine callbacks under `/api/public/` (payment and e-invoicing network webhooks) stay reported:
  * nobody is behind them.
  */
-export const UNTRACKED_PATH_PREFIXES: readonly string[] = [
+const UNTRACKED_PATH_PREFIXES: readonly string[] = [
   '/api/portal',
   '/api/public/signatures',
   '/api/public/documents',
@@ -41,22 +42,12 @@ export function isUntrackedPath(path: string): boolean {
   return UNTRACKED_PATH_PREFIXES.some((prefix) => bare === prefix || bare.startsWith(prefix));
 }
 
-function requestPath(context: ExecutionContext): string | undefined {
-  if (typeof context?.getType !== 'function' || context.getType() !== 'http') return undefined;
-  const request = context.switchToHttp().getRequest<{ originalUrl?: string; url?: string }>();
-  return request?.originalUrl ?? request?.url;
-}
+type HttpRequest = { originalUrl?: string; url?: string; baseUrl?: string; route?: { path?: unknown } };
 
-/**
- * The Express route template (`/api/clients/:id`), never the concrete URL: the template says which
- * endpoint failed without carrying which record. Undefined outside HTTP (a queue handler).
- */
-export function routeTemplate(context: ExecutionContext): string | undefined {
+/** The HTTP request behind the context; undefined outside HTTP (a queue handler). */
+function httpRequest(context: ExecutionContext): HttpRequest | undefined {
   if (typeof context?.getType !== 'function' || context.getType() !== 'http') return undefined;
-  const request = context.switchToHttp().getRequest<{ baseUrl?: string; route?: { path?: unknown } }>();
-  const path = request?.route?.path;
-  if (typeof path !== 'string') return undefined;
-  return `${request.baseUrl ?? ''}${path}`;
+  return context.switchToHttp().getRequest<HttpRequest>();
 }
 
 @Injectable()
@@ -64,9 +55,10 @@ export class ErrorTrackingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
       catchError((error: unknown) => {
-        const path = requestPath(context);
+        const request = httpRequest(context);
+        const path = request?.originalUrl ?? request?.url;
         if (shouldReport(error) && !(path && isUntrackedPath(path))) {
-          captureServerError(error, { route: routeTemplate(context) });
+          captureServerError(error, { route: routeTemplateOf(request) });
         }
         return throwError(() => error);
       }),

@@ -21,7 +21,7 @@ import { join } from 'node:path';
 export const TEMP_WORKSPACE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** Set to move the root (a tmpfs mount, a volume with a size cap). Default: `<tmp>/invoicerr-temp`. */
-export const TEMP_WORKSPACE_DIR_ENV = 'DOCUMENTS_TEMP_DIR';
+const TEMP_WORKSPACE_DIR_ENV = 'DOCUMENTS_TEMP_DIR';
 
 /**
  * Empty file every workspace this module creates carries. The sweep deletes a directory only when

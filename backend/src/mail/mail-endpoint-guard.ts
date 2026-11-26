@@ -60,7 +60,7 @@ export const SMTP_AUTHENTICATION_FAILED_MESSAGE =
 /** The server accepted the conversation and then refused the envelope or the message itself (sender
  *  not allowed to relay, recipient rejected, message too large) — again only reachable through a real
  *  SMTP session, and the tenant's own server's policy to fix. */
-export const SMTP_MESSAGE_REJECTED_MESSAGE =
+const SMTP_MESSAGE_REJECTED_MESSAGE =
   'The mail server accepted the connection but rejected the message. Check that the "from" address ' +
   'is allowed to send through this server.';
 
@@ -83,17 +83,17 @@ export const INSTANCE_MAIL_FAILED_MESSAGE =
 /** A host field that is not a host at all (a URL, a `user@host`, a `host:port`, a path). Distinct
  *  from the refusal above because it is a typo to fix, not a policy decision, and it describes the
  *  SHAPE of the value the caller just typed — nothing about this server's network. */
-export const SMTP_HOST_MALFORMED_MESSAGE =
+const SMTP_HOST_MALFORMED_MESSAGE =
   'The mail server host must be a bare hostname or IP address — no scheme, no port, no path.';
 
 /** Port outside 1-65535. Same reasoning as the malformed host above. */
-export const SMTP_PORT_INVALID_MESSAGE = 'The mail server port must be a number between 1 and 65535.';
+const SMTP_PORT_INVALID_MESSAGE = 'The mail server port must be a number between 1 and 65535.';
 
 /** DNS said the name does not exist. Public DNS is something the caller can query themselves, so
  *  naming it leaks nothing this server knows and nobody else does — and "you typed a name that does
  *  not exist" is otherwise indistinguishable from "we refused your address", which would send a
  *  customer hunting for the wrong problem. */
-export const SMTP_HOST_UNRESOLVED_MESSAGE =
+const SMTP_HOST_UNRESOLVED_MESSAGE =
   'The mail server host could not be resolved. Check the spelling of the host name.';
 
 function messageForRefusal(error: OutboundUrlValidationError): string {

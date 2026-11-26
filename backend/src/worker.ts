@@ -9,6 +9,7 @@ import { RedactingConsoleLogger } from './logger/redacting-console-logger';
 import { redactLogValue } from './logger/redaction';
 import { renderMetrics, startDefaultMetrics } from './observability/metrics';
 import { resolveMetricsConfig } from './observability/observability-config';
+import { SERVICE_NAME } from './observability/service-name';
 import { initErrorTracking, reportBootFailure } from './error-tracking/error-tracking';
 
 /**
@@ -42,7 +43,7 @@ async function bootstrap() {
   const metricsConfig = resolveMetricsConfig();
   if (metricsConfig.refusal) console.warn(`[worker] ${metricsConfig.refusal}`);
   if (metricsConfig.warning) console.warn(`[worker] ${metricsConfig.warning}`);
-  if (metricsConfig.enabled) startDefaultMetrics('invoicerr-worker');
+  if (metricsConfig.enabled) startDefaultMetrics(SERVICE_NAME.worker);
 
   const port = 3001;
   http

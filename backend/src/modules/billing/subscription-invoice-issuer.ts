@@ -36,7 +36,7 @@ import {
 /** A row failing this many times stops being retried; its `lastError` says why. */
 export const MAX_ISSUE_ATTEMPTS = 10;
 /** Rows handled per tick, oldest payment first. */
-export const ISSUE_BATCH_SIZE = 50;
+const ISSUE_BATCH_SIZE = 50;
 
 const MAX_ERROR_LENGTH = 1000;
 

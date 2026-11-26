@@ -26,7 +26,7 @@ import { logger } from '@/logger/logger.service';
 import { fromMinor } from '@/utils/financial';
 
 /** The webhook event that records a payment. */
-export const PAID_INVOICE_EVENT = 'invoice.paid';
+const PAID_INVOICE_EVENT = 'invoice.paid';
 
 /** Starts `lastError` on a row the issuer must leave to the operator. */
 export const MANUAL_ISSUE_PREFIX = 'Not issued automatically';
