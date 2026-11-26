@@ -12,6 +12,8 @@ import { MailTemplateType, WebhookEvent } from '../../../../prisma/generated/pri
 
 import { MailService } from '@/mail/mail.service';
 import {
+  buildOtpEmailParts,
+  buildSignatureRequestEmailParts,
   resolveSystemEmailTemplate,
   SystemEmailFamily,
   systemEmailFamilyLabel,
@@ -22,11 +24,7 @@ import { resolveRecipientLanguage } from '@/modules/documents/rendering/language
 import { RenderLanguage } from '@/modules/documents/rendering/language/supported-languages';
 
 import { DocumentEmailTemplate } from '../descriptors/types';
-import {
-  buildOtpEmailParts,
-  buildSignatureRequestEmailParts,
-  renderEmailTemplate,
-} from '../actions/email-template';
+import { renderEmailTemplate } from '../actions/email-template';
 
 import { createESignatureAcceptanceArchive, ESignatureAcceptanceManifest } from '../archive/persistence';
 import { readArchivedArtifact } from '../archive/storage';
