@@ -15,9 +15,11 @@
  * the reason is logged once per tick.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import type { Currency } from '../../../prisma/generated/prisma/client';
 
 import { runWithCompanyId } from '@/lib/request-context';
 import { ClientsService } from '@/modules/clients/clients.service';
+import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 import { DocumentsService } from '@/modules/documents/documents.service';
 import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
@@ -25,6 +27,7 @@ import { fromMinor } from '@/utils/financial';
 import { assertCanSend } from './send-gate';
 import {
   MANUAL_ISSUE_PREFIX,
+  manualIssueError,
   readInvoiceIssuerCompanyId,
   readStoredLines,
   toInvoiceLines,
@@ -166,7 +169,9 @@ export class SubscriptionInvoiceIssuer {
         where: { id: row.id },
         data: {
           issuedAt: row.issuedAt ?? now,
-          lastError: `${MANUAL_ISSUE_PREFIX}: the invoice leaves ${settlement.outstandingMinor} due but Stripe collected ${row.amountPaid} (minor units)`,
+          lastError: manualIssueError(
+            `the invoice leaves ${settlement.outstandingMinor} due but Stripe collected ${row.amountPaid} (minor units)`,
+          ),
         },
       });
       this.logger.error(
@@ -217,7 +222,7 @@ export class SubscriptionInvoiceIssuer {
     });
     if (!subscriber) throw new Error(`subscribing company ${row.companyId} no longer exists`);
     const identifiers = subscriber.partyIdentifiers.map(({ scheme, value }) => ({ scheme, value }));
-    const created = await this.clientsService.createClient(issuerId, {
+    const client: EditClientsDto = {
       id: '',
       name: subscriber.name,
       contactEmail: subscriber.email ?? undefined,
@@ -228,13 +233,15 @@ export class SubscriptionInvoiceIssuer {
       state: subscriber.state ?? undefined,
       country: subscriber.country ?? subscriber.countryCode ?? '',
       countryCode: subscriber.countryCode ?? undefined,
-      currency: row.currency,
+      currency: row.currency as Currency,
       type: 'COMPANY',
       isActive: true,
       vatRegistered: identifiers.some((entry) => entry.scheme === 'VAT'),
       identifiers,
-    } as never);
-    return this.keepClient(row.id, issuerId, (created as { id: string }).id);
+    };
+    const created = await this.clientsService.createClient(issuerId, client);
+    // `createClient` reads back the row it has just written: only a concurrent delete leaves it null.
+    return this.keepClient(row.id, issuerId, created!.id);
   }
 
   private async keepClient(rowId: string, issuerId: string, clientId: string): Promise<string> {

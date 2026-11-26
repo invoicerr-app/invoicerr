@@ -53,6 +53,7 @@ import { allowedBrowserOrigins } from './dev-origins';
 import { normalizeSignupLocale } from '../modules/auth-extended/signup-locale';
 import { sessionCache } from './session-cache';
 import { TWO_FACTOR_OPTIONS } from './two-factor-options';
+import { MIN_PASSWORD_LENGTH } from './password-policy';
 import { appOrigin } from '@/utils/app-origin';
 import { guessCountryCode } from '@/utils/country-name-to-iso';
 
@@ -456,7 +457,8 @@ export const auth = betterAuth({
     // Lowered ONLY under `DEMO_MODE`, never on an ordinary instance: sign-up is closed outright in
     // demo mode (`lib/registration-policy.ts`), so this weaker minimum is never reachable by anyone
     // choosing their own password; it only ever governs the one fixed, publicly-shown demo account.
-    ...(isDemoModeEnabled() ? { minPasswordLength: DEMO_ACCOUNT_PASSWORD.length } : {}),
+    // Outside demo mode, `MIN_PASSWORD_LENGTH` states that same default (8) explicitly.
+    minPasswordLength: isDemoModeEnabled() ? DEMO_ACCOUNT_PASSWORD.length : MIN_PASSWORD_LENGTH,
   },
   // Powers `user.changeEmail` below. Despite the name, this is NOT a signup feature here: `sendOnSignUp`
   // and `sendOnSignIn` are both left unset (default off, and `requireEmailVerification` is never set

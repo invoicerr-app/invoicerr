@@ -11,6 +11,7 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { auth } from '@/lib/auth';
 import { isOidcOnly } from '@/lib/sso-policy';
+import { MIN_PASSWORD_LENGTH } from '@/lib/password-policy';
 import { User } from '@/decorators/user.decorator';
 import { CurrentUser } from '@/types/user';
 import { SUPPORTED_RENDER_LANGUAGES } from '@/modules/documents/rendering/language/supported-languages';
@@ -31,7 +32,11 @@ export class AuthExtendedController {
     schema: {
       type: 'object',
       properties: {
-        newPassword: { type: 'string', minLength: 8, description: 'New password, at least 8 characters' },
+        newPassword: {
+          type: 'string',
+          minLength: MIN_PASSWORD_LENGTH,
+          description: `New password, at least ${MIN_PASSWORD_LENGTH} characters`,
+        },
       },
       required: ['newPassword'],
     },
@@ -55,8 +60,8 @@ export class AuthExtendedController {
       );
     }
 
-    if (!body.newPassword || body.newPassword.length < 8) {
-      throw new UnauthorizedException('Password must be at least 8 characters');
+    if (!body.newPassword || body.newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw new UnauthorizedException(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
     }
 
     try {

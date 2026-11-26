@@ -5,7 +5,7 @@
  */
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchText, toDate } from '../http';
-import { credentialsPresent } from './shared';
+import { credentialsPresent, readCredentials } from './shared';
 import {
   CompanyLookupCompany,
   CompanyLookupQuery,
@@ -59,8 +59,9 @@ export class AustraliaAbrProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const abn = digits(query.value);
+    const { ABR_GUID } = readCredentials(this.credentialEnvVars);
     const body = await fetchText(
-      `${ABR_URL}?abn=${abn}&callback=callback&guid=${encodeURIComponent(process.env.ABR_GUID as string)}`,
+      `${ABR_URL}?abn=${abn}&callback=callback&guid=${encodeURIComponent(ABR_GUID)}`,
       { timeoutMs: this.timeoutMs, headers: { Accept: 'application/javascript' } },
     );
     if (!body) return null;

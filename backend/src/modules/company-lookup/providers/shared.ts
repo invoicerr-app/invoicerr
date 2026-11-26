@@ -28,3 +28,10 @@ export function localDate(timeZone: string): string {
 export function credentialsPresent(envVars: readonly string[]): boolean {
   return envVars.every((name) => !!process.env[name]);
 }
+
+/** The values of a provider's `credentialEnvVars`, keyed by variable name, so each name is written once.
+ *  Only called once `isConfigured` (`credentialsPresent`) has passed, hence the `string` values. */
+export function readCredentials<const T extends readonly string[]>(envVars: T): Record<T[number], string> {
+  const entries = envVars.map((name) => [name, process.env[name] as string]);
+  return Object.fromEntries(entries) as Record<T[number], string>;
+}

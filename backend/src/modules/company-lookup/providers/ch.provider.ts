@@ -6,7 +6,7 @@
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { credentialsPresent, join } from './shared';
+import { credentialsPresent, join, readCredentials } from './shared';
 
 const ZEFIX_URL = 'https://www.zefix.admin.ch/ZefixPublicREST/api/v1/company/uid';
 // Zefix answers in German, so the country is named in German too.
@@ -33,7 +33,8 @@ export class SwitzerlandZefixProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const uid = `CHE${digits(query.value)}`;
-    const auth = Buffer.from(`${process.env.ZEFIX_USER}:${process.env.ZEFIX_PASSWORD}`).toString('base64');
+    const { ZEFIX_USER, ZEFIX_PASSWORD } = readCredentials(this.credentialEnvVars);
+    const auth = Buffer.from(`${ZEFIX_USER}:${ZEFIX_PASSWORD}`).toString('base64');
     const data = await fetchJson<any>(`${ZEFIX_URL}/${uid}`, {
       timeoutMs: this.timeoutMs,
       headers: { Authorization: `Basic ${auth}` },

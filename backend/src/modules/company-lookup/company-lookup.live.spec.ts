@@ -9,8 +9,9 @@
 
 import { vi } from 'vitest';
 
+import { INVOICERR_USER_AGENT } from '@/utils/user-agent';
+
 import { CompanyLookupService } from './company-lookup.service';
-import { USER_AGENT } from './http';
 import { PeppolDirectoryProvider } from './providers/peppol-directory.provider';
 import { CompanyLookupRegistry } from './registry';
 import { ProviderLookupError } from './types';
@@ -147,7 +148,7 @@ async function transientOutage(providerId: string, failure: string): Promise<str
   if (providerId === 'dk-cvr' && /^Registry responded 403\b/.test(failure)) {
     try {
       const res = await fetch('https://cvrapi.dk/api?search=25313763&country=dk', {
-        headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+        headers: { Accept: 'application/json', 'User-Agent': INVOICERR_USER_AGENT },
         signal: AbortSignal.timeout(8000),
       });
       const body = (await res.json()) as { error?: string };

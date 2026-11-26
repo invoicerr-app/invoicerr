@@ -18,6 +18,7 @@ import { Logger } from '@nestjs/common';
 import { DocumentsService } from '@/modules/documents/documents.service';
 import { ArticlesService } from '@/modules/articles/articles.service';
 import { ClientsService } from '@/modules/clients/clients.service';
+import { EditClientsDto } from '@/modules/clients/dto/clients.dto';
 import prisma from '@/prisma/prisma.service';
 import { fromMinor } from '@/utils/financial';
 import { CompanyRole } from '../../../../prisma/generated/prisma/client';
@@ -110,7 +111,7 @@ async function createDomesticAndForeignClients(
       ? generated.find((entry) => entry.scheme === 'VAT')
       : undefined;
     const identifiers = generated.filter((entry) => entry !== preVerifiedVat);
-    const created = await deps.clientsService.createClient(companyId, {
+    const client: EditClientsDto = {
       id: '',
       name,
       address: pickStreet(rng, clientMeta),
@@ -126,8 +127,10 @@ async function createDomesticAndForeignClients(
       contactLastname: contact.lastname,
       contactEmail: `${contact.firstname}.${contact.lastname}@example-demo.invoicerr.app`.toLowerCase(),
       identifiers: identifiers.map((entry) => ({ scheme: entry.scheme, value: entry.value })),
-    } as never);
-    const clientId = (created as { id: string }).id;
+    };
+    const created = await deps.clientsService.createClient(companyId, client);
+    // `createClient` reads back the row it has just written: only a concurrent delete leaves it null.
+    const clientId = created!.id;
     if (preVerifiedVat) {
       await prisma.partyIdentifier.create({
         data: {
