@@ -210,5 +210,3 @@ export function ProjectUpsert({ project, defaultClientId, open, onOpenChange }: 
     </Dialog>
   )
 }
-
-export default ProjectUpsert

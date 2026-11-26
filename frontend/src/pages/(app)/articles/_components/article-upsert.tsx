@@ -445,5 +445,3 @@ export function ArticleUpsert({ article, open, onOpenChange }: ArticleUpsertProp
     />
   )
 }
-
-export default ArticleUpsert

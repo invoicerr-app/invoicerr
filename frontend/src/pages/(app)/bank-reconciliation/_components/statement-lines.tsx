@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { decimalsFor, fromMinor } from "@/components/documents/totals-calculator"
 import { cn } from "@/lib/utils"
-import { ApiError } from "@/hooks/use-api-query"
+import { ApiError, apiErrorMessage } from "@/hooks/use-api-query"
 import { useBankStatementLines, useReconcileBankStatementLine } from "@/hooks/queries"
 
 interface StatementLinesProps {
@@ -56,9 +56,7 @@ export function StatementLines({ statementId }: StatementLinesProps) {
       toast.error(
         error instanceof ApiError && error.status === 409
           ? t("bankReconciliation.lines.alreadyReconciled")
-          : error instanceof ApiError
-            ? error.message
-            : t("bankReconciliation.lines.reconcileError"),
+          : apiErrorMessage(error, t("bankReconciliation.lines.reconcileError")),
       )
     }
   }

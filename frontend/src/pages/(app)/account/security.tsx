@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 import { PASSWORD_RULES, type PasswordRuleId } from "@/lib/password-rules"
 import { authenticatedFetch } from "@/hooks/use-fetch"
 import { useDemoMode } from "@/hooks/queries"
@@ -181,7 +182,7 @@ export default function AccountSecurityPage() {
                     type="submit"
                     loading={passwordForm.formState.isSubmitting}
                     disabled={demoMode}
-                    tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+                    tooltip={demoDisabledTooltip(t, demoMode)}
                     data-cy="account-security-submit-button"
                   >
                     {passwordForm.formState.isSubmitting

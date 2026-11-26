@@ -55,7 +55,7 @@ export function PaymentMethodConfigDialog({
   const { t } = useTranslation()
   const updateMethod = useUpdatePaymentMethod()
 
-  const fields = useMemo(() => method.fields, [method.fields])
+  const fields = method.fields
   const schema = useMemo(() => buildZodSchema(fields), [fields])
   const form = useForm({
     resolver: zodResolver(schema),

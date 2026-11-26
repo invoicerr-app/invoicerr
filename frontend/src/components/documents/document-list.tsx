@@ -95,7 +95,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { isDemoBlockedAction } from "@/lib/demo-actions"
+import { demoDisabledTooltip, isDemoBlockedAction } from "@/lib/demo-actions"
 import { cn } from "@/lib/utils"
 
 /** A row's grid — see DocumentListRow's own comment on why the desktop columns are fixed widths. */
@@ -374,7 +374,7 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
           size="sm"
           className="flex-1 text-link hover:text-link sm:flex-none"
           disabled={blocked}
-          tooltip={demoBlocked ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+          tooltip={demoDisabledTooltip(t, demoBlocked)}
           loading={isRunning && pendingAction === undefined}
           onClick={() => handleAction(primary)}
           dataCy={`document-row-action-${primary.id}-${instance.id}`}
@@ -388,9 +388,8 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
             describeTrigger
             dataCy={`document-row-blocked-reason-${primary.id}-${instance.id}`}
           >
-            {demoBlocked
-              ? t("demo.disabledTooltip", "Disabled in this demo.")
-              : t("documents.form.actionBlockedByPolicy", { reason: primary.policyBlockedReason })}
+            {demoDisabledTooltip(t, demoBlocked) ??
+              t("documents.form.actionBlockedByPolicy", { reason: primary.policyBlockedReason })}
           </FieldLock>
         )}
       </span>
@@ -457,9 +456,7 @@ function DocumentRowActions({ descriptor, instance, onActionSuccess, children }:
                       className="max-w-xs text-xs text-muted-foreground"
                       data-cy={`document-row-blocked-reason-${action.id}-${instance.id}`}
                     >
-                      {demoBlocked
-                        ? t("demo.disabledTooltip", "Disabled in this demo.")
-                        : t("documents.form.actionBlockedTitle")}
+                      {demoDisabledTooltip(t, demoBlocked) ?? t("documents.form.actionBlockedTitle")}
                     </span>
                   )}
                 </div>

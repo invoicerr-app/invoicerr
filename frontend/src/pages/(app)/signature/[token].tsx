@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
+import { apiErrorCode, apiErrorMessage } from "@/hooks/use-api-query"
 import { formatTotal } from "@/components/documents/document-totals"
 import {
   type PublicSignatureOptionTotal,
@@ -112,7 +112,7 @@ function DocumentPreview({
       >
         <FileWarning className="h-6 w-6 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {error instanceof ApiError ? error.message : t("documents.publicSignature.documentLoadError")}
+          {apiErrorMessage(error, t("documents.publicSignature.documentLoadError"))}
         </p>
       </div>
     )
@@ -287,7 +287,7 @@ export default function PublicSignaturePage() {
           void refetchView()
           return
         }
-        setOtpMessage(err instanceof ApiError ? err.message : t("documents.publicSignature.genericError"))
+        setOtpMessage(apiErrorMessage(err, t("documents.publicSignature.genericError")))
       },
     })
   }
@@ -317,7 +317,7 @@ export default function PublicSignaturePage() {
             return
           }
 
-          setSignError(err instanceof ApiError ? err.message : t("documents.publicSignature.genericError"))
+          setSignError(apiErrorMessage(err, t("documents.publicSignature.genericError")))
         },
       },
     )
@@ -350,9 +350,7 @@ export default function PublicSignaturePage() {
               {t("documents.publicSignature.unavailableTitle")}
             </p>
             <p className="text-sm text-muted-foreground">
-              {error instanceof ApiError
-                ? error.message
-                : t("documents.publicSignature.unavailableDescription")}
+              {apiErrorMessage(error, t("documents.publicSignature.unavailableDescription"))}
             </p>
           </div>
         </div>

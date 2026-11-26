@@ -10,15 +10,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatMinor } from "@/components/documents/totals-calculator"
-import {
-  localIsoDate,
-  settlementBadgeInfo,
-  statementRowSettlement,
-} from "@/components/documents/document-settlement"
+import { settlementBadgeInfo, statementRowSettlement } from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import {
   useCreatePortalCheckoutSession,
   usePortalProfile,
@@ -28,6 +24,7 @@ import {
   useRequestPortalQuoteSignature,
 } from "@/hooks/queries"
 import { clearPortalToken, getPortalToken, portalFetch } from "@/hooks/use-portal-fetch"
+import { todayCalendarDate } from "@/lib/calendar-date"
 import { openBlob } from "@/lib/download"
 import { cn } from "@/lib/utils"
 import type { ClientStatementCurrencyTotals, ClientStatementDocumentRow, PortalQuoteRow } from "@/types"
@@ -96,7 +93,7 @@ function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
   const { status, labelKey } = settlementBadgeInfo(statementRowSettlement(row), {
     dueDate: row.dueDate,
-    today: localIsoDate(),
+    today: todayCalendarDate(),
   })
   return (
     <StatusMark {...statusPresentation(status)} data-cy={`portal-document-status-${row.id}`}>
@@ -160,8 +157,7 @@ function PayButton({ row }: { row: ClientStatementDocumentRow }) {
         onSuccess: (data) => {
           window.open(data.checkoutUrl, "_blank", "noopener,noreferrer")
         },
-        onError: (error) =>
-          toast.error(error instanceof ApiError ? error.message : t("clientPortal.statement.payError")),
+        onError: (error) => toast.error(apiErrorMessage(error, t("clientPortal.statement.payError"))),
       },
     )
   }
@@ -250,7 +246,7 @@ function QuoteRowActions({ quote }: { quote: PortalQuoteRow }) {
       { quoteId: quote.id },
       {
         onSuccess: () => toast.success(t("clientPortal.quotes.signatureRequested")),
-        onError: (error) => toast.error(error instanceof ApiError ? error.message : String(error)),
+        onError: (error) => toast.error(apiErrorMessage(error, String(error))),
       },
     )
   }
@@ -260,7 +256,7 @@ function QuoteRowActions({ quote }: { quote: PortalQuoteRow }) {
       { quoteId: quote.id },
       {
         onSuccess: () => toast.success(t("clientPortal.quotes.refused")),
-        onError: (error) => toast.error(error instanceof ApiError ? error.message : String(error)),
+        onError: (error) => toast.error(apiErrorMessage(error, String(error))),
       },
     )
   }

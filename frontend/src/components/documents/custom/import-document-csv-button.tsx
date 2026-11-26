@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { decodeCsvBytes, parseCsv } from "@/lib/csv-parse"
+import { readCsvFile } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
 import {
@@ -40,8 +40,11 @@ import {
   useImportDocumentsCsvConfirm,
   useImportDocumentsCsvPreview,
 } from "@/hooks/queries/use-document-import"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 
+/** Client-side mirror of `MAX_IMPORT_ROWS` in
+ *  `backend/src/modules/documents/import/document-import-csv.service.ts` (keep the two in step): an
+ *  oversized file is refused here before a network round-trip the server would refuse anyway. */
 const MAX_IMPORT_FILE_BYTES = 1_000_000
 const MAX_IMPORT_ROWS = 500
 
@@ -114,7 +117,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
       setFiles(uploaded)
       toast.success(t("documents.custom.importCsv.filesUploaded", { count: fileList.length }))
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("documents.custom.importCsv.uploadError"))
+      toast.error(apiErrorMessage(error, t("documents.custom.importCsv.uploadError")))
     } finally {
       setBusy(false)
     }
@@ -130,22 +133,16 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
     setBusy(true)
     setCsvFileName(file.name)
     try {
-      const buffer = await file.arrayBuffer()
-      const text = decodeCsvBytes(buffer)
-      const { headers, rows: dataRows } = parseCsv(text)
-
-      if (dataRows.length === 0) {
-        toast.error(t("documents.custom.importCsv.empty"))
-        setBusy(false)
-        return
-      }
-      if (dataRows.length > MAX_IMPORT_ROWS) {
+      const csv = await readCsvFile(file, MAX_IMPORT_ROWS)
+      if ("refused" in csv) {
         toast.error(
-          t("documents.custom.importCsv.tooManyRows", { max: MAX_IMPORT_ROWS, count: dataRows.length }),
+          csv.refused === "empty"
+            ? t("documents.custom.importCsv.empty")
+            : t("documents.custom.importCsv.tooManyRows", { max: MAX_IMPORT_ROWS, count: csv.count }),
         )
-        setBusy(false)
         return
       }
+      const { headers, rows: dataRows } = csv
 
       const parsedRows: DocumentImportCsvRow[] = dataRows.map((cells, index) => {
         const row: Record<string, string> = { rowNumber: String(index + 2) }
@@ -160,7 +157,7 @@ function ImportDocumentCsvButton({ descriptor }: DocumentCustomSlotProps) {
       setRowVerdicts(response.rows)
       setStage("preview")
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("documents.custom.importCsv.parseFailed"))
+      toast.error(apiErrorMessage(error, t("documents.custom.importCsv.parseFailed")))
     } finally {
       setBusy(false)
     }

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth"
 import { copyToClipboard } from "@/lib/clipboard"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 
 /** The base32 secret inside an `otpauth://` URI, for people who type it instead of scanning. */
 export function secretFromTotpUri(uri: string): string {
@@ -121,7 +122,7 @@ export function TwoFactorSection({
       setStep({ kind: "codes", backupCodes: data.backupCodes })
     })
 
-  const demoTooltip = demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined
+  const demoTooltip = demoDisabledTooltip(t, demoMode)
 
   const passwordField = (
     <div className="grid gap-1.5">

@@ -67,8 +67,9 @@ export function Sidebar() {
 
   const { data, isPending: userLoading } = authClient.useSession()
   const sessionUser = data?.user as { firstname?: string; lastname?: string; email?: string } | undefined
-  const accountName =
-    [sessionUser?.firstname, sessionUser?.lastname].filter(Boolean).join(" ") || sessionUser?.email
+  const fullName = [sessionUser?.firstname, sessionUser?.lastname].filter(Boolean).join(" ")
+  // Where the email is already printed under the name, the name line shows `fullName` alone.
+  const accountName = fullName || sessionUser?.email
   const { companies, activeCompanyId, isPending: companiesLoading } = useCompanies()
 
   const { data: company } = useCompany()
@@ -506,10 +507,7 @@ export function Sidebar() {
                     </div>
                   ) : (
                     <div className="grid flex-1 text-start text-sm leading-tight">
-                      <span className="truncate font-medium">
-                        {/* @ts-ignore */}
-                        {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
-                      </span>
+                      <span className="truncate font-medium">{fullName}</span>
                       <span className="truncate text-xs text-muted-foreground">{data?.user?.email}</span>
                     </div>
                   )}
@@ -525,10 +523,7 @@ export function Sidebar() {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
                     <div className="grid flex-1 text-start text-sm leading-tight">
-                      <span className="truncate font-medium">
-                        {/* @ts-ignore */}
-                        {[data?.user?.firstname, data?.user?.lastname].filter(Boolean).join(" ")}
-                      </span>
+                      <span className="truncate font-medium">{fullName}</span>
                       <span className="truncate text-xs">{data?.user?.email}</span>
                     </div>
                   </div>

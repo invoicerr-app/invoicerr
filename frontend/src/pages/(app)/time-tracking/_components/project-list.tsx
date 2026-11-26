@@ -146,5 +146,3 @@ export function ProjectList({ projects, loading, selectedProjectId, onSelect }: 
     </>
   )
 }
-
-export default ProjectList

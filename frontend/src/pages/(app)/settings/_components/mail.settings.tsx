@@ -22,7 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import {
   useClearCompanyMailSettings,
   useCompanyMailSettings,
@@ -245,9 +245,7 @@ function MailSettingsForm({
       },
       onError: (error) => {
         toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.mail.messages.saveError", "Failed to save mail settings"),
+          apiErrorMessage(error, t("settings.mail.messages.saveError", "Failed to save mail settings")),
         )
       },
     })
@@ -484,9 +482,10 @@ function MailReplyToSection({ replyTo }: { replyTo: string | null }) {
         },
         onError: (error) => {
           toast.error(
-            error instanceof ApiError
-              ? error.message
-              : t("settings.mail.replyTo.messages.saveError", "Failed to save the Reply-To address"),
+            apiErrorMessage(
+              error,
+              t("settings.mail.replyTo.messages.saveError", "Failed to save the Reply-To address"),
+            ),
           )
         },
       },
@@ -593,9 +592,7 @@ export default function MailSettings() {
       },
       onError: (error) => {
         toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.mail.messages.testError", "Failed to send the test email"),
+          apiErrorMessage(error, t("settings.mail.messages.testError", "Failed to send the test email")),
         )
       },
     })
@@ -610,9 +607,10 @@ export default function MailSettings() {
       },
       onError: (error) => {
         toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.mail.messages.revertError", "Failed to revert to the instance mail server"),
+          apiErrorMessage(
+            error,
+            t("settings.mail.messages.revertError", "Failed to revert to the instance mail server"),
+          ),
         )
       },
     })

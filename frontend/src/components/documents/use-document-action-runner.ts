@@ -13,7 +13,7 @@ import {
   invoiceIdentifiersMissingNotice,
 } from "@/components/documents/invoice-identifiers-missing"
 import { useResolveActionParamsDefaults, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
+import { ApiError, apiErrorCode, apiErrorMessage } from "@/hooks/use-api-query"
 
 /** Server-side code `domestic-currency-issuance.ts`'s own `DOMESTIC_INVOICE_CURRENCY_MISMATCH_CODE`
  *  names a 400 with, mirrored by hand, the same "no shared package between the four projects"
@@ -254,7 +254,7 @@ export function useDocumentActionRunner({
       }
       // The message IS the point here: a 501 means the action is declared on this document type but
       // nobody registered an implementation for it yet — say exactly that, never fail silently.
-      const message = error instanceof ApiError ? error.message : t("documents.form.messages.actionError")
+      const message = apiErrorMessage(error, t("documents.form.messages.actionError"))
       toast.error(message)
     }
   }

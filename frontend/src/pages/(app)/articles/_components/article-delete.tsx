@@ -74,5 +74,3 @@ export function ArticleDeleteDialog({
     </Dialog>
   )
 }
-
-export default ArticleDeleteDialog

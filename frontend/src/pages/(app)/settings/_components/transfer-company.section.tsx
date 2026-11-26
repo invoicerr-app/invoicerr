@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { FieldLabel, fieldHelpId } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import {
   useCancelCompanyTransfer,
   useCurrentCompanyTransfer,
@@ -65,9 +65,7 @@ export default function TransferCompanySection() {
         setOtpDialogOpen(true)
       },
       onError: (error) => {
-        toast.error(
-          error instanceof ApiError ? error.message : t("settings.transferCompany.messages.otpSentError"),
-        )
+        toast.error(apiErrorMessage(error, t("settings.transferCompany.messages.otpSentError")))
       },
     })
   }
@@ -86,9 +84,7 @@ export default function TransferCompanySection() {
           setOtp("")
         },
         onError: (error) => {
-          toast.error(
-            error instanceof ApiError ? error.message : t("settings.transferCompany.messages.initiateError"),
-          )
+          toast.error(apiErrorMessage(error, t("settings.transferCompany.messages.initiateError")))
         },
       },
     )
@@ -105,9 +101,7 @@ export default function TransferCompanySection() {
         },
         onError: (error) => {
           setCancelDialogOpen(false)
-          toast.error(
-            error instanceof ApiError ? error.message : t("settings.transferCompany.messages.cancelError"),
-          )
+          toast.error(apiErrorMessage(error, t("settings.transferCompany.messages.cancelError")))
         },
       },
     )

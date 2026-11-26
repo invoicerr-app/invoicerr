@@ -265,5 +265,3 @@ export function TimeEntryList({ project }: TimeEntryListProps) {
     </PanelSection>
   )
 }
-
-export default TimeEntryList

@@ -14,6 +14,7 @@ import { authenticatedFetch, useDelete, useGet, usePost, usePut } from "@/hooks/
 import { useDemoMode } from "@/hooks/queries"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { copyToClipboard } from "@/lib/clipboard"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 import {
   SettingsFormFooter,
   SettingsIconDisc,
@@ -152,7 +153,7 @@ export default function SsoSettings() {
   const [form, setForm] = useState<Record<string, string>>(emptyForm)
   const [editing, setEditing] = useState(false)
   const { demoMode } = useDemoMode()
-  const demoTooltip = demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined
+  const demoTooltip = demoDisabledTooltip(t, demoMode)
 
   const { trigger: save, loading: saving } = useMutationWithToast(
     usePut("/api/company/sso"),

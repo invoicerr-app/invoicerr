@@ -5,9 +5,10 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NoFreeSeatNotice } from "@/components/no-free-seat-notice"
 import { useCompanies } from "@/hooks/queries"
+import { isCompanyAdmin } from "@/hooks/queries/use-companies"
 import { authenticatedFetch, useGet } from "@/hooks/use-fetch"
 import { authClient } from "@/lib/auth"
 import type { CompanyMember, CompanyRole } from "@/types"
@@ -20,6 +21,8 @@ import {
   SettingsPage,
   SettingsRowMenu,
 } from "@/components/settings-section"
+
+import { CompanyRoleSelectItems } from "./company-role-select-items"
 
 export default function MembersSettings() {
   const { t } = useTranslation()
@@ -89,7 +92,7 @@ export default function MembersSettings() {
           {members.map((member) => {
             const isSelf = member.userId === currentUserId
             const canEditRole = isOwner && !isSelf
-            const canRemove = !isSelf && (isOwner || activeRole === "ADMIN")
+            const canRemove = !isSelf && isCompanyAdmin(activeRole)
             return (
               <SettingsListRow
                 key={member.userId}
@@ -108,9 +111,7 @@ export default function MembersSettings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
-                        <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
-                        <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
+                        <CompanyRoleSelectItems />
                       </SelectContent>
                     </Select>
                   ) : undefined

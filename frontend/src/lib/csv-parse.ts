@@ -181,3 +181,18 @@ export function parseCsv(
 
   return { headers, rows: alignedRows }
 }
+
+/** Why `readCsvFile` refused a file before anything reached the server. */
+export type CsvFileRefusal = { refused: "empty" } | { refused: "tooManyRows"; count: number }
+
+/**
+ * Reads, decodes and parses an import file in one go, refusing it locally when it has no data row
+ * or more than `maxRows` (each caller's mirror of its own server-side limit, which still re-checks).
+ * The caller words the refusal with its own `t()` keys, so the i18n check still sees them.
+ */
+export async function readCsvFile(file: File, maxRows: number): Promise<ParsedCsv | CsvFileRefusal> {
+  const csv = parseCsv(decodeCsvBytes(await file.arrayBuffer()))
+  if (csv.rows.length === 0) return { refused: "empty" }
+  if (csv.rows.length > maxRows) return { refused: "tooManyRows", count: csv.rows.length }
+  return csv
+}

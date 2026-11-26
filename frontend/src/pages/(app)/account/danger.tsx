@@ -19,6 +19,7 @@ import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { type ApiHookError, useDelete } from "@/hooks/use-fetch"
 import { afterCompanyGone } from "@/lib/after-company-gone"
 import { authClient } from "@/lib/auth"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 import { useHasCredentialAccount } from "./_components/use-has-credential-account"
 import { SettingsSection } from "@/components/settings-section"
 
@@ -214,7 +215,7 @@ export default function AccountDangerPage() {
           variant="destructive"
           onClick={openDialog}
           disabled={demoMode}
-          tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+          tooltip={demoDisabledTooltip(t, demoMode)}
           data-cy="account-danger-delete-button"
         >
           {t("account.danger.card.button")}

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { FieldLabel } from "@/components/ui/field-help"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import {
   buildFileUploadForm,
   downloadBrandingLogo,
@@ -21,6 +21,7 @@ import {
   useSetCompanyBranding,
   useUploadBrandingLogo,
 } from "@/hooks/queries"
+import { toastUploadError } from "@/lib/attachment-rules"
 import { cn } from "@/lib/utils"
 import {
   SettingsFormFooter,
@@ -30,6 +31,8 @@ import {
 } from "@/components/settings-section"
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+/** Mirrors `ALLOWED_LOGO_MIMES` in `backend/src/modules/documents/rendering/branding/logo-storage.ts`,
+ *  which re-checks: checked here only to refuse early, and the file picker offers the same list. */
 const ALLOWED_LOGO_MIMES = ["image/jpeg", "image/png", "image/webp"]
 
 /**
@@ -143,9 +146,7 @@ export default function BrandingSettings() {
       })
       .catch((error) => {
         toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.branding.messages.saveError", "Failed to update branding"),
+          apiErrorMessage(error, t("settings.branding.messages.saveError", "Failed to update branding")),
         )
       })
   }
@@ -178,18 +179,12 @@ export default function BrandingSettings() {
       await uploadLogo.mutateAsync(buildFileUploadForm(file))
       toast.success(t("settings.branding.messages.logoUploadSuccess", "Logo uploaded"))
     } catch (error) {
-      // A 413 is refused by multer at the multipart wire itself (limits.fileSize), before this
-      // company's own byte-counted message ever gets a chance to run — same reasoning
-      // `field-renderers/file-field.tsx#handleFile` already documents for its own upload.
-      if (error instanceof ApiError && error.status === 413) {
-        toast.error(t("settings.branding.messages.fileTooLarge", "This file is over the 10 MB limit"))
-      } else {
-        toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.branding.messages.logoUploadError", "Failed to upload logo"),
-        )
-      }
+      toastUploadError(
+        error,
+        t,
+        t("settings.branding.messages.logoUploadError", "Failed to upload logo"),
+        t("settings.branding.messages.fileTooLarge", "This file is over the 10 MB limit"),
+      )
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
@@ -200,9 +195,7 @@ export default function BrandingSettings() {
       onSuccess: () => toast.success(t("settings.branding.messages.logoRemoveSuccess", "Logo removed")),
       onError: (error) =>
         toast.error(
-          error instanceof ApiError
-            ? error.message
-            : t("settings.branding.messages.logoRemoveError", "Failed to remove logo"),
+          apiErrorMessage(error, t("settings.branding.messages.logoRemoveError", "Failed to remove logo")),
         ),
     })
   }
@@ -309,7 +302,7 @@ export default function BrandingSettings() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept={ALLOWED_LOGO_MIMES.join(",")}
                   className="hidden"
                   data-cy="branding-logo-file-input"
                   onChange={(event) => {

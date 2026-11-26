@@ -248,5 +248,3 @@ export function ArticlesList() {
     </>
   )
 }
-
-export default ArticlesList

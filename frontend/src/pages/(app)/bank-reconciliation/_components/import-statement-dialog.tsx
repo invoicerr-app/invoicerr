@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { detectDelimiter } from "@/lib/csv-parse"
 import { fileToBase64 } from "@/lib/file-to-base64"
 import { cn } from "@/lib/utils"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import { useCompany, useImportBankStatement } from "@/hooks/queries"
 import type {
   CsvDateFormat,
@@ -929,7 +929,7 @@ export function ImportStatementDialog({ onImported }: ImportStatementDialogProps
       form.reset(values)
       onImported(response.statement.id)
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("bankReconciliation.import.error"))
+      toast.error(apiErrorMessage(error, t("bankReconciliation.import.error")))
     }
   }
 

@@ -333,5 +333,3 @@ export function TimeEntryUpsert({ projectId, projectName, entry, open, onOpenCha
     />
   )
 }
-
-export default TimeEntryUpsert

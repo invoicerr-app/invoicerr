@@ -26,6 +26,12 @@ export function apiErrorCode(error: unknown): string | undefined {
   return (error.body as { code?: string } | undefined)?.code
 }
 
+/** The backend's own message for an API refusal, or `fallback` for anything else (network failure,
+ *  thrown bug). Keep the `t("…")` literal at the call site so the i18n check still sees the key. */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback
+}
+
 /** Exported so a hook that needs to fan out to SEVERAL queries at once (e.g. a multi-target
  *  'reference' field searching across every entity it allows — see useMultiEntityReferenceSearch)
  *  can build each one with `useQueries` instead of duplicating this fetch/error-shape logic. */

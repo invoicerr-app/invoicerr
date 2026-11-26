@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NoFreeSeatNotice } from "@/components/no-free-seat-notice"
 import { authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -25,6 +25,8 @@ import {
   SettingsRowMenu,
   SettingsSection,
 } from "@/components/settings-section"
+
+import { CompanyRoleSelectItems } from "./company-role-select-items"
 
 type InvitationCode = {
   id: string
@@ -139,9 +141,7 @@ export default function InvitationsSettings() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MEMBER">{t("settings.invitations.roles.member")}</SelectItem>
-              <SelectItem value="ADMIN">{t("settings.invitations.roles.admin")}</SelectItem>
-              <SelectItem value="OWNER">{t("settings.invitations.roles.owner")}</SelectItem>
+              <CompanyRoleSelectItems />
             </SelectContent>
           </Select>
         </div>
