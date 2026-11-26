@@ -194,8 +194,7 @@ export class SignaturesService {
   ): Promise<{ message: string }> {
     const document = await findOwnedDocument(companyId, typeId, documentId);
     const data = (document.data ?? {}) as Record<string, unknown>;
-    const clientId = typeof data.client === 'string' ? data.client : undefined;
-    const client = clientId ? await this.clientsService.getClientById(companyId, clientId) : null;
+    const client = await this.resolveSignerContact(companyId, data);
 
     if (!client?.contactEmail) {
       throw new BadRequestException(
@@ -392,15 +391,6 @@ export class SignaturesService {
     return { message: 'Document signed.', signedAt: signedAt.toISOString() };
   }
 
-  /**
-   * Collapses "unknown token" / "already locked" / "already signed" / "no longer active" into the
-   * SAME refusal, via the SAME single query, for every public entry point — see this class's own
-   * header, "Why every failure mode collapses to ONE message". `isActive` alone already catches the
-   * lock (schema.prisma's own `Signature.lockedAt` header: both are set on the same write) and a
-   * superseded-by-a-fresh-request row; `signedAt` is checked too, defensively, even though a
-   * successful sign also flips `isActive` to false on the same write (`markSignatureSigned`) — two
-   * independent reasons for the SAME conclusion, not one relying on the other never regressing.
-   */
   /** Issue #477 - refuses (409, `DOCUMENT_CHANGED_CODE`) a request whose document changed since it
    *  was sent, or that was never bound to a version. See `signed-version.ts`. */
   private async assertBoundVersionCurrent(row: SignatureRecord): Promise<void> {
@@ -410,12 +400,29 @@ export class SignaturesService {
     }
   }
 
+  /**
+   * Collapses "unknown token" / "already locked" / "already signed" / "no longer active" into the
+   * SAME refusal, via the SAME single query, for every public entry point - see this class's own
+   * header, "Why every failure mode collapses to ONE message". `isActive` alone already catches the
+   * lock (schema.prisma's own `Signature.lockedAt` header: both are set on the same write) and a
+   * superseded-by-a-fresh-request row; `signedAt` is checked too, defensively, even though a
+   * successful sign also flips `isActive` to false on the same write (`markSignatureSigned`) - two
+   * independent reasons for the SAME conclusion, not one relying on the other never regressing.
+   */
   private async resolveActiveOrThrow(token: string): Promise<SignatureRecord> {
     const row = await findSignatureByTokenHash(hashSignatureToken(token));
     if (!row?.isActive || row.lockedAt || row.signedAt) {
       throw new BadRequestException(GENERIC_BLOCK_MESSAGE);
     }
     return row;
+  }
+
+  /** The client a signature request goes to: the one the document's own `data.client` names, read
+   *  fresh on every call (see `sendOtpEmail`'s header for why). `null` when the document names none;
+   *  each caller keeps its own refusal, and the two messages differ on purpose. */
+  private async resolveSignerContact(companyId: string, data: Record<string, unknown>) {
+    const clientId = typeof data.client === 'string' ? data.client : undefined;
+    return clientId ? this.clientsService.getClientById(companyId, clientId) : null;
   }
 
   /**
@@ -602,9 +609,10 @@ export class SignaturesService {
    *  inbox even if the underlying `Client` row's own `contactEmail` changed in the meantime. */
   private async sendOtpEmail(row: SignatureRecord, code: string): Promise<void> {
     const document = await findOwnedDocument(row.companyId, row.typeId, row.documentId);
-    const data = (document.data ?? {}) as Record<string, unknown>;
-    const clientId = typeof data.client === 'string' ? data.client : undefined;
-    const client = clientId ? await this.clientsService.getClientById(row.companyId, clientId) : null;
+    const client = await this.resolveSignerContact(
+      row.companyId,
+      (document.data ?? {}) as Record<string, unknown>,
+    );
     if (!client?.contactEmail) {
       throw new BadRequestException('Signature request has no reachable recipient.');
     }
