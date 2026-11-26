@@ -1,6 +1,6 @@
 import type { Dispatcher } from 'undici';
 
-import { describeEvent, instanceIcon } from './event-message';
+import { COMPANY_FIELD_LABEL, describeEvent, instanceIcon, MESSAGE_FOOTER } from './event-message';
 import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
 /**
@@ -19,10 +19,10 @@ export abstract class ChatWebhookDriver implements WebhookDriver {
       title: message.title,
       text: message.description,
       color: message.color,
-      footer: `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
+      footer: `${MESSAGE_FOOTER} • ${new Date().toLocaleString()}`,
       footer_icon: instanceIcon(),
       ...(message.companyName
-        ? { fields: [{ title: 'Entreprise', value: message.companyName, short: true }] }
+        ? { fields: [{ title: COMPANY_FIELD_LABEL, value: message.companyName, short: true }] }
         : {}),
     };
 

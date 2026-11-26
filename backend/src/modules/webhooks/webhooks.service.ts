@@ -11,7 +11,6 @@ import { WebhookDriver } from './drivers/webhook-driver.interface';
 import { assertPublicWebhookUrl } from './webhook-url-guard';
 import { ZapierDriver } from './drivers/zapier.driver';
 import prisma from '@/prisma/prisma.service';
-import { logger } from '@/logger/logger.service';
 import { OutboundUrlValidationError, ResolvedOutboundUrl, pinnedDispatcher } from '@/utils/outbound-url';
 import { decryptJson, encryptJson, isEncryptionAvailable } from '@/utils/secret-crypto';
 import { isEncryptedWebhookSecret } from './webhook-secret-format';
@@ -195,44 +194,37 @@ export class WebhooksService {
     return { webhook: existing, company };
   }
 
-  /** Sends to every given webhook in parallel, HMAC-signed when a secret is resolvable. */
-  async send(webhooks: Webhook[], event: WebhookEvent, payload: any) {
+  /**
+   * Sends to one webhook, HMAC-signed when a secret is resolvable. `false` when the endpoint did not
+   * accept it or the URL fails the outbound guard; the caller decides whether that is worth a retry.
+   */
+  async sendOne(webhook: Webhook, event: WebhookEvent, payload: any): Promise<boolean> {
     // Demo instance: the one chokepoint every dispatch reaches, checked before any network attempt.
     assertDemoSendingAllowed('Webhook delivery');
 
-    const results = await Promise.all(
-      webhooks.map(async (webhook) => {
-        // Re-validate at send time (DNS rebinding) and keep the resolved address, so the driver pins
-        // it instead of letting `fetch` resolve the hostname again. A webhook failing this is
-        // skipped, never aborting the batch.
-        let resolved: ResolvedOutboundUrl | null;
-        try {
-          resolved = await assertPublicWebhookUrl(webhook.url);
-        } catch (err) {
-          // Never the reason: see `validateWebhookUrl`.
-          const known = err instanceof OutboundUrlValidationError;
-          this.logger.warn(
-            `Skipped webhook dispatch: URL failed the outbound-URL SSRF guard at send time` +
-              (known ? '' : ' (unexpected validation error)'),
-          );
-          return false;
-        }
+    // Re-validate at send time (DNS rebinding) and keep the resolved address, so the driver pins
+    // it instead of letting `fetch` resolve the hostname again.
+    let resolved: ResolvedOutboundUrl | null;
+    try {
+      resolved = await assertPublicWebhookUrl(webhook.url);
+    } catch (err) {
+      // Never the reason: see `validateWebhookUrl`.
+      const known = err instanceof OutboundUrlValidationError;
+      this.logger.warn(
+        `Skipped webhook dispatch: URL failed the outbound-URL SSRF guard at send time` +
+          (known ? '' : ' (unexpected validation error)'),
+      );
+      return false;
+    }
 
-        return await DRIVERS[webhook.type].send(
-          webhook.url,
-          {
-            event,
-            ...payload,
-          },
-          this.resolveSecretForSigning(webhook.secret),
-          pinnedDispatcher(resolved),
-        );
-      }),
+    return await DRIVERS[webhook.type].send(
+      webhook.url,
+      {
+        event,
+        ...payload,
+      },
+      this.resolveSecretForSigning(webhook.secret),
+      pinnedDispatcher(resolved),
     );
-    logger.info(`Webhooks sent for event: ${event}`, {
-      category: 'webhook',
-      details: { event, count: results.length },
-    });
-    return results;
   }
 }

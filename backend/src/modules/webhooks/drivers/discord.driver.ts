@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 
 import { sleep } from '@/lib/sleep';
 
-import { describeEvent, instanceIcon, instanceUrl } from './event-message';
+import { COMPANY_FIELD_LABEL, describeEvent, instanceIcon, instanceUrl, MESSAGE_FOOTER } from './event-message';
 import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
 /**
@@ -53,13 +53,13 @@ export class DiscordDriver implements WebhookDriver {
         icon_url: instanceIcon(),
       },
       footer: {
-        text: 'Invoicerr Webhooks',
+        text: MESSAGE_FOOTER,
         icon_url: instanceIcon(),
       },
     };
 
     if (message.companyName) {
-      embed.fields = [{ name: 'Entreprise', value: message.companyName, inline: true }];
+      embed.fields = [{ name: COMPANY_FIELD_LABEL, value: message.companyName, inline: true }];
     }
 
     const body = JSON.stringify({

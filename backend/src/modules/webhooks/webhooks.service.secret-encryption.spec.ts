@@ -140,7 +140,7 @@ describe('WebhooksService — secret encryption', () => {
       });
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', secret: encrypted });
 
-      await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
       const expected = createHmac('sha256', plainSecret).update(capturedBody).digest('hex');
       expect(capturedSignature).toBe(expected);
@@ -156,7 +156,7 @@ describe('WebhooksService — secret encryption', () => {
       });
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', secret: 'legacy-plaintext-secret' });
 
-      await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
       const expected = createHmac('sha256', 'legacy-plaintext-secret').update(capturedBody).digest('hex');
       expect(capturedSignature).toBe(expected);
@@ -168,9 +168,9 @@ describe('WebhooksService — secret encryption', () => {
       vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', secret: corrupted });
 
-      const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      const result = await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
-      expect(results).toEqual([true]); // delivery still happens...
+      expect(result).toBe(true); // delivery still happens...
       const opts = (global.fetch as Mock).mock.calls[0][1];
       expect(opts.headers['X-Webhook-Signature']).toBeUndefined(); // ...just without a (garbled) signature
     });

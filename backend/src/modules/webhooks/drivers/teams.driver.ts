@@ -1,6 +1,6 @@
 import type { Dispatcher } from 'undici';
 
-import { describeEvent } from './event-message';
+import { COMPANY_FIELD_LABEL, describeEvent, MESSAGE_FOOTER } from './event-message';
 import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
 /** A Teams incoming-webhook message wrapping one Adaptive Card 1.2. */
@@ -13,7 +13,7 @@ export class TeamsDriver implements WebhookDriver {
       { type: 'TextBlock', text: message.description, weight: 'default' },
       {
         type: 'TextBlock',
-        text: `Invoicerr Webhooks • ${new Date().toLocaleString()}`,
+        text: `${MESSAGE_FOOTER} • ${new Date().toLocaleString()}`,
         size: 'small',
         weight: 'lighter',
         color: 'light',
@@ -22,7 +22,10 @@ export class TeamsDriver implements WebhookDriver {
     ];
 
     if (message.companyName) {
-      cardBody.push({ type: 'FactSet', facts: [{ name: 'Entreprise:', value: message.companyName }] });
+      cardBody.push({
+        type: 'FactSet',
+        facts: [{ name: `${COMPANY_FIELD_LABEL}:`, value: message.companyName }],
+      });
     }
 
     const body = JSON.stringify({

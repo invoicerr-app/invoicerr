@@ -126,9 +126,9 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
       const fetchSpy = vi.spyOn(global, 'fetch');
       const webhook = makeWebhook({ url: 'http://169.254.169.254/hook', type: WebhookType.GENERIC });
 
-      const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      const result = await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
-      expect(results).toEqual([false]);
+      expect(result).toBe(false);
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -136,9 +136,9 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
       vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', type: WebhookType.GENERIC });
 
-      const results = await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      const result = await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
-      expect(results).toEqual([true]);
+      expect(result).toBe(true);
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -146,24 +146,13 @@ describe('WebhooksService — SSRF guard wired into create/update/send', () => {
       const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
       const webhook = makeWebhook({ url: 'https://8.8.8.8/hook', type: WebhookType.GENERIC });
 
-      await service.send([webhook], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
+      await service.sendOne(webhook, WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
 
       // THE DNS-rebinding fix: `GenericDriver` must receive and forward the `dispatcher`
       // The dispatcher returned by the guard must reach `fetch`; a literal IP has nothing to look up,
       // so that is the only thing checkable here.
       const opts = fetchSpy.mock.calls[0][1] as RequestInit & { dispatcher?: unknown };
       expect(opts.dispatcher).toBeDefined();
-    });
-
-    it('one internal webhook does not block delivery to the other, valid ones in the same batch', async () => {
-      vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
-      const bad = makeWebhook({ id: 'wh-bad', url: 'http://10.0.0.5/hook' });
-      const good = makeWebhook({ id: 'wh-good', url: 'https://8.8.8.8/hook' });
-
-      const results = await service.send([bad, good], WebhookEvent.WEBHOOK_CREATED, { company: COMPANY_ROW });
-
-      expect(results).toEqual([false, true]);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 });

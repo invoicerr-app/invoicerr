@@ -42,9 +42,9 @@ export class WebhookDeliveryService {
     const summary = summarizeWebhook(webhook);
 
     try {
-      const [delivered] = await this.webhooksService.send([webhook], event, payload);
+      const delivered = await this.webhooksService.sendOne(webhook, event, payload);
       if (!delivered) {
-        // `send` reports an HTTP failure or a guard refusal as `false` rather than throwing; throwing
+        // `sendOne` reports an HTTP failure or a guard refusal as `false` rather than throwing; throwing
         // here is what makes BullMQ retry it.
         throw new Error(
           'Webhook endpoint did not accept the delivery (non-2xx response, or refused by the outbound-URL guard)',
