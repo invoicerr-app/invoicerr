@@ -4,7 +4,13 @@ import { Logger } from '@nestjs/common';
 
 import { sleep } from '@/lib/sleep';
 
-import { COMPANY_FIELD_LABEL, describeEvent, instanceIcon, instanceUrl, MESSAGE_FOOTER } from './event-message';
+import {
+  COMPANY_FIELD_LABEL,
+  describeEvent,
+  instanceIcon,
+  instanceUrl,
+  MESSAGE_FOOTER,
+} from './event-message';
 import { postWebhookJson, WebhookDriver } from './webhook-driver.interface';
 
 /**

@@ -8,9 +8,11 @@ import { WebhookEvent } from '../../../prisma/generated/prisma/client';
  * trusting the hand-maintained list in `webhook-event.spec.ts`: a member added with no emitter would
  * otherwise pass that pin. It matches `.dispatch(` immediately followed by the enum member, which
  * catches both `WebhookDispatcherService` and the document emitter's identical signature. It also
- * matches `dispatchDocumentWebhookSafely(<dispatcher>, WebhookEvent.X`: the shared best-effort
- * wrapper every `DOCUMENT_*` emitter goes through. A second test pins that this wrapper really
- * forwards its event to `.dispatch(`, so counting its call sites stays proof of a real emitter. Spec
+ * matches `dispatchDocumentWebhookSafely(<dispatcher>, WebhookEvent.X`, the shared best-effort
+ * wrapper every `DOCUMENT_*` emitter goes through, and `dispatchWebhookSafely(<dispatcher>,
+ * WebhookEvent.X`, its counterpart for the company and client emitters. Two more tests pin that both
+ * wrappers really forward their event to `.dispatch(`, so counting their call sites stays proof of a
+ * real emitter. Spec
  * files are excluded, since a mocked dispatch proves the caller, not a production emitter.
  *
  * Not caught: a value built at runtime instead of a bare literal.
@@ -31,7 +33,7 @@ function listProductionSourceFiles(dir: string, out: string[]): string[] {
 }
 
 const DISPATCH_CALL_RE =
-  /(?:\.dispatch\(\s*|\bdispatchDocumentWebhookSafely\(\s*[A-Za-z0-9_.]+\s*,\s*)WebhookEvent\.([A-Za-z0-9_]+)/g;
+  /(?:\.dispatch\(\s*|\bdispatch(?:Document)?WebhookSafely\(\s*[A-Za-z0-9_.]+\s*,\s*)WebhookEvent\.([A-Za-z0-9_]+)/g;
 
 const SAFE_DOCUMENT_DISPATCH_FILE = join(
   BACKEND_SRC,
@@ -40,6 +42,8 @@ const SAFE_DOCUMENT_DISPATCH_FILE = join(
   'queue',
   'dispatch-document-webhook.ts',
 );
+
+const SAFE_DISPATCH_FILE = join(BACKEND_SRC, 'modules', 'webhooks', 'dispatch-webhook-safely.ts');
 
 function findEmittedEvents(): Set<string> {
   const emitted = new Set<string>();
@@ -76,6 +80,12 @@ describe('WebhookEvent enum members all have a real emitter', () => {
   it('counts `dispatchDocumentWebhookSafely` call sites only because it forwards its event to `.dispatch(`', () => {
     const text = readFileSync(SAFE_DOCUMENT_DISPATCH_FILE, 'utf8');
     expect(text).toMatch(/export async function dispatchDocumentWebhookSafely\b/);
+    expect(text).toMatch(/\.dispatch\(\s*event\s*,/);
+  });
+
+  it('counts `dispatchWebhookSafely` call sites only because it forwards its event to `.dispatch(`', () => {
+    const text = readFileSync(SAFE_DISPATCH_FILE, 'utf8');
+    expect(text).toMatch(/export async function dispatchWebhookSafely\b/);
     expect(text).toMatch(/\.dispatch\(\s*event\s*,/);
   });
 });
