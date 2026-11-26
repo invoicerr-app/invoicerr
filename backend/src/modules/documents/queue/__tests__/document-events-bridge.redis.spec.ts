@@ -16,7 +16,9 @@
 import { DocumentEventMessage } from '../document-events';
 import { DocumentEventsBridge } from '../document-events-bridge';
 import { DocumentEventsPublisher } from '../document-events-publisher';
-import { describeWithRedis } from './redis-gate';
+import { redisDescribe } from '@/test/redis-gate';
+
+const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');
 
 /** Polls `condition` until it's true or `timeoutMs` elapses — pub/sub delivery is asynchronous over
  *  a real network round trip, so a bare synchronous assertion right after `publish()` would be racy

@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import Redis from 'ioredis';
 
 import { logger } from '@/logger/logger.service';
+import { redisDescribe } from '@/test/redis-gate';
 
 import { createSessionCache, SessionCache } from './session-cache';
 
@@ -11,8 +12,7 @@ vi.mock('@/logger/logger.service', () => ({
 vi.mock('@/prisma/prisma.service', () => ({ __esModule: true, default: {} }));
 
 const COOKIE_NAME = 'better-auth.session_token';
-const describeWithRedis =
-  process.env.REDIS_URL && process.env.SESSION_CACHE_REDIS_TESTS === '1' ? describe : describe.skip;
+const describeWithRedis = redisDescribe('SESSION_CACHE_REDIS_TESTS');
 
 interface FakeSession {
   user: { id: string };

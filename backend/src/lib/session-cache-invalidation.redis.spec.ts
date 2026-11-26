@@ -29,6 +29,7 @@ import {
 } from '@/modules/instance/instance-reset.service';
 import { InvitationsService } from '@/modules/invitations/invitations.service';
 import prisma from '@/prisma/prisma.service';
+import { redisDescribe } from '@/test/redis-gate';
 
 import { CompanyRole } from '../../prisma/generated/prisma/client';
 import { createSessionCache, SessionCache, sessionCache } from './session-cache';
@@ -37,8 +38,7 @@ import { createSessionCache, SessionCache, sessionCache } from './session-cache'
  * Every write that changes what a cached session holds must be visible on the very next request, on
  * the replica that made the change and on any other. Real better-auth, real Postgres, real Redis.
  */
-const describeWithRedis =
-  process.env.REDIS_URL && process.env.SESSION_CACHE_REDIS_TESTS === '1' ? describe : describe.skip;
+const describeWithRedis = redisDescribe('SESSION_CACHE_REDIS_TESTS');
 
 vi.setConfig({ testTimeout: 30_000 });
 

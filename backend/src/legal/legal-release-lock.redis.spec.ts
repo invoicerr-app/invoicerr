@@ -10,10 +10,11 @@
  */
 import Redis from 'ioredis';
 
+import { redisDescribe } from '@/test/redis-gate';
+
 import { withLegalReleaseNotifyLock } from './legal-release-lock';
 
-const hasRedis = !!process.env.REDIS_URL && process.env.LEGAL_RELEASE_LOCK_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
+const describeWithRedis = redisDescribe('LEGAL_RELEASE_LOCK_REDIS_TESTS');
 
 describeWithRedis('withLegalReleaseNotifyLock — real Redis, two independent connections', () => {
   let clientA: Redis;

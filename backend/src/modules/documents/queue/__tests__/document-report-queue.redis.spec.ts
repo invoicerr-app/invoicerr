@@ -61,7 +61,9 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
-import { describeWithRedis, waitFor } from './redis-gate';
+import { redisDescribe, waitFor } from '@/test/redis-gate';
+
+const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');
 
 // A real RSA keypair, generated ONCE for this whole spec — stands in for the AT Sistema de
 // Autenticação's own key pair (`pt-at-client.spec.ts` uses the identical fixture shape). The stub

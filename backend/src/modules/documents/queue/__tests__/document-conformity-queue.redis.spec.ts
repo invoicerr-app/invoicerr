@@ -74,7 +74,9 @@ import { DocumentQueueModule } from '../document-queue.module';
 import { DocumentActionProcessor } from '../processors/document-action.processor';
 import { Q_DOCUMENT_ACTION } from '../queue.constants';
 import { removeQueueJobsForCompany } from './queue-test-cleanup';
-import { describeWithRedis, waitFor } from './redis-gate';
+import { redisDescribe, waitFor } from '@/test/redis-gate';
+
+const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');
 
 // Same gating discipline as `document-schedule-queue.redis.spec.ts` — see that file's own header for
 // why `REDIS_URL` alone is not enough (parallel jest workers would race the same queue/database).
