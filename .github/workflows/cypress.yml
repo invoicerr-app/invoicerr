@@ -350,6 +350,17 @@ jobs:
           SESSION_CACHE_REDIS_TESTS: '1'
         run: cd backend && ./node_modules/.bin/vitest run --no-file-parallelism src/lib/session-cache
 
+      # The three real-Redis proofs that each gate on their OWN flag (see `src/test/redis-gate.ts`):
+      # SSO registry pub/sub across two instances, the auth rate-limit Lua counter, and the legal
+      # release notify lock. Until this step existed no workflow set those flags, so the suites were
+      # always skipped.
+      - name: Run SSO sync, auth rate-limit and legal release lock Redis specs
+        env:
+          SSO_REGISTRY_SYNC_REDIS_TESTS: '1'
+          AUTH_RATE_LIMIT_REDIS_TESTS: '1'
+          LEGAL_RELEASE_LOCK_REDIS_TESTS: '1'
+        run: cd backend && ./node_modules/.bin/vitest run --no-file-parallelism src/modules/company/sso/sso-registry-sync.service.redis.spec.ts src/lib/auth-rate-limit.redis.spec.ts src/legal/legal-release-lock.redis.spec.ts
+
       # The migration-vs-schema enum tripwire: deploys the FULL migration chain on
       # its own disposable database (never `invoicerr_test`, the one this job already migrated above)
       # and compares the resulting `pg_enum` against the generated client's enum exports, for every
