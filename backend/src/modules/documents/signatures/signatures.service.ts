@@ -39,7 +39,7 @@ import {
 } from '../options/quote-options';
 import { DOCUMENT_WEBHOOK_EMITTER, DocumentWebhookEmitter } from '../queue/document-webhooks';
 import { dispatchDocumentWebhookSafely } from '../queue/dispatch-document-webhook';
-import { generateOtpCode, hashOtpCode, otpCodeMatches } from './otp';
+import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/lib/otp';
 import { hashDocumentData } from '../archive/document-data-hash';
 import { generateSignatureToken, hashSignatureToken } from './signature-token';
 import {
@@ -77,11 +77,11 @@ import {
  * ## The brute-force guarantee, precisely
  *
  * Over the ENTIRE LIFETIME of one `Signature` row, an attacker gets at most `MAX_FAILED_ATTEMPTS`
- * (`otp.ts`) guesses against a code space of `OTP_CODE_SPACE` — `otp.spec.ts`'s own "the guarantee"
- * test recomputes that fraction from the two exported constants directly, so widening the budget or
- * narrowing the code space fails CI. `MAX_OTP_MINTS` (also `otp.ts`) bounds how many times a fresh
- * code may be minted at all, but NEVER resets or grows that lifetime attempt budget — see
- * `signature.persistence.ts`'s own `recordFailedAttempt`/`mintOtpChallenge` headers for exactly how
+ * (`lib/otp.ts`) guesses against a code space of `OTP_CODE_SPACE` - `lib/otp.spec.ts`'s own "the
+ * guarantee" test recomputes that fraction from the two exported constants directly, so widening the
+ * budget or narrowing the code space fails CI. `MAX_OTP_MINTS` (this folder's `otp.ts`) bounds how
+ * many times a fresh code may be minted at all, but NEVER resets or grows that lifetime attempt budget
+ * - see `signature.persistence.ts`'s own `recordFailedAttempt`/`mintOtpChallenge` headers for exactly how
  * both are enforced atomically against concurrent requests.
  *
  * ## Why every failure mode collapses to ONE message
@@ -597,7 +597,7 @@ export class SignaturesService {
 
   /** Same mechanism as above, for `VERIFICATION_CODE`. The "XXXX-XXXX" split is purely cosmetic (easier
    *  for a human to read/type back), applied to the DISPLAYED code only — never to what is
-   *  hashed/compared (`otp.ts` always works on the raw 8-digit string), which is why the split happens
+   *  hashed/compared (`lib/otp.ts` always works on the raw 8-digit string), which is why the split happens
    *  HERE, at the one point the code becomes prose, and never upstream of `mintOtpChallenge`. Resolves
    *  the recipient fresh from `row`'s own `documentId` (rather than threading it through from
    *  `requestSignature`) so a re-armed OTP, long after the initial request, still reaches the right

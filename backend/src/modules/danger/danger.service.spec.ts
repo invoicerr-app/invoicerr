@@ -361,7 +361,7 @@ describe('DangerService — OTP hardening', () => {
     expect(stored.codeHash).toHaveLength(64); // sha256 hex digest
   });
 
-  it('is a CSPRNG 8-digit code (documents/signatures/otp.ts#generateOtpCode), never Math.random', async () => {
+  it('is a CSPRNG 8-digit code (lib/otp.ts#generateOtpCode), never Math.random', async () => {
     const { service, mailService } = build();
     const code = await requestAndExtractOtp(service, mailService, 'co-1');
     expect(code).toMatch(/^\d{8}$/);
@@ -393,7 +393,7 @@ describe('DangerService — OTP hardening', () => {
     const { service, mailService } = build();
     await requestAndExtractOtp(service, mailService, 'co-1');
 
-    // Five wrong guesses (MAX_FAILED_ATTEMPTS, documents/signatures/otp.ts) exhaust the budget.
+    // Five wrong guesses (MAX_FAILED_ATTEMPTS, lib/otp.ts) exhaust the budget.
     for (let i = 0; i < 5; i++) {
       await expect(service.resetCompanyData(USER, 'co-1', '00000000')).rejects.toBeInstanceOf(
         BadRequestException,

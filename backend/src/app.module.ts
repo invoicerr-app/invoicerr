@@ -109,7 +109,7 @@ const workerInline = process.env.WORKER_INLINE !== 'false';
       isGlobal: true,
     }),
     // Defense in depth on top of the
-    // real, mathematical bound `documents/signatures/otp.ts#MAX_FAILED_ATTEMPTS` already gives the
+    // real, mathematical bound `lib/otp.ts#MAX_FAILED_ATTEMPTS` already gives the
     // signature OTP flow (see that constant's own header). This is a GLOBAL default (every route gets
     // it, `ThrottlerGuard` is a global `APP_GUARD` — the FIRST one, see `guards/global-guards.ts` for
     // why the order matters); `PublicSignaturesController`'s own two

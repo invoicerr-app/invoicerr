@@ -1,7 +1,8 @@
 import prisma from '@/prisma/prisma.service';
 import { Prisma } from '../../../../prisma/generated/prisma/client';
 
-import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
+import { MAX_FAILED_ATTEMPTS } from '@/lib/otp';
+import { MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 
 /**
  * Tenant-safe(ish) persistence for `Signature` — the same "plain functions over the Prisma
@@ -104,7 +105,7 @@ export async function findSignatureByTokenHash(tokenHash: string): Promise<Signa
  * reached — the caller (`signatures.service.ts`) turns that into ONE generic refusal either way; this
  * function itself is not the one that decides which message that refusal carries.
  *
- * Deliberately does NOT touch `otpFailedAttempts` — see `otp.ts`'s own header on
+ * Deliberately does NOT touch `otpFailedAttempts` - see `lib/otp.ts`'s own header on
  * `MAX_FAILED_ATTEMPTS`: re-arming narrows the CURRENT code's own window, it never resets or grows
  * the lifetime attempt budget.
  */
@@ -122,7 +123,7 @@ export async function mintOtpChallenge(
 
 /**
  * Records ONE failed verification attempt, atomically, and PERMANENTLY locks the row the instant the
- * lifetime counter reaches `MAX_FAILED_ATTEMPTS` — the guarantee `otp.ts`'s own header names. Two
+ * lifetime counter reaches `MAX_FAILED_ATTEMPTS` - the guarantee `lib/otp.ts`'s own header names. Two
  * separate atomic writes, not one:
  *  1. `updateMany({ where: { id, isActive: true }, data: { otpFailedAttempts: { increment: 1 } } })`
  *     — guarded on `isActive` so a row that a CONCURRENT call already locked (or that was

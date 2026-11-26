@@ -498,7 +498,7 @@ export function buildSignatureRequestEmailParts(input: {
 /**
  * The vocabulary of the VERIFICATION-CODE email — `otpCode` is the DISPLAY form ("1234-5678"), which is
  * purely cosmetic: what gets hashed and compared is always the raw 8-digit string
- * (`documents/signatures/otp.ts`). Nothing in this engine ever sees, or could leak, the stored hash.
+ * (`lib/otp.ts`). Nothing in this engine ever sees, or could leak, the stored hash.
  */
 export function buildOtpEmailParts(input: { appUrl: string; otpCode: string }): Record<string, string> {
   return { appUrl: input.appUrl, otpCode: input.otpCode };

@@ -2,7 +2,7 @@ import { vi, type Mock } from 'vitest';
 
 import { HttpException } from '@nestjs/common';
 
-import { MAX_FAILED_ATTEMPTS, OTP_CODE_SPACE } from '@/modules/documents/signatures/otp';
+import { MAX_FAILED_ATTEMPTS, OTP_CODE_SPACE } from '@/lib/otp';
 
 import { DANGER_OTP_LOCKED, DangerService } from './danger.service';
 import { DANGER_OTP_LOCKOUT_HOURS, DANGER_OTP_LOCKOUT_MS, findDangerOtp } from './danger-otp.persistence';
@@ -403,7 +403,7 @@ describe('the danger-zone OTP lockout — it must still close, and it must now o
      * bound has to be restated as one: `MAX_FAILED_ATTEMPTS` guesses per lockout, one lockout per
      * `DANGER_OTP_LOCKOUT_MS`, sustained for a full year without pause. Recomputed from the real
      * exported constants — shortening the window or raising the attempt budget fails this test and
-     * therefore CI. The ceiling is the same 0.01 % `documents/signatures/otp.ts`'s own "the guarantee"
+     * therefore CI. The ceiling is the same 0.01 % `lib/otp.ts`'s own "the guarantee"
      * pins for the signature OTP; the actual figure is 0.0018 %.
      */
     it('a year of uninterrupted guessing stays under the 0.01% ceiling the signature OTP already pins', () => {

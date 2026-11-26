@@ -12,7 +12,7 @@ import {
 import { logger } from '@/logger/logger.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
-import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
+import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/lib/otp';
 import {
   drainStorageErasureJournal,
   journalCompanyStorageObjects,
@@ -22,12 +22,11 @@ import { deleteCompanyPermanentlyNow } from '@/modules/billing/deletion';
 import {
   clearDangerOtp,
   DANGER_OTP_LOCKOUT_HOURS,
+  DANGER_OTP_WINDOW_MINUTES,
   findDangerOtp,
   mintDangerOtp,
   recordDangerOtpFailedAttempt,
 } from './danger-otp.persistence';
-
-const OTP_EXPIRATION_MINUTES = 10;
 
 /** Same generic refusal regardless of WHY the check failed (wrong code, expired, never requested, or
  *  already locked out) — the identical "one outcome" discipline `signatures.service.ts#GENERIC_BLOCK_
@@ -136,7 +135,7 @@ export class DangerService {
         // authorise; the requester could not.
         to: user.email,
         subject: t('dangerOtp.subject'),
-        text: t('dangerOtp.body', { code, minutes: OTP_EXPIRATION_MINUTES }),
+        text: t('dangerOtp.body', { code, minutes: DANGER_OTP_WINDOW_MINUTES }),
       });
     } catch (error) {
       // `sendForCompany`'s own named refusal (no mail server configured anywhere) is a

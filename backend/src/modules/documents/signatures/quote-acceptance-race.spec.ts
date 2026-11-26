@@ -29,7 +29,7 @@ import prisma from '@/prisma/prisma.service';
 
 import { ActionRegistry } from '../actions/action-registry';
 import { registerAcceptManuallyAction } from '../actions/quote-manual-acceptance';
-import { generateOtpCode, hashOtpCode } from './otp';
+import { generateOtpCode, hashOtpCode } from '@/lib/otp';
 import { generateSignatureToken } from './signature-token';
 import { hashDocumentData } from '../archive/document-data-hash';
 import { SignaturesService } from './signatures.service';

@@ -7,7 +7,7 @@ import { MailService } from '@/mail/mail.service';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { wipeAllInboundFiles } from '@/modules/documents/received-invoices/storage';
-import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/modules/documents/signatures/otp';
+import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/lib/otp';
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
 import { CurrentUser } from '@/types/user';
@@ -15,12 +15,11 @@ import { CurrentUser } from '@/types/user';
 import {
   clearInstanceResetOtp,
   findInstanceResetOtp,
+  INSTANCE_RESET_OTP_WINDOW_MINUTES,
   mintInstanceResetOtp,
   recordInstanceResetOtpFailedAttempt,
 } from './instance-reset-otp.persistence';
 import { INSTANCE_RESET_TABLES } from './reset-tables';
-
-const OTP_EXPIRATION_MINUTES = 10;
 
 /** Typed exactly, case-sensitively — the strongest confirmation this screen can ask for short of
  *  inventing a second endpoint: unlike `danger.settings.tsx`'s own "reset all" (which can fall back
@@ -71,7 +70,7 @@ export class InstanceResetService {
       await this.mailService.sendMail({
         to: user.email,
         subject: t('instanceResetOtp.subject'),
-        text: t('instanceResetOtp.body', { code, minutes: OTP_EXPIRATION_MINUTES }),
+        text: t('instanceResetOtp.body', { code, minutes: INSTANCE_RESET_OTP_WINDOW_MINUTES }),
       });
     } catch (error) {
       // INSTANCE-LEVEL-LOG: same instance-wide OTP flow as above — no company scope applies.
