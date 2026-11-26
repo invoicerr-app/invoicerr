@@ -39,6 +39,14 @@ interface SettlementBadgeInfo {
   labelKey: `documents.settlement.badge.${SettlementStatus}`
 }
 
+/** Same rule as the backend's overdue filter: a due date strictly before `today`, both compared as
+ *  bare "YYYY-MM-DD" calendar days, never as instants, so a record is not late on its due day in
+ *  any timezone. */
+export function isPastDue(dueDate: unknown, today: string): boolean {
+  if (typeof dueDate !== "string" || dueDate === "") return false
+  return dueDate.slice(0, 10) < today
+}
+
 /**
  * Pure: which status/label a balance renders as - extracted so the list badge and the section's own
  * badge always agree, and so it's testable without mounting anything.
@@ -61,10 +69,8 @@ export function settlementBadgeInfo(
   if (settlement.paidMinor > 0 || settlement.creditedMinor > 0) {
     return { status: "partiallyPaid", labelKey: "documents.settlement.badge.partiallyPaid" }
   }
-  // Same rule as the backend's overdue filter: a due date strictly before today. A partly paid
-  // record keeps its "Partially paid" mark; the amounts beside it say what is left.
-  const dueDate = typeof due?.dueDate === "string" ? due.dueDate.slice(0, 10) : ""
-  if (due && dueDate !== "" && dueDate < due.today) {
+  // A partly paid record keeps its "Partially paid" mark; the amounts beside it say what is left.
+  if (due && isPastDue(due.dueDate, due.today)) {
     return { status: "late", labelKey: "documents.settlement.badge.late" }
   }
   return { status: "unpaid", labelKey: "documents.settlement.badge.unpaid" }

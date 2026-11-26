@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { settlementBadgeInfo, statementRowSettlement } from "./document-settlement"
+import { isPastDue, settlementBadgeInfo, statementRowSettlement } from "./document-settlement"
 
 const unpaid = {
   totalGrossMinor: 1000,
@@ -71,5 +71,26 @@ describe("statementRowSettlement", () => {
       excessMinor: 0,
       settled: false,
     })
+  })
+})
+
+describe("isPastDue", () => {
+  it("is not past due on the due day itself, whatever the stored shape", () => {
+    expect(isPastDue("2026-10-28", today)).toBe(false)
+    expect(isPastDue("2026-10-28T00:00:00.000Z", today)).toBe(false)
+  })
+
+  it("is not past due the day before the due day", () => {
+    expect(isPastDue("2026-10-28", "2026-10-27")).toBe(false)
+  })
+
+  it("is past due from the day after the due day", () => {
+    expect(isPastDue("2026-10-27", today)).toBe(true)
+  })
+
+  it("is never past due without a due date", () => {
+    expect(isPastDue(undefined, today)).toBe(false)
+    expect(isPastDue(null, today)).toBe(false)
+    expect(isPastDue("", today)).toBe(false)
   })
 })

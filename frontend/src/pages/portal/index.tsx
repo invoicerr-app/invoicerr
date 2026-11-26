@@ -10,7 +10,11 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatMinor } from "@/components/documents/totals-calculator"
-import { settlementBadgeInfo, statementRowSettlement } from "@/components/documents/document-settlement"
+import {
+  isPastDue,
+  settlementBadgeInfo,
+  statementRowSettlement,
+} from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
@@ -186,7 +190,7 @@ function PayButton({ row }: { row: ClientStatementDocumentRow }) {
  *  a desktop. */
 function DocumentRow({ row }: { row: ClientStatementDocumentRow }) {
   const { t } = useTranslation()
-  const overdue = !row.settled && !!row.dueDate && new Date(row.dueDate) < new Date()
+  const overdue = !row.settled && isPastDue(row.dueDate, todayCalendarDate())
 
   return (
     <li
