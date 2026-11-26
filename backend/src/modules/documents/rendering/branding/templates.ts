@@ -9,13 +9,13 @@ import { join } from 'node:path';
 
 import { logger } from '@/logger/logger.service';
 
-export type DocumentTemplateKey = 'classic' | 'atelier' | 'original';
-
-export const DOCUMENT_TEMPLATES: readonly { key: DocumentTemplateKey; label: string }[] = [
+export const DOCUMENT_TEMPLATES = [
   { key: 'classic', label: 'Classic' },
   { key: 'atelier', label: 'Atelier' },
   { key: 'original', label: 'Original (v1)' },
-];
+] as const;
+
+export type DocumentTemplateKey = (typeof DOCUMENT_TEMPLATES)[number]['key'];
 
 /** The product default. Migration 20261029070000 moved every pre-existing company to it; new companies start on it too. A null template only remains on an image older than 2026-10-29. */
 export const NEW_COMPANY_TEMPLATE: DocumentTemplateKey = 'atelier';

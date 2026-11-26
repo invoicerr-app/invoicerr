@@ -399,6 +399,15 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
       const result: PtAtRegisterInvoiceResult = await client.registerInvoice(requestFields);
 
       const authorityId = synthesizePtAtAuthorityId(invoice, result.dataOperacao ?? new Date().toISOString());
+      const outcome = {
+        rawPayload: {
+          codigoResposta: result.codigoResposta,
+          mensagem: result.mensagem,
+          dataOperacao: result.dataOperacao,
+        },
+        authorityId,
+        referenceKind: 'synthesized' as const,
+      };
 
       if (result.codigoResposta < 0) {
         // A NEGATIVE CodigoResposta is a genuine, PERMANENT verdict about THIS invoice's own data
@@ -410,27 +419,11 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
           statusCode: PT_AT_STATUS_REJECTED,
           reason: result.mensagem ?? describePtAtCodigoResposta(result.codigoResposta),
           observedAt: new Date(),
-          rawPayload: {
-            codigoResposta: result.codigoResposta,
-            mensagem: result.mensagem,
-            dataOperacao: result.dataOperacao,
-          },
-          authorityId,
-          referenceKind: 'synthesized',
+          ...outcome,
         };
       }
 
-      return {
-        statusCode: PT_AT_STATUS_ACCEPTED,
-        observedAt: new Date(),
-        rawPayload: {
-          codigoResposta: result.codigoResposta,
-          mensagem: result.mensagem,
-          dataOperacao: result.dataOperacao,
-        },
-        authorityId,
-        referenceKind: 'synthesized',
-      };
+      return { statusCode: PT_AT_STATUS_ACCEPTED, observedAt: new Date(), ...outcome };
     },
   };
 }

@@ -48,7 +48,8 @@ import { PartyType } from '../country-identifiers/schema';
  * Portugal is the first country to populate it (issue #501, `data/pt.json`: Decreto-Lei n.º 198/2012
  * applies to "documentos retificativos de fatura" as well).
  */
-export type ReportableDocumentType = 'invoice' | 'credit-note';
+export const REPORTABLE_DOCUMENT_TYPES = ['invoice', 'credit-note'] as const;
+export type ReportableDocumentType = (typeof REPORTABLE_DOCUMENT_TYPES)[number];
 
 /**
  * How a fact is actually DISCHARGED — the axis this schema was missing until France's own CGI
