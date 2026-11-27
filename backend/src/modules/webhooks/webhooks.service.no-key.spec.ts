@@ -137,13 +137,13 @@ describe('WebhooksService — no CREDENTIALS_ENCRYPTION_KEY configured', () => {
         return { ok: true } as Response;
       });
 
-      const results = await service.send(
-        [makeWebhook({ secret: 'legacy-stored-value' })],
+      const result = await service.sendOne(
+        makeWebhook({ secret: 'legacy-stored-value' }),
         WebhookEvent.WEBHOOK_CREATED,
         { company: COMPANY_ROW },
       );
 
-      expect(results).toEqual([true]);
+      expect(result).toBe(true);
       expect(capturedSignature).not.toBeNull();
     });
   });

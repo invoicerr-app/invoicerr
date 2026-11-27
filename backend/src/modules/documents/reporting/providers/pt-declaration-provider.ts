@@ -69,7 +69,7 @@ export const PT_AT_PROVIDER_ID = 'pt-at';
  *  `CodigoResposta` (see `pt-at-client.ts`'s own header), so a name has to be minted here rather than
  *  passed through from the authority. */
 export const PT_AT_STATUS_ACCEPTED = 'ACCEPTED';
-export const PT_AT_STATUS_REJECTED = 'REJECTED';
+const PT_AT_STATUS_REJECTED = 'REJECTED';
 
 export function extractPtAtCredentials(resolved: ResolvedChannelConfig): PtAtCredentials | null {
   const {
@@ -112,7 +112,7 @@ export function stripPtNifPrefix(vatNumber: string | undefined): string | undefi
 /** Field 1.6.6 (CustomerTaxID)'s own documented placeholder: "Quando não tenha sido recolhido no
  *  sistema de faturação do emissor, deve ser preenchido com 999999990" — a genuine, cited AT
  *  convention for "no buyer NIF on file", never an invented fallback. */
-export const PT_AT_UNKNOWN_CONSUMER_NIF = '999999990';
+const PT_AT_UNKNOWN_CONSUMER_NIF = '999999990';
 
 /** Field 1.6.4 (InvoiceType): "FT" for the invoice, "NC" for the credit note. The codes come from
  *  `numbering/atcud.ts#SAFT_PT_DOCUMENT_TYPE_BY_TYPE_ID`, the one table (sourced there to Portaria
@@ -124,7 +124,7 @@ export function ptAtInvoiceTypeFor(typeId: string): string {
 }
 
 /** The `codeLists` table (`countries/data/pt.json`) field 1.6.14.7.3 is read from. */
-export const PT_AT_TAX_CODE_LIST = 'ptAtTaxCode';
+const PT_AT_TAX_CODE_LIST = 'ptAtTaxCode';
 
 /**
  * The rate class one VAT-rate group is looked up under. A stored document line carries its rate and
@@ -268,7 +268,7 @@ export function buildPtAtLineSummaries(invoice: DeclaredInvoice): Record<string,
 
 /** The manual's own worked example value (Aspetos Específicos §2.1.1.3) — a fixed webservice-schema
  *  version, not this product's own. */
-export const PT_AT_EFATURA_MD_VERSION = '0.0.1';
+const PT_AT_EFATURA_MD_VERSION = '0.0.1';
 
 /**
  * The SAF-T (PT) structure version this field (`AuditFileVersion`, 1.2) declares the SENDING SOFTWARE
@@ -279,7 +279,7 @@ export const PT_AT_EFATURA_MD_VERSION = '0.0.1';
  * is populated purely to satisfy AT's mandatory schema field, mirroring the manual's own worked
  * example precisely; it is NOT a claim that this product supports SAF-T (PT) export.
  */
-export const PT_AT_AUDIT_FILE_VERSION = '1.04_01';
+const PT_AT_AUDIT_FILE_VERSION = '1.04_01';
 
 /**
  * Maps `DeclaredInvoice` onto `RegisterInvoiceRequest`'s own fields (Aspetos Específicos §2.1.1.1) —
@@ -361,7 +361,7 @@ export function buildPtAtInvoiceRequestFields(invoice: DeclaredInvoice): Record<
  * given how easy a synthesized id is to mistake for a real one once it is sitting in a UI next to
  * NAV's very real `transactionId`/myDATA's very real `invoiceMark`.
  */
-export function synthesizePtAtAuthorityId(invoice: DeclaredInvoice, dataOperacao: string): string {
+function synthesizePtAtAuthorityId(invoice: DeclaredInvoice, dataOperacao: string): string {
   const safeNumber = invoice.number.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `pt-at-synth:${safeNumber}:${dataOperacao}`;
 }
@@ -399,6 +399,15 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
       const result: PtAtRegisterInvoiceResult = await client.registerInvoice(requestFields);
 
       const authorityId = synthesizePtAtAuthorityId(invoice, result.dataOperacao ?? new Date().toISOString());
+      const outcome = {
+        rawPayload: {
+          codigoResposta: result.codigoResposta,
+          mensagem: result.mensagem,
+          dataOperacao: result.dataOperacao,
+        },
+        authorityId,
+        referenceKind: 'synthesized' as const,
+      };
 
       if (result.codigoResposta < 0) {
         // A NEGATIVE CodigoResposta is a genuine, PERMANENT verdict about THIS invoice's own data
@@ -410,27 +419,11 @@ export function buildPtAtDeclarationProvider(deps: PtAtDeclarationProviderDeps):
           statusCode: PT_AT_STATUS_REJECTED,
           reason: result.mensagem ?? describePtAtCodigoResposta(result.codigoResposta),
           observedAt: new Date(),
-          rawPayload: {
-            codigoResposta: result.codigoResposta,
-            mensagem: result.mensagem,
-            dataOperacao: result.dataOperacao,
-          },
-          authorityId,
-          referenceKind: 'synthesized',
+          ...outcome,
         };
       }
 
-      return {
-        statusCode: PT_AT_STATUS_ACCEPTED,
-        observedAt: new Date(),
-        rawPayload: {
-          codigoResposta: result.codigoResposta,
-          mensagem: result.mensagem,
-          dataOperacao: result.dataOperacao,
-        },
-        authorityId,
-        referenceKind: 'synthesized',
-      };
+      return { statusCode: PT_AT_STATUS_ACCEPTED, observedAt: new Date(), ...outcome };
     },
   };
 }

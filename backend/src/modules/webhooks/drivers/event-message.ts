@@ -12,6 +12,11 @@ import { EVENT_STYLES, formatPayloadForEvent } from './event-formatters';
 export const instanceUrl = (): string => appOrigin();
 export const instanceIcon = (): string => `${instanceUrl()}/favicon.svg`;
 
+/** The footer every chat-style message carries; Teams and the Slack family append the send time. */
+export const MESSAGE_FOOTER = 'Invoicerr Webhooks';
+/** The label of the company field a message carries when the payload names a company. */
+export const COMPANY_FIELD_LABEL = 'Entreprise';
+
 /** What every chat-style driver (Discord, Teams, Slack family) renders, before its own markup. */
 export interface EventMessage {
   title: string;

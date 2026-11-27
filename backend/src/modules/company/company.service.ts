@@ -15,6 +15,7 @@ import { normalizeDueDays, normalizeDueMode } from '@/modules/company/payment-te
 import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { dispatchWebhookSafely } from '../webhooks/dispatch-webhook-safely';
 import { logger } from '@/logger/logger.service';
 import { sanitizeEmailHtml } from '@/mail/sanitize-email-html';
 import {
@@ -392,13 +393,12 @@ export class CompanyService {
 
     logger.info('Company info updated', { category: 'company', details: { companyId: updatedCompany.id } });
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_UPDATED, {
-        company: updatedCompany,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch COMPANY_UPDATED webhook', { category: 'company', details: { error } });
-    }
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.COMPANY_UPDATED,
+      { company: updatedCompany },
+      { message: 'Failed to dispatch COMPANY_UPDATED webhook', category: 'company' },
+    );
 
     return updatedCompany;
   }
@@ -715,13 +715,12 @@ export class CompanyService {
       newCompany.countryCode ?? newCompany.country,
     );
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_CREATED, {
-        company: newCompany,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch COMPANY_CREATED webhook', error);
-    }
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.COMPANY_CREATED,
+      { company: newCompany },
+      { message: 'Failed to dispatch COMPANY_CREATED webhook', category: 'company' },
+    );
 
     return newCompany;
   }
@@ -801,17 +800,15 @@ export class CompanyService {
       category: 'company',
       details: { templateId: row.id, family, warningCount: warnings.length },
     });
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED, {
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.COMPANY_EMAIL_TEMPLATE_UPDATED,
+      {
         company: row.company,
         template: { id: row.id, type: row.type, subject: row.subject, body: row.body },
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch COMPANY_EMAIL_TEMPLATE_UPDATED webhook', {
-        category: 'company',
-        details: { error },
-      });
-    }
+      },
+      { message: 'Failed to dispatch COMPANY_EMAIL_TEMPLATE_UPDATED webhook', category: 'company' },
+    );
 
     return {
       dbId: row.id,

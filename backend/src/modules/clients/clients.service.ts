@@ -31,6 +31,7 @@ import {
   IdentifierEntry,
 } from '@/modules/clients/dto/clients.dto';
 import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
+import { dispatchWebhookSafely } from '../webhooks/dispatch-webhook-safely';
 import { Prisma, WebhookEvent } from '../../../prisma/generated/prisma/client';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -140,15 +141,16 @@ export class ClientsService {
       include: { partyIdentifiers: true, contacts: CONTACTS_INCLUDE },
     });
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_SEARCHED, {
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.CLIENT_SEARCHED,
+      {
         companyId,
         query,
         results: results.length,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch CLIENT_SEARCHED webhook', { category: 'client', details: { error } });
-    }
+      },
+      { message: 'Failed to dispatch CLIENT_SEARCHED webhook', category: 'client' },
+    );
 
     return results.map(withDerivedContactFields);
   }
@@ -321,14 +323,15 @@ export class ClientsService {
 
     logger.info('Client created', { category: 'client', details: { clientId: created.id } });
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.CLIENT_CREATED,
+      {
         companyId,
         client: newClient,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch CLIENT_CREATED webhook', { category: 'client', details: { error } });
-    }
+      },
+      { message: 'Failed to dispatch CLIENT_CREATED webhook', category: 'client' },
+    );
 
     return newClient;
   }
@@ -419,14 +422,15 @@ export class ClientsService {
 
     logger.info('Client updated', { category: 'client', details: { clientId: updatedClient.id } });
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_UPDATED, {
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.CLIENT_UPDATED,
+      {
         companyId,
         client: fullClient,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch CLIENT_UPDATED webhook', { category: 'client', details: { error } });
-    }
+      },
+      { message: 'Failed to dispatch CLIENT_UPDATED webhook', category: 'client' },
+    );
 
     return fullClient;
   }
@@ -446,14 +450,15 @@ export class ClientsService {
 
     logger.info('Client deleted', { category: 'client', details: { clientId: id } });
 
-    try {
-      await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_DELETED, {
+    await dispatchWebhookSafely(
+      this.webhookDispatcher,
+      WebhookEvent.CLIENT_DELETED,
+      {
         companyId,
         client: existingClient,
-      });
-    } catch (error) {
-      logger.error('Failed to dispatch CLIENT_DELETED webhook', { category: 'client', details: { error } });
-    }
+      },
+      { message: 'Failed to dispatch CLIENT_DELETED webhook', category: 'client' },
+    );
 
     return deletedClient;
   }

@@ -11,9 +11,6 @@ import { ProviderLookupError } from './types';
 
 export const DEFAULT_TIMEOUT_MS = 8000;
 
-/** Identifies us to registries that reject anonymous clients (cvrapi.dk, SEC…). */
-export const USER_AGENT = INVOICERR_USER_AGENT;
-
 export interface FetchJsonOptions {
   method?: 'GET' | 'POST';
   headers?: Record<string, string>;
@@ -35,7 +32,8 @@ async function request(url: string, opts: FetchJsonOptions): Promise<Response | 
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        'User-Agent': USER_AGENT,
+        // Identifies us to registries that reject anonymous clients (cvrapi.dk, SEC…).
+        'User-Agent': INVOICERR_USER_AGENT,
         ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(opts.headers ?? {}),
       },

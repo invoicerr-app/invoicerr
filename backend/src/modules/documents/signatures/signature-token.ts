@@ -3,7 +3,7 @@
  * file's own header for the full reasoning: 256 bits of entropy is never brute-forced fast enough to
  * matter, so a plain SHA-256 digest, looked up by an exact unique-index match, is exactly right — no
  * hand-rolled crypto, node's native `crypto` module only, and no timing-safe compare needed here
- * either, unlike the OTP itself — see `otp.ts`).
+ * either, unlike the OTP itself - see `lib/otp.ts`).
  *
  * A SEPARATE file from `share-link-token.ts`, not a shared import: two independent, equally-small
  * modules that both happen to do the same 3-line thing are easier to audit each on their own than one

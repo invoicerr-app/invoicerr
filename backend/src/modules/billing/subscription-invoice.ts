@@ -26,10 +26,15 @@ import { logger } from '@/logger/logger.service';
 import { fromMinor } from '@/utils/financial';
 
 /** The webhook event that records a payment. */
-export const PAID_INVOICE_EVENT = 'invoice.paid';
+const PAID_INVOICE_EVENT = 'invoice.paid';
 
 /** Starts `lastError` on a row the issuer must leave to the operator. */
 export const MANUAL_ISSUE_PREFIX = 'Not issued automatically';
+
+/** The `lastError` of a row left to the operator: the prefix the issuer's filter matches, then why. */
+export function manualIssueError(reason: string): string {
+  return `${MANUAL_ISSUE_PREFIX}: ${reason}`;
+}
 
 /** One Stripe line, as kept on the row: amounts in the currency's minor unit, tax excluded. */
 export interface SubscriptionInvoiceLine {
@@ -147,7 +152,7 @@ export async function recordPaidSubscriptionInvoiceEvent(event: StripeWebhookEve
         amountPaid: record.amountPaid,
         lines: record.lines as unknown as object,
         paidAt: record.paidAt,
-        lastError: record.problem ? `${MANUAL_ISSUE_PREFIX}: ${record.problem}` : null,
+        lastError: record.problem ? manualIssueError(record.problem) : null,
       },
     ],
     skipDuplicates: true,

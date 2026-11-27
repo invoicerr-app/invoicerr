@@ -320,7 +320,7 @@ export function accountLinkingOptions(params: { env: EnvOidcProvider }): Account
  * company he has no part in, which is the enumeration primitive `SsoLookupResult` is shaped to
  * avoid on the public lookup route.
  */
-export const SSO_LINK_OUTSIDE_COMPANY: ValidateUserInfoResult = {
+const SSO_LINK_OUTSIDE_COMPANY: ValidateUserInfoResult = {
   error: 'sso_provider_outside_company',
   errorDescription:
     'This identity provider may only be linked to an account that already belongs to its company.',

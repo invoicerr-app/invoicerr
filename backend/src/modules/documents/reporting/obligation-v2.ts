@@ -31,16 +31,19 @@
  * obligation, the same discipline every sibling catalog holds. Nothing has a silent default.
  */
 import { PolicyProvenance } from '../country-policy/schema';
+import { isDateOnly } from './date-only';
 import {
   assertValidProvenance,
   assertValidReportingScopeEntry,
   CountryReportingObligationFile,
+  REPORTABLE_DOCUMENT_TYPES,
   ReportableDocumentType,
   ReportingObligationFact,
   ReportingScopeEntry,
 } from './schema';
 
-export type ObligationKind = 'data' | 'summary' | 'return';
+const KINDS = ['data', 'summary', 'return'] as const;
+export type ObligationKind = (typeof KINDS)[number];
 
 /**
  * What makes the obligation due. `sent` is the only trigger the legacy shape knew (every legacy
@@ -48,7 +51,8 @@ export type ObligationKind = 'data' | 'summary' | 'return';
  * "record-payment" action); `issued` is fired by the "validate" action and by every send
  * (`on-document-event.ts`, #768); `period-end` is read by nothing yet (#770).
  */
-export type ObligationTrigger = 'issued' | 'sent' | 'payment' | 'period-end';
+const TRIGGERS = ['issued', 'sent', 'payment', 'period-end'] as const;
+export type ObligationTrigger = (typeof TRIGGERS)[number];
 
 /**
  * Who discharges a channel:
@@ -59,12 +63,15 @@ export type ObligationTrigger = 'issued' | 'sent' | 'payment' | 'period-end';
  *   - `export`: the app produces a file the user files with the authority;
  *   - `manual`: the user files it themselves; the app only records that it is owed.
  */
-export type ChannelDischarger = 'transport' | 'provider' | 'export' | 'manual';
+const DISCHARGERS = ['transport', 'provider', 'export', 'manual'] as const;
+export type ChannelDischarger = (typeof DISCHARGERS)[number];
 
 /** What one discharge of a channel covers: one document, or one whole period. */
-export type ChannelUnit = 'document' | 'period';
+const UNITS = ['document', 'period'] as const;
+export type ChannelUnit = (typeof UNITS)[number];
 
-export type ObligationPeriod = 'month' | 'quarter' | 'year';
+const PERIODS = ['month', 'quarter', 'year'] as const;
+export type ObligationPeriod = (typeof PERIODS)[number];
 
 export interface ObligationChannel {
   dischargedBy: ChannelDischarger;
@@ -165,23 +172,10 @@ export class InvalidReportingObligationError extends Error {}
 /** A legacy fact `upgradeLegacyFacts` cannot express as one v2 obligation without guessing. */
 export class LegacyReportingUpgradeError extends Error {}
 
-const KINDS: ObligationKind[] = ['data', 'summary', 'return'];
-const TRIGGERS: ObligationTrigger[] = ['issued', 'sent', 'payment', 'period-end'];
-const DISCHARGERS: ChannelDischarger[] = ['transport', 'provider', 'export', 'manual'];
-const UNITS: ChannelUnit[] = ['document', 'period'];
-const PERIODS: ObligationPeriod[] = ['month', 'quarter', 'year'];
-const DOCUMENT_TYPES: ReportableDocumentType[] = ['invoice', 'credit-note'];
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 function fail(message: string): never {
   throw new InvalidReportingObligationError(message);
-}
-
-function isIsoDate(value: unknown): value is string {
-  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function assertDateRange(
@@ -191,8 +185,8 @@ function assertDateRange(
   fromLabel: string,
   untilLabel: string,
 ) {
-  if (from !== undefined && !isIsoDate(from)) fail(`${where}: "${fromLabel}" is not a YYYY-MM-DD date.`);
-  if (until !== undefined && !isIsoDate(until)) fail(`${where}: "${untilLabel}" is not a YYYY-MM-DD date.`);
+  if (from !== undefined && !isDateOnly(from)) fail(`${where}: "${fromLabel}" is not a YYYY-MM-DD date.`);
+  if (until !== undefined && !isDateOnly(until)) fail(`${where}: "${untilLabel}" is not a YYYY-MM-DD date.`);
   if (typeof from === 'string' && typeof until === 'string' && until <= from) {
     fail(`${where}: "${untilLabel}" (${until}) is not after "${fromLabel}" (${from}).`);
   }
@@ -249,9 +243,9 @@ export function assertValidReportingObligation(obligation: ReportingObligation, 
     fail(`${where} has no "scope.documentTypes".`);
   }
   for (const type of types) {
-    if (!DOCUMENT_TYPES.includes(type)) {
+    if (!REPORTABLE_DOCUMENT_TYPES.includes(type)) {
       fail(
-        `${where} has an unknown document type "${String(type)}" (must be one of ${DOCUMENT_TYPES.join(', ')}).`,
+        `${where} has an unknown document type "${String(type)}" (must be one of ${REPORTABLE_DOCUMENT_TYPES.join(', ')}).`,
       );
     }
   }

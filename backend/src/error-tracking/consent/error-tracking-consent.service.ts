@@ -10,6 +10,8 @@ import {
   decisionFor,
 } from './consent-policy';
 
+const STORED_DECISION_SELECT = { decision: true, textVersion: true, decidedAt: true } as const;
+
 @Injectable()
 export class ErrorTrackingConsentService {
   async getView(userId: string, now: Date = new Date()): Promise<ErrorTrackingConsentView> {
@@ -30,7 +32,7 @@ export class ErrorTrackingConsentService {
     const decision = decisionFor(granted, latest);
     const created = await prisma.errorTrackingConsent.create({
       data: { userId, decision, channel, textVersion: ERROR_TRACKING_CONSENT_TEXT_VERSION, decidedAt: now },
-      select: { decision: true, textVersion: true, decidedAt: true },
+      select: STORED_DECISION_SELECT,
     });
     return buildConsentView(created, now);
   }
@@ -39,7 +41,7 @@ export class ErrorTrackingConsentService {
     return prisma.errorTrackingConsent.findFirst({
       where: { userId },
       orderBy: { decidedAt: 'desc' },
-      select: { decision: true, textVersion: true, decidedAt: true },
+      select: STORED_DECISION_SELECT,
     });
   }
 }

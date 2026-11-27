@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { deriveQuoteOptions } from "@/components/documents/quote-options"
 import { buildFileUploadForm, useRunDocumentAction, useUploadAttachment } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import { ACCEPTANCE_ATTACHMENT_MAX_BYTES, ATTACHMENT_MIMES, toastUploadError } from "@/lib/attachment-rules"
 
 const ATTACHMENT_INPUT_ID = "mark-quote-accepted-attachment"
@@ -151,7 +151,7 @@ export function MarkQuoteAcceptedDialog({
       toast.success(result.message ?? t("documents.acceptance.confirmedToast"))
       handleClose(false)
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : t("documents.form.messages.actionError")
+      const message = apiErrorMessage(error, t("documents.form.messages.actionError"))
       toast.error(message)
     }
   }

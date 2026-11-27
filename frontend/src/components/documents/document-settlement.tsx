@@ -6,7 +6,7 @@ import { StatusMark } from "@/components/ui/status-mark"
 import { statusPresentation } from "./status-presentation"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toCalendarDate } from "@/lib/calendar-date"
+import { todayCalendarDate } from "@/lib/calendar-date"
 import { formatServerMessages } from "@/lib/server-message"
 import { cn } from "@/lib/utils"
 import type { ClientStatementDocumentRow } from "@/types"
@@ -88,11 +88,6 @@ export function statementRowSettlement(row: ClientStatementDocumentRow): Documen
   }
 }
 
-/** Today as a bare "YYYY-MM-DD" calendar day in the user's own timezone (`lib/calendar-date.ts`). */
-export function localIsoDate(): string {
-  return toCalendarDate(new Date()) ?? ""
-}
-
 interface DocumentSettlementBadgeProps {
   typeId: string
   documentId: string
@@ -119,7 +114,7 @@ export function DocumentSettlementBadge({
   const { data } = useDocumentSettlement(typeId, documentId)
   if (!data) return null
 
-  const { status, labelKey } = settlementBadgeInfo(data.settlement, { dueDate, today: localIsoDate() })
+  const { status, labelKey } = settlementBadgeInfo(data.settlement, { dueDate, today: todayCalendarDate() })
   return (
     <StatusMark
       {...statusPresentation(status)}

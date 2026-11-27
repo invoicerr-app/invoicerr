@@ -23,11 +23,6 @@ export class PhotonClientError extends Error {
 
 export const DEFAULT_TIMEOUT_MS = 5000;
 
-/** Identifies this instance to the geocoder - matters most for the shared photon.komoot.io demo
- *  server, whose fair-use policy is the whole reason this feature defaults to off (see
- *  `address-autocomplete.service.ts`'s own header). */
-export const USER_AGENT = INVOICERR_USER_AGENT;
-
 interface PhotonProperties {
   name?: string;
   street?: string;
@@ -110,7 +105,10 @@ export async function fetchPhotonSuggestions(
     res = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
-      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+      // Identifies this instance to the geocoder - matters most for the shared photon.komoot.io demo
+      // server, whose fair-use policy is the whole reason this feature defaults to off (see
+      // `address-autocomplete.service.ts`'s own header).
+      headers: { Accept: 'application/json', 'User-Agent': INVOICERR_USER_AGENT },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

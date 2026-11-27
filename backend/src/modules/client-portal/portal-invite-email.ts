@@ -11,7 +11,7 @@ import { RenderLanguage } from '@/modules/documents/rendering/language/supported
  * deliberately deferred, follow-up — see this module's own `client-portal.module.ts` header.
  *
  * Kept as a pure function (no Nest, no Prisma) purely for the same reason
- * `actions/email-template.ts#buildSignatureRequestEmailParts` is: a unit test can build one without
+ * `mail/system-email-templates.ts#buildSignatureRequestEmailParts` is: a unit test can build one without
  * constructing anything.
  *
  * Multilingual since the client-facing-mail pass (step 4 of the multilingual-mail plan): this reaches

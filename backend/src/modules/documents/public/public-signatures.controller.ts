@@ -10,7 +10,7 @@
  * "which HTTP verb/path maps to which service method" and the `@nestjs/throttler` rate limits below.
  * That per-route throttle is DEFENSE IN DEPTH, never the actual bound on brute force: the real
  * guarantee is `SignaturesService`'s own lifetime `otpFailedAttempts` counter
- * (`signatures/otp.ts#MAX_FAILED_ATTEMPTS`), which caps an attacker at 5 guesses against a 10^8 code
+ * (`lib/otp.ts#MAX_FAILED_ATTEMPTS`), which caps an attacker at 5 guesses against a 10^8 code
  * space NO MATTER how many IPs they spread requests across — a per-IP rate limit alone could never
  * make that claim. `sign` (10/min/IP) and `otp` (3/min/IP) get tighter figures; `document` gets
  * `sign`'s own figure too — it carries no secret-guessing surface either, but on a cache miss it can
@@ -108,7 +108,7 @@ export class PublicSignaturesController {
       'wrong OTP code all answer the EXACT SAME 400, with the exact same body — see the header on ' +
       'SignaturesService.verifyAndSign for why that indistinguishability is the point. A wrong code ' +
       'counts against this signature request LIFETIME attempt budget ' +
-      '(signatures/otp.ts#MAX_FAILED_ATTEMPTS) regardless of this route own per-IP throttle.',
+      '(lib/otp.ts#MAX_FAILED_ATTEMPTS) regardless of this route own per-IP throttle.',
   })
   @ApiParam({ name: 'token', type: String })
   @ApiResponse({ status: 200, description: 'Document signed' })

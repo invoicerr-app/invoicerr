@@ -7,8 +7,6 @@ import { SUPPORTED_RENDER_LANGUAGES } from '../rendering/language/supported-lang
 import { DocumentTotals } from '../totals/compute-totals';
 import {
   buildEmailTemplateParts,
-  buildOtpEmailParts,
-  buildSignatureRequestEmailParts,
   deriveTextFromHtml,
   describeDocumentEmailVocabulary,
   describeSendablePlaceholders,
@@ -725,30 +723,5 @@ describe('resolveEmailTemplateSource', () => {
     expect(resolveEmailTemplate({ ...descriptor, email: undefined }, {})).toBe(
       GENERIC_FALLBACK_EMAIL_TEMPLATE,
     );
-  });
-});
-
-describe("the system families' vocabularies — built by a function, never a duplicated list", () => {
-  it('builds the signature-request parts the sender substitutes', () => {
-    expect(
-      buildSignatureRequestEmailParts({
-        appUrl: 'https://app.test',
-        signatureUrl: 'https://app.test/signature/abc',
-        signatureId: 'sig-1',
-        signatureNumber: 'QUOTE-2026-0001',
-      }),
-    ).toEqual({
-      appUrl: 'https://app.test',
-      signatureUrl: 'https://app.test/signature/abc',
-      signatureId: 'sig-1',
-      signatureNumber: 'QUOTE-2026-0001',
-    });
-  });
-
-  it('builds the verification-code parts, carrying the DISPLAY form of the code only', () => {
-    expect(buildOtpEmailParts({ appUrl: 'https://app.test', otpCode: '1234-5678' })).toEqual({
-      appUrl: 'https://app.test',
-      otpCode: '1234-5678',
-    });
   });
 });

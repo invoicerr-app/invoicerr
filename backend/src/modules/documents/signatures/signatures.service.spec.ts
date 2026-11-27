@@ -15,7 +15,8 @@ import { createESignatureAcceptanceArchive } from '../archive/persistence';
 import { hashSignatureToken } from './signature-token';
 import { hashDocumentData } from '../archive/document-data-hash';
 import { DOCUMENT_CHANGED_CODE } from './signed-version';
-import { MAX_FAILED_ATTEMPTS, MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
+import { MAX_FAILED_ATTEMPTS } from '@/lib/otp';
+import { MAX_OTP_MINTS, OTP_WINDOW_MS } from './otp';
 import { SignaturesService } from './signatures.service';
 
 // A plain `vi.spyOn(nodemailer, 'createTransport')` (what this worked as under Jest, where a

@@ -7,9 +7,11 @@ import {
   buildBlockedZipWarningEmail,
   buildDeletionWarningEmail,
   buildLegalDocumentChangedEmail,
+  buildOtpEmailParts,
   buildOwnershipTransferEndedEmail,
   buildOwnershipTransferFinalizedEmail,
   buildOwnershipTransferRequestEmail,
+  buildSignatureRequestEmailParts,
   buildSystemEmailDefault,
   describeSystemEmailVocabulary,
   resolveSystemEmailTemplate,
@@ -379,5 +381,30 @@ describe('ownership transfer emails — HTML-escape attacker-reachable values, i
     });
     expect(email.html).toContain('&quot;Acme Corp&quot;');
     expect(email.html).not.toContain('"Acme Corp"');
+  });
+});
+
+describe("the system families' vocabularies: built by a function, never a duplicated list", () => {
+  it('builds the signature-request parts the sender substitutes', () => {
+    expect(
+      buildSignatureRequestEmailParts({
+        appUrl: 'https://app.test',
+        signatureUrl: 'https://app.test/signature/abc',
+        signatureId: 'sig-1',
+        signatureNumber: 'QUOTE-2026-0001',
+      }),
+    ).toEqual({
+      appUrl: 'https://app.test',
+      signatureUrl: 'https://app.test/signature/abc',
+      signatureId: 'sig-1',
+      signatureNumber: 'QUOTE-2026-0001',
+    });
+  });
+
+  it('builds the verification-code parts, carrying the DISPLAY form of the code only', () => {
+    expect(buildOtpEmailParts({ appUrl: 'https://app.test', otpCode: '1234-5678' })).toEqual({
+      appUrl: 'https://app.test',
+      otpCode: '1234-5678',
+    });
   });
 });

@@ -42,7 +42,7 @@
  * for every deployment today; this channel is "dormant" per `sdi-notifiche.service.ts`'s own header,
  * nothing yet points real SdI traffic at it) means every request is refused, never the previous
  * "wide open until someone bothers to configure something" default. `timingSafeEqual` (never `===`)
- * for the actual comparison — the same discipline `documents/signatures/otp.ts` already holds, so a
+ * for the actual comparison - the same discipline `lib/otp.ts` already holds, so a
  * response-time side channel cannot narrow the secret one byte at a time.
  *
  * The Content-Type gate right after it exists for a second, independent reason: `main.ts`'s global

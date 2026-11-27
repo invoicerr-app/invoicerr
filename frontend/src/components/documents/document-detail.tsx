@@ -100,7 +100,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Form } from "@/components/ui/form"
-import { isDemoBlockedAction } from "@/lib/demo-actions"
+import { demoDisabledTooltip, isDemoBlockedAction } from "@/lib/demo-actions"
 
 interface DocumentDetailProps {
   descriptor: DocumentTypeDescriptor
@@ -775,9 +775,7 @@ function DocumentDetailActions({
                       className="max-w-xs text-xs text-muted-foreground"
                       data-cy={`document-blocked-reason-${action.id}`}
                     >
-                      {demoBlocked
-                        ? t("demo.disabledTooltip", "Disabled in this demo.")
-                        : t("documents.form.actionBlockedTitle")}
+                      {demoDisabledTooltip(t, demoBlocked) ?? t("documents.form.actionBlockedTitle")}
                     </span>
                   )}
                 </div>

@@ -37,7 +37,7 @@ import { logger } from '@/logger/logger.service';
 import { journalSyntheticEvent } from '../conformity/authority-events.persistence';
 import { resolveCompanyCountryCode } from '../country-policy/country-policy';
 import { DocumentActionQueueDispatcher } from '../queue/queue.constants';
-import { classifyObligation, DeclarationOperation } from './classify';
+import { classifyObligation, DeclarationOperation, needsOperationFacts } from './classify';
 import { defaultReportingObligationCatalogV2, ReportingObligationCatalogV2 } from './obligation-catalog';
 import { ObligationTrigger } from './obligation-v2';
 import { loadDeclarationOperation } from './operation-context';
@@ -105,11 +105,7 @@ export async function reportOnDocumentEvent(
     // facts, so it never reads the client or the articles. A payment always does: its classifier
     // judges the invoice's lines and the seller's VAT-on-collection option.
     const needsOperation =
-      event === 'payment' ||
-      candidates.some(
-        ({ candidate }) =>
-          candidate.scope.transactions || candidate.applicability || candidate.sellerConditions,
-      );
+      event === 'payment' || candidates.some(({ candidate }) => needsOperationFacts(candidate));
     const operation: DeclarationOperation | undefined = needsOperation
       ? await loadDeclarationOperation({
           companyId,

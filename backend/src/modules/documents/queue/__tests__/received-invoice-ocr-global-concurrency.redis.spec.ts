@@ -34,7 +34,9 @@ import { vi } from 'vitest';
 import { Queue, Worker } from 'bullmq';
 
 import { redisConnection } from '../redis.config';
-import { describeWithRedis } from './redis-gate';
+import { redisDescribe } from '@/test/redis-gate';
+
+const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');
 
 // Gated EXPLICITLY (DOCUMENTS_QUEUE_REDIS_TESTS=1), not merely on REDIS_URL being set — see this
 // file's own header and document-action-queue.redis.spec.ts's own header for the full reasoning.

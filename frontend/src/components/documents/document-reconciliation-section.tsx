@@ -15,7 +15,7 @@ import {
   useReceivedInvoiceReconciliation,
 } from "@/hooks/queries"
 import { isCompanyAdmin } from "@/hooks/queries/use-companies"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 import { SectionCard } from "./section-card"
@@ -90,7 +90,7 @@ export function DocumentReconciliationSection({ documentId }: DocumentReconcilia
       setReason("")
       toast.success(t("documents.reconciliation.acceptSuccess"))
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("documents.reconciliation.acceptError"))
+      toast.error(apiErrorMessage(error, t("documents.reconciliation.acceptError")))
     }
   }
 

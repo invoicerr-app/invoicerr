@@ -52,8 +52,10 @@ export class ErrorTrackingConsentController {
   @ApiResponse({ status: 400, description: 'granted is not a boolean, or channel is unknown' })
   decide(@User() user: CurrentUser, @Body() body: unknown) {
     const input = parseConsentDecisionInput(body);
-    if (!input)
-      throw new BadRequestException('Expected { granted: boolean, channel: "banner" | "settings" }');
+    if (!input) {
+      const channels = ERROR_TRACKING_CONSENT_CHANNELS.map((channel) => `"${channel}"`).join(' | ');
+      throw new BadRequestException(`Expected { granted: boolean, channel: ${channels} }`);
+    }
     return this.consentService.decide(user.id, input.granted, input.channel);
   }
 }

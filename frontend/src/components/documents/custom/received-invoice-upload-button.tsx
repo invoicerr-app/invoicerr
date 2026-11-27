@@ -11,7 +11,7 @@ import { DocumentCreateDialog } from "@/components/documents/document-create-dia
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
-import { ApiError } from "@/hooks/use-api-query"
+import { toastUploadError } from "@/lib/attachment-rules"
 import {
   buildFileUploadForm,
   useReceivedInvoiceOcrResult,
@@ -183,19 +183,15 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
       // the real outcome.
       notifyExtractionOutcome(t, result)
     } catch (error) {
-      // A 413 is refused by multer at the multipart wire itself (limits.fileSize), before this file
-      // ever reaches ReceivedInvoicesService — its own body carries the generic "File too large"
-      // rather than this app's own byte-counted message, so it gets a dedicated, translated string
-      // instead. Every OTHER refusal keeps the backend's OWN message — it names the exact duplicate
+      // Every refusal but a 413 keeps the backend's OWN message: it names the exact duplicate
       // (SHA-256 + existing document id) when that is the refusal, never a generic "upload failed"
       // that would hide it.
-      if (error instanceof ApiError && error.status === 413) {
-        toast.error(t("documents.custom.receivedInvoiceUpload.tooLarge"))
-      } else {
-        toast.error(
-          error instanceof ApiError ? error.message : t("documents.custom.receivedInvoiceUpload.error"),
-        )
-      }
+      toastUploadError(
+        error,
+        t,
+        t("documents.custom.receivedInvoiceUpload.error"),
+        t("documents.custom.receivedInvoiceUpload.tooLarge"),
+      )
     }
   }
 

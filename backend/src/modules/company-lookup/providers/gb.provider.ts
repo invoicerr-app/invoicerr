@@ -6,7 +6,7 @@
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { credentialsPresent, join } from './shared';
+import { credentialsPresent, join, readCredentials } from './shared';
 
 const COMPANIES_HOUSE_URL = 'https://api.company-information.service.gov.uk/company';
 
@@ -37,7 +37,8 @@ export class UkCompaniesHouseProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const number = this.normalize(query.value);
-    const auth = Buffer.from(`${process.env.COMPANIES_HOUSE_API_KEY}:`).toString('base64');
+    const { COMPANIES_HOUSE_API_KEY } = readCredentials(this.credentialEnvVars);
+    const auth = Buffer.from(`${COMPANIES_HOUSE_API_KEY}:`).toString('base64');
     const data = await fetchJson<any>(`${COMPANIES_HOUSE_URL}/${number}`, {
       timeoutMs: this.timeoutMs,
       headers: { Authorization: `Basic ${auth}` },

@@ -1,18 +1,22 @@
 /**
  * Persistence for `InstanceResetOtp` — one row per OPERATOR e-mail (see that model's own
- * `schema.prisma` header for why an e-mail, not a foreign key). Mirrors `danger/danger-otp.
- * persistence.ts` function-for-function — plain functions over the Prisma singleton, reusing the
- * SAME CSPRNG/hash/timing-safe-compare primitives (`documents/signatures/otp.ts`) rather than a
- * second, parallel OTP scheme — the one difference is the key (`email` here, `companyId` there).
+ * `schema.prisma` header for why an e-mail, not a foreign key). Same shape as
+ * `danger/danger-otp.persistence.ts` - plain functions over the Prisma singleton, reusing the SAME
+ * CSPRNG/hash/timing-safe-compare primitives (`lib/otp.ts`) rather than a second, parallel OTP
+ * scheme - with two differences: the key (`email` here, `companyId` there), and the lock. Here a
+ * lockout is PERMANENT until the row is cleared; the danger challenge lifts its own after 24 hours
+ * (`DANGER_OTP_LOCKOUT_HOURS`, whose header says why that route needs a door and this one does not).
  */
 import prisma from '@/prisma/prisma.service';
 
-import { MAX_FAILED_ATTEMPTS } from '@/modules/documents/signatures/otp';
+import { MAX_FAILED_ATTEMPTS } from '@/lib/otp';
 
-/** Same 10-minute window `danger-otp.persistence.ts#DANGER_OTP_WINDOW_MS` uses — this is the
+/** Same 10-minute window `danger-otp.persistence.ts#DANGER_OTP_WINDOW_MINUTES` uses - this is the
  *  identical "already-authenticated, human-only flow" shape, not the shorter 5-minute window
- *  `documents/signatures/otp.ts` gives an anonymous, bearer-link-held signature request. */
-const INSTANCE_RESET_OTP_WINDOW_MS = 10 * 60 * 1000;
+ *  `documents/signatures/otp.ts` gives an anonymous, bearer-link-held signature request. Exported in
+ *  minutes because the e-mail quotes it (`instance-reset.service.ts`). */
+export const INSTANCE_RESET_OTP_WINDOW_MINUTES = 10;
+const INSTANCE_RESET_OTP_WINDOW_MS = INSTANCE_RESET_OTP_WINDOW_MINUTES * 60 * 1000;
 
 export interface InstanceResetOtpRecord {
   id: string;
@@ -24,11 +28,11 @@ export interface InstanceResetOtpRecord {
 }
 
 /**
- * Mints (or replaces) this OPERATOR's OTP challenge — refuses once the row is `lockedAt`, the exact
- * same permanent-lock guarantee `danger-otp.persistence.ts#mintDangerOtp` documents for its own
- * per-company row: without this check, re-requesting would hand an attacker holding only a hijacked
- * operator session an unlimited supply of fresh 5-guess budgets instead of the single one
- * `MAX_FAILED_ATTEMPTS` bounds for good.
+ * Mints (or replaces) this OPERATOR's OTP challenge - refuses once the row is `lockedAt`, the same
+ * refusal `danger-otp.persistence.ts#mintDangerOtp` documents for its own per-company row (there it
+ * lifts after 24 hours, here never): without this check, re-requesting would hand an attacker holding
+ * only a hijacked operator session an unlimited supply of fresh 5-guess budgets instead of the single
+ * one `MAX_FAILED_ATTEMPTS` bounds for good.
  */
 export async function mintInstanceResetOtp(
   email: string,

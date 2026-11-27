@@ -31,6 +31,9 @@ interface LogOptions {
   companyId?: string | null;
 }
 
+/** What `info`, `warn`, `error` and `debug` accept (`audit` narrows `details` to `unknown` values). */
+type LogCallOptions = Omit<LogOptions, 'details'> & { details?: Record<string, any> };
+
 /** What `fetchLogs` can filter on. */
 export interface LogFilters {
   level?: LogLevel;
@@ -116,31 +119,21 @@ export class LoggerService {
     }
   }
 
-  public info(
-    message: string,
-    options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): void {
+  public info(message: string, options: LogCallOptions): void {
     this.inLogger.log(`[${options.category}] ${redactLogText(message)}`);
     void this.createLog('INFO', message, options);
   }
 
-  public warn(
-    message: string,
-    options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): void {
+  public warn(message: string, options: LogCallOptions): void {
     this.inLogger.warn(`[${options.category}] ${redactLogText(message)}`);
     void this.createLog('WARN', message, options);
   }
 
-  public error(
-    message: string,
-    options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): void {
+  public error(message: string, options: LogCallOptions): void {
     this.inLogger.error(`[${options.category}] ${redactLogText(message)}`);
-    const errorDetails = options.details || {};
-    if (errorDetails.stack === undefined) {
-      errorDetails.stack = new Error().stack;
-    }
+    // A copy: the caller's own `details` object is never written to.
+    const details = options.details ?? {};
+    const errorDetails = details.stack === undefined ? { ...details, stack: new Error().stack } : details;
     void this.createLog('ERROR', message, { ...options, details: errorDetails });
   }
 
@@ -153,10 +146,7 @@ export class LoggerService {
     return this.createLog('INFO', message, options);
   }
 
-  public debug(
-    message: string,
-    options: Omit<LogOptions, 'details'> & { details?: Record<string, any> },
-  ): void {
+  public debug(message: string, options: LogCallOptions): void {
     if (process.env.NODE_ENV !== 'production' || process.env.FORCE_DEBUG_LOGS === 'true') {
       this.inLogger.debug(`[${options.category}] ${redactLogText(message)}`);
     }

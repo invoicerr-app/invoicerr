@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCorrectionRoutes, useFetchSelectableRows, useRunDocumentAction } from "@/hooks/queries"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import { cn } from "@/lib/utils"
 
 /**
@@ -257,7 +257,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       // The backend's own named refusal (a 403 naming the country, or a 409 naming the restricted
       // status — documents.service.ts's own `resolveActionPolicy`/`runAction`) shown verbatim, the
       // same convention this dialogue's own error state already holds for `getCorrectionRoutes`.
-      toast.error(err instanceof ApiError ? err.message : t("documents.form.messages.actionError"))
+      toast.error(apiErrorMessage(err, t("documents.form.messages.actionError")))
     }
   }
 
@@ -279,7 +279,7 @@ function CorrectionRoutesDialogBody({ instance, onClose }: CorrectionRoutesDialo
       <Alert variant="destructive" className="min-w-0" data-cy="document-correction-error">
         <AlertTitle>{t("documents.correction.errorTitle")}</AlertTitle>
         <AlertDescription data-cy="document-correction-error-message">
-          {error instanceof ApiError ? error.message : t("documents.correction.genericError")}
+          {apiErrorMessage(error, t("documents.correction.genericError"))}
         </AlertDescription>
       </Alert>
     )

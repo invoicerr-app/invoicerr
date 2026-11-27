@@ -12,6 +12,7 @@ export const PASSWORD_RULES: ReadonlyArray<{
   messageKey: string
   test: (value: string) => boolean
 }> = [
+  // 8: the backend's `MIN_PASSWORD_LENGTH` (`backend/src/lib/password-policy.ts`).
   { id: "length", messageKey: "auth.signup.errors.passwordMinLength", test: (v) => v.length >= 8 },
   { id: "letter", messageKey: "auth.signup.errors.passwordLetter", test: (v) => /[A-Za-z]/.test(v) },
   { id: "number", messageKey: "auth.signup.errors.passwordNumber", test: (v) => /\d/.test(v) },

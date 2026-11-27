@@ -22,7 +22,7 @@ import {
 } from '@nestjs/common';
 
 import { findDangerOtp, mintDangerOtp } from '@/modules/danger/danger-otp.persistence';
-import { generateOtpCode, hashOtpCode } from '@/modules/documents/signatures/otp';
+import { generateOtpCode, hashOtpCode } from '@/lib/otp';
 import { BILLING_FLAG_NAME } from '@/modules/billing/billing-flag';
 import prisma from '@/prisma/prisma.service';
 import { CurrentUser } from '@/types/user';

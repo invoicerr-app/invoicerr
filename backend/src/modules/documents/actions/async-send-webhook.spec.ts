@@ -65,7 +65,7 @@ function closeServer(server: http.Server): Promise<void> {
 }
 
 /** The REAL `DocumentWebhookEmitter` production wiring (`WebhookDispatcherService.dispatch` →
- *  `WebhooksService.send` → `driver.send`) reduces, for a Slack-type webhook, to exactly this last
+ *  `WebhooksService.sendOne` → `driver.send`) reduces, for a Slack-type webhook, to exactly this last
  *  call — see this file's own header for why the two layers ABOVE `driver.send` (the Prisma lookup,
  *  the `type → driver` selection) are deliberately not reconstructed here: neither has any logic this
  *  task's own webhook-EMISSION discipline is about, and the driver-selection one cannot even be

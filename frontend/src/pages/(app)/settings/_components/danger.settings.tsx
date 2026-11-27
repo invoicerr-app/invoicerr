@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { afterCompanyGone } from "@/lib/after-company-gone"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 import { useCompanies, useDemoMode } from "@/hooks/queries"
 import { useGet, usePost } from "@/hooks/use-fetch"
 import { SettingsPage, SettingsSection } from "@/components/settings-section"
@@ -265,7 +266,7 @@ export default function DangerZoneSettings() {
               onClick={() => requestOtp("delete-company")}
               loading={isLoadingOtp}
               disabled={demoMode}
-              tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+              tooltip={demoDisabledTooltip(t, demoMode)}
               data-cy="danger-delete-company-button"
             >
               {t("settings.dangerZone.deleteCompany.button")}

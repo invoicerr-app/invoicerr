@@ -37,7 +37,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Separator } from "@/components/ui/separator"
-import { ApiError, useApiMutation } from "@/hooks/use-api-query"
+import { apiErrorMessage, useApiMutation } from "@/hooks/use-api-query"
 import { buildFileUploadForm, useUploadAttachment } from "@/hooks/queries/use-attachments"
 import {
   type ImportPrefillResult,
@@ -67,7 +67,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
     invalidateKeys: [["clients"]],
   })
 
-  const fields = useMemo(() => descriptor.fields, [descriptor.fields])
+  const fields = descriptor.fields
   const schema = useMemo(() => buildZodSchema(fields), [fields])
   // Untyped `useForm` - same posture `action-params-dialog.tsx` already holds for the identical
   // reason: `buildZodSchema` builds its shape from a RUNTIME field list, so react-hook-form can never
@@ -126,8 +126,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
       } catch (error) {
         // A refusal is named and kept on screen: the file is still attached, so the user can
         // import it by hand, but the form must never pretend it was pre-filled.
-        const message =
-          error instanceof ApiError ? error.message : t("documents.custom.importDocument.prefillError")
+        const message = apiErrorMessage(error, t("documents.custom.importDocument.prefillError"))
         setPrefillError(message)
         toast.error(message)
         form.reset({
@@ -141,9 +140,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
       }
       setFormDialogOpen(true)
     } catch (error) {
-      toast.error(
-        error instanceof ApiError ? error.message : t("documents.custom.importDocument.uploadError"),
-      )
+      toast.error(apiErrorMessage(error, t("documents.custom.importDocument.uploadError")))
     }
   }
 
@@ -186,9 +183,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
       resetAll()
       void navigate(`/documents/${result.typeId}/${result.id}`)
     } catch (error) {
-      toast.error(
-        error instanceof ApiError ? error.message : t("documents.custom.importDocument.importError"),
-      )
+      toast.error(apiErrorMessage(error, t("documents.custom.importDocument.importError")))
     }
   })
 
@@ -218,9 +213,7 @@ function ImportDocumentButton({ descriptor }: DocumentCustomSlotProps) {
       form.setValue("client", created.id)
       toast.success(t("documents.custom.importDocument.clientCreated", { name: proposal.name }))
     } catch (error) {
-      toast.error(
-        error instanceof ApiError ? error.message : t("documents.custom.importDocument.clientCreateError"),
-      )
+      toast.error(apiErrorMessage(error, t("documents.custom.importDocument.clientCreateError")))
     }
   }
 

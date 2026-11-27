@@ -5,7 +5,7 @@
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { credentialsPresent, join } from './shared';
+import { credentialsPresent, join, readCredentials } from './shared';
 
 const NZBN_URL = 'https://api.business.govt.nz/gateway/nzbn/v5/entities';
 
@@ -30,9 +30,10 @@ export class NewZealandNzbnProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const nzbn = digits(query.value);
+    const { NZBN_API_KEY } = readCredentials(this.credentialEnvVars);
     const data = await fetchJson<any>(`${NZBN_URL}/${nzbn}`, {
       timeoutMs: this.timeoutMs,
-      headers: { 'Ocp-Apim-Subscription-Key': process.env.NZBN_API_KEY as string },
+      headers: { 'Ocp-Apim-Subscription-Key': NZBN_API_KEY },
     });
     if (!data?.nzbn && !data?.entityName) return null;
 

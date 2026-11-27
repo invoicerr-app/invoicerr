@@ -109,5 +109,3 @@ export function GenerateInvoiceDialog({
     </Dialog>
   )
 }
-
-export default GenerateInvoiceDialog

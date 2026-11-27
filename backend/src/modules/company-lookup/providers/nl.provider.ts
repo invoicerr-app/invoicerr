@@ -6,7 +6,7 @@
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchJson } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { credentialsPresent, join } from './shared';
+import { credentialsPresent, join, readCredentials } from './shared';
 
 const KVK_URL = 'https://api.kvk.nl/api/v2/zoeken';
 
@@ -31,9 +31,10 @@ export class NetherlandsKvkProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const kvk = digits(query.value);
+    const { KVK_API_KEY } = readCredentials(this.credentialEnvVars);
     const data = await fetchJson<any>(`${KVK_URL}?kvkNummer=${kvk}`, {
       timeoutMs: this.timeoutMs,
-      headers: { apikey: process.env.KVK_API_KEY as string },
+      headers: { apikey: KVK_API_KEY },
     });
     const item = data?.resultaten?.[0];
     if (!item?.kvkNummer) return null;

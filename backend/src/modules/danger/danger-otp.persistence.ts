@@ -3,18 +3,21 @@
  * full "why": a process-wide, in-memory OTP singleton used to let one company's OWNER silently
  * overwrite the code another company's OWNER had just been emailed). Plain functions over the Prisma
  * singleton, never a repository class — the same split `documents/signatures/signature.persistence.ts`
- * already holds, whose CSPRNG/hash/timing-safe-compare primitives (`documents/signatures/otp.ts`) this
+ * already holds, and whose CSPRNG/hash/timing-safe-compare primitives (`lib/otp.ts`) this
  * file reuses rather than re-implementing a second, parallel OTP scheme.
  */
 import prisma from '@/prisma/prisma.service';
 
-import { MAX_FAILED_ATTEMPTS } from '@/modules/documents/signatures/otp';
+import { MAX_FAILED_ATTEMPTS } from '@/lib/otp';
 
 /** 10 minutes — the product's own pre-existing window (unchanged from the removed in-memory
  *  implementation); deliberately NOT `documents/signatures/otp.ts#OTP_WINDOW_MS` (5 minutes), which is
  *  that module's own tuning for a bearer link an anonymous third party might be holding, not this
- *  already-authenticated, OWNER-only flow. */
-const DANGER_OTP_WINDOW_MS = 10 * 60 * 1000;
+ *  already-authenticated, OWNER-only flow. Exported in minutes because the e-mail quotes it
+ *  (`danger.service.ts`): the window the code really lives and the one the owner is told are the same
+ *  constant. */
+export const DANGER_OTP_WINDOW_MINUTES = 10;
+const DANGER_OTP_WINDOW_MS = DANGER_OTP_WINDOW_MINUTES * 60 * 1000;
 
 /**
  * How long a lockout holds before the company may arm a fresh challenge again — the DOOR out of
@@ -37,7 +40,7 @@ const DANGER_OTP_WINDOW_MS = 10 * 60 * 1000;
  * hijacked OWNER session but NOT the owner's inbox gets `MAX_FAILED_ATTEMPTS` guesses per lockout and
  * no more, because `mintDangerOtp` below is the only way to re-arm and it refuses for the whole
  * window; that is 5 × 365 = 1 825 guesses against `OTP_CODE_SPACE` (10^8) over a full year of
- * uninterrupted attack — 0.0018 %, still inside the 0.01 % ceiling `documents/signatures/otp.ts`'s own
+ * uninterrupted attack - 0.0018 %, still inside the 0.01 % ceiling `lib/otp.ts`'s own
  * "the guarantee" pins, with room to spare. `danger-otp-lockout.spec.ts` recomputes that fraction from
  * these constants and fails if either drifts. Every one of those re-arms also e-mails the real OWNER a
  * code they did not ask for, so the attack is loud as well as slow.

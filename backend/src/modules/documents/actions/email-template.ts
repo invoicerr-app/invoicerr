@@ -470,36 +470,3 @@ export function describeSendablePlaceholders(input: {
 }): Record<string, string> {
   return { totalGross: SAMPLE_TOTAL_GROSS, ...describeDocumentEmailVocabulary(input) };
 }
-
-/**
- * The vocabulary of the SIGNATURE-REQUEST email (`documents/signatures/signatures.service.ts`) — the
- * same mechanism `buildEmailTemplateParts` is for a document send, kept next to it so every family's
- * vocabulary is built by a function rather than duplicated as a literal list in the sender, in the
- * settings read, and in a test.
- *
- * `signatureUrl` carries the RAW signature token (the link the recipient must actually click — see
- * that service's own header on why the token, never the row id, is what travels); `signatureId` is the
- * row's own id, offered because the shipped template shows it as a human reference.
- */
-export function buildSignatureRequestEmailParts(input: {
-  appUrl: string;
-  signatureUrl: string;
-  signatureId: string;
-  signatureNumber: string;
-}): Record<string, string> {
-  return {
-    appUrl: input.appUrl,
-    signatureUrl: input.signatureUrl,
-    signatureId: input.signatureId,
-    signatureNumber: input.signatureNumber,
-  };
-}
-
-/**
- * The vocabulary of the VERIFICATION-CODE email — `otpCode` is the DISPLAY form ("1234-5678"), which is
- * purely cosmetic: what gets hashed and compared is always the raw 8-digit string
- * (`documents/signatures/otp.ts`). Nothing in this engine ever sees, or could leak, the stored hash.
- */
-export function buildOtpEmailParts(input: { appUrl: string; otpCode: string }): Record<string, string> {
-  return { appUrl: input.appUrl, otpCode: input.otpCode };
-}

@@ -8,7 +8,7 @@ import { PublicPageShell } from "@/components/public-page-shell"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 import { useAcceptLegal, useLegalDocuments, useLegalStatus } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import { LEGAL_CONTENT_CLASSNAME, LegalMarkdown } from "@/lib/legal-markdown"
@@ -67,7 +67,7 @@ export default function LegalAcceptPage() {
       // adds the part that was missing: telling the user it failed, and why, so retrying isn't a
       // guess.
       onError: (error) => {
-        toast.error(error instanceof ApiError ? error.message : t("legal.accept.error"))
+        toast.error(apiErrorMessage(error, t("legal.accept.error")))
       },
     })
   }

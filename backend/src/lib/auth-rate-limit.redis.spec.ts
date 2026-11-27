@@ -11,10 +11,11 @@
  */
 import Redis from 'ioredis';
 
+import { redisDescribe } from '@/test/redis-gate';
+
 import { createRedisAuthRateLimitCounterStore } from './auth-rate-limit';
 
-const hasRedis = !!process.env.REDIS_URL && process.env.AUTH_RATE_LIMIT_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
+const describeWithRedis = redisDescribe('AUTH_RATE_LIMIT_REDIS_TESTS');
 
 describeWithRedis('createRedisAuthRateLimitCounterStore — real Redis', () => {
   let client: Redis;

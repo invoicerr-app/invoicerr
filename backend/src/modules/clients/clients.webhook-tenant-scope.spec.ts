@@ -5,7 +5,7 @@
  * already holds (see that file's own header for why: `WebhooksModule`/`WebhooksService` drag in
  * `@teever/ez-hook`, a pure-ESM package the test compiler cannot import "as a module" —
  * `WebhookDispatcherService`/`WebhookDeliveryService` themselves do not, so both are used here
- * UN-mocked, only `WebhooksService` itself is a bare `{ send }` stub, avoiding that chain without
+ * UN-mocked, only `WebhooksService` itself is a bare `{ sendOne }` stub, avoiding that chain without
  * avoiding either class's own real logic).
  *
  * The defect this reproduces: the four `CLIENT_*` emitters in `clients.service.ts` used to omit
@@ -43,7 +43,7 @@ function fakeVatValidator(result: VatValidationResult): VatValidationPort {
 describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookDispatcherService -> queue -> WebhookDeliveryService -> Prisma)', () => {
   let companyAId: string;
   let companyBId: string;
-  let send: Mock;
+  let sendOne: Mock;
   let queueAdd: Mock;
   let dispatcher: WebhookDispatcherService;
   let delivery: WebhookDeliveryService;
@@ -113,12 +113,12 @@ describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookD
   beforeEach(() => {
     // Real `WebhookDispatcherService` against a fake `Queue` (only `.add` is ever called) — proves the
     // ENQUEUE carries the right companyId without needing real Redis. Real `WebhookDeliveryService`
-    // against a real Prisma — only the actual outbound HTTP send (`WebhooksService.send`) is stubbed —
+    // against a real Prisma; only the actual outbound HTTP send (`WebhooksService.sendOne`) is stubbed:
     // proves the DELIVERY side's own query/payload once replayed, never a real network call.
-    send = vi.fn().mockResolvedValue([true]);
+    sendOne = vi.fn().mockResolvedValue(true);
     queueAdd = vi.fn().mockResolvedValue(undefined);
     dispatcher = new WebhookDispatcherService({ add: queueAdd } as never);
-    delivery = new WebhookDeliveryService({ send } as unknown as WebhooksService);
+    delivery = new WebhookDeliveryService({ sendOne } as unknown as WebhooksService);
   });
 
   it("enqueues a job carrying the new client's own companyId, and reaches only that company's own webhook once delivered", async () => {
@@ -160,9 +160,8 @@ describe('CLIENT_CREATED is tenant-scoped end-to-end (ClientsService -> WebhookD
     // `queue/webhook-delivery.processor.ts` does in production) reaches company A's webhook only.
     await delivery.deliver(jobData.companyId, jobData.webhookId, jobData.event, jobData.payload);
 
-    expect(send).toHaveBeenCalledTimes(1);
-    const [webhooksSent] = send.mock.calls[0] as [Array<{ companyId: string; url: string }>];
-    expect(webhooksSent).toHaveLength(1);
-    expect(webhooksSent[0]).toMatchObject({ companyId: companyAId, url: 'https://a.example.com/hook' });
+    expect(sendOne).toHaveBeenCalledTimes(1);
+    const [webhookSent] = sendOne.mock.calls[0] as [{ companyId: string; url: string }];
+    expect(webhookSent).toMatchObject({ companyId: companyAId, url: 'https://a.example.com/hook' });
   });
 });

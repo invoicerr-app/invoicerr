@@ -18,7 +18,7 @@ import { randomBytes } from 'node:crypto';
 // magnitude as the other bearer tokens this codebase mints (`signature-token.ts`, `api-key.ts`).
 // `crypto.randomBytes` is a CSPRNG; `Math.random()` is NOT (it is a fast, non-cryptographic PRNG whose
 // output is predictable from a handful of samples) — this codebase already had to fix exactly that
-// mistake once for the quote e-signature OTP (see `documents/signatures/otp.ts`'s own header), so this
+// mistake once for the quote e-signature OTP (see `lib/otp.ts`'s own header), so this
 // module never repeats it.
 const TOKEN_BYTES = 32;
 

@@ -16,6 +16,7 @@ import { apiUrl, authenticatedFetch, useGet, usePost } from "@/hooks/use-fetch"
 import { useMutationWithToast } from "@/hooks/use-mutation-with-toast"
 import { useDemoMode } from "@/hooks/queries"
 import { copyToClipboard } from "@/lib/clipboard"
+import { demoDisabledTooltip } from "@/lib/demo-actions"
 import { cn } from "@/lib/utils"
 
 import {
@@ -224,7 +225,7 @@ export default function ApiKeysSettings() {
                   type="submit"
                   loading={creating}
                   disabled={demoMode}
-                  tooltip={demoMode ? t("demo.disabledTooltip", "Disabled in this demo.") : undefined}
+                  tooltip={demoDisabledTooltip(t, demoMode)}
                 >
                   {t("settings.apiKeys.create.button")}
                 </Button>

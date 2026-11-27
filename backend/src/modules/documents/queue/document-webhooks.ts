@@ -20,8 +20,8 @@
  * `queue/document-authority-webhook.ts`'s own header.
  *
  * `dispatch` mirrors `WebhookDispatcherService.dispatch(event, payload)` EXACTLY (same two positional
- * arguments, same "logs then rethrows on failure" contract every existing caller —
- * `company.service.ts`, `clients.service.ts` — already wraps in its own try/catch) so the concrete
+ * arguments, same "logs then rethrows on failure" contract the company and client callers wrap in
+ * `modules/webhooks/dispatch-webhook-safely.ts`) so the concrete
  * class satisfies this interface with NO adapter needed: `documents-core.module.ts` hands the real
  * `WebhookDispatcherService` instance straight through.
  */

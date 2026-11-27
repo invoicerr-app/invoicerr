@@ -17,7 +17,7 @@ import {
   findDangerOtp,
   recordDangerOtpFailedAttempt,
 } from '@/modules/danger/danger-otp.persistence';
-import { otpCodeMatches } from '@/modules/documents/signatures/otp';
+import { otpCodeMatches } from '@/lib/otp';
 
 /** Same generic refusal `danger.service.ts` itself uses for its own confirm endpoints — one outcome
  *  whatever the actual cause (wrong code, expired, never requested, already locked out), so a caller

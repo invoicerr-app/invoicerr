@@ -19,6 +19,7 @@ import { PartyType } from '../../documents/country-identifiers/schema';
 import { validateVat } from '../../documents/tax/vat-syntax';
 import { VatValidationPort } from '../../documents/tax/vat-validation';
 import { WebhookDispatcherService } from '../../webhooks/webhook-dispatcher.service';
+import { dispatchWebhookSafely, logWebhookDispatchFailure } from '../../webhooks/dispatch-webhook-safely';
 import { assertClientCreatable } from '../client-validation';
 import {
   DUPLICATE_CANDIDATE_SELECT,
@@ -411,22 +412,27 @@ export class ClientImportService {
 
     // Post-commit work: a webhook or VIES failure is logged, never allowed to fail the import.
     for (const client of created) {
-      try {
-        const full = await prisma.client.findUnique({
+      const dispatchFailure = {
+        message: 'Failed to dispatch CLIENT_CREATED webhook for imported client',
+        category: 'client',
+        details: { clientId: client.id },
+      };
+      const full = await prisma.client
+        .findUnique({
           where: { id: client.id },
           include: { partyIdentifiers: true, contacts: true },
+        })
+        .catch((error: unknown) => {
+          logWebhookDispatchFailure(dispatchFailure, error);
+          return null;
         });
-        if (full) {
-          await this.webhookDispatcher.dispatch(WebhookEvent.CLIENT_CREATED, {
-            companyId,
-            client: withDerivedContactFields(full),
-          });
-        }
-      } catch (error) {
-        logger.error('Failed to dispatch CLIENT_CREATED webhook for imported client', {
-          category: 'client',
-          details: { error, clientId: client.id },
-        });
+      if (full) {
+        await dispatchWebhookSafely(
+          this.webhookDispatcher,
+          WebhookEvent.CLIENT_CREATED,
+          { companyId, client: withDerivedContactFields(full) },
+          dispatchFailure,
+        );
       }
 
       const vatIdentifier = await prisma.partyIdentifier.findFirst({

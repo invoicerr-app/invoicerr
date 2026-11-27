@@ -1,11 +1,7 @@
 import { Receipt } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import {
-  localIsoDate,
-  settlementBadgeInfo,
-  statementRowSettlement,
-} from "@/components/documents/document-settlement"
+import { settlementBadgeInfo, statementRowSettlement } from "@/components/documents/document-settlement"
 import { statusPresentation } from "@/components/documents/status-presentation"
 import { StatusMark } from "@/components/ui/status-mark"
 import { formatMinor } from "@/components/documents/totals-calculator"
@@ -14,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useClientStatement } from "@/hooks/queries"
+import { todayCalendarDate } from "@/lib/calendar-date"
 import type { Client, ClientStatementCurrencyTotals, ClientStatementDocumentRow } from "@/types"
 
 import { clientDisplayName } from "./client-display"
@@ -54,7 +51,7 @@ export function StatementRowBadge({ row }: { row: ClientStatementDocumentRow }) 
   }
   const { status, labelKey } = settlementBadgeInfo(statementRowSettlement(row), {
     dueDate: row.dueDate,
-    today: localIsoDate(),
+    today: todayCalendarDate(),
   })
   return <StatusMark {...statusPresentation(status)}>{t(labelKey)}</StatusMark>
 }

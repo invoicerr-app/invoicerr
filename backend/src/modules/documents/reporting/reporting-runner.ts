@@ -34,7 +34,7 @@ import {
   DeclaredPayment,
 } from './declaration-provider';
 import { buildDeclaredInvoice, UndeclarableDocumentError } from './build-declared-invoice';
-import { classifyObligation } from './classify';
+import { classifyObligation, needsOperationFacts } from './classify';
 import { defaultReportingObligationCatalogV2 } from './obligation-catalog';
 import { loadDeclarationOperation } from './operation-context';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
@@ -127,6 +127,11 @@ export function splitPaymentByVatRate(
   });
 }
 
+/** The calendar day a payment is declared under, as both the classifier and the provider read it. */
+function paymentDay(paidAt: Date): string {
+  return paidAt.toISOString().slice(0, 10);
+}
+
 @Injectable()
 export class ReportingRunner {
   private readonly logger = new Logger(ReportingRunner.name);
@@ -179,11 +184,13 @@ export class ReportingRunner {
 
     // The obligations this job may discharge: the payment ones for a payment job, the document ones
     // (issued or sent) otherwise, so a payment never re-declares the invoice and the reverse.
-    const ownObligations = defaultReportingObligationCatalogV2
-      .obligationsForProvider(data.providerId, data.typeId)
-      .filter((obligation) =>
-        data.paymentId ? obligation.trigger === 'payment' : obligation.trigger !== 'payment',
-      );
+    const providerObligations = defaultReportingObligationCatalogV2.obligationsForProvider(
+      data.providerId,
+      data.typeId,
+    );
+    const ownObligations = providerObligations.filter((obligation) =>
+      data.paymentId ? obligation.trigger === 'payment' : obligation.trigger !== 'payment',
+    );
 
     // Declared once (issue #768): validating fires the `issued` obligation and a later send fires it
     // again. The job id already dedups a second enqueue while the first job is still in BullMQ's
@@ -193,9 +200,7 @@ export class ReportingRunner {
     // declaration from a payment one, and its documents are declared from the send alone.
     if (
       !data.paymentId &&
-      !defaultReportingObligationCatalogV2
-        .obligationsForProvider(data.providerId, data.typeId)
-        .some((obligation) => obligation.trigger === 'payment') &&
+      !providerObligations.some((obligation) => obligation.trigger === 'payment') &&
       (await hasDeclarationResult(data.companyId, data.documentId, data.providerId))
     ) {
       this.logger.log(
@@ -272,12 +277,7 @@ export class ReportingRunner {
     // An id the catalog no longer names: the job was already enqueued under an obligation that existed
     // when the document was issued, so it still runs (in-flight job data from before #768 included).
     // Only an obligation the catalog still carries is re-classified.
-    const needsOperation =
-      Boolean(payment) ||
-      ownObligations.some(
-        (obligation) =>
-          obligation.scope.transactions || obligation.applicability || obligation.sellerConditions,
-      );
+    const needsOperation = Boolean(payment) || ownObligations.some(needsOperationFacts);
     const operation = needsOperation
       ? await loadDeclarationOperation({
           companyId: data.companyId,
@@ -285,7 +285,7 @@ export class ReportingRunner {
           documentId: data.documentId,
           kind: payment ? 'payment' : 'invoice',
           payment: payment
-            ? { amountMinor: payment.documentAmountMinor, paidAt: payment.paidAt.toISOString().slice(0, 10) }
+            ? { amountMinor: payment.documentAmountMinor, paidAt: paymentDay(payment.paidAt) }
             : undefined,
         })
       : undefined;
@@ -303,7 +303,11 @@ export class ReportingRunner {
     if (ownObligations.length > 0 && !verdicts.some(({ verdict }) => verdict.status === 'in')) {
       const undetermined = verdicts.find(({ verdict }) => verdict.status === 'undetermined');
       if (undetermined && undetermined.verdict.status === 'undetermined') {
-        const journaled = await this.journalBlocked(data, undetermined.verdict.reason);
+        const journaled = await this.journalSynthetic(
+          data,
+          REPORT_BLOCKED_STATUS_CODE,
+          undetermined.verdict.reason,
+        );
         return { journaled };
       }
       return { journaled: 0 };
@@ -320,7 +324,7 @@ export class ReportingRunner {
         this.logger.warn(
           `Declaration for document ${data.documentId} ("${data.providerId}") blocked: ${message}`,
         );
-        return { journaled: await this.journalBlocked(data, message) };
+        return { journaled: await this.journalSynthetic(data, REPORT_BLOCKED_STATUS_CODE, message) };
       }
       // Any other failure propagates — see this method's own header.
       throw error;
@@ -363,16 +367,16 @@ export class ReportingRunner {
   }
 
   /**
-   * Journals a `report:blocked` verdict (missing credential, or the classifier could not establish
-   * the operation). Shared by the two in-run paths and the pre-declaration re-classification; only a
-   * genuinely new row publishes.
+   * Journals a synthetic verdict this runner reaches on its own: `report:blocked` (missing credential,
+   * or the classifier could not establish the operation) or `report:failed` (every retry spent). Only
+   * a genuinely new row publishes: 'report:failed' is a terminal conformity-panel-worthy verdict too.
    */
-  private async journalBlocked(data: ReportJobData, reason: string): Promise<number> {
+  private async journalSynthetic(data: ReportJobData, statusCode: string, reason: string): Promise<number> {
     const journaled = await journalSyntheticEvent(
       data.companyId,
       data.documentId,
       data.providerId,
-      REPORT_BLOCKED_STATUS_CODE,
+      statusCode,
       reason,
       undefined,
       declarationSubjectKey(data.paymentId),
@@ -383,7 +387,7 @@ export class ReportingRunner {
         typeId: data.typeId,
         documentId: data.documentId,
         providerId: data.providerId,
-        statusCode: REPORT_BLOCKED_STATUS_CODE,
+        statusCode,
       });
     }
     return journaled;
@@ -401,15 +405,15 @@ export class ReportingRunner {
           'sent. Connect a channel that declares payments, or this obligation stays blocked.',
       );
     }
-    const paidAt = payment.paidAt.toISOString().slice(0, 10);
+    const amount = fromMinor(payment.documentAmountMinor, invoice.currency);
     const declaredPayment: DeclaredPayment = {
       documentId: data.documentId,
       paymentId: payment.id,
-      paidAt,
+      paidAt: paymentDay(payment.paidAt),
       currency: invoice.currency,
-      amount: fromMinor(payment.documentAmountMinor, invoice.currency),
+      amount,
       invoice,
-      subtotals: splitPaymentByVatRate(invoice, fromMinor(payment.documentAmountMinor, invoice.currency)),
+      subtotals: splitPaymentByVatRate(invoice, amount),
     };
     return provider.declarePayment(data.companyId, declaredPayment);
   }
@@ -486,26 +490,7 @@ export class ReportingRunner {
    */
   async recordTerminalFailure(data: ReportJobData, error: Error): Promise<void> {
     try {
-      const journaled = await journalSyntheticEvent(
-        data.companyId,
-        data.documentId,
-        data.providerId,
-        REPORT_FAILED_STATUS_CODE,
-        error.message,
-        undefined,
-        declarationSubjectKey(data.paymentId),
-      );
-      // Same "only on a genuinely new row" rule as `runReport`'s own
-      // two publish points above: 'report:failed' is a terminal conformity-panel-worthy verdict too.
-      if (journaled > 0) {
-        await announceAuthorityEvent(this.eventsPublisher, this.webhookDispatcher, {
-          companyId: data.companyId,
-          typeId: data.typeId,
-          documentId: data.documentId,
-          providerId: data.providerId,
-          statusCode: REPORT_FAILED_STATUS_CODE,
-        });
-      }
+      await this.journalSynthetic(data, REPORT_FAILED_STATUS_CODE, error.message);
       this.logger.error(
         `Declaration for document ${data.documentId} ("${data.providerId}") failed permanently after ` +
           `every retry: ${error.message}`,

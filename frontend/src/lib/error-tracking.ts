@@ -26,7 +26,6 @@ let wanted: BrowserErrorTrackingConfig | null = null
  * page carries its access token). Never under Cypress, so a test run never reports into a real project.
  */
 export async function startErrorTracking(config: BrowserErrorTrackingConfig): Promise<void> {
-  wanted = config
   if ("Cypress" in window) return
   if (sentry && runningDsn === config.dsn) return
   if (sentry) await stopErrorTracking()

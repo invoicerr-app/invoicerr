@@ -289,6 +289,15 @@ export function classifyObligation(
   );
 }
 
+/**
+ * Whether classifying this obligation needs the operation's facts (client, lines, seller options). An
+ * unscoped obligation with no window and no seller condition (Portugal's) needs none, so its callers
+ * never read the database for it. A payment always needs them: that stays the callers' call.
+ */
+export function needsOperationFacts(obligation: ReportingObligation): boolean {
+  return Boolean(obligation.scope.transactions || obligation.applicability || obligation.sellerConditions);
+}
+
 function classifyRule(
   rule: ClassifiableRule,
   operation: DeclarationOperation | undefined,

@@ -2,7 +2,8 @@
  * End-to-end proof of the queue against real Redis and a real HTTP receiver: `dispatch` returns while
  * a slow receiver is still silent, a failing receiver is retried then given up on with an ERROR log,
  * and a receiver that fails twice then succeeds recovers on the same job. Self-gated on
- * `DOCUMENTS_QUEUE_REDIS_TESTS=1`, like the sibling queue specs.
+ * `DOCUMENTS_QUEUE_REDIS_TESTS=1` through the shared `src/test/redis-gate.ts`, like the documents queue
+ * specs.
  */
 import { vi } from 'vitest';
 import * as http from 'node:http';
@@ -18,7 +19,9 @@ import { WebhookEvent, WebhookType } from '../../../../../prisma/generated/prism
 import { WebhookDispatcherService } from '../../webhook-dispatcher.service';
 import { WebhooksQueueWorkerModule } from '../webhooks-queue-worker.module';
 import { Q_WEBHOOK_DELIVERY } from '../webhook-queue.constants';
-import { describeWithRedis } from '../../../documents/queue/__tests__/redis-gate';
+import { redisDescribe } from '@/test/redis-gate';
+
+const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');
 
 function startStubReceiver(
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void,

@@ -5,7 +5,7 @@
 import { defaultLookupCoverage } from '../coverage/registry';
 import { DEFAULT_TIMEOUT_MS, digits, fetchJson, toDate } from '../http';
 import { CompanyLookupCompany, CompanyLookupQuery, CompanyRegistryProvider, LookupScheme } from '../types';
-import { credentialsPresent, join } from './shared';
+import { credentialsPresent, join, readCredentials } from './shared';
 
 const CRO_URL = 'https://services.cro.ie/cws/companies';
 
@@ -31,7 +31,8 @@ export class IrelandCroProvider implements CompanyRegistryProvider {
 
   async lookup(query: CompanyLookupQuery): Promise<CompanyLookupCompany | null> {
     const num = digits(query.value);
-    const auth = Buffer.from(`${process.env.CRO_API_USER}:${process.env.CRO_API_KEY}`).toString('base64');
+    const { CRO_API_USER, CRO_API_KEY } = readCredentials(this.credentialEnvVars);
+    const auth = Buffer.from(`${CRO_API_USER}:${CRO_API_KEY}`).toString('base64');
     const data = await fetchJson<any>(`${CRO_URL}?company_num=${num}&format=json`, {
       timeoutMs: this.timeoutMs,
       headers: { Authorization: `Basic ${auth}` },

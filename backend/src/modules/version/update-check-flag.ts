@@ -13,7 +13,7 @@ import { isEnvFlagOn } from '@/utils/read-bool-env';
  * `isBillingEnabled` and `DISABLE_AUTH` already get, so a stray trailing space from a copy-paste
  * never silently reads as "unset".
  */
-export const UPDATE_CHECK_DISABLE_FLAG_NAME = 'DISABLE_UPDATE_CHECK';
+const UPDATE_CHECK_DISABLE_FLAG_NAME = 'DISABLE_UPDATE_CHECK';
 
 export function isUpdateCheckDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return isEnvFlagOn(env, UPDATE_CHECK_DISABLE_FLAG_NAME);

@@ -29,7 +29,7 @@ lives in the shared chokepoint, not in each caller.
 | --- | --- |
 | Every e-mail (document sends, reminders, signature requests, OTP codes, client-portal invites, data exports...) | `MailService.sendMail`/`sendForCompany` (`backend/src/mail/mail.service.ts`) |
 | Every e-invoicing transport (email, PDP, Iopole, KSeF, SdI, SdI-PEC, A-Cube, Chorus Pro, Invopop, Billit, and any third-party transport registered later) | `TransportRegistry.register` (`backend/src/modules/documents/transports/transport-registry.ts`) |
-| Every outbound webhook | `WebhooksService.send` (`backend/src/modules/webhooks/webhooks.service.ts`) |
+| Every outbound webhook | `WebhooksService.sendOne` (`backend/src/modules/webhooks/webhooks.service.ts`) |
 | Every tax-authority declaration (Portugal's AT, and any provider registered later) | `DeclarationProviderRegistry.register` (`backend/src/modules/documents/reporting/declaration-provider.ts`) |
 | Every card/online payment checkout session (Stripe, Mollie, PayPal, and any provider registered later) | `PaymentProviderRegistry.register` (`backend/src/modules/documents/payments/payment-provider-registry.ts`) |
 

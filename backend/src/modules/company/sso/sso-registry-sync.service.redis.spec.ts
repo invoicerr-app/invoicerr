@@ -10,11 +10,12 @@
  * document: a bare local `npx vitest run` loads `.env`, so `REDIS_URL` is always set on a dev machine —
  * this must not silently start hitting a real Redis on every run.
  */
+import { redisDescribe } from '@/test/redis-gate';
+
 import { SsoRegistrySyncMessage } from './sso-registry-sync';
 import { SsoRegistrySyncService } from './sso-registry-sync.service';
 
-const hasRedis = !!process.env.REDIS_URL && process.env.SSO_REGISTRY_SYNC_REDIS_TESTS === '1';
-const describeWithRedis = hasRedis ? describe : describe.skip;
+const describeWithRedis = redisDescribe('SSO_REGISTRY_SYNC_REDIS_TESTS');
 
 function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
   return new Promise((resolve, reject) => {

@@ -40,11 +40,11 @@ function makeWebhook(overrides: Record<string, unknown> = {}) {
 
 describe('WebhookDeliveryService.deliver', () => {
   let service: WebhookDeliveryService;
-  let webhooksService: { send: Mock };
+  let webhooksService: { sendOne: Mock };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    webhooksService = { send: vi.fn().mockResolvedValue([true]) };
+    webhooksService = { sendOne: vi.fn().mockResolvedValue(true) };
     service = new WebhookDeliveryService(webhooksService as unknown as WebhooksService);
   });
 
@@ -61,7 +61,7 @@ describe('WebhookDeliveryService.deliver', () => {
     await expect(
       service.deliver(COMPANY_ID, WEBHOOK_ID, WebhookEvent.CLIENT_CREATED, {}),
     ).resolves.toBeUndefined();
-    expect(webhooksService.send).not.toHaveBeenCalled();
+    expect(webhooksService.sendOne).not.toHaveBeenCalled();
   });
 
   it('is a clean no-op when the webhook now belongs to a DIFFERENT company (tenant-scoping)', async () => {
@@ -70,7 +70,7 @@ describe('WebhookDeliveryService.deliver', () => {
     await expect(
       service.deliver(COMPANY_ID, WEBHOOK_ID, WebhookEvent.CLIENT_CREATED, {}),
     ).resolves.toBeUndefined();
-    expect(webhooksService.send).not.toHaveBeenCalled();
+    expect(webhooksService.sendOne).not.toHaveBeenCalled();
   });
 
   it('never logs the webhook secret on a successful delivery', async () => {
@@ -87,10 +87,10 @@ describe('WebhookDeliveryService.deliver', () => {
     expect(loggedPayload).toContain(webhook.url);
   });
 
-  it('treats an HTTP-level failure (send() returning false) as a failure worth retrying, never a silent success', async () => {
+  it('treats an HTTP-level failure (sendOne() returning false) as a failure worth retrying, never a silent success', async () => {
     const webhook = makeWebhook();
     mockedPrisma.webhook.findUnique.mockResolvedValue(webhook);
-    webhooksService.send.mockResolvedValue([false]); // e.g. the endpoint answered 500 — no throw
+    webhooksService.sendOne.mockResolvedValue(false); // e.g. the endpoint answered 500, no throw
 
     await expect(service.deliver(COMPANY_ID, WEBHOOK_ID, WebhookEvent.CLIENT_CREATED, {})).rejects.toThrow();
     expect(mockedLogger.info).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('WebhookDeliveryService.deliver', () => {
   it('never logs the webhook secret when the underlying send throws either, and rethrows', async () => {
     const webhook = makeWebhook();
     mockedPrisma.webhook.findUnique.mockResolvedValue(webhook);
-    webhooksService.send.mockRejectedValue(new Error('boom'));
+    webhooksService.sendOne.mockRejectedValue(new Error('boom'));
 
     await expect(service.deliver(COMPANY_ID, WEBHOOK_ID, WebhookEvent.CLIENT_CREATED, {})).rejects.toThrow(
       'boom',

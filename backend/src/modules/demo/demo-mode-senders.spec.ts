@@ -159,13 +159,13 @@ describe('demo mode blocks the mail sender (MailService)', () => {
 });
 
 describe('demo mode blocks the webhook dispatcher (WebhooksService)', () => {
-  it('send() refuses in demo mode, before the SSRF re-validation and any network attempt', async () => {
+  it('sendOne() refuses in demo mode, before the SSRF re-validation and any network attempt', async () => {
     setDemoMode(true);
     const { WebhooksService } = await import('../webhooks/webhooks.service');
     const service = new WebhooksService();
     await expect(
-      service.send(
-        [{ id: 'w1', url: 'https://example.test/hook', type: 'GENERIC', secret: null } as never],
+      service.sendOne(
+        { id: 'w1', url: 'https://example.test/hook', type: 'GENERIC', secret: null } as never,
         'DOCUMENT_SENT' as never,
         {},
       ),

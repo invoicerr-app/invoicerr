@@ -9,7 +9,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ApiError, apiErrorCode } from "@/hooks/use-api-query"
+import { apiErrorCode, apiErrorMessage } from "@/hooks/use-api-query"
 import { useAcceptCompanyTransfer, useReceivedTransfers, type OwnershipTransferView } from "@/hooks/queries"
 import { authClient } from "@/lib/auth"
 import {
@@ -83,7 +83,7 @@ export default function AccountTransfersPage() {
             void navigate("/legal/accept")
             return
           }
-          toast.error(error instanceof ApiError ? error.message : t("account.transfers.messages.acceptError"))
+          toast.error(apiErrorMessage(error, t("account.transfers.messages.acceptError")))
         },
       },
     )

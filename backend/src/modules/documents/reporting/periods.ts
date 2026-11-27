@@ -9,19 +9,16 @@
  * due date: the answer is `undefined`, never a guessed date. Dates are plain `YYYY-MM-DD` calendar
  * days, computed in UTC so a server's time zone never moves a deadline by a day.
  */
+import { isDateOnly } from './date-only';
 import { ObligationTiming } from './obligation-v2';
 
 export class InvalidTriggerDateError extends Error {}
 
-const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
-
 function parseDateOnly(value: string): Date {
-  const match = DATE_ONLY.exec(value);
-  const date = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))) : null;
-  if (date?.toISOString().slice(0, 10) !== value) {
+  if (!isDateOnly(value)) {
     throw new InvalidTriggerDateError(`"${value}" is not a calendar date in the YYYY-MM-DD form.`);
   }
-  return date;
+  return new Date(`${value}T00:00:00Z`);
 }
 
 /** The date a per-document declaration triggered on `triggerDate` must be filed by, inclusive. */

@@ -39,7 +39,7 @@ import {
   useImportClientsConfirm,
   useImportClientsPreview,
 } from "@/hooks/queries"
-import { decodeCsvBytes, parseCsv } from "@/lib/csv-parse"
+import { readCsvFile } from "@/lib/csv-parse"
 import { downloadBlob } from "@/lib/download"
 import {
   fetchRequiredIdentifiers,
@@ -47,7 +47,7 @@ import {
   validateRow,
   type ClientImportRowWire,
 } from "@/lib/csv-import/client-rows"
-import { ApiError } from "@/hooks/use-api-query"
+import { apiErrorMessage } from "@/hooks/use-api-query"
 
 /** Client-side mirror of `MAX_IMPORT_ROWS`/the byte-size reasoning in
  *  `backend/.../import/client-import.types.ts` - checked here FIRST so a human picking an obviously
@@ -140,20 +140,16 @@ export function ClientImportDialog() {
     setBusy(true)
     setFileName(file.name)
     try {
-      const buffer = await file.arrayBuffer()
-      const text = decodeCsvBytes(buffer)
-      const { headers, rows: dataRows } = parseCsv(text)
-
-      if (dataRows.length === 0) {
-        toast.error(t("clients.import.errors.empty"))
-        setBusy(false)
+      const csv = await readCsvFile(file, MAX_IMPORT_ROWS)
+      if ("refused" in csv) {
+        toast.error(
+          csv.refused === "empty"
+            ? t("clients.import.errors.empty")
+            : t("clients.import.errors.tooManyRows", { max: MAX_IMPORT_ROWS, count: csv.count }),
+        )
         return
       }
-      if (dataRows.length > MAX_IMPORT_ROWS) {
-        toast.error(t("clients.import.errors.tooManyRows", { max: MAX_IMPORT_ROWS, count: dataRows.length }))
-        setBusy(false)
-        return
-      }
+      const { headers, rows: dataRows } = csv
 
       const mappedRows = dataRows.map((cells, index) => mapRow(headers, cells, index + 2))
 
@@ -189,7 +185,6 @@ export function ClientImportDialog() {
         const response = await previewMutation.trigger({ rows: locallyValid.map((v) => v.wire) })
         if (!response) {
           toast.error(t("clients.import.errors.previewFailed"))
-          setBusy(false)
           return
         }
         serverResults = response.rows
@@ -220,7 +215,7 @@ export function ClientImportDialog() {
       setRows(merged)
       setStage("preview")
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("clients.import.errors.parseFailed"))
+      toast.error(apiErrorMessage(error, t("clients.import.errors.parseFailed")))
     } finally {
       setBusy(false)
     }

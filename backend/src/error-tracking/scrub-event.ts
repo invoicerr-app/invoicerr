@@ -8,7 +8,7 @@ import { causeChain, redactErrorReportValue, safeErrorCode, summarizeError } fro
  * characters). Anything else, including a context an integration adds later, is dropped rather than
  * filtered, so a new context has to be added here on purpose.
  */
-export const KEPT_CONTEXTS: readonly string[] = ['runtime', 'os', 'app', 'trace'];
+const KEPT_CONTEXTS: readonly string[] = ['runtime', 'os', 'app', 'trace'];
 
 /**
  * Last filter before an event leaves the process. The SDK already runs with every `dataCollection`
