@@ -183,6 +183,16 @@ describeGated('syncDatabaseSchema against a real Postgres', () => {
     return withDatabase(baseUrl, name);
   }
 
+  /** The shape of a fresh install, built on its own database if the fresh-install test did not run first. */
+  async function referenceShape(): Promise<ShapeSnapshot> {
+    if (!freshShape) {
+      const url = await createThrowaway('reference');
+      await bootSync(url);
+      freshShape = await snapshotShape(url);
+    }
+    return freshShape;
+  }
+
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) {
       throw new Error('MIGRATION_FRESH_TESTS=1 requires DATABASE_URL');
@@ -224,14 +234,15 @@ describeGated('syncDatabaseSchema against a real Postgres', () => {
     await bootSync(url);
 
     await expectFullyMigrated(url);
-    expect(freshShape).toBeDefined();
-    expect(await snapshotShape(url)).toEqual(freshShape);
+    expect(await snapshotShape(url)).toEqual(await referenceShape());
   });
 
   it('re-runs migrations whose records survived a push of the frozen v1.4.4a schema', async () => {
     const url = await createThrowaway('relevelled');
     prismaCli(url, ['db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH]);
-    const [firstBaseline, ...otherBaseline] = migrationDirectories().slice(0, 23);
+    // Imported here, not at module load: sync-schema pulls in the Prisma client.
+    const { V1_4_4A_BASELINE_MIGRATIONS } = await import('./sync-schema');
+    const [firstBaseline, ...otherBaseline] = V1_4_4A_BASELINE_MIGRATIONS;
     prismaCli(url, ['migrate', 'resolve', '--applied', firstBaseline]);
     await recordAsApplied(url, [...otherBaseline, ...V1_4_5C_POST_BASELINE_MIGRATIONS]);
 
@@ -245,7 +256,6 @@ describeGated('syncDatabaseSchema against a real Postgres', () => {
     await bootSync(url);
 
     await expectFullyMigrated(url);
-    expect(freshShape).toBeDefined();
-    expect(await snapshotShape(url)).toEqual(freshShape);
+    expect(await snapshotShape(url)).toEqual(await referenceShape());
   });
 });
