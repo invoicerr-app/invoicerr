@@ -17,23 +17,29 @@ import { CompanyLookupRegistry } from './registry';
 import { ProviderLookupError } from './types';
 
 const live = process.env.COMPANY_LOOKUP_LIVE === '1';
+const LIVE_BUDGET_MS = 20_000;
 const describeLive = live ? describe : describe.skip;
 
 describeLive('company lookup — live registries', () => {
-  const service = new CompanyLookupService(new CompanyLookupRegistry());
+  // This spec checks each register's contract, not the product's 5 s budget (unit-tested with mocks):
+  // a wider budget lets the per-call timeout decide, which the outage checks below recognise.
+  const service = new CompanyLookupService(new CompanyLookupRegistry(), undefined, LIVE_BUDGET_MS);
 
   vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
   // The service swallows a provider failure and falls back to the next source (often GLEIF), so the
-  // result alone cannot tell an outage from a contract change. Its per-provider warning can.
+  // result alone cannot tell an outage from a contract change. Its per-provider warning can, and so
+  // can the warning it gives when the chain's total budget cuts a provider short.
   const failures = new Map<string, string>();
   beforeEach(() => {
     failures.clear();
     const logger = (service as unknown as { logger: { warn: (message: string) => void } }).logger;
     const warn = logger.warn.bind(logger);
     vi.spyOn(logger, 'warn').mockImplementation((message: string) => {
-      const match = /^(\S+) lookup failed for \S+: (.*)$/.exec(message);
-      if (match) failures.set(match[1], match[2]);
+      const failed = /^(\S+) lookup failed for \S+: (.*)$/.exec(message);
+      if (failed) failures.set(failed[1], failed[2]);
+      const cut = /^(\S+) lookup for \S+ (cut at the \d+ms total budget)$/.exec(message);
+      if (cut) failures.set(cut[1], cut[2]);
       warn(message);
     });
   });
@@ -65,7 +71,7 @@ describeLive('company lookup — live registries', () => {
   it.each(cases)('$country resolves through $source', async ({ country, value, expect: pattern, source }) => {
     const result = await service.lookup({ countryCode: country, value });
     const failure = failures.get(source);
-    if (failure && result.source !== source) {
+    if (failure && (result.error !== undefined || result.source !== source)) {
       const outage = await transientOutage(source, failure);
       if (outage) return reportUnavailable(outage);
     }
@@ -79,10 +85,7 @@ describeLive('company lookup — live registries', () => {
   it('validates an EU VAT number through VIES', async () => {
     const result = await service.lookup({ countryCode: 'IT', value: 'IT00159560366', scheme: 'VAT' });
     // VIES rate-limits per member state; a saturated MS is reported, never silently swallowed.
-    if (result.error === 'PROVIDER_ERROR') {
-      console.warn(`VIES unavailable: ${result.message}`);
-      return;
-    }
+    if (result.error === 'PROVIDER_ERROR') return reportUnavailable(`eu-vies: ${result.message}`);
     expect(result.found).toBe(true);
     expect(result.source).toBe('eu-vies');
     expect(result.company?.VAT).toBe('IT00159560366');
@@ -103,9 +106,18 @@ describeLive('company lookup — live registries', () => {
 
   it('completes a non-disclosing VIES answer from GLEIF', async () => {
     const result = await service.lookup({ countryCode: 'DE', value: 'DE811115368', scheme: 'VAT' });
-    if (result.error === 'PROVIDER_ERROR') {
-      console.warn(`VIES unavailable: ${result.message}`);
-      return;
+    if (result.error === 'PROVIDER_ERROR') return reportUnavailable(`eu-vies: ${result.message}`);
+    // A saturated member state makes the service answer from the next source instead of VIES.
+    const viesFailure = failures.get('eu-vies');
+    const viesDown =
+      viesFailure && (isViesSaturated(viesFailure) || isTimeout(viesFailure) || isBudgetCut(viesFailure));
+    if (viesDown && result.sources?.[0] !== 'eu-vies') {
+      return reportUnavailable(`eu-vies: ${viesFailure}`);
+    }
+    const gleifFailure = failures.get('gleif');
+    if (gleifFailure && !result.sources?.includes('gleif')) {
+      const outage = await transientOutage('gleif', gleifFailure);
+      if (outage) return reportUnavailable(outage);
     }
     expect(result.found).toBe(true);
     // Germany hides the name in VIES, so the answer must come back enriched.
@@ -137,14 +149,32 @@ function isTimeout(message: string | undefined): boolean {
   return /^Registry timed out after \d+ms$/.test(message ?? '');
 }
 
+/** Matches the warning the service gives when its total budget cuts a provider short. */
+function isBudgetCut(message: string | undefined): boolean {
+  return /^cut at the \d+ms total budget$/.test(message ?? '');
+}
+
+/** VIES errors that mean a member state is busy or down, not that the contract changed. */
+const VIES_BUSY = [
+  'MS_MAX_CONCURRENT_REQ',
+  'GLOBAL_MAX_CONCURRENT_REQ',
+  'MS_UNAVAILABLE',
+  'SERVICE_UNAVAILABLE',
+  'TIMEOUT',
+];
+
+function isViesSaturated(message: string): boolean {
+  return VIES_BUSY.some((code) => message === `VIES: ${code}`);
+}
+
 /**
  * An outage this nightly run should report rather than fail on: a registry that did not answer in
- * time, or cvrapi.dk refusing the runner's IP once its free quota is spent (a 403 whose body says
- * QUOTA_EXCEEDED, re-read here because the provider only keeps the status line). Any other failure,
- * and any wrong data, still fails the test.
+ * time (its own timeout or the service's total budget), or cvrapi.dk refusing the runner's IP once
+ * its free quota is spent (a 403 whose body says QUOTA_EXCEEDED, re-read here because the provider
+ * only keeps the status line). Any other failure, and any wrong data, still fails the test.
  */
 async function transientOutage(providerId: string, failure: string): Promise<string | null> {
-  if (isTimeout(failure)) return `${providerId}: ${failure}`;
+  if (isTimeout(failure) || isBudgetCut(failure)) return `${providerId}: ${failure}`;
   if (providerId === 'dk-cvr' && /^Registry responded 403\b/.test(failure)) {
     try {
       const res = await fetch('https://cvrapi.dk/api?search=25313763&country=dk', {
