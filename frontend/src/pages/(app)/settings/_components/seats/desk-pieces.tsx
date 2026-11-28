@@ -159,7 +159,7 @@ function nearEdgeBounds(display: DeskDisplay): { x: number; width: number } {
 
 /** At the NEAR edge — right in front of the chair, where a real keyboard sits. Never drawn on a laptop
  *  desk (`DeskFurnitureGroup`'s own condition) — the laptop itself sits in this exact spot instead. */
-export function Keyboard() {
+function Keyboard() {
   return (
     <rect
       x={KEYBOARD_X}

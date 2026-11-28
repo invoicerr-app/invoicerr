@@ -1,5 +1,5 @@
 import { registerRowSelectionFieldKind } from '../row-selection/row-selection';
-import { CORE_FIELD_KINDS, DocumentFieldDescriptor, isMultiTargetReference } from './types';
+import { DocumentFieldDescriptor, isMultiTargetReference } from './types';
 
 /** Everything a validator needs beyond the raw value: the field's own descriptor, and the whole
  *  document's data so a kind can read a sibling field (e.g. 'money' resolving `currencyField`). */
@@ -215,5 +215,3 @@ export function registerCoreFieldKinds(registry: FieldKindRegistry): void {
     return null;
   });
 }
-
-export { CORE_FIELD_KINDS };

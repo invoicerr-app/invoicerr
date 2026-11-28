@@ -18,7 +18,7 @@ import {
  * - `latePaymentThreshold`: the statute says when the debtor is late or interest starts to run.
  * - `maximumWhenNotAgreed`: the statute caps the payment period when nothing was agreed.
  */
-export const FALLBACK_TERM_BASES = ['latePaymentThreshold', 'maximumWhenNotAgreed'] as const;
+const FALLBACK_TERM_BASES = ['latePaymentThreshold', 'maximumWhenNotAgreed'] as const;
 export type FallbackTermBasis = (typeof FALLBACK_TERM_BASES)[number];
 
 export interface CountryFallbackPaymentTerm {
@@ -42,7 +42,7 @@ export interface CountryPaymentTermsFile {
   notes?: string;
 }
 
-export class InvalidPaymentTermsError extends InvalidPolicyProvenanceError {}
+class InvalidPaymentTermsError extends InvalidPolicyProvenanceError {}
 
 function assertPositiveInteger(value: unknown, field: string, context: string): void {
   if (!Number.isInteger(value) || (value as number) <= 0) {

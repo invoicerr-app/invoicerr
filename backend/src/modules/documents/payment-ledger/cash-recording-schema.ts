@@ -18,7 +18,7 @@ export interface CashRecordingUnverifiedProvenance {
 
 export type CashRecordingProvenance = CashRecordingLegalProvenance | CashRecordingUnverifiedProvenance;
 
-export const CASH_RECORDING_CONDITIONS = ['inalterability', 'security', 'retention', 'archiving'] as const;
+const CASH_RECORDING_CONDITIONS = ['inalterability', 'security', 'retention', 'archiving'] as const;
 export type CashRecordingCondition = (typeof CASH_RECORDING_CONDITIONS)[number];
 
 /** Values the attestation renderer fills in; anything else in braces is refused at load time. */

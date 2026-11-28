@@ -149,7 +149,7 @@ function DocumentFooterTotal({ descriptor }: { descriptor: DocumentTypeDescripto
     <div data-cy="document-create-footer-total">
       <p className="text-xs text-muted-foreground">{t("documents.totals.gross")}</p>
       <p className="amount text-xl leading-tight">
-        <LtrValue>{formatTotal(totals.grossMinor, totals.currency || "—")}</LtrValue>
+        <LtrValue>{formatTotal(totals.grossMinor, totals.currency)}</LtrValue>
       </p>
     </div>
   )

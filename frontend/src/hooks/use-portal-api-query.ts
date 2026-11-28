@@ -6,6 +6,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { readApiError } from "@/lib/api-error"
+
 import { ApiError } from "./use-api-query"
 import { portalFetch } from "./use-portal-fetch"
 
@@ -20,12 +22,7 @@ import { portalFetch } from "./use-portal-fetch"
 async function portalApiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await portalFetch(url, init)
   if (!res.ok) {
-    const body = await res
-      .clone()
-      .json()
-      .catch(() => undefined)
-    const message =
-      typeof body?.message === "string" ? body.message : `${init?.method || "GET"} ${url} failed`
+    const { body, message } = await readApiError(res, init?.method || "GET", url)
     throw new ApiError(res.status, message, body)
   }
   if (res.status === 204) {

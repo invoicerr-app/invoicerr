@@ -7,7 +7,7 @@ import { MailService } from '@/mail/mail.service';
 import { deleteArchivedArtifacts } from '@/modules/documents/archive/storage';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 import { wipeAllInboundFiles } from '@/modules/documents/received-invoices/storage';
-import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/lib/otp';
+import { generateOtpCode, hashOtpCode, verifyAndConsumeOtp } from '@/lib/otp';
 import prisma from '@/prisma/prisma.service';
 import { sessionCache } from '@/lib/session-cache';
 import { CurrentUser } from '@/types/user';
@@ -27,11 +27,14 @@ import { INSTANCE_RESET_TABLES } from './reset-tables';
  *  every company on the deployment is about to go. */
 export const RESET_INSTANCE_CONFIRMATION_WORD = 'RESET INSTANCE';
 
-/** Same generic refusal regardless of WHY the check failed (wrong code, expired, never requested, or
- *  already locked out) — the identical "one outcome" discipline `danger.service.ts#GENERIC_OTP_
- *  FAILURE_MESSAGE` documents, so a caller can never learn from the response alone which of those it
- *  hit. */
-const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
+/** The operator's own instance-reset challenge, keyed by e-mail, as `lib/otp.ts#verifyAndConsumeOtp`
+ *  reads, burns and consumes it - the same "every non-succeeding call consumes one lifetime attempt"
+ *  discipline the danger zone's per-company challenge goes through. */
+const INSTANCE_RESET_OTP_STORE = {
+  find: findInstanceResetOtp,
+  recordFailure: recordInstanceResetOtpFailedAttempt,
+  clear: clearInstanceResetOtp,
+};
 
 @Injectable()
 export class InstanceResetService {
@@ -93,25 +96,6 @@ export class InstanceResetService {
     return { message: 'OTP sent successfully' };
   }
 
-  /** Same "every non-succeeding call consumes one lifetime attempt" discipline `danger.service.ts#
-   *  verifyAndConsumeOtp` documents for its own per-company challenge. */
-  private async verifyAndConsumeOtp(email: string, submittedOtp: string): Promise<void> {
-    const normalized = submittedOtp.replace(/-/g, '');
-    const record = await findInstanceResetOtp(email);
-
-    const codeIsLive = !!record && !record.lockedAt && record.expiresAt.getTime() > Date.now();
-    const matches = codeIsLive && otpCodeMatches(normalized, record!.codeHash);
-
-    if (!matches) {
-      if (record && !record.lockedAt) {
-        await recordInstanceResetOtpFailedAttempt(email);
-      }
-      throw new BadRequestException(GENERIC_OTP_FAILURE_MESSAGE);
-    }
-
-    await clearInstanceResetOtp(email);
-  }
-
   /**
    * Wipes the ENTIRE instance: every company, user, document and stored file, then signs everyone
    * out. Requires BOTH a fresh, verified OTP (`requestOtp` above) AND the exact confirmation word —
@@ -136,7 +120,7 @@ export class InstanceResetService {
     }
 
     try {
-      await this.verifyAndConsumeOtp(user.email, otp);
+      await verifyAndConsumeOtp(INSTANCE_RESET_OTP_STORE, user.email, otp);
     } catch (error) {
       // INSTANCE-LEVEL-LOG: instance reset is cross-tenant by construction — no single company applies.
       logger.warn('Invalid or expired OTP for instance reset', {

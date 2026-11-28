@@ -53,7 +53,7 @@ export interface DuePendingArchive {
   typeId: string;
 }
 
-export function encodePendingArtifacts(artifacts: ArchivedArtifactInput[]): Prisma.InputJsonValue {
+function encodePendingArtifacts(artifacts: ArchivedArtifactInput[]): Prisma.InputJsonValue {
   return artifacts.map((artifact) => ({
     role: artifact.role,
     mime: artifact.mime,

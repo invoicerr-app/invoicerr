@@ -12,7 +12,7 @@
  *
  * Usage:
  *   cd backend
- *   TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx jest tsa.live --no-coverage --runInBand
+ *   TSA_LIVE=1 TSA_URL=https://freetsa.org/tsr npx vitest run src/modules/documents/signing/tsa.live.spec.ts
  */
 
 import * as forge from 'node-forge';

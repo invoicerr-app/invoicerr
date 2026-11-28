@@ -4,7 +4,8 @@
  * `../live-gate.ts`), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef.live --no-coverage --runInBand
+ *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> \
+ *     npx vitest run src/modules/documents/transports/ksef/ksef.live.spec.ts
  *
  * `KSEF_AUTH_TOKEN`/`KSEF_NIP` DO exist as CI secrets today (confirmed by name via `gh secret list`,
  * 2026-09-14 — values never read here). They authenticated successfully against ksef-test.mf.gov.pl

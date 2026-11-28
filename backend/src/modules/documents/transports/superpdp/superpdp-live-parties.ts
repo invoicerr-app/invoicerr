@@ -1,4 +1,4 @@
-import { calculateFrenchVAT } from '../../../sirene/sirene.utils';
+import { calculateFrenchVAT } from '@/utils/fr-identifiers';
 import { SemanticPartyInput } from '../../formats/semantic/build-semantic-invoice';
 import { SuperPdpClient } from './superpdp-client';
 

@@ -3,18 +3,24 @@
  * Redis-backed rate-limit storage (`app.module.ts`'s `ThrottlerModule.forRoot` and
  * `lib/auth-rate-limit.ts`), the per-company SSO registry's cross-replica sync, the legal-release
  * notification lock, the session cache, the pending-signup store (`lib/pending-signup-store.ts`), the
- * health probe (`modules/health/health.service.ts`) and, through
- * `modules/documents/queue/redis.config.ts#createIoredisClient`, the document-events pub/sub bridge.
+ * health probe (`modules/health/health.service.ts`) and the document-events pub/sub bridge
+ * (`modules/documents/queue/document-events-publisher.ts`/`document-events-bridge.ts`), which talks to
+ * Redis directly rather than through BullMQ.
  *
  * It lives in `lib/` so that none of those callers has to import a documents-module internal. The
- * same logic used to be copied three times (here, in `pending-signup-store.ts` and in
- * `redis.config.ts`), and two copies had already drifted on where caller options were spread.
+ * same logic used to be copied three times (here, in `pending-signup-store.ts` and in the documents
+ * queue's former `redis.config` helper), and two copies had already drifted on where caller options
+ * were spread. That helper, now removed, had been carried over essentially verbatim from the
+ * pre-refonte compliance queue (git tag `avant-refonte-documents`, `compliance/nest/queue/redis.config.ts`):
+ * the precedence rule below and the `docker-compose.scale.yml` env vars it reads are unchanged since.
  *
- * Precedence: `REDIS_URL` wins when set; otherwise `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`
- * (defaults localhost:6379, no password). That rule is read once, by `readRedisEnv()`, and shared by
+ * Precedence: `REDIS_URL` (e.g. `redis://:pass@redis:6379`) wins when set; otherwise
+ * `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` (defaults localhost:6379, no password) - this is what
+ * lets the CI `cypress-run` job's bare `redis:7` service (port 6379, no REDIS_URL set on the backend)
+ * work with no backend env change at all. That rule is read once, by `readRedisEnv()`, and shared by
  * this client factory, BullMQ's own connection options (`redisConnection()`) and the boot log line
  * (`describeRedisTarget()`): a client resolving to a different Redis than the queues would be a much
- * worse bug than any duplication. `modules/documents/queue/redis.config.ts` re-exports the last two.
+ * worse bug than any duplication.
  */
 import type { ConnectionOptions } from 'bullmq';
 import Redis, { RedisOptions } from 'ioredis';

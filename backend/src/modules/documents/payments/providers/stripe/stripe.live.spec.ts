@@ -2,7 +2,8 @@
  * REAL round-trip against a Stripe TEST-mode account. Gated the same way every other national channel's
  * own live spec is (`STRIPE_LIVE=1` + credential env vars — `live-gate.ts`, reused verbatim):
  *
- *   STRIPE_LIVE=1 STRIPE_SECRET_KEY=sk_test_... npx jest stripe.live --no-coverage --runInBand
+ *   STRIPE_LIVE=1 STRIPE_SECRET_KEY=sk_test_... \
+ *     npx vitest run src/modules/documents/payments/providers/stripe/stripe.live.spec.ts
  *
  * WHAT A GREEN RUN OF THIS SPEC PROVES: that `RealStripeCheckoutClient` (the ONE network-calling class
  * in this whole feature — see its own header) can authenticate with a genuine Stripe secret key and

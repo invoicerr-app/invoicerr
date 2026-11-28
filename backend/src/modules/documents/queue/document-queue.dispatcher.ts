@@ -205,11 +205,6 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
     this.logger.log(`Job ${jobId} enqueued (action="${input.actionId}", type="${input.typeId}").`);
   }
 
-  /** Registers the ONE recurrence sweep repeatable. See `registerRepeatable` for the guarantees. */
-  async registerScheduleSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    return this.registerRepeatable(SWEEP_REPEATABLES.schedule);
-  }
-
   /**
    * Enqueues ONE occurrence job under `jobId` — an id the CALLER computes
    * (schedules/schedule-sweep.ts's `buildScheduleOccurrenceJobId`, already unique per
@@ -253,16 +248,6 @@ export class DocumentQueueDispatcher implements DocumentActionQueueDispatcher {
       `Occurrence ${jobId} enqueued (schedule="${data.scheduleId}", action="${data.actionId}").`,
     );
     return true;
-  }
-
-  /** Registers the ONE `Log`-table purge sweep repeatable (see its entry in `SWEEP_REPEATABLES`). */
-  async registerLogPurgeSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    return this.registerRepeatable(SWEEP_REPEATABLES.logPurge);
-  }
-
-  /** Registers the ONE storage-erasure sweep repeatable (see its entry in `SWEEP_REPEATABLES`). */
-  async registerStorageErasureSweepRepeatable(): Promise<ConfiguredRepeatable> {
-    return this.registerRepeatable(SWEEP_REPEATABLES.storageErasure);
   }
 
   /**

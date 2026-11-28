@@ -36,7 +36,7 @@ import { SettingsSection } from "@/components/settings-section"
  * (the page hosting it is itself gated the same way the rest of the danger zone is).
  *
  * The OTP step reuses the SAME `POST /danger/otp` challenge the reset actions above it on that page
- * use — see `backend/src/modules/company/transfer/danger-otp-check.ts`'s own header — so requesting a
+ * use - see `backend/src/modules/danger/danger-otp-check.ts`'s own header - so requesting a
  * code here and confirming a reset there (or vice versa) would invalidate each other's code; that is
  * the existing, one-challenge-per-company behavior, unchanged by this feature.
  */

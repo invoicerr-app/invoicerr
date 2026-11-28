@@ -3,7 +3,6 @@
  *
  * Lives in `utils/` rather than in `modules/sirene/` so that `company-lookup` can use it without
  * importing the `sirene` module, which itself imports `company-lookup` (`sirene.service.ts`).
- * `modules/sirene/sirene.utils.ts` re-exports it for existing callers.
  */
 
 /**

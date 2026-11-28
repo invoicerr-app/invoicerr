@@ -118,7 +118,7 @@ function escapeXmlText(value: string): string {
  *
  * A no-op when there is no description, so every existing caller keeps its byte-for-byte output.
  */
-export function applyCiiSellerLegalDescription(ciiXml: string, description: string | undefined): string {
+function applyCiiSellerLegalDescription(ciiXml: string, description: string | undefined): string {
   if (!description) return ciiXml;
   const seller = /<ram:SellerTradeParty>([\s\S]*?)<\/ram:SellerTradeParty>/.exec(ciiXml);
   // Newer generator releases map BT-33 themselves: never emit a second Description.
@@ -135,7 +135,7 @@ export function applyCiiSellerLegalDescription(ciiXml: string, description: stri
  * above (the same gap `splitCiiIncludedNotesInObject` documents for notes). A no-op when there is no
  * description or no seller party.
  */
-export function applyCiiSellerLegalDescriptionInObject(
+function applyCiiSellerLegalDescriptionInObject(
   cii: Record<string, unknown>,
   description: string | undefined,
 ): void {

@@ -78,7 +78,7 @@ function companyIdsTouched(): string[] {
 
 describe('switching company as a member without a seat', () => {
   const guard = new CompanyWriteGuard(new Reflector());
-  const service = new CompaniesService({} as never, {} as never, {} as never);
+  const service = new CompaniesService({} as never, {} as never);
 
   beforeEach(() => {
     process.env[BILLING_FLAG_NAME] = 'true';

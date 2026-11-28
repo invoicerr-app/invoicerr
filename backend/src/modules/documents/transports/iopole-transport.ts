@@ -76,7 +76,7 @@ import {
 
 /** Issue #526 - exactly the three fields `extractIopoleCredentials` below reads, replacing the
  *  frontend's own hard-coded `iopole` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
-export const IOPOLE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const IOPOLE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'clientId',
     kind: 'text',
@@ -108,8 +108,6 @@ export interface IopoleTransportDeps {
    *  format, and why the artifact is gated before it is ever deposited. */
   facturxFormatProvider: DocumentFormatProvider;
 }
-
-export { IOPOLE_PROVIDER_ID };
 
 /** Same "the invoice's OWN base descriptor, module-level constant" choice every sibling transport
  *  makes for the identical reason - see `superpdp-transport.ts`'s own header. */

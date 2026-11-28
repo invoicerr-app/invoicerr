@@ -13,12 +13,18 @@ import CountryReadinessAlert from "@/components/country-readiness-alert"
 import CountrySelect from "@/components/country-select"
 import CurrencySelect from "@/components/currency-select"
 import DocumentLanguageSelect from "@/components/document-language-select"
-import { fromMinor, toMinor } from "@/components/documents/totals-calculator"
+import { fromMinor, toMinor } from "@/lib/money"
 import CurrencyRatesSettings from "./currency-rates.settings"
 import DataExportSettings from "./data-export.settings"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
+import {
+  DEFAULT_PEPPOL_SCHEME_ID,
+  peppolEndpointIdentifier,
+  splitPeppolEndpoint,
+  withoutPeppolEndpoint,
+} from "@/lib/peppol-endpoint"
 import { isValidPostalCode } from "@/lib/postal-code"
 import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
@@ -281,7 +287,7 @@ export default function CompanySettings() {
       invoicePDFFormat: "",
       identifiers: [],
       companyLaw: { legalForm: "", values: {} },
-      peppolSchemeId: "0088",
+      peppolSchemeId: DEFAULT_PEPPOL_SCHEME_ID,
       peppolEndpointId: "",
       invoiceTransportId: "",
       referenceCurrency: "",
@@ -320,11 +326,7 @@ export default function CompanySettings() {
   useEffect(() => {
     if (data && Object.keys(data).length > 0) {
       // Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
-      const peppolEntry = (data.partyIdentifiers || []).find((pi) => pi.scheme === "PEPPOL_ENDPOINT")
-      const peppolRaw: string = peppolEntry?.value || ""
-      const colonIdx = peppolRaw.indexOf(":")
-      const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : "0088"
-      const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : ""
+      const peppol = splitPeppolEndpoint(data.partyIdentifiers || [])
       const nextValues = {
         ...data,
         countryCode: data.countryCode ?? undefined,
@@ -354,14 +356,12 @@ export default function CompanySettings() {
           data.approvalThresholdMinor != null
             ? fromMinor(data.approvalThresholdMinor, data.currency || "EUR")
             : undefined,
-        identifiers: (data.partyIdentifiers || [])
-          .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
-          .map((pi) => ({
-            scheme: pi.scheme,
-            value: pi.value,
-          })),
-        peppolSchemeId: parsedPeppolSchemeId,
-        peppolEndpointId: parsedPeppolEndpointId,
+        identifiers: withoutPeppolEndpoint(data.partyIdentifiers || []).map((pi) => ({
+          scheme: pi.scheme,
+          value: pi.value,
+        })),
+        peppolSchemeId: peppol.schemeId,
+        peppolEndpointId: peppol.endpointId,
         companyLaw: toCompanyLawForm(data.companyLaw),
         // This field belongs to its own endpoint, not the company snapshot.
         reconciliationTolerancePercent: reconciliationToleranceDefault.current,
@@ -410,18 +410,10 @@ export default function CompanySettings() {
   const {
     lookup: onCompanyLookup,
     isLoading: companyLookupLoading,
-    isAvailable: canLookupCompany,
-    schemes: lookupSchemes,
     identifierLabel: lookupIdentifierLabel,
+    canLookupScheme,
   } = useCompanyLookup(form, {
     countryCode: form.watch("countryCode"),
-    messages: {
-      invalid: t("clients.upsert.messages.lookupInvalid"),
-      notFound: t("clients.upsert.messages.lookupNotFound"),
-      success: t("clients.upsert.messages.lookupSuccess"),
-      error: t("clients.upsert.messages.lookupError"),
-      unavailable: t("clients.upsert.messages.lookupUnavailable"),
-    },
   })
 
   const countryCodeValue = form.watch("countryCode")
@@ -474,9 +466,6 @@ export default function CompanySettings() {
       form.setValue("identifiers", next)
     }
   }, [requiredIdentifiers, form])
-
-  // The backend owns the per-country format rules; the button only needs a value.
-  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   // What the sync effect above keeps instead of deleting: a saved, non-empty identifier whose scheme
   // the currently-selected country's requirements no longer name. Surfaced here — rather than left
@@ -552,10 +541,7 @@ export default function CompanySettings() {
 
     setIsLoading(true)
     // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
-    const peppolEntry =
-      values.peppolSchemeId && values.peppolEndpointId?.trim()
-        ? { scheme: "PEPPOL_ENDPOINT", value: `${values.peppolSchemeId}:${values.peppolEndpointId.trim()}` }
-        : null
+    const peppolEntry = peppolEndpointIdentifier(values.peppolSchemeId, values.peppolEndpointId)
     // `approvalThreshold` is form-only (MAJOR units) — never sent as-is, replaced by
     // `approvalThresholdMinor` below (MINOR units, the column the backend actually reads).
     const {
@@ -915,7 +901,7 @@ export default function CompanySettings() {
                       <FormLabel>
                         {t("settings.company.form.peppolSchemeId.label") || "Peppol scheme"}
                       </FormLabel>
-                      <Select value={field.value || "0088"} onValueChange={field.onChange}>
+                      <Select value={field.value || DEFAULT_PEPPOL_SCHEME_ID} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger data-cy="company-peppol-scheme-select">
                             <SelectValue />

@@ -89,18 +89,9 @@ function useCompanyLookupCapability(countryCode: string | undefined | null) {
   )
 }
 
-interface UseCompanyLookupMessages {
-  invalid: string
-  notFound: string
-  success: string
-  error: string
-  unavailable: string
-}
-
 interface UseCompanyLookupOptions {
   /** ISO 3166-1 alpha-2 code of the country selected in the form. */
   countryCode: string | undefined | null
-  messages: UseCompanyLookupMessages
 }
 
 function setIdentifier(form: UseFormReturn<FieldValues>, scheme: string, value: string) {
@@ -113,14 +104,26 @@ function setIdentifier(form: UseFormReturn<FieldValues>, scheme: string, value: 
 
 export function useCompanyLookup<T extends FieldValues>(
   form: UseFormReturn<T>,
-  { countryCode, messages }: UseCompanyLookupOptions,
+  { countryCode }: UseCompanyLookupOptions,
 ) {
   const [isLoading, setIsLoading] = useState(false)
   const { t } = useTranslation()
   const { data: capability } = useCompanyLookupCapability(countryCode)
   const note = lookupNote(capability, t)
+  // Every form that offers the lookup shows the same toasts, so they live here. Keep the `t("…")`
+  // calls literal so the i18n check still sees the keys.
+  const messages = {
+    invalid: t("clients.upsert.messages.lookupInvalid"),
+    notFound: t("clients.upsert.messages.lookupNotFound"),
+    success: t("clients.upsert.messages.lookupSuccess"),
+    error: t("clients.upsert.messages.lookupError"),
+    unavailable: t("clients.upsert.messages.lookupUnavailable"),
+  }
 
   const isAvailable = capability?.status === "AVAILABLE"
+  const schemes = capability?.schemes ?? []
+  // The backend owns the per-country format rules; the button only needs a value.
+  const canLookupScheme = (scheme: string) => isAvailable && schemes.includes(scheme as never)
 
   const lookup = async (rawValue: string | undefined, scheme?: LookupScheme) => {
     const value = (rawValue || "").trim()
@@ -196,7 +199,9 @@ export function useCompanyLookup<T extends FieldValues>(
     /** True when this country has a configured registry provider. */
     isAvailable,
     /** Identifier schemes the country's registers accept — drives which field gets the button. */
-    schemes: capability?.schemes ?? [],
+    schemes,
+    /** Whether the lookup button belongs next to this identifier scheme's field. */
+    canLookupScheme,
     /** PARTIAL = only the worldwide directories answer here, so a miss is expected. */
     coverage: capability?.coverage,
     /** What the user is expected to type, e.g. "SIRET (14 digits)". */

@@ -12,7 +12,7 @@ import {
 import { logger } from '@/logger/logger.service';
 import { resolveUserLanguage } from '@/modules/documents/rendering/language/resolve-user-language';
 
-import { generateOtpCode, hashOtpCode, otpCodeMatches } from '@/lib/otp';
+import { generateOtpCode, hashOtpCode, verifyAndConsumeOtp } from '@/lib/otp';
 import {
   drainStorageErasureJournal,
   journalCompanyStorageObjects,
@@ -28,10 +28,13 @@ import {
   recordDangerOtpFailedAttempt,
 } from './danger-otp.persistence';
 
-/** Same generic refusal regardless of WHY the check failed (wrong code, expired, never requested, or
- *  already locked out) — the identical "one outcome" discipline `signatures.service.ts#GENERIC_BLOCK_
- *  MESSAGE` documents, so a caller can never learn from the response alone which of those it hit. */
-const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
+/** This company's own challenge (never a different one - see `DangerOtp.companyId`'s own uniqueness),
+ *  as `lib/otp.ts#verifyAndConsumeOtp` reads, burns and consumes it. */
+const DANGER_OTP_STORE = {
+  find: findDangerOtp,
+  recordFailure: recordDangerOtpFailedAttempt,
+  clear: clearDangerOtp,
+};
 
 /** The one code a caller can rely on to mean "this company still has documents under legal
  *  retention" — mirrors `billing/write-gate.ts#COMPANY_BLOCKED`'s own "a named code, not just a
@@ -153,36 +156,6 @@ export class DangerService {
   }
 
   /**
-   * Verifies `submittedOtp` against this COMPANY's own current challenge (never a different one — see
-   * `DangerOtp.companyId`'s own uniqueness) and, on success, consumes it — a code authorises exactly
-   * ONE destructive action, never a replay. A code is "live" only while it exists, is not locked, and
-   * has not expired; `otpCodeMatches` is only ever evaluated once all three hold, mirroring
-   * `signatures.service.ts#verifyAndSign`'s own "no digest comparison is even meaningful against a
-   * hash that no longer represents the current, live challenge" discipline.
-   *
-   * Every non-succeeding call consumes one lifetime attempt — wrong code, expired code, or no code at
-   * all — folded into the SAME counter and the SAME generic message for the same reason
-   * `signatures.service.ts` folds its own three failure modes together: never give a caller a signal
-   * to narrow their next guess by.
-   */
-  private async verifyAndConsumeOtp(companyId: string, submittedOtp: string): Promise<void> {
-    const normalized = submittedOtp.replace(/-/g, '');
-    const record = await findDangerOtp(companyId);
-
-    const codeIsLive = !!record && !record.lockedAt && record.expiresAt.getTime() > Date.now();
-    const matches = codeIsLive && otpCodeMatches(normalized, record!.codeHash);
-
-    if (!matches) {
-      if (record && !record.lockedAt) {
-        await recordDangerOtpFailedAttempt(companyId);
-      }
-      throw new BadRequestException(GENERIC_OTP_FAILURE_MESSAGE);
-    }
-
-    await clearDangerOtp(companyId);
-  }
-
-  /**
    * What a company would lose (and what blocks it) if "Reset company data" ran RIGHT NOW — read by
    * `GET /danger/reset/company-data/preflight`, called by the settings screen BEFORE the OTP flow
    * even starts, so a company under legal retention sees why it cannot reset before it ever types a
@@ -242,7 +215,7 @@ export class DangerService {
    */
   async resetCompanyData(user: CurrentUser, companyId: string, otp: string) {
     try {
-      await this.verifyAndConsumeOtp(companyId, otp);
+      await verifyAndConsumeOtp(DANGER_OTP_STORE, companyId, otp);
     } catch (error) {
       logger.warn('Invalid or expired OTP for resetCompanyData', {
         category: 'danger',
@@ -365,7 +338,7 @@ export class DangerService {
    */
   async deleteCompany(user: CurrentUser, companyId: string, otp: string, companyName: string) {
     try {
-      await this.verifyAndConsumeOtp(companyId, otp);
+      await verifyAndConsumeOtp(DANGER_OTP_STORE, companyId, otp);
     } catch (error) {
       logger.warn('Invalid or expired OTP for deleteCompany', {
         category: 'danger',

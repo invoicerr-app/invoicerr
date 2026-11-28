@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as Sentry from '@sentry/node';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { captureServerError, initErrorTracking, isErrorTrackingEnabled } from './error-tracking';
+import { captureServerError, initErrorTracking } from './error-tracking';
 
 /**
  * Runs the real SDK against a local endpoint standing in for the tracker, and reads back the envelope
@@ -34,7 +34,8 @@ describe('initErrorTracking (real SDK, local endpoint)', () => {
 
   it('sends errors without any client IP, user, cookie or header', async () => {
     expect(initErrorTracking('api')).toBe(true);
-    expect(isErrorTrackingEnabled()).toBe(true);
+    // A second call does not re-initialise: it reports whether error tracking is already on.
+    expect(initErrorTracking('api')).toBe(true);
 
     Sentry.setUser({ id: 'user-1', ip_address: '{{auto}}', email: 'someone@example.test' });
     Sentry.addBreadcrumb({ message: 'GET /api/documents?token=abc' });

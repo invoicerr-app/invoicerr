@@ -51,7 +51,7 @@ import {
 
 /** Issue #526 - exactly the two fields `extractKsefCredentials` below reads, replacing the
  *  frontend's own hard-coded `ksef` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
-export const KSEF_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const KSEF_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'nip',
     kind: 'text',

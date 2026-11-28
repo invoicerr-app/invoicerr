@@ -3,7 +3,8 @@
  * (`PAYPAL_LIVE=1` + `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET` — `live-gate.ts`, reused verbatim):
  *
  *   PAYPAL_LIVE=1 PAYPAL_CLIENT_ID=... PAYPAL_CLIENT_SECRET=... \
- *     [PAYPAL_ENVIRONMENT=sandbox] npx jest paypal.live --no-coverage --runInBand
+ *     [PAYPAL_ENVIRONMENT=sandbox] \
+ *     npx vitest run src/modules/documents/payments/providers/paypal/paypal.live.spec.ts
  *
  * WHAT A GREEN RUN OF THIS SPEC PROVES: that `RealPayPalClient` (the ONE network-calling class in this
  * provider — see its own header) can authenticate via OAuth2 client_credentials with a genuine sandbox

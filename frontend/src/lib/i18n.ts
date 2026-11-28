@@ -110,7 +110,7 @@ export function applyUiLanguage(code: string): void {
  * complete yet (`ar` is still `beta` in `SUPPORTED_LANGUAGES` above), but the mechanism is in place
  * for when Hebrew, Persian or Urdu catalogs arrive too - none of them need a code change here.
  */
-export const RTL_LOCALES = ["ar", "he", "fa", "ur"]
+const RTL_LOCALES = ["ar", "he", "fa", "ur"]
 
 // Dev-only hook so the e2e suite can exercise the RTL layout before a real RTL translation is
 // complete (no Arabic catalog exists yet - see RTL_LOCALES's own comment). `import.meta.env.DEV` is

@@ -11,6 +11,7 @@
  */
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { mailT } from '@/mail/i18n';
+import { layoutFooterHtml, layoutFooterText } from '@/mail/system-email-templates';
 import { MailOptions } from '@/mail/types';
 import { logger } from '@/logger/logger.service';
 import prisma from '@/prisma/prisma.service';
@@ -45,15 +46,14 @@ export function buildChangeEmailMail(params: {
       `${t('changeEmail.textIntro')}\n\n` +
       `${url}\n\n` +
       `${t('changeEmail.ignoreNotice')}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+      layoutFooterText(t, appUrl),
     html:
       `<h2>${t('changeEmail.subject')}</h2><p>${t('layout.greeting')}</p><p>${t('changeEmail.htmlIntro')}</p>` +
       `<div style="text-align: center; margin: 30px 0;"><a href="${url}" style="background: #007bff; ` +
       'color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; ' +
       `display: inline-block;">${t('changeEmail.buttonLabel')}</a></div>` +
-      `<p>${t('changeEmail.ignoreNotice')}</p><p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      `<p>${t('changeEmail.ignoreNotice')}</p>` +
+      layoutFooterHtml(t, appUrl),
   };
 }
 

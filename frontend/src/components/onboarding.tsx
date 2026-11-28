@@ -140,20 +140,11 @@ function OnBoarding({ isOpen, onOpenChange, onSuccess }: OnBoardingProps) {
     note: lookupNoteText,
     isAvailable: canLookupCompany,
     coverage: lookupCoverage,
-    schemes: lookupSchemes,
     identifierLabel: lookupIdentifierLabel,
+    canLookupScheme,
   } = useCompanyLookup(form, {
     countryCode: form.watch("countryCode"),
-    messages: {
-      invalid: t("clients.upsert.messages.lookupInvalid"),
-      notFound: t("clients.upsert.messages.lookupNotFound"),
-      success: t("clients.upsert.messages.lookupSuccess"),
-      error: t("clients.upsert.messages.lookupError"),
-      unavailable: t("clients.upsert.messages.lookupUnavailable"),
-    },
   })
-  // The backend owns the per-country format rules; the button only needs a value.
-  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   // A search is worth attempting automatically only when a REAL national register
   // answered — the worldwide directories (GLEIF, Peppol) technically "cover" every

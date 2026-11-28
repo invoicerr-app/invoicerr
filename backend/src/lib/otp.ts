@@ -28,6 +28,8 @@
  */
 import * as crypto from 'node:crypto';
 
+import { BadRequestException } from '@nestjs/common';
+
 /** 8-digit codes, "00000000".."99999999" - 10^8 possible values, the same code SPACE the removed
  *  module's own OTP used (never widened or narrowed casually: this is the denominator the guarantee
  *  test below, and `signatures.spec.ts`'s own "the guarantee" spec, recompute their fraction from). */
@@ -77,4 +79,53 @@ export function otpCodeMatches(candidateCode: string, storedHashHex: string): bo
   const candidateDigest = Buffer.from(hashOtpCode(candidateCode), 'hex');
   const storedDigest = Buffer.from(storedHashHex, 'hex');
   return crypto.timingSafeEqual(candidateDigest, storedDigest);
+}
+
+/** Same generic refusal regardless of WHY the check failed (wrong code, expired, never requested, or
+ *  already locked out) - the identical "one outcome" discipline `signatures.service.ts#GENERIC_BLOCK_
+ *  MESSAGE` documents, so a caller can never learn from the response alone which of those it hit. */
+export const GENERIC_OTP_FAILURE_MESSAGE = 'Invalid or expired OTP';
+
+/** The persistence a code-holding challenge exposes to `verifyAndConsumeOtp`, keyed by whatever owns
+ *  the challenge (a company id for the danger zone, an operator e-mail for the instance reset). */
+export interface OtpChallengeStore {
+  find: (key: string) => Promise<{ codeHash: string; expiresAt: Date; lockedAt: Date | null } | null>;
+  recordFailure: (key: string) => Promise<unknown>;
+  clear: (key: string) => Promise<void>;
+}
+
+/**
+ * Verifies `submittedOtp` against the challenge `store` holds for `key` and, on success, consumes it -
+ * a code authorises exactly ONE destructive action, never a replay. A code is "live" only while it
+ * exists, is not locked, and has not expired; `otpCodeMatches` is only ever evaluated once all three
+ * hold, mirroring `signatures.service.ts#verifyAndSign`'s own "no digest comparison is even meaningful
+ * against a hash that no longer represents the current, live challenge" discipline.
+ *
+ * Every non-succeeding call consumes one lifetime attempt - wrong code, expired code, or no code at
+ * all - folded into the SAME counter and the SAME generic message for the same reason
+ * `signatures.service.ts` folds its own three failure modes together: never give a caller a signal
+ * to narrow their next guess by.
+ *
+ * Shared by the danger zone (`modules/danger/danger.service.ts`, `modules/danger/danger-otp-check.ts`)
+ * and the instance reset (`modules/instance/instance-reset.service.ts`).
+ */
+export async function verifyAndConsumeOtp(
+  store: OtpChallengeStore,
+  key: string,
+  submittedOtp: string,
+): Promise<void> {
+  const normalized = submittedOtp.replace(/-/g, '');
+  const record = await store.find(key);
+
+  const codeIsLive = !!record && !record.lockedAt && record.expiresAt.getTime() > Date.now();
+  const matches = codeIsLive && otpCodeMatches(normalized, record!.codeHash);
+
+  if (!matches) {
+    if (record && !record.lockedAt) {
+      await store.recordFailure(key);
+    }
+    throw new BadRequestException(GENERIC_OTP_FAILURE_MESSAGE);
+  }
+
+  await store.clear(key);
 }

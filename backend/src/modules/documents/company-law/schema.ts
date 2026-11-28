@@ -88,7 +88,7 @@ export type CompanyLawPlaceholder =
 export type TemplatePart = { text: string } | { placeholder: CompanyLawPlaceholder };
 
 const PLACEHOLDER = /\{([^{}]+)\}/g;
-const FIELD_KEY = /^[a-z][A-Za-z0-9]*$/;
+export const FIELD_KEY = /^[a-z][A-Za-z0-9]*$/;
 const SCHEME = /^[A-Z][A-Z0-9_]*$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FIELD_KINDS: ReadonlySet<string> = new Set<CompanyLawFieldKind>(['text', 'money']);

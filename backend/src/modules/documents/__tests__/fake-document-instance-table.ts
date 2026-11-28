@@ -26,11 +26,6 @@ export function seedDocumentInstances(seeded: Row[]): void {
   rows = [...seeded];
 }
 
-/** Every row currently in the table — for a spec that needs the truth to compare a read against. */
-export function seededDocumentInstances(): Row[] {
-  return [...rows];
-}
-
 /** One `DocumentInstance` row, with the columns every read here touches already filled in. */
 export function documentInstanceRow(overrides: Partial<Row> & { id: string }): Row {
   return {

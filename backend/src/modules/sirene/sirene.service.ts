@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FranceProvider } from '@/modules/company-lookup/providers/fr.provider';
 import { SireneCompanyDto } from '@/modules/sirene/dto/sirene-company.dto';
-import { isValidSiret } from '@/modules/sirene/sirene.utils';
+import { isValidSiret } from '@/utils/fr-identifiers';
 
 /**
  * French SIRET lookup — a thin, backwards-compatible facade over the country-aware

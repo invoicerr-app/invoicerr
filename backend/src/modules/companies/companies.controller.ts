@@ -4,6 +4,7 @@ import { Response } from 'express';
 
 import { ActiveCompany } from '@/decorators/active-company.decorator';
 import { CompaniesService } from './companies.service';
+import { CompanyService } from '@/modules/company/company.service';
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
 import { CurrentUser } from '@/types/user';
 import { EditCompanyDto } from '@/modules/company/dto/company.dto';
@@ -18,7 +19,10 @@ import { EXPORT_ZIP_FILENAME } from '@/modules/billing/export-zip.service';
 @ApiTags('companies')
 @Controller('companies')
 export class CompaniesController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(
+    private readonly companiesService: CompaniesService,
+    private readonly companyService: CompanyService,
+  ) {}
 
   @Post()
   @RequiresScope('company:write')
@@ -29,7 +33,7 @@ export class CompaniesController {
   })
   @ApiResponse({ status: 201, description: 'Company created' })
   async create(@User() user: CurrentUser, @Body() body: EditCompanyDto) {
-    return this.companiesService.createCompany(user.id, body);
+    return this.companyService.createCompany(user.id, body);
   }
 
   @Post('switch')

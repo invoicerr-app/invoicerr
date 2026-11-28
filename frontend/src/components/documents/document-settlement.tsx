@@ -13,7 +13,7 @@ import type { ClientStatementDocumentRow } from "@/types"
 
 import { SectionCard } from "./section-card"
 import type { DocumentSettlement } from "./types"
-import { formatMinor } from "./totals-calculator"
+import { formatMinor } from "@/lib/money"
 
 /**
  * The SOLDE — a PROJECTION derived from `computeSettlement` (backend) at read time, never a document

@@ -21,7 +21,7 @@
 import { ChannelNotConnectedError, RawAuthorityEvent } from '../conformity/authority-status-poller';
 import { assertDemoSendingAllowed } from '@/modules/demo/demo-blocked';
 
-export { ChannelNotConnectedError, RawAuthorityEvent };
+export { ChannelNotConnectedError };
 
 /** One line's declared arithmetic — see `build-declared-invoice.ts`'s own header: every figure here
  *  comes from `totals/compute-totals.ts`, NEVER recomputed by a provider. Major currency units

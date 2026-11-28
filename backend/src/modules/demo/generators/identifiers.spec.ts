@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateFrenchVAT } from '@/modules/sirene/sirene.utils';
+import { calculateFrenchVAT } from '@/utils/fr-identifiers';
 
 import {
   assertValidDeVat,

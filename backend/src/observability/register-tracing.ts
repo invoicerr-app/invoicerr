@@ -1,5 +1,5 @@
-import { SERVICE_NAME } from './service-name';
+import { currentProcessRole, SERVICE_NAME } from './service-name';
 import { startTracing } from './tracing';
 
 // Imported first by `main.ts` and `worker.ts`, for its side effect only.
-startTracing(SERVICE_NAME[process.env.ROLE === 'worker' ? 'worker' : 'api']);
+startTracing(SERVICE_NAME[currentProcessRole()]);

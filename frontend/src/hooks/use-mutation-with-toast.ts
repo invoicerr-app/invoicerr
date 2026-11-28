@@ -1,7 +1,7 @@
 import { toast } from "sonner"
 
 export type MutationResult<T> = {
-  trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>
+  trigger: (body?: any) => Promise<T | null>
   data: T | null
   loading: boolean
   error: Error | null
@@ -40,10 +40,10 @@ export function useMutationWithToast<T>(
   mutation: MutationResult<T>,
   errorMessage: string,
 ): MutationResult<T> {
-  const trigger = async (body?: any, extraOptions?: RequestInit): Promise<T | null> => {
+  const trigger = async (body?: any): Promise<T | null> => {
     let result: T | null = null
     try {
-      result = await mutation.trigger(body, extraOptions)
+      result = await mutation.trigger(body)
     } catch {
       result = null
     }

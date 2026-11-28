@@ -25,7 +25,10 @@ export interface DocumentNumberParts {
   date: Date;
 }
 
-const TOKEN_PATTERN = /\{(\w+)(?::(\d+))?\}/g;
+/** The one grammar of a numbering token (`{name}` or `{name:N}`), shared with
+ *  `declare-last-number.ts`. It carries the `g` flag, so it keeps a `lastIndex` between calls: use it
+ *  ONLY through `String#replace` / `String#matchAll` (both reset it), never `test`/`exec`. */
+export const TOKEN_PATTERN = /\{(\w+)(?::(\d+))?\}/g;
 
 /** Matches a pattern containing at least one `{number}` (with or without `:N` padding) token. */
 const HAS_NUMBER_TOKEN = /\{number(?::\d+)?\}/;

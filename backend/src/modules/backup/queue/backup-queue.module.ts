@@ -1,13 +1,13 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
-import { redisConnection } from '@/modules/documents/queue/redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 
 import { Q_BACKUP } from './backup-queue.constants';
 
 /**
  * BullMQ wiring for the instance-backup sweep's own queue. `redisConnection()` is reused as-is from
- * `documents/queue/redis.config.ts` — a generic, document-agnostic BullMQ/ioredis connection helper
+ * `lib/redis-connection.ts` - a generic, document-agnostic BullMQ/ioredis connection helper
  * (env-var precedence only, no documents-module concept in it) — rather than duplicated here, so the
  * two queues can never silently disagree about which Redis to use.
  *

@@ -12,11 +12,9 @@ import {
   type ClientDocumentTotals,
   type VatRateFieldOptions,
   computeTotals,
-  decimalsFor,
-  formatMinor,
-  fromMinor,
   looksNumeric,
 } from "@/components/documents/totals-calculator"
+import { decimalsFor, formatMinor, fromMinor } from "@/lib/money"
 import { extractCurrency, findLineArrayFields } from "@/components/documents/totals-shape"
 import { LtrValue } from "@/components/ui/ltr-value"
 import { commonLinesOf, deriveQuoteOptions, linesForOption } from "@/components/documents/quote-options"
@@ -301,11 +299,11 @@ function useCommonLineDescriptions(descriptor: DocumentTypeDescriptor): string[]
   return useMemo(() => commonLineDescriptions(descriptor, formValues), [descriptor, formValues])
 }
 
-/** `1234.50 EUR` — one formatter for every figure this module shows, so the header amount and the
- *  totals block never round differently. */
 const EMPTY_CURRENCY_PLACEHOLDER = "\u2014"
 
-export function formatTotal(minor: number, currency: string): string {
+/** `1234.50 EUR` - one formatter for every figure this module shows, so the header amount and the
+ *  totals block never round differently. */
+export function formatTotal(minor: number, currency?: string | null): string {
   return formatMinor(minor, currency || EMPTY_CURRENCY_PLACEHOLDER)
 }
 
@@ -349,7 +347,7 @@ interface DocumentTotalsProps {
  * merged one, `computeDocumentOptionTotals`'s own header - only the label. */
 function TotalsRows({ totals, includesCommon }: { totals: ClientDocumentTotals; includesCommon?: boolean }) {
   const { t } = useTranslation()
-  const currency = totals.currency || "—"
+  const currency = totals.currency || EMPTY_CURRENCY_PLACEHOLDER
   const decimals = decimalsFor(currency)
   const showVat = totals.showVat
 

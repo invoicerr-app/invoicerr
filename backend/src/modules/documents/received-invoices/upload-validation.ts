@@ -28,7 +28,7 @@ import { MAX_ATTACHMENT_FILE_NAME_LENGTH } from '../attachments/content-disposit
 
 /** What this upload accepts — see this file's own header for why images are deliberately NOT on this
  *  list, unlike `attachments/attachments.service.ts#ALLOWED_ATTACHMENT_MIMES`. */
-export const ALLOWED_RECEIVED_INVOICE_MIMES: readonly string[] = [
+const ALLOWED_RECEIVED_INVOICE_MIMES: readonly string[] = [
   'application/pdf',
   'application/xml',
   'text/xml',

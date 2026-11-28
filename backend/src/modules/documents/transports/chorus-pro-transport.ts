@@ -130,7 +130,7 @@ import {
 
 /** Issue #526 - exactly the four fields `extractChorusProCredentials` below reads, replacing the
  *  frontend's own hard-coded `chorus-pro` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
-export const CHORUS_PRO_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const CHORUS_PRO_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'clientId',
     kind: 'text',

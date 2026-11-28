@@ -88,3 +88,33 @@ export async function retireSupersededRepeatables(
 
   return retired;
 }
+
+/** One sweep a `*QueueWorkerModule` registers at boot: its wanted-set entry plus the `jobId` it is
+ *  added under. */
+export interface RepeatableSweep extends ConfiguredRepeatable {
+  jobId: string;
+}
+
+/**
+ * Registers every sweep in `sweeps` on `queue`, THEN retires every definition the queue holds that
+ * none of them names - the order `retireSupersededRepeatables` requires, written once here instead of
+ * at each call site. Each sweep is added with `attempts: 1` (a pass that throws is a real bug worth
+ * surfacing now; the next tick is already the natural retry) and removed from Redis whether it
+ * completes or fails. Returns the identities retired, as `retireSupersededRepeatables` does.
+ */
+export async function registerRepeatableSweeps(queue: Queue, sweeps: RepeatableSweep[]): Promise<string[]> {
+  for (const sweep of sweeps) {
+    await queue.add(
+      sweep.name,
+      {},
+      {
+        jobId: sweep.jobId,
+        repeat: sweep.repeat,
+        attempts: 1,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+  }
+  return retireSupersededRepeatables(queue, sweeps);
+}

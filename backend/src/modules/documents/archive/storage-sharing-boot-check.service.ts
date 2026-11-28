@@ -21,6 +21,8 @@
  */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
+import { currentProcessRole } from '@/observability/service-name';
+
 import { checkArchiveStorageSharing } from './storage';
 
 @Injectable()
@@ -29,10 +31,10 @@ export class ArchiveStorageSharingBootCheckService implements OnModuleInit {
 
   onModuleInit(): void {
     // `ROLE` mirrors `entrypoint.sh`'s own switch (`ROLE=worker` for the dedicated worker process,
-    // unset/anything else defaults to `api`) — the same string `checkArchiveStorageSharing` uses to
-    // name its own witness file, so an API boot and a worker boot never collide on the SAME filename
-    // while still proving they see each other's.
-    const role = process.env.ROLE === 'worker' ? 'worker' : 'api';
+    // unset/anything else defaults to `api`, see `currentProcessRole`) - the same string
+    // `checkArchiveStorageSharing` uses to name its own witness file, so an API boot and a worker boot
+    // never collide on the SAME filename while still proving they see each other's.
+    const role = currentProcessRole();
     let result: ReturnType<typeof checkArchiveStorageSharing>;
     try {
       result = checkArchiveStorageSharing(role);

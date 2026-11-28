@@ -22,7 +22,7 @@
  *     PEC_SMTP_HOST=smtps.pec-provider.it PEC_SMTP_PORT=465 PEC_SMTP_SECURE=true \
  *     PEC_IMAP_HOST=imaps.pec-provider.it PEC_IMAP_PORT=993 PEC_IMAP_SECURE=true \
  *     PEC_USERNAME=fatture@example.pec.it PEC_PASSWORD=<password> \
- *     npx jest pec.live --no-coverage
+ *     npx vitest run src/modules/documents/transports/sdi-pec/pec.live.spec.ts
  *
  * Skips cleanly (silently unless the flag is set, then one stderr line) whenever the flag or any
  * credential is absent — which is EVERY run today. No sandbox or fake SMTP/IMAP endpoint is fabricated

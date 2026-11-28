@@ -386,18 +386,18 @@ export interface ESignatureAcceptanceManifest {
 }
 
 /** The artifact role a manual-acceptance manifest is stored under - see `DocumentArchiveKind`'s own
- *  schema comment on the `ACCEPTANCE` kind. Exported so `actions/quote-manual-acceptance.ts` (the
- *  writer) and this file's own read side below agree on the exact same string without either one
- *  hand-typing it twice. */
-export const MANUAL_ACCEPTANCE_ROLE = 'manual-acceptance';
+ *  schema comment on the `ACCEPTANCE` kind. Named once so this file's writer
+ *  (`createManualAcceptanceArchive`) and its read side below agree on the exact same string without
+ *  either one hand-typing it twice. */
+const MANUAL_ACCEPTANCE_ROLE = 'manual-acceptance';
 
 /** Issue #364 - the artifact role of the file attached to a manual acceptance, stored in the same
  *  ACCEPTANCE row as the manifest. */
-export const MANUAL_ACCEPTANCE_ATTACHMENT_ROLE = 'manual-acceptance-attachment';
+const MANUAL_ACCEPTANCE_ATTACHMENT_ROLE = 'manual-acceptance-attachment';
 
 /** The artifact role an e-signature acceptance manifest is stored under (issue #477). Distinct from
  *  `MANUAL_ACCEPTANCE_ROLE` so `findManualAcceptanceArchive` never reads one as the other. */
-export const ESIGNATURE_ACCEPTANCE_ROLE = 'e-signature';
+const ESIGNATURE_ACCEPTANCE_ROLE = 'e-signature';
 
 /**
  * The most recent DELIVERY archive of a document, as an acceptance manifest names it - see

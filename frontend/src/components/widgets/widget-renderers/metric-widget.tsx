@@ -4,7 +4,7 @@ import { LtrValue } from "@/components/ui/ltr-value"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
-import { decimalsFor } from "@/components/documents/totals-calculator"
+import { decimalsFor } from "@/lib/money"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { formatServerMessages } from "@/lib/server-message"

@@ -12,7 +12,8 @@ import { DetailItem, DetailList, DetailSection } from "./detail-list"
 import { FormDialog } from "./form-dialog"
 import { ClientBadges } from "./client-badges"
 import { clientDisplayName } from "./client-display"
-import { formatMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/lib/money"
+import { withoutPeppolEndpoint } from "@/lib/peppol-endpoint"
 import { StatementRowBadge } from "./client-statement"
 
 interface ClientViewDialogProps {
@@ -27,7 +28,7 @@ interface ClientViewDialogProps {
  *  `scheme: value` pairs, in whatever order the party carries them; the Peppol routing endpoint is
  *  its own separate concern (edited on the form) and is deliberately left out of this quick read. */
 function IdentifiersLine({ client }: { client: Client | null }) {
-  const identifiers = (client?.partyIdentifiers ?? []).filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
+  const identifiers = withoutPeppolEndpoint(client?.partyIdentifiers ?? [])
   if (identifiers.length === 0) return null
   return (
     <p className="font-mono text-xs text-muted-foreground" data-cy="client-view-identifiers">

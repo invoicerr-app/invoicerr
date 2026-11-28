@@ -1,11 +1,11 @@
 /**
  * Forward generators for the national identifiers the demo seed fills in. Each checksummed one mirrors
- * this codebase's own offline validator (`sirene.utils.ts`, `tax/vat-syntax.ts`) so a generated value
- * always passes it; the PT NIF has no validator elsewhere, so `validatePtNif` below implements the
+ * this codebase's own offline validator (`utils/fr-identifiers.ts`, `tax/vat-syntax.ts`) so a generated
+ * value always passes it; the PT NIF has no validator elsewhere, so `validatePtNif` below implements the
  * published Modulo 11 algorithm. `DEMO_IDENTIFIER_GENERATORS` exposes them by algorithm id, the id a
  * country file's identifier scheme names in its `demoGenerator`.
  */
-import { calculateFrenchVAT, isValidSiret } from '@/modules/sirene/sirene.utils';
+import { calculateFrenchVAT, isValidSiret } from '@/utils/fr-identifiers';
 import { validateDeVat, validateFrVat, validateItVat, validateNip } from '@/modules/documents/tax/vat-syntax';
 
 import { DemoIdentifierGeneratorSpec } from '@/modules/documents/country-identifiers/schema';

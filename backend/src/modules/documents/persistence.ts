@@ -383,7 +383,7 @@ const DOCUMENT_SCAN_PAGE_SIZE = 1000;
  * a total. Sized well past any company this product serves today, so it is a genuine capacity alarm
  * and not a limit ordinary use runs into.
  */
-export const DOCUMENT_SCAN_MAX_ROWS = 50_000;
+const DOCUMENT_SCAN_MAX_ROWS = 50_000;
 
 export interface ListAllDocumentsOptions {
   /** Absent means "every type", same as `listDocuments` above. */

@@ -30,16 +30,16 @@ import { ComputeTotalsOptions, computeDocumentTotals, DocumentTotals } from './c
 
 /** The descriptor a linked credit note is priced (and its corrected rows rendered) with: the
  *  INVOICE's. See this file's own header. */
-export const LINKED_CREDIT_NOTE_PRICING_DESCRIPTOR: DocumentTypeDescriptor = buildInvoiceDescriptor();
+const LINKED_CREDIT_NOTE_PRICING_DESCRIPTOR: DocumentTypeDescriptor = buildInvoiceDescriptor();
 
 /** The invoice a credit note corrects, or undefined for a FREE credit note. */
-export function correctedInvoiceIdOf(noteData: Record<string, unknown>): string | undefined {
+function correctedInvoiceIdOf(noteData: Record<string, unknown>): string | undefined {
   return typeof noteData.invoice === 'string' && noteData.invoice.trim() ? noteData.invoice : undefined;
 }
 
 /** The corrected invoice's rows the note selects, in the INVOICE's own order, as stored (row id
  *  included). A selected id the invoice no longer holds is simply absent. */
-export function selectCorrectedInvoiceLines(
+function selectCorrectedInvoiceLines(
   noteData: Record<string, unknown>,
   invoiceData: Record<string, unknown>,
 ): Record<string, unknown>[] {

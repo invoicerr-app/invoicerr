@@ -72,7 +72,7 @@
  *
  * Run:
  *   cd backend && set -a; . .env.test.local; set +a
- *   CHORUSPRO_LIVE=1 npx jest choruspro.live --no-coverage --runInBand
+ *   CHORUSPRO_LIVE=1 npx vitest run src/modules/documents/transports/chorus-pro/choruspro.live.spec.ts
  */
 import { PDFDocument } from 'pdf-lib';
 

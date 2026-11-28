@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next"
 import { DocumentTypeIcon } from "@/components/documents/document-type-icon"
 import { Link } from "react-router"
 
-import { decimalsFor } from "@/components/documents/totals-calculator"
+import { decimalsFor } from "@/lib/money"
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProseHelp } from "@/components/ui/prose-help"

@@ -33,7 +33,7 @@ import { vi } from 'vitest';
 
 import { Queue, Worker } from 'bullmq';
 
-import { redisConnection } from '../redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 import { redisDescribe } from '@/test/redis-gate';
 
 const describeWithRedis = redisDescribe('DOCUMENTS_QUEUE_REDIS_TESTS');

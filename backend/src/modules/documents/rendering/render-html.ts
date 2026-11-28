@@ -22,28 +22,13 @@ const DEFAULT_BODY_FONT_STACK =
 /**
  * Escapes HTML special characters — applied to ALL values from data to prevent injection.
  */
-function escapeHtml(value: string): string {
-  const div = document.createElement('div');
-  div.textContent = value;
-  return div.innerHTML;
-}
-
-// Fallback for Node.js environment where document doesn't exist
-export function escapeHtmlNode(value: string): string {
+export function escapeHtml(value: string): string {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-function escapeHtmlSafe(value: string): string {
-  try {
-    return escapeHtml(value);
-  } catch {
-    return escapeHtmlNode(value);
-  }
 }
 
 /** The SAME emptiness test `hideWhenEmpty`'s top-level check (further below) and
@@ -78,29 +63,29 @@ function renderFieldValue(
       const stringValue = String(value);
       const suggested = field.suggestedValues?.find((entry) => entry.value === stringValue);
       if (suggested) {
-        return escapeHtmlSafe(strings.suggestedValueLabels[suggested.value] ?? suggested.label);
+        return escapeHtml(strings.suggestedValueLabels[suggested.value] ?? suggested.label);
       }
-      return escapeHtmlSafe(stringValue);
+      return escapeHtml(stringValue);
     }
 
     case 'longText': {
       const stringValue = String(value);
-      return `<pre style="white-space: pre-wrap; word-wrap: break-word;">${escapeHtmlSafe(stringValue)}</pre>`;
+      return `<pre style="white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(stringValue)}</pre>`;
     }
 
     case 'number': {
-      return escapeHtmlSafe(String(value));
+      return escapeHtml(String(value));
     }
 
     case 'money': {
       const currency = field.currencyField ? String(data[field.currencyField] ?? '') : field.currency;
       const amount = typeof value === 'number' ? value : Number(value);
       if (Number.isNaN(amount)) {
-        return escapeHtmlSafe(String(value));
+        return escapeHtml(String(value));
       }
       const decimals = decimalsFor(currency ?? '');
       const formatted = amount.toFixed(decimals);
-      return `${escapeHtmlSafe(formatted)} ${escapeHtmlSafe(currency ?? '')}`;
+      return `${escapeHtml(formatted)} ${escapeHtml(currency ?? '')}`;
     }
 
     case 'date': {
@@ -114,7 +99,7 @@ function renderFieldValue(
       // share link — so what renders here decides whether submitted data can run as script inside
       // the backend's own network. Escape first; there is no formatting to preserve, this returns
       // the stored string either way.
-      return escapeHtmlSafe(String(value));
+      return escapeHtml(String(value));
     }
 
     case 'boolean': {
@@ -123,16 +108,16 @@ function renderFieldValue(
 
     case 'select': {
       const option = field.options?.find((o) => o.value === String(value));
-      return escapeHtmlSafe(option?.label ?? String(value));
+      return escapeHtml(option?.label ?? String(value));
     }
 
     case 'reference': {
       // field.key -> referenceLabels lookup
       const label = referenceLabels[field.key];
       if (label) {
-        return escapeHtmlSafe(label);
+        return escapeHtml(label);
       }
-      return escapeHtmlSafe(String(value));
+      return escapeHtml(String(value));
     }
 
     case 'array': {
@@ -165,7 +150,7 @@ function renderFieldValue(
       // Header
       html += '<thead><tr style="border-bottom: 1px solid #ccc;">';
       for (const subField of subFields) {
-        html += `<th style="text-align: left; font-weight: bold;">${escapeHtmlSafe(lineColumnHeader(subField, strings))}</th>`;
+        html += `<th style="text-align: left; font-weight: bold;">${escapeHtml(lineColumnHeader(subField, strings))}</th>`;
       }
       html += '</tr></thead>';
       // Body
@@ -192,7 +177,7 @@ function renderFieldValue(
       }
       let html = '<ul style="margin: 8px 0 8px 20px;">';
       for (const id of ids) {
-        html += `<li>${escapeHtmlSafe(id)}</li>`;
+        html += `<li>${escapeHtml(id)}</li>`;
       }
       html += '</ul>';
       return html;
@@ -200,7 +185,7 @@ function renderFieldValue(
 
     default: {
       // Unknown kind — visible marker that never hides
-      return `[unrendered field kind &quot;${escapeHtmlSafe(field.kind)}&quot; for &quot;${escapeHtmlSafe(field.key)}&quot;]`;
+      return `[unrendered field kind &quot;${escapeHtml(field.kind)}&quot; for &quot;${escapeHtml(field.key)}&quot;]`;
     }
   }
 }
@@ -233,8 +218,8 @@ function renderTotalsRows(
     const netDisplay = formatMinor(totals.netMinor, currency);
     html += `
       <div class="totals-row">
-        <span>${escapeHtmlSafe(strings.net)}</span>
-        <span class="totals-amount">${escapeHtmlSafe(netDisplay)}</span>
+        <span>${escapeHtml(strings.net)}</span>
+        <span class="totals-amount">${escapeHtml(netDisplay)}</span>
       </div>
 `;
     for (const entry of totals.vatBreakdown) {
@@ -242,8 +227,8 @@ function renderTotalsRows(
       const vatDisplay = formatMinor(entry.vatMinor, currency);
       html += `
       <div class="totals-row">
-        <span>${escapeHtmlSafe(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
-        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
+        <span>${escapeHtml(strings.vatOn(entry.ratePercent.toString(), baseDisplay))}</span>
+        <span class="totals-amount">${escapeHtml(vatDisplay)}</span>
       </div>
 `;
     }
@@ -253,8 +238,8 @@ function renderTotalsRows(
   const grossLabel = totalLabelIncludesCommon ? strings.totalIncludingCommonLines : strings.total;
   html += `
       <div class="totals-row summary">
-        <span>${escapeHtmlSafe(grossLabel)}</span>
-        <span class="totals-amount">${escapeHtmlSafe(grossDisplay)}</span>
+        <span>${escapeHtml(grossLabel)}</span>
+        <span class="totals-amount">${escapeHtml(grossDisplay)}</span>
       </div>
 `;
 
@@ -263,7 +248,7 @@ function renderTotalsRows(
       <div class="warnings-section">
 `;
     for (const warning of totals.warnings) {
-      html += `        <div class="warning-item">${escapeHtmlSafe(formatServerMessage(warning))}</div>\n`;
+      html += `        <div class="warning-item">${escapeHtml(formatServerMessage(warning))}</div>\n`;
     }
     html += `      </div>\n`;
   }
@@ -291,8 +276,8 @@ function renderVatNationalCurrencyRows(
     const taxableDisplay = formatMinor(taxableMinor, currency);
     html += `
       <div class="totals-row totals-converted">
-        <span>${escapeHtmlSafe(strings.taxableInNationalCurrency(currency))}</span>
-        <span class="totals-amount">${escapeHtmlSafe(taxableDisplay)}</span>
+        <span>${escapeHtml(strings.taxableInNationalCurrency(currency))}</span>
+        <span class="totals-amount">${escapeHtml(taxableDisplay)}</span>
       </div>
 `;
   }
@@ -300,11 +285,11 @@ function renderVatNationalCurrencyRows(
   const vatDisplay = formatMinor(vatMinor, currency);
   html += `
       <div class="totals-row totals-converted">
-        <span>${escapeHtmlSafe(strings.vatInNationalCurrency(currency))}</span>
-        <span class="totals-amount">${escapeHtmlSafe(vatDisplay)}</span>
+        <span>${escapeHtml(strings.vatInNationalCurrency(currency))}</span>
+        <span class="totals-amount">${escapeHtml(vatDisplay)}</span>
       </div>
       <div class="totals-row totals-converted-rate">
-        <span class="totals-note">${escapeHtmlSafe(strings.exchangeRate(String(rate), rateAsOf))}</span>
+        <span class="totals-note">${escapeHtml(strings.exchangeRate(String(rate), rateAsOf))}</span>
       </div>
 `;
 
@@ -360,7 +345,7 @@ function renderOptionGroupsField(
         });
     // The common group is never "the accepted option" - it was never a choice to begin with.
     const isAccepted = !group.isCommon && optionGroups.acceptedOption === group.label;
-    const heading = group.isCommon ? strings.commonToAllOptionsHeading : escapeHtmlSafe(group.label);
+    const heading = group.isCommon ? strings.commonToAllOptionsHeading : escapeHtml(group.label);
     // Issue #373 follow-up ("no meaningless common total") - the common group prints its OWN lines
     // only, never a "Total" underneath them: that figure looked like a price the client could pay on
     // its own, when it is really only ever billed as part of whichever option is chosen. Each REAL
@@ -379,7 +364,7 @@ ${renderTotalsRows(group.totals, strings, hasCommonGroup)}
     <div class="option-group">
       <div class="option-group-heading" style="color: ${accentColor};">${heading}${
         isAccepted
-          ? `<span class="accepted-badge">(${escapeHtmlSafe(strings.acceptedOptionBadge)})</span>`
+          ? `<span class="accepted-badge">(${escapeHtml(strings.acceptedOptionBadge)})</span>`
           : ''
       }</div>
       <div class="field-value">${renderFieldValue(fieldWithoutGroupKey, groupRows, referenceLabels, documentData, strings, totalsBlock)}</div>
@@ -423,9 +408,9 @@ function renderPartyIdentifiers(
       const label = identifier.label ?? strings.identifierLabels[identifier.scheme] ?? identifier.scheme;
       const value =
         identifier.value === null
-          ? `<span class="identifier-missing">${escapeHtmlSafe(strings.identifierMissing)}</span>`
-          : escapeHtmlSafe(identifier.value);
-      return `<div><strong>${escapeHtmlSafe(label)}:</strong> ${value}</div>`;
+          ? `<span class="identifier-missing">${escapeHtml(strings.identifierMissing)}</span>`
+          : escapeHtml(identifier.value);
+      return `<div><strong>${escapeHtml(label)}:</strong> ${value}</div>`;
     })
     .join('');
   return `\n        <div class="party-identifiers">${lines}</div>`;
@@ -437,8 +422,8 @@ function renderCompanyLaw(lines: readonly CompanyLawLine[] | undefined, strings:
     .map((line) => {
       const parts = line.parts
         .map((part) => {
-          if ('text' in part) return escapeHtmlSafe(part.text);
-          const marker = escapeHtmlSafe(`${part.missing}: ${strings.identifierMissing}`);
+          if ('text' in part) return escapeHtml(part.text);
+          const marker = escapeHtml(`${part.missing}: ${strings.identifierMissing}`);
           return `<span class="identifier-missing">${marker}</span>`;
         })
         .join('');
@@ -452,7 +437,7 @@ function renderPartyAddress(party: PartyAddress): string {
   const locality = [party.postalCode, party.city].filter(Boolean).join(' ');
   return [party.address, party.addressLine2, locality, party.country]
     .filter(Boolean)
-    .map((line) => `<div>${escapeHtmlSafe(String(line))}</div>`)
+    .map((line) => `<div>${escapeHtml(String(line))}</div>`)
     .join('');
 }
 
@@ -695,7 +680,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
   const logoDataUri = input.branding?.logoDataUri || null;
   // Same "adds nothing at all when absent" discipline as `fontFaceStyleBlock` above — see this
   // block's own splice point in the header markup below.
-  const logoBlockHtml = logoDataUri ? `<img src="${escapeHtmlSafe(logoDataUri)}" alt="" class="logo">` : '';
+  const logoBlockHtml = logoDataUri ? `<img src="${escapeHtml(logoDataUri)}" alt="" class="logo">` : '';
   const recipient = input.recipient;
   const recipientLabel = recipient
     ? (descriptor.fields.find((field) => field.key === recipient.fieldKey)?.label ?? '')
@@ -706,7 +691,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${escapeHtmlSafe(descriptor.label)}</title>
+  <title>${escapeHtml(descriptor.label)}</title>
   <style>
     * {
       margin: 0;
@@ -1039,10 +1024,10 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     <div class="header">
       <div class="header-brand">${logoBlockHtml}</div>
       <div class="document-heading">
-        <div class="document-title">${escapeHtmlSafe(descriptor.label)}</div>
+        <div class="document-title">${escapeHtml(descriptor.label)}</div>
         ${
           descriptor.numbering
-            ? `<div class="document-number">${escapeHtmlSafe(
+            ? `<div class="document-number">${escapeHtml(
                 instance.displayNumber ??
                   // Shares `numberingDisplayState` with the frontend so the PDF and the screen never
                   // disagree on an unnumbered document.
@@ -1052,18 +1037,18 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
               )}</div>`
             : ''
         }
-        ${instance.atcud ? `<div class="document-atcud">${escapeHtmlSafe(instance.atcud)}</div>` : ''}
+        ${instance.atcud ? `<div class="document-atcud">${escapeHtml(instance.atcud)}</div>` : ''}
         <div class="document-meta">
           ${
             input.printStatus === false
               ? ''
-              : `<div><strong>${escapeHtmlSafe(strings.status)}:</strong> ${escapeHtmlSafe(instance.status)}</div>`
+              : `<div><strong>${escapeHtml(strings.status)}:</strong> ${escapeHtml(instance.status)}</div>`
           }
-          <div><strong>${escapeHtmlSafe(strings.date)}:</strong> ${escapeHtmlSafe(createdDate)}</div>${
+          <div><strong>${escapeHtml(strings.date)}:</strong> ${escapeHtml(createdDate)}</div>${
             input.correctedInvoice
               ? `\n          <div class="corrected-invoice">${strings.correctsInvoice(
-                  escapeHtmlSafe(input.correctedInvoice.displayNumber ?? strings.issuedWithoutNumber),
-                  escapeHtmlSafe(input.correctedInvoice.issueDate ?? '-'),
+                  escapeHtml(input.correctedInvoice.displayNumber ?? strings.issuedWithoutNumber),
+                  escapeHtml(input.correctedInvoice.issueDate ?? '-'),
                 )}</div>`
               : ''
           }
@@ -1073,14 +1058,14 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     <div class="parties">
       <div class="company-info">
         ${recipient ? '<div class="field-label party-label-spacer">&nbsp;</div>' : ''}
-        <div class="company-name">${escapeHtmlSafe(company.name)}</div>${renderCompanyLaw(company.companyLaw, strings)}
+        <div class="company-name">${escapeHtml(company.name)}</div>${renderCompanyLaw(company.companyLaw, strings)}
         <div class="company-address">${renderPartyAddress(company)}</div>${renderPartyIdentifiers(company.identifiers, strings)}
       </div>${
         recipient
           ? `
       <div class="recipient-info">
-        <div class="field-label">${escapeHtmlSafe(recipientLabel)}</div>
-        <div class="company-name">${escapeHtmlSafe(recipient.name)}</div>
+        <div class="field-label">${escapeHtml(recipientLabel)}</div>
+        <div class="company-name">${escapeHtml(recipient.name)}</div>
         <div class="company-address">${renderPartyAddress(recipient)}</div>${renderPartyIdentifiers(recipient.identifiers, strings)}
       </div>`
           : ''
@@ -1093,7 +1078,7 @@ export function renderDocumentHtml(input: RenderDocumentHtmlInput): string {
     input.totals && !input.optionGroups
       ? `
     <div class="totals-section">
-      <div class="totals-label">${escapeHtmlSafe(strings.totals)}</div>
+      <div class="totals-label">${escapeHtml(strings.totals)}</div>
 ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVatNationalCurrencyRows(input.vatNationalCurrency, strings) : ''}
     </div>
 `
@@ -1151,7 +1136,7 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
         : renderFieldValue(field, value, referenceLabels, instance.data, strings, tail);
     const renderRow = (tail?: string) => `
     <div class="field-row">
-      <div class="field-label">${escapeHtmlSafe(field.label)}</div>
+      <div class="field-label">${escapeHtml(field.label)}</div>
       <div class="field-value">${renderValue(tail)}</div>
     </div>
 `;
@@ -1162,7 +1147,7 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
     } else if (COMPACT_FIELD_KINDS.has(field.kind)) {
       compactItems.push(`
       <div class="meta-item">
-        <div class="field-label">${escapeHtmlSafe(field.label)}</div>
+        <div class="field-label">${escapeHtml(field.label)}</div>
         <div class="field-value">${renderValue()}</div>
       </div>`);
     } else if (field.kind === 'longText') {
@@ -1199,8 +1184,8 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
     // `src` is escaped so the attribute itself, not the caller, guarantees it cannot be closed early.
     html += `
     <div class="payment-qr-section">
-      <img class="payment-qr-image" src="${escapeHtmlSafe(input.paymentQr.dataUri)}" alt="SEPA payment QR code" width="130" height="130">
-      <div class="payment-qr-label">${escapeHtmlSafe(strings.scanToPaySepa)}</div>
+      <img class="payment-qr-image" src="${escapeHtml(input.paymentQr.dataUri)}" alt="SEPA payment QR code" width="130" height="130">
+      <div class="payment-qr-label">${escapeHtml(strings.scanToPaySepa)}</div>
     </div>
 `;
   }
@@ -1208,18 +1193,18 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
   if (paymentMethods.length > 0) {
     html += `
     <div class="payment-methods-section">
-      <div class="payment-methods-heading">${escapeHtmlSafe(strings.paymentMethodsHeading)}</div>
+      <div class="payment-methods-heading">${escapeHtml(strings.paymentMethodsHeading)}</div>
 `;
     for (const method of paymentMethods) {
       html += `
       <div class="payment-method-item">
-        <div class="payment-method-label">${escapeHtmlSafe(method.label)}</div>
+        <div class="payment-method-label">${escapeHtml(method.label)}</div>
 `;
       for (const line of method.lines) {
-        html += `        <div class="payment-method-line">${escapeHtmlSafe(line)}</div>\n`;
+        html += `        <div class="payment-method-line">${escapeHtml(line)}</div>\n`;
       }
       if (method.link) {
-        html += `        <div class="payment-method-link">${escapeHtmlSafe(method.link)}</div>\n`;
+        html += `        <div class="payment-method-link">${escapeHtml(method.link)}</div>\n`;
       }
       html += `      </div>\n`;
     }
@@ -1237,7 +1222,7 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
     <div class="legal-mentions">
 `;
     for (const mention of input.legalMentions) {
-      html += `      <div class="legal-mention-item">${escapeHtmlSafe(mention.text)}</div>\n`;
+      html += `      <div class="legal-mention-item">${escapeHtml(mention.text)}</div>\n`;
     }
     html += `    </div>\n`;
   }
@@ -1246,7 +1231,7 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
   if (input.customFields && input.customFields.length > 0) {
     html += `
     <div class="custom-fields-section">
-      <div class="custom-fields-heading">${escapeHtmlSafe(strings.customFieldsHeading)}</div>
+      <div class="custom-fields-heading">${escapeHtml(strings.customFieldsHeading)}</div>
 `;
     for (const entry of input.customFields) {
       const renderedValue = renderFieldValue(
@@ -1258,7 +1243,7 @@ ${renderTotalsRows(input.totals, strings)}${input.vatNationalCurrency ? renderVa
       );
       html += `
       <div class="custom-field-item">
-        <span class="custom-field-label">${escapeHtmlSafe(entry.field.label)}</span>
+        <span class="custom-field-label">${escapeHtml(entry.field.label)}</span>
         <span>${renderedValue}</span>
       </div>
 `;

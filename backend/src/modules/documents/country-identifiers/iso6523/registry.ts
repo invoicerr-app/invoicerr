@@ -38,7 +38,7 @@ export class InvalidIso6523ReferenceError extends Error {}
 
 const CONTEXT = 'documents/country-identifiers/iso6523/legal-id-reference.json';
 
-export function assertValidIso6523Reference(
+function assertValidIso6523Reference(
   file: Iso6523ReferenceFile,
   catalog: CountryIdentifierRequirementsCatalog,
 ): void {

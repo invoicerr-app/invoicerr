@@ -20,6 +20,12 @@ import { documentLanguageForCountry } from "@/lib/reference/countries"
 import { DatePicker } from "@/components/date-picker"
 import { fromCalendarDate, toCalendarDateInstant } from "@/lib/calendar-date"
 import { applyAddressSuggestion } from "@/lib/apply-address-suggestion"
+import {
+  DEFAULT_PEPPOL_SCHEME_ID,
+  peppolEndpointIdentifier,
+  splitPeppolEndpoint,
+  withoutPeppolEndpoint,
+} from "@/lib/peppol-endpoint"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -97,10 +103,7 @@ function buildClientPayload(data: {
   [key: string]: unknown
 }) {
   // Merge Peppol endpoint into identifiers (stored as PEPPOL_ENDPOINT party identifier)
-  const peppolEntry =
-    data.peppolSchemeId && data.peppolEndpointId?.trim()
-      ? { scheme: "PEPPOL_ENDPOINT", value: `${data.peppolSchemeId}:${data.peppolEndpointId.trim()}` }
-      : null
+  const peppolEntry = peppolEndpointIdentifier(data.peppolSchemeId, data.peppolEndpointId)
   const { peppolSchemeId: _ps, peppolEndpointId: _pe, ...dataWithoutPeppol } = data
 
   // The Identity section's contactFirstname/contactLastname are authoritative for an INDIVIDUAL client's
@@ -600,7 +603,7 @@ function FiscalStep({
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("clients.upsert.fields.peppolSchemeId.label") || "Peppol scheme"}</FormLabel>
-              <Select value={field.value || "0088"} onValueChange={field.onChange}>
+              <Select value={field.value || DEFAULT_PEPPOL_SCHEME_ID} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger data-cy="client-peppol-scheme-select">
                     <SelectValue />
@@ -1343,7 +1346,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       countryCode: "",
       language: null,
       identifiers: [],
-      peppolSchemeId: "0088",
+      peppolSchemeId: DEFAULT_PEPPOL_SCHEME_ID,
       peppolEndpointId: "",
       customFields: {},
     },
@@ -1370,11 +1373,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
     setLanguageAutoFilled(false)
     if (isEditing && client) {
       // Parse Peppol endpoint from partyIdentifiers (format: 'schemeId:value')
-      const peppolEntry = (client.partyIdentifiers || []).find((pi) => pi.scheme === "PEPPOL_ENDPOINT")
-      const peppolRaw: string = peppolEntry?.value || ""
-      const colonIdx = peppolRaw.indexOf(":")
-      const parsedPeppolSchemeId = colonIdx >= 0 ? peppolRaw.slice(0, colonIdx) : "0088"
-      const parsedPeppolEndpointId = colonIdx >= 0 ? peppolRaw.slice(colonIdx + 1) : ""
+      const peppol = splitPeppolEndpoint(client.partyIdentifiers || [])
       form.reset({
         type: client.type || "COMPANY",
         kind: client.kind || "BUSINESS",
@@ -1421,11 +1420,12 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
         country: client.country || "",
         countryCode: client.countryCode || "",
         language: client.language ?? null,
-        identifiers: (client.partyIdentifiers || [])
-          .filter((pi) => pi.scheme !== "PEPPOL_ENDPOINT")
-          .map((pi) => ({ scheme: pi.scheme, value: pi.value })),
-        peppolSchemeId: parsedPeppolSchemeId,
-        peppolEndpointId: parsedPeppolEndpointId,
+        identifiers: withoutPeppolEndpoint(client.partyIdentifiers || []).map((pi) => ({
+          scheme: pi.scheme,
+          value: pi.value,
+        })),
+        peppolSchemeId: peppol.schemeId,
+        peppolEndpointId: peppol.endpointId,
         customFields: client.customFields ?? {},
       })
     } else if (!isEditing) {
@@ -1451,7 +1451,7 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
         countryCode: "",
         language: null,
         identifiers: [],
-        peppolSchemeId: "0088",
+        peppolSchemeId: DEFAULT_PEPPOL_SCHEME_ID,
         peppolEndpointId: "",
         customFields: {},
       })
@@ -1461,18 +1461,10 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
   const {
     lookup: onCompanyLookup,
     isLoading: companyLookupLoading,
-    isAvailable: canLookupCompany,
-    schemes: lookupSchemes,
     identifierLabel: lookupIdentifierLabel,
+    canLookupScheme,
   } = useCompanyLookup(form, {
     countryCode: form.watch("countryCode"),
-    messages: {
-      invalid: t("clients.upsert.messages.lookupInvalid"),
-      notFound: t("clients.upsert.messages.lookupNotFound"),
-      success: t("clients.upsert.messages.lookupSuccess"),
-      error: t("clients.upsert.messages.lookupError"),
-      unavailable: t("clients.upsert.messages.lookupUnavailable"),
-    },
   })
   const countryCodeValue = form.watch("countryCode")
 
@@ -1572,9 +1564,6 @@ export function ClientUpsert({ client, open, onOpenChange, onCreate, quick }: Re
       form.setValue("identifiers", next)
     }
   }, [requiredIdentifiers, form])
-
-  // The backend owns the per-country format rules; the button only needs a value.
-  const canLookupScheme = (scheme: string) => canLookupCompany && lookupSchemes.includes(scheme as never)
 
   const onSubmit = (data: z.infer<typeof clientSchema>) => {
     const trigger = isEditing ? updateClient : createClient

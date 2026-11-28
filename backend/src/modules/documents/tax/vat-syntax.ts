@@ -206,7 +206,7 @@ function cifControlDigit(digits: string): number {
   return (10 - ((sumOdd + sumEven) % 10)) % 10;
 }
 
-export function validateEsVat(value: string): IdentifierValidationResult {
+function validateEsVat(value: string): IdentifierValidationResult {
   const clean = value.replace(/[\s-]/g, '').toUpperCase();
   if (!/^ES[A-Z0-9]{9}$/.test(clean)) {
     return {

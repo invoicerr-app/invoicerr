@@ -3,7 +3,8 @@
  * ksef.live.spec.ts` already is (`KSEF_LIVE=1` + `KSEF_AUTH_TOKEN`, `live-gate.ts`), run the same way:
  *
  *   cd backend && set -a; . .env.test.local; set +a
- *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> npx jest ksef-status-poller.live --no-coverage --runInBand
+ *   KSEF_LIVE=1 KSEF_AUTH_TOKEN=<token> KSEF_NIP=<nip> \
+ *     npx vitest run src/modules/documents/conformity/pollers/ksef-status-poller.live.spec.ts
  *
  * **THESE CREDENTIALS ARE ABSENT TODAY** — same gap `transports/ksef/ksef.live.spec.ts`'s own header
  * already documents: no `KSEF_AUTH_TOKEN`/`KSEF_NIP` exist in this checkout or in CI secrets.

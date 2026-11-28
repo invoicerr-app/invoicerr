@@ -664,14 +664,8 @@ export class DocumentsService implements OnModuleInit {
     // rather than thrown, the same defensive posture data-integrity.spec.ts-style checks exist to
     // catch at TEST time instead (see country-policy/data/all.spec.ts's own cross-check).
     const types = decision.typeIds
-      .map((id) => {
-        try {
-          return this.typeRegistry.resolve(id);
-        } catch {
-          return undefined;
-        }
-      })
-      .filter((descriptor): descriptor is DocumentTypeDescriptor => !!descriptor)
+      .filter((id) => this.typeRegistry.has(id))
+      .map((id) => this.typeRegistry.resolve(id))
       .map(({ id, label, icon }) => ({ id, label, icon }));
 
     return { types };

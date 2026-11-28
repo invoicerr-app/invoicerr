@@ -19,7 +19,7 @@ import { DocumentEventsPublisher } from './document-events-publisher';
 import { DocumentQueueDispatcher } from './document-queue.dispatcher';
 import { Q_DOCUMENT_ACTION } from './queue.constants';
 import { ReceivedInvoiceOcrDispatcher } from './received-invoice-ocr.dispatcher';
-import { redisConnection } from './redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 import { DocumentQueueRedisRequiredGuard } from './redis-required.guard';
 
 @Global()

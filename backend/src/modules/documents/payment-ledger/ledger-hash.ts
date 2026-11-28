@@ -83,7 +83,7 @@ export function canonicalPayment(input: PaymentHashInput): string {
   ]);
 }
 
-export function canonicalClosure(input: ClosureHashInput): string {
+function canonicalClosure(input: ClosureHashInput): string {
   return JSON.stringify([
     'closure',
     PAYMENT_LEDGER_HASH_VERSION,
