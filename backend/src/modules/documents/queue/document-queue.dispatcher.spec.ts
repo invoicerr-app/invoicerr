@@ -240,56 +240,19 @@ describe('DocumentQueueDispatcher.registerSweepRepeatables', () => {
     return queue.add.mock.calls.filter(([name]) => name === jobName);
   }
 
-  it('registers the ONE schedule sweep job as a repeatable, under its fixed singleton jobId', async () => {
+  // Daily by default for the storage-erasure sweep - a statutory retention boundary is measured in
+  // years, so this is already far finer resolution than the obligation it discharges has.
+  it.each([
+    ['document-schedule-sweep', expect.any(Number)],
+    ['log-purge-sweep', expect.any(Number)],
+    ['storage-erasure-sweep', 24 * 60 * 60 * 1000],
+  ])('registers the ONE %s job as a repeatable, under its singleton jobId', async (jobName, every) => {
     const queue = fakeQueueWithSchedulers();
 
     await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
 
-    expect(addCallsFor(queue, 'document-schedule-sweep')).toEqual([
-      [
-        'document-schedule-sweep',
-        {},
-        expect.objectContaining({
-          jobId: 'document-schedule-sweep-singleton',
-          repeat: { every: expect.any(Number) },
-        }),
-      ],
-    ]);
-  });
-
-  it('registers the ONE Log-purge sweep job as a repeatable, under its fixed singleton jobId', async () => {
-    const queue = fakeQueueWithSchedulers();
-
-    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
-
-    expect(addCallsFor(queue, 'log-purge-sweep')).toEqual([
-      [
-        'log-purge-sweep',
-        {},
-        expect.objectContaining({
-          jobId: 'log-purge-sweep-singleton',
-          repeat: { every: expect.any(Number) },
-        }),
-      ],
-    ]);
-  });
-
-  it('registers the ONE storage-erasure sweep job as a repeatable, under its fixed singleton jobId', async () => {
-    const queue = fakeQueueWithSchedulers();
-
-    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
-
-    expect(addCallsFor(queue, 'storage-erasure-sweep')).toEqual([
-      [
-        'storage-erasure-sweep',
-        {},
-        expect.objectContaining({
-          jobId: 'storage-erasure-sweep-singleton',
-          // Daily by default - a statutory retention boundary is measured in years, so this is already
-          // far finer resolution than the obligation it discharges has.
-          repeat: { every: 24 * 60 * 60 * 1000 },
-        }),
-      ],
+    expect(addCallsFor(queue, jobName)).toEqual([
+      [jobName, {}, expect.objectContaining({ jobId: `${jobName}-singleton`, repeat: { every } })],
     ]);
   });
 

@@ -363,9 +363,7 @@ ${renderTotalsRows(group.totals, strings, hasCommonGroup)}
     html += `
     <div class="option-group">
       <div class="option-group-heading" style="color: ${accentColor};">${heading}${
-        isAccepted
-          ? `<span class="accepted-badge">(${escapeHtml(strings.acceptedOptionBadge)})</span>`
-          : ''
+        isAccepted ? `<span class="accepted-badge">(${escapeHtml(strings.acceptedOptionBadge)})</span>` : ''
       }</div>
       <div class="field-value">${renderFieldValue(fieldWithoutGroupKey, groupRows, referenceLabels, documentData, strings, totalsBlock)}</div>
     </div>
