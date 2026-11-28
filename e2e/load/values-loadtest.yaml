@@ -10,7 +10,7 @@ image:
 api:
   replicaCount: 1
   service:
-    # A Scaleway LB in front of the api pod, so k6 runs from outside the node without routing
+    # A cloud load balancer in front of the api pod, so k6 runs from outside the node without routing
     # every request through the Kubernetes API server (kubectl port-forward).
     type: LoadBalancer
 worker:
@@ -40,7 +40,7 @@ documents:
 
 postgresql:
   enabled: true
-  # Off, as for Redis below: on Scaleway block storage the chart's bundled Postgres mounts the volume
+  # Off, as for Redis below: on cloud block storage the chart's bundled Postgres mounts the volume
   # root as PGDATA and initdb refuses its lost+found; bundled Redis (bitnami, non-root) cannot write
   # to a root-owned volume because the chart sets no fsGroup. Both only ever ran on kind. A
   # throwaway run does not need either to survive a restart.

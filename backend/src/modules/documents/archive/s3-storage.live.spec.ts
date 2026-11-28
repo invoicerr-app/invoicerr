@@ -153,7 +153,7 @@ describeLive('archive/s3-storage — real round-trip against a real MinIO contai
 
     // The AWS SDK itself creates the bucket — no `mc` CLI dependency, and no code under test yet
     // (persistArtifacts never creates its own bucket — an operator provisions it up front, exactly
-    // like they would for a real S3/Scaleway deployment).
+    // like they would for a real S3 deployment).
     const bootstrapClient = new S3Client({
       region: 'us-east-1',
       endpoint: minioUrl,

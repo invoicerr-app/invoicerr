@@ -6,7 +6,7 @@ two), same chart, same k6 scenario, 50 virtual users for five minutes each. A vi
 without a pause — roughly one invoice every 2.5 s — so read the invoices/5 min column against your
 own expected volume, never the virtual-user count.
 
-Prices are Scaleway's own public API, monthly, excluding VAT. Every cluster was created for the run
+Prices are the cloud provider's own public list prices at the time, monthly, excluding VAT. Every cluster was created for the run
 and destroyed after it.
 
 | Run | €/month | Invoices / 5 min | p95 PDF | p95 scan wait | peak CPU | peak RAM | 429 | lost work |
@@ -57,7 +57,7 @@ Postgres and Redis still live on one node, so the extra machines mostly add netw
 
 ### Losing a node costs throughput, not data
 
-T4 killed one of two nodes in the middle of the run. Throughput fell while Scaleway reprovisioned,
+T4 killed one of two nodes in the middle of the run. Throughput fell while the provider reprovisioned,
 **and not one invoice was lost**. Redundancy buys continuity of service, not correctness.
 
 ### Autoscaling does not answer this workload
@@ -92,8 +92,8 @@ node still takes minutes to join, so it answers a daily curve, never a three-min
 
 - **Multi-node requires object storage.** With `archive.storage=local` or
   `documents.inbound.storage=local`, the documents PVC is ReadWriteOnce: a pod scheduled on a second
-  node never starts (`FailedAttachVolume`). T4 and T7 only ran once both stores pointed at Scaleway
-  Object Storage. This is in the chart's own comments, and it is now measured.
+  node never starts (`FailedAttachVolume`). T4 and T7 only ran once both stores pointed at S3
+  object storage. This is in the chart's own comments, and it is now measured.
 - **Image pull dominates a new node's first minutes.** The application image is 1.9 GB and the
   kubelet pulls serially, so a node added to a pool needs several minutes before it serves anything
   — the same delay that makes autoscaling useless against a burst.
@@ -104,7 +104,7 @@ node still takes minutes to join, so it answers a daily curve, never a three-min
 # Earlier campaign — 22 September 2026
 
 
-Measured on throwaway Scaleway Kapsule clusters (Paris, mutualized control plane), one node each,
+Measured on throwaway managed Kubernetes clusters (Paris, mutualized control plane), one node each,
 image `ghcr.io/invoicerr-app/invoicerr:v2.0.0-alpha.1` pinned by digest
 (`sha256:0dcf8588…`), chart `deploy/helm/invoicerr` with its bundled Postgres and Redis, 1 api pod
 and 3 worker pods — the beta's own shape. k6 ran from a laptop outside the cluster. Mail went to an

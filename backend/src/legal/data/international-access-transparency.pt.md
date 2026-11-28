@@ -24,11 +24,11 @@ exclusivamente em **França**, distribuída por dois ambientes:
 
 | Ambiente | Componente | Fornecedor | Jurisdição |
 | --- | --- | --- | --- |
-| Produção | Infraestrutura aplicacional/Kubernetes, base de dados PostgreSQL gerida e armazenamento de objetos dos documentos | Scaleway SAS | França (região de Paris) |
+| Produção | Infraestrutura aplicacional/Kubernetes, base de dados PostgreSQL gerida e armazenamento de objetos dos documentos | OVH SAS | França (região de Paris) |
 | Aceitação | Infraestrutura aplicacional, base de dados e armazenamento de documentos — utilizados para validar uma versão antes de esta chegar à produção e, durante o programa beta, pelos participantes desse programa | O próprio Prestador — sem fornecedor terceiro | França |
 
 A linha "Produção" está junto de um único fornecedor, numa única região, acedido através da rede
-privada própria da Scaleway e não através da internet pública — a base de dados deixou de ser um elo
+privada própria da OVHcloud e não através da internet pública - a base de dados deixou de ser um elo
 separado junto de outro fornecedor ou noutro país. A linha "Aceitação" não tem, em sentido próprio,
 nenhum fornecedor: funciona numa infraestrutura que o Prestador opera diretamente, em França, pelo que
 não existe nessa cadeia nenhum terceiro a quem uma autoridade estrangeira possa notificar um pedido —

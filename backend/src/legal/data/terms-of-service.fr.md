@@ -313,7 +313,7 @@ décrite à la Section 13.3.
 ## 14. Hébergement et Sous-traitants
 
 14.1. **Le Service et les Données Client sont hébergés au sein de l'Union européenne, en France.**
-L'environnement de production fonctionne avec **Scaleway SAS** (infrastructure Kubernetes, base de
+L'environnement de production fonctionne avec **OVH SAS** (infrastructure Kubernetes, base de
 données PostgreSQL managée et stockage objet des documents — région de Paris, France). Avant qu'une
 version n'atteigne la production, et pendant le programme bêta, pour les participants à ce programme,
 le Service fonctionne à la place sur un environnement de recette distinct que nous exploitons
@@ -324,9 +324,9 @@ retiré.
 
 14.2. Nous recourons aux sous-traitants suivants dans le cadre du Service :
 
-   - **Scaleway SAS** — infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet
+   - **OVH SAS** - infrastructure Kubernetes, base de données PostgreSQL managée et stockage objet
      pour l'**environnement de production** du Service et ses documents archivés (région de Paris,
-     France), la base de données étant accessible via le réseau privé propre de Scaleway plutôt que par
+     France), la base de données étant accessible via le réseau privé propre d'OVHcloud plutôt que par
      l'internet public.
    - **Polar Software, Inc.** : vendeur de votre abonnement en qualité de *merchant of record*,
      traitement des paiements et facturation (Section 7).

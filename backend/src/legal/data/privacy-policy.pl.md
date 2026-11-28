@@ -107,19 +107,19 @@ przetwarzającym, z których każdy związany jest własnymi warunkami przetwarz
   wysyłana na adres **contact@invoicerr.app** oraz kopia każdego wpisu na listę oczekujących opisana
   w sekcji 3 (wyłącznie korespondencja; Google nigdy nie widzi danych zawartych w dokumentach
   tworzonych przez Ciebie za pośrednictwem Usługi).
-- **Scaleway SAS** — hosting infrastruktury **środowiska produkcyjnego** Usługi: klaster Kubernetes, na
+- **OVH SAS** - hosting infrastruktury **środowiska produkcyjnego** Usługi: klaster Kubernetes, na
   którym działa, zarządzana baza danych PostgreSQL przechowująca dane Firmy i konta opisane w sekcji 3
   oraz dokumenty tworzone przez Ciebie za pośrednictwem Usługi, oraz magazyn obiektowy przechowujący
   zarchiwizowane dokumenty. **Usługa oraz Dane Klienta, w tym baza danych, są hostowane w Unii
-  Europejskiej**, w regionie Scaleway w Paryżu (Francja), przy czym baza danych jest dostępna poprzez
-  własną sieć prywatną Scaleway, a nie poprzez publiczny internet.
+  Europejskiej**, w regionie OVHcloud w Paryżu (Francja), przy czym baza danych jest dostępna poprzez
+  własną sieć prywatną OVHcloud, a nie poprzez publiczny internet.
 
 **Środowisko akceptacyjne wykorzystywane na potrzeby programu beta.** Zanim dana wersja trafi do
 opisanej powyżej infrastruktury produkcyjnej, weryfikujemy ją w odrębnym środowisku akceptacyjnym, które
 Dostawca prowadzi samodzielnie, na własnej infrastrukturze, we Francji — nie hostuje go żaden podmiot
 trzeci, dlatego nie figuruje ono powyżej jako dalszy podmiot przetwarzający. Podczas programu beta
 uczestnicy programu korzystają z Usługi w tym środowisku akceptacyjnym zamiast w infrastrukturze
-produkcyjnej Scaleway, a ich Dane Klienta — w tym rzeczywiste faktury, rzeczywiści klienci i inne
+produkcyjnej OVHcloud, a ich Dane Klienta - w tym rzeczywiste faktury, rzeczywiści klienci i inne
 rzeczywiste dokumenty biznesowe — są tam przechowywane. Gdy środowisko akceptacyjne wykorzystywane na
 potrzeby programu beta zostanie wycofane, dane te zostają przeniesione do opisanej powyżej
 infrastruktury produkcyjnej.
@@ -145,7 +145,7 @@ przypadku przekazanie danych opiera się na odpowiednich zabezpieczeniach stosow
 dostawcę zgodnie z rozdziałem V RODO (takich jak standardowe klauzule umowne Komisji Europejskiej).
 Niniejsza sekcja stanowi ogólne oświadczenie, a nie zapewnienie dotyczące aktualnej certyfikacji
 konkretnego dostawcy — aby poznać mechanizm, na którym dany dostawca opiera się obecnie, napisz na
-adres contact@invoicerr.app. **Scaleway SAS nie znajduje się na tej liście**: jest to francuska spółka,
+adres contact@invoicerr.app. **OVH SAS nie znajduje się na tej liście**: jest to francuska spółka,
 która hostuje zarządzaną bazę danych PostgreSQL Firmy, oprócz infrastruktury Kubernetes i magazynu
 obiektowego opisanych już w sekcji 4, w całości w swoim regionie w Paryżu (Francja) — żadne ogniwo
 łańcucha przechowującego tworzone przez Ciebie dokumenty ani dane konta i bazy danych Twojej Firmy nie
@@ -262,9 +262,9 @@ zgody.
 
 ## 10. Strony internetowe, które prowadzimy
 
-Sama Usługa działa pod adresem **my.invoicerr.app**, hostowanym przez Scaleway zgodnie z opisem w
+Sama Usługa działa pod adresem **my.invoicerr.app**, hostowanym przez OVHcloud zgodnie z opisem w
 sekcji 4. Do czasu uruchomienia wersji hostowanej pod tym adresem wyświetlana jest strona listy
-oczekujących opisana w sekcji 3, serwowana przez Cloudflare, a nie przez Scaleway.
+oczekujących opisana w sekcji 3, serwowana przez Cloudflare, a nie przez OVHcloud.
 Niezależnie od Usługi publikujemy dwie publiczne, statyczne strony internetowe, obie
 obsługiwane przez **GitHub Pages** — usługę hostingową prowadzoną przez **GitHub, Inc.**, 88 Colin
 P. Kelly Jr. Street, San Francisco, CA 94107, USA, spółkę zależną w całości należącą do Microsoft
