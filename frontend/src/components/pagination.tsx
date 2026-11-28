@@ -22,7 +22,7 @@ export default function BetterPagination({ pageCount, page, setPage }: BetterPag
           <PaginationPrevious href="#" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} />
         </PaginationItem>
 
-        {pageCount &&
+        {pageCount > 0 &&
           (() => {
             const items = []
             const total = pageCount

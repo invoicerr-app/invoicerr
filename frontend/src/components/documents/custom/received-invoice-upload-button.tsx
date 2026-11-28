@@ -227,9 +227,9 @@ function ReceivedInvoiceUploadButton({ descriptor }: DocumentCustomSlotProps) {
             <DialogTitle>{t("documents.custom.receivedInvoiceUpload.title")}</DialogTitle>
           </DialogHeader>
 
-          {/* A drag/drop zone is inherently a plain container with drag handlers — the file input
-              right below it is the real, keyboard-reachable control (clicking this zone just
-              forwards to it). */}
+          {/* A drag/drop zone is a plain container with drag handlers; the "Browse" button inside
+              it is the real keyboard-reachable control (clicking the zone forwards to the hidden
+              file input). */}
           <div
             className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-10 text-center transition-colors ${
               dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25"
