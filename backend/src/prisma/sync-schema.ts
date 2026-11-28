@@ -23,7 +23,7 @@ import { seedCountryIdentifierRequirements } from '../modules/documents/country-
  *
  * This list is frozen. Never add to it — new migrations should just run.
  */
-const V1_4_4A_BASELINE_MIGRATIONS = [
+export const V1_4_4A_BASELINE_MIGRATIONS = [
   '20250906170944_initial_migration',
   '20250927133908_make_contact_names_optionals',
   '20251005123952_',

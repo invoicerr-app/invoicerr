@@ -374,6 +374,13 @@ jobs:
           MIGRATION_FRESH_TESTS: '1'
         run: cd backend && ./node_modules/.bin/vitest run prisma/migration-fresh-schema.spec.ts
 
+      # The real boot-time schema sync (src/prisma/sync-schema.ts) on throwaway databases: empty,
+      # legacy v1.4.4a without history, and v1.4.4a re-pushed under a history that claims more.
+      - name: Run boot-time schema sync against real Postgres states
+        env:
+          MIGRATION_FRESH_TESTS: '1'
+        run: cd backend && ./node_modules/.bin/vitest run prisma/sync-schema-real-postgres.spec.ts
+
       # #415 ("several contacts per client") data-preservation tripwire: applies every migration
       # BEFORE `client_contacts` on its own disposable database, inserts realistic pre-existing
       # client rows, then applies that one migration and asserts every value survived exactly. Same
