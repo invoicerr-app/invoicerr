@@ -11,6 +11,8 @@ import { createApp } from './create-app';
 import { insecureAppUrlWarning } from './lib/app-url-scheme';
 import { redactLogValue } from './logger/redaction';
 import { initErrorTracking, reportBootFailure } from './error-tracking/error-tracking';
+import { initFieldEncryption } from './lib/field-encryption/boot';
+import { countStoredCiphertext } from './lib/field-encryption/ciphertext-probe';
 
 async function bootstrap() {
   initErrorTracking('api');
@@ -37,6 +39,8 @@ async function bootstrap() {
       process.exit(1);
     }
   }
+
+  await initFieldEncryption({ countCiphertext: countStoredCiphertext, log: new Logger('FieldEncryption') });
 
   const app = await createApp();
 

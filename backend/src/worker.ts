@@ -1,6 +1,7 @@
 import './observability/register-tracing';
 import * as http from 'node:http';
 
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { logPersistenceHealth } from './logger/log-persistence-health';
@@ -11,6 +12,8 @@ import { renderMetrics, startDefaultMetrics } from './observability/metrics';
 import { resolveMetricsConfig } from './observability/observability-config';
 import { SERVICE_NAME } from './observability/service-name';
 import { initErrorTracking, reportBootFailure } from './error-tracking/error-tracking';
+import { initFieldEncryption } from './lib/field-encryption/boot';
+import { countStoredCiphertext } from './lib/field-encryption/ciphertext-probe';
 
 /**
  * Bootstrap for the dedicated document-action queue worker process (ROLE=worker).
@@ -34,6 +37,7 @@ import { initErrorTracking, reportBootFailure } from './error-tracking/error-tra
  */
 async function bootstrap() {
   initErrorTracking('worker');
+  await initFieldEncryption({ countCiphertext: countStoredCiphertext, log: new Logger('FieldEncryption') });
   const app = await NestFactory.createApplicationContext(WorkerModule);
   // Same redaction as the API process: the worker prints the same kind of provider/document payloads.
   app.useLogger(new RedactingConsoleLogger());
