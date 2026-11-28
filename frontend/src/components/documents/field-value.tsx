@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { decimalsFor } from "@/components/documents/totals-calculator"
 import {
   isMultiTargetReference,
   type DocumentFieldDescriptor,
@@ -114,11 +115,15 @@ export function DocumentFieldValue({ field, value, data }: DocumentFieldValuePro
         ? (data?.[field.currencyField] as string | undefined)
         : field.currency
       const amount = typeof value === "number" ? value : Number(value)
+      // The currency's own minor-unit count (0 for JPY, 3 for KWD), the same rule formatMinor and
+      // short-list-widget.tsx apply. The stored value is a major-unit amount (MoneyField saves the
+      // number as typed), so only the decimal count follows the currency; decimalsFor falls back to 2.
+      const decimals = decimalsFor(currency ?? "")
       return (
         <span>
           {Number.isNaN(amount)
             ? String(value)
-            : t("common.valueWithCurrency", { amount: amount.toFixed(2), currency: currency ?? "" })}
+            : t("common.valueWithCurrency", { amount: amount.toFixed(decimals), currency: currency ?? "" })}
         </span>
       )
     }
