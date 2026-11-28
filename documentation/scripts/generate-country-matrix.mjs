@@ -1176,7 +1176,7 @@ function plainTypeArticled(typeId, locale) {
   return DOC_TYPE_ARTICLED_PLAIN_LABELS[locale][typeId] ?? `[${typeId}]`;
 }
 function plainTypesList(typeIds, locale) {
-  return typeIds.map((t) => DOC_TYPE_PLURAL_PLAIN_LABELS[locale][t] ?? `[${t}]`).join(locale === 'fr' ? ', ' : ', ');
+  return typeIds.map((t) => DOC_TYPE_PLURAL_PLAIN_LABELS[locale][t] ?? `[${t}]`).join(', ');
 }
 function plainStatusLabel(statusId, locale) {
   return STATUS_PLAIN_LABELS[locale][statusId] ?? statusId;
