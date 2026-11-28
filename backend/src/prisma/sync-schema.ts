@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process';
+import { execFileSync, type ExecFileSyncOptions } from 'child_process';
 import { join } from 'path';
 
 import prisma from './prisma.service';
@@ -79,12 +79,17 @@ function directDatabaseUrlEnv(): NodeJS.ProcessEnv {
   return { ...process.env, DATABASE_URL: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL };
 }
 
+/** Every Prisma CLI call of this file goes through here. */
+function execPrisma(args: string[], options: ExecFileSyncOptions): void {
+  execFileSync('npx', ['prisma', ...args], options); // NOSONAR - runs in the backend image, whose PATH the Dockerfile fixes
+}
+
 function runPrisma(args: string[]): void {
   // `prisma.config.ts`'s `migrations.path` is resolved relative to the
   // subprocess's cwd, not to --schema — run from the backend root (where
   // prisma/migrations is a real sibling of prisma/schema.prisma) so it
   // resolves correctly regardless of where the parent process started.
-  execFileSync('npx', ['prisma', ...args, '--schema', SCHEMA_PATH], {
+  execPrisma([...args, '--schema', SCHEMA_PATH], {
     stdio: 'inherit',
     cwd: BACKEND_ROOT,
     env: directDatabaseUrlEnv(),
@@ -120,17 +125,8 @@ type LiveSchemaComparison = 'identical-to-v1.4.4a' | 'beyond-v1.4.4a' | 'undeter
  */
 function compareLiveSchemaToV1_4_4a(): LiveSchemaComparison {
   try {
-    execFileSync(
-      'npx',
-      [
-        'prisma',
-        'migrate',
-        'diff',
-        '--from-config-datasource',
-        '--to-schema',
-        V1_4_4A_SCHEMA_PATH,
-        '--exit-code',
-      ],
+    execPrisma(
+      ['migrate', 'diff', '--from-config-datasource', '--to-schema', V1_4_4A_SCHEMA_PATH, '--exit-code'],
       { stdio: ['ignore', 'pipe', 'pipe'], cwd: BACKEND_ROOT, env: directDatabaseUrlEnv() },
     );
     return 'identical-to-v1.4.4a';
@@ -345,7 +341,7 @@ async function baselineIfNeeded(): Promise<void> {
   console.log(
     '[sync-schema] Legacy db-push instance detected — leveling schema up to v1.4.4a before baselining.',
   );
-  execFileSync('npx', ['prisma', 'db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH], {
+  execPrisma(['db', 'push', '--accept-data-loss', '--schema', V1_4_4A_SCHEMA_PATH], {
     stdio: 'inherit',
     cwd: BACKEND_ROOT,
     env: directDatabaseUrlEnv(),

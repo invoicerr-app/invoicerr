@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WT="${E2E_WORKTREE:-/tmp/invoicerr-e2e-worktree}"
 DB="${E2E_DB:-invoicerr_e2e_wt}"
-DB_URL="postgresql://invoicerr:invoicerr@localhost:5433/${DB}"
+DB_URL="postgresql://invoicerr:${E2E_DB_PASSWORD:-invoicerr}@localhost:5433/${DB}"
 
 echo "→ frozen checkout at ${WT} (HEAD: $(git -C "$ROOT" rev-parse --short HEAD))"
 git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null || true
@@ -45,7 +45,7 @@ done
 echo "→ database ${DB}"
 docker exec invoicerr-postgres psql -U invoicerr -d postgres \
   -c "DROP DATABASE IF EXISTS \"${DB}\";" -c "CREATE DATABASE \"${DB}\";" >/dev/null
-(cd "$WT/backend" && DATABASE_URL="$DB_URL" npx prisma migrate deploy >/dev/null)
+(cd "$WT/backend" && DATABASE_URL="$DB_URL" ./node_modules/.bin/prisma migrate deploy >/dev/null)
 
 echo "→ stack"
 (cd "$WT/backend" && DATABASE_URL="$DB_URL" REDIS_URL="${E2E_REDIS_URL:-redis://localhost:6399}" \

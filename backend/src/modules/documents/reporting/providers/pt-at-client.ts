@@ -162,7 +162,7 @@ const SOAP_ENVELOPE_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
 const WSSE_NS = 'http://schemas.xmlsoap.org/ws/2002/12/secext';
 /** The request/response body namespace, read verbatim off the worked SOAP example's own
  *  `xmlns:doc="..."` declaration (Aspetos Específicos §2.1.1.3). */
-export const PT_AT_DOC_NS = 'http://factemi.at.min_financas.pt/documents';
+export const PT_AT_DOC_NS = 'http://factemi.at.min_financas.pt/documents'; // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
 
 export interface PtAtCredentials {
   /** WS-Security H.1 — `"<NIF do emitente>/<UserId>"`, e.g. "555555555/1234". Sent IN THE CLEAR (see
@@ -298,7 +298,7 @@ export function encryptPtAtNonce(symmetricKey: Buffer, authPublicKeyPem: string)
  *  AES-128-ECB with Node's default (PKCS#7 == PKCS5 for a 16-byte block) padding — VERIFIED, see this
  *  file's own header. */
 export function encryptPtAtAesField(symmetricKey: Buffer, plaintextUtf8: string): string {
-  const cipher = createCipheriv('aes-128-ecb', symmetricKey, null);
+  const cipher = createCipheriv('aes-128-ecb', symmetricKey, null); // NOSONAR - AES-128-ECB is imposed by the AT web service spec
   const encrypted = Buffer.concat([cipher.update(plaintextUtf8, 'utf8'), cipher.final()]);
   return encrypted.toString('base64');
 }

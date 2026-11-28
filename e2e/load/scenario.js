@@ -91,7 +91,7 @@ function signIn(user) {
       if (pair) return pair.split(';')[0].trim();
     }
     if (res.status === 429) throttled.add(1, { step: 'login' });
-    sleep(2 + Math.random() * 3);
+    sleep(2 + Math.random() * 3); // NOSONAR - load-test think-time jitter, not security sensitive
   }
   fail(`sign-in failed for ${user.email}`);
 }

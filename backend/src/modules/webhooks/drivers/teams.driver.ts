@@ -34,7 +34,7 @@ export class TeamsDriver implements WebhookDriver {
         {
           contentType: 'application/vnd.microsoft.card.adaptive',
           content: {
-            $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+            $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', // NOSONAR - Adaptive Card schema identifier, never fetched
             type: 'AdaptiveCard',
             version: '1.2',
             body: cardBody,

@@ -86,7 +86,7 @@ import { nationalFormatCountry } from './format-country';
 import { documentCurrencyOrSellerNational } from './seller-currency';
 
 const fa3FormatId = 'fa3';
-const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/';
+const FA_VAT_3_NAMESPACE = 'http://crd.gov.pl/wzor/2025/06/25/13775/'; // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
 const FA3_XSD = 'pl/schemat_FA3.xsd';
 
 /** Same "not applicable" address builder fa-vat.ts used: an unresolvable country falls back to the
@@ -305,7 +305,7 @@ async function build(
     Faktura: {
       '@': {
         xmlns: FA_VAT_3_NAMESPACE,
-        'xmlns:etd': 'http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/',
+        'xmlns:etd': 'http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/', // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
       },
       Naglowek: {
         KodFormularza: { '@': { kodSystemowy: 'FA (3)', wersjaSchemy: '1-0E' }, '#': 'FA' },

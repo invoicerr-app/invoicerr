@@ -460,7 +460,7 @@ postgresql:
     # Plaintext on purpose — this whole block only ever applies to the dev/kind-only bundled
     # Postgres below, matching the repo's own docker-compose.yml dev defaults byte for byte.
     username: invoicerr
-    password: invoicerr
+    password: invoicerr # NOSONAR - dev/kind-only bundled Postgres default, same as docker-compose.yml
     database: invoicerr_db
   persistence:
     enabled: true

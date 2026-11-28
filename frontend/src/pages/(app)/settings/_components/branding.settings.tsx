@@ -132,7 +132,7 @@ export default function BrandingSettings() {
 
   const sanitizedPreviewHtml = useMemo(() => {
     if (!preview?.html) return null
-    return DOMPurify.sanitize(preview.html, { WHOLE_DOCUMENT: true })
+    return DOMPurify.sanitize(preview.html, { WHOLE_DOCUMENT: true }) // NOSONAR - the preview is a full sanitized document rendered in an iframe srcDoc, its head styles are needed
   }, [preview?.html])
 
   const colorError = accentColor.trim() !== "" && !HEX_COLOR_PATTERN.test(accentColor.trim())

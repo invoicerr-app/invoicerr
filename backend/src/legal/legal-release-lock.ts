@@ -40,6 +40,8 @@
  * sends in a pathological, oversized-pass scenario" against "a permanently stuck lock after any real
  * crash", not an oversight.
  */
+import { randomUUID } from 'node:crypto';
+
 import type Redis from 'ioredis';
 
 import { createLibRedisClient } from '@/lib/redis-connection';
@@ -72,7 +74,7 @@ export async function withLegalReleaseNotifyLock<T>(
   client: LegalReleaseLockRedisClient,
   fn: () => Promise<T>,
 ): Promise<T | undefined> {
-  const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const token = `${process.pid}-${Date.now()}-${randomUUID()}`;
   const acquired = await client.set(LOCK_KEY, token, 'PX', LOCK_TTL_MS, 'NX');
   if (acquired !== 'OK') return undefined;
 

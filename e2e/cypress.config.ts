@@ -117,7 +117,7 @@ function startFakeSuperPdpServer(): Promise<string> {
   if (fakeSuperPdpServerUrl) return Promise.resolve(fakeSuperPdpServerUrl);
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
-      const url = new URL(req.url ?? "/", "http://fake-pdp.local");
+      const url = new URL(req.url ?? "/", "http://fake-pdp.local"); // NOSONAR - placeholder base to parse a local test request path, no network call
 
       if (req.method === "POST" && url.pathname === "/oauth2/token") {
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -233,7 +233,7 @@ function startFakePhotonServer(): Promise<string> {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       fakePhotonRequests.push(req.url ?? "");
-      const url = new URL(req.url ?? "/", "http://fake-photon.local");
+      const url = new URL(req.url ?? "/", "http://fake-photon.local"); // NOSONAR - placeholder base to parse a local test request path, no network call
       if (req.method === "GET" && url.pathname === "/api/") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ type: "FeatureCollection", features: fakePhotonFeatures }));
@@ -361,7 +361,7 @@ let fakeAtConfig: FakeAtConfig | null = null;
 const fakeAtRequests: string[] = [];
 
 function openssl(args: string[]): void {
-  execFileSync("openssl", args, { stdio: "pipe" });
+  execFileSync("openssl", args, { stdio: "pipe" }); // NOSONAR - test tooling resolved from the CI runner PATH
 }
 
 function startFakeAt(): Promise<FakeAtConfig> {
