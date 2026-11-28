@@ -82,9 +82,9 @@ import {
 // Constants read from the spec (see this file's own header for sources)
 // ---------------------------------------------------------------------------
 
-const TRASMISSIONE_TYPES_NS = 'http://www.fatturapa.gov.it/sdi/ws/trasmissione/v1.0/types';
+const TRASMISSIONE_TYPES_NS = 'http://www.fatturapa.gov.it/sdi/ws/trasmissione/v1.0/types'; // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
 const SOAP_ENVELOPE_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
-const RICEVI_FILE_SOAP_ACTION = 'http://www.fatturapa.it/SdIRiceviFile/RiceviFile';
+const RICEVI_FILE_SOAP_ACTION = 'http://www.fatturapa.it/SdIRiceviFile/RiceviFile'; // NOSONAR - SOAPAction identifier fixed by the WSDL, never fetched
 
 /** `nomeFile_Type` (`TrasmissioneTypes_v1.0.xsd`/`v1.1.xsd`, identical in both) — read verbatim. */
 export const NOMEFILE_PATTERN = /^[a-zA-Z0-9_.]{9,50}$/;

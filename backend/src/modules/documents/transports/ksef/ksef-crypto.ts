@@ -78,7 +78,7 @@ export function encryptSymmetricKey(aesKey: Buffer, publicKeyPem: string): strin
  * Returns the ciphertext as a Base64 string.
  */
 export function encryptXmlContent(xml: string, aesKey: Buffer, iv: Buffer): string {
-  const cipher = createCipheriv('aes-256-cbc', aesKey, iv);
+  const cipher = createCipheriv('aes-256-cbc', aesKey, iv); // NOSONAR - AES-256-CBC with PKCS#7 is imposed by the KSeF API
   const plaintext = Buffer.from(xml, 'utf8');
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   return encrypted.toString('base64');

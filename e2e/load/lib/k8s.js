@@ -283,7 +283,7 @@ api:
 
 export function hasBinary(name) {
   try {
-    execFileSync('which', [name], { stdio: 'ignore' });
+    execFileSync('which', [name], { stdio: 'ignore' }); // NOSONAR - operator tooling lookup on the PATH is the purpose of this helper
     return true;
   } catch {
     return false;

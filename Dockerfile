@@ -15,11 +15,13 @@ COPY backend/package.json backend/package-lock.json ./
 COPY backend/.npmrc .npmrc
 COPY backend/prisma ./prisma
 
-RUN npm ci
+# Lifecycle scripts stay on here: the @prisma/engines postinstall fetches the engines the runtime
+# image uses for `prisma migrate deploy` at startup.
+RUN npm ci # NOSONAR - @prisma/engines postinstall is required, versions pinned by the lockfile
 
 COPY backend/. .
 
-RUN DATABASE_URL=not_required npx prisma generate --schema=prisma/schema.prisma
+RUN DATABASE_URL=not_required ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 # The whole node_modules tree is copied into the runtime image below; the PDF parser the tests use,
 # and its native canvas binaries (about 100 MB), have no use there.
@@ -31,7 +33,8 @@ FROM --platform=$BUILDPLATFORM node:26.13.1-bookworm AS frontend-builder
 WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+# esbuild is the only frontend dependency with an install script, and it runs without it.
+RUN npm ci --ignore-scripts
 
 COPY frontend/. .
 # The redaction rules shared with the backend (`frontend/src/lib/error-tracking-scrub.ts` imports them

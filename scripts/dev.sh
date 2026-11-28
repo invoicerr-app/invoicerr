@@ -89,9 +89,9 @@ case "${1:-start}" in
   start)
     start_services
     echo "▸ prisma client"
-    (cd "$ROOT/backend" && npx prisma generate >>"$RUN_DIR/prisma.log" 2>&1)
+    (cd "$ROOT/backend" && ./node_modules/.bin/prisma generate >>"$RUN_DIR/prisma.log" 2>&1)
     echo "▸ database schema"
-    (cd "$ROOT/backend" && npx prisma migrate deploy >>"$RUN_DIR/prisma.log" 2>&1) || \
+    (cd "$ROOT/backend" && ./node_modules/.bin/prisma migrate deploy >>"$RUN_DIR/prisma.log" 2>&1) || \
       echo "  !! migrate deploy failed — see $RUN_DIR/prisma.log"
     start_app backend "$ROOT/backend" "npm run start:dev" "$BACKEND_PORT"
     start_app frontend "$ROOT/frontend" "npm run dev" "$FRONTEND_PORT"

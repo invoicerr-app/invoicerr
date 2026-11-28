@@ -391,7 +391,7 @@ async function build(
     'p:FatturaElettronica': {
       '@': {
         versione: formatoTrasmissione,
-        'xmlns:p': 'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2',
+        'xmlns:p': 'http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2', // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
         'xmlns:ds': 'http://www.w3.org/2000/09/xmldsig#',
         'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
         // The schema itself judges BOTH FormatoTrasmissione values identically (see this file's own

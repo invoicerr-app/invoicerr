@@ -35,6 +35,20 @@ SonarCloud's automatic analysis only analyzes pull requests and the default bran
 reports on a queue branch. Its result gates the pull request itself, before it is queued.
 :::
 
+### SonarCloud false positives
+
+A finding that is not a real problem is marked on its own line with `NOSONAR` and a one-line reason
+(`// NOSONAR - XML namespace identifier, never fetched`, `# NOSONAR - ...` in a Dockerfile, a shell
+script or YAML), never worked around by changing behavior. Typical cases in this repository: XML
+namespace and schema URIs (`http://...` identifiers imposed by a published schema), cipher modes a
+government API imposes (AT, KSeF), and test or operator tooling resolved from the `PATH`. The comment
+has to sit on the line SonarCloud reports, so a call the formatter would split goes through a small
+helper whose single line carries it (see `execPrisma` in `backend/src/prisma/sync-schema.ts`).
+
+Archived load-test results under `e2e/load/results/**` are kept as evidence of past campaigns and are
+not maintained code. They are excluded from the analysis in the SonarCloud project settings (Analysis
+scope), not edited.
+
 ## Promotion to main
 
 `main` only receives `dev`: a pull request targeting `main` has to come from this repository's `dev`

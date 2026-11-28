@@ -46,7 +46,6 @@ jobs:
       DATABASE_URL: postgresql://postgres@localhost:5432/invoicerr_openapi?schema=public
       REDIS_URL: redis://localhost:6379
       BETTER_AUTH_SECRET: docs-deploy-openapi-dump-throwaway-secret-0000000000000000
-      CREDENTIALS_ENCRYPTION_KEY: e2896d60a5fe20415931030ea7eadb3352f2698948ba29948a9f2e04b8840e6d
       APP_URL: http://localhost:3000
     services:
       postgres:
@@ -72,6 +71,10 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
+      # A fresh throwaway key per run for the openapi-dump boot: nothing is ever encrypted with it.
+      - name: Generate throwaway credentials key
+        run: echo "CREDENTIALS_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js

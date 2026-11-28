@@ -136,7 +136,7 @@ async function importPublicKeyFromCertDer(certDer: Buffer): Promise<CryptoKey> {
 // ---------------------------------------------------------------------------
 
 /** XAdES namespace URI (ETSI EN 319 132 / TS 101 903 v1.3.2) */
-const XADES_NS = 'http://uri.etsi.org/01903/v1.3.2#';
+const XADES_NS = 'http://uri.etsi.org/01903/v1.3.2#'; // NOSONAR - XML namespace identifier fixed by the published schema, never fetched
 /** CAdES id-aa-signatureTimeStampToken OID (RFC 5652 / ETSI EN 319 122) */
 const CADES_TIMESTAMP_OID = '1.2.840.113549.1.9.16.2.14';
 

@@ -140,7 +140,7 @@ async function waitForNode(kube) {
 
 function k6(args, env) {
   return new Promise((resolvePromise, reject) => {
-    const p = spawn('k6', args, { stdio: ['ignore', 'pipe', 'inherit'], env });
+    const p = spawn('k6', args, { stdio: ['ignore', 'pipe', 'inherit'], env }); // NOSONAR - load-test tooling resolved from the operator PATH
     let out = '';
     p.stdout.on('data', (d) => {
       out += d;
