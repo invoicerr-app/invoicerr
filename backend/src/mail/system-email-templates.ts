@@ -211,6 +211,22 @@ export function describeSystemEmailVocabulary(
   return buildOtpEmailParts({ appUrl, otpCode: '1234-5678' });
 }
 
+/** The sign-off and "sent from" line closing every plain-text instance/transfer email below (and
+ *  `modules/auth-extended/account-lifecycle.ts`'s change-email mail) - not the signature-request/OTP
+ *  defaults above, whose footer is shaped differently. */
+export function layoutFooterText(t: ReturnType<typeof mailT>, appUrl: string): string {
+  return `${t('layout.signOffText')}\n\n${t('layout.sentFrom').replace('{appUrl}', appUrl)}`;
+}
+
+/** HTML twin of `layoutFooterText`: the sign-off paragraph, a rule, and the small grey "sent from"
+ *  line. */
+export function layoutFooterHtml(t: ReturnType<typeof mailT>, appUrl: string): string {
+  return (
+    `<p>${t('layout.signOffHtml')}</p><hr>` +
+    `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`
+  );
+}
+
 /**
  * The two hosted-billing OWNER warning emails (`billing-lifecycle-sweep-runner.ts`'s own J-7/J-1
  * milestones, `lifecycle.ts#computeDueBillingWarnings`) — sent through this INSTANCE's own mail
@@ -259,15 +275,13 @@ export function buildBlockedZipWarningEmail(params: BillingWarningEmailParams): 
       `${t('layout.greeting')}\n\n` +
       `${t('billingWarning.blockedZip.introText', { count })}\n\n` +
       `${t('billingWarning.manageLine').replace('{settingsUrl}', settingsUrl)}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+      layoutFooterText(t, appUrl),
     html:
       `<h2>${t('billingWarning.blockedZip.heading')}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${t('billingWarning.blockedZip.introHtml', { count })}</p>` +
       `<p><a href="${settingsUrl}" style="background: #007bff; color: white; padding: 12px 24px; ` +
       `text-decoration: none; border-radius: 6px; display: inline-block;">${t('billingWarning.ctaLabel')}</a></p>` +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }
 
@@ -289,15 +303,13 @@ export function buildDeletionWarningEmail(params: BillingWarningEmailParams): {
       `${t('layout.greeting')}\n\n` +
       `${t('billingWarning.deletion.textBody', { count })}\n\n` +
       `${t('billingWarning.manageLine').replace('{settingsUrl}', settingsUrl)}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+      layoutFooterText(t, appUrl),
     html:
       `<h2>${t('billingWarning.deletion.heading')}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${t('billingWarning.deletion.htmlBody', { count })}</p>` +
       `<p><a href="${settingsUrl}" style="background: #dc3545; color: white; padding: 12px 24px; ` +
       `text-decoration: none; border-radius: 6px; display: inline-block;">${t('billingWarning.ctaLabel')}</a></p>` +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }
 
@@ -391,15 +403,13 @@ export function buildLegalDocumentChangedEmail(params: LegalDocumentChangedEmail
       `${t('legalChanged.introText', { count })}\n\n` +
       `${listText}\n` +
       acceptText +
-      `\n${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+      `\n${layoutFooterText(t, appUrl)}`,
     html:
       `<h2>${t('legalChanged.heading', { count })}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${t('legalChanged.introHtml', { count })}</p>` +
       `<ul>${listHtml}</ul>` +
       acceptHtml +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }
 
@@ -465,8 +475,7 @@ export function buildOwnershipTransferRequestEmail(params: {
       `${t('ownershipTransfer.request.expiryNotice')} ${t('ownershipTransfer.request.reviewLinkIntro')}\n` +
       `${url}\n\n` +
       `${t('ownershipTransfer.request.ignoreNotice')}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+      layoutFooterText(t, appUrl),
     html:
       `<h2>${t('ownershipTransfer.request.heading')}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${htmlIntro}</p>` +
@@ -474,8 +483,7 @@ export function buildOwnershipTransferRequestEmail(params: {
       `<p><a href="${url}" style="background: #007bff; color: white; padding: 12px 24px; ` +
       `text-decoration: none; border-radius: 6px; display: inline-block;">${t('ownershipTransfer.request.buttonLabel')}</a></p>` +
       `<p>${t('ownershipTransfer.request.ignoreNotice')}</p>` +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }
 
@@ -510,16 +518,11 @@ export function buildOwnershipTransferFinalizedEmail(params: {
 
   return {
     subject,
-    text:
-      `${t('layout.greeting')}\n\n` +
-      `${bodyLineText}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+    text: `${t('layout.greeting')}\n\n` + `${bodyLineText}\n\n` + layoutFooterText(t, appUrl),
     html:
       `<h2>${t('ownershipTransfer.finalized.heading')}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${bodyLineHtml}</p>` +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }
 
@@ -548,15 +551,10 @@ export function buildOwnershipTransferEndedEmail(params: {
 
   return {
     subject,
-    text:
-      `${t('layout.greeting')}\n\n` +
-      `${bodyText}\n\n` +
-      `${t('layout.signOffText')}\n\n` +
-      `${t('layout.sentFrom').replace('{appUrl}', appUrl)}`,
+    text: `${t('layout.greeting')}\n\n` + `${bodyText}\n\n` + layoutFooterText(t, appUrl),
     html:
       `<h2>${t('ownershipTransfer.ended.heading')}</h2>` +
       `<p>${t('layout.greeting')}</p><p>${bodyHtml}</p>` +
-      `<p>${t('layout.signOffHtml')}</p><hr>` +
-      `<p style="font-size: 12px; color: #666;">${t('layout.sentFrom').replace('{appUrl}', appUrl)}</p>`,
+      layoutFooterHtml(t, appUrl),
   };
 }

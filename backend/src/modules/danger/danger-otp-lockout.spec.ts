@@ -6,7 +6,7 @@ import { MAX_FAILED_ATTEMPTS, OTP_CODE_SPACE } from '@/lib/otp';
 
 import { DANGER_OTP_LOCKED, DangerService } from './danger.service';
 import { DANGER_OTP_LOCKOUT_HOURS, DANGER_OTP_LOCKOUT_MS, findDangerOtp } from './danger-otp.persistence';
-import { verifyAndConsumeDangerOtp } from '@/modules/company/transfer/danger-otp-check';
+import { verifyAndConsumeDangerOtp } from './danger-otp-check';
 
 /**
  * The failed-attempt lockout, from both sides: it must still SLAM SHUT on the same number of wrong

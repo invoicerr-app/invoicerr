@@ -191,84 +191,6 @@ describe('DocumentQueueDispatcher.enqueueReport', () => {
   );
 });
 
-describe('DocumentQueueDispatcher.registerScheduleSweepRepeatable', () => {
-  afterEach(() => vi.resetAllMocks());
-
-  it('registers the ONE sweep job as a repeatable, under its fixed singleton jobId', async () => {
-    const queue = fakeQueue();
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
-
-    await dispatcher.registerScheduleSweepRepeatable();
-
-    expect(queue.add).toHaveBeenCalledWith(
-      'document-schedule-sweep',
-      {},
-      expect.objectContaining({
-        jobId: 'document-schedule-sweep-singleton',
-        repeat: { every: expect.any(Number) },
-      }),
-    );
-  });
-});
-
-describe('DocumentQueueDispatcher.registerLogPurgeSweepRepeatable', () => {
-  afterEach(() => vi.resetAllMocks());
-
-  it('registers the ONE Log-purge sweep job as a repeatable, under its fixed singleton jobId', async () => {
-    const queue = fakeQueue();
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
-
-    await dispatcher.registerLogPurgeSweepRepeatable();
-
-    expect(queue.add).toHaveBeenCalledWith(
-      'log-purge-sweep',
-      {},
-      expect.objectContaining({
-        jobId: 'log-purge-sweep-singleton',
-        repeat: { every: expect.any(Number) },
-      }),
-    );
-  });
-});
-
-describe('DocumentQueueDispatcher.registerStorageErasureSweepRepeatable', () => {
-  afterEach(() => {
-    delete process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS;
-    vi.resetAllMocks();
-  });
-
-  it('registers the ONE storage-erasure sweep job as a repeatable, under its fixed singleton jobId', async () => {
-    const queue = fakeQueue();
-    const dispatcher = new DocumentQueueDispatcher(queue as never);
-
-    await dispatcher.registerStorageErasureSweepRepeatable();
-
-    expect(queue.add).toHaveBeenCalledWith(
-      'storage-erasure-sweep',
-      {},
-      expect.objectContaining({
-        jobId: 'storage-erasure-sweep-singleton',
-        // Daily by default — a statutory retention boundary is measured in years, so this is already
-        // far finer resolution than the obligation it discharges has.
-        repeat: { every: 24 * 60 * 60 * 1000 },
-      }),
-    );
-  });
-
-  it('honours STORAGE_ERASURE_SWEEP_INTERVAL_MS, the way every sibling sweep honours its own', async () => {
-    process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS = '5000';
-    const queue = fakeQueue();
-
-    await new DocumentQueueDispatcher(queue as never).registerStorageErasureSweepRepeatable();
-
-    expect(queue.add).toHaveBeenCalledWith(
-      'storage-erasure-sweep',
-      {},
-      expect.objectContaining({ repeat: { every: 5000 } }),
-    );
-  });
-});
-
 /**
  * A fake queue that keeps the repeatable definitions it is handed, keyed the way BullMQ keys them —
  * by the schedule itself — so re-registering a sweep under a CHANGED interval adds a definition
@@ -309,7 +231,40 @@ describe('DocumentQueueDispatcher.registerSweepRepeatables', () => {
 
   afterEach(() => {
     delete process.env.DOCUMENT_SCHEDULE_SWEEP_INTERVAL_MS;
+    delete process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS;
     vi.resetAllMocks();
+  });
+
+  /** The `queue.add` calls one `registerSweepRepeatables` pass made for ONE sweep, picked by job name. */
+  function addCallsFor(queue: ReturnType<typeof fakeQueueWithSchedulers>, jobName: string) {
+    return queue.add.mock.calls.filter(([name]) => name === jobName);
+  }
+
+  // Daily by default for the storage-erasure sweep - a statutory retention boundary is measured in
+  // years, so this is already far finer resolution than the obligation it discharges has.
+  it.each([
+    ['document-schedule-sweep', expect.any(Number)],
+    ['log-purge-sweep', expect.any(Number)],
+    ['storage-erasure-sweep', 24 * 60 * 60 * 1000],
+  ])('registers the ONE %s job as a repeatable, under its singleton jobId', async (jobName, every) => {
+    const queue = fakeQueueWithSchedulers();
+
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    expect(addCallsFor(queue, jobName)).toEqual([
+      [jobName, {}, expect.objectContaining({ jobId: `${jobName}-singleton`, repeat: { every } })],
+    ]);
+  });
+
+  it('honours STORAGE_ERASURE_SWEEP_INTERVAL_MS, the way every sibling sweep honours its own', async () => {
+    process.env.STORAGE_ERASURE_SWEEP_INTERVAL_MS = '5000';
+    const queue = fakeQueueWithSchedulers();
+
+    await new DocumentQueueDispatcher(queue as never).registerSweepRepeatables();
+
+    expect(addCallsFor(queue, 'storage-erasure-sweep')).toEqual([
+      ['storage-erasure-sweep', {}, expect.objectContaining({ repeat: { every: 5000 } })],
+    ]);
   });
 
   it('registers every sweep this queue carries, and retires nothing on a first boot', async () => {

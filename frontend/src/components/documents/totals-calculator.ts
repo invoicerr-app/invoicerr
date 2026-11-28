@@ -1,38 +1,12 @@
 import type { TFunction } from "i18next"
 
+import { toMinor } from "@/lib/money"
+
 /**
  * Client-side totals calculation — mirrors backend compute-totals.ts logic.
  * Same arithmetic (minor units, VAT per aggregated base), same structure.
  * Any divergence between this and the backend = totals mismatch on the screen vs PDF.
  */
-
-const CURRENCY_DECIMALS: Record<string, number> = {
-  JPY: 0,
-  KRW: 0,
-  KWD: 3,
-  BHD: 3,
-  OMR: 3,
-  TND: 3,
-}
-
-export function decimalsFor(currency: string): number {
-  return CURRENCY_DECIMALS[currency?.toUpperCase()] ?? 2
-}
-
-export function toMinor(amount: number, currency: string): number {
-  return Math.round(amount * 10 ** decimalsFor(currency))
-}
-
-export function fromMinor(minor: number, currency: string): number {
-  return minor / 10 ** decimalsFor(currency)
-}
-
-/** `1234.50 EUR`, the one money formatter every screen uses, so a minor-unit amount never rounds
- *  differently from one view to the next. The currency is printed as given (callers that want a
- *  placeholder for an empty one pass it themselves). */
-export function formatMinor(minor: number, currency: string): string {
-  return `${fromMinor(minor, currency).toFixed(decimalsFor(currency))} ${currency}`
-}
 
 /**
  * Whether a string looks like a number (for VAT-rate-field detection) — mirrors the backend's own

@@ -14,8 +14,7 @@
  * actually scale the API to notice the gap.
  *
  * Its client comes from `lib/redis-connection.ts`, the backend's single Redis client factory, rather
- * than from `modules/documents/queue/redis.config.ts` (a different module's internal helper): `lib/`
- * stays decoupled from `modules/documents/`.
+ * than from a different module's internal helper: `lib/` stays decoupled from `modules/documents/`.
  *
  * `createPendingSignupStore` takes the client as a parameter specifically so a spec can drive it
  * against a fake honoring the same minimal interface, without opening a real connection — the same

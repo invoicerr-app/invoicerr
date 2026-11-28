@@ -21,7 +21,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 
-import { describeRedisTarget, redisConnection } from './redis.config';
+import { describeRedisTarget, redisConnection } from '@/lib/redis-connection';
 
 @Injectable()
 export class DocumentQueueRedisRequiredGuard implements OnModuleInit {

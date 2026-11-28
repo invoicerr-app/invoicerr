@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { Wallet } from "lucide-react"
 
-import { formatMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/lib/money"
 import { ProseHelp } from "@/components/ui/prose-help"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

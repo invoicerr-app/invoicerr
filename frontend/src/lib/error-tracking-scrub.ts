@@ -14,7 +14,7 @@ import {
  * account (a client on the portal, a signer on a public link) or not signed in yet (sign-in and legal
  * pages). Their URL also carries an access token.
  */
-export const UNTRACKED_BROWSER_PATH_PREFIXES: readonly string[] = ["/portal", "/signature", "/auth", "/legal"]
+const UNTRACKED_BROWSER_PATH_PREFIXES: readonly string[] = ["/portal", "/signature", "/auth", "/legal"]
 
 export function isUntrackedBrowserPath(pathname: string): boolean {
   const path = pathname.toLowerCase()
@@ -22,7 +22,7 @@ export function isUntrackedBrowserPath(pathname: string): boolean {
 }
 
 /** Contexts kept, as filled in by the SDK: browser and OS versions, and the random trace ids. Any other is dropped. */
-export const KEPT_BROWSER_CONTEXTS: readonly string[] = ["browser", "os", "trace"]
+const KEPT_BROWSER_CONTEXTS: readonly string[] = ["browser", "os", "trace"]
 
 /**
  * Last filter before a browser event leaves the page. The SDK runs with every `dataCollection`

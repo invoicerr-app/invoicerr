@@ -12,7 +12,7 @@
  * (`SsoRegistrarService`), so there is no reader/writer living in different Nest modules the way the
  * document-events split serves (a worker publishes, only the API's controller module subscribes).
  *
- * `createLibRedisClient()` (`lib/redis-connection.ts`), not `documents/queue/redis.config.ts` —
+ * `createLibRedisClient()` (`lib/redis-connection.ts`), not a documents-module helper -
  * `modules/company/sso/` has no existing dependency on the documents module, and this file has no
  * reason to add one purely for a Redis connection helper (see `lib/redis-connection.ts`'s own header).
  *

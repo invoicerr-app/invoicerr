@@ -9,6 +9,7 @@ import {
   CompanyLawMention,
   CompanyLawPlaceholder,
   CountryCompanyLawFile,
+  FIELD_KEY,
   parseTemplate,
   templatePlaceholders,
 } from './schema';
@@ -209,7 +210,7 @@ function quotesField(mention: CompanyLawMention, key: string): boolean {
  *  mention for (a sole trader, an unlisted form) carries none of the obligations those mentions
  *  serve, but it may still hold a register entry (`hasRegisterEntry`) that an electronic format
  *  needs, which is a separate question. */
-export function companyLawFormIsCovered(file: CountryCompanyLawFile, formCode: string): boolean {
+function companyLawFormIsCovered(file: CountryCompanyLawFile, formCode: string): boolean {
   return file.mentions.some((mention) => mention.legalForms.includes(formCode));
 }
 
@@ -307,7 +308,7 @@ function normalizeValues(input: unknown): Record<string, CompanyLawValue> {
   if (input === undefined || input === null) return values;
   if (!isRecord(input)) throw new InvalidCompanyLawDetailsError('companyLaw.values must be an object.');
   for (const [key, value] of Object.entries(input)) {
-    if (!/^[a-z][A-Za-z0-9]*$/.test(key))
+    if (!FIELD_KEY.test(key))
       throw new InvalidCompanyLawDetailsError(`companyLaw.values has an invalid key "${key}".`);
     const normalized = normalizeValue(key, value);
     if (normalized !== undefined) values[key] = normalized;

@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
-import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
+import { registerRepeatableSweeps } from '@/lib/queue-repeatables';
 
 import { TransferCoreModule } from './transfer-core.module';
 import { TransferExpiryProcessor } from './queue/transfer-expiry.processor';
@@ -42,21 +42,12 @@ export class TransferQueueWorkerModule implements OnApplicationBootstrap {
   constructor(@InjectQueue(Q_COMPANY_TRANSFER) private readonly queue: Queue) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const configured: ConfiguredRepeatable = {
-      name: TRANSFER_EXPIRY_SWEEP_JOB_NAME,
-      repeat: { every: readTransferExpirySweepIntervalMs() },
-    };
-    await this.queue.add(
-      configured.name,
-      {},
+    await registerRepeatableSweeps(this.queue, [
       {
+        name: TRANSFER_EXPIRY_SWEEP_JOB_NAME,
         jobId: TRANSFER_EXPIRY_SWEEP_JOB_ID,
-        repeat: configured.repeat,
-        attempts: 1,
-        removeOnComplete: true,
-        removeOnFail: true,
+        repeat: { every: readTransferExpirySweepIntervalMs() },
       },
-    );
-    await retireSupersededRepeatables(this.queue, [configured]);
+    ]);
   }
 }

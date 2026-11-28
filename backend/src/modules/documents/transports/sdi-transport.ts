@@ -67,7 +67,7 @@ import {
  *  real PFX legitimately can carry an empty one (see `SdiCredentials.certificatePassword`'s own
  * header). The frontend's OLD hard-coded copy did not mark it optional - a drift this catalogue now
  *  makes visible and fixes at the source. */
-export const SDI_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const SDI_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'idTrasmittente',
     kind: 'text',

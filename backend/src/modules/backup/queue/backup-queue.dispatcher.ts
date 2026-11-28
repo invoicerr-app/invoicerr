@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
-import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
+import { registerRepeatableSweeps } from '@/lib/queue-repeatables';
 
 import { readBackupScheduleCron } from '../backup.constants';
 import { BACKUP_SWEEP_JOB_ID, BACKUP_SWEEP_JOB_NAME, Q_BACKUP } from './backup-queue.constants';
@@ -31,7 +31,8 @@ import { BACKUP_SWEEP_JOB_ID, BACKUP_SWEEP_JOB_NAME, Q_BACKUP } from './backup-q
  * definition beside the first instead of replacing it, and the superseded one keeps firing out of
  * Redis forever. `retireSupersededRepeatables` (lib/queue-repeatables.ts) is what makes a boot leave
  * exactly the one schedule the current configuration names — see that file's own header, including
- * why it is safe with several replicas booting at once.
+ * why it is safe with several replicas booting at once. `registerRepeatableSweeps` (same file) adds
+ * the sweep and then retires, in that order; the log line below is therefore emitted after both.
  */
 @Injectable()
 export class BackupQueueDispatcher {
@@ -41,23 +42,10 @@ export class BackupQueueDispatcher {
 
   async registerBackupSweepRepeatable(): Promise<void> {
     const pattern = readBackupScheduleCron();
-    const configured: ConfiguredRepeatable = {
-      name: BACKUP_SWEEP_JOB_NAME,
-      repeat: { pattern, tz: 'UTC' },
-    };
-    await this.queue.add(
-      configured.name,
-      {},
-      {
-        jobId: BACKUP_SWEEP_JOB_ID,
-        repeat: configured.repeat,
-        attempts: 1,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
-    this.logger.log(`Registered the instance-backup sweep repeatable (cron "${pattern}", UTC).`);
     // The ONE sweep this queue carries is also the ONE definition it may hold afterwards.
-    await retireSupersededRepeatables(this.queue, [configured]);
+    await registerRepeatableSweeps(this.queue, [
+      { name: BACKUP_SWEEP_JOB_NAME, jobId: BACKUP_SWEEP_JOB_ID, repeat: { pattern, tz: 'UTC' } },
+    ]);
+    this.logger.log(`Registered the instance-backup sweep repeatable (cron "${pattern}", UTC).`);
   }
 }

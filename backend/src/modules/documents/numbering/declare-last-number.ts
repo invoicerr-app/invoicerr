@@ -14,9 +14,7 @@
  * constraints, writing `Company.numberFormats`) lives in `company.service.ts#declareLastNumberIssued`,
  * the one caller allowed to touch either.
  */
-import { renderDateTokens } from './format-number';
-
-const TOKEN_PATTERN = /\{(\w+)(?::(\d+))?\}/g;
+import { renderDateTokens, TOKEN_PATTERN } from './format-number';
 
 /**
  * Infers a CANDIDATE pattern from one example number, the way the research behind #340 describes:

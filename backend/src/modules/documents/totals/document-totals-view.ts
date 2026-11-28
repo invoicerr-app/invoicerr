@@ -40,7 +40,7 @@ export interface DocumentTotalsView extends Omit<DocumentTotals, 'netMinor' | 'v
 
 /** The single total a document stands for, or null when a quote with options has none yet. See
  *  `DocumentTotalsView`'s own header for the three cases. */
-export function resolveSingleTotals(
+function resolveSingleTotals(
   typeId: string,
   descriptor: DocumentTypeDescriptor,
   data: Record<string, unknown>,

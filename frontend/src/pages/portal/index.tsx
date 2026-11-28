@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PublicPageShell } from "@/components/public-page-shell"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatMinor } from "@/components/documents/totals-calculator"
+import { formatMinor } from "@/lib/money"
 import {
   isPastDue,
   settlementBadgeInfo,

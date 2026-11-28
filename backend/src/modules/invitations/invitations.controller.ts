@@ -17,9 +17,9 @@ import { hashInvitationCode } from '@/lib/invitation-code';
 // a shared singleton, deliberately: this controller runs inside Nest DI (unlike `lib/auth.ts`, which
 // runs outside it entirely — see that file's own header), and the two never need to share a live
 // client object to agree on the same DATA, only on the same key names (`pending-signup-store.ts`'s
-// own `invitationCodeKey`), which they do by construction. Mirrors how `modules/documents/queue/redis.
-// config.ts#createIoredisClient` is already called independently by more than one consumer in this
-// codebase rather than threaded through as a single shared instance.
+// own `invitationCodeKey`), which they do by construction. Mirrors how `lib/redis-connection.ts#
+// createLibRedisClient` is already called independently by more than one consumer in this codebase
+// rather than threaded through as a single shared instance.
 const pendingSignupStore = createPendingSignupStore(createRedisClientForPendingSignups());
 
 @ApiTags('invitations')

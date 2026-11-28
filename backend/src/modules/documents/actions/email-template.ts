@@ -314,9 +314,6 @@ function formatEmailAmount(minor: number, currency: string | null): string {
   return code ? `${amount} ${code}` : amount;
 }
 
-// Moved to `descriptors/recipient-reference.ts`; re-exported for existing callers.
-export { findClientReferenceField } from '../descriptors/recipient-reference';
-
 /**
  * The fixed vocabulary `renderEmailTemplate` fills in for a document SEND — `displayNumber`,
  * `typeLabel`, `companyName`, `totalGross` are ALWAYS present (empty string where there is genuinely

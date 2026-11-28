@@ -1,6 +1,6 @@
-import { calculateFrenchVAT, formatSiret, isValidSiret } from '@/modules/sirene/sirene.utils';
+import { calculateFrenchVAT, formatSiret, isValidSiret } from './fr-identifiers';
 
-describe('sirene.utils', () => {
+describe('fr-identifiers', () => {
   describe('formatSiret', () => {
     it('strips non-digit characters', () => {
       expect(formatSiret('552 081 317 00018')).toBe('55208131700018');

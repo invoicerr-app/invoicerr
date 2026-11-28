@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 import { actionLocksDocument } from "@/components/documents/action-presentation"
 import type { DocumentActionDescriptor, DocumentInstance } from "@/components/documents/types"
-import { countryName } from "@/lib/display-names"
+import { countryName, currencyName } from "@/lib/display-names"
 import {
   INVOICE_IDENTIFIERS_MISSING_CODE,
   type InvoiceIdentifiersMissingParams,
@@ -65,19 +65,6 @@ function deleteRefusalMessage(t: TFunction, error: unknown): string | undefined 
 function apiErrorParams<T>(error: unknown): T | undefined {
   if (!(error instanceof ApiError)) return undefined
   return (error.body as { params?: T } | undefined)?.params
-}
-
-/** A human-readable currency name from an ISO 4217 code, in the reader's own language - the same
- *  `Intl.DisplayNames` convention `channel-banner.tsx`'s own `countryName` already uses for country
- *  codes, applied to a currency instead so this message never has to hardcode a name-per-currency
- *  table. Falls back to the raw code if the runtime cannot resolve one. */
-function currencyName(language: string, code?: string): string {
-  if (!code) return ""
-  try {
-    return new Intl.DisplayNames([language, "en"], { type: "currency" }).of(code) ?? code
-  } catch {
-    return code
-  }
 }
 
 interface UseDocumentActionRunnerOptions {

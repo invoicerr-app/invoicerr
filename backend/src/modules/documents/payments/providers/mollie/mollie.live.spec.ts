@@ -2,7 +2,8 @@
  * REAL round-trip against a Mollie TEST-mode API key. Gated the same way every other live spec is
  * (`MOLLIE_LIVE=1` + `MOLLIE_API_KEY` — `live-gate.ts`, reused verbatim):
  *
- *   MOLLIE_LIVE=1 MOLLIE_API_KEY=test_... npx jest mollie.live --no-coverage --runInBand
+ *   MOLLIE_LIVE=1 MOLLIE_API_KEY=test_... \
+ *     npx vitest run src/modules/documents/payments/providers/mollie/mollie.live.spec.ts
  *
  * WHAT A GREEN RUN OF THIS SPEC PROVES: that `RealMollieClient` (the ONE network-calling class in this
  * provider — see its own header) can authenticate with a genuine Mollie API key, that Mollie accepts

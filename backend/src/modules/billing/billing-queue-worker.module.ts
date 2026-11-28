@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
-import { ConfiguredRepeatable, retireSupersededRepeatables } from '@/lib/queue-repeatables';
+import { registerRepeatableSweeps } from '@/lib/queue-repeatables';
 
 import { BillingCoreModule } from './billing-core.module';
 import { BillingLifecycleProcessor } from './queue/billing-lifecycle.processor';
@@ -45,21 +45,12 @@ export class BillingQueueWorkerModule implements OnApplicationBootstrap {
   constructor(@InjectQueue(Q_BILLING_LIFECYCLE) private readonly queue: Queue) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const configured: ConfiguredRepeatable = {
-      name: BILLING_LIFECYCLE_SWEEP_JOB_NAME,
-      repeat: { every: readBillingLifecycleSweepIntervalMs() },
-    };
-    await this.queue.add(
-      configured.name,
-      {},
+    await registerRepeatableSweeps(this.queue, [
       {
+        name: BILLING_LIFECYCLE_SWEEP_JOB_NAME,
         jobId: BILLING_LIFECYCLE_SWEEP_JOB_ID,
-        repeat: configured.repeat,
-        attempts: 1,
-        removeOnComplete: true,
-        removeOnFail: true,
+        repeat: { every: readBillingLifecycleSweepIntervalMs() },
       },
-    );
-    await retireSupersededRepeatables(this.queue, [configured]);
+    ]);
   }
 }

@@ -2,7 +2,11 @@ import { vi } from 'vitest';
 
 import { Queue } from 'bullmq';
 
-import { ConfiguredRepeatable, retireSupersededRepeatables } from './queue-repeatables';
+import {
+  ConfiguredRepeatable,
+  registerRepeatableSweeps,
+  retireSupersededRepeatables,
+} from './queue-repeatables';
 
 /**
  * A fake queue that reproduces the ONE BullMQ behaviour this helper exists to compensate for: a
@@ -136,5 +140,35 @@ describe('retireSupersededRepeatables', () => {
 
     expect(retired).toEqual([]);
     expect(queue.removeJobScheduler).not.toHaveBeenCalled();
+  });
+});
+
+describe('registerRepeatableSweeps', () => {
+  it('adds every configured sweep BEFORE retiring, so a still-configured sweep is never left undefined', async () => {
+    const queue = fakeQueue();
+    await register(queue, 'backup-sweep-singleton', EVERY_MINUTE);
+    queue.add.mockClear();
+
+    const retired = await registerRepeatableSweeps(queue as unknown as Queue, [
+      { ...DAILY, jobId: 'backup-sweep-singleton' },
+    ]);
+
+    expect(queue.add).toHaveBeenCalledTimes(1);
+    expect(queue.add).toHaveBeenCalledWith(
+      'backup-sweep',
+      {},
+      {
+        jobId: 'backup-sweep-singleton',
+        repeat: { pattern: '0 3 * * *', tz: 'UTC' },
+        attempts: 1,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+    const addedAt = queue.add.mock.invocationCallOrder[0];
+    expect(addedAt).toBeLessThan(queue.getJobSchedulers.mock.invocationCallOrder[0]);
+    expect(addedAt).toBeLessThan(queue.removeJobScheduler.mock.invocationCallOrder[0]);
+    expect(retired).toEqual(['backup-sweep:UTC:* * * * *']);
+    expect(queue.registeredSchedules()).toEqual(['0 3 * * *']);
   });
 });

@@ -33,7 +33,7 @@ import { ClientsModule } from '../clients/clients.module';
 import { DocumentsCoreModule } from '../documents/documents-core.module';
 import { MailService } from '@/mail/mail.service';
 
-import { redisConnection } from '../documents/queue/redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 import { BillingExportService } from './export-zip.service';
 import { BillingLifecycleSweepRunner } from './billing-lifecycle-sweep-runner';
 import { SubscriptionInvoiceIssuer } from './subscription-invoice-issuer';

@@ -6,6 +6,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { readApiError } from "@/lib/api-error"
+
 import { authenticatedFetch } from "./use-fetch"
 
 export class ApiError extends Error {
@@ -41,12 +43,7 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     // Nest exceptions (NotFoundException, ConflictException, NotImplementedException, ...) reply
     // with a JSON body carrying a human-readable `message` — surfacing it is what turns "an action
     // is blocked" from a fact only the server log knows into something the caller can show.
-    const body = await res
-      .clone()
-      .json()
-      .catch(() => undefined)
-    const message =
-      typeof body?.message === "string" ? body.message : `${init?.method || "GET"} ${url} failed`
+    const { body, message } = await readApiError(res, init?.method || "GET", url)
     throw new ApiError(res.status, message, body)
   }
   if (res.status === 204) {

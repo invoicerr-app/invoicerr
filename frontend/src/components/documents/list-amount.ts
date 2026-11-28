@@ -3,7 +3,7 @@ import {
   computeDocumentOptionTotals,
   computeDocumentTotals,
 } from "@/components/documents/document-totals"
-import { toMinor } from "@/components/documents/totals-calculator"
+import { toMinor } from "@/lib/money"
 import { extractCurrency } from "@/components/documents/totals-shape"
 import type { DerivedDocumentTotals, DocumentTypeDescriptor } from "@/components/documents/types"
 

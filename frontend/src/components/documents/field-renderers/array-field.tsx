@@ -9,7 +9,7 @@ import {
   useDocumentFormReadOnly,
 } from "@/components/documents/document-form-readonly"
 import { formatTotal } from "@/components/documents/document-totals"
-import { toMinor } from "@/components/documents/totals-calculator"
+import { toMinor } from "@/lib/money"
 import type { DocumentFieldDescriptor } from "@/components/documents/types"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -152,7 +152,7 @@ function LineRowCard({
       const minor = Math.round(
         toMinor(unitPriceRaw, currency || "EUR") * quantity * (1 - discountPercent / 100),
       )
-      subtotal = formatTotal(minor, currency || "")
+      subtotal = formatTotal(minor, currency)
     }
   }
 
@@ -160,7 +160,7 @@ function LineRowCard({
   const unitPrice = moneyField ? row?.[moneyField.key] : undefined
   const summaryLine = [
     typeof quantity === "number" ? String(quantity) : null,
-    typeof unitPrice === "number" ? formatTotal(toMinor(unitPrice, currency || "EUR"), currency || "") : null,
+    typeof unitPrice === "number" ? formatTotal(toMinor(unitPrice, currency || "EUR"), currency) : null,
   ]
     .filter(Boolean)
     .join(" × ")

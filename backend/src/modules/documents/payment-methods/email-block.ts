@@ -1,4 +1,4 @@
-import { escapeHtmlNode } from '../rendering/render-html';
+import { escapeHtml } from '../rendering/render-html';
 import { pdfChromeStrings } from '../rendering/language/pdf-chrome-strings';
 import { RenderLanguage } from '../rendering/language/supported-languages';
 import { PaymentMethodPresentation } from './types';
@@ -46,15 +46,13 @@ export function appendPaymentMethodsToEmail(
   ].join('\n');
 
   const htmlBlock =
-    `<p><strong>${escapeHtmlNode(heading)}</strong></p>` +
+    `<p><strong>${escapeHtml(heading)}</strong></p>` +
     presentations
       .map((method) => {
         const lines = [
-          `<strong>${escapeHtmlNode(method.label)}</strong>`,
-          ...method.lines.map((line) => escapeHtmlNode(line)),
-          ...(method.link
-            ? [`<a href="${escapeHtmlNode(method.link)}">${escapeHtmlNode(method.link)}</a>`]
-            : []),
+          `<strong>${escapeHtml(method.label)}</strong>`,
+          ...method.lines.map((line) => escapeHtml(line)),
+          ...(method.link ? [`<a href="${escapeHtml(method.link)}">${escapeHtml(method.link)}</a>`] : []),
         ];
         return `<p>${lines.join('<br>')}</p>`;
       })

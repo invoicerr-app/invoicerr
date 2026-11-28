@@ -39,10 +39,10 @@ import { detectAndReseedCountryPolicyDrift } from './boot-reseed';
 import { sleep } from '@/lib/sleep';
 
 /** How many times a failed boot-reseed attempt retries, and how long it waits between attempts —
- *  see `onModuleInit`'s own header for why this exists at all. Exported so the spec can drive it
- *  without a real delay. */
+ *  see `onModuleInit`'s own header for why this exists at all. The attempt count is exported so the
+ *  spec can assert on it; the delay stays local. */
 export const BOOT_RESEED_MAX_ATTEMPTS = 3;
-export const BOOT_RESEED_RETRY_DELAY_MS = 250;
+const BOOT_RESEED_RETRY_DELAY_MS = 250;
 
 @Injectable()
 export class CountryPolicyBootReseedService implements OnModuleInit {

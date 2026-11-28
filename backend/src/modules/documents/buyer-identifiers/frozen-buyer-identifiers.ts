@@ -34,7 +34,7 @@ interface PartyIdentifierRow {
 
 type Db = Pick<Prisma.TransactionClient, 'client' | 'documentInstance'>;
 
-export function snapshotBuyerIdentifiers(rows: readonly PartyIdentifierRow[]): FrozenBuyerIdentifier[] {
+function snapshotBuyerIdentifiers(rows: readonly PartyIdentifierRow[]): FrozenBuyerIdentifier[] {
   return rows
     .map((row) => ({
       scheme: row.scheme,

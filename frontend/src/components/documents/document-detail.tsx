@@ -67,7 +67,7 @@ import {
   useDocumentOptionTotals,
   useDocumentTotals,
 } from "@/components/documents/document-totals"
-import { decimalsFor } from "@/components/documents/totals-calculator"
+import { decimalsFor } from "@/lib/money"
 import { DocumentFieldValue } from "@/components/documents/field-value"
 import { hasUnsavedChanges } from "@/components/documents/form-dirty"
 import { isEmptyFieldValue, resolveListFields } from "@/components/documents/list-fields"
@@ -576,7 +576,7 @@ function HeadlineAmount({
   if (!headline) return null
   return (
     <span className="amount text-lg text-foreground" data-cy="document-detail-amount">
-      <LtrValue>{formatTotal(headline.grossMinor, headline.currency || "")}</LtrValue>
+      <LtrValue>{formatTotal(headline.grossMinor, headline.currency)}</LtrValue>
     </span>
   )
 }

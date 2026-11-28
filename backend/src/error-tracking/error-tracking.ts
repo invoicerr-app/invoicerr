@@ -80,10 +80,6 @@ export function captureServerError(error: unknown, context: { route?: string } =
   });
 }
 
-export function isErrorTrackingEnabled(): boolean {
-  return sentry !== null;
-}
-
 /**
  * A failed boot exits right after logging, so the event has to be flushed first or it is lost with the
  * process. Bounded so an unreachable tracker never holds the exit.

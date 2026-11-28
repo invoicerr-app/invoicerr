@@ -3,7 +3,7 @@
  * credentials needed (the checkVatService SOAP/REST endpoint is public) — gated purely on the flag,
  * same `liveDescribe` mechanism every other `*.live.spec.ts` in this module already uses. Run with:
  *
- *   VIES_LIVE=1 npx jest src/modules/documents/tax/vat-validation.live.spec.ts
+ *   VIES_LIVE=1 npx vitest run src/modules/documents/tax/vat-validation.live.spec.ts
  *
  * Uses well-known, real, checksum-valid EU VAT numbers (the European Commission's own published
  * example numbers, also used by `company-lookup.live.spec.ts`) — never a fabricated one, so a VALID

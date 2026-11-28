@@ -27,7 +27,7 @@ import {
   DocumentEventMessage,
   companyIdFromChannel,
 } from './document-events';
-import { createIoredisClient } from './redis.config';
+import { createLibRedisClient } from '@/lib/redis-connection';
 
 @Injectable()
 export class DocumentEventsBridge implements OnModuleInit, OnModuleDestroy {
@@ -42,7 +42,7 @@ export class DocumentEventsBridge implements OnModuleInit, OnModuleDestroy {
   private readonly emitter = new EventEmitter();
 
   async onModuleInit(): Promise<void> {
-    this.subscriber = createIoredisClient();
+    this.subscriber = createLibRedisClient();
     // Attached BEFORE `psubscribe` resolves — no message can arrive before this handler exists to
     // receive it.
     this.subscriber.on('pmessage', (_pattern: string, channel: string, raw: string) => {

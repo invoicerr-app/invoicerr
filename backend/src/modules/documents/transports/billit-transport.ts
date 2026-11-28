@@ -79,7 +79,7 @@ import {
 
 /** Issue #526 - exactly the three fields `extractBillitCredentials` below reads, replacing the
  *  frontend's own hard-coded `billit` entry in `PROVIDER_FIELDS` (`channels.settings.tsx`). */
-export const BILLIT_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const BILLIT_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'baseUrl',
     kind: 'text',

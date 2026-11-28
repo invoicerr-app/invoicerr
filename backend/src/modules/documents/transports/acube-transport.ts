@@ -118,7 +118,7 @@ import {
 /** Issue #526 - exactly the two fields `extractAcubeCredentials` below reads. No frontend entry
  * existed for this provider before this catalogue - `channels.settings.tsx`'s own `PROVIDER_FIELDS`
  *  never had an "acube" key. */
-export const ACUBE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const ACUBE_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'email',
     kind: 'text',

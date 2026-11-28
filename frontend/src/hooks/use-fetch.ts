@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 
+import { readApiError } from "@/lib/api-error"
+
 type UseGetResult<T> = {
   data: T | null
   loading: boolean
@@ -49,7 +51,7 @@ export async function authenticatedFetch(input: RequestInfo, init: RequestInit =
   return res
 }
 
-export function useGet<T = any>(url: string | null, options?: RequestInit): UseGetResult<T> {
+export function useGet<T = any>(url: string | null): UseGetResult<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -64,10 +66,7 @@ export function useGet<T = any>(url: string | null, options?: RequestInit): UseG
       return
     }
 
-    authenticatedFetch(url, {
-      ...options,
-      method: "GET",
-    })
+    authenticatedFetch(url, { method: "GET" })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error(`GET ${url} failed with status ${res.status}`)
@@ -113,7 +112,7 @@ export interface useSseResult<T = any> {
 const SSE_RECONNECT_BASE_MS = 1_000
 const SSE_RECONNECT_MAX_MS = 30_000
 
-export function useSse<T = any>(url: string, options?: EventSourceInit): useSseResult<T> {
+export function useSse<T = any>(url: string): useSseResult<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -146,10 +145,7 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
         ? `${fullUrl}${fullUrl.includes("?") ? "&" : "?"}lastEventId=${encodeURIComponent(lastEventId)}`
         : fullUrl
 
-      const es = new EventSource(connectUrl, {
-        ...options,
-        withCredentials: true,
-      })
+      const es = new EventSource(connectUrl, { withCredentials: true })
 
       eventSourceRef.current = es
       setLoading(true)
@@ -219,8 +215,6 @@ export function useSse<T = any>(url: string, options?: EventSourceInit): useSseR
   return { data, loading, error, close }
 }
 
-type UseRequestOptions = RequestInit & { body?: any }
-
 /** An `Error` enriched with the failed response's own `code`/`status`, when it had a JSON body — see
  *  `createMethodHook`'s own `!res.ok` branch below. */
 export interface ApiHookError extends Error {
@@ -229,7 +223,7 @@ export interface ApiHookError extends Error {
 }
 
 type UsePostResult<T> = {
-  trigger: (body?: any, extraOptions?: RequestInit) => Promise<T | null>
+  trigger: (body?: any) => Promise<T | null>
   data: T | null
   loading: boolean
   error: Error | null
@@ -258,53 +252,31 @@ function isPreSerializedBody(value: unknown): value is BodyInit {
 }
 
 function createMethodHook(method: string) {
-  return function useRequest<T = any>(url: string, options: UseRequestOptions = {}): UsePostResult<T> {
+  return function useRequest<T = any>(url: string): UsePostResult<T> {
     const [data, setData] = useState<T | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<Error | null>(null)
     const lastError = useRef<ApiHookError | null>(null)
 
-    const trigger = async (body?: any, extraOptions: RequestInit = {}): Promise<T | null> => {
+    const trigger = async (body?: any): Promise<T | null> => {
       setLoading(true)
       setError(null)
       lastError.current = null
 
       try {
-        const rawBody = body !== undefined ? body : options.body
         // Objects are serialized to JSON; a body already in a wire-ready shape (FormData, string,
         // Blob…) is passed through as-is instead.
         const serializedBody =
-          rawBody === undefined ? undefined : isPreSerializedBody(rawBody) ? rawBody : JSON.stringify(rawBody)
+          body === undefined ? undefined : isPreSerializedBody(body) ? body : JSON.stringify(body)
 
-        // `headers`/`body` are spread AFTER `...options`/`...extraOptions`, not before: an object
-        // literal keeps the LAST occurrence of a key, so a caller's own raw `options.headers` (a plain
-        // object, never merged with `extraOptions.headers`) or `options.body` (unserialized) would
-        // otherwise silently win over the merge/serialization computed above and above them — dormant
-        // until the first caller actually passed either, then a duplicate-key footgun with no error at
-        // all: the LATER `...options`/`...extraOptions` spread simply overwrote the correct headers
-        // and body with the raw, unmerged ones.
-        const res = await authenticatedFetch(url, {
-          ...options,
-          ...extraOptions,
-          method,
-          headers: {
-            ...(options.headers || {}),
-            ...(extraOptions.headers || {}),
-          },
-          body: serializedBody,
-        })
+        const res = await authenticatedFetch(url, { method, body: serializedBody })
 
         if (!res.ok) {
           // Nest exceptions (ForbiddenException, ConflictException, ...) reply with a JSON body
           // carrying `{ message, code? }` — parsed here, best-effort, so a caller can show the
           // SERVER's own specific message (e.g. `billing/write-gate.ts`'s `COMPANY_BLOCKED`) instead
           // of the generic fallback below. Mirrors `use-api-query.ts#apiFetch`'s own `ApiError`.
-          const responseBody = await res
-            .clone()
-            .json()
-            .catch(() => undefined)
-          const message =
-            typeof responseBody?.message === "string" ? responseBody.message : `${method} ${url} failed`
+          const { body: responseBody, message } = await readApiError(res, method, url)
           const err: ApiHookError = new Error(message)
           if (typeof responseBody?.code === "string") err.code = responseBody.code
           err.status = res.status

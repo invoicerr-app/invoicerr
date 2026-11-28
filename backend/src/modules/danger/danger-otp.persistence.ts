@@ -29,7 +29,7 @@ const DANGER_OTP_WINDOW_MS = DANGER_OTP_WINDOW_MINUTES * 60 * 1000;
  * row ever unlocking. This challenge guards the opposite — the only route that DELETES the company
  * (`danger.controller.ts#deleteCompany`, the one carrying `@LegalGateExempt()` precisely so an OWNER
  * can always end the relationship), plus the company-data reset and the ownership transfer that reuses
- * this same challenge (`company/transfer/danger-otp-check.ts`). A lock with no door on THAT route does
+ * this same challenge (`danger/danger-otp-check.ts`). A lock with no door on THAT route does
  * not merely deny an action: it denies the exit, and nobody else can open it — the locked-out party IS
  * the OWNER, and `guards/instance-operator.guard.ts` answers to `INSTANCE_OPERATOR_EMAILS`, which is
  * unset on every self-hosted instance by default and on the hosted offering names the provider, i.e.
@@ -90,12 +90,12 @@ export type MintDangerOtpResult =
  * signature link is (see this file's own header).
  *
  * Once the window HAS elapsed, re-arming clears `lockedAt` in the SAME write that stores the fresh
- * code — it has to be the same write, and it has to clear the stamp: `verifyAndConsumeOtp` (and
- * `company/transfer/danger-otp-check.ts`) both treat any non-null `lockedAt` as "this code is dead",
- * so a fresh code left sitting on a still-stamped row could never verify and the door would only
- * appear to open. The counter goes back to zero with it, which is the point of a cooldown: the next
- * lockout costs the attacker another full `DANGER_OTP_LOCKOUT_HOURS`, and costs a legitimate OWNER who
- * mistyped nothing but the wait.
+ * code - it has to be the same write, and it has to clear the stamp: `lib/otp.ts#verifyAndConsumeOtp`
+ * (behind both `danger.service.ts` and `danger/danger-otp-check.ts`) treats any non-null `lockedAt` as
+ * "this code is dead", so a fresh code left sitting on a still-stamped row could never verify and
+ * the door would only appear to open. The counter goes back to zero with it, which is the point of a
+ * cooldown: the next lockout costs the attacker another full `DANGER_OTP_LOCKOUT_HOURS`, and costs a
+ * legitimate OWNER who mistyped nothing but the wait.
  *
  * Not fully atomic against a concurrent `recordDangerOtpFailedAttempt` reaching the lock threshold at
  * the exact same instant (a plain read-then-write, not a guarded `updateMany` — unlike every OTHER

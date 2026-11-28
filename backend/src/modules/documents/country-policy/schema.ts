@@ -223,7 +223,7 @@ export interface DocumentValidationCodeFact {
   notes?: string;
 }
 
-export const REVENUE_BASES = ['invoiced', 'cashed'] as const;
+const REVENUE_BASES = ['invoiced', 'cashed'] as const;
 
 export interface RevenueBasisDefaultFact {
   basis: (typeof REVENUE_BASES)[number];
@@ -385,7 +385,7 @@ export function assertValidNumberingProvenance(fact: DocumentNumberingFact, cont
   );
 }
 
-export class InvalidDomesticInvoiceCurrencyError extends Error {}
+class InvalidDomesticInvoiceCurrencyError extends Error {}
 
 /**
  * The `domesticInvoiceCurrency` (issue #558) analogue of `assertValidProvenance` above - same
@@ -410,7 +410,7 @@ export function assertValidDomesticInvoiceCurrencyFact(
   );
 }
 
-export class InvalidInvoiceValidationFactError extends Error {}
+class InvalidInvoiceValidationFactError extends Error {}
 
 /**
  * The `invoiceValidation` (issue #581, owner's decision 2026-10-01) analogue of

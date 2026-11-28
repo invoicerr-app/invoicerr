@@ -6,7 +6,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
-import { redisConnection } from '../documents/queue/redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 import { Q_WEBHOOK_DELIVERY, WEBHOOK_BULL_CONFIG_KEY } from './queue/webhook-queue.constants';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';

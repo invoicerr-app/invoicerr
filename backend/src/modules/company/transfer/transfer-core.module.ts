@@ -14,7 +14,7 @@ import { Module } from '@nestjs/common';
 
 import { MailService } from '@/mail/mail.service';
 
-import { redisConnection } from '../../documents/queue/redis.config';
+import { redisConnection } from '@/lib/redis-connection';
 import { TransferExpirySweepRunner } from './transfer-expiry-sweep-runner';
 import { Q_COMPANY_TRANSFER, TRANSFER_BULL_CONFIG_KEY } from './queue/transfer-queue.constants';
 

@@ -8,7 +8,7 @@
  *
  *   PT_AT_LIVE=1 PT_AT_USERNAME=... PT_AT_PASSWORD=... PT_AT_PUBLIC_KEY_PEM=... \
  *     PT_AT_CLIENT_CERTIFICATE_BASE64=... PT_AT_CLIENT_CERTIFICATE_PASSWORD=... \
- *     npx jest pt-declaration-provider.live --no-coverage
+ *     npx vitest run src/modules/documents/reporting/providers/pt-declaration-provider.live.spec.ts
  *
  * HONEST STATUS: **skipped, always** — this checkout holds no real AT
  * "subutilizador" credential, no real AT Sistema de Autenticação public key, and no AT-signed mTLS

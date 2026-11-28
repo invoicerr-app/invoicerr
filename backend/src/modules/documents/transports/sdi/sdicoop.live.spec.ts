@@ -14,7 +14,7 @@
  *   SDI_LIVE=1 SDI_ID_TRASMITTENTE=IT01234567890 \
  *     SDI_ENDPOINT=https://<collaudo-endpoint-assigned-at-accreditation>/ricevi_file \
  *     SDI_CERTIFICATE=<base64-pfx> SDI_CERT_PASSWORD=<password> \
- *     npx jest sdicoop.live --no-coverage
+ *     npx vitest run src/modules/documents/transports/sdi/sdicoop.live.spec.ts
  *
  * Skips cleanly (silently unless the flag is set, then one stderr line) whenever the flag or any
  * credential is absent — which is EVERY run today. No sandbox or fake SOAP endpoint is fabricated to

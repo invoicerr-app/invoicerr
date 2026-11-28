@@ -1,4 +1,4 @@
-import { describeRedisTarget } from './redis.config';
+import { describeRedisTarget } from './redis-connection';
 
 /**
  * `describeRedisTarget()` is the one string this process writes about its Redis connection, and it

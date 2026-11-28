@@ -184,7 +184,7 @@ function SignatureOptionChooser({
         {chosen
           ? t("documents.publicSignature.chosenOptionLabel", {
               name: chosen.name,
-              amount: formatTotal(chosen.grossMinor, chosen.currency || ""),
+              amount: formatTotal(chosen.grossMinor, chosen.currency),
             })
           : t("documents.publicSignature.chooseOptionLabel")}
       </p>
@@ -206,7 +206,7 @@ function SignatureOptionChooser({
             />
             <span className="min-w-0 flex-1 truncate">{option.name}</span>
             <span className="amount shrink-0 font-medium" data-cy="signature-option-total">
-              {formatTotal(option.grossMinor, option.currency || "")}
+              {formatTotal(option.grossMinor, option.currency)}
             </span>
           </label>
         ))}

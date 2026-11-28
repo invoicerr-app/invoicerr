@@ -75,13 +75,13 @@ export function readArchiveRetryBatchSize(): number {
 }
 
 /** First retry one minute after the failure, doubling each time. */
-export function readArchiveRetryBaseDelayMs(): number {
+function readArchiveRetryBaseDelayMs(): number {
   return readIntEnv('ARCHIVE_RETRY_BASE_DELAY_MS', 60 * 1000);
 }
 
 /** The ceiling the doubling stops at — an hour. Past escalation this is the steady cadence a row
  *  keeps for as long as the store stays broken. */
-export function readArchiveRetryMaxDelayMs(): number {
+function readArchiveRetryMaxDelayMs(): number {
   return readIntEnv('ARCHIVE_RETRY_MAX_DELAY_MS', 60 * 60 * 1000);
 }
 

@@ -416,7 +416,7 @@ export interface SemanticInvoiceInput {
  * more specific than a bare email placeholder, satisfying `@e-invoice-eu/core`'s own mandatory field
  * without asserting a Peppol registration that was never verified.
  */
-export function peppolEasForVat(vat: string | null | undefined): string | undefined {
+function peppolEasForVat(vat: string | null | undefined): string | undefined {
   if (!vat) return undefined;
   const prefix = vat.trim().slice(0, 2).toUpperCase();
   return defaultTaxUnionRegistry.peppolEasForPrefix(prefix);

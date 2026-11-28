@@ -53,7 +53,7 @@ export class VatCurrencyCatalog {
   }
 }
 
-export const defaultVatCurrencyCatalog = new VatCurrencyCatalog();
+const defaultVatCurrencyCatalog = new VatCurrencyCatalog();
 
 /** Convenience wrapper over the default catalog, the one nearly every caller actually wants (the
  *  same "module-level singleton + thin function" convention `vat-rates/registry.ts#findVatRateById`

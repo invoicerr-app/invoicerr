@@ -17,7 +17,7 @@ import { PayPalClient, PayPalCredentials, PayPalEnvironment } from './paypal-cli
  *  needs to know sandbox vs live BEFORE making a call (two different hostnames, not just a key prefix).
  *  The settings screen sets this field alongside the shared TEST/PROD selector — see
  *  `payments.settings.tsx`'s own header. */
-export function extractPayPalCredentials(config: Record<string, unknown>): PayPalCredentials | null {
+function extractPayPalCredentials(config: Record<string, unknown>): PayPalCredentials | null {
   const { clientId, clientSecret, webhookId, environment } = config;
   if (typeof clientId !== 'string' || !clientId) return null;
   if (typeof clientSecret !== 'string' || !clientSecret) return null;

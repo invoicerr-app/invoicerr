@@ -81,7 +81,7 @@ import {
  *  SAME stored config blob by `pec-notifiche.service.ts` once SdI's own first reply names it, never
  *  typed by a human, so a connect form must read it back (to show it) but never render an editable
  *  input for it. */
-export const SDI_PEC_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const SDI_PEC_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'pecAddress',
     kind: 'text',

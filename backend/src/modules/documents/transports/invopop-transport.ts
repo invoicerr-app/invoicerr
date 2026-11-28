@@ -73,7 +73,7 @@ import {
  * never had an "invopop" key. `baseUrl` is the one OPTIONAL field here - see
  *  `InvopopCredentials.baseUrl`'s own header: every workspace is served from the same host, the API
  *  key alone decides which one. */
-export const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
+const INVOPOP_CREDENTIAL_FIELDS: CredentialFieldDescriptor[] = [
   {
     key: 'baseUrl',
     kind: 'text',

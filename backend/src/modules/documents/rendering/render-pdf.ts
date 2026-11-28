@@ -5,7 +5,7 @@ import { Browser, chromium, Page } from 'playwright-core';
 import { logger } from '@/logger/logger.service';
 import { readIntEnv } from '@/utils/read-int-env';
 
-import { escapeHtmlNode } from './render-html';
+import { escapeHtml } from './render-html';
 
 /**
  * HTML->PDF rendering, on `playwright-core` (NOT the full `playwright` package — that one downloads
@@ -433,7 +433,7 @@ export async function renderPdf(html: string, options: RenderPdfOptions = {}): P
             headerTemplate: '<span></span>',
             footerTemplate:
               `<div style="width:100%; font-size:8px; text-align:center; color:#333; ` +
-              `padding:0 1cm;">${escapeHtmlNode(footerText)}</div>`,
+              `padding:0 1cm;">${escapeHtml(footerText)}</div>`,
           }
         : {}),
     });

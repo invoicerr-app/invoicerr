@@ -8,8 +8,6 @@ import {
 } from '@nestjs/common';
 
 import { CompanyRole } from '../../../prisma/generated/prisma/client';
-import { CompanyService } from '@/modules/company/company.service';
-import { EditCompanyDto } from '@/modules/company/dto/company.dto';
 import {
   BillingExportService,
   ExportZipTimedOutError,
@@ -52,14 +50,9 @@ export const LAST_OWNER_CANNOT_LEAVE_CODE = 'LAST_OWNER_CANNOT_LEAVE';
 @Injectable()
 export class CompaniesService {
   constructor(
-    private readonly companyService: CompanyService,
     private readonly exportService: BillingExportService,
     private readonly mailService: MailService,
   ) {}
-
-  async createCompany(userId: string, dto: EditCompanyDto) {
-    return this.companyService.createCompany(userId, dto);
-  }
 
   async switchActiveCompany(userId: string, sessionId: string, companyId: string) {
     const membership = await prisma.userCompany.findUnique({

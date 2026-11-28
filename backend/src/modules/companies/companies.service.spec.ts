@@ -56,7 +56,7 @@ async function cleanup(companyId: string, userIds: string[]) {
 }
 
 describe('CompaniesService#leaveCompany', () => {
-  const service = new CompaniesService({} as never, {} as never, {} as never);
+  const service = new CompaniesService({} as never, {} as never);
 
   it("removes a MEMBER's own membership — no owner check applies to a non-owner", async () => {
     const owner = await createUser();
@@ -153,7 +153,7 @@ describe('CompaniesService#exportCompanyData', () => {
     const company = await createCompany();
     const zip = Buffer.alloc(SELF_SERVICE_EXPORT_STREAM_THRESHOLD_BYTES, 1);
     const exportService = fakeExportService(zip);
-    const service = new CompaniesService({} as never, exportService, fakeMailService());
+    const service = new CompaniesService(exportService, fakeMailService());
 
     try {
       const result = await service.exportCompanyData(company.id, 'owner@example.com');
@@ -171,11 +171,7 @@ describe('CompaniesService#exportCompanyData', () => {
     const company = await createCompany();
     const zip = Buffer.alloc(SELF_SERVICE_EXPORT_STREAM_THRESHOLD_BYTES + 1, 1);
     const sendForCompany = vi.fn().mockResolvedValue({ message: 'ok' });
-    const service = new CompaniesService(
-      {} as never,
-      fakeExportService(zip),
-      fakeMailService(sendForCompany),
-    );
+    const service = new CompaniesService(fakeExportService(zip), fakeMailService(sendForCompany));
 
     try {
       const result = await service.exportCompanyData(company.id, 'owner@example.com');
@@ -195,7 +191,7 @@ describe('CompaniesService#exportCompanyData', () => {
   it('refuses a second export of the SAME company inside the cooldown window, with a named 429', async () => {
     const company = await createCompany();
     const zip = Buffer.alloc(1);
-    const service = new CompaniesService({} as never, fakeExportService(zip), fakeMailService());
+    const service = new CompaniesService(fakeExportService(zip), fakeMailService());
 
     try {
       await expect(service.exportCompanyData(company.id, 'owner@example.com')).resolves.toMatchObject({
@@ -227,7 +223,7 @@ describe('CompaniesService#exportCompanyData', () => {
     // exercise that guarantee against a real database, not just against Jest's own event loop
     // ordering.
     const company = await createCompany();
-    const service = new CompaniesService({} as never, fakeExportService(Buffer.alloc(1)), fakeMailService());
+    const service = new CompaniesService(fakeExportService(Buffer.alloc(1)), fakeMailService());
 
     try {
       const results = await Promise.allSettled([
@@ -252,7 +248,7 @@ describe('CompaniesService#exportCompanyData', () => {
     const company = await createCompany();
     await prisma.company.update({ where: { id: company.id }, data: { lastSelfServiceExportAt: new Date() } });
     const exportService = fakeExportService(Buffer.alloc(1));
-    const service = new CompaniesService({} as never, exportService, fakeMailService());
+    const service = new CompaniesService(exportService, fakeMailService());
 
     try {
       await expect(service.exportCompanyData(company.id, 'owner@example.com')).rejects.toBeInstanceOf(
@@ -268,7 +264,7 @@ describe('CompaniesService#exportCompanyData', () => {
     const company = await createCompany();
     const longAgo = new Date(Date.now() - (SELF_SERVICE_EXPORT_COOLDOWN_MINUTES + 1) * 60_000);
     await prisma.company.update({ where: { id: company.id }, data: { lastSelfServiceExportAt: longAgo } });
-    const service = new CompaniesService({} as never, fakeExportService(Buffer.alloc(1)), fakeMailService());
+    const service = new CompaniesService(fakeExportService(Buffer.alloc(1)), fakeMailService());
 
     try {
       await expect(service.exportCompanyData(company.id, 'owner@example.com')).resolves.toMatchObject({
@@ -282,7 +278,7 @@ describe('CompaniesService#exportCompanyData', () => {
   it("never touches a DIFFERENT company's own cooldown", async () => {
     const companyA = await createCompany();
     const companyB = await createCompany();
-    const service = new CompaniesService({} as never, fakeExportService(Buffer.alloc(1)), fakeMailService());
+    const service = new CompaniesService(fakeExportService(Buffer.alloc(1)), fakeMailService());
 
     try {
       await expect(service.exportCompanyData(companyA.id, 'owner@example.com')).resolves.toMatchObject({

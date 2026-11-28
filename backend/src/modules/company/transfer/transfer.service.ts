@@ -30,7 +30,7 @@ import { sessionCache } from '@/lib/session-cache';
 import { CurrentUser } from '@/types/user';
 
 import { CompanyOwnershipTransfer, CompanyRole, Prisma } from '../../../../prisma/generated/prisma/client';
-import { verifyAndConsumeDangerOtp } from './danger-otp-check';
+import { verifyAndConsumeDangerOtp } from '@/modules/danger/danger-otp-check';
 import { expireOwnershipTransfer } from './expire-transfer';
 import { loadMailTargets, notifyTransferEnded, sendTransferMail } from './notify-transfer-ended';
 import { appOrigin } from '@/utils/app-origin';

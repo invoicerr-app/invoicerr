@@ -34,7 +34,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 
-import { createIoredisClient } from './redis.config';
+import { createLibRedisClient } from '@/lib/redis-connection';
 import { DocumentEventMessage, DocumentEventPublisher, documentEventsChannel } from './document-events';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class DocumentEventsPublisher implements DocumentEventPublisher, OnModule
 
   private getClient(): Redis {
     if (!this.client) {
-      this.client = createIoredisClient();
+      this.client = createLibRedisClient();
     }
     return this.client;
   }

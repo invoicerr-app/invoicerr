@@ -162,7 +162,7 @@ const SOAP_ENVELOPE_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
 const WSSE_NS = 'http://schemas.xmlsoap.org/ws/2002/12/secext';
 /** The request/response body namespace, read verbatim off the worked SOAP example's own
  *  `xmlns:doc="..."` declaration (Aspetos Específicos §2.1.1.3). */
-export const PT_AT_DOC_NS = 'http://factemi.at.min_financas.pt/documents';
+const PT_AT_DOC_NS = 'http://factemi.at.min_financas.pt/documents';
 
 export interface PtAtCredentials {
   /** WS-Security H.1 — `"<NIF do emitente>/<UserId>"`, e.g. "555555555/1234". Sent IN THE CLEAR (see
@@ -273,14 +273,14 @@ export function resolvePtAtBaseUrl(environment: 'TEST' | 'PROD', override?: stri
 
 // ---------------------------------------------------------------------------
 // WS-Security header construction — see this file's own header for the full, field-by-field
-// VERIFIED/⚠ UNVERIFIED breakdown. Every function below is pure and independently exported so
-// `pt-at-client.spec.ts` can assert on each step in isolation.
+// VERIFIED/⚠ UNVERIFIED breakdown. Every step below but the random key is pure and independently
+// exported so `pt-at-client.spec.ts` can assert on each step in isolation.
 // ---------------------------------------------------------------------------
 
-/** H.3's own `Ks` — a fresh, random 128-bit AES key. Exported (rather than only used internally) so a
- *  test can pin it and assert the REST of the header deterministically — see this file's own header,
- *  "a green mocked spec proves structure, not that AT accepts it". */
-export function generatePtAtSymmetricKey(): Buffer {
+/** H.3's own `Ks` - a fresh, random 128-bit AES key. Only ever a parameter DEFAULT (`symmetricKey`
+ *  below), so a test can pin it and assert the REST of the header deterministically - see this file's
+ *  own header, "a green mocked spec proves structure, not that AT accepts it". */
+function generatePtAtSymmetricKey(): Buffer {
   return randomBytes(16);
 }
 

@@ -5,7 +5,7 @@
  *
  *   DOCUMENTS_MAIL_LIVE=1 SMTP_HOST=localhost SMTP_PORT=1025 \
  *     DATABASE_URL="postgresql://invoicerr:invoicerr@localhost:5433/invoicerr_db" \
- *     npx jest send-quote.live --no-coverage
+ *     npx vitest run src/modules/documents/actions/send-quote.live.spec.ts
  *
  * Skipped by default: the offline `backend-tests` CI job provisions no SMTP server on :1025, so this
  * would otherwise hang or fail there. This is exactly the case a MOCKED test cannot prove — see
@@ -42,10 +42,10 @@ import prisma from '@/prisma/prisma.service';
 import { buildQuoteDescriptor } from '../descriptors/quote.descriptor';
 import { DocumentTypeRegistry } from '../descriptors/type-registry';
 import { EntityReferenceRegistry } from '../references/reference-registry';
+import { liveDescribe } from '../transports/live-gate';
 import { sendDocumentInstanceEmail } from './send-document-email';
 
-const live = process.env.DOCUMENTS_MAIL_LIVE === '1';
-const describeLive = live ? describe : describe.skip;
+const describeLive = liveDescribe('DOCUMENTS_MAIL_LIVE');
 
 const MAILPIT_API = 'http://localhost:8025/api/v1';
 
